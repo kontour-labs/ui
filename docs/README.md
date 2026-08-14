@@ -76,7 +76,7 @@ See the *Status* table below for what is built today.
 | 9 | Overlays | done, with `Select`, `Combobox`, `MultiSelect` and the text toolbar |
 | 10 | Sheets | done |
 | 11 | Navigation | done |
-| 12 | Adaptive layout and motion | `WindowSizeClass` built (navigation needed it); panes and motion remain |
+| 12 | Adaptive layout and motion | done |
 | 13 | Catalog, screenshot goldens, CI | not started |
 
 ## Using it

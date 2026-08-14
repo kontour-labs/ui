@@ -196,6 +196,23 @@ class ThemeShowcaseScreenshotTest {
     }
 
     @Test
+    fun rendersAdaptiveLayouts() {
+        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+            val file = Screenshot.render(
+                name = name.replace("theme-", "adaptive-"),
+                width = 4520,
+                height = 2100,
+                frames = 30,
+            ) {
+                KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = false) {
+                    AdaptiveShowcase()
+                }
+            }
+            assertTrue(file.length() > 0, "$name adaptive rendered an empty file")
+        }
+    }
+
+    @Test
     fun rendersDisplayComponents() {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(
