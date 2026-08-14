@@ -9,11 +9,11 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.composables.icons.fontawesome.FontAwesome
-import com.composables.icons.fontawesome.solid.Eye
-import com.composables.icons.fontawesome.solid.MapMarker
-import com.composables.icons.fontawesome.solid.Search
-import com.composables.icons.fontawesome.solid.Times
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Eye
+import com.composables.icons.tabler.outline.MapPin
+import com.composables.icons.tabler.outline.Search
+import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.text.EmailField
 import io.kontour.ui.components.text.NumberField
 import io.kontour.ui.components.text.PasswordField
@@ -42,7 +42,7 @@ fun TextShowcase(modifier: Modifier = Modifier) {
                         state = rememberTextFieldState("Perth Station"),
                         label = "Destination",
                         placeholder = "Station, stop or address",
-                        leadingIcon = FontAwesome.Solid.MapMarker,
+                        leadingIcon = Tabler.Outline.MapPin,
                     )
                     TextField(
                         state = rememberTextFieldState(),
@@ -79,14 +79,14 @@ fun TextShowcase(modifier: Modifier = Modifier) {
                 Section("Search") {
                     SearchField(
                         state = rememberTextFieldState("Elizabeth Quay"),
-                        searchIcon = FontAwesome.Solid.Search,
-                        clearIcon = FontAwesome.Solid.Times,
+                        searchIcon = Tabler.Outline.Search,
+                        clearIcon = Tabler.Outline.X,
                         placeholder = "Search stops and routes",
                     )
                     SearchField(
                         state = rememberTextFieldState(),
-                        searchIcon = FontAwesome.Solid.Search,
-                        clearIcon = FontAwesome.Solid.Times,
+                        searchIcon = Tabler.Outline.Search,
+                        clearIcon = Tabler.Outline.X,
                         placeholder = "Search stops and routes",
                     )
                 }
@@ -95,8 +95,8 @@ fun TextShowcase(modifier: Modifier = Modifier) {
                     PasswordField(
                         state = rememberTextFieldState("hunter2"),
                         label = "Password",
-                        revealIcon = FontAwesome.Solid.Eye,
-                        hideIcon = FontAwesome.Solid.Eye,
+                        revealIcon = Tabler.Outline.Eye,
+                        hideIcon = Tabler.Outline.Eye,
                     )
                     EmailField(
                         state = rememberTextFieldState("aaron@kontour.io"),

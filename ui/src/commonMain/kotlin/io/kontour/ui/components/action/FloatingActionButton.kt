@@ -95,14 +95,12 @@ fun FloatingActionButton(
         color = containerColor,
         contentColor = contentColor,
         shadow = Theme.elevation.medium,
+        // `defaultMinSize` makes the surface larger than the icon inside it, so
+        // without this the icon lands in the FAB's top-left corner rather than
+        // its middle.
+        contentAlignment = Alignment.Center,
     ) {
-        Row(
-            Modifier.height(size.container),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(icon, contentDescription = contentDescription, size = size.icon)
-        }
+        Icon(icon, contentDescription = contentDescription, size = size.icon)
     }
 }
 

@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
@@ -43,6 +44,11 @@ import io.kontour.ui.theme.Theme
  *   content colours reads better on [color] — so a surface painted an arbitrary
  *   colour (a route colour out of a transit feed, say) still gets legible
  *   content without the caller working it out.
+ * @param contentAlignment Where the content sits when the surface is larger
+ *   than it — because a `defaultMinSize` or a fixed height made it so. The
+ *   default `TopStart` matches `Box`, but anything with a minimum size almost
+ *   certainly wants `Center`; leaving it at the default is what puts an icon in
+ *   the corner of a FAB.
  * @param shadow A [Shadow] from `Theme.elevation`, not a raw dp. Pick the level
  *   that matches where the element sits in the overlay stack.
  */
@@ -54,6 +60,7 @@ fun Surface(
     contentColor: Color = defaultContentColorFor(color),
     border: BorderStroke? = null,
     shadow: Shadow = Shadow.None,
+    contentAlignment: Alignment = Alignment.TopStart,
     propagateMinConstraints: Boolean = false,
     content: @Composable () -> Unit,
 ) {
@@ -64,6 +71,7 @@ fun Surface(
                 .clip(shape)
                 .background(color = color, shape = shape)
                 .then(if (border != null) Modifier.border(border, shape) else Modifier),
+            contentAlignment = contentAlignment,
             propagateMinConstraints = propagateMinConstraints,
             content = { content() },
         )

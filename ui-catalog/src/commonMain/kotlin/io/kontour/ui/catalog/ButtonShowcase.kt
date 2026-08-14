@@ -8,12 +8,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.composables.icons.fontawesome.FontAwesome
-import com.composables.icons.fontawesome.solid.ChevronRight
-import com.composables.icons.fontawesome.solid.LocationArrow
-import com.composables.icons.fontawesome.solid.Plus
-import com.composables.icons.fontawesome.solid.Star
-import com.composables.icons.fontawesome.solid.Times
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.ChevronRight
+import com.composables.icons.tabler.outline.Navigation
+import com.composables.icons.tabler.outline.Plus
+import com.composables.icons.tabler.outline.Star
+import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
@@ -83,13 +83,13 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(FontAwesome.Solid.Times, "Close", {})
-                    IconButton(FontAwesome.Solid.Times, "Close", {}, variant = ButtonVariant.Tertiary)
-                    IconButton(FontAwesome.Solid.Times, "Close", {}, variant = ButtonVariant.Secondary)
-                    IconButton(FontAwesome.Solid.Times, "Close", {}, enabled = false)
-                    IconButton(FontAwesome.Solid.ChevronRight, "Expand", {}, rotation = 90f)
-                    IconToggleButton(FontAwesome.Solid.Star, "Favourite", checked = true, {})
-                    IconToggleButton(FontAwesome.Solid.Star, "Favourite", checked = false, {})
+                    IconButton(Tabler.Outline.X, "Close", {})
+                    IconButton(Tabler.Outline.X, "Close", {}, variant = ButtonVariant.Tertiary)
+                    IconButton(Tabler.Outline.X, "Close", {}, variant = ButtonVariant.Secondary)
+                    IconButton(Tabler.Outline.X, "Close", {}, enabled = false)
+                    IconButton(Tabler.Outline.ChevronRight, "Expand", {}, rotation = 90f)
+                    IconToggleButton(Tabler.Outline.Star, "Favourite", checked = true, {})
+                    IconToggleButton(Tabler.Outline.Star, "Favourite", checked = false, {})
                 }
             }
 
@@ -98,17 +98,17 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    FloatingActionButton(FontAwesome.Solid.Plus, "Add", {}, size = FabSize.Small)
-                    FloatingActionButton(FontAwesome.Solid.Plus, "Add", {}, size = FabSize.Medium)
-                    FloatingActionButton(FontAwesome.Solid.Plus, "Add", {}, size = FabSize.Large)
+                    FloatingActionButton(Tabler.Outline.Plus, "Add", {}, size = FabSize.Small)
+                    FloatingActionButton(Tabler.Outline.Plus, "Add", {}, size = FabSize.Medium)
+                    FloatingActionButton(Tabler.Outline.Plus, "Add", {}, size = FabSize.Large)
                     ExtendedFloatingActionButton(
-                        icon = FontAwesome.Solid.LocationArrow,
+                        icon = Tabler.Outline.Navigation,
                         text = "Start trip",
                         contentDescription = "Start trip",
                         onClick = {},
                     )
                     ExtendedFloatingActionButton(
-                        icon = FontAwesome.Solid.LocationArrow,
+                        icon = Tabler.Outline.Navigation,
                         text = "Start trip",
                         contentDescription = "Start trip",
                         expanded = false,

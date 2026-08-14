@@ -12,10 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
-import com.composables.icons.fontawesome.FontAwesome
-import com.composables.icons.fontawesome.solid.Bus
-import com.composables.icons.fontawesome.solid.Check
-import com.composables.icons.fontawesome.solid.Times
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Bus
+import com.composables.icons.tabler.outline.Check
+import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.ChipGroup
@@ -102,14 +102,14 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                         "Buses",
                         selected = true,
                         onClick = {},
-                        selectedIcon = FontAwesome.Solid.Check,
+                        selectedIcon = Tabler.Outline.Check,
                     )
                     FilterChip(
                         "Trains",
                         selected = false,
                         onClick = {},
-                        leadingIcon = FontAwesome.Solid.Bus,
-                        selectedIcon = FontAwesome.Solid.Check,
+                        leadingIcon = Tabler.Outline.Bus,
+                        selectedIcon = Tabler.Outline.Check,
                     )
                     FilterChip("Ferries", selected = false, onClick = {})
                     FilterChip("Disabled", selected = false, onClick = {}, enabled = false)
@@ -117,7 +117,7 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                     InputChip(
                         "Perth Station",
                         onRemove = {},
-                        removeIcon = FontAwesome.Solid.Times,
+                        removeIcon = Tabler.Outline.X,
                     )
                 }
             }

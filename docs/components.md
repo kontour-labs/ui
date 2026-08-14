@@ -270,6 +270,16 @@ into.
 `Painter`, so the choice of icon library stays an application decision and `:ui`
 does not drag a few hundred kilobytes of glyphs into every consumer.
 
+The app and catalog use **Tabler** (`icons-tabler-outline-cmp`,
+`icons-tabler-filled-cmp`). Tabler draws every glyph on a uniform 24×24 grid,
+which matters more than it sounds: FontAwesome uses a 512-tall grid of varying
+width while declaring every glyph as square, so its icons both distort and
+occupy visibly different widths within the same slot. `IconMetricsDiagnostic`
+asserts Tabler's uniformity so a future version cannot regress it silently.
+
+`Icon` still corrects for a non-square viewport, so a set that does have one
+renders undistorted. With Tabler that correction is a no-op.
+
 ---
 
 ## Not yet built
