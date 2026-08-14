@@ -498,6 +498,70 @@ reader that announced both would say it twice.
 
 ---
 
+## Navigation — built
+
+| | |
+|---|---|
+| `NavigationSuiteScaffold` | Picks the surface from the window size and places it |
+| `NavItem` | One destination, declared once and rendered by whichever surface fits |
+| `NavBar` / `NavBarItem` | **Bottom of the screen.** Floating pill or docked |
+| `NavRail` / `NavRailItem` | **Leading edge.** Icons and labels, an action at the bottom |
+| `NavDrawer` / `ModalNavDrawer` | **Leading edge.** Nested groups, sections |
+| `TopBar` | Title and actions. Small, centred, or large-collapsing |
+| `TabBar` / `Tab` | Views of one screen, with a sliding indicator |
+| `Breadcrumbs` | Where you are in a hierarchy, and the way back up |
+| `Pagination` | Numbered pages, collapsed around the current one |
+| `WindowSizeClass` | Compact / medium / expanded / large, from a measured window |
+
+### Where navigation goes
+
+| Window | Surface | Placement |
+|---|---|---|
+| Compact (< 600dp) | `NavBar` | **Bottom of the screen**, over the content |
+| Medium (< 840dp) | `NavRail` | **Leading edge**, beside the content |
+| Expanded and up | `NavDrawer` | **Leading edge**, labels always shown |
+
+**This is an app, not a website.** Destinations live at the bottom on a phone
+because that is where a thumb reaches, and move to the leading edge on a wide
+window because a horizontal bar there eats the dimension there is least of. A
+`TopBar` in this system is a title and its actions — never a place to put
+destinations.
+
+`NavigationSuiteScaffold` makes that choice and does the placement, so a screen
+declares its destinations once and never arranges them. The Android app today
+writes the same three destinations into `MainToolbar` and `MainNavigationRail`
+and picks by hand; `NavItem` is what removes the second copy.
+
+**The bar overlays the content** rather than sitting below it, matching the
+floating toolbar the app uses over its map. The scaffold hands your content the
+padding to inset by, the same way a map insets its controls by a sheet's
+`visibleHeight`.
+
+**The selected destination grows and its pill springs in**, ported from the
+app's `ToolbarButton`. It is a control people tap dozens of times a session.
+
+**`TabBar` is not app navigation.** Tabs stay within one screen — the stop you
+are looking at, seen three ways. A tab bar used for destinations leaves the user
+with no back stack and no sense of where they are. Its indicator is one bar that
+*slides*, for the same reason `SegmentedControl`'s does: the row reads as a
+single control with a moving part.
+
+**`Pagination` collapses only when collapsing saves room.** A range short enough
+to list in full is listed in full — "1 2 … 5" is exactly as wide as "1 2 3 4 5"
+and shows two fewer pages — and a gap standing in for a single page is replaced
+by that page. `paginationSlots()` is pure and tested, because the failure mode is
+a control that is right in the middle of a range and wrong at both ends, and
+"page 1 of 40" is the first thing anyone sees.
+
+**A drawer takes a slot, not a list**, unlike the bar and the rail. A drawer is
+where destinations stop being a flat set of three: the admin panel's sidebar
+nests, groups and separates, and a list model would be a tree wearing a list's
+shape. `NavDrawerGroup`'s expansion is hoisted, so the app can open the group
+containing the current page — which is nearly always right and not something the
+component can know.
+
+---
+
 ## Collections — built
 
 | | |
@@ -648,5 +712,4 @@ mobile app and are not being built on spec.
 **Collections, remaining** — `DataTable` and `TreeList` are admin-web patterns
 with no usage in the mobile app, and are not being built on spec.
 
-**Navigation** — `NavBar`, `NavRail`, `NavDrawer`, `TopBar`, `TabBar`,
-`Breadcrumbs`, `Pagination`, `Toolbar`, `NavigationSuiteScaffold`
+

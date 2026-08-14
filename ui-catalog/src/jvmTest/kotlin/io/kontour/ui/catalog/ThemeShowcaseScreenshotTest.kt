@@ -179,6 +179,23 @@ class ThemeShowcaseScreenshotTest {
     }
 
     @Test
+    fun rendersNavigation() {
+        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+            val file = Screenshot.render(
+                name = name.replace("theme-", "nav-"),
+                width = 4160,
+                height = 2200,
+                frames = 30,
+            ) {
+                KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
+                    NavShowcase()
+                }
+            }
+            assertTrue(file.length() > 0, "$name navigation rendered an empty file")
+        }
+    }
+
+    @Test
     fun rendersDisplayComponents() {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(
