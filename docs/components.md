@@ -186,6 +186,76 @@ number means.
 
 ---
 
+## Text editing — built
+
+Built on foundation's state-based `BasicTextField`, so the caller owns a
+`TextFieldState` rather than a `String` plus a callback:
+
+```kotlin
+val query = rememberTextFieldState()
+TextField(state = query, label = "Where to?", placeholder = "Station, stop or address")
+```
+
+`TextFieldState` is the right default because it makes the two classic bugs
+unrepresentable: the caret jumping to the end when text is edited
+programmatically, and characters dropping under fast typing because state
+hoisting round-tripped through a recomposition.
+
+| | |
+|---|---|
+| `TextField` | Label, placeholder, supporting text, error, leading/trailing slots |
+| `TextArea` | Grows between `minLines` and `maxLines`, then scrolls internally |
+| `SearchField` | Debounced query callback, animated clear button |
+| `PasswordField` | Reveal toggle, autofill content type |
+| `NumberField` | Digits or decimals, rejected at the keystroke |
+| `PhoneField` | Live mask, digits stored clean |
+| `EmailField` | Email keyboard, autofill, no capitalisation |
+
+### Validation
+
+`errorMessage` sets `error` semantics *and* colours the border. Colour alone
+would fail WCAG 1.4.1, so the message is not optional decoration — it is how a
+screen-reader user learns there is a problem.
+
+**Error outranks focus.** A focused invalid field keeps its error border,
+because an accent ring would hide the thing the user needs to fix.
+
+Helper and error text share one slot and animate in place, so a form does not
+jump by a line height every time validation flips.
+
+### Transformations
+
+`InputTransformation` filters keystrokes *as they arrive* — the rejected
+character never reaches the state, so the field cannot flicker through an
+invalid value. The best error message is the one that never has to appear.
+
+```kotlin
+InputTransformation.digitsOnly()
+InputTransformation.decimal(allowNegative = true)
+InputTransformation.limit(10)
+```
+
+`OutputTransformation` changes what is *displayed* without changing what is
+stored:
+
+```kotlin
+phoneMask()   // stored "0412345678"  displayed "0412 345 678"
+cardMask()
+timeMask()
+```
+
+That separation is the point: the caller reads clean digits out of the state and
+never has to strip formatting back out, which is where mask implementations
+usually go wrong.
+
+`InputTransformation.decimal` is deliberately permissive about intermediate
+states — `-`, `1.` and `-0.` all pass, because a user typing `-0.5` passes
+through every one of them. Rejecting them makes the field impossible to type
+into.
+
+
+---
+
 ## Foundation — built
 
 | | |
@@ -213,8 +283,8 @@ Listed so the shape of the finished system is visible. See
 **Date and time** — `DatePicker`, `DateRangePicker`, `TimePicker`,
 `CalendarMonth`, `WheelPicker`, `DurationPicker`, `RelativeTimeText`
 
-**Text editing** — `TextField`, `OutlinedTextField`, `TextArea`, `SearchField`,
-`PasswordField`, `NumberField`, `OtpField`, `PhoneField`, `TagInput`
+**Text editing, remaining** — `OtpField`, `TagInput`, `CurrencyField`, plus the
+custom desktop/web text toolbar and IME focus-chaining
 
 **Display** — `Card`, `Badge`, `Tag`, `Avatar`, `LinearProgress`,
 `CircularProgress`, `ProgressRing`, `StepProgress`, `Skeleton`, `EmptyState`,

@@ -72,4 +72,21 @@ class ThemeShowcaseScreenshotTest {
             assertTrue(file.length() > 0, "$name selection rendered an empty file")
         }
     }
+
+    @Test
+    fun rendersTextFields() {
+        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+            val file = Screenshot.render(
+                name = name.replace("theme-", "text-"),
+                // Canvas is in pixels at 2x density, so this is ~920dp of layout width.
+                width = 1840,
+                height = 1560,
+            ) {
+                KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
+                    TextShowcase()
+                }
+            }
+            assertTrue(file.length() > 0, "$name text rendered an empty file")
+        }
+    }
 }

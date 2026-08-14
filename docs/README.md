@@ -68,7 +68,7 @@ See the *Status* table below for what is built today.
 | 3 | Actions — buttons, FABs, links | done |
 | 4 | Selection controls | core built |
 | 5 | Date and time | not started |
-| 6 | Text editing | not started |
+| 6 | Text editing | core built |
 | 7 | Display and content | not started |
 | 8 | Collections | not started |
 | 9 | Overlays | not started |
