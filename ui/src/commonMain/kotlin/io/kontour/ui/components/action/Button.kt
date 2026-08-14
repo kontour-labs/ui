@@ -223,8 +223,13 @@ private fun RowScope.ButtonContent(
 }
 
 /**
- * Full-width button with a text label — the common case at the bottom of a
- * sheet, without the ceremony.
+ * A button with a text label — the common case, without the ceremony.
+ *
+ * Every parameter of the slot overload is forwarded, so reaching for the slot
+ * version is only ever about the *content*. A button that needs different
+ * colours or a different shape should not have to grow a `content` lambda to
+ * get them: the one place this bites is a button on a coloured ground, where
+ * the variant's own resolution is against the wrong surface.
  */
 @Composable
 fun Button(
@@ -237,6 +242,9 @@ fun Button(
     loading: Boolean = false,
     loadingLabel: String = "Loading",
     fillMaxWidth: Boolean = false,
+    shape: Shape = Theme.shapes.small,
+    colors: ButtonColors = ButtonDefaults.colors(variant),
+    metrics: ButtonMetrics = ButtonDefaults.metrics(size),
     interactionSource: MutableInteractionSource? = null,
 ) {
     Button(
@@ -248,6 +256,9 @@ fun Button(
         loading = loading,
         loadingLabel = loadingLabel,
         fillMaxWidth = fillMaxWidth,
+        shape = shape,
+        colors = colors,
+        metrics = metrics,
         interactionSource = interactionSource,
     ) {
         Text(text)

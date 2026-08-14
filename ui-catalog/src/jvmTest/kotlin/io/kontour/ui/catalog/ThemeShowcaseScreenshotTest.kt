@@ -107,6 +107,27 @@ class ThemeShowcaseScreenshotTest {
     }
 
     @Test
+    fun rendersOverlays() {
+        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+            val file = Screenshot.render(
+                name = name.replace("theme-", "overlays-"),
+                width = 2320,
+                height = 2060,
+                // Overlays need more than the usual handful. Each one has to be
+                // laid out before its anchor is known, pushed into the host on
+                // the recomposition after that, and then animated in — three
+                // frames deep before anything is drawn at its final size.
+                frames = 40,
+            ) {
+                KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
+                    OverlayShowcase()
+                }
+            }
+            assertTrue(file.length() > 0, "$name overlays rendered an empty file")
+        }
+    }
+
+    @Test
     fun rendersDisplayComponents() {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(

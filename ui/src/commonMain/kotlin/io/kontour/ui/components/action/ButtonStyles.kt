@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.foundation.LocalContentColor
 import io.kontour.ui.theme.Theme
 
 /**
@@ -96,6 +97,30 @@ data class ButtonMetrics(
  */
 object ButtonDefaults {
 
+    /**
+     * A disabled ghost label, on whatever ground the button happens to be on.
+     *
+     * On an ordinary surface this is the scheme's own disabled token. On a
+     * coloured ground there is no such token — the scheme cannot enumerate every
+     * container a ghost button might land on — so it falls back to fading the
+     * inherited content colour. That is a real 4.5:1 failure by design: disabled
+     * controls are exempt from the contrast minimum precisely so that "you
+     * cannot use this" reads at a glance.
+     */
+    @Composable
+    @ReadOnlyComposable
+    private fun disabledGhostContent(): Color {
+        val inherited = LocalContentColor.current
+        return if (inherited == Theme.colors.content) {
+            Theme.colors.contentDisabled
+        } else {
+            inherited.copy(alpha = DisabledContentAlpha)
+        }
+    }
+
+    /** Matches the ratio between `content` and `contentDisabled` in the schemes. */
+    private const val DisabledContentAlpha = 0.45f
+
     @Composable
     @ReadOnlyComposable
     fun colors(variant: ButtonVariant): ButtonColors {
@@ -142,12 +167,18 @@ object ButtonDefaults {
                 disabledBorder = disabledBorder,
             )
 
+            // The only variant that reads its label from the ground it is on
+            // rather than from the scheme. A ghost button has no container of
+            // its own, so it inherits whatever the surrounding surface set as
+            // the content colour: near-black on a card, white on a danger
+            // toast, `onAccent` inside a coach mark. On an ordinary surface
+            // this resolves to `c.content` and nothing changes.
             ButtonVariant.Ghost -> ButtonColors(
                 container = Color.Transparent,
-                content = c.content,
+                content = LocalContentColor.current,
                 border = null,
                 disabledContainer = disabledContainer,
-                disabledContent = c.contentDisabled,
+                disabledContent = disabledGhostContent(),
                 disabledBorder = disabledBorder,
             )
 

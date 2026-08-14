@@ -62,6 +62,14 @@ kotlin {
             // Also `api`: the date/time components take LocalDate and LocalTime.
             api(libs.kotlinx.datetime)
             implementation(libs.kotlinx.coroutines.core)
+
+            // `implementation`: only the handful of structural glyphs in
+            // `foundation/SystemIcons.kt` are used from here, and none of them
+            // appear in a public signature. Everything a *caller* draws is still
+            // passed in as an ImageVector, so an app is free to use another set.
+            // Unused vectors are separate top-level declarations and get
+            // stripped by R8 and by the JS/Wasm DCE.
+            implementation(libs.bundles.icons)
         }
 
         commonTest.dependencies {

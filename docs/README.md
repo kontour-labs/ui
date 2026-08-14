@@ -54,6 +54,7 @@ remember — they are things the code does.
 | [`theming.md`](theming.md) | Building a theme; how a generated palette slots in later |
 | [`accessibility.md`](accessibility.md) | The contract every component meets, and how it is enforced |
 | [`components.md`](components.md) | The component inventory |
+| [`overlays.md`](overlays.md) | Dialogs, menus, tooltips and toasts — the stack, the queue, and which to reach for |
 | [`contributing.md`](contributing.md) | The checklist for adding a component |
 
 See the *Status* table below for what is built today.
@@ -66,12 +67,12 @@ See the *Status* table below for what is built today.
 | 1 | Tokens and theme | done |
 | 2 | Foundation primitives and mechanisms | done |
 | 3 | Actions — buttons, FABs, links | done |
-| 4 | Selection controls | core built — `Select` pending overlays |
+| 4 | Selection controls | core built — `Select` next, now unblocked |
 | 5 | Date and time | core built |
-| 6 | Text editing | core built — custom text toolbar pending overlays |
+| 6 | Text editing | core built — custom text toolbar next, now unblocked |
 | 7 | Display and content | core built |
 | 8 | Collections | not started |
-| 9 | Overlays | not started |
+| 9 | Overlays | core built — `Select`, `Combobox` and the text toolbar follow |
 | 10 | Sheets | not started |
 | 11 | Navigation | not started |
 | 12 | Adaptive layout and motion | not started |

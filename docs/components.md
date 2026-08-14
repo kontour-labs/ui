@@ -353,6 +353,76 @@ reduced motion.
 
 ---
 
+## Overlays — built
+
+Two mechanisms, and telling them apart is the whole design. See
+[`overlays.md`](overlays.md) for the architecture; this is the inventory.
+
+| | |
+|---|---|
+| `OverlayHost` / `OverlayHostState` | The layered stack every overlay renders into |
+| `OverlayQueue` | Priority-ordered mutual exclusion, for overlays that must not coexist |
+| `Dialog` | Modal panel, arbitrary content |
+| `AlertDialog` | Title, message, up to two actions |
+| `ConfirmationController` / `ConfirmHost` | `suspend fun confirm(): Boolean` |
+| `DropdownMenu` | Anchored to its parent, flips and shifts to stay on screen |
+| `MenuItem` / `MenuDivider` / `MenuSectionHeader` | Menu contents |
+| `SubMenu` | Nested menu — hover on pointer, tap on touch |
+| `ContextMenuArea` | Right-click on pointer, long-press on touch, opens at the pointer |
+| `Popover` | Arbitrary content with an arrow, for things a menu is wrong for |
+| `Modifier.tooltip` | Hover / focus / long-press by modality |
+| `Tooltip` | The same bubble, with visibility the caller controls |
+| `Modifier.coachMark` | A tip the app decides to show, scheduled through `OverlayQueue` |
+| `Toast` / `ToastHost` | Transient confirmations, one at a time |
+| `LoadingOverlay` | Blocking, undismissable, assertive live region |
+
+**Positioning is one pure function.** `positionAnchored()` takes an anchor, a
+content size and a container, and returns a placement — flip to the opposite side
+when the preferred one has no room, then shift along the other axis until it
+fits. It is tested directly rather than through a rendered component, because the
+cases that break anchored overlays are geometric (a menu in the far corner, an
+overlay taller than the window, an RTL submenu) and each is one line to state as
+an assertion and a fiddly interaction to reproduce on a screen.
+
+Shifting gives up alignment rather than going off-screen. A menu aligned to the
+start of a button in the corner slides until it fits and ends up no longer
+aligned with that button; alignment is a preference, being visible is not.
+
+**Menus render in-composition, not in platform windows.** Material puts each
+dialog in its own window, which is fine on Android and awkward on the other four
+targets. Rendering the stack inside the app root means z-ordering is a sort on
+`OverlayLayer`, dimming is decided once for the whole stack, and every target
+behaves identically. The cost is that overlays are clipped to the host's bounds,
+so the host belongs at the root.
+
+**One scrim per overlay, but only one of them dims.** Each scrim-requesting entry
+gets a scrim directly beneath it, so an outside tap always dismisses the thing it
+is under. Only the topmost *dimming* entry draws colour — otherwise a dialog over
+a sheet would darken the background twice and the second overlay would sit on
+near-black.
+
+**The queue is not the stack.** The stack holds overlays that legitimately
+coexist: a menu open over a sheet. The queue holds overlays that must never
+coexist — force-update, onboarding, legal notice, what's-new, review prompt,
+paywall — and elects one by priority, prerequisites and session count. The
+Android app encodes that today as an `ActiveOverlay` enum and a `when`; adding a
+seventh here does not mean editing a conditional.
+
+**Coach marks go through the queue, not their own scheduler.** `TooltipManager`
+in the Android app is `OverlayQueue` with different field names. The queue
+suppresses itself while any *modal* layer is showing — sheet, dialog, menu,
+critical — which generalises `tooltipBlocker`. Deliberately not "while anything
+is showing": coach marks render into the tooltip layer through this queue, so a
+queue that counted its own output would show a tip, suppress itself, and hide it
+again on the next frame.
+
+**A tooltip is not a label.** `Modifier.tooltip` sets no semantics, because
+anything the user needs in order to understand a control belongs in its
+`contentDescription`. The tooltip repeats it for sighted pointer users; a screen
+reader that announced both would say it twice.
+
+---
+
 ## Foundation — built
 
 | | |
@@ -363,9 +433,18 @@ reduced motion.
 | `HorizontalDivider` / `VerticalDivider` | Decorative rules |
 | `Scrim` | Dims and blocks input behind a modal |
 
-**The design system ships no icon set.** Components take an `ImageVector` or
-`Painter`, so the choice of icon library stays an application decision and `:ui`
-does not drag a few hundred kilobytes of glyphs into every consumer.
+**Components take icons from the caller.** Anything a caller puts *in* a
+component — a button's leading icon, a menu item's icon, an empty state's
+illustration — is an `ImageVector` or `Painter` parameter, so the choice of icon
+library stays an application decision.
+
+The exception is `foundation/SystemIcons.kt`: the handful of glyphs a component
+draws on its own behalf, because they are structure rather than content. A
+submenu with no chevron gives no sign it opens anything, and a menu item with no
+tick cannot show which option is current. Making the caller supply those means
+every component ships looking broken until someone remembers to pass one in. They
+are Tabler, `internal`, and each is a separate top-level declaration, so the ones
+`:ui` never touches are stripped by R8 and by the JS/Wasm DCE.
 
 The app and catalog use **Tabler** (`icons-tabler-outline-cmp`,
 `icons-tabler-filled-cmp`). Tabler draws every glyph on a uniform 24×24 grid,
@@ -399,9 +478,6 @@ mobile app and are not being built on spec.
 
 **Collections** — `ListItem`, `ListSection`, `SwipeActions`, `ReorderableList`,
 `PullToRefresh`, `LoadMore`, `Scrollbar`, `DataTable`, `TreeList`
-
-**Overlays** — `Dialog`, `AlertDialog`, `ConfirmDialog`, `DropdownMenu`,
-`ContextMenu`, `Tooltip`, `Toast`, `Popover`, `LoadingOverlay`
 
 **Sheets** — `BottomSheet`, `ModalBottomSheet`, `SideSheet`, `SheetHeader`
 
