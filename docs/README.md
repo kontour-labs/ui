@@ -69,7 +69,7 @@ See the *Status* table below for what is built today.
 | 4 | Selection controls | core built — `Select` pending overlays |
 | 5 | Date and time | core built |
 | 6 | Text editing | core built — custom text toolbar pending overlays |
-| 7 | Display and content | not started |
+| 7 | Display and content | core built |
 | 8 | Collections | not started |
 | 9 | Overlays | not started |
 | 10 | Sheets | not started |

@@ -105,4 +105,20 @@ class ThemeShowcaseScreenshotTest {
             assertTrue(file.length() > 0, "$name datetime rendered an empty file")
         }
     }
+
+    @Test
+    fun rendersDisplayComponents() {
+        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+            val file = Screenshot.render(
+                name = name.replace("theme-", "display-"),
+                width = 2560,
+                height = 1560,
+            ) {
+                KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
+                    DisplayShowcase()
+                }
+            }
+            assertTrue(file.length() > 0, "$name display rendered an empty file")
+        }
+    }
 }

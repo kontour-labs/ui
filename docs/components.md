@@ -297,6 +297,62 @@ gets there in one flick where a dial needs two precise drags.
 
 ---
 
+## Display and content — built
+
+| | |
+|---|---|
+| `Card` | `Elevated` / `Outlined` / `Filled`, optionally clickable as a whole |
+| `Tag` | Status label. Takes an arbitrary background and derives its own text colour |
+| `Badge` / `BadgedBox` | Count or dot, positioned over what it annotates |
+| `Avatar` / `AvatarGroup` | Image, initials or icon; colour derived from the name |
+| `LinearProgress` | Determinate or indeterminate |
+| `ProgressRing` | Circular, determinate |
+| `StepProgress` | Segmented, for a known number of steps |
+| `Spinner` | Indeterminate activity |
+| `Skeleton` / `SkeletonText` / `SkeletonListItem` | Loading placeholders |
+| `EmptyState` / `ErrorState` | Nothing here vs. something went wrong |
+| `Banner` / `AnimatedBanner` | Inline message, four severities |
+| `Callout` | The markdown blockquote treatment |
+| `Timeline` / `TimelineItem` | Vertical sequence — the journey itinerary |
+| `Accordion` | Disclosure with hoisted state |
+
+**`Tag` and arbitrary colours.** Transit feeds supply route colours that are not
+drawn from any palette — a route can be pale yellow or near-black. Passing
+`color` resolves the label with `contentColorFor()`, so it stays legible. That
+is the whole reason the component exists rather than callers styling a `Surface`
+themselves: the case they would get wrong is the one where the feed hands them a
+colour nobody designed for.
+
+**`Avatar` colours are derived from the name**, so the same person is the same
+colour everywhere without anyone storing one. The derivation deliberately avoids
+`hashCode()` — Kotlin's String hash is not guaranteed identical across
+Kotlin/Native and Kotlin/JS, so the same person could be a different colour on
+iOS than on Android.
+
+**`EmptyState` is not `ErrorState`.** Empty means the request succeeded and there
+is genuinely nothing, often by the user's own doing, and it needs no apology —
+showing an error face for an empty list makes people think they broke something.
+The message should say how to *leave* the empty state, not restate the title.
+
+**`Banner` vs `Toast`.** A banner is about the screen you are on; a toast is
+about something you just did. A banner that appears in response to a tap is easy
+to miss, because the user is looking at their finger. `Danger` banners announce
+assertively and everything else politely — interrupting for a routine notice
+trains people to ignore the interruption.
+
+**`Timeline`'s connector is drawn to the full height of its row**, using
+`IntrinsicSize.Min`. A fixed-height connector leaves gaps against tall rows and
+overshoots short ones, which is what makes most hand-rolled timelines look
+assembled rather than built.
+
+**Skeletons are hidden from the accessibility tree.** There is nothing to
+announce, and a screen reader walking a dozen unlabelled boxes is noise — the
+container carries the loading announcement instead. The shimmer stops under
+reduced motion.
+
+
+---
+
 ## Foundation — built
 
 | | |
@@ -337,10 +393,9 @@ calendar for range selection across month boundaries
 **Text editing, remaining** — `OtpField`, `TagInput`, `CurrencyField`, plus the
 custom desktop/web text toolbar and IME focus-chaining
 
-**Display** — `Card`, `Badge`, `Tag`, `Avatar`, `LinearProgress`,
-`CircularProgress`, `ProgressRing`, `StepProgress`, `Skeleton`, `EmptyState`,
-`ErrorState`, `Banner`, `Callout`, `Stat`, `KeyValueList`, `Timeline`,
-`Accordion`, `Carousel`, `CodeBlock`, `Gauge`, `Marquee`
+**Display, remaining** — `Carousel` + `PageIndicator`, `Stat`, `KeyValueList`,
+`Marquee`. `CodeBlock` and `Gauge` are admin-web patterns with no usage in the
+mobile app and are not being built on spec.
 
 **Collections** — `ListItem`, `ListSection`, `SwipeActions`, `ReorderableList`,
 `PullToRefresh`, `LoadMore`, `Scrollbar`, `DataTable`, `TreeList`
