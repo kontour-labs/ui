@@ -60,6 +60,19 @@ data class Motion(
     val springDefault: SpringToken,
     /** Soft and slow. Sheets and large surfaces. */
     val springGentle: SpringToken,
+    /**
+     * Deliberately under-damped — it overshoots and settles back.
+     *
+     * The system's one bit of play. Used on the *return* leg of an interaction:
+     * a button springing back after a press, a toggle thumb arriving, a chip
+     * popping in. Never on the way *down* into a press — overshoot on the
+     * outbound leg reads as mushy and slow, while overshoot on the way back
+     * reads as alive. That asymmetry is the whole trick.
+     *
+     * Suppressed entirely under [reduceMotion]: an overshoot is exactly the kind
+     * of unrequested movement the preference exists to stop.
+     */
+    val springBouncy: SpringToken,
     val reduceMotion: Boolean,
 ) {
     /** A tween at [default], or at [fast] under reduced motion. */
@@ -104,5 +117,8 @@ fun kontourMotion(reduceMotion: Boolean): Motion = Motion(
     springSnappy = SpringToken(dampingRatio = 0.9f, stiffness = 1400f),
     springDefault = SpringToken(dampingRatio = 0.85f, stiffness = 700f),
     springGentle = SpringToken(dampingRatio = 1f, stiffness = 300f),
+    // 0.45 overshoots by a few percent and settles in about two oscillations.
+    // Enough to feel alive at a glance; not enough to notice as "bouncing".
+    springBouncy = SpringToken(dampingRatio = 0.45f, stiffness = 900f),
     reduceMotion = reduceMotion,
 )

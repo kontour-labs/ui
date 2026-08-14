@@ -53,10 +53,10 @@ remember — they are things the code does.
 | [`tokens.md`](tokens.md) | Colour, type, spacing, shape, elevation, motion, sizing — the full reference |
 | [`theming.md`](theming.md) | Building a theme; how a generated palette slots in later |
 | [`accessibility.md`](accessibility.md) | The contract every component meets, and how it is enforced |
+| [`components.md`](components.md) | The component inventory |
 | [`contributing.md`](contributing.md) | The checklist for adding a component |
 
-Component pages arrive with their phases. See the *Status* table below for what
-is built.
+See the *Status* table below for what is built today.
 
 ## Status
 
@@ -64,8 +64,8 @@ is built.
 |---|---|---|
 | 0 | Module scaffolding, all six targets | done |
 | 1 | Tokens and theme | done |
-| 2 | Foundation primitives and mechanisms | in progress |
-| 3 | Actions — buttons, FABs, links | not started |
+| 2 | Foundation primitives and mechanisms | done |
+| 3 | Actions — buttons, FABs, links | done |
 | 4 | Selection controls | not started |
 | 5 | Date and time | not started |
 | 6 | Text editing | not started |

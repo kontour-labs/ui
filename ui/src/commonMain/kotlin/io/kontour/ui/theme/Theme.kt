@@ -13,6 +13,9 @@ import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.rememberInputModalityState
 import io.kontour.ui.input.trackInputModality
+import io.kontour.ui.interaction.FeedbackDispatcher
+import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.rememberDefaultFeedbackDispatcher
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 
@@ -106,6 +109,7 @@ fun KontourTheme(
     elevation: Elevation = remember(darkTheme) { kontourElevation(darkTheme) },
     motion: Motion = remember(reduceMotion) { kontourMotion(reduceMotion) },
     sizing: Sizing = remember { Sizing() },
+    feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(),
     content: @Composable () -> Unit,
 ) {
     // A nested KontourTheme — a screen forcing dark mode, say — re-provides the
@@ -125,6 +129,7 @@ fun KontourTheme(
         LocalContrastLevel provides contrast,
         LocalContentColor provides colors.content,
         LocalTextStyle provides typography.bodyMedium,
+        LocalFeedback provides feedback,
     ) {
         if (alreadyTracking) {
             content()

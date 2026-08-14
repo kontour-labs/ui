@@ -40,4 +40,20 @@ class ThemeShowcaseScreenshotTest {
             assertTrue(file.length() > 0, "$name rendered an empty file")
         }
     }
+
+    @Test
+    fun rendersActionComponents() {
+        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+            val file = Screenshot.render(
+                name = name.replace("theme-", "actions-"),
+                width = 1100,
+                height = 1420,
+            ) {
+                KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
+                    ButtonShowcase()
+                }
+            }
+            assertTrue(file.length() > 0, "$name actions rendered an empty file")
+        }
+    }
 }

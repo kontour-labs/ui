@@ -214,7 +214,18 @@ verbatim, so a transition in the app and the same transition on the web feel lik
 one product. Plus `enter`, `exit` and `emphasized` (which overshoots).
 
 Springs are `SpringToken(dampingRatio, stiffness)`: `springSnappy` for toggles
-and thumbs, `springDefault` for size and position, `springGentle` for sheets.
+and thumbs, `springDefault` for size and position, `springGentle` for sheets,
+and `springBouncy` — deliberately under-damped, the system's one bit of play.
+
+**On `springBouncy`.** Use it on the *return* leg of an interaction: a button
+springing back after a press, a chevron settling after a flip, a chip popping
+in. Never on the way *down* into a press. Overshoot on the outbound leg reads as
+mushy and slow; overshoot on the way back reads as alive. That asymmetry is the
+whole trick, and `KontourIndication` already applies it — so every pressable
+component in the system gets the bounce without asking for it.
+
+It is suppressed entirely under reduced motion. An unrequested overshoot is
+exactly the kind of movement that preference exists to stop.
 
 **Reduced motion** does not mean *no* animation. A cross-fade is not what causes
 vestibular discomfort — large translation, parallax and spinning are. When

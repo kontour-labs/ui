@@ -151,9 +151,17 @@ private class KontourIndicationNode(
                     )
                 }
                 launch {
+                    // Asymmetric on purpose. Going down: snappy and critically
+                    // damped, so the control answers the finger immediately.
+                    // Coming back: under-damped, so it overshoots a little and
+                    // settles — which is what reads as playful rather than
+                    // mechanical. Overshooting on the way *down* would just feel
+                    // slow.
                     scale.animateTo(
                         targetValue = if (pressed && !motion.reduceMotion) pressScale else 1f,
-                        animationSpec = motion.springOrTween(motion.springSnappy),
+                        animationSpec = motion.springOrTween(
+                            if (pressed) motion.springSnappy else motion.springBouncy
+                        ),
                     )
                 }
             }

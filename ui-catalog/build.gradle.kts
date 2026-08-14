@@ -48,6 +48,12 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
+
+            // Icons live here, not in `:ui`. The design system takes an
+            // ImageVector and ships no glyphs of its own, so the icon set stays
+            // an application choice — the catalog just happens to make the same
+            // one the app does.
+            implementation(libs.bundles.icons)
         }
 
         jvmTest.dependencies {
