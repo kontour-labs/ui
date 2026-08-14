@@ -28,6 +28,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import io.kontour.ui.foundation.Icon
@@ -433,7 +435,15 @@ private fun SelectFrame(
         },
         frameModifier = Modifier
             .anchorBounds { anchor = it }
-            .semantics { role = Role.DropdownList }
+            .semantics {
+                role = Role.DropdownList
+                // The frame merges its value text, so this names the control
+                // rather than replacing what it says: "When, Tomorrow, dropdown
+                // list". Without it the announcement is just the value, and a
+                // form of three selects reads as three unattributed values.
+                if (label != null) contentDescription = label
+                if (!enabled) disabled()
+            }
             .clickable(
                 interactionSource = interactions,
                 // A whole field flinching is too much movement for a control

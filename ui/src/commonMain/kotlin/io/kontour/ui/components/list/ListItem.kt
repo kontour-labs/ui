@@ -200,8 +200,13 @@ fun ListItem(
     }
 
     val interactive = onClick != null && enabled
+    // Note the two conditions. A row with no `onClick` is not a control and gets
+    // no click modifier at all; a row *with* one that is disabled is still a
+    // control, and keeps the modifier with `enabled = false`. Dropping it would
+    // block the callback silently — the row would announce as plain text, with
+    // no role and no "disabled", and a screen-reader user would keep trying it.
     val clickModifier = when {
-        !interactive -> Modifier
+        onClick == null -> Modifier
         selected || role == Role.RadioButton -> Modifier.selectable(
             selected = selected,
             interactionSource = interactions,
@@ -233,7 +238,9 @@ fun ListItem(
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {}
             .defaultMinSize(minHeight = minHeight)
-            .then(if (interactive) Modifier.minimumTouchTarget() else Modifier)
+            // Keyed on being a control at all, not on being enabled — a row that
+            // changed height when it greyed out would jump the list around it.
+            .then(if (onClick != null) Modifier.minimumTouchTarget() else Modifier)
             .focusRing(interactions, shape, enabled = interactive)
             .clip(shape)
             .background(container, shape)

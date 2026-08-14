@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
@@ -94,6 +95,14 @@ internal fun FieldScaffold(
         if (label != null) {
             Text(
                 text = label,
+                // Visible, but not a node of its own. Every control that goes
+                // through this scaffold takes the label as its accessible *name*
+                // — see `TextField` and `SelectFrame` — so leaving this
+                // announceable would make a screen reader read "Origin" and then
+                // "Origin, Perth, edit box", one field sounding like two things.
+                // `ComponentContractTest.everyLabelledControlAnnouncesItsLabel`
+                // is what stops this from silently losing the label instead.
+                modifier = Modifier.clearAndSetSemantics {},
                 style = Theme.typography.labelMedium,
                 color = labelColor,
             )

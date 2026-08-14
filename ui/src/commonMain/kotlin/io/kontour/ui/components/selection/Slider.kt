@@ -27,6 +27,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
@@ -132,15 +133,23 @@ fun Slider(
     BoxWithConstraints(
         modifier = modifier
             .semantics {
+                if (!enabled) disabled()
                 progressBarRangeInfo = ProgressBarRangeInfo(
                     current = value,
                     range = valueRange,
                     steps = steps,
                 )
                 if (stateDescription != null) this.stateDescription = stateDescription(value)
-                setProgress { target ->
-                    currentOnValueChange(target.coerceIn(valueRange))
-                    true
+                // The action is *withheld* when disabled, not just marked. The
+                // pointer path already returns early, so leaving `setProgress`
+                // attached would mean a disabled slider that assistive tech can
+                // still change — the value moving under a control that looks
+                // inert.
+                if (enabled) {
+                    setProgress { target ->
+                        currentOnValueChange(target.coerceIn(valueRange))
+                        true
+                    }
                 }
             }
             .minimumTouchTarget()

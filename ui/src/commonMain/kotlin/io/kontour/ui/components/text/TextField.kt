@@ -36,6 +36,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.error as semanticsError
 import androidx.compose.ui.text.input.ImeAction
@@ -171,7 +173,20 @@ fun TextField(
                             }
                         )
                         .semantics {
+                            // The visible [label] is a sibling `Text` in the
+                            // scaffold, one node up and to the side, so nothing
+                            // associates the two — Compose has no `labelledBy`.
+                            // Without this the field announces as an unnamed edit
+                            // box: the user hears "Origin", moves to the next
+                            // node, and is then in a text field with no idea what
+                            // it is for.
+                            if (label != null) contentDescription = label
                             if (errorMessage != null) semanticsError(errorMessage)
+                            // Foundation greys the field out and stops accepting
+                            // input, but does not mark the node disabled — so a
+                            // screen reader still offers "double tap to edit" on
+                            // a field that will not take a character.
+                            if (!enabled) disabled()
                         },
                     enabled = enabled,
                     readOnly = readOnly,
