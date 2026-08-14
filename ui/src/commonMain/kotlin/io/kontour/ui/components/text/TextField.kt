@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.semantics
@@ -102,6 +103,13 @@ fun TextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Default,
     onKeyboardAction: KeyboardActionHandler? = null,
+    /**
+     * This field's place in a [rememberImeChain], which sets the keyboard's
+     * action key to Next or Done and wires it to move focus or submit. Overrides
+     * [imeAction]; [onKeyboardAction], if given, still wins over the chain's
+     * handler.
+     */
+    imeChain: ImeChainStep? = null,
     inputTransformation: InputTransformation? = null,
     outputTransformation: OutputTransformation? = null,
     lineLimits: TextFieldLineLimits = TextFieldLineLimits.SingleLine,
@@ -111,30 +119,6 @@ fun TextField(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
-    val motion = Theme.motion
-    val shape = Theme.shapes.small
-    val isError = errorMessage != null
-
-    val borderColor by animateColorAsState(
-        targetValue = colors.border(enabled, focused, isError),
-        animationSpec = motion.tweenFast(),
-        label = "textFieldBorder",
-    )
-    val borderWidth by animateDpAsState(
-        targetValue = if (focused || isError) Theme.sizing.borderWidthStrong else Theme.sizing.borderWidth,
-        animationSpec = motion.tweenFast(),
-        label = "textFieldBorderWidth",
-    )
-    val labelColor by animateColorAsState(
-        targetValue = when {
-            !enabled -> colors.contentDisabled
-            isError -> colors.error
-            focused -> colors.labelFocused
-            else -> colors.label
-        },
-        animationSpec = motion.tweenFast(),
-        label = "textFieldLabel",
-    )
 
     val selectionColors = remember(colors) {
         TextSelectionColors(
@@ -143,102 +127,81 @@ fun TextField(
         )
     }
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+    FieldScaffold(
+        modifier = modifier,
+        enabled = enabled,
+        focused = focused,
+        colors = colors,
+        metrics = metrics,
+        shape = Theme.shapes.small,
+        label = label,
+        supportingText = supportingText,
+        errorMessage = errorMessage,
+        leadingIcon = leadingIcon,
+        trailing = trailing ?: trailingIcon?.let {
+            {
+                Icon(
+                    imageVector = it,
+                    contentDescription = null,
+                    tint = if (enabled) colors.label else colors.contentDisabled,
+                    size = Theme.sizing.iconMedium,
+                )
+            }
+        },
     ) {
-        if (label != null) {
-            Text(
-                text = label,
-                style = Theme.typography.labelMedium,
-                color = labelColor,
-            )
-        }
+        val contentColor = if (enabled) colors.content else colors.contentDisabled
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .defaultMinSize(minHeight = metrics.minHeight)
-                .clip(shape)
-                .background(colors.container(enabled, focused), shape)
-                .border(borderWidth, borderColor, shape)
-                .padding(horizontal = metrics.horizontalPadding, vertical = metrics.verticalPadding),
-            horizontalArrangement = Arrangement.spacedBy(metrics.gap),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val contentColor = if (enabled) colors.content else colors.contentDisabled
-
-            if (leadingIcon != null) {
-                Icon(
-                    imageVector = leadingIcon,
-                    contentDescription = null,
-                    tint = if (enabled) colors.label else colors.contentDisabled,
-                    size = Theme.sizing.iconMedium,
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            CompositionLocalProvider(
+                LocalTextSelectionColors provides selectionColors,
+                LocalContentColor provides contentColor,
+            ) {
+                BasicTextField(
+                    state = state,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            // The requester belongs on the input itself, not on
+                            // the frame — focusing the frame would put the
+                            // caret nowhere.
+                            if (imeChain != null) {
+                                Modifier.focusRequester(imeChain.requester)
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .semantics {
+                            if (errorMessage != null) semanticsError(errorMessage)
+                        },
+                    enabled = enabled,
+                    readOnly = readOnly,
+                    textStyle = Theme.typography.bodyMedium.merge(color = contentColor),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = keyboardType,
+                        // A chain decides the action key outright, overriding
+                        // both this parameter and a specialised field's own
+                        // default — `PasswordField` defaults to Done, which is
+                        // wrong for a password halfway down a form. One rule
+                        // beats a precedence table nobody can predict.
+                        imeAction = imeChain?.imeAction ?: imeAction,
+                    ),
+                    onKeyboardAction = onKeyboardAction ?: imeChain?.handler,
+                    lineLimits = lineLimits,
+                    inputTransformation = inputTransformation,
+                    outputTransformation = outputTransformation,
+                    cursorBrush = SolidColor(colors.cursor),
+                    interactionSource = interactions,
                 )
             }
 
-            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                CompositionLocalProvider(
-                    LocalTextSelectionColors provides selectionColors,
-                    LocalContentColor provides contentColor,
-                ) {
-                    BasicTextField(
-                        state = state,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .semantics {
-                                if (errorMessage != null) semanticsError(errorMessage)
-                            },
-                        enabled = enabled,
-                        readOnly = readOnly,
-                        textStyle = Theme.typography.bodyMedium.merge(color = contentColor),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = keyboardType,
-                            imeAction = imeAction,
-                        ),
-                        onKeyboardAction = onKeyboardAction,
-                        lineLimits = lineLimits,
-                        inputTransformation = inputTransformation,
-                        outputTransformation = outputTransformation,
-                        cursorBrush = SolidColor(colors.cursor),
-                        interactionSource = interactions,
-                    )
-                }
-
-                if (placeholder != null && state.text.isEmpty()) {
-                    Text(
-                        text = placeholder,
-                        style = Theme.typography.bodyMedium,
-                        color = colors.placeholder,
-                        maxLines = 1,
-                    )
-                }
-            }
-
-            if (trailing != null) {
-                trailing()
-            } else if (trailingIcon != null) {
-                Icon(
-                    imageVector = trailingIcon,
-                    contentDescription = null,
-                    tint = if (enabled) colors.label else colors.contentDisabled,
-                    size = Theme.sizing.iconMedium,
+            if (placeholder != null && state.text.isEmpty()) {
+                Text(
+                    text = placeholder,
+                    style = Theme.typography.bodyMedium,
+                    color = colors.placeholder,
+                    maxLines = 1,
                 )
             }
-        }
-
-        // Helper and error occupy the same slot and animate in place, so the
-        // form does not jump by a line height every time validation flips.
-        AnimatedVisibility(
-            visible = errorMessage != null || supportingText != null,
-            enter = fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast()),
-            exit = fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast()),
-        ) {
-            Text(
-                text = errorMessage ?: supportingText.orEmpty(),
-                style = Theme.typography.bodySmall,
-                color = if (isError) colors.error else colors.helper,
-            )
         }
     }
 }

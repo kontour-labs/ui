@@ -67,12 +67,12 @@ See the *Status* table below for what is built today.
 | 1 | Tokens and theme | done |
 | 2 | Foundation primitives and mechanisms | done |
 | 3 | Actions — buttons, FABs, links | done |
-| 4 | Selection controls | core built — `Select` next, now unblocked |
+| 4 | Selection controls | core built |
 | 5 | Date and time | core built |
-| 6 | Text editing | core built — custom text toolbar next, now unblocked |
+| 6 | Text editing | core built |
 | 7 | Display and content | core built |
 | 8 | Collections | not started |
-| 9 | Overlays | core built — `Select`, `Combobox` and the text toolbar follow |
+| 9 | Overlays | done, with `Select`, `Combobox`, `MultiSelect` and the text toolbar |
 | 10 | Sheets | not started |
 | 11 | Navigation | not started |
 | 12 | Adaptive layout and motion | not started |

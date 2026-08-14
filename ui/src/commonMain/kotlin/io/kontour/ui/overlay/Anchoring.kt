@@ -170,6 +170,30 @@ internal fun positionAnchored(
 }
 
 /**
+ * What an anchored overlay may measure itself against.
+ *
+ * The room the container has, less [margin] on each side — and a minimum width
+ * *clamped to that*, which is the whole reason this is a function rather than
+ * three lines inline. A select asks its menu to match the field's width; a
+ * full-width field on a phone is as wide as the window; and the window less two
+ * margins is narrower than the field. Passing that pair straight to `Constraints`
+ * throws, so a full-width select would crash the first time it was opened.
+ */
+internal fun overlayConstraints(
+    container: IntSize,
+    margin: Int,
+    minWidth: Int,
+): Constraints {
+    val maxWidth = (container.width - margin * 2).coerceAtLeast(0)
+    val maxHeight = (container.height - margin * 2).coerceAtLeast(0)
+    return Constraints(
+        minWidth = minWidth.coerceIn(0, maxWidth),
+        maxWidth = maxWidth,
+        maxHeight = maxHeight,
+    )
+}
+
+/**
  * Captures the bounds of the composable this modifier is applied to, in root
  * coordinates, so an overlay can be anchored to it.
  *
@@ -269,12 +293,9 @@ internal fun AnchoredOverlayLayout(
         // enough for the tip to reach the anchor instead of overlapping it.
         val effectiveGap = gapPx + arrowHeightPx.toInt()
 
-        val available = Constraints(
-            minWidth = minWidthPx.coerceAtMost(container.width),
-            maxWidth = (container.width - marginPx * 2).coerceAtLeast(0),
-            maxHeight = (container.height - marginPx * 2).coerceAtLeast(0),
-        )
-        val placeables = measurables.map { it.measure(available) }
+        val placeables = measurables.map {
+            it.measure(overlayConstraints(container, marginPx, minWidthPx))
+        }
         val contentSize = IntSize(
             placeables.maxOfOrNull { it.width } ?: 0,
             placeables.maxOfOrNull { it.height } ?: 0,

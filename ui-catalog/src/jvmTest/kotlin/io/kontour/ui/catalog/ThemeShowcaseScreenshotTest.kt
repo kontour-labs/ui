@@ -128,6 +128,23 @@ class ThemeShowcaseScreenshotTest {
     }
 
     @Test
+    fun rendersFormControls() {
+        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+            val file = Screenshot.render(
+                name = name.replace("theme-", "forms-"),
+                width = 3400,
+                height = 1240,
+                frames = 40,
+            ) {
+                KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
+                    SelectShowcase()
+                }
+            }
+            assertTrue(file.length() > 0, "$name forms rendered an empty file")
+        }
+    }
+
+    @Test
     fun rendersDisplayComponents() {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(

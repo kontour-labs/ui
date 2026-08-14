@@ -126,7 +126,7 @@ fun DropdownMenu(
     var anchor by remember { mutableStateOf<Rect?>(null) }
     Box(Modifier.parentBounds { anchor = it })
 
-    AnchoredMenu(
+    AnchoredDropdownMenu(
         expanded = expanded,
         anchor = anchor,
         onDismissRequest = onDismissRequest,
@@ -140,12 +140,25 @@ fun DropdownMenu(
 }
 
 /**
- * The rendering half of [DropdownMenu], for callers that already know where the
- * anchor is — a context menu at a pointer position, or a submenu anchored to its
- * parent row.
+ * A [DropdownMenu] anchored to a rectangle you supply rather than to its parent.
+ *
+ * ```kotlin
+ * var field by remember { mutableStateOf<Rect?>(null) }
+ *
+ * Row(Modifier.anchorBounds { field = it }) { … }
+ * AnchoredDropdownMenu(expanded, field, onDismissRequest = { … }) { … }
+ * ```
+ *
+ * [DropdownMenu] covers the common case by anchoring to the layout it is
+ * declared inside. This one is for when that is not the right node: a select,
+ * whose menu must line up with the field frame rather than with whichever slot
+ * the menu happened to be declared in; a context menu at a pointer position; a
+ * submenu attached to its own row.
+ *
+ * Pair it with [Modifier.anchorBounds] on the element the menu belongs to.
  */
 @Composable
-internal fun AnchoredMenu(
+fun AnchoredDropdownMenu(
     expanded: Boolean,
     anchor: Rect?,
     onDismissRequest: () -> Unit,
@@ -482,7 +495,7 @@ fun SubMenu(
         )
     }
 
-    AnchoredMenu(
+    AnchoredDropdownMenu(
         expanded = open && enabled,
         anchor = bounds,
         onDismissRequest = { open = false },
@@ -567,7 +580,7 @@ fun ContextMenuArea(
         content()
     }
 
-    AnchoredMenu(
+    AnchoredDropdownMenu(
         expanded = anchor != null,
         anchor = anchor,
         onDismissRequest = { anchor = null },

@@ -118,7 +118,7 @@ fun SearchField(
     )
 }
 
-/** Clears the field's text. */
-private fun TextFieldState.clearText() {
+/** Clears the field's text. Shared with [Combobox], which resets its query on close. */
+internal fun TextFieldState.clearText() {
     edit { replace(0, length, "") }
 }

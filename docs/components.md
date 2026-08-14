@@ -173,6 +173,24 @@ The indicator is a single surface that **slides** between positions rather than
 each segment fading its own background — that is what makes it read as one
 physical thing with a moving part.
 
+### `ColorSwatchPicker`
+
+A grid of swatches rather than a dropdown of colour names, because the choice
+being made is visual: "which of these do I like" is answered by looking, and a
+list that shows one colour at a time makes the user open it six times.
+
+**The tick is drawn in whatever colour is legible on the swatch**, resolved
+through `contentColorFor()`. A fixed white tick vanishes on pale yellow and a
+fixed black one vanishes on navy, and a picker whose selection is invisible on
+two of its own options has a bug in it.
+
+Every swatch carries a label as its content description. A colour with no name is
+unusable to anyone who cannot see it — and to anyone who can, describing it over
+the phone.
+
+Options whose colour is `null` render as an outlined swatch with an icon, for a
+"match the system" entry.
+
 ### `Slider`
 
 The thumb grows while dragged and settles back with a bounce. Each step crossed
@@ -210,6 +228,63 @@ hoisting round-tripped through a recomposition.
 | `NumberField` | Digits or decimals, rejected at the keystroke |
 | `PhoneField` | Live mask, digits stored clean |
 | `EmailField` | Email keyboard, autofill, no capitalisation |
+| `Select` | Picks one of a fixed set. Menu matches the field's width |
+| `MultiSelect` | Picks any number; the menu stays open while toggling |
+| `Combobox` | A select the user can type into to narrow a long list |
+| `rememberImeChain` | Wires a form's fields so Next walks through them and Done submits |
+| `KontourTextToolbar` | Replaces the selection popup on desktop and web |
+
+**A select is a field, not a button.** `Select` shares `FieldScaffold` with
+`TextField` rather than resembling it by hand — same frame, same label, same
+helper and error slot — because in a form it *is* one of the fields, and a select
+styled as a button in a column of text inputs reads as a different kind of thing.
+
+Its menu anchors to the field frame, using `Modifier.anchorBounds` and
+`AnchoredDropdownMenu` rather than the parent-anchoring `DropdownMenu`: "the
+parent layout" is the wrong node when the menu is declared in one slot of a row
+and has to line up with the whole row.
+
+**Reach for a `RadioGroup` above a `Select`** when there are three or four
+options and room to show them. A select hides its options behind a tap, a cost
+worth paying only when showing them would crowd the screen. Above roughly a
+dozen, use `Combobox` so the user can type rather than scroll.
+
+**A combobox is a select with search, not an autocomplete.** The value is always
+one of the options, and typing something unmatched leaves the previous value
+alone. For free text with suggestions, use a `SearchField` and render results
+yourself — conflating the two gives a control where it is unclear whether what
+you typed counts as an answer.
+
+### Keyboard action chaining
+
+```kotlin
+val chain = rememberImeChain("from", "to", "note", onSubmit = viewModel::plan)
+
+TextField(state = from, label = "From", imeChain = chain["from"])
+TextField(state = to, label = "To", imeChain = chain["to"])
+TextField(state = note, label = "Note", imeChain = chain["note"])
+```
+
+Every field but the last shows **Next** and moves to the one after; the last
+shows **Done** and submits. Without it a soft keyboard's action key does nothing,
+and filling a three-field form means dismissing the keyboard and tapping the next
+field between every entry — with the keyboard covering the field being tapped.
+
+The order lives in one place, at the `rememberImeChain` call, rather than being
+implied by three separate `imeAction` arguments that go wrong the first time
+someone reorders the form. A chain overrides both `imeAction` and a specialised
+field's own default: `PasswordField` defaults to Done, which is wrong for a
+password halfway down a form.
+
+### Text selection toolbar
+
+`KontourTextToolbar` replaces Compose's selection popup with one drawn in the
+design system — but **only on desktop and web**, where the default is a bare
+unstyled row. On Android and iOS it is a deliberate no-op: the platform toolbar
+there is a real system surface carrying "Look Up", "Translate", "Share", the
+user's keyboard extensions and their configured text replacements, none of which
+four buttons of our own can reproduce. Install it unconditionally at the root and
+it does the right thing per platform.
 
 ### Validation
 
@@ -463,14 +538,12 @@ renders undistorted. With Tabler that correction is a no-op.
 Listed so the shape of the finished system is visible. See
 [README](README.md#status) for phase ordering.
 
-**Selection, remaining** — `RangeSlider`, `Stepper`, `Rating`, `Select`,
-`Combobox`, `MultiSelect`, `ColorSwatchPicker`, `FilePicker`
+**Selection, remaining** — `RangeSlider`, `Stepper`, `Rating`, `FilePicker`
 
 **Date and time, remaining** — `DurationPicker`, and a multi-month scrolling
 calendar for range selection across month boundaries
 
-**Text editing, remaining** — `OtpField`, `TagInput`, `CurrencyField`, plus the
-custom desktop/web text toolbar and IME focus-chaining
+**Text editing, remaining** — `OtpField`, `TagInput`, `CurrencyField`
 
 **Display, remaining** — `Carousel` + `PageIndicator`, `Stat`, `KeyValueList`,
 `Marquee`. `CodeBlock` and `Gauge` are admin-web patterns with no usage in the

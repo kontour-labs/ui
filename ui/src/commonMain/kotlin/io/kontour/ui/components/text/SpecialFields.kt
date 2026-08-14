@@ -59,6 +59,7 @@ fun PasswordField(
     isNewPassword: Boolean = false,
     imeAction: ImeAction = ImeAction.Done,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
+    imeChain: ImeChainStep? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     var revealed by remember { mutableStateOf(false) }
@@ -76,6 +77,7 @@ fun PasswordField(
         variant = variant,
         keyboardType = if (revealed) KeyboardType.Text else KeyboardType.Password,
         imeAction = imeAction,
+        imeChain = imeChain,
         interactionSource = interactionSource,
         trailing = if (revealIcon != null && hideIcon != null) {
             {
@@ -120,6 +122,7 @@ fun NumberField(
     prefix: ImageVector? = null,
     imeAction: ImeAction = ImeAction.Done,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
+    imeChain: ImeChainStep? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val transformation = remember(allowDecimal, allowNegative, maxLength) {
@@ -144,6 +147,7 @@ fun NumberField(
         keyboardType = if (allowDecimal) KeyboardType.Decimal else KeyboardType.Number,
         imeAction = imeAction,
         inputTransformation = transformation,
+        imeChain = imeChain,
         interactionSource = interactionSource,
     )
 }
@@ -164,6 +168,7 @@ fun PhoneField(
     supportingText: String? = null,
     errorMessage: String? = null,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
+    imeChain: ImeChainStep? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     TextField(
@@ -180,6 +185,7 @@ fun PhoneField(
             InputTransformation.digitsOnly().then(InputTransformation.limit(10))
         },
         outputTransformation = remember { phoneMask() },
+        imeChain = imeChain,
         interactionSource = interactionSource,
     )
 }
@@ -202,6 +208,7 @@ fun EmailField(
     errorMessage: String? = null,
     imeAction: ImeAction = ImeAction.Next,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
+    imeChain: ImeChainStep? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     TextField(
@@ -215,6 +222,7 @@ fun EmailField(
         variant = variant,
         keyboardType = KeyboardType.Email,
         imeAction = imeAction,
+        imeChain = imeChain,
         interactionSource = interactionSource,
     )
 }

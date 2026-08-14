@@ -181,6 +181,49 @@ class AnchoringTest {
         assertEquals(900 - gap - content.width, flipped.x)
     }
 
+    // --- Constraints --------------------------------------------------------
+
+    @Test
+    fun aMinimumWiderThanTheContainerIsClampedRatherThanThrowing() {
+        // A full-width select on a phone: the field is as wide as the window,
+        // and its menu asks to match. The window less two margins is narrower
+        // than the field, and `Constraints(minWidth > maxWidth)` throws — so
+        // every full-width select would crash the first time it was opened.
+        val constraints = overlayConstraints(
+            container = IntSize(400, 800),
+            margin = 16,
+            minWidth = 400,
+        )
+
+        assertEquals(368, constraints.maxWidth)
+        assertEquals(368, constraints.minWidth)
+    }
+
+    @Test
+    fun aMinimumThatFitsIsKept() {
+        val constraints = overlayConstraints(
+            container = IntSize(1000, 800),
+            margin = 16,
+            minWidth = 400,
+        )
+
+        assertEquals(400, constraints.minWidth)
+        assertEquals(968, constraints.maxWidth)
+    }
+
+    @Test
+    fun aContainerNarrowerThanItsOwnMarginsStaysValid() {
+        val constraints = overlayConstraints(
+            container = IntSize(10, 10),
+            margin = 16,
+            minWidth = 200,
+        )
+
+        assertEquals(0, constraints.minWidth)
+        assertEquals(0, constraints.maxWidth)
+        assertEquals(0, constraints.maxHeight)
+    }
+
     // --- A zero-size anchor, which is what a context menu uses --------------
 
     @Test
