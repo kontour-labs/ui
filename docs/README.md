@@ -66,7 +66,7 @@ See the *Status* table below for what is built today.
 | 1 | Tokens and theme | done |
 | 2 | Foundation primitives and mechanisms | done |
 | 3 | Actions — buttons, FABs, links | done |
-| 4 | Selection controls | not started |
+| 4 | Selection controls | core built |
 | 5 | Date and time | not started |
 | 6 | Text editing | not started |
 | 7 | Display and content | not started |

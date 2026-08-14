@@ -56,4 +56,20 @@ class ThemeShowcaseScreenshotTest {
             assertTrue(file.length() > 0, "$name actions rendered an empty file")
         }
     }
+
+    @Test
+    fun rendersSelectionControls() {
+        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+            val file = Screenshot.render(
+                name = name.replace("theme-", "selection-"),
+                width = 1100,
+                height = 1720,
+            ) {
+                KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
+                    SelectionShowcase()
+                }
+            }
+            assertTrue(file.length() > 0, "$name selection rendered an empty file")
+        }
+    }
 }

@@ -100,6 +100,92 @@ announces itself as busy; a loading `Button` does, so its spinner is silent.
 
 ---
 
+## Selection — built
+
+### `Checkbox` / `TriStateCheckbox`
+
+The tick is drawn on a `Canvas` and *strokes itself on* along its path rather
+than fading in, with the box springing up to meet it. Two frames of personality
+on a control people tap dozens of times a session.
+
+`ToggleableState.Indeterminate` draws a dash, for a parent whose children are
+partly selected. Clicking an indeterminate checkbox should select everything,
+not clear it — that is the caller's decision, and the common wrong answer.
+
+### `RadioButton` / `RadioGroup`
+
+Use `RadioGroup` rather than loose buttons. Owning the selection there is what
+lets the group apply `selectableGroup()`, which is what makes a screen reader
+announce "option 2 of 5". It also makes the invalid states — two selected, or
+none — unrepresentable.
+
+### `Switch`
+
+Use a switch for a setting that takes effect **immediately**, and a `Checkbox`
+for one that is part of a form and takes effect on submit. A user who flips a
+switch expects the thing to have happened; a user who ticks a box expects to
+press Save.
+
+The thumb stretches as it travels — wider mid-flight, round at rest. The off
+track is bordered and unfilled rather than grey-filled: as the marketing site's
+own notes observe, a grey track sits too close in tone to the surfaces it is
+toggled on top of to read as a distinct control.
+
+### `SelectionRow`
+
+```kotlin
+SelectionRow(
+    label = "Notify me about delays",
+    supporting = "Only for favourited routes",
+    selected = notifyOnDelay,
+    onClick = { viewModel.setNotifyOnDelay(!notifyOnDelay) },
+    role = Role.Checkbox,
+    control = { Checkbox(notifyOnDelay, onCheckedChange = null) },
+)
+```
+
+**This is the form almost every checkbox, radio and switch should take.** A bare
+control with a `Text` beside it gives the user a small target and gives a screen
+reader two nodes for one choice. The nested control takes `onClick = null` — the
+row owns the interaction, the control is there to show state.
+
+### `Chip`, `FilterChip`, `InputChip`, `ChipGroup`
+
+Chips are for things that come in *sets*. A single chip on a screen is usually a
+small button wearing the wrong clothes.
+
+A selected `FilterChip` grows a tick in front of its label; the tick expands in
+and shoves the label across, which is what makes a filter bar feel responsive
+when you rattle through several. `InputChip`'s remove button is a separate
+target with its own description, so a screen reader offers "Perth Station" and
+"Remove Perth Station" as distinct actions.
+
+`ChipGroup` wraps onto new lines rather than scrolling horizontally — a scrolling
+row hides options off the edge of the screen.
+
+### `SegmentedControl`
+
+Two to four short options the user switches between often. Beyond four, or with
+long labels, use a `RadioGroup` or a `Select`; segments get too narrow to read
+and too narrow to hit.
+
+The indicator is a single surface that **slides** between positions rather than
+each segment fading its own background — that is what makes it read as one
+physical thing with a moving part.
+
+### `Slider`
+
+The thumb grows while dragged and settles back with a bounce. Each step crossed
+on a stepped slider fires a tick haptic, so a user changing a value without
+looking can feel the detents — which is most of the point of having steps.
+
+Pass `stateDescription` to turn the raw value into something a screen reader can
+say. Without it the announcement is a bare percentage, which is rarely what the
+number means.
+
+
+---
+
 ## Foundation — built
 
 | | |
@@ -121,9 +207,8 @@ does not drag a few hundred kilobytes of glyphs into every consumer.
 Listed so the shape of the finished system is visible. See
 [README](README.md#status) for phase ordering.
 
-**Selection** — `Checkbox`, `TriStateCheckbox`, `RadioGroup`, `Switch`,
-`Slider`, `RangeSlider`, `Chip`, `ChipGroup`, `SegmentedControl`, `Stepper`,
-`Rating`, `Select`, `Combobox`, `MultiSelect`, `ColorSwatchPicker`, `FilePicker`
+**Selection, remaining** — `RangeSlider`, `Stepper`, `Rating`, `Select`,
+`Combobox`, `MultiSelect`, `ColorSwatchPicker`, `FilePicker`
 
 **Date and time** — `DatePicker`, `DateRangePicker`, `TimePicker`,
 `CalendarMonth`, `WheelPicker`, `DurationPicker`, `RelativeTimeText`
