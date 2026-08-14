@@ -180,14 +180,43 @@ where visual order and composition order disagree.
 
 ## The per-component contract
 
+**Enforced by** `ComponentContractTest`, which runs the same six assertions over
+every entry in `componentRegistry` — 28 components at the time of writing.
 Every component in the system must:
 
-1. take `modifier: Modifier = Modifier` as its first optional parameter;
-2. accept an optional `interactionSource` and honour `enabled`;
+1. take `modifier: Modifier = Modifier` as its first optional parameter, and
+   apply it to the outermost node;
+2. accept an optional `interactionSource` and honour `enabled` — both halves:
+   the callback does not fire, *and* the node reports itself disabled;
 3. declare a correct semantics `Role` and `stateDescription`;
-4. meet the platform minimum touch target;
-5. behave under RTL, 200% font scale, and reduced motion.
+4. carry its visible label as its accessible name;
+5. meet the platform minimum touch target;
+6. behave under RTL, 200% font scale, and reduced motion.
 
-A shared test suite asserts 1–5 against a registry of every component, so a new
-component that skips one fails CI rather than merging. See
-[contributing.md](contributing.md).
+A component absent from the registry is a component none of this applies to,
+which is why adding one there is part of adding a component. See
+[contributing.md](contributing.md#registering-a-component).
+
+### What it found
+
+The suite was written after twelve phases of components had already been
+reviewed by eye, in every scheme, in a screenshot. It failed on its first run:
+
+- **`ListItem` and `SettingRow` dropped their `clickable` when disabled.** The
+  callback could not fire, so it looked right. But the node then had no role and
+  no disabled flag: a disabled row announced as plain text, and there was no way
+  to tell it was unavailable rather than broken.
+- **`IconToggleButton` announced `Role.Switch` from a wrapper `Box`** around an
+  `IconButton` that announced `Role.Button` — a switch containing a button, and
+  the wrong role either way. `Switch` describes the sliding control; a star that
+  calls itself one describes a widget that is not on screen.
+- **A disabled `Slider` still exposed `setProgress`.** The pointer path returned
+  early, so it could not be dragged — but assistive tech could still set its
+  value, moving a control that looked inert.
+- **No text field or select carried its label.** Compose has no `labelledBy`, so
+  the label sat beside the control as an unrelated node: the user heard "Origin",
+  moved on, and landed in an unnamed edit box.
+
+Rule 4 exists because of that last one, and none of the four are visible in a
+screenshot. Rendering is checked by looking; this is the part looking cannot
+check.

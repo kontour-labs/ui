@@ -77,7 +77,60 @@ See the *Status* table below for what is built today.
 | 10 | Sheets | done |
 | 11 | Navigation | done |
 | 12 | Adaptive layout and motion | done |
-| 13 | Catalog, screenshot goldens, CI | not started |
+| 13 | Contract suite, catalog, screenshot goldens, CI | done |
+
+## Verifying
+
+```sh
+cd app
+./gradlew :ui:jvmTest :ui:checkNoMaterial :ui-catalog:jvmTest
+```
+
+Three gates, all running on the JVM without an emulator or a simulator:
+
+**The contract suite** asserts six rules over every entry in
+`componentRegistry` — modifier reaches the outermost node, disabled blocks the
+callback and says so, a role is declared, a visible label names the control, the
+touch target meets the minimum, and it survives 200% type in RTL. Adding a
+component means adding a line there; see
+[`contributing.md`](contributing.md#registering-a-component).
+
+**`checkNoMaterial`** walks the resolved runtime graph and fails if anything
+pulled Material in. The whole system exists to not be Material, and one
+transitive dependency would undo that quietly.
+
+**Screenshot goldens** in `ui-catalog/screenshots/` are compared, not just
+regenerated. A mismatch fails and writes the render plus a diff with every
+changed pixel in magenta to `ui-catalog/build/screenshot-diffs/`. To accept an
+intended change:
+
+```sh
+./gradlew :ui-catalog:jvmTest -Pkontour.screenshots.update=true
+```
+
+then **look at the result** before committing it. That step is the point — a
+golden nobody looked at pins whatever was broken when it was recorded, and every
+visual bug found so far was found by looking rather than by a test.
+
+Per-target compilation is the fourth gate and runs in CI
+([`.github/workflows/app.yml`](../../../.github/workflows/app.yml)):
+
+```sh
+./gradlew :ui:compileKotlinJs :ui:compileKotlinWasmJs \
+          :ui:compileKotlinIosArm64 :ui:assemble
+```
+
+## The catalog
+
+`Catalog()` in `:ui-catalog` is every component, in every state, running on all
+five targets from one source. It carries the switches that are hardest to check
+by eye and easiest to get wrong — dark, high contrast, text size to 200%,
+right-to-left, reduced motion, and a forced input modality — so a component can
+be seen under each without changing a system setting.
+
+The modality switch matters more than it looks: focus rings, hover, scrollbar
+visibility and tooltip triggers all branch on it, and on a desktop host you
+would otherwise only ever see the pointer branch.
 
 ## Using it
 

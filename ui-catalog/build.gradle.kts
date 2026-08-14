@@ -64,9 +64,21 @@ kotlin {
     }
 }
 
-// Screenshot goldens are written here and committed. `:ui-catalog:jvmTest`
-// regenerates them; review the diff rather than accepting it — a golden nobody
-// looked at pins whatever was broken when it was recorded.
+// Screenshot goldens live in `screenshots/` and are committed. `:ui-catalog:jvmTest`
+// *compares* against them and fails on a mismatch, writing the render and a
+// highlighted diff to `build/screenshot-diffs/`.
+//
+// To accept a change:
+//
+//     ./gradlew :ui-catalog:jvmTest -Pkontour.screenshots.update=true
+//
+// then look at the result before committing it. That step is the whole point —
+// a golden nobody looked at pins whatever was broken when it was recorded.
 tasks.withType<Test>().configureEach {
     systemProperty("kontour.screenshots.dir", layout.projectDirectory.dir("screenshots").asFile.path)
+    systemProperty("kontour.screenshots.diffDir", layout.buildDirectory.dir("screenshot-diffs").get().asFile.path)
+    systemProperty("kontour.screenshots.update", providers.gradleProperty("kontour.screenshots.update").getOrElse("false"))
+    // Goldens are inputs now, so a change to one re-runs the comparison rather
+    // than being skipped as up-to-date.
+    inputs.dir(layout.projectDirectory.dir("screenshots")).withPropertyName("screenshotGoldens")
 }
