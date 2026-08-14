@@ -1,0 +1,215 @@
+# Sheets
+
+Panels that slide in from an edge. The Anyways map is sheet-driven — seven of
+them, 5,845 lines, all sitting over a live map — so this gets more attention
+than a component of its size normally would.
+
+The load-bearing decision is that a sheet rests at **named detents**, and a
+detent can be a measurement rather than a number.
+
+---
+
+## The model
+
+```kotlin
+val sheet = rememberSheetState(
+    detents = listOf(
+        SheetDetent.Hidden,
+        SheetDetent.peek(140.dp),
+        SheetDetent.Half,
+        SheetDetent.Expanded,
+    ),
+    initialDetent = SheetDetent.Hidden,
+)
+
+Box(Modifier.fillMaxSize()) {
+    Map(contentPadding = PaddingValues(bottom = with(density) { sheet.visibleHeight.toDp() }))
+
+    BottomSheet(sheet) {
+        SheetHeader("Perth Underground", modifier = Modifier.sheetPeekAnchor())
+        LazyColumn { … }
+    }
+}
+```
+
+Built on foundation's `AnchoredDraggableState`, which already handles the drag,
+the fling and the settle. What `SheetState` adds is the part that is actually
+specific to sheets: turning detents into anchor positions as the container and
+content resize, and handing scroll off between the sheet and whatever scrolls
+inside it.
+
+### Detents are values, not an enum
+
+```kotlin
+class SheetDetent(
+    val id: String,
+    val resolve: Density.(containerHeight: Float, sheetHeight: Float) -> Float,
+)
+```
+
+A detent says **how much of the sheet is visible**, not where its top edge is.
+That is how the positions are actually thought about — "showing 360dp", "showing
+just the header", "showing all of it" — and `SheetState` converts to offsets
+internally.
+
+| | |
+|---|---|
+| `SheetDetent.Hidden` | Off screen |
+| `SheetDetent.Expanded` | As tall as its *content*, or the container — whichever is smaller |
+| `SheetDetent.Half` | Half the container |
+| `SheetDetent.peek(fallback)` | As tall as whatever the content marked with `Modifier.sheetPeekAnchor()` |
+| `SheetDetent.height(id, dp)` | A fixed height |
+| `SheetDetent.fraction(id, f)` | A fraction of the container |
+
+Being values rather than an enum is what lets a screen define its own. The map's
+stop sheet rests at the height of its own header; the trip planner rests at
+360dp. Neither is a case the library could have enumerated in advance.
+
+**Identity is the `id`, not the lambda.** Two `peek(140.dp)` calls make two
+objects with two different resolvers, and if they were not equal, a recomposition
+that rebuilt the detent list would re-anchor and snap the sheet shut on every
+frame.
+
+**`Expanded` is the content's height, not the window's.** A sheet with three
+rows in it should be three rows tall, not an empty full-screen panel with three
+rows at the top.
+
+### The detent list is reassignable
+
+```kotlin
+val sheet = rememberSheetState(
+    detents = when (selection) {
+        is Location -> listOf(SheetDetent.Hidden, peek)          // nothing to expand into
+        is Itinerary -> listOf(SheetDetent.Hidden, half, expanded) // no peek; the header is the content
+        else -> listOf(SheetDetent.Hidden, peek, half, expanded)
+    },
+)
+```
+
+Which detents apply depends on what is in the sheet. Filtering a list beats
+defining a second sheet — and it is what the Android app already does today with
+a `forEach` and two `return@forEach` guards.
+
+When the list changes, the sheet keeps its position if that detent survives, and
+otherwise falls to the *nearest surviving* one. Falling to the first in the list
+would slam a half-open sheet shut every time its content changed underneath it.
+
+Detents that resolve to the same offset are dropped, keeping the first. Two
+anchors at one position make `settledValue` ambiguous and the sheet flickers
+between two names for the same place — which happens easily, since content that
+is exactly half the container makes `Half` and `Expanded` collide.
+
+### `peek` is the one that matters
+
+A sheet over a map has to rest showing exactly its header: enough to identify
+what is selected, not enough to cover the thing it is about. A fixed peek height
+cannot do that, because a stop header and a trip header are different heights and
+both change again at 200% type.
+
+```kotlin
+BottomSheet(sheet) {
+    SheetHeader("Perth Underground", modifier = Modifier.sheetPeekAnchor())
+    LazyColumn { … }
+}
+```
+
+The measurement is **the anchor's bottom edge relative to the top of the
+sheet**, not the anchor's own height — anything above it counts too. The drag
+handle is what makes the difference: a peek set to the header's height alone
+shows the bottom of the sheet up to that height, which is the header minus the
+handle, and the last line of the header is cut off.
+
+It is also derived from two separately-stored measurements rather than computed
+where the anchor reports. `onGloballyPositioned` fires children-first, so the
+anchor reports before the sheet it is inside — and it only fires again when a
+position actually changes, so computing the difference at the anchor's callback
+finds the sheet's top still unset and never gets a second chance. That is how the
+peek silently stayed at its fallback in the first version.
+
+---
+
+## The components
+
+| | |
+|---|---|
+| `BottomSheet` | Non-modal, in the layout, over the content behind it |
+| `ModalBottomSheet` | Renders into the `OverlayHost`; dims and blocks |
+| `SideSheet` | Slides in from an edge, for wide windows |
+| `SheetHeader` | Title, supporting line, actions, close |
+| `DragHandle` | The grab bar, and the sheet's accessibility actions |
+
+**`BottomSheet` is non-modal by design.** Nothing behind it is dimmed or
+blocked, which is the whole point over a map: the user pans the map with the
+sheet resting at its peek detent, and `sheet.visibleHeight` is what the map
+insets its controls by so they stay above it.
+
+**`ModalBottomSheet` takes over.** It goes through the overlay stack, so it
+shares a scrim with dialogs and menus, back closes it, and dragging it shut calls
+`onDismissRequest` — `visible` and the sheet cannot disagree about whether it is
+open.
+
+**`SideSheet` is the wide-window shape.** A bottom sheet on a desktop window is a
+short letterbox across something very wide. It slides rather than dragging
+through detents: a side sheet has one useful position, and a horizontal drag on a
+wide screen usually meant something else.
+
+### `DragHandle` is drawn, not draggable
+
+The whole sheet is already draggable. A handle that is the *only* draggable part
+makes a 4dp-tall target the user has to hit.
+
+It does carry the sheet's accessibility actions, though, since a drag is not a
+gesture a screen reader can perform: expand and collapse appear as actions on the
+handle, which is why it is not marked decorative. It widens slightly on hover —
+the one hint a pointer user gets that a sheet is draggable at all.
+
+---
+
+## Nested scrolling
+
+A `LazyColumn` inside a sheet works without ceremony:
+
+- Dragging **down** scrolls the list until it reaches its top, then moves the
+  sheet.
+- Dragging **up** moves the sheet until it is expanded, then scrolls the list.
+
+That handoff is why a sheet takes its content as a slot rather than being a
+modifier. Without it, a sheet with a list inside is either undraggable or
+unscrollable, depending on which modifier won.
+
+---
+
+## Opening a sheet before it has been laid out
+
+```kotlin
+LaunchedEffect(Unit) { sheet.animateTo(SheetDetent.Half) }
+```
+
+This is the normal case — a screen that arrives with its sheet already open — and
+it runs before the first layout, so there are no anchors to move to yet.
+`SheetState` holds the request and applies it when anchors arrive, so callers do
+not have to wait for a measurement they should not have to know about.
+
+---
+
+## Testing
+
+Two suites, because sheets fail in two different ways.
+
+`SheetAnchorTest` (in `:ui`) covers the arithmetic: detents resolving off-screen,
+duplicates colliding, a peek clamped to its container, order preserved. Pure
+functions, no composition.
+
+`SheetGeometryTest` (in `:ui-catalog`) renders a real sheet and measures **both
+what the state reports and where the sheet actually landed**. Both, because they
+can disagree — and when they do, the state is the half that looks right. Both
+bugs found while building this phase were of exactly that kind:
+
+- The sheet was bottom-aligned *and* offset, double-counting, so a short sheet
+  was drawn entirely below the screen while `offset` reported the correct number.
+- The peek detent fell back silently, because the anchor was measured against a
+  sheet top that had not been set yet.
+
+Neither was visible to a pure test, and neither was obvious in the screenshot —
+the first looked like "the sheet didn't open", the second like "the peek height
+is a bit generous".

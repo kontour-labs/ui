@@ -55,6 +55,7 @@ remember — they are things the code does.
 | [`accessibility.md`](accessibility.md) | The contract every component meets, and how it is enforced |
 | [`components.md`](components.md) | The component inventory |
 | [`overlays.md`](overlays.md) | Dialogs, menus, tooltips and toasts — the stack, the queue, and which to reach for |
+| [`sheets.md`](sheets.md) | Bottom and side sheets, and the detent model the map screens need |
 | [`contributing.md`](contributing.md) | The checklist for adding a component |
 
 See the *Status* table below for what is built today.
@@ -73,7 +74,7 @@ See the *Status* table below for what is built today.
 | 7 | Display and content | core built |
 | 8 | Collections | not started |
 | 9 | Overlays | done, with `Select`, `Combobox`, `MultiSelect` and the text toolbar |
-| 10 | Sheets | not started |
+| 10 | Sheets | done |
 | 11 | Navigation | not started |
 | 12 | Adaptive layout and motion | not started |
 | 13 | Catalog, screenshot goldens, CI | not started |

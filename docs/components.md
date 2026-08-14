@@ -498,6 +498,42 @@ reader that announced both would say it twice.
 
 ---
 
+## Sheets — built
+
+See [`sheets.md`](sheets.md) for the detent model; this is the inventory.
+
+| | |
+|---|---|
+| `SheetState` / `rememberSheetState` | Position, detents, nested scroll |
+| `SheetDetent` | `Hidden`, `Expanded`, `Half`, `peek(dp)`, `height(dp)`, `fraction(f)` |
+| `BottomSheet` | Non-modal, in the layout, over the content behind it |
+| `ModalBottomSheet` | Renders into the `OverlayHost`; dims and blocks |
+| `SideSheet` | Slides in from an edge, for wide windows |
+| `SheetHeader` | Title, supporting line, actions, close |
+| `DragHandle` | The grab bar, and the sheet's accessibility actions |
+| `Modifier.sheetPeekAnchor` | Marks what a `peek` detent shows |
+
+**A detent is how much of the sheet is visible**, not where its top edge is —
+"showing just the header", "showing all of it". They are values rather than an
+enum so a screen can define its own: the map's stop sheet rests at the height of
+its own header, which is not a case the library could have enumerated.
+
+**`peek` measures rather than guesses.** `Modifier.sheetPeekAnchor()` on the
+header makes the sheet rest exactly far enough to show it, at any font scale. A
+fixed peek height cuts the title in half at 200% type.
+
+**`BottomSheet` is non-modal, `ModalBottomSheet` is not.** The first is for a
+sheet over a map that the user keeps working around; the second dims and blocks,
+which is right for a decision and wrong for anything they need to keep looking
+at.
+
+**The drag handle is drawn, not draggable.** The whole sheet already is; a handle
+that is the only draggable part makes a 4dp target. It carries the expand and
+collapse *accessibility* actions instead, since a drag is not a gesture a screen
+reader can perform.
+
+---
+
 ## Foundation — built
 
 | | |
@@ -551,8 +587,6 @@ mobile app and are not being built on spec.
 
 **Collections** — `ListItem`, `ListSection`, `SwipeActions`, `ReorderableList`,
 `PullToRefresh`, `LoadMore`, `Scrollbar`, `DataTable`, `TreeList`
-
-**Sheets** — `BottomSheet`, `ModalBottomSheet`, `SideSheet`, `SheetHeader`
 
 **Navigation** — `NavBar`, `NavRail`, `NavDrawer`, `TopBar`, `TabBar`,
 `Breadcrumbs`, `Pagination`, `Toolbar`, `NavigationSuiteScaffold`

@@ -145,6 +145,23 @@ class ThemeShowcaseScreenshotTest {
     }
 
     @Test
+    fun rendersSheets() {
+        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+            val file = Screenshot.render(
+                name = name.replace("theme-", "sheets-"),
+                width = 2960,
+                height = 1240,
+                frames = 60,
+            ) {
+                KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
+                    SheetShowcase()
+                }
+            }
+            assertTrue(file.length() > 0, "$name sheets rendered an empty file")
+        }
+    }
+
+    @Test
     fun rendersDisplayComponents() {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(
