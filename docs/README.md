@@ -72,7 +72,7 @@ See the *Status* table below for what is built today.
 | 5 | Date and time | core built |
 | 6 | Text editing | core built |
 | 7 | Display and content | core built |
-| 8 | Collections | not started |
+| 8 | Collections | done — `DataTable`/`TreeList` deliberately skipped |
 | 9 | Overlays | done, with `Select`, `Combobox`, `MultiSelect` and the text toolbar |
 | 10 | Sheets | done |
 | 11 | Navigation | not started |

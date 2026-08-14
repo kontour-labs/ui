@@ -498,6 +498,66 @@ reader that announced both would say it twice.
 
 ---
 
+## Collections — built
+
+| | |
+|---|---|
+| `ListItem` | One row. Leading, trailing, overline, supporting, segmented corners |
+| `ListItemPosition` | `Only` / `First` / `Middle` / `Last`, from `of(index, count)` |
+| `ListSection` / `SectionHeader` | A titled group |
+| `SettingRow` | The settings-screen shape: icon, label, value |
+| `SwipeActions` / `SwipeToDismiss` | Actions revealed by a sideways drag |
+| `ReorderableItem` / `rememberReorderableState` | Drag to reorder, live |
+| `PullToRefresh` | Pull at the top of a list to reload |
+| `LoadMore` | The paging row at the end of a list |
+| `Modifier.fadingEdges` | Fades content out at a scrollable edge |
+| `Scrollbar` | Position indicator, pointers only |
+
+**A group of rows is one object, not a stack of cards.** Only the outside corners
+of a group round; the ones facing a neighbour get a hairline. `ListItemPosition`
+carries that, and `of(index, count)` gets the one-item case right — which is the
+case a three-item example in a catalog never exercises and every settings screen
+with a single row hits immediately.
+
+**Rows default to a *sunken* ground.** In this scheme `surface` and `background`
+are the same white, so a row drawn on `surface` is invisible on a page and a
+group of them reads as loose text.
+
+**`Scrollbar` is drawn only under a hovering pointer.** A permanent scrollbar on
+a touchscreen is wrong twice over — not draggable with a finger at any sensible
+width, and taking space from the screens with least of it. On desktop and web the
+opposite holds: a long list with no scrollbar reads as broken. It is purely an
+indicator, and hidden from the accessibility tree, since it conveys nothing the
+list does not already.
+
+**`fadingEdges` erases rather than painting over.** `BlendMode.DstOut` in an
+offscreen layer, not a gradient of the background colour — the shortcut version
+fails the moment anything is behind the list, which over a map is always.
+
+### Gestures are shortcuts, never routes
+
+Swiping, pulling and dragging are invisible, have no keyboard or pointer
+equivalent, and are unreachable for anyone who cannot make a sustained drag. Each
+of these components carries its actions a second way and the caller still owes a
+third:
+
+- `SwipeActions` puts every action on the row as a **custom accessibility
+  action**, so a screen reader can reach it. That covers assistive tech, not a
+  sighted mouse user — put the same actions in a menu.
+- `ReorderableItem` exposes **move up** and **move down** the same way, since a
+  drag is not a gesture a screen reader can perform and reordering with no
+  alternative makes a whole feature unreachable.
+- `PullToRefresh` needs a refresh action in the toolbar as well.
+
+`SwipeToDismiss` also needs an undo. A dismissal with no way back is a data-loss
+bug wearing a gesture; pair it with a `Toast` carrying the undo.
+
+**Reordering happens live, under the finger.** `onMove` fires every time the
+dragged row passes another, so the caller's list stays the source of truth
+throughout and there is no pending order to reconcile on release.
+
+---
+
 ## Sheets — built
 
 See [`sheets.md`](sheets.md) for the detent model; this is the inventory.
@@ -585,8 +645,8 @@ calendar for range selection across month boundaries
 `Marquee`. `CodeBlock` and `Gauge` are admin-web patterns with no usage in the
 mobile app and are not being built on spec.
 
-**Collections** — `ListItem`, `ListSection`, `SwipeActions`, `ReorderableList`,
-`PullToRefresh`, `LoadMore`, `Scrollbar`, `DataTable`, `TreeList`
+**Collections, remaining** — `DataTable` and `TreeList` are admin-web patterns
+with no usage in the mobile app, and are not being built on spec.
 
 **Navigation** — `NavBar`, `NavRail`, `NavDrawer`, `TopBar`, `TabBar`,
 `Breadcrumbs`, `Pagination`, `Toolbar`, `NavigationSuiteScaffold`

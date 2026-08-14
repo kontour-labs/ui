@@ -162,6 +162,23 @@ class ThemeShowcaseScreenshotTest {
     }
 
     @Test
+    fun rendersCollections() {
+        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+            val file = Screenshot.render(
+                name = name.replace("theme-", "lists-"),
+                width = 2440,
+                height = 1080,
+                frames = 20,
+            ) {
+                KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
+                    ListShowcase()
+                }
+            }
+            assertTrue(file.length() > 0, "$name collections rendered an empty file")
+        }
+    }
+
+    @Test
     fun rendersDisplayComponents() {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(
