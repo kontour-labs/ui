@@ -48,14 +48,19 @@ kotlin {
         commonMain.dependencies {
             // Compose Foundation and nothing above it. Material is deliberately
             // absent — see the `checkNoMaterial` task at the bottom of this file.
-            implementation(libs.compose.runtime)
-            implementation(libs.compose.foundation)
-            implementation(libs.compose.ui)
+            //
+            // `api`, not `implementation`: these types appear in the public API of
+            // nearly every component — Modifier, Composable, Color, ImageVector —
+            // so a consumer cannot call into `:ui` without them on its own compile
+            // classpath.
+            api(libs.compose.runtime)
+            api(libs.compose.foundation)
+            api(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
 
-            // Date/time components need a calendar; nothing else leaks in.
-            implementation(libs.kotlinx.datetime)
+            // Also `api`: the date/time components take LocalDate and LocalTime.
+            api(libs.kotlinx.datetime)
             implementation(libs.kotlinx.coroutines.core)
         }
 

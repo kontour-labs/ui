@@ -256,6 +256,47 @@ into.
 
 ---
 
+## Date and time — built
+
+| | |
+|---|---|
+| `CalendarMonth` | The reusable grid. No opinion about how selection works |
+| `DatePicker` | Single date, with month paging |
+| `DateRangePicker` | Start and end, with a continuous run between them |
+| `TimePicker` | Hour/minute wheels, plus AM/PM on a 12-hour clock |
+| `TimeField` | The tappable field that opens one |
+| `WheelPicker` | The scrolling drum, for any list of values |
+| `RelativeTimeText` | A self-updating "in 4 min" |
+| `DateTimeFormats` | 12/24-hour, day-first, first-day-of-week |
+
+`CalendarMonth` expresses selection as *predicates* rather than a value, because
+that is the only shape that serves single, range and multi-select without the
+grid knowing which mode it is in. Range endpoints get a rounded cap and the
+interior stays square, so a run reads as continuous rather than as a row of
+separate pills.
+
+`DateRangePicker` follows the rule users expect without being told: the first
+tap sets the start and clears any end, the second sets the end, and tapping
+before the current start *restarts* the range there rather than producing a
+backwards one.
+
+`RelativeTimeText` re-renders at the resolution it is displaying — every second
+under a minute, every twenty above — rather than on a fixed timer that is either
+wasteful or stale. It rounds **down**: telling someone their bus is 2 minutes
+away when it is 90 seconds away is the error that makes them miss it. It is a
+polite live region, so a screen reader announces the change.
+
+`DateTimeFormats` carries the two preferences users actually notice — 12/24-hour
+and day-first — because "05/06" is two different days depending on the answer.
+Provided once at the root through `LocalDateTimeFormats`.
+
+`TimePicker` uses wheels rather than a clock dial. In a transit app the value is
+almost always being *adjusted* ("leave at 8:15 instead of 8:00"), and a wheel
+gets there in one flick where a dial needs two precise drags.
+
+
+---
+
 ## Foundation — built
 
 | | |
@@ -290,8 +331,8 @@ Listed so the shape of the finished system is visible. See
 **Selection, remaining** — `RangeSlider`, `Stepper`, `Rating`, `Select`,
 `Combobox`, `MultiSelect`, `ColorSwatchPicker`, `FilePicker`
 
-**Date and time** — `DatePicker`, `DateRangePicker`, `TimePicker`,
-`CalendarMonth`, `WheelPicker`, `DurationPicker`, `RelativeTimeText`
+**Date and time, remaining** — `DurationPicker`, and a multi-month scrolling
+calendar for range selection across month boundaries
 
 **Text editing, remaining** — `OtpField`, `TagInput`, `CurrencyField`, plus the
 custom desktop/web text toolbar and IME focus-chaining

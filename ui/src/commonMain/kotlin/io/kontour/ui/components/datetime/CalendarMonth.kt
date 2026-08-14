@@ -1,0 +1,286 @@
+package io.kontour.ui.components.datetime
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.foundation.Text
+import io.kontour.ui.interaction.Feedback
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.theme.Theme
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
+
+/** How a day sits within a selected range. Drives the cell's shape and fill. */
+enum class RangePosition { None, Start, Middle, End, StartAndEnd }
+
+/**
+ * One month's grid of days.
+ *
+ * The reusable part of every date picker — a calendar surface with no opinion
+ * about how selection works, so single-date, range and multi-select pickers all
+ * build on the same grid rather than each drawing their own.
+ *
+ * ```
+ * CalendarMonth(
+ *     month = visibleMonth,
+ *     isSelected = { it == chosen },
+ *     onSelect = { chosen = it },
+ *     isEnabled = { it >= today },
+ * )
+ * ```
+ *
+ * Selection is expressed as predicates rather than as a value, because that is
+ * the only shape that serves all three selection modes without the grid needing
+ * to know which one it is in.
+ *
+ * @param month Any date within the month to show; only its year and month matter.
+ * @param isEnabled Days for which this returns false are shown but not
+ *   selectable — greyed rather than hidden, so the calendar keeps its shape and
+ *   the user can see *why* a date is unavailable.
+ * @param markerFor Draws a dot under a day. For "this day has departures", or a
+ *   trip already booked.
+ * @param rangePositionOf Where a day sits in a selected range. Days in the
+ *   middle get a square fill so the run reads as continuous; the ends get the
+ *   rounded cap.
+ */
+@Composable
+fun CalendarMonth(
+    month: LocalDate,
+    isSelected: (LocalDate) -> Boolean,
+    onSelect: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier,
+    isEnabled: (LocalDate) -> Boolean = { true },
+    today: LocalDate? = null,
+    markerFor: ((LocalDate) -> Color?)? = null,
+    rangePositionOf: ((LocalDate) -> RangePosition)? = null,
+    formats: DateTimeFormats = LocalDateTimeFormats.current,
+) {
+    val firstOfMonth = remember(month) { LocalDate(month.year, month.month, 1) }
+    val daysInMonth = remember(firstOfMonth) {
+        firstOfMonth.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).day
+    }
+    val leadingBlanks = remember(firstOfMonth, formats) {
+        formats.columnOf(firstOfMonth.dayOfWeek)
+    }
+
+    Column(modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth()) {
+            formats.weekdayInitials().forEachIndexed { index, initial ->
+                Box(
+                    Modifier
+                        .weight(1f)
+                        // The initials repeat — S for Saturday and Sunday, T for
+                        // Tuesday and Thursday — so they are decorative here and
+                        // each day cell carries its own full announcement.
+                        .semantics { },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = initial,
+                        style = Theme.typography.labelSmall,
+                        color = Theme.colors.contentMuted,
+                        modifier = Modifier.padding(vertical = Theme.spacing.xs),
+                    )
+                }
+            }
+        }
+
+        val cells = leadingBlanks + daysInMonth
+        val rows = (cells + 6) / 7
+
+        for (row in 0 until rows) {
+            Row(Modifier.fillMaxWidth()) {
+                for (column in 0 until 7) {
+                    val cellIndex = row * 7 + column
+                    val dayOfMonth = cellIndex - leadingBlanks + 1
+
+                    if (dayOfMonth < 1 || dayOfMonth > daysInMonth) {
+                        Box(Modifier.weight(1f).aspectRatio(1f))
+                    } else {
+                        val date = LocalDate(month.year, month.month, dayOfMonth)
+                        DayCell(
+                            date = date,
+                            modifier = Modifier.weight(1f),
+                            selected = isSelected(date),
+                            enabled = isEnabled(date),
+                            isToday = date == today,
+                            marker = markerFor?.invoke(date),
+                            rangePosition = rangePositionOf?.invoke(date) ?: RangePosition.None,
+                            formats = formats,
+                            onSelect = onSelect,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayCell(
+    date: LocalDate,
+    modifier: Modifier,
+    selected: Boolean,
+    enabled: Boolean,
+    isToday: Boolean,
+    marker: Color?,
+    rangePosition: RangePosition,
+    formats: DateTimeFormats,
+    onSelect: (LocalDate) -> Unit,
+) {
+    val colors = Theme.colors
+    val motion = Theme.motion
+    val feedback = Feedback
+    val interactions = remember { MutableInteractionSource() }
+
+    val inRange = rangePosition != RangePosition.None
+    val isEndpoint = rangePosition == RangePosition.Start ||
+        rangePosition == RangePosition.End ||
+        rangePosition == RangePosition.StartAndEnd
+    val filled = selected || isEndpoint
+
+    // A run of selected days reads as continuous because the middle keeps square
+    // edges and only the ends are capped.
+    val shape: Shape = when (rangePosition) {
+        RangePosition.Middle -> RectangleShape
+        RangePosition.Start -> Theme.shapes.pill.copy(
+            topEnd = androidx.compose.foundation.shape.CornerSize(0),
+            bottomEnd = androidx.compose.foundation.shape.CornerSize(0),
+        )
+        RangePosition.End -> Theme.shapes.pill.copy(
+            topStart = androidx.compose.foundation.shape.CornerSize(0),
+            bottomStart = androidx.compose.foundation.shape.CornerSize(0),
+        )
+        else -> Theme.shapes.pill
+    }
+
+    val container by animateColorAsState(
+        targetValue = when {
+            filled -> colors.primary
+            inRange -> colors.accentContainer
+            else -> Color.Transparent
+        },
+        animationSpec = motion.tweenFast(),
+        label = "dayContainer",
+    )
+    val label by animateColorAsState(
+        targetValue = when {
+            !enabled -> colors.contentDisabled
+            filled -> colors.onPrimary
+            inRange -> colors.onAccentContainer
+            else -> colors.content
+        },
+        animationSpec = motion.tweenFast(),
+        label = "dayLabel",
+    )
+    // The fill springs in rather than fading, so tapping through a range feels
+    // like laying down stones rather than watching cells tint.
+    val fillScale by animateFloatAsState(
+        targetValue = if (filled) 1f else 0.7f,
+        animationSpec = motion.springOrTween(motion.springBouncy),
+        label = "dayFill",
+    )
+
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .semantics {
+                role = Role.Button
+                this.selected = filled
+                stateDescription = formats.dateFull(date)
+            }
+            .padding(1.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .matchCellSize()
+                .scale(if (filled) fillScale else 1f)
+                .clip(shape)
+                .background(container, shape)
+                .then(
+                    if (isToday && !filled) {
+                        Modifier.border(
+                            Theme.sizing.borderWidth,
+                            colors.outlineStrong,
+                            Theme.shapes.pill,
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
+        )
+
+        Box(
+            Modifier
+                .minimumTouchTarget()
+                .matchCellSize()
+                .clip(shape)
+                .clickable(
+                    interactionSource = interactions,
+                    indication = null,
+                    enabled = enabled,
+                    role = Role.Button,
+                    onClick = {
+                        feedback.perform(FeedbackIntent.Selection)
+                        onSelect(date)
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = date.day.toString(),
+                    style = if (isToday) Theme.typography.labelMedium else Theme.typography.bodyMedium,
+                    color = label,
+                )
+                if (marker != null) {
+                    Box(
+                        Modifier
+                            .padding(top = 2.dp)
+                            .markerSize()
+                            .clip(Theme.shapes.pill)
+                            .background(if (filled) colors.onPrimary else marker)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun Modifier.matchCellSize(): Modifier = fillMaxWidth().aspectRatio(1f)
+
+private fun Modifier.markerSize(): Modifier = size(4.dp)

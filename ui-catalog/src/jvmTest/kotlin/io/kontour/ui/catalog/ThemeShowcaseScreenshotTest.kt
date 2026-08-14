@@ -89,4 +89,20 @@ class ThemeShowcaseScreenshotTest {
             assertTrue(file.length() > 0, "$name text rendered an empty file")
         }
     }
+
+    @Test
+    fun rendersDateAndTime() {
+        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+            val file = Screenshot.render(
+                name = name.replace("theme-", "datetime-"),
+                width = 2280,
+                height = 1420,
+            ) {
+                KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
+                    DateTimeShowcase()
+                }
+            }
+            assertTrue(file.length() > 0, "$name datetime rendered an empty file")
+        }
+    }
 }
