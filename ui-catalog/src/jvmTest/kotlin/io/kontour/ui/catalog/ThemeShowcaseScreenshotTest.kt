@@ -1,5 +1,8 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.AfterTest
@@ -156,7 +159,10 @@ class ThemeShowcaseScreenshotTest {
                 frames = 40,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
-                    SelectShowcase()
+                    // A root host, as `Catalog` gives the real page. The panels
+                    // used to install one each, which is what made a select
+                    // dismissable only inside its own column.
+                    OverlayHost(Modifier.fillMaxSize()) { SelectShowcase() }
                 }
             }
             assertTrue(file.length() > 0, "$name forms rendered an empty file")

@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Eye
+import com.composables.icons.tabler.outline.EyeOff
 import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Search
 import com.composables.icons.tabler.outline.X
@@ -96,7 +97,7 @@ fun TextShowcase(modifier: Modifier = Modifier) {
                         state = rememberTextFieldState("hunter2"),
                         label = "Password",
                         revealIcon = Tabler.Outline.Eye,
-                        hideIcon = Tabler.Outline.Eye,
+                        hideIcon = Tabler.Outline.EyeOff,
                     )
                     EmailField(
                         state = rememberTextFieldState("aaron@kontour.io"),

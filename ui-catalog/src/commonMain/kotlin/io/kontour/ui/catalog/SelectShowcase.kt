@@ -30,7 +30,6 @@ import io.kontour.ui.components.text.rememberImeChain
 import io.kontour.ui.components.text.rememberSelectState
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
 import androidx.compose.foundation.text.input.rememberTextFieldState
 
@@ -196,20 +195,23 @@ private fun FormPanel(title: String, content: @Composable () -> Unit) {
             style = Theme.typography.monoLabel,
             color = Theme.colors.accent.solid,
         )
-        // Each panel gets a host: an open select renders into the nearest one,
-        // and one shared host would put every menu in the same coordinate space.
+        // No host of its own. An open select renders into the *root* one from
+        // `Catalog`, which is outside the page's scroll and fills the window.
         //
-        // The height is not decoration. The catalog page is inside a
-        // `verticalScroll`, so the incoming height constraint is unbounded, and
-        // `fillMaxSize()` is a no-op for an axis that has no size to fill — the
-        // host would end up with no measurable bounds to position against. Every
-        // other showcase host pins one; this one did not, and that is what the
-        // Forms page crashed on.
+        // Each panel used to install one, to give the overlay bounds to position
+        // against — the page is inside a `verticalScroll`, so a host placed here
+        // has an unbounded height and nothing to measure, which is what the Forms
+        // page originally crashed on. Pinning a height fixed the crash and bought
+        // a worse bug: `LocalOverlayHost` is a static local, so the nearest host
+        // wins, and the dismiss scrim `fillMaxSize()`d into a 400x420 box. A tap
+        // anywhere outside that rectangle never reached it, so a select would
+        // only close if you clicked in its own column.
+        //
+        // The height stays — it keeps the panels aligned, and it is what gives an
+        // open menu room to render without the row below it moving.
         Box(Modifier.fillMaxWidth().height(FormPanelHeight)) {
-            OverlayHost {
-                Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-                    content()
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+                content()
             }
         }
     }

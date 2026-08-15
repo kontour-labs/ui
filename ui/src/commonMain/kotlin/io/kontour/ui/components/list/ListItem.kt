@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -29,6 +30,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
@@ -39,8 +41,8 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
-import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 
 /**
@@ -267,172 +269,177 @@ fun ListItem(
         else -> ListItemDefaults.MinHeight
     }
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {}
-            .defaultMinSize(minHeight = resolvedMinHeight)
-            // Keyed on being a control at all, not on being enabled — a row that
-            // changed height when it greyed out would jump the list around it.
-            .then(if (onClick != null) Modifier.minimumTouchTarget() else Modifier)
-            .focusRing(interactions, shape, enabled = interactive)
-            .clip(shape)
-            .background(container, shape)
-            // `surfaceSunken` on `background` is 1.06:1 at the high-contrast
-            // light tier, so a group of rows reads as loose text rather than as
-            // one object with rows in it — which is the exact thing the sunken
-            // ground exists to prevent, failing at the tier that needs it most.
-            .then(contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier)
-            .then(clickModifier)
-            // `xs`, not `sm`. The 12dp version put 24dp of air around a
-            // single line of text inside a row whose minimum is already 56dp,
-            // so the padding was never what set the height — it only pushed a
-            // two-line row taller than it needed to be. `MinHeight` holds the
-            // floor for the one-line case, which is what it is for.
-            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.xs),
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val muted = if (enabled) colors.contentMuted else colors.contentDisabled
+    // Published so a control in a slot can show the row's press — a `Switch` in
+    // a trailing slot has no callback of its own and would otherwise never see
+    // the tap that the row just handled.
+    CompositionLocalProvider(LocalRowInteractionSource provides interactions) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {}
+                .defaultMinSize(minHeight = resolvedMinHeight)
+                // Keyed on being a control at all, not on being enabled — a row that
+                // changed height when it greyed out would jump the list around it.
+                .then(if (onClick != null) Modifier.minimumTouchTarget() else Modifier)
+                .focusRing(interactions, shape, enabled = interactive)
+                .clip(shape)
+                .background(container, shape)
+                // `surfaceSunken` on `background` is 1.06:1 at the high-contrast
+                // light tier, so a group of rows reads as loose text rather than as
+                // one object with rows in it — which is the exact thing the sunken
+                // ground exists to prevent, failing at the tier that needs it most.
+                .then(contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier)
+                .then(clickModifier)
+                // `xs`, not `sm`. The 12dp version put 24dp of air around a
+                // single line of text inside a row whose minimum is already 56dp,
+                // so the padding was never what set the height — it only pushed a
+                // two-line row taller than it needed to be. `MinHeight` holds the
+                // floor for the one-line case, which is what it is for.
+                .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val muted = if (enabled) colors.contentMuted else colors.contentDisabled
 
-        slots.leading?.let { leading ->
-            Box(contentAlignment = Alignment.Center) {
-                // Muted and `iconLarge`, which is what the old `leadingIcon`
-                // parameter did. Anything that is not a bare glyph — an avatar, a
-                // checkbox — sets its own colours and is unaffected.
-                ProvideContentColor(muted) {
-                    ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
+            slots.leading?.let { leading ->
+                Box(contentAlignment = Alignment.Center) {
+                    // Muted and `iconLarge`, which is what the old `leadingIcon`
+                    // parameter did. Anything that is not a bare glyph — an avatar, a
+                    // checkbox — sets its own colours and is unaffected.
+                    ProvideContentColor(muted) {
+                        ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
+                    }
+                }
+            }
+
+            Column(Modifier.weight(1f)) {
+                slots.overline?.let { overline ->
+                    ProvideContentColor(muted) {
+                        ProvideTextStyle(Theme.typography.labelSmall) {
+                            ContentSlot(maxLines = 1, content = overline)
+                        }
+                    }
+                }
+                slots.label?.let { label ->
+                    ProvideContentColor(content) {
+                        ProvideTextStyle(Theme.typography.bodyMedium) {
+                            ContentSlot(maxLines = 2, content = label)
+                        }
+                    }
+                }
+                slots.supporting?.let { supporting ->
+                    ProvideContentColor(muted) {
+                        ProvideTextStyle(Theme.typography.bodySmall) {
+                            ContentSlot(maxLines = 2, content = supporting)
+                        }
+                    }
+                }
+            }
+
+            slots.trailing?.let { trailing ->
+                Box(contentAlignment = Alignment.Center) {
+                    ContentSlot(content = trailing)
                 }
             }
         }
-
-        Column(Modifier.weight(1f)) {
-            slots.overline?.let { overline ->
-                ProvideContentColor(muted) {
-                    ProvideTextStyle(Theme.typography.labelSmall) {
-                        ContentSlot(maxLines = 1, content = overline)
-                    }
-                }
-            }
-            slots.label?.let { label ->
-                ProvideContentColor(content) {
-                    ProvideTextStyle(Theme.typography.bodyMedium) {
-                        ContentSlot(maxLines = 2, content = label)
-                    }
-                }
-            }
-            slots.supporting?.let { supporting ->
-                ProvideContentColor(muted) {
-                    ProvideTextStyle(Theme.typography.bodySmall) {
-                        ContentSlot(maxLines = 2, content = supporting)
-                    }
-                }
-            }
-        }
-
-        slots.trailing?.let { trailing ->
-            Box(contentAlignment = Alignment.Center) {
-                ContentSlot(content = trailing)
-            }
         }
     }
-}
 
-/**
- * A titled group of [ListItem]s.
- *
- * ```kotlin
- * ListSection("Notifications") {
- *     SelectionRow("Delays", …)
- *     SelectionRow("Cancellations", …)
- * }
- * ```
- *
- * Spaces its children and marks the title as a heading, so a screen reader can
- * jump between sections. It does *not* set each child's [ListItemPosition] —
- * doing that would mean walking the composed children, which Compose has no way
- * to do. Use [listPositions] or [ListItemPosition.of] at the call site.
- *
- * @param description Sits under the title, above the rows. For what the group
- *   *is*.
- * @param footer Sits under the rows. For what the setting *does* — the sentence
- *   a settings screen puts below a switch to explain the consequence of it.
- *   Spelled like [description] rather than as a slot because it is the same kind
- *   of thing, and the two should not read as different mechanisms.
- */
-@Composable
-fun ListSection(
-    modifier: Modifier = Modifier,
-    title: String? = null,
-    description: String? = null,
-    footer: String? = null,
-    action: (@Composable RowScope.() -> Unit)? = null,
-    spacing: Dp = ListItemDefaults.Spacing,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(spacing),
+    /**
+     * A titled group of [ListItem]s.
+     *
+     * ```kotlin
+     * ListSection("Notifications") {
+     *     SelectionRow("Delays", …)
+     *     SelectionRow("Cancellations", …)
+     * }
+     * ```
+     *
+     * Spaces its children and marks the title as a heading, so a screen reader can
+     * jump between sections. It does *not* set each child's [ListItemPosition] —
+     * doing that would mean walking the composed children, which Compose has no way
+     * to do. Use [listPositions] or [ListItemPosition.of] at the call site.
+     *
+     * @param description Sits under the title, above the rows. For what the group
+     *   *is*.
+     * @param footer Sits under the rows. For what the setting *does* — the sentence
+     *   a settings screen puts below a switch to explain the consequence of it.
+     *   Spelled like [description] rather than as a slot because it is the same kind
+     *   of thing, and the two should not read as different mechanisms.
+     */
+    @Composable
+    fun ListSection(
+        modifier: Modifier = Modifier,
+        title: String? = null,
+        description: String? = null,
+        footer: String? = null,
+        action: (@Composable RowScope.() -> Unit)? = null,
+        spacing: Dp = ListItemDefaults.Spacing,
+        content: @Composable ColumnScope.() -> Unit,
     ) {
-        if (title != null || action != null) {
-            SectionHeader(
-                title = title.orEmpty(),
-                description = description,
-                action = action,
-            )
-        }
-        content()
-        if (footer != null) {
-            Text(
-                text = footer,
-                modifier = Modifier.padding(
-                    start = Theme.spacing.md,
-                    end = Theme.spacing.md,
-                    top = Theme.spacing.xxs,
-                ),
-                style = Theme.typography.bodySmall,
-                color = Theme.colors.contentMuted,
-            )
-        }
-    }
-}
-
-/** A heading above a group of rows. */
-@Composable
-fun SectionHeader(
-    title: String,
-    modifier: Modifier = Modifier,
-    description: String? = null,
-    action: (@Composable RowScope.() -> Unit)? = null,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(
-                start = Theme.spacing.md,
-                end = Theme.spacing.xs,
-                top = Theme.spacing.md,
-                bottom = Theme.spacing.xxs,
-            ),
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = title,
-                modifier = Modifier.semantics { heading() },
-                style = Theme.typography.labelMedium,
-                color = Theme.colors.contentMuted,
-            )
-            if (description != null) {
+        Column(
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(spacing),
+        ) {
+            if (title != null || action != null) {
+                SectionHeader(
+                    title = title.orEmpty(),
+                    description = description,
+                    action = action,
+                )
+            }
+            content()
+            if (footer != null) {
                 Text(
-                    text = description,
+                    text = footer,
+                    modifier = Modifier.padding(
+                        start = Theme.spacing.md,
+                        end = Theme.spacing.md,
+                        top = Theme.spacing.xxs,
+                    ),
                     style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentSubtle,
+                    color = Theme.colors.contentMuted,
                 )
             }
         }
-        action?.invoke(this)
+    }
+
+    /** A heading above a group of rows. */
+    @Composable
+    fun SectionHeader(
+        title: String,
+        modifier: Modifier = Modifier,
+        description: String? = null,
+        action: (@Composable RowScope.() -> Unit)? = null,
+    ) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(
+                    start = Theme.spacing.md,
+                    end = Theme.spacing.xs,
+                    top = Theme.spacing.md,
+                    bottom = Theme.spacing.xxs,
+                ),
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    modifier = Modifier.semantics { heading() },
+                    style = Theme.typography.labelMedium,
+                    color = Theme.colors.contentMuted,
+                )
+                if (description != null) {
+                    Text(
+                        text = description,
+                        style = Theme.typography.bodySmall,
+                        color = Theme.colors.contentSubtle,
+                    )
+                }
+            }
+            action?.invoke(this)
     }
 }
 

@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.size
@@ -17,11 +18,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contentColorFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.a11y.contentColorFor
+import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.theme.Theme
 
 private val TrackWidth = 48.dp
@@ -65,7 +67,15 @@ fun Switch(
     val shape = Theme.shapes.pill
     val feedback = Feedback
 
-    val pressed by interactions.collectIsPressedAsState()
+    // A switch inside a `SelectionRow` has no callback of its own — the row owns
+    // the tap — so its own source never sees a press and the thumb never
+    // stretched when the row was tapped. Borrow the row's, but only when this
+    // switch is genuinely a passenger: an explicit source or a callback of its
+    // own both mean it is the target.
+    val row = LocalRowInteractionSource.current
+    val pressSource: InteractionSource =
+        if (onCheckedChange == null && interactionSource == null && row != null) row else interactions
+    val pressed by pressSource.collectIsPressedAsState()
 
     val stroke = selectionStroke(enabled)
 

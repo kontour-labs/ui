@@ -2,16 +2,18 @@ package io.kontour.ui.components.text
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.OutputTransformation
+import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.then
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.foundation.text.input.then
 import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -63,6 +65,7 @@ fun PasswordField(
     interactionSource: MutableInteractionSource? = null,
 ) {
     var revealed by remember { mutableStateOf(false) }
+    val mask = remember { PasswordMask() }
 
     TextField(
         state = state,
@@ -76,6 +79,13 @@ fun PasswordField(
         errorMessage = errorMessage,
         variant = variant,
         keyboardType = if (revealed) KeyboardType.Text else KeyboardType.Password,
+        // The thing that actually hides the password.
+        //
+        // `KeyboardType.Password` is an IME hint and substitutes no glyphs, so
+        // for as long as this was the only thing `revealed` touched, the field
+        // rendered in plaintext in both states and the toggle changed the icon
+        // and nothing else.
+        outputTransformation = if (revealed) null else mask,
         imeAction = imeAction,
         imeChain = imeChain,
         interactionSource = interactionSource,
@@ -94,6 +104,22 @@ fun PasswordField(
             null
         },
     )
+}
+
+/**
+ * Replaces every character with a bullet, for display only.
+ *
+ * An `OutputTransformation` rather than `BasicSecureTextField` because this field
+ * has to be able to *stop* masking, and a secure field cannot: it is secure by
+ * type. One character in, one character out, so every cursor offset and selection
+ * range still means what it did.
+ */
+private class PasswordMask(private val bullet: Char = '\u2022') : OutputTransformation {
+    override fun TextFieldBuffer.transformOutput() {
+        val count = length
+        if (count == 0) return
+        replace(0, count, buildString { repeat(count) { append(bullet) } })
+    }
 }
 
 /**
