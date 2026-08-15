@@ -51,20 +51,25 @@ object Transitions {
      * The outgoing fades and shrinks slightly, the incoming fades and grows into
      * place. The scale is small on purpose: it reads as a change of subject
      * rather than as a zoom.
+     *
+     * @param fast Runs the whole thing on the fast token instead of the default.
+     *   For a change the user makes repeatedly and expects to be *there* — a tab
+     *   switch, most of all. 220ms is right for a change of subject the user
+     *   chose to make once; on the fourth tap of the same tab it is a wait.
      */
     @Composable
     @ReadOnlyComposable
-    fun fadeThrough(): ContentTransform {
+    fun fadeThrough(fast: Boolean = false): ContentTransform {
         val motion = Theme.motion
-        return if (motion.reduceMotion) {
-            fadeIn(motion.tweenFast()) togetherWith fadeOut(motion.tweenFast())
-        } else {
-            (fadeIn(motion.tweenDefault()) + scaleIn(motion.tweenDefault(), initialScale = 0.94f))
-                .togetherWith(
-                    fadeOut(motion.tweenFast()) +
-                        scaleOut(motion.tweenFast(), targetScale = 0.94f)
-                )
+        if (motion.reduceMotion) {
+            return fadeIn(motion.tweenFast()) togetherWith fadeOut(motion.tweenFast())
         }
+        val incoming = if (fast) motion.tweenFast<Float>() else motion.tweenDefault<Float>()
+        return (fadeIn(incoming) + scaleIn(incoming, initialScale = 0.94f))
+            .togetherWith(
+                fadeOut(motion.tweenFast()) +
+                    scaleOut(motion.tweenFast(), targetScale = 0.94f)
+            )
     }
 
     /**
