@@ -107,10 +107,19 @@ fun Modifier.elevation(shadow: Shadow, shape: Shape): Modifier {
  * Recognises the scheme's own grounds and returns their designed partner; for
  * anything else, picks whichever of the scheme's content colours has better
  * contrast.
+ *
+ * A **transparent** background is not a ground at all — whatever is behind the
+ * surface is still the thing the content sits on — so it inherits rather than
+ * deciding. Measuring it would treat it as black, since `contrastRatio` reads
+ * the colour channels and a transparent colour's are `(0, 0, 0)`, and every
+ * `Surface(color = Color.Transparent)` would get near-white content on a light
+ * page. That is the case a bar with no ground of its own is in, and it is why
+ * `TabBar` could not go through `Surface` until now.
  */
 @Composable
 private fun defaultContentColorFor(background: Color): Color {
     val colors = Theme.colors
+    if (background.alpha == 0f) return LocalContentColor.current
     return when (background) {
         colors.background, colors.surface, colors.surfaceSunken, colors.surfaceRaised -> colors.content
         colors.surfaceInverse -> colors.onSurfaceInverse

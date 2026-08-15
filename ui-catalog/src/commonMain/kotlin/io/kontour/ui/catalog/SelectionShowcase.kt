@@ -80,21 +80,21 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                         label = "Notify me about delays",
                         supporting = "Only for favourited routes",
                         selected = delays.value,
-                        onClick = { delays.value = !delays.value },
+                        onSelectedChange = { delays.value = it },
                         role = Role.Checkbox,
                         control = { Checkbox(checked = delays.value, onCheckedChange = null) },
                     )
                     SelectionRow(
                         label = "Show live vehicles",
                         selected = live.value,
-                        onClick = { live.value = !live.value },
+                        onSelectedChange = { live.value = it },
                         role = Role.Switch,
                         control = { Switch(checked = live.value, onCheckedChange = null) },
                     )
                     SelectionRow(
                         label = "Leave now",
                         selected = leaveNow.value,
-                        onClick = { leaveNow.value = !leaveNow.value },
+                        onSelectedChange = { leaveNow.value = it },
                         role = Role.RadioButton,
                         controlPosition = ControlPosition.Leading,
                         control = { RadioButton(selected = leaveNow.value, onClick = null) },
@@ -102,7 +102,7 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                     SelectionRow(
                         label = "Unavailable in this network",
                         selected = false,
-                        onClick = {},
+                        onSelectedChange = {},
                         enabled = false,
                         role = Role.Checkbox,
                         control = { Checkbox(checked = false, onCheckedChange = null, enabled = false) },

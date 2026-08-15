@@ -37,6 +37,7 @@ import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.FeedbackIntent
@@ -90,47 +91,54 @@ fun TabBar(
     val indicator = rememberSelectionIndicatorState()
     val scope = remember { TabBarScope() }
 
-    Column(modifier.background(containerColor)) {
-        // The indicator box sits *inside* the scroll container, so the anchor and
-        // the tabs scroll together and the scroll offset never enters the
-        // arithmetic. Wrapping the scroll container instead is how the old
-        // implementation drifted away from its tabs as the row scrolled.
-        Box(
-            if (scrollable) Modifier.horizontalScroll(rememberScrollState()) else Modifier.fillMaxWidth()
-        ) {
-            SelectionIndicatorBox(
-                state = indicator,
-                sizing = IndicatorSizing.Edge(
-                    edge = IndicatorEdge.Bottom,
-                    thickness = Theme.sizing.selectionIndicator,
-                ),
-                indicator = {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .clip(Theme.shapes.pill)
-                            .background(indicatorColor)
-                    )
-                },
+    // Through `Surface` rather than a bare `Modifier.background`, which is what
+    // `NavBar`, `NavRail`, `NavDrawer` and `Scaffold` all do with their own
+    // container colour. The difference is `LocalContentColor`: a bar given a
+    // solid ground has to recolour the tabs sitting on it, and a background
+    // modifier paints the colour and tells the content nothing.
+    Surface(modifier = modifier, color = containerColor) {
+        Column {
+            // The indicator box sits *inside* the scroll container, so the anchor
+            // and the tabs scroll together and the scroll offset never enters the
+            // arithmetic. Wrapping the scroll container instead is how the old
+            // implementation drifted away from its tabs as the row scrolled.
+            Box(
+                if (scrollable) Modifier.horizontalScroll(rememberScrollState()) else Modifier.fillMaxWidth()
             ) {
-                Row(
-                    modifier = Modifier
-                        .then(if (scrollable) Modifier else Modifier.fillMaxWidth())
-                        .height(TabBarDefaults.Height)
-                        .selectableGroup(),
-                    horizontalArrangement = if (scrollable) {
-                        Arrangement.Start
-                    } else {
-                        Arrangement.SpaceEvenly
+                SelectionIndicatorBox(
+                    state = indicator,
+                    sizing = IndicatorSizing.Edge(
+                        edge = IndicatorEdge.Bottom,
+                        thickness = Theme.sizing.selectionIndicator,
+                    ),
+                    indicator = {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .clip(Theme.shapes.pill)
+                                .background(indicatorColor)
+                        )
                     },
-                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    scope.content()
+                    Row(
+                        modifier = Modifier
+                            .then(if (scrollable) Modifier else Modifier.fillMaxWidth())
+                            .height(TabBarDefaults.Height)
+                            .selectableGroup(),
+                        horizontalArrangement = if (scrollable) {
+                            Arrangement.Start
+                        } else {
+                            Arrangement.SpaceEvenly
+                        },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        scope.content()
+                    }
                 }
             }
-        }
 
-        if (showDivider) HorizontalDivider()
+            if (showDivider) HorizontalDivider()
+        }
     }
 }
 

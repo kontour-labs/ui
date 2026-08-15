@@ -35,7 +35,7 @@ import io.kontour.ui.theme.Theme
  *     label = "Notify me about delays",
  *     supporting = "Only for favourited routes",
  *     selected = notifyOnDelay,
- *     onClick = { viewModel.setNotifyOnDelay(!notifyOnDelay) },
+ *     onSelectedChange = viewModel::setNotifyOnDelay,
  *     role = Role.Checkbox,
  *     control = { Checkbox(notifyOnDelay, onCheckedChange = null) },
  * )
@@ -44,6 +44,13 @@ import io.kontour.ui.theme.Theme
  * The nested control takes `onClick = null` / `onCheckedChange = null`: the row
  * owns the interaction, and the control is there to *show* state.
  *
+ * @param onSelectedChange What the row should now be, not that it was pressed.
+ *   The row is doing the negating either way — `toggleable` hands it the new
+ *   value — and a callback that threw it away made every toggle call site write
+ *   `{ x = !x }`, which is the shape that reads `x` twice and can read a stale
+ *   one. Under [Role.RadioButton] it is always `true`: a radio is turned on by
+ *   pressing it and off by pressing a sibling, so there is no other value to
+ *   report, and the group is what owns the pair.
  * @param role [Role.Checkbox], [Role.RadioButton] or [Role.Switch]. Drives what
  *   a screen reader calls the row, so it must match the control inside it.
  * @param controlPosition Where the control sits. Trailing is the default and is
@@ -53,7 +60,7 @@ import io.kontour.ui.theme.Theme
 fun SelectionRow(
     label: String,
     selected: Boolean,
-    onClick: () -> Unit,
+    onSelectedChange: (Boolean) -> Unit,
     role: Role,
     control: @Composable () -> Unit,
     modifier: Modifier = Modifier,
@@ -71,7 +78,7 @@ fun SelectionRow(
             selected = selected,
             onClick = {
                 feedback.perform(FeedbackIntent.Selection)
-                onClick()
+                onSelectedChange(true)
             },
             enabled = enabled,
             role = role,
@@ -83,9 +90,9 @@ fun SelectionRow(
 
         else -> Modifier.toggleable(
             value = selected,
-            onValueChange = {
+            onValueChange = { now ->
                 feedback.perform(FeedbackIntent.Selection)
-                onClick()
+                onSelectedChange(now)
             },
             enabled = enabled,
             role = role,

@@ -138,7 +138,7 @@ SelectionRow(
     label = "Notify me about delays",
     supporting = "Only for favourited routes",
     selected = notifyOnDelay,
-    onClick = { viewModel.setNotifyOnDelay(!notifyOnDelay) },
+    onSelectedChange = viewModel::setNotifyOnDelay,
     role = Role.Checkbox,
     control = { Checkbox(notifyOnDelay, onCheckedChange = null) },
 )

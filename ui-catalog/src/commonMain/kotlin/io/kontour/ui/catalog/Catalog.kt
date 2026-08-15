@@ -335,7 +335,7 @@ private fun Toggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -
     SelectionRow(
         label = label,
         selected = checked,
-        onClick = { onCheckedChange(!checked) },
+        onSelectedChange = onCheckedChange,
         role = Role.Switch,
         control = { Switch(checked = checked, onCheckedChange = null) },
     )

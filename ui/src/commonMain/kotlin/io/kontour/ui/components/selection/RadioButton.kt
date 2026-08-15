@@ -140,7 +140,7 @@ fun <T> RadioGroup(
                 label = label(option),
                 supporting = supporting?.invoke(option),
                 selected = isSelected,
-                onClick = { onSelect(option) },
+                onSelectedChange = { onSelect(option) },
                 enabled = enabled,
                 role = Role.RadioButton,
                 control = {

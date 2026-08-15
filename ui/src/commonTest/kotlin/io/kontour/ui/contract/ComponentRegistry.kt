@@ -279,7 +279,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             SelectionRow(
                 label = "Notify me about delays",
                 selected = false,
-                onClick = onClick,
+                onSelectedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
                 role = Role.Checkbox,
