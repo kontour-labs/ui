@@ -3,40 +3,46 @@ package io.kontour.ui.nav
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
-import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalSelectionIndicator
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.elevation
 import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 /** Metrics shared by every navigation destination. */
 object NavItemDefaults {
@@ -107,11 +113,20 @@ internal fun NavDestinationItem(
     /**
      * Drawn behind this one destination.
      *
-     * Transparent by default — the bar or rail behind the whole row is the
-     * surface. Set for [NavBarItemStyle.Separate], where each destination is its
-     * own shape and there is no row surface at all.
+     * Transparent by default — the rail or drawer behind the whole row is the
+     * surface. Set by [NavBar], where each destination is its own free-standing
+     * circle and there is no row surface at all.
      */
     containerColor: Color = Color.Transparent,
+    /** An unselected destination's icon and label. */
+    contentColor: Color = Theme.colors.contentMuted,
+    /**
+     * Cast by this one destination, when it is a shape standing on its own.
+     *
+     * [Shadow.None] in a rail or a drawer: the surface behind the row is what is
+     * raised, and a per-item shadow would be a second one inside it.
+     */
+    shadow: Shadow = Shadow.None,
     /**
      * The box the glyph sits in, and the size of this item's own marker when it
      * has one.
@@ -150,34 +165,34 @@ internal fun NavDestinationItem(
         targetValue = when {
             !item.enabled -> colors.contentDisabled
             selected -> colors.accent.onContainer
-            else -> colors.contentMuted
+            else -> contentColor
         },
         animationSpec = motion.tweenFast(),
         label = "navItemContent",
     )
 
+    // A destination drawn as an icon and nothing else still has to say what it
+    // is. The label is the name whether or not it is on screen, so it becomes the
+    // description exactly when it stops being text — otherwise turning labels off
+    // turns a bar of named destinations into a row of unlabelled buttons, which
+    // is WCAG 4.1.2 and the reason `showLabel` cannot be a purely visual switch.
+    val announcement = item.contentDescription ?: item.label.takeIf { !showLabel }
+
     val interaction = modifier
         .semantics(mergeDescendants = true) {
-            item.contentDescription?.let { contentDescription = it }
+            announcement?.let { contentDescription = it }
         }
         .selectionIndicatorItem(indicatorKey, selected)
         .minimumTouchTarget()
         .focusRing(interactions, shape, enabled = item.enabled)
-        .clip(shape)
-        .background(containerColor, shape)
-        // The standalone fallback marker, for an item rendered outside a group.
-        // Around the whole destination when it has a label, for the same reason
-        // the travelling one is: a pill sized to the icon leaves the label
-        // outside it.
-        .then(
-            if (!grouped && showLabel) Modifier.background(container, shape) else Modifier
-        )
         .selectable(
             selected = selected,
             interactionSource = interactions,
-            // A whole destination flinching is too much movement for something
-            // tapped this often; the travelling pill is the feedback.
-            indication = kontourIndication(shape, pressScale = 1f),
+            // Drawn on the circle instead, further down. The whole destination is
+            // the target — a label is not a decoration you have to aim past — but
+            // its *shape* is the circle, and a tonal wash the height of an icon
+            // and a word under it would tint a lozenge that is not there.
+            indication = null,
             enabled = item.enabled,
             role = Role.Tab,
             onClick = {
@@ -187,23 +202,55 @@ internal fun NavDestinationItem(
         )
 
     val glyph = @Composable {
-        Box(contentAlignment = Alignment.Center) {
-            // The per-item fallback pill. Inside a group this is transparent and
-            // the shared indicator does the work; the node stays so the item's
-            // height does not change between the two paths.
-            Box(
-                Modifier
-                    .graphicsLayer {
-                        scaleX = 0.5f + 0.5f * emphasis
-                        // Drawn only when this item is on its own *and* has no
-                        // label — otherwise the marker is the whole-item
-                        // background above, or the group's travelling pill.
-                        alpha = if (grouped || showLabel) 0f else emphasis
-                    }
-                    .size(indicatorSize)
-                    .background(container, shape)
-            )
-
+        NavGlyph(
+            size = indicatorSize,
+            // The destination's own shape is the circle behind its glyph, not a
+            // box around the glyph *and* the label. A label belongs under the
+            // circle, on the page, the way a word under an app icon does — and a
+            // lozenge tall enough to hold both is a bar again, one destination at
+            // a time.
+            marker = {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        // A whole destination flinching is too much movement for
+                        // something tapped this often; the travelling circle is
+                        // the feedback, and this is the press under it.
+                        .indication(interactions, kontourIndication(shape, pressScale = 1f))
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            // Cast by something you can see: in a rail or a
+                            // drawer the container is transparent, the surface
+                            // behind the whole row is what is raised, and a
+                            // shadow here would fall from nothing.
+                            .then(
+                                if (containerColor.alpha > 0f) {
+                                    Modifier.elevation(shadow, shape)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .background(containerColor, shape)
+                    )
+                    // The per-item fallback marker, for a destination rendered
+                    // outside a group. Inside one this is transparent and the
+                    // shared indicator does the work; the node stays so the
+                    // item's size does not change between the two paths.
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = 0.5f + 0.5f * emphasis
+                                alpha = if (grouped) 0f else emphasis
+                            }
+                            .background(container, shape)
+                    )
+                }
+            },
+            badge = { if (item.badge != null) Badge(count = item.badge) },
+        ) {
             Box(
                 modifier = Modifier.graphicsLayer {
                     val scale = 1f + (NavItemDefaults.SelectedIconScale - 1f) * emphasis
@@ -212,14 +259,12 @@ internal fun NavDestinationItem(
                 },
                 contentAlignment = Alignment.Center,
             ) {
-                BadgedBox(badge = { if (item.badge != null) Badge(count = item.badge) }) {
-                    Icon(
-                        imageVector = item.iconFor(selected),
-                        contentDescription = null,
-                        size = Theme.sizing.iconLarge,
-                        tint = content,
-                    )
-                }
+                Icon(
+                    imageVector = item.iconFor(selected),
+                    contentDescription = null,
+                    size = Theme.sizing.iconLarge,
+                    tint = content,
+                )
             }
         }
     }
@@ -237,7 +282,14 @@ internal fun NavDestinationItem(
 
     when (layout) {
         NavItemLayout.Stacked -> Column(
-            modifier = interaction.padding(vertical = Theme.spacing.xxs),
+            // Air under the *label*, and none above the glyph. The destination's
+            // box then starts exactly where its glyph does, which is what lets a
+            // marker sized to the glyph land on it — and what keeps a
+            // destination that is only an icon a circle rather than a stadium
+            // eight dp taller than it is wide.
+            modifier = interaction.padding(
+                bottom = if (showLabel) Theme.spacing.xxs else 0.dp,
+            ),
             horizontalAlignment = Alignment.CenterHorizontally,
             // On the 4dp grid. The old literal 2dp was not — the air that made
             // the label read as distant came out of the glyph's box instead.
@@ -259,4 +311,92 @@ internal fun NavDestinationItem(
             label()
         }
     }
+}
+
+/**
+ * A destination's own shape, its icon and its badge, in a box of exactly [size].
+ *
+ * The badge's centre sits on the glyph's top-trailing corner, so it straddles the
+ * circle's edge — and it **never changes what the destination measures**.
+ *
+ * ### Why this is not [io.kontour.ui.components.display.BadgedBox]
+ *
+ * `BadgedBox` reports a size that *includes* the overhang and places its content
+ * off-centre inside it. That is right for a toolbar icon standing on its own and
+ * wrong for a destination, because centring an asymmetrically padded node centres
+ * the **padding**: with an 18dp badge the icon landed 4.5dp towards the leading
+ * side and 4.5dp below the centre of the very circle drawn to mark it, and the
+ * one badged destination sat visibly out of step with its neighbours.
+ *
+ * Reserving that space is the right answer for a toolbar, where an ancestor is
+ * usually clipping and the badge would be bitten into. A destination is a shape
+ * with air around it, so the badge can hang over its edge the way a badge should,
+ * and every destination measures the same whether it carries one or not.
+ */
+@Composable
+private fun NavGlyph(
+    size: DpSize,
+    marker: @Composable () -> Unit,
+    badge: @Composable () -> Unit,
+    icon: @Composable () -> Unit,
+) {
+    Layout(
+        content = {
+            marker()
+            icon()
+            // Wrapped, so there is a node to measure whether or not this
+            // destination has a badge: a `Layout`'s children are addressed by
+            // index, and an empty box measures 0×0 and places harmlessly.
+            Box { badge() }
+        },
+    ) { measurables, constraints ->
+        // Unbounded, both of them: a glyph squashed into a box narrower than
+        // itself would be cropped, and a badge squeezed to fit the thing it
+        // annotates is how a count ends up ellipsised.
+        val glyph = measurables[1].measure(Constraints())
+        val mark = measurables[2].measure(Constraints())
+
+        val width = max(size.width.roundToPx(), glyph.width)
+            .coerceAtMost(constraints.maxWidth)
+        val height = max(size.height.roundToPx(), glyph.height)
+            .coerceAtMost(constraints.maxHeight)
+        val fallback = measurables[0].measure(Constraints.fixed(width, height))
+
+        layout(width, height) {
+            fallback.placeRelative(0, 0)
+            glyph.placeRelative((width - glyph.width) / 2, (height - glyph.height) / 2)
+
+            // The badge's centre goes on the glyph's top-trailing corner. Taken
+            // from the glyph's measured box rather than from a constant, so a dot
+            // and a "9+" straddle the same point instead of one floating clear of
+            // the corner and the other sitting mostly on the icon.
+            //
+            // Kept within half a badge of the box's own edges, which is the only
+            // thing that stops a badge bigger than the destination from hanging
+            // off it entirely. It never binds at the sizes a nav bar uses.
+            val x = ((width + glyph.width) / 2f).clampWithin(width, mark.width)
+            val y = ((height - glyph.height) / 2f).clampWithin(height, mark.height)
+
+            // Relative, so the badge is on the reading-order trailing corner
+            // rather than always the right-hand one.
+            mark.placeRelative(
+                (x - mark.width / 2f).roundToInt(),
+                (y - mark.height / 2f).roundToInt(),
+            )
+        }
+    }
+}
+
+/**
+ * A badge centre kept within half a badge of an [extent]-long edge.
+ *
+ * Written as a helper because the naive `coerceIn` is an exception waiting to
+ * happen: a badge wider than the box it is annotating inverts the range, and
+ * `coerceIn` throws rather than clamping. That is not hypothetical — it is what a
+ * destination squeezed by a tight parent constraint does.
+ */
+private fun Float.clampWithin(extent: Int, badge: Int): Float {
+    val half = badge / 2f
+    val middle = extent / 2f
+    return coerceIn(min(half, middle), max(extent - half, middle))
 }

@@ -578,7 +578,7 @@ one nobody notices and everybody pays for.
 |---|---|
 | `NavigationSuiteScaffold` | Picks the surface from the window size and places it |
 | `NavItem` | One destination, declared once and rendered by whichever surface fits |
-| `NavBar` / `NavBarItem` | **Bottom of the screen.** Floating pill or docked |
+| `NavBar` / `NavBarItem` | **Bottom of the screen.** Free-standing circles over the content |
 | `NavRail` / `NavRailItem` | **Leading edge.** Expandable to a drawer's width, action at the bottom |
 | `NavDrawer` / `ModalNavDrawer` | **Leading edge.** Nested groups, sections |
 | `TopBar` | Title and actions. Small, centred, or large-collapsing |

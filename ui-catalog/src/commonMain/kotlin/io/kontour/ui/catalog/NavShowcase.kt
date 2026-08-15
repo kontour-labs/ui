@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
@@ -40,8 +41,6 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.NavBar
-import io.kontour.ui.nav.NavBarItemStyle
-import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavRail
 import io.kontour.ui.nav.NavigationSuiteScaffold
@@ -81,35 +80,12 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                 DevicePanel("Expanded — drawer", width = 900.dp, height = 620.dp)
             }
 
-            Section("Bar arrangements — which of these works?") {
+            Section("Bar — circles over the content, and nothing behind them") {
                 Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-                    BarPanel("Ours today")
-                    BarPanel("Icon only", showLabels = false)
-                    BarPanel("Separate circles", itemStyle = NavBarItemStyle.Separate)
-                    BarPanel(
-                        "Separate + icon only",
-                        itemStyle = NavBarItemStyle.Separate,
-                        showLabels = false,
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-                    BarPanel("Inline search", search = true)
-                    BarPanel("Search, icon only", search = true, showLabels = false)
-                    BarPanel(
-                        "Uber-ish: separate + search",
-                        itemStyle = NavBarItemStyle.Separate,
-                        showLabels = false,
-                        search = true,
-                    )
-                    BarPanel("Docked", style = NavBarStyle.Docked)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-                    BarPanel("Free — circles, no bar", style = NavBarStyle.Free)
-                    BarPanel(
-                        "Free, icon only",
-                        style = NavBarStyle.Free,
-                        showLabels = false,
-                    )
+                    BarPanel("As it comes")
+                    BarPanel("With a search field", search = true)
+                    BarPanel("Named, for icons that are not obvious", showLabels = true)
+                    BarPanel("Backdrop, for content this busy", backdrop = true, busy = true)
                 }
             }
 
@@ -213,19 +189,23 @@ fun NavShowcase(modifier: Modifier = Modifier) {
  */
 
 /**
- * One bar arrangement at phone width, over a stand-in for content.
+ * The bar at phone width, over a stand-in for content.
  *
- * 360dp because that is where the arrangements actually compete — every one of
- * them looks fine with 700dp to spread into, and the question is which survives a
- * small phone with a search field and an action both wanting room.
+ * 360dp because that is where it is actually under pressure — it looks fine with
+ * 700dp to spread into, and the question is whether it survives a small phone
+ * with a search field and an action both wanting room.
+ *
+ * @param busy A stand-in for a photo or a promotional banner: the case
+ *   [NavBar]'s backdrop exists for, and the only one where elevation alone is
+ *   not enough to separate the circles from what is under them.
  */
 @Composable
 private fun BarPanel(
     label: String,
-    style: NavBarStyle = NavBarStyle.Floating,
-    itemStyle: NavBarItemStyle = NavBarItemStyle.Grouped,
-    showLabels: Boolean = true,
+    showLabels: Boolean = false,
     search: Boolean = false,
+    backdrop: Boolean = false,
+    busy: Boolean = false,
 ) {
     var selected by remember { mutableStateOf(1) }
 
@@ -240,15 +220,28 @@ private fun BarPanel(
                 .width(360.dp)
                 .height(170.dp)
                 .clip(Theme.shapes.medium)
-                .background(Theme.colors.surfaceSunken),
+                .then(
+                    if (busy) {
+                        Modifier.background(
+                            Brush.linearGradient(
+                                listOf(
+                                    Theme.colors.accent.solid,
+                                    Theme.colors.warning.solid,
+                                    Theme.colors.accent.container,
+                                ),
+                            )
+                        )
+                    } else {
+                        Modifier.background(Theme.colors.surfaceSunken)
+                    }
+                ),
             contentAlignment = Alignment.BottomCenter,
         ) {
             NavBar(
                 items = destinations(selected) { selected = it },
                 selectedIndex = selected,
-                style = style,
-                itemStyle = itemStyle,
                 showLabels = showLabels,
+                backdrop = backdrop,
                 search = if (search) {
                     {
                         SearchField(

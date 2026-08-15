@@ -85,8 +85,16 @@ fun NavigationSuiteScaffold(
     selectedIndex: Int,
     modifier: Modifier = Modifier,
     type: NavigationSuiteType = navigationSuiteTypeFor(LocalWindowSizeClass.current.width),
-    barStyle: NavBarStyle = NavBarStyle.Floating,
-    showLabels: Boolean = true,
+    /**
+     * Whether destinations are named as well as drawn.
+     *
+     * `null` — the default — lets each surface answer for itself, because they
+     * do not agree and should not: a rail is a column of icons on the edge of a
+     * wide window and wants its words, a bar is four circles over the content
+     * and the destinations of an app this size are ones its user already knows.
+     * Set it to override both.
+     */
+    showLabels: Boolean? = null,
     containerColor: Color = Theme.colors.background,
     action: (@Composable () -> Unit)? = null,
     drawerHeader: (@Composable ColumnScope.() -> Unit)? = null,
@@ -121,8 +129,7 @@ fun NavigationSuiteScaffold(
                         .onSizeChanged {
                             barHeight = with(density) { it.height.toDp() }
                         },
-                    style = barStyle,
-                    showLabels = showLabels,
+                    showLabels = showLabels ?: false,
                     action = action,
                     windowInsets = windowInsets ?: WindowInsets.bottomEdges,
                 )
@@ -132,7 +139,7 @@ fun NavigationSuiteScaffold(
                 NavRail(
                     items = items,
                     selectedIndex = selectedIndex,
-                    showLabels = showLabels,
+                    showLabels = showLabels ?: true,
                     header = drawerHeader,
                     action = action?.let { { it() } },
                     windowInsets = windowInsets ?: WindowInsets.leadingEdges,
