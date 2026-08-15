@@ -29,6 +29,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
+import io.kontour.ui.components.display.StateScope
+import io.kontour.ui.components.display.stateSlots
+import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.adaptive.allEdges
@@ -157,29 +162,37 @@ fun Dialog(
 @Composable
 fun AlertDialog(
     visible: Boolean,
-    title: String,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
-    message: String? = null,
     confirmLabel: String? = null,
     onConfirm: (() -> Unit)? = null,
     cancelLabel: String? = "Cancel",
     destructive: Boolean = false,
     dismissOnOutside: Boolean = true,
+    content: StateScope.() -> Unit,
 ) {
+    // Reuses the state block's regions: a title, a body under it, and an action
+    // area the component arranges. The actions stay parameters rather than slots
+    // because the component owns their order, their widths and which of them is
+    // drawn destructive — that arrangement is the thing an alert dialog *is*.
+    val slots = stateSlots(content)
     Dialog(
         visible = visible,
         onDismissRequest = onDismissRequest,
         modifier = modifier,
         dismissOnOutside = dismissOnOutside,
     ) {
-        Text(title, style = Theme.typography.titleLarge)
-        if (message != null) {
-            Text(
-                text = message,
-                style = Theme.typography.bodyMedium,
-                color = Theme.colors.contentMuted,
-            )
+        slots.title?.let { title ->
+            ProvideTextStyle(Theme.typography.titleLarge) {
+                ContentSlot(content = title)
+            }
+        }
+        slots.supporting?.let { message ->
+            ProvideContentColor(Theme.colors.contentMuted) {
+                ProvideTextStyle(Theme.typography.bodyMedium) {
+                    ContentSlot(content = message)
+                }
+            }
         }
 
         FlowRow(
@@ -288,12 +301,13 @@ fun ConfirmHost(controller: ConfirmationController) {
 
     AlertDialog(
         visible = pending != null,
-        title = pending?.title.orEmpty(),
-        message = pending?.message,
         confirmLabel = pending?.confirmLabel,
         cancelLabel = pending?.cancelLabel,
         destructive = pending?.destructive == true,
         onConfirm = { controller.answer(true) },
         onDismissRequest = { controller.answer(false) },
-    )
+    ) {
+        +pending?.title.orEmpty()
+        pending?.message?.let { message -> supporting { +message } }
+    }
 }

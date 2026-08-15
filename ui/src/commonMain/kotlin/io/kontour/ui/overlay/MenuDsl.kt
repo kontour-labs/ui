@@ -32,7 +32,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
  * DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
  *     item("Share") { share(stop) }
  *     // Not in the DSL — no shorthand takes a modifier. Use the component.
- *     MenuItem("Pin", onClick = ::pin, modifier = Modifier.testTag("pin"))
+ *     MenuItem(onClick = ::pin, modifier = Modifier.testTag("pin")) { +"Pin" }
  * }
  * ```
  *
@@ -124,7 +124,6 @@ internal class MenuScopeImpl(
         onClick: () -> Unit,
     ) {
         MenuItem(
-            label = label,
             onClick = {
                 // Close first. An action that navigates takes the composition
                 // with it, and a dismiss queued behind it never runs.
@@ -132,12 +131,14 @@ internal class MenuScopeImpl(
                 onClick()
             },
             enabled = enabled,
-            leadingIcon = icon,
-            trailingIcon = trailingIcon,
-            trailingText = shortcut,
             selected = selected,
             destructive = destructive,
-        )
+        ) {
+            +label
+            if (icon != null) leading { +icon }
+            if (trailingIcon != null) trailing { +trailingIcon }
+            if (shortcut != null) trailing { +shortcut }
+        }
     }
 
     @Composable

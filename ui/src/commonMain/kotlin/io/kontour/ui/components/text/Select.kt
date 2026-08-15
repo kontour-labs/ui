@@ -135,15 +135,16 @@ fun <T> Select(
     ) { dismiss ->
         for (option in options) {
             MenuItem(
-                label = optionLabel(option),
                 onClick = {
                     onValueChange(option)
                     dismiss()
                 },
-                leadingIcon = optionIcon?.invoke(option),
                 enabled = optionEnabled(option),
                 selected = option == value,
-            )
+            ) {
+                +optionLabel(option)
+                optionIcon?.invoke(option)?.let { icon -> leading { +icon } }
+            }
         }
     }
 }
@@ -218,16 +219,17 @@ fun <T> MultiSelect(
     ) {
         for (option in options) {
             MenuItem(
-                label = optionLabel(option),
                 onClick = {
                     onValuesChange(
                         if (option in values) values - option else values + option
                     )
                 },
-                leadingIcon = optionIcon?.invoke(option),
                 enabled = optionEnabled(option),
                 selected = option in values,
-            )
+            ) {
+                +optionLabel(option)
+                optionIcon?.invoke(option)?.let { icon -> leading { +icon } }
+            }
         }
     }
 }
@@ -338,14 +340,15 @@ fun <T> Combobox(
         }
         for (option in filtered) {
             MenuItem(
-                label = optionLabel(option),
                 onClick = {
                     onValueChange(option)
                     dismiss()
                 },
-                leadingIcon = optionIcon?.invoke(option),
                 selected = option == value,
-            )
+            ) {
+                +optionLabel(option)
+                optionIcon?.invoke(option)?.let { icon -> leading { +icon } }
+            }
         }
     }
 }

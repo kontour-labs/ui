@@ -59,7 +59,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.components.list.ListItemScope
+import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
@@ -310,17 +315,15 @@ private fun MenuPanel(
  */
 @Composable
 fun MenuItem(
-    label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    leadingIcon: ImageVector? = null,
-    trailingIcon: ImageVector? = null,
-    trailingText: String? = null,
     selected: Boolean = false,
     destructive: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
+    content: ListItemScope.() -> Unit,
 ) {
+    val slots = listItemSlots(content)
     val colors = Theme.colors
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -356,38 +359,30 @@ fun MenuItem(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (leadingIcon != null) {
-            Icon(
-                imageVector = leadingIcon,
-                contentDescription = null,
-                size = Theme.sizing.iconMedium,
-                tint = contentColor,
-            )
+        val muted = if (enabled) colors.contentMuted else colors.contentDisabled
+
+        slots.leading?.let { leading ->
+            ProvideContentColor(contentColor) {
+                ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
+            }
         }
 
-        Text(
-            text = label,
-            modifier = Modifier.weight(1f),
-            style = Theme.typography.bodyMedium,
-            color = contentColor,
-            maxLines = 1,
-        )
-
-        if (trailingText != null) {
-            Text(
-                text = trailingText,
-                style = Theme.typography.labelSmall,
-                color = if (enabled) colors.contentMuted else colors.contentDisabled,
-                maxLines = 1,
-            )
+        Box(Modifier.weight(1f)) {
+            slots.label?.let { label ->
+                ProvideContentColor(contentColor) {
+                    ProvideTextStyle(Theme.typography.bodyMedium) {
+                        ContentSlot(maxLines = 1, content = label)
+                    }
+                }
+            }
         }
-        if (trailingIcon != null) {
-            Icon(
-                imageVector = trailingIcon,
-                contentDescription = null,
-                size = Theme.sizing.iconSmall,
-                tint = if (enabled) colors.contentMuted else colors.contentDisabled,
-            )
+
+        slots.trailing?.let { trailing ->
+            ProvideContentColor(muted) {
+                ProvideTextStyle(Theme.typography.labelSmall) {
+                    ContentSlot(iconSize = Theme.sizing.iconSmall, maxLines = 1, content = trailing)
+                }
+            }
         }
         if (selected) {
             Icon(
@@ -497,14 +492,15 @@ fun SubMenu(
 
     Box(Modifier.anchorBounds { bounds = it }) {
         MenuItem(
-            label = label,
             onClick = { open = !open },
             modifier = modifier,
-            leadingIcon = leadingIcon,
-            trailingIcon = SystemIcons.ChevronForward,
             enabled = enabled,
             interactionSource = interactions,
-        )
+        ) {
+            +label
+            if (leadingIcon != null) leading { +leadingIcon }
+            trailing { +SystemIcons.ChevronForward }
+        }
     }
 
     AnchoredDropdownMenu(

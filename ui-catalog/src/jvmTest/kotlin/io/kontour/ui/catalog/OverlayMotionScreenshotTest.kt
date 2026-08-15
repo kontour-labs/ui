@@ -284,13 +284,14 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
             MotionPanel("Dialog") {
                 AlertDialog(
                     visible = showing.value,
-                    title = "Remove this favourite?",
-                    message = "Perth Underground will be taken off your home screen.",
                     confirmLabel = "Remove",
                     onConfirm = {},
                     onDismissRequest = {},
                     destructive = true,
-                )
+                ) {
+                    +"Remove this favourite?"
+                    supporting { +"Perth Underground will be taken off your home screen." }
+                }
             }
         }
     }

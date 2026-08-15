@@ -154,14 +154,19 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                 Panel("Alert dialog") {
                     AlertDialog(
                         visible = alert.value,
-                        title = "Remove this favourite?",
-                        message = "Perth Underground will be taken off your home screen. " +
-                            "You can add it back any time.",
                         confirmLabel = "Remove",
                         onConfirm = { alert.value = false },
                         onDismissRequest = { alert.value = false },
                         destructive = true,
-                    )
+                    ) {
+                        +"Remove this favourite?"
+                        supporting {
+                            +(
+                                "Perth Underground will be taken off your home screen. " +
+                                    "You can add it back any time."
+                                )
+                        }
+                    }
                 }
 
                 Panel("Tooltip") {
@@ -231,8 +236,12 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             onDismissRequest = { edgeMenu.value = false },
                             side = OverlaySide.Bottom,
                         ) {
-                            MenuItem("Report a problem", onClick = {})
-                            MenuItem("Suggest a correction", onClick = {})
+                            MenuItem(onClick = {}) {
+                                +"Report a problem"
+                            }
+                            MenuItem(onClick = {}) {
+                                +"Suggest a correction"
+                            }
                         }
                     }
                 }
