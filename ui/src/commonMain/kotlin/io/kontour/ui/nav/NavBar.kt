@@ -5,29 +5,30 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.adaptive.bottomEdges
 import io.kontour.ui.foundation.IndicatorEdge
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
-import io.kontour.ui.adaptive.bottomEdges
-import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 
 /** How a [NavBar] sits on the screen. */
@@ -49,6 +50,21 @@ enum class NavBarStyle {
      * cannot tell which.
      */
     Docked,
+
+    /**
+     * No bar at all. Free-standing circles, label under each, page behind.
+     *
+     * The arrangement the app converged on: what makes a row of destinations
+     * read as navigation is the *travelling circle*, not the container they sit
+     * in — and a container over a map is a strip of the map you cannot see. The
+     * marker moves between destinations exactly as it does in the other two
+     * styles; it is simply the only chrome left.
+     *
+     * The trade is that the destinations sit on whatever the page is. That is
+     * fine over a map or a photo and wrong over a list, where a row scrolls
+     * underneath them with nothing to say it has — which is what [Docked] is for.
+     */
+    Free,
 }
 
 /**
@@ -135,6 +151,15 @@ fun NavBar(
     containerColor: Color = Theme.colors.surfaceRaised,
     contentColor: Color = Theme.colors.content,
     indicatorColor: Color = Theme.colors.accent.container,
+    /**
+     * The travelling marker's size, and the box each glyph sits in.
+     *
+     * `null` takes the style's own: a circle for [NavBarStyle.Free], a shorter
+     * box for a labelled bar, the icon pill for one without labels.
+     */
+    indicatorSize: DpSize? = null,
+    /** Between a destination's icon and its label. */
+    labelGap: Dp = Theme.spacing.xxs,
     search: (@Composable () -> Unit)? = null,
     action: (@Composable () -> Unit)? = null,
     /**
@@ -151,7 +176,25 @@ fun NavBar(
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
 ) {
     val indicator = rememberSelectionIndicatorState()
+    val glyphSize = indicatorSize ?: when (style) {
+        NavBarStyle.Free -> NavItemDefaults.CircleSize
+        else -> if (showLabels) NavItemDefaults.GlyphSize else DpSize(
+            NavItemDefaults.IndicatorWidth,
+            NavItemDefaults.IndicatorHeight,
+        )
+    }
     val sizing = when {
+        // The circle *is* the marker. Sized to the glyph rather than to the item,
+        // so it stays a circle behind the icon and does not stretch to take in
+        // the label underneath it.
+        style == NavBarStyle.Free -> IndicatorSizing.Fixed(
+            width = glyphSize.width,
+            height = glyphSize.height,
+            // Against the top of the item, because the item is a circle with a
+            // word under it and the circle is the thing being marked.
+            verticalBias = if (showLabels) 0f else 0.5f,
+        )
+
         // Separate circles: the marker cannot be a pill *behind* an icon that
         // already sits in its own circle — that is two concentric shapes. The
         // container becomes the marker instead.
@@ -169,7 +212,7 @@ fun NavBar(
         )
     }
     val shape: Shape = when (style) {
-        NavBarStyle.Floating -> Theme.shapes.pill
+        NavBarStyle.Floating, NavBarStyle.Free -> Theme.shapes.pill
         NavBarStyle.Docked -> Theme.shapes.sheet
     }
 
@@ -266,6 +309,8 @@ fun NavBar(
                                 // present they size to content and it takes the
                                 // rest — which is the arrangement's whole point.
                                 modifier = if (search == null) Modifier.weight(1f) else Modifier,
+                                indicatorSize = glyphSize,
+                                labelGap = labelGap,
                             )
                         }
                     }
@@ -293,6 +338,54 @@ fun NavBar(
             // `fill = false` so the pill takes what it needs up to its maximum and
             // leaves the action its own room, rather than stretching to the edge.
             bar(Modifier.weight(1f, fill = false))
+            action?.invoke()
+        }
+
+        // No surface, so no `bar` — the destinations go straight onto the page
+        // with the travelling circle as the only chrome. The row still owns the
+        // insets and the horizontal padding a bar would have given it.
+        NavBarStyle.Free -> Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(windowInsets)
+                .padding(
+                    horizontal = NavBarDefaults.FloatingInset,
+                    vertical = Theme.spacing.xxs,
+                ),
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SelectionIndicatorBox(
+                state = indicator,
+                sizing = sizing,
+                modifier = Modifier.weight(1f),
+                indicator = {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .clip(Theme.shapes.pill)
+                            .background(indicatorColor)
+                    )
+                },
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().selectableGroup(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    items.forEachIndexed { index, item ->
+                        NavBarItem(
+                            item = item,
+                            selected = index == selectedIndex,
+                            showLabel = showLabels,
+                            indicatorSize = glyphSize,
+                            labelGap = labelGap,
+                        )
+                    }
+                }
+            }
+
+            if (search != null) Box(Modifier.weight(1f)) { search() }
             action?.invoke()
         }
 
@@ -324,10 +417,14 @@ fun NavBarItem(
     modifier: Modifier = Modifier,
     showLabel: Boolean = true,
     containerColor: Color = Color.Transparent,
+    indicatorSize: DpSize = NavItemDefaults.GlyphSize,
+    labelGap: Dp = Theme.spacing.xxs,
     interactionSource: MutableInteractionSource? = null,
 ) {
     NavDestinationItem(
         item = item,
+        indicatorSize = indicatorSize,
+        labelGap = labelGap,
         selected = selected,
         modifier = modifier,
         layout = NavItemLayout.Stacked,

@@ -57,8 +57,21 @@ sealed interface IndicatorSizing {
     /** The item's bounds, inset on every side. */
     data class Inset(val by: Dp) : IndicatorSizing
 
-    /** A fixed size, centred on the item. The nav bar's pill behind an icon. */
-    data class Fixed(val width: Dp, val height: Dp) : IndicatorSizing
+    /**
+     * A fixed size, placed against the item's box. The nav bar's pill behind an
+     * icon.
+     *
+     * @param verticalBias Where in the item's height it sits: `0.5` centred,
+     *   `0f` against the top. A destination that is an icon and nothing else is
+     *   centred, and a destination with a label underneath is not — the marker
+     *   belongs on the glyph, and centring it on the whole item drops it into the
+     *   gap between the icon and the word.
+     */
+    data class Fixed(
+        val width: Dp,
+        val height: Dp,
+        val verticalBias: Float = 0.5f,
+    ) : IndicatorSizing
 
     /**
      * A bar of [thickness] pinned to [edge], spanning the item's other axis.
@@ -106,11 +119,14 @@ internal fun resolveIndicatorBounds(
         is IndicatorSizing.Fixed -> {
             val width = sizing.width.toPx()
             val height = sizing.height.toPx()
+            // The bias picks a point in the slack, so 0.5 is the centre and 0 is
+            // flush with the top whatever the item turns out to be.
+            val top = item.top + (item.height - height) * sizing.verticalBias
             Rect(
                 left = item.center.x - width / 2f,
-                top = item.center.y - height / 2f,
+                top = top,
                 right = item.center.x + width / 2f,
-                bottom = item.center.y + height / 2f,
+                bottom = top + height,
             )
         }
 

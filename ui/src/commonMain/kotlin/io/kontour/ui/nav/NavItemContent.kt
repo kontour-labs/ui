@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
@@ -42,6 +43,20 @@ object NavItemDefaults {
     /** The pill drawn behind a stacked item's icon when it is the destination. */
     val IndicatorWidth: Dp = 56.dp
     val IndicatorHeight: Dp = 32.dp
+
+    /**
+     * The glyph's box in a stacked item that also has a label.
+     *
+     * Shorter than [IndicatorHeight], and that is the whole point. The pill is
+     * sized for an icon with nothing under it; when there is a label, the same
+     * 32dp box puts 4dp of air under the icon and *then* the 4dp gap, so the
+     * label reads as further from its icon than it is. 28dp is 2dp of air, and
+     * the gap stays on the 4dp grid where it belongs.
+     */
+    val GlyphSize: DpSize = DpSize(IndicatorWidth, 28.dp)
+
+    /** A destination that is a circle rather than a row in a bar. */
+    val CircleSize: DpSize = DpSize(48.dp, 48.dp)
 
     /**
      * How much the current destination's icon grows.
@@ -97,6 +112,17 @@ internal fun NavDestinationItem(
      * own shape and there is no row surface at all.
      */
     containerColor: Color = Color.Transparent,
+    /**
+     * The box the glyph sits in, and the size of this item's own marker when it
+     * has one.
+     *
+     * Set per bar style rather than fixed, because it is what separates a row of
+     * destinations in a bar from a row of free-standing circles — and, in the
+     * ordinary case, what decides how far the label sits from its icon.
+     */
+    indicatorSize: DpSize = NavItemDefaults.GlyphSize,
+    /** Between the glyph and the label, in a stacked item. */
+    labelGap: Dp = Theme.spacing.xxs,
     indicatorKey: Any = item.label,
     interactionSource: MutableInteractionSource? = null,
 ) {
@@ -174,7 +200,7 @@ internal fun NavDestinationItem(
                         // background above, or the group's travelling pill.
                         alpha = if (grouped || showLabel) 0f else emphasis
                     }
-                    .size(NavItemDefaults.IndicatorWidth, NavItemDefaults.IndicatorHeight)
+                    .size(indicatorSize)
                     .background(container, shape)
             )
 
@@ -213,8 +239,9 @@ internal fun NavDestinationItem(
         NavItemLayout.Stacked -> Column(
             modifier = interaction.padding(vertical = Theme.spacing.xxs),
             horizontalAlignment = Alignment.CenterHorizontally,
-            // On the 4dp grid. The old literal 2dp was not.
-            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+            // On the 4dp grid. The old literal 2dp was not — the air that made
+            // the label read as distant came out of the glyph's box instead.
+            verticalArrangement = Arrangement.spacedBy(labelGap),
         ) {
             glyph()
             label()

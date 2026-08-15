@@ -103,6 +103,14 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                     )
                     BarPanel("Docked", style = NavBarStyle.Docked)
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+                    BarPanel("Free — circles, no bar", style = NavBarStyle.Free)
+                    BarPanel(
+                        "Free, icon only",
+                        style = NavBarStyle.Free,
+                        showLabels = false,
+                    )
+                }
             }
 
             Section("Rail — collapsed and expanded") {
