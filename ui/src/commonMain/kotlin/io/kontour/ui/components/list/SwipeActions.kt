@@ -1,5 +1,6 @@
 package io.kontour.ui.components.list
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
@@ -70,7 +71,21 @@ class SwipeAction(
 )
 
 /** Where a swiped row has settled. */
-enum class SwipeValue { Start, Resting, End }
+enum class SwipeValue {
+    /** Start actions revealed, waiting for a tap. */
+    Start,
+
+    Resting,
+
+    /** End actions revealed, waiting for a tap. */
+    End,
+
+    /** Swiped clear past the start actions — the first of them commits. */
+    StartCommitted,
+
+    /** Swiped clear past the end actions — the first of them commits. */
+    EndCommitted,
+}
 
 @Stable
 class SwipeActionsState internal constructor(
@@ -185,38 +200,48 @@ fun SwipeActions(
     val startTravel = start.size * actionWidthPx * (if (isRtl) -1f else 1f)
     val endTravel = -end.size * actionWidthPx * (if (isRtl) -1f else 1f)
 
-    LaunchedEffect(width, start.size, end.size, isRtl) {
+    // A full swipe commits without waiting for a tap.
+    val fullStart = start.firstOrNull { it.isFullSwipeAction }
+    val fullEnd = end.firstOrNull { it.isFullSwipeAction }
+
+    LaunchedEffect(width, start.size, end.size, isRtl, fullStart, fullEnd) {
         if (width <= 0f) return@LaunchedEffect
+        // Past the reveal, and off the far edge. There has to be an *anchor*
+        // out there for the drag to reach it: the commit threshold used to be
+        // measured against the row's width while the anchors only spanned the
+        // reveal (88dp per action), so `AnchoredDraggableState` clamped the
+        // offset long before the threshold and the commit could never fire on
+        // anything wider than about 147dp. Which is every list row.
+        val commit = width * (if (isRtl) -1f else 1f)
         state.anchoredState.updateAnchors(
             DraggableAnchors {
                 SwipeValue.Resting at 0f
                 if (start.isNotEmpty()) SwipeValue.Start at startTravel
                 if (end.isNotEmpty()) SwipeValue.End at endTravel
+                if (fullStart != null) SwipeValue.StartCommitted at commit
+                if (fullEnd != null) SwipeValue.EndCommitted at -commit
             }
         )
         state.deliverPending()
     }
 
-    // A full swipe commits without waiting for a tap.
-    val fullStart = start.firstOrNull { it.isFullSwipeAction }
-    val fullEnd = end.firstOrNull { it.isFullSwipeAction }
     val onFull by rememberUpdatedState { action: SwipeAction ->
         feedback.perform(FeedbackIntent.Confirm)
         action.onAction()
     }
 
-    LaunchedEffect(state, width) {
-        if (width <= 0f) return@LaunchedEffect
-        val threshold = width * SwipeActionsDefaults.FullSwipeThreshold
-        snapshotFlow { state.anchoredState.offset }.collect { offset ->
-            if (offset.isNaN()) return@collect
-            val past = kotlin.math.abs(offset) >= threshold
-            if (!past) return@collect
-            val action = if (offset > 0f) fullStart else fullEnd
-            if (action != null) {
-                onFull(action)
-                state.reset()
-            }
+    // Fires on *settling*, not mid-drag. The old version watched the raw offset
+    // and committed the instant it crossed a threshold, so an action ran while
+    // the user's finger was still down and could still have been dragged back.
+    LaunchedEffect(state) {
+        snapshotFlow { state.anchoredState.settledValue }.collect { settledAt ->
+            val action = when (settledAt) {
+                SwipeValue.StartCommitted -> fullStart
+                SwipeValue.EndCommitted -> fullEnd
+                else -> null
+            } ?: return@collect
+            onFull(action)
+            state.reset()
         }
     }
 
@@ -252,6 +277,20 @@ fun SwipeActions(
             else -> emptyList()
         }
         if (revealed.isNotEmpty()) {
+            // The whole revealed area in the outermost action's colour, under
+            // the buttons rather than instead of them.
+            //
+            // The strip is only `n × 88dp` wide and pinned to one edge, so
+            // everything beyond it — including the space behind the row's own
+            // rounded corners, and the entire travel of a committing swipe —
+            // used to be bare page. The colour appeared to stop at the corner
+            // because there was nothing behind the corner to see.
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .background(revealed.last().background)
+            )
+
             Row(
                 modifier = Modifier.matchParentSize(),
                 horizontalArrangement = if (settled > 0f) {

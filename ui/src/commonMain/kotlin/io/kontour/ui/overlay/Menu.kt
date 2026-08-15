@@ -179,11 +179,14 @@ fun AnchoredDropdownMenu(
     val shape = Theme.shapes.medium
     val anchorWidth = anchor?.let { with(density) { it.width.toDp() } } ?: Dp.Unspecified
 
+    // Read live by the overlay's measure pass rather than captured when the
+    // entry was built — see `AnchoredOverlayLayout`.
+    val latestAnchor by rememberUpdatedState(anchor)
+
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(expanded, anchor, side, alignment, matchAnchorWidth, scrim) {
-        val target = anchor
-        if (!expanded || target == null) {
+    LaunchedEffect(expanded, anchor != null, side, alignment, matchAnchorWidth, scrim) {
+        if (!expanded || anchor == null) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -201,7 +204,7 @@ fun AnchoredDropdownMenu(
                 trapFocus = true,
                 content = {
                     AnchoredOverlayLayout(
-                        anchorInRoot = target,
+                        anchorInRoot = { latestAnchor },
                         side = side,
                         alignment = alignment,
                         gap = MenuDefaults.Gap,

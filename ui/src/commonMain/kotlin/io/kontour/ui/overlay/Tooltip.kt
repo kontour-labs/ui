@@ -213,12 +213,14 @@ private fun TooltipOverlay(
     val modality = LocalInputModality.current
     val key = remember { Any() }
     val dismiss by rememberUpdatedState(onDismissRequest)
+    // Read live by the overlay's measure pass rather than captured when the
+    // entry was built — see `AnchoredOverlayLayout`.
+    val latestAnchor by rememberUpdatedState(anchor)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor, text, side, alignment) {
-        val target = anchor
-        if (!visible || target == null) {
+    LaunchedEffect(visible, anchor != null, text, side, alignment) {
+        if (!visible || anchor == null) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -235,7 +237,7 @@ private fun TooltipOverlay(
                 trapFocus = false,
                 content = {
                     AnchoredOverlayLayout(
-                        anchorInRoot = target,
+                        anchorInRoot = { latestAnchor },
                         side = side,
                         alignment = alignment,
                         gap = 0.dp,
@@ -385,12 +387,14 @@ private fun CoachMarkOverlay(
     val colors = Theme.colors
     val key = remember { Any() }
     val dismissNow by rememberUpdatedState(onDismiss)
+    // Read live by the overlay's measure pass rather than captured when the
+    // entry was built — see `AnchoredOverlayLayout`.
+    val latestAnchor by rememberUpdatedState(anchor)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor, title, text, side, alignment) {
-        val target = anchor
-        if (!visible || target == null) {
+    LaunchedEffect(visible, anchor != null, title, text, side, alignment) {
+        if (!visible || anchor == null) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -409,7 +413,7 @@ private fun CoachMarkOverlay(
                 trapFocus = false,
                 content = {
                     AnchoredOverlayLayout(
-                        anchorInRoot = target,
+                        anchorInRoot = { latestAnchor },
                         side = side,
                         alignment = alignment,
                         gap = Theme.spacing.xxs,

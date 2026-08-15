@@ -84,15 +84,17 @@ fun Popover(
     val key = remember { Any() }
     var anchor by remember { mutableStateOf<Rect?>(null) }
     val dismiss by rememberUpdatedState(onDismissRequest)
+    // Read live by the overlay's measure pass rather than captured when the
+    // entry was built — see `AnchoredOverlayLayout`.
+    val latestAnchor by rememberUpdatedState(anchor)
     val body by rememberUpdatedState(content)
 
     Box(Modifier.parentBounds { anchor = it })
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(expanded, anchor, side, alignment, scrim, showArrow, maxWidth) {
-        val target = anchor
-        if (!expanded || target == null) {
+    LaunchedEffect(expanded, anchor != null, side, alignment, scrim, showArrow, maxWidth) {
+        if (!expanded || anchor == null) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -106,7 +108,7 @@ fun Popover(
                 onDismiss = { dismiss() },
                 content = {
                     AnchoredOverlayLayout(
-                        anchorInRoot = target,
+                        anchorInRoot = { latestAnchor },
                         side = side,
                         alignment = alignment,
                         gap = Theme.spacing.xxs,

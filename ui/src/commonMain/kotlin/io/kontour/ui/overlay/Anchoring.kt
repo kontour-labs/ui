@@ -266,9 +266,19 @@ private class ArrowPath {
  * [OverlayEntry]'s content — that is where the container bounds it measures
  * against come from.
  *
- * @param anchorInRoot The anchor in *root* coordinates; the host's own offset is
- *   subtracted, so a host that is not itself at the root still positions
- *   correctly.
+ * @param anchorInRoot The anchor in *root* coordinates, read fresh on every
+ *   measure — the host's own offset is subtracted, so a host that is not itself
+ *   at the root still positions correctly.
+ *
+ *   A lambda, not a `Rect`, and that is the whole fix for anchored overlays
+ *   lagging behind a scroll. The caller's `Rect` lives in state that
+ *   `onGloballyPositioned` updates as the anchor moves; passing the value
+ *   snapshotted it into the overlay entry's content lambda, so a new position
+ *   could only reach the screen by re-running a `LaunchedEffect`, rebuilding
+ *   the entry and replacing it in the host — several frames, every frame of the
+ *   scroll. Reading it here puts the read inside the measure pass, so the
+ *   overlay re-places in the same pass the anchor moved in, exactly as
+ *   `host.originInRoot` already did.
  * @param arrow Draws a pointer against the resolved side. Give it the same
  *   colour as the content's surface — it is a sibling of the surface rather than
  *   part of it, so it does not pick up the surface's shadow or border.
@@ -277,7 +287,7 @@ private class ArrowPath {
  */
 @Composable
 internal fun AnchoredOverlayLayout(
-    anchorInRoot: Rect,
+    anchorInRoot: () -> Rect?,
     side: OverlaySide,
     alignment: OverlayAlignment,
     gap: Dp,
@@ -321,7 +331,8 @@ internal fun AnchoredOverlayLayout(
             placeables.maxOfOrNull { it.height } ?: 0,
         )
 
-        val anchorInHost = anchorInRoot.translate(-host.originInRoot)
+        val anchorRect = anchorInRoot()
+        val anchorInHost = (anchorRect ?: Rect.Zero).translate(-host.originInRoot)
         val placement = positionAnchored(
             anchor = anchorInHost,
             contentSize = contentSize,
