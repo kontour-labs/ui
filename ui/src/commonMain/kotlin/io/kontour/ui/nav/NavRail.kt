@@ -1,7 +1,6 @@
 package io.kontour.ui.nav
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -10,81 +9,121 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.minimumTouchTarget
-import io.kontour.ui.components.display.Badge
-import io.kontour.ui.components.display.BadgedBox
-import io.kontour.ui.foundation.Icon
+import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.foundation.IndicatorEdge
+import io.kontour.ui.foundation.IndicatorSizing
+import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
-import io.kontour.ui.foundation.Text
-import io.kontour.ui.input.focusRing
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
-import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.foundation.SystemIcons
+import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.theme.Theme
 
 object NavRailDefaults {
-    val Width: Dp = 88.dp
+    val CollapsedWidth: Dp = 88.dp
+
+    /**
+     * Matches [NavDrawerDefaults.Width].
+     *
+     * An expanded rail *is* a drawer's width, and lining the two up is what stops
+     * the switch between them reading as a jump.
+     */
+    val ExpandedWidth: Dp = 280.dp
 }
 
 /**
  * The primary navigation surface on a window with room beside the content.
+ * **Goes down the leading edge.**
  *
  * ```kotlin
  * Row(Modifier.fillMaxSize()) {
- *     NavRail(items = destinations, selectedIndex = current, action = { … })
+ *     NavRail(
+ *         items = destinations,
+ *         selectedIndex = current,
+ *         expanded = railOpen,
+ *         onExpandedChange = { railOpen = it },
+ *     )
  *     Content(Modifier.weight(1f))
  * }
  * ```
  *
- * The same [NavItem] list as [NavBar] — so a window that grows past
- * [io.kontour.ui.adaptive.WindowWidthClass.Medium] changes where the
- * destinations are drawn, not what they are. [NavigationSuiteScaffold] makes
- * that switch for you.
+ * ### Expanding
  *
- * A rail rather than a wider bar because a horizontal bar on a landscape window
- * eats the dimension there is least of. The app's `MainNavigationRail` already
- * does this; the difference here is that the item list is not written out twice.
+ * Pass [onExpandedChange] to get a toggle that grows the rail to a drawer's width
+ * with the labels beside the icons, and collapses it back to icons only. Leave it
+ * null for a rail fixed at whatever [expanded] says — which is what
+ * [NavigationSuiteScaffold] does when the window size is choosing for you.
  *
- * @param header Above the destinations — a logo, or an account avatar.
- * @param action Below them, pushed to the bottom. The app puts its search FAB
- *   here, which is why the destinations and the action are separate slots rather
- *   than one list.
+ * The state is hoisted rather than held internally, matching [NavDrawerGroup] and
+ * [io.kontour.ui.components.display.Accordion]: the app decides whether the rail
+ * is open because the user asked or because the current destination implies it,
+ * and the component cannot know which.
+ *
+ * A collapsed *expandable* rail drops its labels rather than stacking them under
+ * the icons. Stacked-then-inline would move the label to a different side of the
+ * icon mid-animation, which is a pop nothing hides; icon-only keeps the icon
+ * still and slides the label out from behind it, the same treatment
+ * [io.kontour.ui.components.action.ExtendedFloatingActionButton] uses. A rail
+ * with no toggle keeps its stacked labels.
+ *
+ * @param itemAlignment Where the destinations sit vertically. `Top` by default;
+ *   `Center` for a rail whose few destinations look stranded at the top of a tall
+ *   window.
  */
 @Composable
 fun NavRail(
     items: List<NavItem>,
     selectedIndex: Int,
     modifier: Modifier = Modifier,
+    expanded: Boolean = false,
+    onExpandedChange: ((Boolean) -> Unit)? = null,
     showLabels: Boolean = true,
-    width: Dp = NavRailDefaults.Width,
+    itemAlignment: Alignment.Vertical = Alignment.Top,
+    collapsedWidth: Dp = NavRailDefaults.CollapsedWidth,
+    expandedWidth: Dp = NavRailDefaults.ExpandedWidth,
     containerColor: Color = Theme.colors.surface,
     contentColor: Color = Theme.colors.content,
+    indicatorColor: Color = Theme.colors.accent,
+    expandLabel: String = "Expand navigation",
+    collapseLabel: String = "Collapse navigation",
     header: (@Composable ColumnScope.() -> Unit)? = null,
     action: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
+    val indicator = rememberSelectionIndicatorState()
+    val motion = Theme.motion
+    val expandable = onExpandedChange != null
+
+    val width by animateDpAsState(
+        targetValue = if (expandable && expanded) expandedWidth else collapsedWidth,
+        // `springGentle` — its token doc says "sheets and large surfaces", and a
+        // rail growing from 88dp to 280dp is a large surface.
+        animationSpec = motion.springOrTween(motion.springGentle),
+        label = "navRailWidth",
+    )
+
+    // Inline once there is room for a label beside the icon. A collapsed
+    // expandable rail shows no label at all; see the note on the function.
+    val layout = if (expandable && expanded) NavItemLayout.Inline else NavItemLayout.Stacked
+    val itemLabels = showLabels && !(expandable && !expanded)
+
     Surface(
-        modifier = modifier
-            .width(width)
-            .fillMaxHeight(),
+        modifier = modifier.width(width).fillMaxHeight(),
         color = containerColor,
         contentColor = contentColor,
     ) {
@@ -95,28 +134,100 @@ fun NavRail(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {
+            if (onExpandedChange != null) {
+                RailToggle(
+                    expanded = expanded,
+                    onExpandedChange = onExpandedChange,
+                    expandLabel = expandLabel,
+                    collapseLabel = collapseLabel,
+                )
+            }
+
             header?.invoke(this)
 
-            Column(
-                modifier = Modifier.selectableGroup(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-            ) {
-                items.forEachIndexed { index, item ->
-                    NavRailItem(
-                        item = item,
-                        selected = index == selectedIndex,
-                        showLabel = showLabels,
+            // Always emitted, so the destinations can be centred or pushed. The
+            // old version only added a spacer when there was an action, which
+            // left the items top-aligned with no way to move them.
+            if (itemAlignment != Alignment.Top) Spacer(Modifier.weight(1f))
+
+            SelectionIndicatorBox(
+                state = indicator,
+                // The leading edge, collapsed or expanded, and the same as the
+                // drawer's. A vertical list has no "below the item"; it has a
+                // leading edge, and a bar there is the underline rotated.
+                sizing = IndicatorSizing.Edge(
+                    edge = IndicatorEdge.Start,
+                    thickness = Theme.sizing.selectionIndicator,
+                    inset = Theme.spacing.xs,
+                ),
+                indicator = {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .clip(Theme.shapes.pill)
+                            .background(indicatorColor)
                     )
+                },
+            ) {
+                Column(
+                    modifier = Modifier.selectableGroup(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                ) {
+                    items.forEachIndexed { index, item ->
+                        NavRailItem(
+                            item = item,
+                            selected = index == selectedIndex,
+                            showLabel = itemLabels,
+                            expanded = expandable && expanded,
+                            // Full width whether stacked or inline, so the
+                            // leading-edge marker sits at the same x for every
+                            // destination. Sized to content instead, the bar
+                            // would shift sideways as it moved between a short
+                            // label and a long one.
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
 
-            if (action != null) {
-                Spacer(Modifier.weight(1f))
-                action(this)
-            }
+            Spacer(Modifier.weight(1f))
+            action?.invoke(this)
         }
     }
+}
+
+/**
+ * The rail's expand/collapse control.
+ *
+ * `Role.Button`, not `Role.Tab` — expanding the rail does not navigate anywhere,
+ * which is the same argument [NavDrawerGroup] makes for itself. The chevron
+ * points the way the rail will grow, which is the trailing direction, so it has
+ * to follow the layout direction rather than always pointing right.
+ */
+@Composable
+private fun RailToggle(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    expandLabel: String,
+    collapseLabel: String,
+) {
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val icon = when {
+        expanded && rtl -> SystemIcons.ChevronRight
+        expanded -> SystemIcons.ChevronLeft
+        rtl -> SystemIcons.ChevronLeft
+        else -> SystemIcons.ChevronRight
+    }
+
+    IconButton(
+        icon = icon,
+        contentDescription = if (expanded) collapseLabel else expandLabel,
+        onClick = { onExpandedChange(!expanded) },
+        modifier = Modifier.semantics {
+            stateDescription = if (expanded) "Expanded" else "Collapsed"
+        },
+    )
 }
 
 /** One destination in a [NavRail]. */
@@ -126,96 +237,15 @@ fun NavRailItem(
     selected: Boolean,
     modifier: Modifier = Modifier,
     showLabel: Boolean = true,
+    expanded: Boolean = false,
+    interactionSource: MutableInteractionSource? = null,
 ) {
-    val colors = Theme.colors
-    val motion = Theme.motion
-    val feedback = LocalFeedback.current
-    val interactions = remember { MutableInteractionSource() }
-    val shape = Theme.shapes.pill
-
-    val emphasis by animateFloatAsState(
-        targetValue = if (selected) 1f else 0f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
-        label = "navRailEmphasis",
+    NavDestinationItem(
+        item = item,
+        selected = selected,
+        modifier = modifier,
+        layout = if (expanded) NavItemLayout.Inline else NavItemLayout.Stacked,
+        showLabel = showLabel,
+        interactionSource = interactionSource,
     )
-    val container by animateColorAsState(
-        targetValue = if (selected) colors.accentContainer else Color.Transparent,
-        animationSpec = motion.tweenFast(),
-        label = "navRailContainer",
-    )
-    val content by animateColorAsState(
-        targetValue = when {
-            !item.enabled -> colors.contentDisabled
-            selected -> colors.onAccentContainer
-            else -> colors.contentMuted
-        },
-        animationSpec = motion.tweenFast(),
-        label = "navRailContent",
-    )
-
-    Column(
-        modifier = modifier
-            .semantics(mergeDescendants = true) {
-                item.contentDescription?.let { contentDescription = it }
-            }
-            .minimumTouchTarget()
-            .focusRing(interactions, shape)
-            .clip(shape)
-            .selectable(
-                selected = selected,
-                interactionSource = interactions,
-                indication = kontourIndication(shape, pressScale = 1f),
-                enabled = item.enabled,
-                role = Role.Tab,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    item.onClick()
-                },
-            )
-            .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Box(
-                Modifier
-                    .graphicsLayer {
-                        scaleX = 0.5f + 0.5f * emphasis
-                        alpha = emphasis
-                    }
-                    .size(width = 56.dp, height = 32.dp)
-                    .background(container, shape)
-            )
-            Box(
-                modifier = Modifier.graphicsLayer {
-                    scaleX = 1f + 0.08f * emphasis
-                    scaleY = 1f + 0.08f * emphasis
-                },
-                contentAlignment = Alignment.Center,
-            ) {
-                BadgedBox(
-                    badge = {
-                        val count = item.badge
-                        if (count != null) Badge(count = count)
-                    },
-                ) {
-                    Icon(
-                        imageVector = item.iconFor(selected),
-                        contentDescription = if (showLabel) null else item.label,
-                        size = Theme.sizing.iconLarge,
-                        tint = content,
-                    )
-                }
-            }
-        }
-
-        if (showLabel) {
-            Text(
-                text = item.label,
-                style = Theme.typography.labelSmall,
-                color = content,
-                maxLines = 1,
-            )
-        }
-    }
 }

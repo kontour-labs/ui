@@ -1,7 +1,6 @@
 package io.kontour.ui.nav
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -11,9 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -26,14 +23,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.graphics.vector.ImageVector
+import io.kontour.ui.foundation.IndicatorEdge
+import io.kontour.ui.foundation.IndicatorSizing
+import io.kontour.ui.foundation.SelectionIndicatorBox
+import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
@@ -45,14 +46,13 @@ import io.kontour.ui.theme.Theme
 
 object TabBarDefaults {
     val Height: Dp = 48.dp
-    val IndicatorThickness: Dp = 3.dp
 }
 
 /**
  * Switches between views of the same thing.
  *
  * ```kotlin
- * TabBar(selectedIndex = tab) {
+ * TabBar {
  *     Tab("Departures", selected = tab == 0, onClick = { tab = 0 })
  *     Tab("Route map", selected = tab == 1, onClick = { tab = 1 })
  *     Tab("Alerts", selected = tab == 2, onClick = { tab = 2 }, badge = 2)
@@ -66,10 +66,13 @@ object TabBarDefaults {
  *
  * The indicator is one bar that **slides** between tabs rather than each tab
  * drawing its own, which is what makes the row read as a single control with a
- * moving part. Same reasoning as
- * [io.kontour.ui.components.selection.SegmentedControl] — and the choice between
- * the two is about what changes: a segmented control filters *what* is shown, a
- * tab bar changes *how*.
+ * moving part — and what conveys selection without depending on colour. It is
+ * the shared [SelectionIndicatorBox], the same mechanism the nav bar, rail,
+ * drawer and [io.kontour.ui.components.selection.SegmentedControl] use.
+ *
+ * Note there is no `selectedIndex`: each [Tab] states its own `selected`, which
+ * is the only source of truth. The bar used to take both, and keeping the two
+ * orderings in step is exactly what broke when a tab was composed conditionally.
  *
  * @param scrollable For more tabs than fit. Off by default: a scrolling tab row
  *   hides options past the edge, and the user has no way to know how many there
@@ -77,7 +80,6 @@ object TabBarDefaults {
  */
 @Composable
 fun TabBar(
-    selectedIndex: Int,
     modifier: Modifier = Modifier,
     scrollable: Boolean = false,
     containerColor: Color = Color.Transparent,
@@ -85,61 +87,46 @@ fun TabBar(
     showDivider: Boolean = true,
     content: @Composable TabBarScope.() -> Unit,
 ) {
-    val motion = Theme.motion
-    val density = LocalDensity.current
-    var tabBounds by remember { mutableStateOf<Map<Int, Pair<Dp, Dp>>>(emptyMap()) }
-
-    val target = tabBounds[selectedIndex]
-    val indicatorOffset by animateDpAsState(
-        targetValue = target?.first ?: 0.dp,
-        animationSpec = motion.springOrTween(motion.springDefault),
-        label = "tabIndicatorOffset",
-    )
-    val indicatorWidth by animateDpAsState(
-        targetValue = target?.second ?: 0.dp,
-        animationSpec = motion.springOrTween(motion.springDefault),
-        label = "tabIndicatorWidth",
-    )
-
-    val scope = remember(selectedIndex) {
-        TabBarScope { index, x, width ->
-            tabBounds = tabBounds + (index to (x to width))
-        }
-    }
+    val indicator = rememberSelectionIndicatorState()
+    val scope = remember { TabBarScope() }
 
     Column(modifier.background(containerColor)) {
-        Box {
-            Row(
-                modifier = Modifier
-                    .then(
-                        if (scrollable) {
-                            Modifier.horizontalScroll(rememberScrollState())
-                        } else {
-                            Modifier.fillMaxWidth()
-                        }
+        // The indicator box sits *inside* the scroll container, so the anchor and
+        // the tabs scroll together and the scroll offset never enters the
+        // arithmetic. Wrapping the scroll container instead is how the old
+        // implementation drifted away from its tabs as the row scrolled.
+        Box(
+            if (scrollable) Modifier.horizontalScroll(rememberScrollState()) else Modifier.fillMaxWidth()
+        ) {
+            SelectionIndicatorBox(
+                state = indicator,
+                sizing = IndicatorSizing.Edge(
+                    edge = IndicatorEdge.Bottom,
+                    thickness = Theme.sizing.selectionIndicator,
+                ),
+                indicator = {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .clip(Theme.shapes.pill)
+                            .background(indicatorColor)
                     )
-                    .height(TabBarDefaults.Height)
-                    .selectableGroup(),
-                horizontalArrangement = if (scrollable) {
-                    Arrangement.Start
-                } else {
-                    Arrangement.SpaceEvenly
                 },
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                scope.content()
-            }
-
-            if (indicatorWidth > 0.dp) {
-                Box(
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .offset(x = indicatorOffset)
-                        .width(indicatorWidth)
-                        .height(TabBarDefaults.IndicatorThickness)
-                        .clip(Theme.shapes.pill)
-                        .background(indicatorColor)
-                )
+                Row(
+                    modifier = Modifier
+                        .then(if (scrollable) Modifier else Modifier.fillMaxWidth())
+                        .height(TabBarDefaults.Height)
+                        .selectableGroup(),
+                    horizontalArrangement = if (scrollable) {
+                        Arrangement.Start
+                    } else {
+                        Arrangement.SpaceEvenly
+                    },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    scope.content()
+                }
             }
         }
 
@@ -147,12 +134,15 @@ fun TabBar(
     }
 }
 
-/** Receiver for [TabBar]'s content, so a [Tab] can report where it landed. */
-class TabBarScope internal constructor(
-    internal val onTabPositioned: (index: Int, x: Dp, width: Dp) -> Unit,
-) {
-    internal var nextIndex = 0
-}
+/**
+ * Receiver for [TabBar]'s content, so a [Tab] can only exist inside one.
+ *
+ * Carries no index. The old version handed each tab a composition-order counter
+ * and reset it on every selection change, so a conditionally-composed tab was
+ * given a duplicate index and overwrote another tab's bounds. Nothing here
+ * counts, so nothing can be miscounted.
+ */
+class TabBarScope internal constructor()
 
 /**
  * One tab.
@@ -167,16 +157,16 @@ fun TabBarScope.Tab(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    icon: ImageVector? = null,
     badge: Int? = null,
     enabled: Boolean = true,
+    key: Any = label,
+    interactionSource: MutableInteractionSource? = null,
 ) {
-    val index = remember { nextIndex++ }
     val colors = Theme.colors
     val motion = Theme.motion
-    val density = LocalDensity.current
     val feedback = LocalFeedback.current
-    val interactions = remember { MutableInteractionSource() }
+    val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
     val content by animateColorAsState(
         targetValue = when {
@@ -190,15 +180,7 @@ fun TabBarScope.Tab(
 
     Row(
         modifier = modifier
-            .onGloballyPositioned { coordinates ->
-                with(density) {
-                    onTabPositioned(
-                        index,
-                        coordinates.positionInParent().x.toDp(),
-                        coordinates.size.width.toDp(),
-                    )
-                }
-            }
+            .selectionIndicatorItem(key, selected)
             .minimumTouchTarget()
             .focusRing(interactions, Theme.shapes.small)
             .clip(Theme.shapes.small)

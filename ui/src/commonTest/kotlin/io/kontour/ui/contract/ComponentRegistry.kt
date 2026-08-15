@@ -381,7 +381,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // A `Tab` only exists inside a `TabBar` — it reports its width to the
             // bar so the indicator can follow it. The tag still goes on the tab,
             // so what is asserted is the tab and not its container.
-            TabBar(selectedIndex = 0) {
+            TabBar {
                 Tab(
                     label = "Departures",
                     selected = false,

@@ -7,8 +7,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -86,7 +92,14 @@ fun NavigationSuiteScaffold(
     Surface(modifier = modifier.fillMaxSize(), color = containerColor) {
         when (type) {
             NavigationSuiteType.Bar -> Box(Modifier.fillMaxSize()) {
-                content(NavBarDefaults.Height + NavBarDefaults.FloatingInset * 2)
+                // Measured, not calculated. A constant was wrong twice over: it
+                // added the floating inset to a docked bar that has none, and the
+                // bar's height is now derived from its content, so it grows at
+                // large type and no arithmetic here could predict it.
+                var barHeight by remember { mutableStateOf(NavBarDefaults.MinHeight) }
+                val density = LocalDensity.current
+
+                content(barHeight)
 
                 // Anchored to the bottom, over the content. The one placement
                 // decision this component exists to make.
@@ -95,7 +108,10 @@ fun NavigationSuiteScaffold(
                     selectedIndex = selectedIndex,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .onSizeChanged {
+                            barHeight = with(density) { it.height.toDp() }
+                        },
                     style = barStyle,
                     showLabels = showLabels,
                     action = action,

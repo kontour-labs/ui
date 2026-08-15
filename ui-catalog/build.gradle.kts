@@ -60,6 +60,10 @@ kotlin {
             implementation(libs.kotlin.test)
             // Skiko, so the screenshot harness has a real canvas to render into.
             implementation(compose.desktop.currentOs)
+            // For geometry tests that need to find a node the component owns
+            // internally — a nav bar's destinations are not reachable with an
+            // `onGloballyPositioned` from outside, but they are findable by label.
+            implementation(libs.compose.uiTest)
         }
     }
 }

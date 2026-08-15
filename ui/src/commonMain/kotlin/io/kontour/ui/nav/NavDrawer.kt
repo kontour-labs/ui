@@ -2,18 +2,20 @@ package io.kontour.ui.nav
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -39,6 +41,12 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.IndicatorEdge
+import io.kontour.ui.foundation.IndicatorSizing
+import io.kontour.ui.foundation.LocalSelectionIndicator
+import io.kontour.ui.foundation.SelectionIndicatorBox
+import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
@@ -87,6 +95,7 @@ fun NavDrawer(
     width: Dp = NavDrawerDefaults.Width,
     containerColor: Color = Theme.colors.surface,
     contentColor: Color = Theme.colors.content,
+    indicatorColor: Color = Theme.colors.accent,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
@@ -106,12 +115,9 @@ fun NavDrawer(
         ) {
             header?.invoke(this)
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .selectableGroup(),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+            DrawerItems(
+                modifier = Modifier.weight(1f),
+                indicatorColor = indicatorColor,
                 content = content,
             )
 
@@ -146,6 +152,7 @@ fun ModalNavDrawer(
     width: Dp = NavDrawerDefaults.Width,
     dismissLabel: String = "Close navigation",
     paneTitle: String = "Navigation",
+    indicatorColor: Color = Theme.colors.accent,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
@@ -166,15 +173,59 @@ fun ModalNavDrawer(
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
         ) {
             header?.invoke(this)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .selectableGroup(),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+            DrawerItems(
+                modifier = Modifier.weight(1f),
+                indicatorColor = indicatorColor,
                 content = content,
             )
             footer?.invoke(this)
+        }
+    }
+}
+
+/**
+ * The drawer's scrolling destination list, with one travelling marker.
+ *
+ * The indicator group sits **inside** the scroll container, so the anchor and the
+ * rows scroll together and the scroll offset never enters the arithmetic.
+ *
+ * Because a row reports through a composition local rather than a parameter, a
+ * destination nested inside a collapsible [NavDrawerGroup] reports correctly too
+ * — which a mechanism that only saw its direct children could not manage.
+ */
+@Composable
+private fun DrawerItems(
+    modifier: Modifier,
+    indicatorColor: Color,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val indicator = rememberSelectionIndicatorState()
+
+    Box(modifier.verticalScroll(rememberScrollState())) {
+        SelectionIndicatorBox(
+            state = indicator,
+            // A bar down the leading edge — the tab bar's underline rotated. A
+            // vertical list has no "below the item", but it does have a leading
+            // edge, and pinning the marker there keeps it clear of the label.
+            sizing = IndicatorSizing.Edge(
+                edge = IndicatorEdge.Start,
+                thickness = Theme.sizing.selectionIndicator,
+                inset = Theme.spacing.xs,
+            ),
+            indicator = {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .clip(Theme.shapes.pill)
+                        .background(indicatorColor)
+                )
+            },
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().selectableGroup(),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+                content = content,
+            )
         }
     }
 }
@@ -196,16 +247,21 @@ fun NavDrawerItem(
     badge: Int? = null,
     enabled: Boolean = true,
     nestLevel: Int = 0,
+    key: Any = label,
     contentDescription: String? = null,
+    interactionSource: MutableInteractionSource? = null,
 ) {
     val colors = Theme.colors
     val motion = Theme.motion
     val feedback = LocalFeedback.current
-    val interactions = remember { MutableInteractionSource() }
+    val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.medium
+    // Inside a group the travelling marker carries selection; on its own the row
+    // still needs to say which one it is.
+    val grouped = LocalSelectionIndicator.current != null
 
     val container by animateColorAsState(
-        targetValue = if (selected) colors.accentContainer else Color.Transparent,
+        targetValue = if (selected && !grouped) colors.accentContainer else Color.Transparent,
         animationSpec = motion.tweenFast(),
         label = "drawerItemContainer",
     )
@@ -213,7 +269,10 @@ fun NavDrawerItem(
         targetValue = when {
             !enabled -> colors.contentDisabled
             selected -> colors.onAccentContainer
-            else -> colors.content
+            // `contentMuted`, matching the bar and the rail. This used to be
+            // `content`, which left the selected/unselected difference here
+            // weaker than in either of its siblings.
+            else -> colors.contentMuted
         },
         animationSpec = motion.tweenFast(),
         label = "drawerItemContent",
@@ -223,6 +282,7 @@ fun NavDrawerItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(start = NavDrawerDefaults.NestIndent * nestLevel)
+            .selectionIndicatorItem(key, selected)
             .semantics(mergeDescendants = true) {
                 contentDescription?.let { this.contentDescription = it }
             }

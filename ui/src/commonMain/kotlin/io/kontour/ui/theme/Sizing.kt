@@ -41,4 +41,14 @@ data class Sizing(
     val focusRingWidth: Dp = 2.dp,
     /** Gap between the component's edge and its focus ring. */
     val focusRingOffset: Dp = 2.dp,
+
+    /**
+     * The travelling bar that marks the selected item in a tab bar, nav bar,
+     * rail or drawer.
+     *
+     * A token rather than a per-component constant because four components draw
+     * it, and a selection marker that is 3dp in one surface and 2dp in another
+     * reads as two different mechanisms.
+     */
+    val selectionIndicator: Dp = 3.dp,
 )

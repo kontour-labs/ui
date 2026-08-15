@@ -1,45 +1,29 @@
 package io.kontour.ui.nav
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.minimumTouchTarget
-import io.kontour.ui.components.display.Badge
-import io.kontour.ui.components.display.BadgedBox
-import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.IndicatorEdge
+import io.kontour.ui.foundation.IndicatorSizing
+import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
-import io.kontour.ui.foundation.Text
-import io.kontour.ui.input.focusRing
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
-import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.theme.Theme
 
 /** How a [NavBar] sits on the screen. */
@@ -64,7 +48,14 @@ enum class NavBarStyle {
 }
 
 object NavBarDefaults {
-    val Height: Dp = 64.dp
+    /**
+     * The floor, not the height.
+     *
+     * The bar derives its height from its content and grows past this at large
+     * type. A fixed height is what used to clip the labels at 200% type, and it
+     * was also what left the content pinned to the top of the bar.
+     */
+    val MinHeight: Dp = 64.dp
     val FloatingInset: Dp = 16.dp
 
     /** A floating bar wider than this is a stripe; keep it a pill and centre it. */
@@ -88,19 +79,25 @@ object NavBarDefaults {
  * )
  * ```
  *
- * Three to five destinations. Two is a [TabBar]; six is a [NavDrawer]. The
- * items are a [NavItem] list rather than a slot, so the same declaration serves
- * [NavRail] and [NavDrawer] on wider windows without being written out three
- * times.
+ * ### How selection is shown
  *
- * The selected item grows slightly and its tonal pill springs in behind it —
- * ported from the app's `ToolbarButton`, where the weight animates to 1.2 on a
- * bouncy spring. It is a control people tap dozens of times a session, and it is
- * worth two frames of personality.
+ * A single pill **travels** to the current destination rather than each item
+ * fading its own in and out. The movement is what carries the meaning, so the
+ * accent tint is a second cue rather than the only one — selection conveyed by
+ * colour alone fails WCAG 1.4.1, and it is what a colour-blind user has nothing
+ * to go on.
  *
- * @param action An optional trailing control — the app attaches its search FAB
- *   here. Sits outside the destination group, so a screen reader does not
- *   announce it as "4 of 4" among the destinations.
+ * ### The action sits beside the bar, not inside it
+ *
+ * [action] is its own shape next to the pill, which is how the app's current
+ * toolbar is built and the only arrangement that works: a 56dp FAB inside a 64dp
+ * pill has 4dp of air around it and reads as jammed in. Keeping it outside also
+ * stops it competing with the destinations for width — it used to be measured in
+ * the same row, so adding an action silently narrowed every destination.
+ *
+ * It stays outside `selectableGroup()` either way, so a screen reader does not
+ * announce the search button as "4 of 4" among three destinations.
+ *
  * @param style [NavBarStyle.Floating] by default, matching the app and the site.
  */
 @Composable
@@ -112,16 +109,18 @@ fun NavBar(
     showLabels: Boolean = true,
     containerColor: Color = Theme.colors.surfaceRaised,
     contentColor: Color = Theme.colors.content,
+    indicatorColor: Color = Theme.colors.accent,
     action: (@Composable () -> Unit)? = null,
 ) {
+    val indicator = rememberSelectionIndicatorState()
     val shape: Shape = when (style) {
         NavBarStyle.Floating -> Theme.shapes.pill
         NavBarStyle.Docked -> Theme.shapes.sheet
     }
 
-    val bar = @Composable {
+    val bar = @Composable { barModifier: Modifier ->
         Surface(
-            modifier = Modifier
+            modifier = barModifier
                 .then(
                     if (style == NavBarStyle.Floating) {
                         Modifier.widthIn(max = NavBarDefaults.FloatingMaxWidth)
@@ -129,27 +128,48 @@ fun NavBar(
                         Modifier.fillMaxWidth()
                     }
                 )
-                .height(NavBarDefaults.Height),
+                // A minimum, not a height: at 200% type the content is taller than
+                // 64dp and the bar has to grow rather than clip it.
+                .defaultMinSize(minHeight = NavBarDefaults.MinHeight),
             shape = shape,
             color = containerColor,
             contentColor = contentColor,
             shadow = if (style == NavBarStyle.Floating) {
-                Theme.elevation.high
+                // `medium` is the token whose doc says "nav bars, raised cards";
+                // `high` is for menus and popovers, which sit above this.
+                Theme.elevation.medium
             } else {
                 Theme.elevation.low
             },
+            // `Surface` defaults to `TopStart`, and with a minimum size that pins
+            // the content to the top of the bar with all the slack below it. Its
+            // own docs warn about exactly this.
+            contentAlignment = Alignment.Center,
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Theme.spacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-                verticalAlignment = Alignment.CenterVertically,
+            SelectionIndicatorBox(
+                state = indicator,
+                // A bar beneath the destination, not a pill behind its icon.
+                // Sliding along the row is a movement the eye follows; a tonal
+                // blob appearing behind an icon is a colour change with extra
+                // steps, and it is the pattern that made selection here depend on
+                // colour in the first place.
+                sizing = IndicatorSizing.Edge(
+                    edge = IndicatorEdge.Bottom,
+                    thickness = Theme.sizing.selectionIndicator,
+                    inset = Theme.spacing.md,
+                ),
+                modifier = Modifier.padding(horizontal = Theme.spacing.xs),
+                indicator = {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .clip(Theme.shapes.pill)
+                            .background(indicatorColor)
+                    )
+                },
             ) {
                 Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .selectableGroup(),
+                    modifier = Modifier.fillMaxWidth().selectableGroup(),
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -162,22 +182,38 @@ fun NavBar(
                         )
                     }
                 }
-                action?.invoke()
             }
         }
     }
 
     when (style) {
-        NavBarStyle.Floating -> Box(
+        NavBarStyle.Floating -> Row(
             modifier = modifier
                 .fillMaxWidth()
                 .padding(NavBarDefaults.FloatingInset),
-            contentAlignment = Alignment.Center,
+            horizontalArrangement = Arrangement.spacedBy(
+                Theme.spacing.xs,
+                Alignment.CenterHorizontally,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            bar()
+            // `fill = false` so the pill takes what it needs up to its maximum and
+            // leaves the action its own room, rather than stretching to the edge.
+            bar(Modifier.weight(1f, fill = false))
+            action?.invoke()
         }
 
-        NavBarStyle.Docked -> Box(modifier.fillMaxWidth()) { bar() }
+        // A full-bleed bar has no "beside", so a docked bar keeps its action
+        // inside. Each style gets the arrangement that is right for its shape.
+        NavBarStyle.Docked -> Row(
+            modifier = modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            bar(Modifier.weight(1f))
+            if (action != null) {
+                Box(Modifier.padding(end = Theme.spacing.xs)) { action() }
+            }
+        }
     }
 }
 
@@ -194,103 +230,14 @@ fun NavBarItem(
     selected: Boolean,
     modifier: Modifier = Modifier,
     showLabel: Boolean = true,
+    interactionSource: MutableInteractionSource? = null,
 ) {
-    val colors = Theme.colors
-    val motion = Theme.motion
-    val feedback = LocalFeedback.current
-    val interactions = remember { MutableInteractionSource() }
-    val shape = Theme.shapes.pill
-
-    // Ported from the app's ToolbarButton: the current destination grows a
-    // little on a bouncy spring. Small, but it is what makes the bar feel like
-    // it responded rather than redrawn.
-    val emphasis by animateFloatAsState(
-        targetValue = if (selected) 1f else 0f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
-        label = "navItemEmphasis",
+    NavDestinationItem(
+        item = item,
+        selected = selected,
+        modifier = modifier,
+        layout = NavItemLayout.Stacked,
+        showLabel = showLabel,
+        interactionSource = interactionSource,
     )
-    val container by animateColorAsState(
-        targetValue = if (selected) colors.accentContainer else Color.Transparent,
-        animationSpec = motion.tweenFast(),
-        label = "navItemContainer",
-    )
-    val content by animateColorAsState(
-        targetValue = when {
-            !item.enabled -> colors.contentDisabled
-            selected -> colors.onAccentContainer
-            else -> colors.contentMuted
-        },
-        animationSpec = motion.tweenFast(),
-        label = "navItemContent",
-    )
-
-    Column(
-        modifier = modifier
-            .semantics(mergeDescendants = true) {
-                item.contentDescription?.let { contentDescription = it }
-            }
-            .minimumTouchTarget()
-            .focusRing(interactions, shape)
-            .clip(shape)
-            .selectable(
-                selected = selected,
-                interactionSource = interactions,
-                indication = kontourIndication(shape, pressScale = 1f),
-                enabled = item.enabled,
-                role = Role.Tab,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    item.onClick()
-                },
-            )
-            .padding(vertical = Theme.spacing.xxs),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            // The tonal pill, behind the icon rather than above it. It grows out
-            // of nothing rather than fading, so the selection reads as arriving
-            // rather than developing.
-            Box(
-                Modifier
-                    .graphicsLayer {
-                        scaleX = 0.5f + 0.5f * emphasis
-                        alpha = emphasis
-                    }
-                    .size(width = 56.dp, height = 32.dp)
-                    .background(container, shape)
-            )
-
-            Box(
-                modifier = Modifier.graphicsLayer {
-                    scaleX = 1f + 0.08f * emphasis
-                    scaleY = 1f + 0.08f * emphasis
-                },
-                contentAlignment = Alignment.Center,
-            ) {
-                BadgedBox(
-                    badge = {
-                        val count = item.badge
-                        if (count != null) Badge(count = count)
-                    },
-                ) {
-                    Icon(
-                        imageVector = item.iconFor(selected),
-                        contentDescription = if (showLabel) null else item.label,
-                        size = Theme.sizing.iconLarge,
-                        tint = content,
-                    )
-                }
-            }
-        }
-
-        if (showLabel) {
-            Text(
-                text = item.label,
-                style = Theme.typography.labelSmall,
-                color = content,
-                maxLines = 1,
-            )
-        }
-    }
 }

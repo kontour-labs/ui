@@ -108,7 +108,7 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                 ) {
                     Section("Tabs — within one screen") {
                         var tab by remember { mutableStateOf(1) }
-                        TabBar(selectedIndex = tab) {
+                        TabBar {
                             Tab("Departures", selected = tab == 0, onClick = { tab = 0 })
                             Tab("Route map", selected = tab == 1, onClick = { tab = 1 })
                             Tab("Alerts", selected = tab == 2, onClick = { tab = 2 }, badge = 2)

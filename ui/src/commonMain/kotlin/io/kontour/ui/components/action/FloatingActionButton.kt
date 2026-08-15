@@ -135,6 +135,7 @@ fun ExtendedFloatingActionButton(
     modifier: Modifier = Modifier,
     expanded: Boolean = true,
     enabled: Boolean = true,
+    size: FabSize = FabSize.Medium,
     shape: Shape = Theme.shapes.pill,
     containerColor: Color = Theme.colors.primary,
     contentColor: Color = Theme.colors.onPrimary,
@@ -154,7 +155,7 @@ fun ExtendedFloatingActionButton(
         modifier = modifier
             .minimumTouchTarget()
             .focusRing(interactions, shape)
-            .height(FabSize.Medium.container)
+            .height(size.container)
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape),
@@ -172,7 +173,7 @@ fun ExtendedFloatingActionButton(
     ) {
         Row(
             modifier = Modifier
-                .height(FabSize.Medium.container)
+                .height(size.container)
                 .padding(horizontal = horizontalPadding),
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
@@ -180,7 +181,7 @@ fun ExtendedFloatingActionButton(
             Icon(
                 imageVector = icon,
                 contentDescription = if (expanded) null else contentDescription,
-                size = FabSize.Medium.icon,
+                size = size.icon,
             )
             AnimatedVisibility(
                 visible = expanded,
