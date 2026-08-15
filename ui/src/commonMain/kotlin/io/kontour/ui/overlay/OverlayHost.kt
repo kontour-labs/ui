@@ -150,6 +150,16 @@ class OverlayHostState {
     fun isShowing(key: Any): Boolean = entries.any { it.key == key }
 
     /**
+     * True when a back gesture would dismiss something here.
+     *
+     * What a back handler enables itself on. Not the same as `!isEmpty`: a toast
+     * is showing but is not dismissible, and a back press that silently did
+     * nothing because a toast happened to be up is worse than one that leaves
+     * the screen.
+     */
+    val canDismissOnBack: Boolean get() = entries.any { it.dismissOnBack }
+
+    /**
      * Dismisses the topmost dismissible entry, and reports whether it did.
      *
      * This is what a back gesture calls. Returns false when nothing was
