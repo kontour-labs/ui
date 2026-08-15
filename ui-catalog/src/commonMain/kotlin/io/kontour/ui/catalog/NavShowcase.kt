@@ -33,6 +33,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.NavItem
+import io.kontour.ui.nav.NavRail
 import io.kontour.ui.nav.NavigationSuiteScaffold
 import io.kontour.ui.nav.Pagination
 import io.kontour.ui.nav.Tab
@@ -68,6 +69,13 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                 DevicePanel("Compact — bar at the bottom", width = 360.dp, height = 620.dp)
                 DevicePanel("Medium — rail on the leading edge", width = 700.dp, height = 620.dp)
                 DevicePanel("Expanded — drawer", width = 900.dp, height = 620.dp)
+            }
+
+            Section("Rail — collapsed and expanded") {
+                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+                    RailPanel(expanded = false)
+                    RailPanel(expanded = true)
+                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
@@ -139,6 +147,43 @@ fun NavShowcase(modifier: Modifier = Modifier) {
 }
 
 /** A window of a given size, with the suite deciding where navigation goes. */
+
+/**
+ * A rail at both widths, side by side.
+ *
+ * The pair is the point: the marker is a bar on the leading edge either way, so
+ * expanding changes how much you can read, not how you tell where you are.
+ */
+@Composable
+private fun RailPanel(expanded: Boolean) {
+    var selected by remember { mutableStateOf(1) }
+
+    Box(
+        Modifier
+            .height(340.dp)
+            .border(
+                width = Theme.sizing.borderWidth,
+                color = Theme.colors.outline,
+                shape = Theme.shapes.medium,
+            )
+            .clip(Theme.shapes.medium)
+    ) {
+        NavRail(
+            items = destinations(selected) { selected = it },
+            selectedIndex = selected,
+            expanded = expanded,
+            onExpandedChange = {},
+            action = {
+                FloatingActionButton(
+                    icon = Tabler.Outline.Search,
+                    contentDescription = "Search",
+                    onClick = {},
+                )
+            },
+        )
+    }
+}
+
 @Composable
 private fun DevicePanel(title: String, width: Dp, height: Dp) {
     Column(

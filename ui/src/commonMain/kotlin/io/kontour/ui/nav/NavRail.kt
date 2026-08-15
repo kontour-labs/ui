@@ -130,7 +130,11 @@ fun NavRail(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .padding(vertical = Theme.spacing.md),
+                // Horizontal padding as well as vertical: the destinations run
+                // full-width so the leading-edge marker sits at a consistent x,
+                // and without this that x is the rail's own rounded edge, which
+                // clips the marker in half.
+                .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {

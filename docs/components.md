@@ -573,13 +573,55 @@ one nobody notices and everybody pays for.
 | `NavigationSuiteScaffold` | Picks the surface from the window size and places it |
 | `NavItem` | One destination, declared once and rendered by whichever surface fits |
 | `NavBar` / `NavBarItem` | **Bottom of the screen.** Floating pill or docked |
-| `NavRail` / `NavRailItem` | **Leading edge.** Icons and labels, an action at the bottom |
+| `NavRail` / `NavRailItem` | **Leading edge.** Expandable to a drawer's width, action at the bottom |
 | `NavDrawer` / `ModalNavDrawer` | **Leading edge.** Nested groups, sections |
 | `TopBar` | Title and actions. Small, centred, or large-collapsing |
-| `TabBar` / `Tab` | Views of one screen, with a sliding indicator |
+| `TabBar` / `Tab` | Views of one screen |
+| `SelectionIndicatorBox` | The travelling marker all four surfaces share |
 | `Breadcrumbs` | Where you are in a hierarchy, and the way back up |
 | `Pagination` | Numbered pages, collapsed around the current one |
 | `WindowSizeClass` | Compact / medium / expanded / large, from a measured window |
+
+### How selection is shown
+
+A single marker **travels** to the current destination — an underline beneath it
+in the bar and tab bar, a bar down the leading edge in the rail and drawer. The
+movement is what carries the meaning, so the accent tint on the icon and label is
+a *second* cue rather than the only one.
+
+That matters beyond taste. Selection signalled by colour alone fails WCAG 1.4.1,
+and it is what a colour-blind user has nothing to go on. Two independent cues
+also serve two different people: the shape reads without colour vision, the tint
+reads without sharp edges.
+
+All four surfaces use `foundation/SelectionIndicator.kt` — one mechanism, so the
+bar, the rail, the drawer, the tab bar and `SegmentedControl` cannot drift apart.
+See [building/](contributing.md) for why it is built the way it is.
+
+Under reduced motion the marker snaps and cross-fades rather than travelling: a
+bar sliding the width of the screen is exactly the translation the preference
+exists to stop.
+
+### The rail expands
+
+```kotlin
+NavRail(
+    items = destinations,
+    selectedIndex = current,
+    expanded = railOpen,
+    onExpandedChange = { railOpen = it },
+)
+```
+
+Pass `onExpandedChange` to get the toggle; leave it null for a rail fixed at
+whatever `expanded` says. Expanding grows the rail to `NavDrawerDefaults.Width`
+and moves the labels beside the icons — the two line up so the switch does not
+read as a jump.
+
+A collapsed *expandable* rail shows icons only. Stacking the label and then
+moving it beside the icon would pop mid-animation; keeping the icon still and
+sliding the label out from behind it is the same treatment
+`ExtendedFloatingActionButton` uses.
 
 ### Where navigation goes
 

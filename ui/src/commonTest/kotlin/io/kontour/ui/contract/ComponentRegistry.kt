@@ -24,6 +24,7 @@ import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
 import io.kontour.ui.components.selection.RadioButton
+import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.selection.Slider
 import io.kontour.ui.components.selection.Switch
@@ -35,6 +36,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.NavBarItem
 import io.kontour.ui.nav.NavDrawerItem
 import io.kontour.ui.nav.NavItem
+import io.kontour.ui.nav.NavRailItem
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 
@@ -91,6 +93,17 @@ class ComponentSpec(
  * its node reports as a failure that looks like the rule, not like the matcher.
  */
 private val isTextInput = SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)
+
+/**
+ * Matches the chosen one of a set of selectable children, **in either state**.
+ *
+ * Not `hasClickAction()`, for the same reason [isTextInput] is not
+ * `hasSetTextAction()`: foundation withdraws the click action when a control is
+ * disabled, so that matcher finds nothing in exactly the case the disabled rule
+ * is about. `Selected` is set either way, and matching the selected one keeps it
+ * to a single node where `hasClickAction()` would match every segment.
+ */
+private val isSelectedOption = SemanticsMatcher.expectValue(SemanticsProperties.Selected, true)
 
 /**
  * Every interactive component in the system.
@@ -370,6 +383,38 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 label = "Favourites",
                 selected = false,
                 onClick = onClick,
+                modifier = modifier,
+                enabled = enabled,
+            )
+        }
+    )
+
+    add(
+        ComponentSpec("NavRailItem", Role.Tab) { modifier, enabled, onClick ->
+            NavRailItem(
+                item = NavItem(
+                    label = "Map",
+                    icon = Tabler.Outline.Star,
+                    onClick = onClick,
+                    enabled = enabled,
+                ),
+                selected = false,
+                modifier = modifier,
+            )
+        }
+    )
+
+    add(
+        // The tagged node is the track; each segment inside it is the control.
+        ComponentSpec(
+            name = "SegmentedControl",
+            role = Role.RadioButton,
+            control = isSelectedOption,
+        ) { modifier, enabled, onClick ->
+            SegmentedControl(
+                options = listOf("Bus", "Train"),
+                selectedIndex = 0,
+                onSelect = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
             )
