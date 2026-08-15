@@ -51,9 +51,10 @@ enum class TopBarStyle {
     /**
      * Two lines: actions on the first, a large title on the second.
      *
-     * Collapses to [Small] as the content scrolls under it — see
-     * [Modifier.collapsingTopBar]. For a screen whose title is the thing the
-     * user came for, like a route or a stop.
+     * Collapses to [Small] as the content scrolls under it. The bar does not
+     * own the scroll state, so the caller passes `collapseProgress` — there is
+     * a [collapseProgress] overload for a `LazyListState`. For a screen whose
+     * title is the thing the user came for, like a route or a stop.
      */
     Large,
 }
