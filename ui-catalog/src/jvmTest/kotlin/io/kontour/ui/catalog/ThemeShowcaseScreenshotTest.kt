@@ -184,7 +184,7 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "nav-"),
                 width = 4160,
-                height = 3000,
+                height = 3900,
                 frames = 30,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {

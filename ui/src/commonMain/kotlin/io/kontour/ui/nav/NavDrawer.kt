@@ -95,7 +95,7 @@ fun NavDrawer(
     width: Dp = NavDrawerDefaults.Width,
     containerColor: Color = Theme.colors.surface,
     contentColor: Color = Theme.colors.content,
-    indicatorColor: Color = Theme.colors.accent,
+    indicatorColor: Color = Theme.colors.accentContainer,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
@@ -152,7 +152,7 @@ fun ModalNavDrawer(
     width: Dp = NavDrawerDefaults.Width,
     dismissLabel: String = "Close navigation",
     paneTitle: String = "Navigation",
-    indicatorColor: Color = Theme.colors.accent,
+    indicatorColor: Color = Theme.colors.accentContainer,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
@@ -204,14 +204,10 @@ private fun DrawerItems(
     Box(modifier.verticalScroll(rememberScrollState())) {
         SelectionIndicatorBox(
             state = indicator,
-            // A bar down the leading edge — the tab bar's underline rotated. A
-            // vertical list has no "below the item", but it does have a leading
-            // edge, and pinning the marker there keeps it clear of the label.
-            sizing = IndicatorSizing.Edge(
-                edge = IndicatorEdge.Start,
-                thickness = Theme.sizing.selectionIndicator,
-                inset = Theme.spacing.xs,
-            ),
+            // A pill around the whole row, matching the rail. The two surfaces
+            // show the same list at different widths and should mark it the
+            // same way.
+            sizing = IndicatorSizing.Inset(Theme.spacing.xxs),
             indicator = {
                 Box(
                     Modifier

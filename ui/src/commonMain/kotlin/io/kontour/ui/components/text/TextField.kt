@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
@@ -102,6 +103,7 @@ fun TextField(
     trailingIcon: ImageVector? = null,
     trailing: (@Composable () -> Unit)? = null,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
+    shape: Shape = Theme.shapes.small,
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Default,
     onKeyboardAction: KeyboardActionHandler? = null,
@@ -135,7 +137,7 @@ fun TextField(
         focused = focused,
         colors = colors,
         metrics = metrics,
-        shape = Theme.shapes.small,
+        shape = shape,
         label = label,
         supportingText = supportingText,
         errorMessage = errorMessage,

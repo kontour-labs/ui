@@ -89,6 +89,14 @@ internal fun NavDestinationItem(
     modifier: Modifier = Modifier,
     layout: NavItemLayout = NavItemLayout.Stacked,
     showLabel: Boolean = true,
+    /**
+     * Drawn behind this one destination.
+     *
+     * Transparent by default — the bar or rail behind the whole row is the
+     * surface. Set for [NavBarItemStyle.Separate], where each destination is its
+     * own shape and there is no row surface at all.
+     */
+    containerColor: Color = Color.Transparent,
     indicatorKey: Any = item.label,
     interactionSource: MutableInteractionSource? = null,
 ) {
@@ -130,6 +138,7 @@ internal fun NavDestinationItem(
         .minimumTouchTarget()
         .focusRing(interactions, shape, enabled = item.enabled)
         .clip(shape)
+        .background(containerColor, shape)
         .selectable(
             selected = selected,
             interactionSource = interactions,

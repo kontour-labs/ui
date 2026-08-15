@@ -27,11 +27,17 @@ import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
 import com.composables.icons.tabler.outline.Search
 import io.kontour.ui.adaptive.WindowSizeClassProvider
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import io.kontour.ui.components.action.FabSize
 import io.kontour.ui.components.action.FloatingActionButton
+import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
+import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarItemStyle
+import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavRail
 import io.kontour.ui.nav.NavigationSuiteScaffold
@@ -69,6 +75,30 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                 DevicePanel("Compact — bar at the bottom", width = 360.dp, height = 620.dp)
                 DevicePanel("Medium — rail on the leading edge", width = 700.dp, height = 620.dp)
                 DevicePanel("Expanded — drawer", width = 900.dp, height = 620.dp)
+            }
+
+            Section("Bar arrangements — which of these works?") {
+                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+                    BarPanel("Ours today")
+                    BarPanel("Icon only", showLabels = false)
+                    BarPanel("Separate circles", itemStyle = NavBarItemStyle.Separate)
+                    BarPanel(
+                        "Separate + icon only",
+                        itemStyle = NavBarItemStyle.Separate,
+                        showLabels = false,
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+                    BarPanel("Inline search", search = true)
+                    BarPanel("Search, icon only", search = true, showLabels = false)
+                    BarPanel(
+                        "Uber-ish: separate + search",
+                        itemStyle = NavBarItemStyle.Separate,
+                        showLabels = false,
+                        search = true,
+                    )
+                    BarPanel("Docked", style = NavBarStyle.Docked)
+                }
             }
 
             Section("Rail — collapsed and expanded") {
@@ -154,6 +184,79 @@ fun NavShowcase(modifier: Modifier = Modifier) {
  * The pair is the point: the marker is a bar on the leading edge either way, so
  * expanding changes how much you can read, not how you tell where you are.
  */
+
+/**
+ * One bar arrangement at phone width, over a stand-in for content.
+ *
+ * 360dp because that is where the arrangements actually compete — every one of
+ * them looks fine with 700dp to spread into, and the question is which survives a
+ * small phone with a search field and an action both wanting room.
+ */
+@Composable
+private fun BarPanel(
+    label: String,
+    style: NavBarStyle = NavBarStyle.Floating,
+    itemStyle: NavBarItemStyle = NavBarItemStyle.Grouped,
+    showLabels: Boolean = true,
+    search: Boolean = false,
+) {
+    var selected by remember { mutableStateOf(1) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+        Text(
+            text = label,
+            style = Theme.typography.labelSmall,
+            color = Theme.colors.contentMuted,
+        )
+        Box(
+            Modifier
+                .width(360.dp)
+                .height(170.dp)
+                .clip(Theme.shapes.medium)
+                .background(Theme.colors.surfaceSunken),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            NavBar(
+                items = destinations(selected) { selected = it },
+                selectedIndex = selected,
+                style = style,
+                itemStyle = itemStyle,
+                showLabels = showLabels,
+                search = if (search) {
+                    {
+                        SearchField(
+                            state = rememberTextFieldState(),
+                            placeholder = "Search",
+                            // A pill inside a pill. At `shapes.small` the field's
+                            // square-ish corners fight the bar's curve and clip
+                            // against its rounded end.
+                            shape = Theme.shapes.pill,
+                        )
+                    }
+                } else {
+                    null
+                },
+                // Deliberately dropped when there is a search field: the
+                // reference has no separate action button, because the search
+                // *is* the action. Keeping both is what made the first render of
+                // this panel run out of width at 360dp.
+                action = if (search) {
+                    null
+                } else {
+                    {
+                        FloatingActionButton(
+                            icon = Tabler.Outline.Search,
+                            contentDescription = "Search",
+                            onClick = {},
+                            size = FabSize.Small,
+                        )
+                    }
+                },
+            )
+        }
+    }
+}
+
 @Composable
 private fun RailPanel(expanded: Boolean) {
     var selected by remember { mutableStateOf(1) }

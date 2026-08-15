@@ -287,7 +287,16 @@ fun SelectionIndicatorBox(
                 alpha.snapTo(0f)
                 bounds.snapTo(target)
             }
-            else -> bounds.animateTo(target, motion.springOrTween(motion.springSnappy))
+            // `springDefault`, not `springSnappy`. Snappy is near-critically
+            // damped — right for a segmented control's thumb moving a few dozen
+            // pixels, too clinical for a pill crossing a whole bar. Default
+            // carries a little overshoot, which is what makes the marker read as
+            // arriving rather than being assigned.
+            //
+            // Deliberately not `springBouncy`: its own token doc says it is
+            // suppressed entirely under reduced motion, and a selection marker
+            // should not change character that much between the two settings.
+            else -> bounds.animateTo(target, motion.springOrTween(motion.springDefault))
         }
         alpha.animateTo(1f, motion.tweenFast())
     }

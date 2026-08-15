@@ -47,6 +47,26 @@ enum class NavBarStyle {
     Docked,
 }
 
+/**
+ * How the destinations are contained.
+ *
+ * A shape decision, not a behaviour one — selection, semantics and the travelling
+ * marker are identical either way.
+ */
+enum class NavBarItemStyle {
+    /** All destinations inside one surface. */
+    Grouped,
+
+    /**
+     * Each destination in its own circle, with no surface behind the row.
+     *
+     * Reads as a row of controls rather than one control with parts. Pairs with
+     * [NavBar]'s `search` slot, which is where the arrangement comes from — a bar
+     * whose widest element is a search field rather than a destination.
+     */
+    Separate,
+}
+
 object NavBarDefaults {
     /**
      * The floor, not the height.
@@ -106,13 +126,25 @@ fun NavBar(
     selectedIndex: Int,
     modifier: Modifier = Modifier,
     style: NavBarStyle = NavBarStyle.Floating,
+    itemStyle: NavBarItemStyle = NavBarItemStyle.Grouped,
     showLabels: Boolean = true,
     containerColor: Color = Theme.colors.surfaceRaised,
     contentColor: Color = Theme.colors.content,
-    indicatorColor: Color = Theme.colors.accent,
+    indicatorColor: Color = Theme.colors.accentContainer,
+    search: (@Composable () -> Unit)? = null,
     action: (@Composable () -> Unit)? = null,
 ) {
     val indicator = rememberSelectionIndicatorState()
+    // With separate circles the marker cannot be a pill *behind* an icon that
+    // already sits in its own circle — that is two concentric shapes. The
+    // container becomes the marker instead.
+    val sizing = when (itemStyle) {
+        NavBarItemStyle.Grouped -> IndicatorSizing.Fixed(
+            width = NavItemDefaults.IndicatorWidth,
+            height = NavItemDefaults.IndicatorHeight,
+        )
+        NavBarItemStyle.Separate -> IndicatorSizing.Fill
+    }
     val shape: Shape = when (style) {
         NavBarStyle.Floating -> Theme.shapes.pill
         NavBarStyle.Docked -> Theme.shapes.sheet
@@ -148,16 +180,11 @@ fun NavBar(
         ) {
             SelectionIndicatorBox(
                 state = indicator,
-                // A bar beneath the destination, not a pill behind its icon.
-                // Sliding along the row is a movement the eye follows; a tonal
-                // blob appearing behind an icon is a colour change with extra
-                // steps, and it is the pattern that made selection here depend on
-                // colour in the first place.
-                sizing = IndicatorSizing.Edge(
-                    edge = IndicatorEdge.Bottom,
-                    thickness = Theme.sizing.selectionIndicator,
-                    inset = Theme.spacing.md,
-                ),
+                // A tonal pill that *travels* between destinations rather than
+                // fading in on one and out on the other. The movement is what
+                // stops selection depending on colour: the shape arrives, and the
+                // accent tint is the second cue.
+                sizing = sizing,
                 modifier = Modifier.padding(horizontal = Theme.spacing.xs),
                 indicator = {
                     Box(
@@ -169,18 +196,50 @@ fun NavBar(
                 },
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().selectableGroup(),
-                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(
+                        if (itemStyle == NavBarItemStyle.Separate) Theme.spacing.xs
+                        else Theme.spacing.xxs
+                    ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    items.forEachIndexed { index, item ->
-                        NavBarItem(
-                            item = item,
-                            selected = index == selectedIndex,
-                            showLabel = showLabels,
-                            modifier = Modifier.weight(1f),
-                        )
+                    Row(
+                        modifier = Modifier
+                            .then(if (search == null) Modifier.weight(1f) else Modifier)
+                            .selectableGroup(),
+                        horizontalArrangement = Arrangement.spacedBy(
+                            if (itemStyle == NavBarItemStyle.Separate) Theme.spacing.xs
+                            else Theme.spacing.xxs
+                        ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        items.forEachIndexed { index, item ->
+                            NavBarItem(
+                                item = item,
+                                selected = index == selectedIndex,
+                                showLabel = showLabels,
+                                // Only the *unselected* circles paint themselves.
+                                // An item's own background is part of the
+                                // content, so it draws over the indicator behind
+                                // it — the selected circle has to be the
+                                // travelling marker, or the marker is invisible.
+                                containerColor = when {
+                                    itemStyle != NavBarItemStyle.Separate -> Color.Transparent
+                                    index == selectedIndex -> Color.Transparent
+                                    else -> Theme.colors.surfaceSunken
+                                },
+                                // Destinations divide the bar only when nothing
+                                // else is competing for it. With a search field
+                                // present they size to content and it takes the
+                                // rest — which is the arrangement's whole point.
+                                modifier = if (search == null) Modifier.weight(1f) else Modifier,
+                            )
+                        }
                     }
+
+                    // Inside the bar and outside the selectable group: it is not a
+                    // destination, and a screen reader must not count it as one.
+                    if (search != null) Box(Modifier.weight(1f)) { search() }
                 }
             }
         }
@@ -230,6 +289,7 @@ fun NavBarItem(
     selected: Boolean,
     modifier: Modifier = Modifier,
     showLabel: Boolean = true,
+    containerColor: Color = Color.Transparent,
     interactionSource: MutableInteractionSource? = null,
 ) {
     NavDestinationItem(
@@ -238,6 +298,7 @@ fun NavBarItem(
         modifier = modifier,
         layout = NavItemLayout.Stacked,
         showLabel = showLabel,
+        containerColor = containerColor,
         interactionSource = interactionSource,
     )
 }

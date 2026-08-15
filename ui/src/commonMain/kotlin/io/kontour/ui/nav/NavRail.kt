@@ -99,7 +99,7 @@ fun NavRail(
     expandedWidth: Dp = NavRailDefaults.ExpandedWidth,
     containerColor: Color = Theme.colors.surface,
     contentColor: Color = Theme.colors.content,
-    indicatorColor: Color = Theme.colors.accent,
+    indicatorColor: Color = Theme.colors.accentContainer,
     expandLabel: String = "Expand navigation",
     collapseLabel: String = "Collapse navigation",
     header: (@Composable ColumnScope.() -> Unit)? = null,
@@ -156,14 +156,10 @@ fun NavRail(
 
             SelectionIndicatorBox(
                 state = indicator,
-                // The leading edge, collapsed or expanded, and the same as the
-                // drawer's. A vertical list has no "below the item"; it has a
-                // leading edge, and a bar there is the underline rotated.
-                sizing = IndicatorSizing.Edge(
-                    edge = IndicatorEdge.Start,
-                    thickness = Theme.sizing.selectionIndicator,
-                    inset = Theme.spacing.xs,
-                ),
+                // A pill around the whole row, travelling between destinations.
+                // The bar's pill is sized to its icon; a rail row is wider than
+                // that, so the marker follows the row instead.
+                sizing = IndicatorSizing.Inset(Theme.spacing.xxs),
                 indicator = {
                     Box(
                         Modifier

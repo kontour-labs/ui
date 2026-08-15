@@ -13,6 +13,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.ImeAction
 import io.kontour.ui.components.action.ButtonSize
@@ -65,6 +66,7 @@ fun SearchField(
     onQueryChange: ((String) -> Unit)? = null,
     onSearch: ((String) -> Unit)? = null,
     variant: TextFieldVariant = TextFieldVariant.Filled,
+    shape: Shape = Theme.shapes.small,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val currentOnQueryChange by rememberUpdatedState(onQueryChange)
@@ -88,6 +90,7 @@ fun SearchField(
         supportingText = supportingText,
         leadingIcon = searchIcon,
         variant = variant,
+        shape = shape,
         imeAction = ImeAction.Search,
         onKeyboardAction = { currentOnSearch?.invoke(state.text.toString()) },
         interactionSource = interactionSource,
