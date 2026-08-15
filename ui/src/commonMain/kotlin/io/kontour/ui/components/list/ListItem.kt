@@ -185,7 +185,7 @@ fun ListItem(
      * them reads as loose text rather than as one object with rows in it.
      */
     containerColor: Color = Theme.colors.surfaceSunken,
-    selectedContainerColor: Color = Theme.colors.accentContainer,
+    selectedContainerColor: Color = Theme.colors.accent.container,
     contentColor: Color = Theme.colors.content,
     /**
      * Unspecified derives it from the content: a row with an [ListItemScope.overline]
@@ -209,7 +209,7 @@ fun ListItem(
     }
     val content = when {
         !enabled -> colors.contentDisabled
-        selected -> colors.onAccentContainer
+        selected -> colors.accent.onContainer
         else -> contentColor
     }
 

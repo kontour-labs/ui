@@ -120,7 +120,7 @@ fun GlassSurface(
 @Composable
 fun Modifier.atmosphere(
     intensity: Float = 1f,
-    primary: Color = Theme.colors.accent,
+    primary: Color = Theme.colors.accent.solid,
     secondary: Color = Theme.colors.brand,
 ): Modifier = drawWithCache {
     val glow = buildAtmosphere(size, primary, secondary, intensity)

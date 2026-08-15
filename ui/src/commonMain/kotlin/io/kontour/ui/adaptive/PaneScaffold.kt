@@ -290,7 +290,7 @@ private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
             Modifier
                 .width(thickness.dp)
                 .fillMaxHeight()
-                .background(if (hovered) colors.accent else colors.outline)
+                .background(if (hovered) colors.accent.solid else colors.outline)
         )
     }
 }

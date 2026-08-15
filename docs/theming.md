@@ -79,17 +79,25 @@ constructors, so you inherit defaults for anything you do not care about:
 object OceanTheme {
     fun colors(dark: Boolean) = if (dark) {
         darkColorScheme(
-            accent = Color(0xFF4FC3F7),
-            accentContainer = Color(0xFF0A2A38),
-            onAccentContainer = Color(0xFFB3E5FC),
+            accent = StatusColors(
+                solid = Color(0xFF4FC3F7),
+                onSolid = Color(0xFF002E3F),
+                container = Color(0xFF0A2A38),
+                onContainer = Color(0xFFB3E5FC),
+                border = Color(0xFF17495E),
+            ),
             brand = Color(0xFF4FC3F7),
             focusRing = Color(0xFF4FC3F7),
         )
     } else {
         lightColorScheme(
-            accent = Color(0xFF01579B),
-            accentContainer = Color(0xFFE1F5FE),
-            onAccentContainer = Color(0xFF01426A),
+            accent = StatusColors(
+                solid = Color(0xFF01579B),
+                onSolid = Color(0xFFFFFFFF),
+                container = Color(0xFFE1F5FE),
+                onContainer = Color(0xFF01426A),
+                border = Color(0xFFB6E2F7),
+            ),
             brand = Color(0xFF4FC3F7),
             focusRing = Color(0xFF01579B),
         )

@@ -184,7 +184,7 @@ fun AvatarGroup(
 private fun avatarPalette(): List<Color> {
     val c = Theme.colors
     return listOf(
-        c.accent,
+        c.accent.solid,
         c.success.solid,
         c.warning.solid,
         c.danger.solid,

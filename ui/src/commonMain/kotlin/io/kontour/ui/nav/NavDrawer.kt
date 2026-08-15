@@ -103,7 +103,7 @@ fun NavDrawer(
     width: Dp = NavDrawerDefaults.Width,
     containerColor: Color = Theme.colors.surface,
     contentColor: Color = Theme.colors.content,
-    indicatorColor: Color = Theme.colors.accentContainer,
+    indicatorColor: Color = Theme.colors.accent.container,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     /**
@@ -168,7 +168,7 @@ fun ModalNavDrawer(
     width: Dp = NavDrawerDefaults.Width,
     dismissLabel: String = "Close navigation",
     paneTitle: String = "Navigation",
-    indicatorColor: Color = Theme.colors.accentContainer,
+    indicatorColor: Color = Theme.colors.accent.container,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable NavDrawerScope.() -> Unit,
@@ -282,14 +282,14 @@ fun NavDrawerItem(
     val grouped = LocalSelectionIndicator.current != null
 
     val container by animateColorAsState(
-        targetValue = if (selected && !grouped) colors.accentContainer else Color.Transparent,
+        targetValue = if (selected && !grouped) colors.accent.container else Color.Transparent,
         animationSpec = motion.tweenFast(),
         label = "drawerItemContainer",
     )
     val content by animateColorAsState(
         targetValue = when {
             !enabled -> colors.contentDisabled
-            selected -> colors.onAccentContainer
+            selected -> colors.accent.onContainer
             // `contentMuted`, matching the bar and the rail. This used to be
             // `content`, which left the selected/unselected difference here
             // weaker than in either of its siblings.

@@ -301,7 +301,7 @@ private fun DevicePanel(title: String, width: Dp, height: Dp) {
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent,
+            color = Theme.colors.accent.solid,
         )
         Box(
             Modifier

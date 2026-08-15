@@ -81,7 +81,7 @@ object TextFieldDefaults {
             contentDisabled = c.contentDisabled,
             placeholder = c.contentSubtle,
             label = c.contentMuted,
-            labelFocused = c.accent,
+            labelFocused = c.accent.solid,
             // Filled had `Color.Transparent` unconditionally — the only
             // component in the library that stated the high-contrast problem
             // outright. A filled field is `surfaceSunken` on `background`, so
@@ -92,13 +92,13 @@ object TextFieldDefaults {
             } else {
                 c.outlineStrong
             },
-            borderFocused = c.accent,
+            borderFocused = c.accent.solid,
             borderError = c.danger.solid,
             borderDisabled = c.outline,
             helper = c.contentMuted,
             error = c.danger.onContainer,
-            cursor = c.accent,
-            selectionBackground = c.accentContainer,
+            cursor = c.accent.solid,
+            selectionBackground = c.accent.container,
         )
     }
 

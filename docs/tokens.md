@@ -63,16 +63,36 @@ WCAG 1.4.11 asks of a UI component boundary. Inputs, checkboxes and switches use
 | Token | Light | Dark | For |
 |---|---|---|---|
 | `primary` / `onPrimary` | `#121212` / `#FFFFFF` | `#F4F1F8` / `#121212` | The solid call to action |
-| `accent` / `onAccent` | `#6D28D9` / `#FFFFFF` | `#BB86FC` / `#1A1024` | Purple that carries text or a fill label |
-| `accentContainer` / `onAccentContainer` | `#F3ECFE` / `#4C1D95` | `#2A1F3D` / `#D9BBFD` | Selected states, tinted chips |
+| `accent` | a `StatusColors`, below | | The brand, as a tone |
 | `brand` | `#BB86FC` | `#BB86FC` | Purple as **decoration only** |
 | `focusRing` | `#6D28D9` | `#BB86FC` | The keyboard focus indicator |
+
+**`accent` is a tone, not four loose fields.** It is a `StatusColors` exactly
+like `success` and the rest, so there is one tone type and six tones:
+
+| Member | Light | Dark | Was |
+|---|---|---|---|
+| `accent.solid` | `#6D28D9` | `#BB86FC` | `accent` |
+| `accent.onSolid` | `#FFFFFF` | `#1A1024` | `onAccent` |
+| `accent.container` | `#F3ECFE` | `#2A1F3D` | `accentContainer` |
+| `accent.onContainer` | `#4C1D95` | `#D9BBFD` | `onAccentContainer` |
+| `accent.border` | `#DCC9FB` | `#453259` | *new* |
+
+The point is not tidiness. A component that takes a tone can now take *this*
+one, which is what `ButtonVariant.Accent`, `BannerTone.Accent` and
+`ToastTone.Accent` are made of — and `TagTone.Accent`, which already existed,
+had to reach past the group and assemble itself from three separate fields.
+
+It also means a custom scheme has to supply the whole tone rather than one
+colour. That is the point too: the old `lightColorScheme(accent = Color(...))`
+left `accentContainer` at the default purple, so a blue accent came with a
+purple selected-state and the signature said nothing about it.
 
 **On `brand` versus `accent`.** `#BB86FC` is the Kontour purple, and on white it
 reaches only 2.1:1 — it cannot carry text, a fill label, or a focus ring in light
 mode. (The marketing site's `.button.primary:hover` does exactly this today and
 fails.) So the palette splits the job: `brand` is the literal brand colour for
-decoration, and `accent` is a purple dark enough to be read. `BrandIsDecorativeOnlyTest`
+decoration, and `accent.solid` is a purple dark enough to be read. `BrandIsDecorativeOnlyTest`
 pins that contract so nobody quietly promotes `brand` to a text colour.
 
 ### Status

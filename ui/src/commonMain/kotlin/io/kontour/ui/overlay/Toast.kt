@@ -37,7 +37,7 @@ import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 
 /** What a toast is reporting. */
-enum class ToastTone { Neutral, Success, Warning, Danger }
+enum class ToastTone { Neutral, Success, Warning, Danger, Accent }
 
 /** One queued toast. */
 @Stable
@@ -209,12 +209,14 @@ private fun ToastSurface(
         ToastTone.Success -> colors.success.solid
         ToastTone.Warning -> colors.warning.solid
         ToastTone.Danger -> colors.danger.solid
+        ToastTone.Accent -> colors.accent.solid
     }
     val content = when (toast.tone) {
         ToastTone.Neutral -> colors.onSurfaceInverse
         ToastTone.Success -> colors.success.onSolid
         ToastTone.Warning -> colors.warning.onSolid
         ToastTone.Danger -> colors.danger.onSolid
+        ToastTone.Accent -> colors.accent.onSolid
     }
 
     Surface(

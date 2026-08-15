@@ -223,7 +223,7 @@ fun BadgedBox(
 @ReadOnlyComposable
 private fun tagContainerFor(tone: TagTone): Color = when (tone) {
     TagTone.Neutral -> Theme.colors.surfaceSunken
-    TagTone.Accent -> Theme.colors.accentContainer
+    TagTone.Accent -> Theme.colors.accent.container
     TagTone.Success -> Theme.colors.success.container
     TagTone.Warning -> Theme.colors.warning.container
     TagTone.Danger -> Theme.colors.danger.container
@@ -234,7 +234,7 @@ private fun tagContainerFor(tone: TagTone): Color = when (tone) {
 @ReadOnlyComposable
 private fun tagBorderFor(tone: TagTone): Color = when (tone) {
     TagTone.Neutral -> Theme.colors.outline
-    TagTone.Accent -> Theme.colors.accent
+    TagTone.Accent -> Theme.colors.accent.solid
     TagTone.Success -> Theme.colors.success.border
     TagTone.Warning -> Theme.colors.warning.border
     TagTone.Danger -> Theme.colors.danger.border
@@ -245,7 +245,7 @@ private fun tagBorderFor(tone: TagTone): Color = when (tone) {
 @ReadOnlyComposable
 private fun tagContentFor(tone: TagTone): Color = when (tone) {
     TagTone.Neutral -> Theme.colors.contentMuted
-    TagTone.Accent -> Theme.colors.onAccentContainer
+    TagTone.Accent -> Theme.colors.accent.onContainer
     TagTone.Success -> Theme.colors.success.onContainer
     TagTone.Warning -> Theme.colors.warning.onContainer
     TagTone.Danger -> Theme.colors.danger.onContainer

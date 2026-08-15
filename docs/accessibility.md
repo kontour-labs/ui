@@ -57,6 +57,40 @@ A `Medium` tier is deliberately absent rather than stubbed. Every tier we name
 is a tier the contrast suite has to actually verify, so naming one we have not
 authored would be a lie in an enum.
 
+### What `High` actually changes
+
+Three things, and for a long time it was only the first:
+
+**The scheme.** `kontourColorScheme(dark, contrast)` returns a different
+`ColorScheme` — AAA body contrast, a near-ink `outline`, pure white on pure
+black in dark mode.
+
+**The tokens.** `Sizing` is keyed on the tier, so every line in the system gets
+thicker: `borderWidth`, `borderWidthStrong`, `dividerThickness`,
+`focusRingWidth` and `selectionIndicator`. A component that reads one of those
+responds without being touched, which is most of them.
+
+**The edges.** `contrastEdge()` gives a container a boundary it does not
+otherwise have, and returns `null` at `Standard` so the call site reads as
+"this container's border, or an edge if the user needs one". `Card` Elevated
+and Filled, `Button` Tertiary and the ghosts, `ListItem`, `Tag`, `Dialog`, both
+sheets, `NavBar`, `SegmentedControl` and `TextFieldVariant.Filled` all take one.
+
+That third part is the one a darker `outline` cannot do. An elevated `Card` is
+white on white with a shadow for an edge, and a shadow does not change between
+tiers; `surfaceSunken` on `background` measures **1.14:1** at the high-contrast
+light tier, against the 3:1 WCAG 1.4.11 asks of a control's boundary.
+
+**How this is kept honest.** `LocalContrastLevel` was provided by the theme and
+read by nothing in the repo for most of the project's life, and it went
+unnoticed because the tier had only ever been screenshotted as a *palette* —
+`theme-light-high-contrast` and its dark twin — and never as components. There
+are ten component goldens at high contrast now, and
+`ContrastLevelReachesComponentsTest` asserts both remaining halves: one reads
+the tokens through `KontourTheme` so it covers the wiring rather than the
+table, and the other samples across a card's edge, because the card is in the
+semantics tree either way.
+
 ---
 
 ## Touch targets

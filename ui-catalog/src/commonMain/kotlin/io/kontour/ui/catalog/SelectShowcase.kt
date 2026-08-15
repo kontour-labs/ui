@@ -194,7 +194,7 @@ private fun FormPanel(title: String, content: @Composable () -> Unit) {
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent,
+            color = Theme.colors.accent.solid,
         )
         // Each panel gets a host: an open select renders into the nearest one,
         // and one shared host would put every menu in the same coordinate space.

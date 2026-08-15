@@ -134,7 +134,7 @@ fun NavBar(
     showLabels: Boolean = true,
     containerColor: Color = Theme.colors.surfaceRaised,
     contentColor: Color = Theme.colors.content,
-    indicatorColor: Color = Theme.colors.accentContainer,
+    indicatorColor: Color = Theme.colors.accent.container,
     search: (@Composable () -> Unit)? = null,
     action: (@Composable () -> Unit)? = null,
     /**

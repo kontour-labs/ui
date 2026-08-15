@@ -102,7 +102,7 @@ fun NavRail(
     expandedWidth: Dp = NavRailDefaults.ExpandedWidth,
     containerColor: Color = Theme.colors.surface,
     contentColor: Color = Theme.colors.content,
-    indicatorColor: Color = Theme.colors.accentContainer,
+    indicatorColor: Color = Theme.colors.accent.container,
     expandLabel: String = "Expand navigation",
     collapseLabel: String = "Collapse navigation",
     header: (@Composable ColumnScope.() -> Unit)? = null,

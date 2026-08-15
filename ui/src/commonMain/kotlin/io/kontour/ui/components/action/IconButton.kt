@@ -153,8 +153,8 @@ fun IconToggleButton(
     val checkedColors = ButtonDefaults.colors(ButtonVariant.Tertiary)
     val uncheckedColors = ButtonDefaults.colors(ButtonVariant.Ghost)
     val accentColors = checkedColors.copy(
-        container = Theme.colors.accentContainer,
-        content = Theme.colors.onAccentContainer,
+        container = Theme.colors.accent.container,
+        content = Theme.colors.accent.onContainer,
     )
 
     IconButtonSurface(

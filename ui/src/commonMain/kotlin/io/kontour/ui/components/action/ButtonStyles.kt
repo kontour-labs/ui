@@ -28,6 +28,16 @@ enum class ButtonVariant {
     /** Supporting actions that should not compete. Filled with a soft ground. */
     Tertiary,
 
+    /**
+     * The brand, as an action. Solid, in the accent tone.
+     *
+     * [Primary] is near-black and carries the screen's one action; this is for
+     * the place where the product should show up as itself — an onboarding
+     * "Get started", a "Plan a trip". Two solid buttons on one screen is still
+     * one too many, so this is an *alternative* to [Primary], not a companion.
+     */
+    Accent,
+
     /** Lowest weight — toolbar actions, inline "edit". No ground until hovered. */
     Ghost,
 
@@ -169,9 +179,9 @@ object ButtonDefaults {
                 disabledBorder = disabledBorder,
             )
 
-            // `surfaceSunken` on `background` is 1.06:1 at the high-contrast
-            // light tier — a button-shaped region of the page. The edge is what
-            // makes it a control.
+            // `surfaceSunken` on `background` measures 1.14:1 at the
+            // high-contrast light tier and 1.06:1 at dark — a button-shaped
+            // region of the page either way. The edge is what makes it a control.
             ButtonVariant.Tertiary -> ButtonColors(
                 container = c.surfaceSunken,
                 content = c.content,
@@ -185,7 +195,7 @@ object ButtonDefaults {
             // rather than from the scheme. A ghost button has no container of
             // its own, so it inherits whatever the surrounding surface set as
             // the content colour: near-black on a card, white on a danger
-            // toast, `onAccent` inside a coach mark. On an ordinary surface
+            // toast, `accent.onSolid` inside a coach mark. On an ordinary surface
             // this resolves to `c.content` and nothing changes.
             // A ghost button is chrome-less on purpose, and at the high-contrast
             // tier that purpose loses: a control whose only boundary is the
@@ -198,6 +208,15 @@ object ButtonDefaults {
                 border = edge?.let { LocalContentColor.current },
                 disabledContainer = disabledContainer,
                 disabledContent = disabledGhostContent(),
+                disabledBorder = disabledBorder,
+            )
+
+            ButtonVariant.Accent -> ButtonColors(
+                container = c.accent.solid,
+                content = c.accent.onSolid,
+                border = null,
+                disabledContainer = disabledContainer,
+                disabledContent = c.contentDisabled,
                 disabledBorder = disabledBorder,
             )
 

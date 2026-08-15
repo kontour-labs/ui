@@ -82,7 +82,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                     Text(
                         text = "ATMOSPHERE AND GLASS",
                         style = Theme.typography.monoLabel,
-                        color = Theme.colors.accent,
+                        color = Theme.colors.accent.solid,
                     )
                     Box(
                         Modifier
@@ -129,7 +129,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                     Text(
                         text = "EDGE VIGNETTE AND SHIMMER",
                         style = Theme.typography.monoLabel,
-                        color = Theme.colors.accent,
+                        color = Theme.colors.accent.solid,
                     )
                     Box(
                         Modifier
@@ -259,7 +259,7 @@ private fun Frame(title: String, width: Dp, height: Dp, content: @Composable () 
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent,
+            color = Theme.colors.accent.solid,
         )
         Box(
             Modifier

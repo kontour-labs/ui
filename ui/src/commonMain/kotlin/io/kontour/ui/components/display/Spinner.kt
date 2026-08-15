@@ -35,7 +35,7 @@ import io.kontour.ui.theme.Theme
  *
  * ```
  * Spinner()                                   // inherits content colour
- * Spinner(size = 32.dp, color = Theme.colors.accent)
+ * Spinner(size = 32.dp, color = Theme.colors.accent.solid)
  * ```
  *
  * @param contentDescription Announced by a screen reader. Pass `null` when the

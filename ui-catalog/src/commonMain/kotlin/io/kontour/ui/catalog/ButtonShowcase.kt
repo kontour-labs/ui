@@ -52,6 +52,7 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                     Button(onClick = {}, variant = ButtonVariant.Ghost) { +"Ghost" }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+                    Button(onClick = {}, variant = ButtonVariant.Accent) { +"Accent" }
                     Button(onClick = {}, variant = ButtonVariant.Destructive) { +"Destructive" }
                     Button(onClick = {}, variant = ButtonVariant.DestructiveGhost) { +"Destructive ghost" }
                 }
@@ -174,7 +175,7 @@ internal fun Section(title: String, content: @Composable ColumnScope.() -> Unit)
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent,
+            color = Theme.colors.accent.solid,
         )
         content()
     }

@@ -212,7 +212,7 @@ private fun SheetPanel(title: String, content: @Composable () -> Unit) {
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent,
+            color = Theme.colors.accent.solid,
         )
         Surface(
             modifier = Modifier

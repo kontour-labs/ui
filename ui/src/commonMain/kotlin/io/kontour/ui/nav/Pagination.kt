@@ -118,7 +118,7 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
             .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
             .clip(shape)
             .background(
-                if (selected) colors.accentContainer else androidx.compose.ui.graphics.Color.Transparent,
+                if (selected) colors.accent.container else androidx.compose.ui.graphics.Color.Transparent,
                 shape,
             )
             .selectable(
@@ -136,7 +136,7 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
         Text(
             text = "${number + 1}",
             style = Theme.typography.bodyMedium,
-            color = if (selected) colors.onAccentContainer else colors.contentMuted,
+            color = if (selected) colors.accent.onContainer else colors.contentMuted,
         )
     }
 }

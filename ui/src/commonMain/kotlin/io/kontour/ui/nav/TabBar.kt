@@ -84,7 +84,7 @@ fun TabBar(
     modifier: Modifier = Modifier,
     scrollable: Boolean = false,
     containerColor: Color = Color.Transparent,
-    indicatorColor: Color = Theme.colors.accent,
+    indicatorColor: Color = Theme.colors.accent.solid,
     showDivider: Boolean = true,
     content: @Composable TabBarScope.() -> Unit,
 ) {
@@ -179,7 +179,7 @@ fun TabBarScope.Tab(
     val content by animateColorAsState(
         targetValue = when {
             !enabled -> colors.contentDisabled
-            selected -> colors.accent
+            selected -> colors.accent.solid
             else -> colors.contentMuted
         },
         animationSpec = motion.tweenFast(),

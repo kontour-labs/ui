@@ -40,7 +40,7 @@ import io.kontour.ui.theme.StatusColors
 import io.kontour.ui.theme.Theme
 
 /** How serious a [Banner] is. Ports the four severities from `home`'s `StatusBanner`. */
-enum class BannerTone { Info, Success, Warning, Danger }
+enum class BannerTone { Info, Success, Warning, Danger, Accent }
 
 /**
  * An inline message about the state of something.
@@ -185,8 +185,8 @@ fun AnimatedBanner(
 @Composable
 fun Callout(
     modifier: Modifier = Modifier,
-    accent: Color = Theme.colors.accent,
-    container: Color = Theme.colors.accentContainer,
+    accent: Color = Theme.colors.accent.solid,
+    container: Color = Theme.colors.accent.container,
     content: @Composable () -> Unit,
 ) {
     val shape = Theme.shapes.extraSmall
@@ -208,7 +208,7 @@ fun Callout(
         )
         Box(Modifier.padding(Theme.spacing.sm)) {
             CompositionLocalProvider(
-                LocalContentColor provides Theme.colors.onAccentContainer,
+                LocalContentColor provides Theme.colors.accent.onContainer,
             ) {
                 content()
             }
@@ -222,4 +222,8 @@ private fun bannerColorsFor(tone: BannerTone): StatusColors = when (tone) {
     BannerTone.Success -> Theme.colors.success
     BannerTone.Warning -> Theme.colors.warning
     BannerTone.Danger -> Theme.colors.danger
+    // Reachable at all only because `accent` is a `StatusColors` now. As four
+    // loose fields it had no `border`, so a banner could not have been built
+    // out of it without inventing one here.
+    BannerTone.Accent -> Theme.colors.accent
 }

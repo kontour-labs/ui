@@ -179,6 +179,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                     Banner(tone = BannerTone.Success) {
                         +"Trip saved to favourites."
                     }
+                    Banner(tone = BannerTone.Accent) {
+                        +"Live tracking is on for this trip."
+                    }
                     Callout {
                         Text(
                             "Melbourne, Sydney and Canberra do not currently support " +

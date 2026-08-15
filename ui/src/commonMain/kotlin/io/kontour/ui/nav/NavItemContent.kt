@@ -116,14 +116,14 @@ internal fun NavDestinationItem(
         label = "navItemEmphasis",
     )
     val container by animateColorAsState(
-        targetValue = if (selected && !grouped) colors.accentContainer else Color.Transparent,
+        targetValue = if (selected && !grouped) colors.accent.container else Color.Transparent,
         animationSpec = motion.tweenFast(),
         label = "navItemContainer",
     )
     val content by animateColorAsState(
         targetValue = when {
             !item.enabled -> colors.contentDisabled
-            selected -> colors.onAccentContainer
+            selected -> colors.accent.onContainer
             else -> colors.contentMuted
         },
         animationSpec = motion.tweenFast(),

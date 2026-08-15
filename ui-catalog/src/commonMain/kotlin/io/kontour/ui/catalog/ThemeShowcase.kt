@@ -50,7 +50,7 @@ private fun SectionHeading(text: String) {
     Text(
         text = text.uppercase(),
         style = Theme.typography.monoLabel,
-        color = Theme.colors.accent,
+        color = Theme.colors.accent.solid,
     )
 }
 
@@ -107,8 +107,8 @@ private fun ColourRamp() {
         SectionHeading("Colour")
         Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
             Swatch("primary", c.primary, c.onPrimary)
-            Swatch("accent", c.accent, c.onAccent)
-            Swatch("accentContainer", c.accentContainer, c.onAccentContainer)
+            Swatch("accent", c.accent.solid, c.accent.onSolid)
+            Swatch("accent.container", c.accent.container, c.accent.onContainer)
             Swatch("brand (decor.)", c.brand, c.content)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {

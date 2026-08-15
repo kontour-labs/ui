@@ -128,7 +128,7 @@ fun FilterChip(
     val container by animateColorAsState(
         targetValue = when {
             !enabled -> Color.Transparent
-            selected -> colors.accentContainer
+            selected -> colors.accent.container
             else -> Color.Transparent
         },
         animationSpec = motion.tweenFast(),
@@ -137,7 +137,7 @@ fun FilterChip(
     val contentColor by animateColorAsState(
         targetValue = when {
             !enabled -> colors.contentDisabled
-            selected -> colors.onAccentContainer
+            selected -> colors.accent.onContainer
             else -> colors.content
         },
         animationSpec = motion.tweenFast(),

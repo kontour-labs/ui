@@ -187,7 +187,7 @@ private fun DayCell(
     val container by animateColorAsState(
         targetValue = when {
             filled -> colors.primary
-            inRange -> colors.accentContainer
+            inRange -> colors.accent.container
             else -> Color.Transparent
         },
         animationSpec = motion.tweenFast(),
@@ -197,7 +197,7 @@ private fun DayCell(
         targetValue = when {
             !enabled -> colors.contentDisabled
             filled -> colors.onPrimary
-            inRange -> colors.onAccentContainer
+            inRange -> colors.accent.onContainer
             else -> colors.content
         },
         animationSpec = motion.tweenFast(),

@@ -389,7 +389,7 @@ fun MenuItem(
                 imageVector = SystemIcons.Check,
                 contentDescription = null,
                 size = Theme.sizing.iconSmall,
-                tint = if (enabled) colors.accent else colors.contentDisabled,
+                tint = if (enabled) colors.accent.solid else colors.contentDisabled,
             )
         }
     }

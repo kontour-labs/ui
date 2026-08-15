@@ -124,8 +124,8 @@ private fun defaultContentColorFor(background: Color): Color {
         colors.background, colors.surface, colors.surfaceSunken, colors.surfaceRaised -> colors.content
         colors.surfaceInverse -> colors.onSurfaceInverse
         colors.primary -> colors.onPrimary
-        colors.accent -> colors.onAccent
-        colors.accentContainer -> colors.onAccentContainer
+        colors.accent.solid -> colors.accent.onSolid
+        colors.accent.container -> colors.accent.onContainer
         colors.success.solid -> colors.success.onSolid
         colors.success.container -> colors.success.onContainer
         colors.warning.solid -> colors.warning.onSolid

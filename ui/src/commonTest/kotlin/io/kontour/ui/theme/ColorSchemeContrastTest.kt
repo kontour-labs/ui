@@ -78,7 +78,7 @@ class ColorSchemeContrastTest {
             // Labels on solid fills, and the fills themselves against the page.
             val solids = listOf(
                 Triple("primary", c.primary, c.onPrimary),
-                Triple("accent", c.accent, c.onAccent),
+                Triple("accent", c.accent.solid, c.accent.onSolid),
                 Triple("success", c.success.solid, c.success.onSolid),
                 Triple("warning", c.warning.solid, c.warning.onSolid),
                 Triple("danger", c.danger.solid, c.danger.onSolid),
@@ -91,7 +91,7 @@ class ColorSchemeContrastTest {
 
             // Text on tinted containers.
             val containers = listOf(
-                Triple("accentContainer", c.accentContainer, c.onAccentContainer),
+                Triple("accent.container", c.accent.container, c.accent.onContainer),
                 Triple("successContainer", c.success.container, c.success.onContainer),
                 Triple("warningContainer", c.warning.container, c.warning.onContainer),
                 Triple("dangerContainer", c.danger.container, c.danger.onContainer),
@@ -154,7 +154,7 @@ class BrandIsDecorativeOnlyTest {
     @Test
     fun accentCarriesTextEverywhereBrandCannot() {
         for ((name, colors) in listOf("light" to lightColorScheme(), "dark" to darkColorScheme())) {
-            val ratio = contrastRatio(colors.accent, colors.background)
+            val ratio = contrastRatio(colors.accent.solid, colors.background)
             if (ratio < ContrastThreshold.NON_TEXT) {
                 fail("accent fails non-text contrast in $name: $ratio:1")
             }

@@ -263,7 +263,7 @@ private fun Panel(
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent,
+            color = Theme.colors.accent.solid,
         )
         Surface(
             modifier = Modifier

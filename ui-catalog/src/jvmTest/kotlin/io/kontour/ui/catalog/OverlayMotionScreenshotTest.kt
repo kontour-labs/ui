@@ -316,7 +316,7 @@ private fun MotionPanel(label: String, content: @Composable BoxScope.() -> Unit)
         Text(
             text = label.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent,
+            color = Theme.colors.accent.solid,
         )
         Surface(
             modifier = Modifier.width(400.dp).height(380.dp),

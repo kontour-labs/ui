@@ -412,7 +412,7 @@ private fun CoachMarkOverlay(
                         alignment = alignment,
                         gap = Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
-                        arrow = ArrowSpec(color = colors.accent),
+                        arrow = ArrowSpec(color = colors.accent.solid),
                     ) {
                         CoachMarkBubble(
                             title = title,
@@ -442,8 +442,8 @@ private fun CoachMarkBubble(
             .widthIn(max = 320.dp)
             .semantics(mergeDescendants = true) { contentDescription = "$title. $text" },
         shape = Theme.shapes.medium,
-        color = colors.accent,
-        contentColor = colors.onAccent,
+        color = colors.accent.solid,
+        contentColor = colors.accent.onSolid,
         shadow = Theme.elevation.overlay,
     ) {
         Column(
@@ -474,7 +474,7 @@ private fun CoachMarkBubble(
                     onClick = onDismiss,
                     variant = ButtonVariant.Ghost,
                     // Ghost takes its label from LocalContentColor, which the
-                    // bubble's Surface has already set to `onAccent`.
+                    // bubble's Surface has already set to `accent.onSolid`.
                     size = ButtonSize.Small,
                 ) { +dismissLabel }
             }

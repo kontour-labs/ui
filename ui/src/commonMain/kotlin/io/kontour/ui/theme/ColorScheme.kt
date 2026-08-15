@@ -103,10 +103,16 @@ data class ColorScheme(
     val onPrimary: Color,
 
     // --- Accent ---
-    val accent: Color,
-    val onAccent: Color,
-    val accentContainer: Color,
-    val onAccentContainer: Color,
+    /**
+     * The brand tone, shaped exactly like the four status tones.
+     *
+     * It used to be four loose fields — `accent`, `onAccent`, `accentContainer`,
+     * `onAccentContainer` — beside four grouped [StatusColors]. One tone type and
+     * six tones means a component that takes a tone can take *this* one, which is
+     * what `ButtonVariant.Accent` and `BannerTone.Accent` are made of, and it is
+     * why `TagTone.Accent` had to reach past the group to build itself.
+     */
+    val accent: StatusColors,
 
     // --- Brand ---
     val brand: Color,
@@ -156,10 +162,13 @@ fun lightColorScheme(
     outlineSubtle: Color = Palette.Grey100,
     primary: Color = Palette.Ink,
     onPrimary: Color = Palette.White,
-    accent: Color = Palette.PurpleReadable,
-    onAccent: Color = Palette.White,
-    accentContainer: Color = Palette.PurpleTintLight,
-    onAccentContainer: Color = Palette.PurpleDeep,
+    accent: StatusColors = StatusColors(
+        solid = Palette.PurpleReadable,
+        onSolid = Palette.White,
+        container = Palette.PurpleTintLight,
+        onContainer = Palette.PurpleDeep,
+        border = Color(0xFFDCC9FB),
+    ),
     brand: Color = Palette.Brand,
     focusRing: Color = Palette.PurpleReadable,
     success: StatusColors = StatusColors(
@@ -211,9 +220,6 @@ fun lightColorScheme(
     primary = primary,
     onPrimary = onPrimary,
     accent = accent,
-    onAccent = onAccent,
-    accentContainer = accentContainer,
-    onAccentContainer = onAccentContainer,
     brand = brand,
     focusRing = focusRing,
     success = success,
@@ -244,10 +250,13 @@ fun darkColorScheme(
     outlineSubtle: Color = Color(0xFF2C2735),
     primary: Color = Palette.Paper,
     onPrimary: Color = Palette.Ink,
-    accent: Color = Palette.Brand,
-    onAccent: Color = Palette.PurpleOnLight,
-    accentContainer: Color = Palette.PurpleTintDark,
-    onAccentContainer: Color = Palette.PurpleLight,
+    accent: StatusColors = StatusColors(
+        solid = Palette.Brand,
+        onSolid = Palette.PurpleOnLight,
+        container = Palette.PurpleTintDark,
+        onContainer = Palette.PurpleLight,
+        border = Color(0xFF453259),
+    ),
     brand: Color = Palette.Brand,
     focusRing: Color = Palette.Brand,
     success: StatusColors = StatusColors(
@@ -299,9 +308,6 @@ fun darkColorScheme(
     primary = primary,
     onPrimary = onPrimary,
     accent = accent,
-    onAccent = onAccent,
-    accentContainer = accentContainer,
-    onAccentContainer = onAccentContainer,
     brand = brand,
     focusRing = focusRing,
     success = success,
@@ -336,9 +342,13 @@ fun highContrastLightColorScheme(): ColorScheme = lightColorScheme(
     outlineStrong = Palette.GreyHcMuted,
     outlineSubtle = Palette.GreyHcOutlineSubtle,
     primary = Palette.Black,
-    accent = Palette.PurpleStrong,
-    accentContainer = Palette.PurpleTintLightHc,
-    onAccentContainer = Palette.PurpleDeeper,
+    accent = StatusColors(
+        solid = Palette.PurpleStrong,
+        onSolid = Palette.White,
+        container = Palette.PurpleTintLightHc,
+        onContainer = Palette.PurpleDeeper,
+        border = Palette.PurpleStrong,
+    ),
     focusRing = Palette.PurpleDeep,
     success = StatusColors(
         solid = Palette.GreenHcSolid,
@@ -391,10 +401,13 @@ fun highContrastDarkColorScheme(): ColorScheme = darkColorScheme(
     outlineSubtle = Palette.SlateHcOutlineSubtle,
     primary = Palette.White,
     onPrimary = Palette.Black,
-    accent = Palette.PurpleLightHc,
-    onAccent = Palette.PurpleHcOnLight,
-    accentContainer = Palette.PurpleTintDarkHc,
-    onAccentContainer = Palette.PurplePaleHc,
+    accent = StatusColors(
+        solid = Palette.PurpleLightHc,
+        onSolid = Palette.PurpleHcOnLight,
+        container = Palette.PurpleTintDarkHc,
+        onContainer = Palette.PurplePaleHc,
+        border = Palette.PurpleLightHc,
+    ),
     focusRing = Palette.PurpleLightHc,
     success = StatusColors(
         solid = Palette.GreenHcLight,
