@@ -4,7 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -177,6 +178,13 @@ fun SelectShowcase(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Tall enough for a panel's fields plus an open menu below the last of them.
+ *
+ * A fixed number rather than a fill: see the note in [FormPanel].
+ */
+private val FormPanelHeight = 420.dp
+
 @Composable
 private fun FormPanel(title: String, content: @Composable () -> Unit) {
     Column(
@@ -190,7 +198,14 @@ private fun FormPanel(title: String, content: @Composable () -> Unit) {
         )
         // Each panel gets a host: an open select renders into the nearest one,
         // and one shared host would put every menu in the same coordinate space.
-        Box(Modifier.fillMaxSize()) {
+        //
+        // The height is not decoration. The catalog page is inside a
+        // `verticalScroll`, so the incoming height constraint is unbounded, and
+        // `fillMaxSize()` is a no-op for an axis that has no size to fill — the
+        // host would end up with no measurable bounds to position against. Every
+        // other showcase host pins one; this one did not, and that is what the
+        // Forms page crashed on.
+        Box(Modifier.fillMaxWidth().height(FormPanelHeight)) {
             OverlayHost {
                 Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
                     content()

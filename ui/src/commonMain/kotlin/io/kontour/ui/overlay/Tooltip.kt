@@ -269,14 +269,10 @@ private fun TooltipBubble(text: String) {
 
     Surface(
         modifier = Modifier
-            .graphicsLayer {
-                alpha = progress
-                // A little overshoot on the way in. A tooltip is one of the
-                // few places a flourish costs nothing — it is already transient,
-                // and nobody is waiting on it to finish before acting.
-                scaleX = 0.8f + 0.2f * progress
-                scaleY = 0.8f + 0.2f * progress
-            }
+            // A little overshoot on the way in. A tooltip is one of the few
+            // places a flourish costs nothing — it is already transient, and
+            // nobody is waiting on it to finish before acting.
+            .overlayAppearance(progress, fromScale = 0.8f)
             .widthIn(max = TooltipDefaults.MaxWidth),
         shape = Theme.shapes.small,
         color = Theme.colors.surfaceInverse,
@@ -459,11 +455,7 @@ private fun CoachMarkBubble(
 
     Surface(
         modifier = Modifier
-            .graphicsLayer {
-                alpha = progress
-                scaleX = 0.85f + 0.15f * progress
-                scaleY = 0.85f + 0.15f * progress
-            }
+            .overlayAppearance(progress, fromScale = 0.85f)
             .widthIn(max = 320.dp)
             .semantics(mergeDescendants = true) { contentDescription = "$title. $text" },
         shape = Theme.shapes.medium,

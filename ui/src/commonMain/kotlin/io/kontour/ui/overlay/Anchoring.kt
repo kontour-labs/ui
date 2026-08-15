@@ -178,20 +178,40 @@ internal fun positionAnchored(
  * full-width field on a phone is as wide as the window; and the window less two
  * margins is narrower than the field. Passing that pair straight to `Constraints`
  * throws, so a full-width select would crash the first time it was opened.
+ *
+ * ### An unbounded axis stays unbounded
+ *
+ * A host inside a scrolling parent is measured with `Constraints.Infinity` on the
+ * scroll axis. Subtracting the margin from that gives `Int.MAX_VALUE - 16` — a
+ * *finite* number too large for `Constraints` to bit-pack, so it throws with the
+ * memorable `can't represent a width of 384 and height of 2147483631` rather than
+ * anything that points at a scroll container.
+ *
+ * "Infinity minus sixteen" is not a size, so there is nothing to subtract from:
+ * an unbounded axis is passed through unbounded and the overlay's own
+ * `heightIn(max = …)` does the limiting instead.
  */
 internal fun overlayConstraints(
     container: IntSize,
     margin: Int,
     minWidth: Int,
 ): Constraints {
-    val maxWidth = (container.width - margin * 2).coerceAtLeast(0)
-    val maxHeight = (container.height - margin * 2).coerceAtLeast(0)
+    val maxWidth = container.width.lessMargin(margin)
+    val maxHeight = container.height.lessMargin(margin)
     return Constraints(
-        minWidth = minWidth.coerceIn(0, maxWidth),
+        minWidth = if (maxWidth == Constraints.Infinity) minWidth else minWidth.coerceIn(0, maxWidth),
         maxWidth = maxWidth,
         maxHeight = maxHeight,
     )
 }
+
+/** This extent less a margin on each side, or [Constraints.Infinity] if it had none. */
+private fun Int.lessMargin(margin: Int): Int =
+    if (this == Constraints.Infinity) Constraints.Infinity else (this - margin * 2).coerceAtLeast(0)
+
+/** This extent, or [fallback] when there is no extent to speak of. */
+private fun Int.orContent(fallback: Int): Int =
+    if (this == Constraints.Infinity) fallback else this
 
 /**
  * Captures the bounds of the composable this modifier is applied to, in root
@@ -323,7 +343,13 @@ internal fun AnchoredOverlayLayout(
             )
         }
 
-        layout(container.width, container.height) {
+        // Fill the container, except on an axis that has no size to fill —
+        // laying out at `Constraints.Infinity` throws exactly like measuring at
+        // it does. An unbounded axis takes the content's own extent instead.
+        layout(
+            container.width.orContent(contentSize.width),
+            container.height.orContent(contentSize.height),
+        ) {
             placeables.forEach { it.place(placement.x, placement.y) }
         }
     }

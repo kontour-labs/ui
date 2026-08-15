@@ -151,11 +151,7 @@ private fun PopoverPanel(
 
     OverlaySurface(
         modifier = modifier
-            .graphicsLayer {
-                alpha = progress
-                scaleX = 0.94f + 0.06f * progress
-                scaleY = 0.94f + 0.06f * progress
-            }
+            .overlayAppearance(progress, fromScale = 0.94f)
             .widthIn(max = maxWidth)
             .onPreviewKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {

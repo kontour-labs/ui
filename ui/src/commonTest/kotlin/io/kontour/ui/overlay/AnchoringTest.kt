@@ -1,9 +1,11 @@
 package io.kontour.ui.overlay
 
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -209,6 +211,43 @@ class AnchoringTest {
 
         assertEquals(400, constraints.minWidth)
         assertEquals(968, constraints.maxWidth)
+    }
+
+    /**
+     * A host inside a scrolling parent is measured with an unbounded height.
+     *
+     * Subtracting the margin from `Constraints.Infinity` gives
+     * `Int.MAX_VALUE - 2 * margin` — a *finite* number too large for
+     * `Constraints` to bit-pack, so it throws. "Infinity minus sixteen" is not a
+     * size; there is nothing to subtract from.
+     *
+     * This is the crash the catalog's Forms page hit
+     * (`height of 2147483631`), and it would have hit any app that put an
+     * overlay host in a scroll container.
+     */
+    @Test
+    fun anUnboundedContainerAxisStaysUnbounded() {
+        val constraints = overlayConstraints(
+            container = IntSize(400, Constraints.Infinity),
+            margin = 8,
+            minWidth = 0,
+        )
+
+        assertEquals(384, constraints.maxWidth)
+        assertFalse(constraints.hasBoundedHeight, "the height should still be unbounded")
+    }
+
+    /** And a minimum is not clamped against an axis that has no maximum. */
+    @Test
+    fun aMinimumSurvivesAnUnboundedWidth() {
+        val constraints = overlayConstraints(
+            container = IntSize(Constraints.Infinity, 800),
+            margin = 8,
+            minWidth = 240,
+        )
+
+        assertEquals(240, constraints.minWidth)
+        assertFalse(constraints.hasBoundedWidth, "the width should still be unbounded")
     }
 
     @Test

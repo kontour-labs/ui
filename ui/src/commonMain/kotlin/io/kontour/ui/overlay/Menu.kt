@@ -270,14 +270,9 @@ private fun MenuPanel(
 
     OverlaySurface(
         modifier = modifier
-            .graphicsLayer {
-                transformOrigin = origin
-                // Scale only from 0.9 — a menu springing from nothing is a lot
-                // of movement for something the user opens dozens of times.
-                scaleX = 0.9f + 0.1f * progress
-                scaleY = 0.9f + 0.1f * progress
-                alpha = progress
-            }
+            // Scale only from 0.9 — a menu springing from nothing is a lot of
+            // movement for something the user opens dozens of times.
+            .overlayAppearance(progress, fromScale = 0.9f, origin = origin)
             .widthIn(
                 min = if (matchAnchorWidth) Dp.Unspecified else MenuDefaults.MinWidth,
                 max = MenuDefaults.MaxWidth,
@@ -295,11 +290,22 @@ private fun MenuPanel(
             },
         shape = shape,
     ) {
+        // `fillMaxWidth`, not `width(IntrinsicSize.Max)`. The panel's own
+        // `widthIn(min = MenuDefaults.MinWidth)` is satisfied by the surface,
+        // and `Surface` does not propagate its minimum inward — so an
+        // intrinsic-width column sized itself to the widest row, sat at
+        // `TopStart`, and left the difference as bare surface down the trailing
+        // edge. Rows filled the *column*, so the hover wash and the dividers
+        // stopped short of the panel edge with it. Under RTL the gutter simply
+        // moved to the other side.
+        //
+        // Filling the panel makes every row the panel's width, which is what a
+        // menu row has always looked like it was.
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = Theme.spacing.xxs)
-                .width(IntrinsicSize.Max),
+                .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
+                .fillMaxWidth(),
         ) {
             MenuScopeImpl(this, onDismissRequest).content()
         }
