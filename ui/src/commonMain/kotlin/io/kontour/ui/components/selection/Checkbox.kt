@@ -20,6 +20,9 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -39,8 +42,7 @@ private val CheckboxSize = 20.dp
  * Checkbox(checked = notifyOnDelay, onCheckedChange = viewModel::setNotifyOnDelay)
  * ```
  *
- * For a checkbox with a label, use
- * [io.kontour.ui.components.selection.CheckboxRow] — it makes the whole row
+ * For a checkbox with a label, use [SelectionRow] — it makes the whole row
  * tappable, which is what users expect and what gives the control a target
  * worth aiming at.
  *
@@ -147,7 +149,18 @@ fun TriStateCheckbox(
                         indication = null,
                     )
                 } else {
-                    Modifier
+                    // Not interactive, but still *state*, which is what the
+                    // `@param` above promises. A box handed a null callback is
+                    // showing what a row decided, and a row that is `clickable`
+                    // rather than `toggleable` — every `SettingRow` — publishes
+                    // no checked state of its own, so without this a screen
+                    // reader reads the row as a button with a name and no tick.
+                    // `SelectionRow` publishes it too; the same value merged
+                    // twice is harmless.
+                    Modifier.semantics {
+                        role = Role.Checkbox
+                        toggleableState = state
+                    }
                 }
             )
             .size(CheckboxSize)

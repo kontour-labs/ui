@@ -15,6 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
@@ -84,7 +87,17 @@ fun RadioButton(
                         indication = null,
                     )
                 } else {
-                    Modifier
+                    // Not interactive, but still *state*. A button handed a
+                    // null callback is showing what a row decided, and a row
+                    // that is `clickable` rather than `selectable` publishes no
+                    // selection of its own, so without this a screen reader
+                    // reads the row as a button with a name and no indication
+                    // of whether it is the chosen one. `SelectionRow` publishes
+                    // it too; the same value merged twice is harmless.
+                    Modifier.semantics {
+                        role = Role.RadioButton
+                        this.selected = selected
+                    }
                 }
             )
             .size(RadioSize)
