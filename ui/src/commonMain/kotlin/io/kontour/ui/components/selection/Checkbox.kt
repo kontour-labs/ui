@@ -92,6 +92,8 @@ fun TriStateCheckbox(
 
     val selected = state != ToggleableState.Off
 
+    val stroke = selectionStroke(enabled)
+
     val container by animateColorAsState(
         targetValue = when {
             !enabled && selected -> colors.contentDisabled
@@ -152,7 +154,7 @@ fun TriStateCheckbox(
     ) {
         scale(boxScale) {
             val outline = shape.createOutline(size, layoutDirection, this)
-            val strokeWidth = 2.dp.toPx()
+            val strokeWidth = stroke.toPx()
 
             drawOutline(outline = outline, color = container)
             drawOutline(

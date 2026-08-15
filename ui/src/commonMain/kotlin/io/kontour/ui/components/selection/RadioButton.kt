@@ -49,6 +49,8 @@ fun RadioButton(
     val motion = Theme.motion
     val feedback = Feedback
 
+    val stroke = selectionStroke(enabled)
+
     val ring by animateColorAsState(
         targetValue = when {
             !enabled -> colors.contentDisabled
@@ -87,7 +89,7 @@ fun RadioButton(
             )
             .size(RadioSize)
     ) {
-        val strokeWidth = 2.dp.toPx()
+        val strokeWidth = stroke.toPx()
         val radius = (size.minDimension - strokeWidth) / 2f
 
         drawCircle(color = ring, radius = radius, style = Stroke(width = strokeWidth))

@@ -21,6 +21,7 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.a11y.contentColorFor
 import io.kontour.ui.theme.Theme
 
 private val TrackWidth = 48.dp
@@ -66,6 +67,8 @@ fun Switch(
 
     val pressed by interactions.collectIsPressedAsState()
 
+    val stroke = selectionStroke(enabled)
+
     val trackColor by animateColorAsState(
         targetValue = when {
             !enabled && checked -> colors.contentDisabled
@@ -87,7 +90,7 @@ fun Switch(
     )
     val thumbColor by animateColorAsState(
         targetValue = when {
-            !enabled && checked -> colors.surface
+            !enabled && checked -> contentColorFor(colors.contentDisabled)
             !enabled -> colors.contentDisabled
             checked -> colors.onPrimary
             else -> colors.outlineStrong
@@ -131,7 +134,7 @@ fun Switch(
             )
             .size(width = TrackWidth, height = TrackHeight)
     ) {
-        val strokeWidth = 2.dp.toPx()
+        val strokeWidth = stroke.toPx()
         val trackRadius = size.height / 2f
 
         drawRoundRect(
