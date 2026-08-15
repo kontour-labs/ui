@@ -81,31 +81,19 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             onDismissRequest = {},
                             alignment = OverlayAlignment.Center,
                         ) {
-                            MenuSectionHeader("This stop")
-                            MenuItem(
-                                "Share",
-                                onClick = {},
-                                leadingIcon = Tabler.Outline.Share,
-                                trailingText = "⌘S",
-                            )
-                            MenuItem(
-                                "Copy stop ID",
-                                onClick = {},
-                                leadingIcon = Tabler.Outline.Copy,
-                            )
-                            MenuItem(
-                                "Set a reminder",
-                                onClick = {},
-                                leadingIcon = Tabler.Outline.Clock,
-                                enabled = false,
-                            )
-                            MenuDivider()
-                            MenuItem(
+                            // Written with the DSL, and the golden for this panel
+                            // did not move — which is the claim the shorthands
+                            // make: the same components, fewer places to slip.
+                            section("This stop")
+                            item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S") {}
+                            item("Copy stop ID", icon = Tabler.Outline.Copy) {}
+                            item("Set a reminder", icon = Tabler.Outline.Clock, enabled = false) {}
+                            divider()
+                            item(
                                 "Remove favourite",
-                                onClick = {},
-                                leadingIcon = Tabler.Outline.Trash,
+                                icon = Tabler.Outline.Trash,
                                 destructive = true,
-                            )
+                            ) {}
                         }
                     }
                 }
@@ -118,12 +106,12 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             variant = ButtonVariant.Secondary,
                         )
                         DropdownMenu(expanded = true, onDismissRequest = {}) {
-                            MenuItem("Departure time", onClick = {}, selected = true)
-                            MenuItem("Journey length", onClick = {})
-                            MenuDivider()
-                            SubMenu("Group by", leadingIcon = Tabler.Outline.ArrowsSort) {
-                                MenuItem("Route", onClick = {})
-                                MenuItem("Operator", onClick = {})
+                            item("Departure time", selected = true) {}
+                            item("Journey length") {}
+                            divider()
+                            submenu("Group by", icon = Tabler.Outline.ArrowsSort) {
+                                item("Route") {}
+                                item("Operator") {}
                             }
                         }
                     }

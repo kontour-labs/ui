@@ -54,6 +54,7 @@ remember — they are things the code does.
 | [`theming.md`](theming.md) | Building a theme; how a generated palette slots in later |
 | [`accessibility.md`](accessibility.md) | The contract every component meets, and how it is enforced |
 | [`components.md`](components.md) | The component inventory |
+| [`dsls.md`](dsls.md) | The shorthands — menus, grouped rows and drawer destinations |
 | [`overlays.md`](overlays.md) | Dialogs, menus, tooltips and toasts — the stack, the queue, and which to reach for |
 | [`sheets.md`](sheets.md) | Bottom and side sheets, and the detent model the map screens need |
 | [`contributing.md`](contributing.md) | The checklist for adding a component |

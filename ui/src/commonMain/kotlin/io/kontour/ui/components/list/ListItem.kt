@@ -161,6 +161,16 @@ fun ListItem(
     enabled: Boolean = true,
     supporting: String? = null,
     overline: String? = null,
+    /**
+     * A glyph at the leading edge, drawn muted and dimmed with the row.
+     *
+     * The shorthand for the common case, and the only one that gets the colour
+     * right by default: an icon passed through [leading] inherits whatever
+     * content colour is in scope, so a `SettingRow` and a `ListItem` in the same
+     * group used to disagree about how dark their icons were. Use [leading] for
+     * anything that is not a single glyph — an avatar, a checkbox, a thumbnail.
+     */
+    leadingIcon: ImageVector? = null,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
@@ -249,6 +259,15 @@ fun ListItem(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (leadingIcon != null) {
+            Icon(
+                imageVector = leadingIcon,
+                contentDescription = null,
+                size = Theme.sizing.iconLarge,
+                tint = if (enabled) colors.contentMuted else colors.contentDisabled,
+            )
+        }
+
         if (leading != null) {
             Box(contentAlignment = Alignment.Center) { leading() }
         }
@@ -410,16 +429,7 @@ fun SettingRow(
         label = label,
         modifier = modifier,
         supporting = supporting,
-        leading = icon?.let {
-            {
-                Icon(
-                    imageVector = it,
-                    contentDescription = null,
-                    size = Theme.sizing.iconLarge,
-                    tint = if (enabled) Theme.colors.contentMuted else Theme.colors.contentDisabled,
-                )
-            }
-        },
+        leadingIcon = icon,
         trailing = trailing,
         onClick = onClick,
         enabled = enabled,

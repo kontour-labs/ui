@@ -28,6 +28,7 @@ import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.display.TagTone
+import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemPosition
 import io.kontour.ui.components.list.ListSection
@@ -66,24 +67,20 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                 verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
             ) {
                 Section("Grouped rows") {
-                    val positions = listPositions(stops.size)
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    // Written with the DSL, and the golden for this panel did not
+                    // move — which is the claim the shorthands make: the same
+                    // components, with the index arithmetic deleted rather than
+                    // rewritten at every call site.
+                    ListGroup(spacing = 2.dp) {
                         stops.forEachIndexed { index, (name, detail) ->
-                            ListItem(
+                            item(
                                 label = name,
                                 supporting = detail,
-                                leading = {
-                                    Icon(
-                                        Tabler.Outline.Bus,
-                                        contentDescription = null,
-                                        size = Theme.sizing.iconLarge,
-                                    )
-                                },
+                                icon = Tabler.Outline.Bus,
+                                selected = index == 1,
                                 trailing = {
                                     Tag("${4 + index * 6} min", tone = TagTone.Neutral)
                                 },
-                                position = positions[index],
-                                selected = index == 1,
                                 onClick = {},
                             )
                         }
@@ -199,12 +196,13 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                                 .verticalScroll(scroll),
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
-                            repeat(10) { index ->
-                                ListItem(
-                                    label = "Departure ${index + 1}",
-                                    supporting = "Elizabeth Quay",
-                                    position = ListItemPosition.of(index, 10),
-                                )
+                            ListGroup(spacing = 2.dp) {
+                                repeat(10) { index ->
+                                    item(
+                                        label = "Departure ${index + 1}",
+                                        supporting = "Elizabeth Quay",
+                                    )
+                                }
                             }
                         }
                     }

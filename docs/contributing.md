@@ -108,6 +108,24 @@ A predicate is named for what it decides, never `isEnabled` — `DatePicker` tak
 
 The banned column is enforced by `checkApiConventions` too.
 
+### If it gets a shorthand
+
+Some components also carry a scope of small builder functions — see
+[`dsls.md`](dsls.md). Three rules, and they are what stops a shorthand turning
+into a second, worse copy of the component:
+
+1. **The scope extends the receiver the content lambda already had.** `MenuScope`
+   is a `ColumnScope`, so every existing body still compiles and the component is
+   always in reach. A shorthand that shadowed the component would be a wall
+   rather than a convenience.
+2. **No `modifier` parameter, and the action lambda goes last.** A row that needs
+   a modifier has outgrown the shorthand. The trailing lambda is the one place a
+   builder is ordered differently from a component, and it is deliberate: a
+   builder is read as a list of things, not as a call.
+3. **It has to delete a mistake, not just characters.** `item` closes the menu;
+   `ListGroup` counts the rows; `group` carries the indent. A shorthand that only
+   saves typing is a second API to keep in sync for no return.
+
 **Defaults live in a `<Component>Defaults` object**, never inline in the
 signature, so a caller can reference and override one value:
 

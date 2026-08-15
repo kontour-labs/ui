@@ -106,7 +106,7 @@ fun NavDrawer(
      * and the display cutout on the leading side by default.
      */
     windowInsets: WindowInsets = WindowInsets.leadingEdges,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable NavDrawerScope.() -> Unit,
 ) {
     Surface(
         modifier = modifier
@@ -166,7 +166,7 @@ fun ModalNavDrawer(
     indicatorColor: Color = Theme.colors.accentContainer,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable NavDrawerScope.() -> Unit,
 ) {
     SideSheet(
         visible = visible,
@@ -208,7 +208,7 @@ fun ModalNavDrawer(
 private fun DrawerItems(
     modifier: Modifier,
     indicatorColor: Color,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable NavDrawerScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
 
@@ -231,8 +231,9 @@ private fun DrawerItems(
             Column(
                 modifier = Modifier.fillMaxWidth().selectableGroup(),
                 verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-                content = content,
-            )
+            ) {
+                NavDrawerScopeImpl(this).content()
+            }
         }
     }
 }
@@ -359,7 +360,7 @@ fun NavDrawerGroup(
     modifier: Modifier = Modifier,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     nestLevel: Int = 0,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable NavDrawerScope.() -> Unit,
 ) {
     val colors = Theme.colors
     val motion = Theme.motion
@@ -426,10 +427,12 @@ fun NavDrawerGroup(
             enter = expandVertically(motion.tweenFast()),
             exit = shrinkVertically(motion.tweenFast()),
         ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-                content = content,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
+                // At level zero: a caller using the components directly passes
+                // `nestLevel` per item, and the DSL's `group` re-wraps this with
+                // the depth it is tracking.
+                NavDrawerScopeImpl(this).content()
+            }
         }
     }
 }
@@ -439,7 +442,7 @@ fun NavDrawerGroup(
 fun NavDrawerSection(
     label: String,
     modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable NavDrawerScope.() -> Unit,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -457,6 +460,6 @@ fun NavDrawerSection(
             style = Theme.typography.labelSmall,
             color = Theme.colors.contentMuted,
         )
-        content()
+        NavDrawerScopeImpl(this).content()
     }
 }

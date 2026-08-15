@@ -121,7 +121,7 @@ fun DropdownMenu(
     alignment: OverlayAlignment = OverlayAlignment.Start,
     matchAnchorWidth: Boolean = false,
     scrim: ScrimStyle = ScrimStyle.Transparent,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable MenuScope.() -> Unit,
 ) {
     var anchor by remember { mutableStateOf<Rect?>(null) }
     Box(Modifier.parentBounds { anchor = it })
@@ -168,7 +168,7 @@ fun AnchoredDropdownMenu(
     matchAnchorWidth: Boolean = false,
     scrim: ScrimStyle = ScrimStyle.Transparent,
     key: Any = remember { Any() },
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable MenuScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
     val density = LocalDensity.current
@@ -234,7 +234,7 @@ private fun MenuPanel(
     matchAnchorWidth: Boolean,
     autoFocus: Boolean,
     onDismissRequest: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable MenuScope.() -> Unit,
 ) {
     val motion = Theme.motion
     val focusRequester = remember { FocusRequester() }
@@ -300,8 +300,9 @@ private fun MenuPanel(
                 .verticalScroll(rememberScrollState())
                 .padding(vertical = Theme.spacing.xxs)
                 .width(IntrinsicSize.Max),
-            content = content,
-        )
+        ) {
+            MenuScopeImpl(this, onDismissRequest).content()
+        }
     }
 }
 
@@ -467,7 +468,7 @@ fun SubMenu(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     leadingIcon: ImageVector? = null,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable MenuScope.() -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     var bounds by remember { mutableStateOf<Rect?>(null) }

@@ -50,7 +50,6 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.nav.ModalNavDrawer
-import io.kontour.ui.nav.NavDrawerItem
 import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavigationSuiteScaffold
 import io.kontour.ui.nav.TopBar
@@ -250,15 +249,10 @@ private fun CompactCatalog(
 
     ModalNavDrawer(visible = drawerOpen, onDismissRequest = { drawerOpen = false }) {
         pages.forEachIndexed { index, page ->
-            NavDrawerItem(
-                label = page.title,
-                icon = page.icon,
-                selected = index == selected,
-                onClick = {
-                    onSelect(index)
-                    drawerOpen = false
-                },
-            )
+            destination(page.title, page.icon, selected = index == selected) {
+                onSelect(index)
+                drawerOpen = false
+            }
         }
     }
 }
