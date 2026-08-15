@@ -33,6 +33,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
@@ -43,6 +44,7 @@ import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -367,8 +369,33 @@ private fun BoxScope.SheetSurface(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            // The surface reaches the bottom of the container, whatever detent
+            // the sheet is at.
+            //
+            // It used to be wrap-content and merely translated by
+            // `Modifier.offset`, which is placement-only and never changes a
+            // measured size. So with container H, content C and a detent whose
+            // visible height is V, the top landed at H - V and the bottom at
+            // H - V + C — leaving a gap of V - C below the sheet. `Expanded`
+            // sets V = C, so it was right by coincidence and every other detent
+            // was wrong; and because C is fixed while the offset moves with the
+            // finger, dragging a half-open sheet upward carried its bottom edge
+            // up the screen with it.
+            //
+            // Read in the layout phase rather than in composition: the offset
+            // changes every frame of a drag, and this has to follow it without
+            // recomposing the sheet's whole content to do it.
+            .layout { measurable, constraints ->
+                val target = (state.containerHeight - offsetOrHidden(state))
+                    .coerceIn(0f, state.containerHeight.coerceAtLeast(0f))
+                    .roundToInt()
+                    .coerceAtMost(constraints.maxHeight)
+                val placeable = measurable.measure(
+                    constraints.copy(minHeight = target, maxHeight = target)
+                )
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            }
             .onGloballyPositioned { coordinates ->
-                state.sheetHeight = coordinates.size.height.toFloat()
                 state.sheetTopInRoot = coordinates.positionInRoot().y
                 state.updateAnchors(density)
             },
@@ -382,7 +409,26 @@ private fun BoxScope.SheetSurface(
             // Inside the surface: the sheet's own colour still runs to the
             // bottom of the window, so the gesture bar sits on the sheet rather
             // than on a strip of whatever is behind it.
-            Column(Modifier.fillMaxWidth().windowInsetsPadding(windowInsets)) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    // Measured as tall as it wants to be, then given only the
+                    // room the surface has. `SheetDetent.Expanded` means "as
+                    // tall as the content", so the content's own height has to
+                    // stay knowable after the surface stopped being sized by it
+                    // — otherwise `Expanded` resolves to whatever the sheet is
+                    // currently showing and the anchor chases itself.
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(
+                            constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
+                        )
+                        state.sheetHeight = placeable.height.toFloat()
+                        state.updateAnchors(density)
+                        val height = placeable.height.coerceAtMost(constraints.maxHeight)
+                        layout(placeable.width, height) { placeable.place(0, 0) }
+                    }
+                    .windowInsetsPadding(windowInsets)
+            ) {
                 dragHandle?.invoke()
                 content()
             }

@@ -165,6 +165,13 @@ fun DateRangePicker(
             isDateSelectable = isDateSelectable,
             today = today,
             rangePositionOf = { date -> rangePosition(date, start, end) },
+            // Drag out a range in one gesture, in either direction. The
+            // calendar reports where the finger went down and where it is now;
+            // ordering them is this component's business, because only it knows
+            // that a range's `start` is the earlier of the two.
+            onDragSelect = { from, to ->
+                if (to < from) onSelect(to, from) else onSelect(from, to)
+            },
             formats = formats,
         )
     }

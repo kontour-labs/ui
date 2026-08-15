@@ -5,25 +5,32 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -86,6 +93,19 @@ fun CalendarMonth(
     onSelect: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     isDateSelectable: (LocalDate) -> Boolean = { true },
+    /**
+     * A range being dragged out, reported as (where the finger went down, where
+     * it is now).
+     *
+     * The calendar owns the anchor rather than the caller, because it is gesture
+     * state and not selection state — a caller that had to hold it would be
+     * holding something it can neither set nor meaningfully restore. Which end
+     * is the start and which the end is the caller's business; a drag leftwards
+     * reports a `to` earlier than its `from`.
+     *
+     * `null` leaves the calendar tap-only.
+     */
+    onDragSelect: ((from: LocalDate, to: LocalDate) -> Unit)? = null,
     today: LocalDate? = null,
     markerFor: ((LocalDate) -> Color?)? = null,
     rangePositionOf: ((LocalDate) -> RangePosition)? = null,
@@ -124,6 +144,18 @@ fun CalendarMonth(
         val cells = leadingBlanks + daysInMonth
         val rows = (cells + 6) / 7
 
+        var dragFrom by remember { mutableStateOf<LocalDate?>(null) }
+
+        WeekGrid(
+            rows = rows,
+            leadingBlanks = leadingBlanks,
+            daysInMonth = daysInMonth,
+            month = month,
+            isDateSelectable = isDateSelectable,
+            onDragSelect = onDragSelect,
+            dragFrom = dragFrom,
+            setDragFrom = { dragFrom = it },
+        ) {
         for (row in 0 until rows) {
             Row(Modifier.fillMaxWidth()) {
                 for (column in 0 until 7) {
@@ -149,7 +181,67 @@ fun CalendarMonth(
                 }
             }
         }
+        }
     }
+}
+
+/**
+ * The month's rows, with a drag that selects across them.
+ *
+ * Its own composable so the gesture's arithmetic sits next to nothing else. The
+ * hit test is derived from the grid rather than from each cell's reported
+ * bounds: the columns are seven equal weights and every row is one cell tall, so
+ * this is the same arithmetic the layout does, and forty-two
+ * `onGloballyPositioned` callbacks would buy nothing over it.
+ *
+ * `detectDragGestures` waits for touch slop, so a tap still belongs to the cell
+ * it landed on and the two gestures never argue over one press.
+ */
+@Composable
+private fun WeekGrid(
+    rows: Int,
+    leadingBlanks: Int,
+    daysInMonth: Int,
+    month: LocalDate,
+    isDateSelectable: (LocalDate) -> Boolean,
+    onDragSelect: ((LocalDate, LocalDate) -> Unit)?,
+    dragFrom: LocalDate?,
+    setDragFrom: (LocalDate?) -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .pointerInput(onDragSelect, leadingBlanks, daysInMonth, rows) {
+                if (onDragSelect == null) return@pointerInput
+
+                fun dateAt(offset: Offset): LocalDate? {
+                    if (size.width <= 0 || rows == 0) return null
+                    val cell = size.width / 7f
+                    val column = (offset.x / cell).toInt()
+                    val row = (offset.y / cell).toInt()
+                    if (column !in 0..6 || row !in 0 until rows) return null
+                    val day = row * 7 + column - leadingBlanks + 1
+                    if (day < 1 || day > daysInMonth) return null
+                    val date = LocalDate(month.year, month.month, day)
+                    return if (isDateSelectable(date)) date else null
+                }
+
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        val start = dateAt(offset)
+                        setDragFrom(start)
+                        start?.let { onDragSelect(it, it) }
+                    },
+                    onDragEnd = { setDragFrom(null) },
+                    onDragCancel = { setDragFrom(null) },
+                ) { change, _ ->
+                    val from = dragFrom ?: return@detectDragGestures
+                    dateAt(change.position)?.let { onDragSelect(from, it) }
+                }
+            },
+        content = content,
+    )
 }
 
 @Composable
@@ -307,6 +399,21 @@ private fun DayCell(
     }
 }
 
-private fun Modifier.matchCellSize(): Modifier = fillMaxWidth().aspectRatio(1f)
+/**
+ * The whole of the cell's padded box — **not** a square derived from its width.
+ *
+ * It was `fillMaxWidth().aspectRatio(1f)`, so the fill's height was its width.
+ * The cell's horizontal padding varies with where it sits in a range (0dp in the
+ * middle, 1dp at a cap, 2dp on its own) while the vertical padding is fixed, so
+ * that turned a deliberate difference in *width* into an accidental difference in
+ * *height*: middles drew 1dp taller than the caps and a single-day range drew
+ * shortest of all. It also asked for a square taller than the box it was in,
+ * which `Box` does not clip, so the difference showed rather than being absorbed.
+ *
+ * Filling the box instead makes the height uniform by construction — every cell
+ * is inset the same 1dp top and bottom — and lets the width go on doing its job
+ * of joining the band up.
+ */
+private fun Modifier.matchCellSize(): Modifier = fillMaxSize()
 
 private fun Modifier.markerSize(): Modifier = size(4.dp)

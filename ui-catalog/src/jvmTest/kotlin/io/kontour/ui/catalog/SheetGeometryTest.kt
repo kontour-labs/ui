@@ -47,7 +47,27 @@ class SheetGeometryTest {
      * that looks right. The double-offset bug had `offset` reporting exactly the
      * correct position while the sheet was drawn off the bottom of the screen.
      */
-    private class Measured(val state: SheetState, val drawnTop: Float)
+    private class Measured(
+        val state: SheetState,
+        val drawnTop: Float,
+        /**
+         * How tall the sheet's *surface* is, which is not how tall its content
+         * is.
+         *
+         * The one thing this test never looked at, and the reason a half-open
+         * sheet could sit with a gap of bare screen beneath it for as long as it
+         * did: `drawnTop` and `visibleHeight` both agreed with the detent while
+         * the surface was still only as tall as whatever was inside it.
+         *
+         * Read from the node the caller's `modifier` lands on, which sits
+         * *before* `Modifier.offset` in the chain — so its reported position is
+         * the un-offset one and only its height is meaningful here.
+         */
+        val surfaceHeight: Float,
+    ) {
+        /** Where the surface actually ends on screen. */
+        val drawnBottom: Float get() = drawnTop + surfaceHeight
+    }
 
     private fun measure(
         detents: List<SheetDetent>,
@@ -58,6 +78,7 @@ class SheetGeometryTest {
     ): Measured {
         lateinit var captured: SheetState
         var drawnTop = Float.NaN
+        var surfaceHeight = Float.NaN
 
         val scene = ImageComposeScene(
             width = 700,
@@ -73,7 +94,13 @@ class SheetGeometryTest {
                         )
                         captured = sheet
                         LaunchedEffect(Unit) { sheet.animateTo(openAt) }
-                        BottomSheet(sheet, dragHandle = dragHandle) {
+                        BottomSheet(
+                            sheet,
+                            modifier = Modifier.onGloballyPositioned {
+                                surfaceHeight = it.size.height.toFloat()
+                            },
+                            dragHandle = dragHandle,
+                        ) {
                             // No handle by default, so the first content node's
                             // top *is* the sheet's top.
                             Box(
@@ -93,7 +120,7 @@ class SheetGeometryTest {
         } finally {
             scene.close()
         }
-        return Measured(captured, drawnTop)
+        return Measured(captured, drawnTop, surfaceHeight)
     }
 
     @Test
@@ -187,5 +214,42 @@ class SheetGeometryTest {
         )
         assertEquals(200f * density, sheet.state.visibleHeight)
         assertEquals(canvasHeight - 200f * density, sheet.drawnTop)
+    }
+
+    /**
+     * The surface reaches the bottom of the container at every detent.
+     *
+     * `Modifier.offset` is placement-only, so a wrap-content sheet moved to a
+     * detent kept its content's height: top at `H - V`, bottom at `H - V + C`,
+     * and a gap of `V - C` of bare screen underneath. `Expanded` sets `V = C`,
+     * which is why it was the one detent that looked right — and why the whole
+     * thing survived a test suite that only ever asked where the *top* was.
+     */
+    @Test
+    fun theSurfaceReachesTheBottomAtEveryDetent() {
+        val cases = listOf(
+            "half" to SheetDetent.Half,
+            "full" to SheetDetent.Full,
+            "a fixed height" to SheetDetent.height("tall", 700.dp),
+        )
+        for ((name, detent) in cases) {
+            val sheet = measure(
+                detents = listOf(SheetDetent.Hidden, detent),
+                openAt = detent,
+            ) {
+                // Deliberately shorter than any of the detents above, which is
+                // the case that produced the gap.
+                Box(Modifier.height(120.dp)) { Text("a short body") }
+            }
+
+            assertEquals(
+                canvasHeight.toFloat(),
+                sheet.drawnBottom,
+                "at $name the sheet's surface ends at ${sheet.drawnBottom} rather " +
+                    "than at the container's ${canvasHeight}. Its content is " +
+                    "shorter than the detent, so the surface is being sized by " +
+                    "the content and merely translated",
+            )
+        }
     }
 }
