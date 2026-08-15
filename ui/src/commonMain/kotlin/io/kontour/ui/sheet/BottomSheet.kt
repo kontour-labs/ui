@@ -224,6 +224,9 @@ fun ModalBottomSheet(
                     scrim = ScrimStyle.Dimmed,
                     dismissOnOutside = dismissOnOutside,
                     dismissLabel = dismissLabel,
+                    // The sheet slides itself down and hides the entry when it
+                    // has landed — see the `else` branch below.
+                    managesOwnExit = true,
                     // Tell the caller, not just the sheet. This used to only
                     // launch `state.hide()`, so after an outside tap the host
                     // had dropped the entry while the caller's `visible` was
@@ -246,10 +249,11 @@ fun ModalBottomSheet(
                 )
             )
             state.show()
-        } else if (state.isVisible) {
-            state.hide()
-            host.hide(key)
         } else {
+            // `hide()` suspends until the sheet has finished sliding down, so
+            // the scrim is still there to fade behind it rather than being
+            // pulled out from under a sheet that is still moving.
+            if (state.isVisible) state.hide()
             host.hide(key)
         }
     }

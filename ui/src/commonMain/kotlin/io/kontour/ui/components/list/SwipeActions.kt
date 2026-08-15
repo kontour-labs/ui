@@ -67,7 +67,17 @@ class SwipeAction(
      * tap. Only one action per side may be, and it should be the one a full
      * swipe obviously means — delete on a delete row.
      */
-    val isFullSwipeAction: Boolean = false,
+    /**
+     * Whether swiping clear past the reveal commits this action.
+     *
+     * True by default. A swipe that carries the row the full width of the screen
+     * is not something a thumb does by accident, and requiring every action to
+     * opt in meant the gesture worked in one direction and silently did nothing
+     * in the other — which reads as a broken control rather than as a setting.
+     *
+     * Set false for an action that should always need the deliberate second tap.
+     */
+    val isFullSwipeAction: Boolean = true,
 )
 
 /** Where a swiped row has settled. */

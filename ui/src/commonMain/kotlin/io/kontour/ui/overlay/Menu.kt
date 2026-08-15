@@ -275,6 +275,10 @@ private fun MenuPanel(
                 min = if (matchAnchorWidth) Dp.Unspecified else MenuDefaults.MinWidth,
                 max = MenuDefaults.MaxWidth,
             )
+            // Measured from the rows, then clamped by the `widthIn` above — so
+            // the panel hugs its content between 180dp and 320dp rather than
+            // always taking the maximum.
+            .width(IntrinsicSize.Max)
             .heightIn(max = MenuDefaults.MaxHeight)
             .focusRequester(focusRequester)
             .focusGroup()
@@ -287,18 +291,21 @@ private fun MenuPanel(
                 }
             },
         shape = shape,
+        // Hands the panel's settled width down to the column, so the rows are
+        // the panel's width rather than their own.
+        propagateMinConstraints = true,
     ) {
-        // `fillMaxWidth`, not `width(IntrinsicSize.Max)`. The panel's own
-        // `widthIn(min = MenuDefaults.MinWidth)` is satisfied by the surface,
-        // and `Surface` does not propagate its minimum inward — so an
-        // intrinsic-width column sized itself to the widest row, sat at
-        // `TopStart`, and left the difference as bare surface down the trailing
-        // edge. Rows filled the *column*, so the hover wash and the dividers
-        // stopped short of the panel edge with it. Under RTL the gutter simply
-        // moved to the other side.
+        // Fills the panel, and the panel is sized from these rows' intrinsic
+        // width — see the `width(IntrinsicSize.Max)` on the surface above.
         //
-        // Filling the panel makes every row the panel's width, which is what a
-        // menu row has always looked like it was.
+        // Both halves are needed and neither is enough alone. Intrinsic width
+        // *here* sized the column to the widest row while the surface held its
+        // own 180dp minimum, so a menu of short labels left the difference as
+        // bare surface down the trailing edge, with the dividers and the hover
+        // wash stopping short of the panel with it. Filling here without moving
+        // the intrinsic measurement to the surface just made every menu its
+        // maximum width instead, which is worse — a two-item menu has no
+        // business being 320dp wide.
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())

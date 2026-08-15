@@ -97,6 +97,16 @@ class OverlayEntry(
     val trapFocus: Boolean = true,
     val dismissLabel: String? = null,
     /**
+     * True when this entry animates its own way out and calls `hide` itself.
+     *
+     * A sheet slides down under its own `SheetState`; the host's fade knows
+     * nothing about that. With the host also removing the entry the moment it
+     * was dismissed, the two raced: the sheet vanished mid-slide while the scrim
+     * faded on the host's schedule, or the scrim outlived a sheet that had
+     * already gone. Whoever owns the animation has to own the removal.
+     */
+    val managesOwnExit: Boolean = false,
+    /**
      * Called after this entry has been dismissed.
      *
      * `onDismiss`, not `onDismissRequest`, and the difference is not cosmetic:
@@ -216,14 +226,16 @@ class OverlayHostState {
     fun dismissTop(): Boolean {
         val target = visible.lastOrNull { it.dismissOnBack } ?: return false
         target.onDismiss?.invoke()
-        hide(target.key)
+        if (!target.managesOwnExit) hide(target.key)
         return true
     }
 
     internal fun dismissOutside(entry: OverlayEntry) {
         if (!entry.dismissOnOutside) return
         entry.onDismiss?.invoke()
-        hide(entry.key)
+        // An entry that animates itself out calls `hide` when it is done. Doing
+        // it here as well is what made a sheet disappear mid-slide.
+        if (!entry.managesOwnExit) hide(entry.key)
     }
 }
 

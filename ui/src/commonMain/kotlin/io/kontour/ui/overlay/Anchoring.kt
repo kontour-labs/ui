@@ -447,11 +447,20 @@ internal fun OverlaySurface(
     color: Color = Theme.colors.surfaceRaised,
     contentColor: Color = Theme.colors.content,
     border: Boolean = true,
+    /**
+     * Hands the panel's settled width down to its content.
+     *
+     * A menu sizes itself from its rows' intrinsic width but holds a minimum,
+     * so without this the rows come out narrower than the panel and the hover
+     * wash and dividers stop short of its edge.
+     */
+    propagateMinConstraints: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     Surface(
         modifier = modifier,
         shape = shape,
+        propagateMinConstraints = propagateMinConstraints,
         color = color,
         contentColor = contentColor,
         border = if (border) {
