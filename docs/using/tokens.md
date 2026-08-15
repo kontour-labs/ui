@@ -21,8 +21,8 @@ exception to this — if a value you need is missing, add a token.
 
 ## Colour
 
-Defined in [`theme/ColorScheme.kt`](../../../app/ui/src/commonMain/kotlin/io/kontour/ui/theme/ColorScheme.kt);
-raw values in [`theme/Palette.kt`](../../../app/ui/src/commonMain/kotlin/io/kontour/ui/theme/Palette.kt).
+Defined in [`theme/ColorScheme.kt`](../../../../app/ui/src/commonMain/kotlin/io/kontour/ui/theme/ColorScheme.kt);
+raw values in [`theme/Palette.kt`](../../../../app/ui/src/commonMain/kotlin/io/kontour/ui/theme/Palette.kt).
 
 Four built-in schemes: light, dark, and a high-contrast variant of each.
 
@@ -126,7 +126,7 @@ fields, matching how the web properties already use them:
 
 Outfit, shipped as five static instances cut from the upstream variable font, so
 weights render identically on every target. SIL OFL; licence at
-[`app/ui/licenses/Outfit-OFL.txt`](../../../app/ui/licenses/Outfit-OFL.txt).
+[`app/ui/licenses/Outfit-OFL.txt`](../../../../app/ui/licenses/Outfit-OFL.txt).
 
 | Role | Large | Medium | Small | Weight | Line height |
 |---|---|---|---|---|---|
@@ -249,9 +249,16 @@ exactly the kind of movement that preference exists to stop.
 
 **Reduced motion** does not mean *no* animation. A cross-fade is not what causes
 vestibular discomfort — large translation, parallax and spinning are. When
-`Theme.motion.reduceMotion` is set, durations collapse toward `fast`, transition
-presets swap movement for opacity, springs degrade to tweens so nothing
-overshoots, and continuous looping motion stops entirely.
+`Theme.motion.reduceMotion` is set:
+
+- durations collapse toward `fast`
+- transition presets swap movement for opacity
+- springs degrade to tweens, so nothing overshoots or bounces
+- `KontourIndication` drops the press-shrink and keeps the tonal wash
+- continuous looping motion — marquee, indeterminate spinners — stops
+
+Which OS setting turns it on is in
+[`accessibility.md`](accessibility.md#reduced-motion).
 
 Use the helpers rather than reading durations directly — they already account
 for the preference:
@@ -267,7 +274,7 @@ animateDpAsState(target, Theme.motion.springOrTween())
 
 | Token | | |
 |---|---|---|
-| `minTouchTarget` | 48dp Android, 44dp iOS/web, 24dp desktop | See [accessibility.md](accessibility.md) |
+| `minTouchTarget` | The platform minimum, narrowing when the input is a mouse | [Touch targets](accessibility.md#touch-targets) has the four numbers and their sources |
 | `iconSmall` / `iconMedium` / `iconLarge` | 16 / 20 / 24dp | Three sizes; anything else needs justifying |
 | `controlHeight*` | 28 / 36 / 44 / 52 / 60dp | Shared by buttons, inputs and selects so mixed rows align |
 | `borderWidth` / `borderWidthStrong` | 1 / 2dp | |

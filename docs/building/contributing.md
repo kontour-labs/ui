@@ -111,7 +111,7 @@ The banned column is enforced by `checkApiConventions` too.
 ### If it gets a shorthand
 
 Some components also carry a scope of small builder functions — see
-[`dsls.md`](dsls.md). Three rules, and they are what stops a shorthand turning
+[`dsls.md`](../using/dsls.md). Three rules, and they are what stops a shorthand turning
 into a second, worse copy of the component:
 
 1. **The scope extends the receiver the content lambda already had.** `MenuScope`

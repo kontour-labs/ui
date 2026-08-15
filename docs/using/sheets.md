@@ -194,22 +194,9 @@ not have to wait for a measurement they should not have to know about.
 
 ## Testing
 
-Two suites, because sheets fail in two different ways.
+Two suites, because sheets fail in two different ways: the arithmetic of where a
+detent lands, and where the sheet is actually drawn. They can disagree, and when
+they do the state is the half that looks right — both bugs found while building
+sheets were of exactly that kind.
 
-`SheetAnchorTest` (in `:ui`) covers the arithmetic: detents resolving off-screen,
-duplicates colliding, a peek clamped to its container, order preserved. Pure
-functions, no composition.
-
-`SheetGeometryTest` (in `:ui-catalog`) renders a real sheet and measures **both
-what the state reports and where the sheet actually landed**. Both, because they
-can disagree — and when they do, the state is the half that looks right. Both
-bugs found while building this phase were of exactly that kind:
-
-- The sheet was bottom-aligned *and* offset, double-counting, so a short sheet
-  was drawn entirely below the screen while `offset` reported the correct number.
-- The peek detent fell back silently, because the anchor was measured against a
-  sheet top that had not been set yet.
-
-Neither was visible to a pure test, and neither was obvious in the screenshot —
-the first looked like "the sheet didn't open", the second like "the peek height
-is a bit generous".
+See [`building/testing.md`](../building/testing.md#how-sheets-are-tested).

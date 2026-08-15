@@ -1,7 +1,12 @@
 # Slots, and the `+` that keeps them short
 
-Every component in this library takes its content as **slots** rather than as
+Every component in this library takes its **content** as slots rather than as
 strings. That is the whole API; there is no `label: String` to fall back to.
+
+The rule is about content, so a field's floating label is not covered by it —
+`TextField` and `Select` take `label: String?` because that label is chrome: it
+animates between two positions, becomes the control's accessible name, and has
+nowhere to put a composable. It is the one exception, and it is deliberate.
 
 ```kotlin
 Button(onClick = ::save) { +"Save" }
@@ -270,33 +275,9 @@ ListGroup {
 
 `ListItem(label = "…")` could not produce a row without an accessible name.
 `ListItem { leading { +icon } }` can. That is a real regression in what the type
-system guarantees, and it was the known price of moving to slots.
+system guarantees, and it was the known price of moving to slots — paid for by a
+contract assertion that every component declaring a role must announce a
+non-empty name.
 
-`ComponentContractTest.everyControlAnnouncesSomething` is what pays for it: every
-component in the registry that declares a role must announce a non-empty name.
-The four bare selection controls — `Checkbox`, `RadioButton`, `Switch`,
-`TriStateCheckbox` — opt out through `namedByContext`, because they genuinely
-cannot name themselves and are designed to be labelled by the row they sit in.
-An opt-out rather than an opt-in, so a component that *loses* its name fails
-rather than passing quietly.
-
-That is a stronger guarantee than the string parameter gave, because it tests the
-rendered semantics rather than the signature.
-
----
-
-## How this is tested
-
-**"It renders the same thing."** Every component was converted to slots and
-~150 call sites rewritten, and **not one screenshot golden moved**. That is not
-an assertion anybody wrote; it is the existing goldens refusing to change.
-
-**"It does the thing a golden cannot see."** `DslBehaviourTest` covers the
-positions each row is handed (including the one-row and two-row cases a
-three-item example never exercises) and whether a menu closes itself. Both guards
-were verified by reverting: reading the lazy builder's running offset late
-instead of capturing it makes every row `Middle`, and the test says so.
-
-`checkApiConventions` counts a builder as a slot, so `ListItemScope.() -> Unit`
-sits in the same place and under the same name as a `@Composable` one — last,
-called `content`.
+The trade, and how the DSLs are tested, are in
+[`building/testing.md`](../building/testing.md#what-the-slot-conversion-cost-and-what-pays-for-it).

@@ -148,7 +148,7 @@ tracks the last used input instead:
 | Hover states | off | on | off | off |
 | Focus ring | hidden | hidden | **shown** | hidden |
 | Tooltips | long-press | hover | on focus | long-press |
-| Scrollbars | overlay, fading | persistent | persistent | overlay |
+| Scrollbars | not drawn | persistent | persistent | not drawn |
 
 Only *traversal* keys (Tab, arrows, Page Up/Down, Home/End) switch the modality
 to `Keyboard`. Typing into a text field does not — the user is already looking
@@ -168,17 +168,8 @@ scale, iOS's `UIAccessibilityIsReduceMotionEnabled`, the web's
 something on screen is making them uncomfortable and waiting for a relaunch is
 no help.
 
-It does not mean "no animation". A cross-fade is not what triggers vestibular
-discomfort; large translation, parallax and spinning are. When it is set:
-
-- durations collapse toward `Theme.motion.fast`
-- transition presets swap movement for opacity
-- springs degrade to tweens, so nothing overshoots or bounces
-- `KontourIndication` drops the press-shrink and keeps the tonal wash
-- continuous looping motion — marquee, indeterminate spinners — stops
-
-Use `Theme.motion.tweenDefault()`, `tweenSlow()` and `springOrTween()` rather
-than reading durations directly; they already account for the preference.
+It does not mean "no animation", and what it actually changes is listed with the
+motion tokens in [`tokens.md`](tokens.md#motion).
 
 ---
 
@@ -214,46 +205,10 @@ where visual order and composition order disagree.
 
 ## The per-component contract
 
-**Enforced by** `ComponentContractTest`, which runs the same six assertions over
-every entry in `componentRegistry` that is under contract — 32 of its 42
-specimens. The other ten are there to be *drawn*: the registry also feeds the
-per-component renders, and a `Kbd` has no role, no disabled state and no touch
-target to assert.
-Every component in the system must:
+Everything on this page is asserted, not aspired to. `ComponentContractTest`
+runs seven rules over every component in the system — a role, an accessible
+name, a disabled state that is announced as well as enforced, a touch target,
+and survival at 200% type in RTL.
 
-1. take `modifier: Modifier = Modifier` as its first optional parameter, and
-   apply it to the outermost node;
-2. accept an optional `interactionSource` and honour `enabled` — both halves:
-   the callback does not fire, *and* the node reports itself disabled;
-3. declare a correct semantics `Role` and `stateDescription`;
-4. carry its visible label as its accessible name;
-5. meet the platform minimum touch target;
-6. behave under RTL, 200% font scale, and reduced motion.
-
-A component absent from the registry is a component none of this applies to,
-which is why adding one there is part of adding a component. See
-[contributing.md](contributing.md#registering-a-component).
-
-### What it found
-
-The suite was written after twelve phases of components had already been
-reviewed by eye, in every scheme, in a screenshot. It failed on its first run:
-
-- **`ListItem` and `SettingRow` dropped their `clickable` when disabled.** The
-  callback could not fire, so it looked right. But the node then had no role and
-  no disabled flag: a disabled row announced as plain text, and there was no way
-  to tell it was unavailable rather than broken.
-- **`IconToggleButton` announced `Role.Switch` from a wrapper `Box`** around an
-  `IconButton` that announced `Role.Button` — a switch containing a button, and
-  the wrong role either way. `Switch` describes the sliding control; a star that
-  calls itself one describes a widget that is not on screen.
-- **A disabled `Slider` still exposed `setProgress`.** The pointer path returned
-  early, so it could not be dragged — but assistive tech could still set its
-  value, moving a control that looked inert.
-- **No text field or select carried its label.** Compose has no `labelledBy`, so
-  the label sat beside the control as an unrelated node: the user heard "Origin",
-  moved on, and landed in an unnamed edit box.
-
-Rule 4 exists because of that last one, and none of the four are visible in a
-screenshot. Rendering is checked by looking; this is the part looking cannot
-check.
+It is written up, with the four real bugs it found on its first run, in
+[`building/testing.md`](../building/testing.md#the-contract-suite).

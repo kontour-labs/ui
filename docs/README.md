@@ -46,20 +46,43 @@ every interactive component applies. Focus rings appear based on tracked input
 modality rather than a guess. None of these are things a contributor has to
 remember — they are things the code does.
 
-## What exists today
+## Using it
+
+```kotlin
+import io.kontour.ui.theme.KontourTheme
+
+KontourTheme {
+    // everything in io.kontour.ui works in here, and only in here
+}
+```
+
+Once, at the root. It follows the operating system's dark mode, contrast tier
+and reduced-motion settings, and components outside it throw rather than falling
+back to a default palette — [`using/theming.md`](using/theming.md#installing-the-theme)
+says why, and how to override any of it.
+
+## Two ways in
+
+The documentation is split by who is reading it.
+
+### Using it — you are building a screen
 
 | | |
 |---|---|
-| [`tokens.md`](tokens.md) | Colour, type, spacing, shape, elevation, motion, sizing — the full reference |
-| [`theming.md`](theming.md) | Building a theme; how a generated palette slots in later |
-| [`accessibility.md`](accessibility.md) | The contract every component meets, and how it is enforced |
-| [`components.md`](components.md) | The component inventory |
-| [`dsls.md`](dsls.md) | The shorthands — menus, grouped rows and drawer destinations |
-| [`overlays.md`](overlays.md) | Dialogs, menus, tooltips and toasts — the stack, the queue, and which to reach for |
-| [`sheets.md`](sheets.md) | Bottom and side sheets, and the detent model the map screens need |
-| [`contributing.md`](contributing.md) | The checklist for adding a component |
+| [`using/components.md`](using/components.md) | **Start here.** Every component, what it is for, and what to reach for instead |
+| [`using/tokens.md`](using/tokens.md) | Colour, type, spacing, shape, elevation, motion, sizing — the full reference |
+| [`using/theming.md`](using/theming.md) | Installing the theme, overriding one group, authoring a whole scheme |
+| [`using/accessibility.md`](using/accessibility.md) | What a caller must honour, and what the system honours for you |
+| [`using/dsls.md`](using/dsls.md) | Slots and the `+` vocabulary — the shorthands, and when to leave them |
+| [`using/overlays.md`](using/overlays.md) | Dialogs, menus, tooltips and toasts — the stack, the queue, and which to reach for |
+| [`using/sheets.md`](using/sheets.md) | Bottom and side sheets, and the detent model the map screens need |
 
-See the *Status* table below for what is built today.
+### Building it — you are adding to the system
+
+| | |
+|---|---|
+| [`building/contributing.md`](building/contributing.md) | The shape of a component, the naming rules, the checklist |
+| [`building/testing.md`](building/testing.md) | The five gates, what each one asks, and what they have caught |
 
 ## Status
 
@@ -79,54 +102,25 @@ See the *Status* table below for what is built today.
 | 11 | Navigation | done |
 | 12 | Adaptive layout and motion | done |
 | 13 | Contract suite, catalog, screenshot goldens, CI | done |
+| 14 | Selection indicator, navigation rework | done |
+| 15 | API consistency sweep | done |
+| 16 | Slot APIs and the `+` vocabulary | done |
+| 17 | Interaction defects, one nav bar, every catalog control live | done |
+| 18 | Per-component renders, documentation split by audience | in progress |
+| 19 | New components — see [`using/components.md`](using/components.md#not-yet-built) | not started |
 
 ## Verifying
 
 ```sh
 cd app
-./gradlew :ui:jvmTest :ui:checkNoMaterial :ui-catalog:jvmTest
+./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
+          :ui-catalog:jvmTest
 ```
 
-Three gates, all running on the JVM without an emulator or a simulator:
-
-**The contract suite** asserts six rules over every entry in
-`componentRegistry` — modifier reaches the outermost node, disabled blocks the
-callback and says so, a role is declared, a visible label names the control, the
-touch target meets the minimum, and it survives 200% type in RTL. Adding a
-component means adding a line there; see
-[`contributing.md`](contributing.md#registering-a-component).
-
-**`checkNoMaterial`** walks the resolved runtime graph and fails if anything
-pulled Material in. The whole system exists to not be Material, and one
-transitive dependency would undo that quietly.
-
-**`EverythingRespondsTest`** presses every enabled control in every showcase and
-requires that something observable changed — the semantics tree, or the toast a
-specimen with no state of its own raises to say what was tapped. `onClick = {}`
-looks alive while doing nothing, and a control nobody can tell is dead has
-hidden two real defects in this project already. Whatever is **disabled** is
-exempt and nothing else is; if something should not respond, disable it.
-
-**Screenshot goldens** in `ui-catalog/screenshots/` are compared, not just
-regenerated. A mismatch fails and writes the render plus a diff with every
-changed pixel in magenta to `ui-catalog/build/screenshot-diffs/`. To accept an
-intended change:
-
-```sh
-./gradlew :ui-catalog:jvmTest -Pkontour.screenshots.update=true
-```
-
-then **look at the result** before committing it. That step is the point — a
-golden nobody looked at pins whatever was broken when it was recorded, and every
-visual bug found so far was found by looking rather than by a test.
-
-Per-target compilation is the fourth gate and runs in CI
-([`.github/workflows/app.yml`](../../../.github/workflows/app.yml)):
-
-```sh
-./gradlew :ui:compileKotlinJs :ui:compileKotlinWasmJs \
-          :ui:compileKotlinIosArm64 :ui:assemble
-```
+Five gates, all on the JVM without an emulator or a simulator — the contract
+suite, `checkNoMaterial`, `checkApiConventions`, `EverythingRespondsTest` and the
+screenshot goldens. What each one asks, and what each has caught, is in
+[`building/testing.md`](building/testing.md).
 
 ## The catalog
 
@@ -139,19 +133,3 @@ be seen under each without changing a system setting.
 The modality switch matters more than it looks: focus rings, hover, scrollbar
 visibility and tooltip triggers all branch on it, and on a desktop host you
 would otherwise only ever see the pointer branch.
-
-## Using it
-
-```kotlin
-import io.kontour.ui.theme.KontourTheme
-import io.kontour.ui.theme.Theme
-
-KontourTheme {
-    // everything in io.kontour.ui works in here, and only in here
-}
-```
-
-`KontourTheme` resolves dark mode, contrast tier and reduced motion from the
-operating system by default, and follows them live. Components outside it throw
-rather than falling back to a default palette — silently rendering in the wrong
-theme is a worse failure than not rendering.

@@ -330,6 +330,12 @@ mechanism; the overlay-specific behaviour is:
 A hover-only tooltip is unreachable on a phone. A long-press-only tooltip never
 fires for a mouse. Both are wired, and neither fires for the other's modality.
 
+**A tooltip is not a label.** `Modifier.tooltip` sets no semantics at all,
+because anything the user needs in order to understand a control belongs in its
+`contentDescription`. The tooltip repeats that for sighted pointer users; a
+screen reader that announced both would say it twice. A control whose only
+explanation is its tooltip is a control that is unlabelled.
+
 A submenu does **not** close when the pointer leaves it. The pointer has to travel
 across the gap to reach the submenu, and closing en route is the classic
 nested-menu frustration; the outside-tap scrim closes it instead.

@@ -17,7 +17,8 @@ throws outside it — a component silently rendering in the wrong palette is a
 worse bug than one that refuses to render.
 
 By default it resolves dark mode, contrast tier and reduced motion from the
-operating system, and follows all three live.
+operating system, and follows all three live. Which platform setting drives
+which is in [`accessibility.md`](accessibility.md#contrast-tiers).
 
 ---
 
