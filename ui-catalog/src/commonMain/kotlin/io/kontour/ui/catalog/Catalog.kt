@@ -333,11 +333,12 @@ private val modalities = listOf<Pair<String, InputModality?>>(
 @Composable
 private fun Toggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     SelectionRow(
-        label = label,
         selected = checked,
         onSelectedChange = onCheckedChange,
         role = Role.Switch,
-        control = { Switch(checked = checked, onCheckedChange = null) },
-    )
+    ) {
+        +label
+        trailing { Switch(checked = checked, onCheckedChange = null) }
+    }
 }
 

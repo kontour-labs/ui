@@ -2,6 +2,7 @@ package io.kontour.ui.components.selection
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,9 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.foundation.Text
+import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.components.list.ListItemScope
+import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
@@ -30,19 +34,34 @@ import io.kontour.ui.theme.Theme
  * bare control with a `Text` beside it gives the user a small target and gives
  * a screen reader two nodes for one choice.
  *
- * ```
+ * ```kotlin
  * SelectionRow(
- *     label = "Notify me about delays",
- *     supporting = "Only for favourited routes",
  *     selected = notifyOnDelay,
  *     onSelectedChange = viewModel::setNotifyOnDelay,
  *     role = Role.Checkbox,
- *     control = { Checkbox(notifyOnDelay, onCheckedChange = null) },
- * )
+ * ) {
+ *     +"Notify me about delays"
+ *     supporting { +"Only for favourited routes" }
+ *     trailing { Checkbox(notifyOnDelay, onCheckedChange = null) }
+ * }
  * ```
  *
  * The nested control takes `onClick = null` / `onCheckedChange = null`: the row
  * owns the interaction, and the control is there to *show* state.
+ *
+ * ### The control is a slot like any other
+ *
+ * It used to be a required `control` parameter with a `controlPosition` enum
+ * beside it saying which end to put it at. Both are gone: the control goes in
+ * [ListItemScope.leading] or [ListItemScope.trailing], and which one you fill
+ * *is* the position. Trailing suits a settings list, leading a list of options
+ * being picked from.
+ *
+ * This is [io.kontour.ui.components.list.ListItem]'s builder, not one of its
+ * own, because a selection row is a list row that happens to toggle — same
+ * regions, same spelling, and the free edge is genuinely free. What it does not
+ * borrow is `onClick`: the row is `toggleable` or `selectable` by role, which is
+ * the whole reason it is a separate component.
  *
  * @param onSelectedChange What the row should now be, not that it was pressed.
  *   The row is doing the negating either way — `toggleable` hands it the new
@@ -53,22 +72,19 @@ import io.kontour.ui.theme.Theme
  *   report, and the group is what owns the pair.
  * @param role [Role.Checkbox], [Role.RadioButton] or [Role.Switch]. Drives what
  *   a screen reader calls the row, so it must match the control inside it.
- * @param controlPosition Where the control sits. Trailing is the default and is
- *   right for settings lists; leading suits a list of options being picked from.
  */
 @Composable
 fun SelectionRow(
-    label: String,
     selected: Boolean,
     onSelectedChange: (Boolean) -> Unit,
     role: Role,
-    control: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    supporting: String? = null,
-    controlPosition: ControlPosition = ControlPosition.Trailing,
     interactionSource: MutableInteractionSource? = null,
+    content: ListItemScope.() -> Unit,
 ) {
+    val slots = listItemSlots(content)
+    val colors = Theme.colors
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.small
     val feedback = Feedback
@@ -110,35 +126,48 @@ fun SelectionRow(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (controlPosition == ControlPosition.Leading) {
-            // The row already announces the state; the control repeating it
-            // would make a screen reader say "checked" twice.
-            Row(Modifier.semantics { }) { control() }
+        val labelColor = if (enabled) colors.content else colors.contentDisabled
+        val muted = if (enabled) colors.contentMuted else colors.contentDisabled
+
+        slots.leading?.let { leading ->
+            Box(contentAlignment = Alignment.Center) {
+                ProvideContentColor(muted) {
+                    ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
+                }
+            }
         }
 
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(
-                text = label,
-                style = Theme.typography.bodyMedium,
-                color = if (enabled) Theme.colors.content else Theme.colors.contentDisabled,
-            )
-            if (supporting != null) {
-                Text(
-                    text = supporting,
-                    style = Theme.typography.bodySmall,
-                    color = if (enabled) Theme.colors.contentMuted else Theme.colors.contentDisabled,
-                )
+            slots.overline?.let { overline ->
+                ProvideContentColor(muted) {
+                    ProvideTextStyle(Theme.typography.labelSmall) {
+                        ContentSlot(maxLines = 1, content = overline)
+                    }
+                }
+            }
+            slots.label?.let { label ->
+                ProvideContentColor(labelColor) {
+                    ProvideTextStyle(Theme.typography.bodyMedium) {
+                        ContentSlot(maxLines = 2, content = label)
+                    }
+                }
+            }
+            slots.supporting?.let { supporting ->
+                ProvideContentColor(muted) {
+                    ProvideTextStyle(Theme.typography.bodySmall) {
+                        ContentSlot(maxLines = 2, content = supporting)
+                    }
+                }
             }
         }
 
-        if (controlPosition == ControlPosition.Trailing) {
-            Row(Modifier.semantics { }) { control() }
+        slots.trailing?.let { trailing ->
+            Box(contentAlignment = Alignment.Center) {
+                ContentSlot(content = trailing)
+            }
         }
     }
 }
-
-/** Which side of a [SelectionRow] the control sits on. */
-enum class ControlPosition { Leading, Trailing }

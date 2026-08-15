@@ -33,12 +33,13 @@ class SelectionRowTest {
             setContent {
                 KontourTheme(reduceMotion = true) {
                     SelectionRow(
-                        label = "Show live vehicles",
                         selected = checked,
                         onSelectedChange = { checked = it },
                         role = Role.Switch,
-                        control = { Switch(checked = checked, onCheckedChange = null) },
-                    )
+                    ) {
+                        +"Show live vehicles"
+                        trailing { Switch(checked = checked, onCheckedChange = null) }
+                    }
                 }
             }
 
@@ -73,12 +74,13 @@ class SelectionRowTest {
             setContent {
                 KontourTheme(reduceMotion = true) {
                     SelectionRow(
-                        label = "Leave now",
                         selected = true,
                         onSelectedChange = { reported += it },
                         role = Role.RadioButton,
-                        control = { RadioButton(selected = true, onClick = null) },
-                    )
+                    ) {
+                        +"Leave now"
+                        trailing { RadioButton(selected = true, onClick = null) }
+                    }
                 }
             }
 

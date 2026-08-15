@@ -19,7 +19,6 @@ import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.ChipGroup
-import io.kontour.ui.components.selection.ControlPosition
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
 import io.kontour.ui.components.selection.RadioButton
@@ -77,36 +76,39 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                     val leaveNow = seed(true)
 
                     SelectionRow(
-                        label = "Notify me about delays",
-                        supporting = "Only for favourited routes",
                         selected = delays.value,
                         onSelectedChange = { delays.value = it },
                         role = Role.Checkbox,
-                        control = { Checkbox(checked = delays.value, onCheckedChange = null) },
-                    )
+                    ) {
+                        +"Notify me about delays"
+                        supporting { +"Only for favourited routes" }
+                        trailing { Checkbox(checked = delays.value, onCheckedChange = null) }
+                    }
                     SelectionRow(
-                        label = "Show live vehicles",
                         selected = live.value,
                         onSelectedChange = { live.value = it },
                         role = Role.Switch,
-                        control = { Switch(checked = live.value, onCheckedChange = null) },
-                    )
+                    ) {
+                        +"Show live vehicles"
+                        trailing { Switch(checked = live.value, onCheckedChange = null) }
+                    }
                     SelectionRow(
-                        label = "Leave now",
                         selected = leaveNow.value,
                         onSelectedChange = { leaveNow.value = it },
                         role = Role.RadioButton,
-                        controlPosition = ControlPosition.Leading,
-                        control = { RadioButton(selected = leaveNow.value, onClick = null) },
-                    )
+                    ) {
+                        +"Leave now"
+                        leading { RadioButton(selected = leaveNow.value, onClick = null) }
+                    }
                     SelectionRow(
-                        label = "Unavailable in this network",
                         selected = false,
                         onSelectedChange = {},
                         enabled = false,
                         role = Role.Checkbox,
-                        control = { Checkbox(checked = false, onCheckedChange = null, enabled = false) },
-                    )
+                    ) {
+                        +"Unavailable in this network"
+                        trailing { Checkbox(checked = false, onCheckedChange = null, enabled = false) }
+                    }
                 }
             }
 

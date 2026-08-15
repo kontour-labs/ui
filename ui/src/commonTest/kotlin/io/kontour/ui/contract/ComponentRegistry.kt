@@ -277,14 +277,15 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec("SelectionRow", Role.Checkbox) { modifier, enabled, onClick ->
             SelectionRow(
-                label = "Notify me about delays",
                 selected = false,
                 onSelectedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
                 role = Role.Checkbox,
-                control = { Checkbox(checked = false, onCheckedChange = null) },
-            )
+            ) {
+                +"Notify me about delays"
+                trailing { Checkbox(checked = false, onCheckedChange = null) }
+            }
         }
     )
 

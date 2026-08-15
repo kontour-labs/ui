@@ -136,14 +136,16 @@ fun <T> RadioGroup(
     Column(modifier.selectableGroup()) {
         options.forEach { option ->
             val isSelected = option == selected
+            val supportingText = supporting?.invoke(option)
             SelectionRow(
-                label = label(option),
-                supporting = supporting?.invoke(option),
                 selected = isSelected,
                 onSelectedChange = { onSelect(option) },
                 enabled = enabled,
                 role = Role.RadioButton,
-                control = {
+            ) {
+                +label(option)
+                if (supportingText != null) supporting { +supportingText }
+                trailing {
                     RadioButton(
                         selected = isSelected,
                         // The row owns the click; a nested clickable would give
@@ -151,8 +153,8 @@ fun <T> RadioGroup(
                         onClick = null,
                         enabled = enabled,
                     )
-                },
-            )
+                }
+            }
         }
     }
 }
