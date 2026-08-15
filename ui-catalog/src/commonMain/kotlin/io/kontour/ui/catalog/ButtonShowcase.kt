@@ -6,8 +6,12 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.state.ToggleableState
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.ChevronRight
 import com.composables.icons.tabler.outline.Navigation
@@ -88,8 +92,23 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                     IconButton(Tabler.Outline.X, "Close", {}, variant = ButtonVariant.Secondary)
                     IconButton(Tabler.Outline.X, "Close", {}, enabled = false)
                     IconButton(Tabler.Outline.ChevronRight, "Expand", {}, rotation = 90f)
-                    IconToggleButton(Tabler.Outline.Star, "Favourite", checked = true, {})
-                    IconToggleButton(Tabler.Outline.Star, "Favourite", checked = false, {})
+                    // The one control here that was genuinely broken as a demo:
+                    // a toggle wired to `{}` never toggles, unlike a button,
+                    // which at least still presses.
+                    val favourited = seed(true)
+                    val watching = seed(false)
+                    IconToggleButton(
+                        Tabler.Outline.Star,
+                        "Favourite",
+                        checked = favourited.value,
+                        onCheckedChange = { favourited.value = it },
+                    )
+                    IconToggleButton(
+                        Tabler.Outline.Star,
+                        "Favourite",
+                        checked = watching.value,
+                        onCheckedChange = { watching.value = it },
+                    )
                 }
             }
 
@@ -118,6 +137,28 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/**
+ * State for a showcase control, seeded from what it used to hardcode.
+ *
+ * The showcases are golden sources *and* a place to try the components, and
+ * those pulled against each other: a hardcoded `checked = true` captures a state
+ * a golden could not otherwise reach, and a dead `onCheckedChange = {}` makes
+ * the control inert. Seeding from the old literal keeps every golden
+ * byte-for-byte and makes the control live, which is not a trade at all.
+ *
+ * A `MutableState` rather than a wrapper composable on purpose: a showcase
+ * should show the component's real API, not a catalog-shaped stand-in for it.
+ */
+@Composable
+internal fun <T> seed(value: T): MutableState<T> = remember { mutableStateOf(value) }
+
+/** Cycles a tri-state checkbox the way a real one would. */
+internal fun ToggleableState.next(): ToggleableState = when (this) {
+    ToggleableState.Off -> ToggleableState.On
+    ToggleableState.On -> ToggleableState.Indeterminate
+    ToggleableState.Indeterminate -> ToggleableState.Off
 }
 
 @Composable

@@ -68,6 +68,18 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
         ) {
+            // Every overlay here used to be pinned open with a dead
+            // `onDismissRequest`, so a golden could capture it. Seeded from those
+            // same literals: the goldens still capture them open, and they can
+            // now actually be dismissed and reopened.
+            val menu = seed(true)
+            val sort = seed(true)
+            val popover = seed(true)
+            val alert = seed(true)
+            val tooltip = seed(true)
+            val loading = seed(true)
+            val edgeMenu = seed(true)
+
             Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
                 Panel("Dropdown menu") {
                     Box(Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 12.dp)) {
@@ -77,8 +89,8 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             onClick = {},
                         )
                         DropdownMenu(
-                            expanded = true,
-                            onDismissRequest = {},
+                            expanded = menu.value,
+                            onDismissRequest = { menu.value = false },
                             alignment = OverlayAlignment.Center,
                         ) {
                             // Written with the DSL, and the golden for this panel
@@ -105,7 +117,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             onClick = {},
                             variant = ButtonVariant.Secondary,
                         )
-                        DropdownMenu(expanded = true, onDismissRequest = {}) {
+                        DropdownMenu(expanded = sort.value, onDismissRequest = { sort.value = false }) {
                             item("Departure time", selected = true) {}
                             item("Journey length") {}
                             divider()
@@ -124,7 +136,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             contentDescription = "About this route",
                             onClick = {},
                         )
-                        Popover(expanded = true, onDismissRequest = {}) {
+                        Popover(expanded = popover.value, onDismissRequest = { popover.value = false }) {
                             Text("Route 950", style = Theme.typography.titleSmall)
                             Text(
                                 "Runs every 15 minutes until 11pm, then every 30 " +
@@ -140,7 +152,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
             Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
                 Panel("Alert dialog") {
                     AlertDialog(
-                        visible = true,
+                        visible = alert.value,
                         title = "Remove this favourite?",
                         message = "Perth Underground will be taken off your home screen. " +
                             "You can add it back any time.",
@@ -158,7 +170,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             contentDescription = "Save this trip",
                             onClick = {},
                         )
-                        Tooltip(visible = true, text = "Save this trip")
+                        Tooltip(visible = tooltip.value, text = "Save this trip")
                     }
                 }
 
@@ -205,7 +217,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                 }
 
                 Panel("Loading overlay") {
-                    LoadingOverlay(visible = true, label = "Planning your trip")
+                    LoadingOverlay(visible = loading.value, label = "Planning your trip")
                 }
 
                 Panel("Menu near an edge") {
@@ -214,8 +226,8 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                     Box(Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
                         Button(label = "Options", onClick = {}, variant = ButtonVariant.Ghost)
                         DropdownMenu(
-                            expanded = true,
-                            onDismissRequest = {},
+                            expanded = edgeMenu.value,
+                            onDismissRequest = { edgeMenu.value = false },
                             side = OverlaySide.Bottom,
                         ) {
                             MenuItem("Report a problem", onClick = {})

@@ -44,46 +44,60 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Checkbox(checked = true, onCheckedChange = {})
-                    Checkbox(checked = false, onCheckedChange = {})
-                    TriStateCheckbox(ToggleableState.Indeterminate, onClick = {})
+                    // Seeded from what each of these used to hardcode, so every
+                    // golden is unchanged and every control now responds. The
+                    // disabled ones stay disabled — that *is* the state on show.
+                    val on = seed(true)
+                    val off = seed(false)
+                    val tri = seed(ToggleableState.Indeterminate)
+
+                    Checkbox(checked = on.value, onCheckedChange = { on.value = it })
+                    Checkbox(checked = off.value, onCheckedChange = { off.value = it })
+                    TriStateCheckbox(tri.value, onClick = { tri.value = tri.value.next() })
                     Checkbox(checked = true, onCheckedChange = {}, enabled = false)
                     Checkbox(checked = false, onCheckedChange = {}, enabled = false)
 
-                    RadioButton(selected = true, onClick = {})
-                    RadioButton(selected = false, onClick = {})
+                    val picked = seed(true)
+                    RadioButton(selected = picked.value, onClick = { picked.value = true })
+                    RadioButton(selected = !picked.value, onClick = { picked.value = false })
                     RadioButton(selected = true, onClick = {}, enabled = false)
 
-                    Switch(checked = true, onCheckedChange = {})
-                    Switch(checked = false, onCheckedChange = {})
+                    val switchOn = seed(true)
+                    val switchOff = seed(false)
+                    Switch(checked = switchOn.value, onCheckedChange = { switchOn.value = it })
+                    Switch(checked = switchOff.value, onCheckedChange = { switchOff.value = it })
                     Switch(checked = true, onCheckedChange = {}, enabled = false)
                 }
             }
 
             Section("Selection rows") {
                 Column(Modifier.width(460.dp)) {
+                    val delays = seed(true)
+                    val live = seed(false)
+                    val leaveNow = seed(true)
+
                     SelectionRow(
                         label = "Notify me about delays",
                         supporting = "Only for favourited routes",
-                        selected = true,
-                        onClick = {},
+                        selected = delays.value,
+                        onClick = { delays.value = !delays.value },
                         role = Role.Checkbox,
-                        control = { Checkbox(checked = true, onCheckedChange = null) },
+                        control = { Checkbox(checked = delays.value, onCheckedChange = null) },
                     )
                     SelectionRow(
                         label = "Show live vehicles",
-                        selected = false,
-                        onClick = {},
+                        selected = live.value,
+                        onClick = { live.value = !live.value },
                         role = Role.Switch,
-                        control = { Switch(checked = false, onCheckedChange = null) },
+                        control = { Switch(checked = live.value, onCheckedChange = null) },
                     )
                     SelectionRow(
                         label = "Leave now",
-                        selected = true,
-                        onClick = {},
+                        selected = leaveNow.value,
+                        onClick = { leaveNow.value = !leaveNow.value },
                         role = Role.RadioButton,
                         controlPosition = ControlPosition.Leading,
-                        control = { RadioButton(selected = true, onClick = null) },
+                        control = { RadioButton(selected = leaveNow.value, onClick = null) },
                     )
                     SelectionRow(
                         label = "Unavailable in this network",
@@ -98,20 +112,28 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
 
             Section("Chips") {
                 ChipGroup {
+                    val buses = seed(true)
+                    val trains = seed(false)
+                    val ferries = seed(false)
+
                     FilterChip(
                         "Buses",
-                        selected = true,
-                        onClick = {},
+                        selected = buses.value,
+                        onClick = { buses.value = !buses.value },
                         selectedIcon = Tabler.Outline.Check,
                     )
                     FilterChip(
                         "Trains",
-                        selected = false,
-                        onClick = {},
+                        selected = trains.value,
+                        onClick = { trains.value = !trains.value },
                         leadingIcon = Tabler.Outline.Bus,
                         selectedIcon = Tabler.Outline.Check,
                     )
-                    FilterChip("Ferries", selected = false, onClick = {})
+                    FilterChip(
+                        "Ferries",
+                        selected = ferries.value,
+                        onClick = { ferries.value = !ferries.value },
+                    )
                     FilterChip("Disabled", selected = false, onClick = {}, enabled = false)
                     Chip("Share", onClick = {})
                     InputChip(
@@ -127,11 +149,18 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                     Modifier.width(420.dp),
                     verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 ) {
-                    SegmentedControl(listOf("Depart", "Arrive"), selectedIndex = 0, onSelect = {})
+                    val when_ = seed(0)
+                    val span = seed(1)
+
+                    SegmentedControl(
+                        listOf("Depart", "Arrive"),
+                        selectedIndex = when_.value,
+                        onSelect = { when_.value = it },
+                    )
                     SegmentedControl(
                         listOf("Day", "Week", "Month"),
-                        selectedIndex = 1,
-                        onSelect = {},
+                        selectedIndex = span.value,
+                        onSelect = { span.value = it },
                     )
                 }
             }
@@ -141,10 +170,17 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                     Modifier.width(460.dp),
                     verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 ) {
-                    Slider(value = 0.35f, onValueChange = {}, modifier = Modifier.fillMaxWidth())
+                    val amount = seed(0.35f)
+                    val stepped = seed(3f)
+
                     Slider(
-                        value = 3f,
-                        onValueChange = {},
+                        value = amount.value,
+                        onValueChange = { amount.value = it },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Slider(
+                        value = stepped.value,
+                        onValueChange = { stepped.value = it },
                         valueRange = 1f..5f,
                         steps = 3,
                         modifier = Modifier.fillMaxWidth(),
