@@ -87,18 +87,18 @@ fun Dialog(
                             Modifier.fillMaxSize().windowInsetsPadding(windowInsets),
                             contentAlignment = Alignment.Center,
                         ) {
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = fadeIn(motion.tweenFast()) +
-                                    scaleIn(
-                                        motion.springOrTween(motion.springDefault),
-                                        initialScale = 0.92f,
-                                    ),
-                                exit = fadeOut(motion.tweenFast()) +
-                                    scaleOut(motion.tweenFast(), targetScale = 0.92f),
-                            ) {
+                            // `AnimatedVisibility(visible = true, exit = …)` used
+                            // to live here — with `visible` a literal, so the
+                            // exit was unreachable code and the host tore the
+                            // subtree out before it could ever run. The host's
+                            // progress drives both directions now.
+                            run {
                                 Surface(
                                     modifier = modifier
+                                        .overlayAppearance(
+                                            LocalOverlayProgress.current,
+                                            fromScale = 0.92f,
+                                        )
                                         .padding(Theme.spacing.lg)
                                         .widthIn(max = 400.dp)
                                         .semantics { dialog() },

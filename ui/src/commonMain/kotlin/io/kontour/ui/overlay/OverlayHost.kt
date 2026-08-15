@@ -1,9 +1,13 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -117,6 +121,16 @@ class OverlayHostState {
     private val entries = mutableStateListOf<OverlayEntry>()
 
     /**
+     * Entries that have been hidden but are still on screen, animating out.
+     *
+     * They are gone as far as everything *else* is concerned — [isEmpty],
+     * [isBusy], [canDismissOnBack] and [dismissTop] all ignore them, so a sheet
+     * on its way out neither blocks the back gesture nor keeps a queue waiting.
+     * Only the host still renders them, and only until their animation finishes.
+     */
+    private val leaving = mutableStateListOf<Any>()
+
+    /**
      * Where the host itself sits in the window, so anchors captured in root
      * coordinates can be made host-local. Zero when the host is at the root,
      * which is the common case and the recommended one.
@@ -125,10 +139,17 @@ class OverlayHostState {
 
     /** The stack, bottom to top. Sorted by layer, then by push order within a layer. */
     val visible: List<OverlayEntry>
+        get() = entries.filter { it.key !in leaving }.sortedBy { it.layer.ordinal }
+
+    /** [visible], plus whatever is still animating out. What the host draws. */
+    internal val rendered: List<OverlayEntry>
         get() = entries.sortedBy { it.layer.ordinal }
 
+    /** True while this entry is on its way out rather than on its way in. */
+    internal fun isLeaving(key: Any): Boolean = key in leaving
+
     /** True when nothing at all is showing. */
-    val isEmpty: Boolean get() = entries.isEmpty()
+    val isEmpty: Boolean get() = visible.isEmpty()
 
     /**
      * True when the user is engaged with something modal — a sheet, dialog,
@@ -138,10 +159,13 @@ class OverlayHostState {
      * not a reason to postpone onboarding, and the queue's own coach mark
      * certainly is not. See [OverlayLayer.suppressesQueue].
      */
-    val isBusy: Boolean get() = entries.any { it.layer.suppressesQueue }
+    val isBusy: Boolean get() = visible.any { it.layer.suppressesQueue }
 
     /** Shows [entry], replacing any existing entry with the same key. */
     fun show(entry: OverlayEntry) {
+        // Re-showing something that is mid-exit turns it straight back around
+        // rather than stacking a second copy behind the one leaving.
+        leaving.remove(entry.key)
         val existing = entries.indexOfFirst { it.key == entry.key }
         if (existing >= 0) {
             entries[existing] = entry
@@ -150,13 +174,26 @@ class OverlayHostState {
         }
     }
 
-    /** Hides the entry with this key. No-op if it is not showing. */
+    /**
+     * Hides the entry with this key. No-op if it is not showing.
+     *
+     * Marks it rather than removing it: the host animates it out and calls
+     * [finishHiding] when there is nothing left to look at. Removing here is
+     * what used to make a dialog vanish instead of fading — its own
+     * `AnimatedVisibility(exit = …)` never got a frame to run in.
+     */
     fun hide(key: Any) {
+        if (entries.any { it.key == key } && key !in leaving) leaving.add(key)
+    }
+
+    /** Called by the host once [key] has finished animating out. */
+    internal fun finishHiding(key: Any) {
         entries.removeAll { it.key == key }
+        leaving.remove(key)
     }
 
     /** True when an entry with this key is showing. */
-    fun isShowing(key: Any): Boolean = entries.any { it.key == key }
+    fun isShowing(key: Any): Boolean = visible.any { it.key == key }
 
     /**
      * True when a back gesture would dismiss something here.
@@ -166,7 +203,7 @@ class OverlayHostState {
      * nothing because a toast happened to be up is worse than one that leaves
      * the screen.
      */
-    val canDismissOnBack: Boolean get() = entries.any { it.dismissOnBack }
+    val canDismissOnBack: Boolean get() = visible.any { it.dismissOnBack }
 
     /**
      * Dismisses the topmost dismissible entry, and reports whether it did.
@@ -189,6 +226,75 @@ class OverlayHostState {
         hide(entry.key)
     }
 }
+
+/**
+ * One overlay, from the frame it is pushed to the frame it is finally gone.
+ *
+ * The host owns the appear-and-disappear progress rather than each panel owning
+ * its own, which is what makes an exit animation possible at all: a panel that
+ * set its own `appeared` flag on first composition could only ever run 0 → 1,
+ * and every panel in the library did exactly that. `Dialog` even declared an
+ * `exit` transition — unreachable code, because the subtree was torn out before
+ * `AnimatedVisibility` could observe `visible = false`.
+ */
+@Composable
+private fun EntryHost(
+    state: OverlayHostState,
+    entry: OverlayEntry,
+    index: Int,
+    dimmed: Boolean,
+) {
+    val motion = Theme.motion
+    val leaving = state.isLeaving(entry.key)
+    val progress = remember { Animatable(0f) }
+
+    LaunchedEffect(leaving) {
+        progress.animateTo(
+            targetValue = if (leaving) 0f else 1f,
+            // Out faster than in. An overlay arriving wants to be noticed; one
+            // leaving is already dealt with, and waiting on it is a delay.
+            animationSpec = if (leaving) {
+                motion.tweenFast()
+            } else {
+                motion.springOrTween(motion.springSnappy)
+            },
+        )
+        if (leaving) state.finishHiding(entry.key)
+    }
+
+    if (entry.scrim != ScrimStyle.None) {
+        Scrim(
+            visible = !leaving,
+            onDismissRequest = if (entry.dismissOnOutside) {
+                { state.dismissOutside(entry) }
+            } else {
+                null
+            },
+            dismissLabel = entry.dismissLabel,
+            color = if (dimmed) Theme.colors.scrim else Color.Transparent,
+        )
+    }
+
+    Box(
+        Modifier.semantics {
+            isTraversalGroup = true
+            traversalIndex = (index + 1).toFloat()
+        }
+    ) {
+        CompositionLocalProvider(LocalOverlayProgress provides progress.value) {
+            entry.content()
+        }
+    }
+}
+
+/**
+ * How far this overlay is through appearing, or how far back through leaving.
+ *
+ * Read by every panel that scales and fades — see `Modifier.overlayAppearance`.
+ * Defaults to 1 so a panel rendered outside a host, as the contract suite does,
+ * is simply visible rather than invisible.
+ */
+internal val LocalOverlayProgress = compositionLocalOf { 1f }
 
 /**
  * The one entry in [stack] whose scrim is actually drawn dark.
@@ -256,8 +362,10 @@ fun OverlayHost(
     state: OverlayHostState = rememberOverlayHostState(),
     content: @Composable () -> Unit,
 ) {
-    val stack = state.visible
-    val trapping = stack.any { it.trapFocus }
+    val stack = state.rendered
+    // Only what is actually still here traps focus — an overlay fading out must
+    // hand focus back before it finishes, not after.
+    val trapping = state.visible.any { it.trapFocus }
 
     CompositionLocalProvider(LocalOverlayHost provides state) {
         Box(modifier.fillMaxSize().trackHostOrigin(state)) {
@@ -280,30 +388,20 @@ fun OverlayHost(
             val dimming = topDimmedEntry(stack)
 
             stack.forEachIndexed { index, entry ->
-                if (entry.scrim != ScrimStyle.None) {
-                    Scrim(
-                        visible = true,
-                        onDismissRequest = if (entry.dismissOnOutside) {
-                            { state.dismissOutside(entry) }
-                        } else {
-                            null
-                        },
-                        dismissLabel = entry.dismissLabel,
-                        color = if (entry === dimming) {
-                            Theme.colors.scrim
-                        } else {
-                            Color.Transparent
-                        },
+                // Keyed by identity, not by slot. Without this, removing an
+                // entry that is not the top one shifts every entry above it
+                // down a slot, and each inherits the removed entry's remembered
+                // state — including the scrim's colour animatable. A surviving
+                // transparent scrim would inherit one sitting at full dim and
+                // spend 220ms animating down from it, which is a dim that
+                // visibly outlives whatever caused it.
+                key(entry.key) {
+                    EntryHost(
+                        state = state,
+                        entry = entry,
+                        index = index,
+                        dimmed = entry === dimming,
                     )
-                }
-
-                Box(
-                    Modifier.semantics {
-                        isTraversalGroup = true
-                        traversalIndex = (index + 1).toFloat()
-                    }
-                ) {
-                    entry.content()
                 }
             }
         }

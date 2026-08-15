@@ -236,20 +236,15 @@ private fun MenuPanel(
     onDismissRequest: () -> Unit,
     content: @Composable MenuScope.() -> Unit,
 ) {
-    val motion = Theme.motion
     val focusRequester = remember { FocusRequester() }
-    var appeared by remember { mutableStateOf(false) }
-
     LaunchedEffect(Unit) {
-        appeared = true
         if (autoFocus) runCatching { focusRequester.requestFocus() }
     }
 
-    val progress by animateFloatAsState(
-        targetValue = if (appeared) 1f else 0f,
-        animationSpec = motion.springOrTween(motion.springSnappy),
-        label = "menu",
-    )
+    // The host drives this, in both directions — see `LocalOverlayProgress`.
+    // A panel that set its own `appeared` flag on first composition could only
+    // ever run 0 -> 1, which is why nothing in the library animated *out*.
+    val progress = LocalOverlayProgress.current
 
     // Grow from the corner nearest the anchor, so the menu reads as unfolding
     // out of the control rather than materialising over it.

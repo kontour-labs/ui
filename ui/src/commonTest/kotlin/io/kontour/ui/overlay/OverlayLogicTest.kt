@@ -162,6 +162,72 @@ class OverlayHostStateTest {
 /**
  * The overlay *queue* — things that must never coexist.
  */
+/**
+ * Hiding an overlay is a two-step: mark it, animate it, then drop it.
+ *
+ * `hide` used to remove the entry from the list synchronously, so the subtree
+ * was torn out on the next frame and nothing had anywhere to animate. `Dialog`
+ * declared `AnimatedVisibility(visible = true, exit = fadeOut() + scaleOut())`
+ * — unreachable code, because `visible` was a literal and the removal beat it.
+ *
+ * These are the invariants that make the exit possible without an overlay on its
+ * way out still counting as showing.
+ */
+class OverlayHostExitTest {
+
+    @Test
+    fun hidingKeepsTheEntryRenderedButNotVisible() {
+        val state = OverlayHostState()
+        state.show(entry(key = "dialog", layer = OverlayLayer.Dialog))
+
+        state.hide("dialog")
+
+        assertTrue(state.isEmpty, "a dismissed overlay is not showing any more")
+        assertFalse(state.isShowing("dialog"))
+        assertEquals(1, state.rendered.size, "but it is still on screen, animating out")
+        assertTrue(state.isLeaving("dialog"))
+    }
+
+    @Test
+    fun anOverlayOnItsWayOutDoesNotHoldTheBackGestureOrTheQueue() {
+        val state = OverlayHostState()
+        state.show(entry(key = "sheet", layer = OverlayLayer.Sheet, dismissOnBack = true))
+
+        state.hide("sheet")
+
+        // Both would otherwise stay true for the length of the exit animation:
+        // back would be swallowed by something already dismissed, and a queued
+        // prompt would wait on it.
+        assertFalse(state.canDismissOnBack)
+        assertFalse(state.isBusy)
+    }
+
+    @Test
+    fun finishingTheAnimationIsWhatActuallyRemovesIt() {
+        val state = OverlayHostState()
+        state.show(entry(key = "dialog", layer = OverlayLayer.Dialog))
+        state.hide("dialog")
+
+        state.finishHiding("dialog")
+
+        assertTrue(state.rendered.isEmpty())
+        assertFalse(state.isLeaving("dialog"))
+    }
+
+    @Test
+    fun reopeningSomethingMidExitTurnsItAroundRatherThanStacking() {
+        val state = OverlayHostState()
+        state.show(entry(key = "menu", layer = OverlayLayer.Menu))
+        state.hide("menu")
+
+        state.show(entry(key = "menu", layer = OverlayLayer.Menu))
+
+        assertEquals(1, state.rendered.size, "a second copy would sit behind the one leaving")
+        assertFalse(state.isLeaving("menu"))
+        assertTrue(state.isShowing("menu"))
+    }
+}
+
 class OverlayQueueTest {
 
     private fun queue(sessions: Int = 100) = OverlayQueue(sessions)

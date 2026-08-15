@@ -224,7 +224,13 @@ fun ModalBottomSheet(
                     scrim = ScrimStyle.Dimmed,
                     dismissOnOutside = dismissOnOutside,
                     dismissLabel = dismissLabel,
-                    onDismiss = { scope.launch { state.hide() } },
+                    // Tell the caller, not just the sheet. This used to only
+                    // launch `state.hide()`, so after an outside tap the host
+                    // had dropped the entry while the caller's `visible` was
+                    // still true — and `LaunchedEffect(visible)` never re-ran,
+                    // so the sheet could not be reopened. `onDismissRequest`
+                    // flips `visible`, which is what actually closes it.
+                    onDismiss = { dismiss() },
                     content = {
                         BottomSheet(
                             state = state,

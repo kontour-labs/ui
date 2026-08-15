@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.OverlayEntry
+import io.kontour.ui.overlay.LocalOverlayProgress
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.adaptive.allEdges
@@ -149,14 +150,10 @@ private fun SideSheetPanel(
     val motion = Theme.motion
     val density = LocalDensity.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    var appeared by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { appeared = true }
-
-    val progress by animateFloatAsState(
-        targetValue = if (appeared) 1f else 0f,
-        animationSpec = motion.springOrTween(motion.springGentle),
-        label = "sideSheet",
-    )
+    // Driven by the host, in both directions — a panel that set its own
+    // `appeared` flag on first composition could only ever run 0 -> 1, which is
+    // why nothing in the library animated *out*.
+    val progress = LocalOverlayProgress.current
 
     // Physical edge, once the layout direction has been applied.
     val fromRight = (side == SheetSide.End) != isRtl

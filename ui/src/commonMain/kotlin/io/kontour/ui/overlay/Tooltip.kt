@@ -258,14 +258,10 @@ private fun TooltipOverlay(
 @Composable
 private fun TooltipBubble(text: String) {
     val motion = Theme.motion
-    var appeared by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { appeared = true }
-
-    val progress by animateFloatAsState(
-        targetValue = if (appeared) 1f else 0f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
-        label = "tooltip",
-    )
+    // Driven by the host, in both directions — a panel that set its own
+    // `appeared` flag on first composition could only ever run 0 -> 1, which is
+    // why nothing in the library animated *out*.
+    val progress = LocalOverlayProgress.current
 
     Surface(
         modifier = Modifier
@@ -444,14 +440,10 @@ private fun CoachMarkBubble(
 ) {
     val colors = Theme.colors
     val motion = Theme.motion
-    var appeared by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { appeared = true }
-
-    val progress by animateFloatAsState(
-        targetValue = if (appeared) 1f else 0f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
-        label = "coachMark",
-    )
+    // Driven by the host, in both directions — a panel that set its own
+    // `appeared` flag on first composition could only ever run 0 -> 1, which is
+    // why nothing in the library animated *out*.
+    val progress = LocalOverlayProgress.current
 
     Surface(
         modifier = Modifier
