@@ -263,12 +263,21 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                     // Only when it is an override. `Modifier.focusRing` takes one
                     // as its subject, and a required parameter is not something a
                     // caller reads past.
+                    //
+                    // A *builder* counts as a slot too. `ListItemScope.() -> Unit`
+                    // carries no `@Composable` — it collects composable content
+                    // rather than being it — but it is the trailing lambda a
+                    // caller writes their content in, so it belongs in the same
+                    // place and under the same name.
+                    val builderType = Regex("[A-Za-z]+Scope\\.\\(\\)\\s*->")
                     val interactionIndex = names.indexOfFirst {
                         it == "interactionSource"
                     }.takeIf { it >= 0 && "=" in params[it].second } ?: -1
                     if (interactionIndex >= 0) {
                         val trailing = params.drop(interactionIndex + 1)
-                            .filterNot { "@Composable" in it.second || "Composable" in it.second }
+                            .filterNot {
+                                "Composable" in it.second || builderType.containsMatchIn(it.second)
+                            }
                         if (trailing.isNotEmpty()) {
                             problems += "$where: `interactionSource` must come after every " +
                                 "non-slot parameter (found ${trailing.joinToString { it.first }} after it)"

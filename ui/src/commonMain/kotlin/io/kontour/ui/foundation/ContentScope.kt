@@ -7,6 +7,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.theme.Theme
 
@@ -98,19 +99,28 @@ interface ContentScope {
 interface RowContentScope : ContentScope, RowScope
 
 /**
- * @param iconSize How large `+icon` draws. Carried on the scope rather than in a
- *   composition local because it belongs to the slot, and a slot knows its own
- *   size at the point it builds the scope.
+ * @param iconSize How large `+icon` draws.
+ * @param maxLines Where `+"…"` stops. A row's label wraps to two lines and a
+ *   chip's to none, and that is the slot's business rather than the call site's —
+ *   the same reason the style is.
+ * @param overflow What a truncated `+"…"` does at the cut.
+ *
+ * All three are carried on the scope rather than in composition locals because
+ * they belong to the slot, and a slot knows its own at the point it builds one.
  */
 internal open class ContentScopeImpl(
-    private val iconSize: Dp
+    private val iconSize: Dp,
+    private val maxLines: Int = Int.MAX_VALUE,
+    private val overflow: TextOverflow = TextOverflow.Clip
 ) : ContentScope {
 
     @Composable
-    override operator fun String.unaryPlus() = Text(this)
+    override operator fun String.unaryPlus() =
+        Text(this, maxLines = maxLines, overflow = overflow)
 
     @Composable
-    override operator fun AnnotatedString.unaryPlus() = Text(this)
+    override operator fun AnnotatedString.unaryPlus() =
+        Text(this, maxLines = maxLines, overflow = overflow)
 
     @Composable
     override operator fun ImageVector.unaryPlus() =
@@ -127,8 +137,10 @@ internal open class ContentScopeImpl(
 
 internal class RowContentScopeImpl(
     row: RowScope,
-    iconSize: Dp
-) : ContentScopeImpl(iconSize), RowContentScope, RowScope by row
+    iconSize: Dp,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip
+) : ContentScopeImpl(iconSize, maxLines, overflow), RowContentScope, RowScope by row
 
 /**
  * Runs [content] as a row-shaped slot.
@@ -139,16 +151,20 @@ internal class RowContentScopeImpl(
 @Composable
 internal fun RowScope.contentScope(
     iconSize: Dp = Theme.sizing.iconMedium,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
     content: @Composable RowContentScope.() -> Unit
 ) {
-    RowContentScopeImpl(this, iconSize).content()
+    RowContentScopeImpl(this, iconSize, maxLines, overflow).content()
 }
 
 /** Runs [content] as a slot with no layout of its own. */
 @Composable
 internal fun ContentSlot(
     iconSize: Dp = Theme.sizing.iconMedium,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
     content: @Composable ContentScope.() -> Unit
 ) {
-    ContentScopeImpl(iconSize).content()
+    ContentScopeImpl(iconSize, maxLines, overflow).content()
 }

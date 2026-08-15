@@ -19,6 +19,7 @@ import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.components.display.Accordion
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.SettingRow
+import io.kontour.ui.components.list.settingValue
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.FilterChip
@@ -446,24 +447,26 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec("ListItem", Role.Button) { modifier, enabled, onClick ->
             ListItem(
-                label = "Perth Underground",
-                supporting = "Platform 2",
                 onClick = onClick,
                 modifier = modifier,
                 enabled = enabled,
-            )
+            ) {
+                +"Perth Underground"
+                supporting { +"Platform 2" }
+            }
         }
     )
 
     add(
         ComponentSpec("SettingRow", Role.Button) { modifier, enabled, onClick ->
             SettingRow(
-                label = "Theme",
-                value = "Match system",
                 onClick = onClick,
                 modifier = modifier,
                 enabled = enabled,
-            )
+            ) {
+                +"Theme"
+                trailing { settingValue("Match system") }
+            }
         }
     )
 }

@@ -35,6 +35,7 @@ import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.LoadMore
 import io.kontour.ui.components.list.LoadMoreState
 import io.kontour.ui.components.list.SettingRow
+import io.kontour.ui.components.list.settingValue
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
 import io.kontour.ui.components.list.SwipeValue
@@ -91,11 +92,12 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                     // The case a three-item example never exercises: all four
                     // corners round, not just the outside ones.
                     ListItem(
-                        label = "Perth Underground",
-                        supporting = "Only stop on this route",
                         position = ListItemPosition.Only,
                         onClick = {},
-                    )
+                    ) {
+                        +"Perth Underground"
+                        supporting { +"Only stop on this route" }
+                    }
                 }
             }
 
@@ -109,30 +111,34 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                         description = "How the app looks on this device",
                     ) {
                         SettingRow(
-                            label = "Theme",
-                            value = "Match system",
-                            icon = Tabler.Outline.Moon,
                             position = ListItemPosition.First,
                             onClick = {},
-                        )
+                        ) {
+                            +"Theme"
+                            leading { +Tabler.Outline.Moon }
+                            trailing { settingValue("Match system") }
+                        }
                         SettingRow(
-                            label = "Accent colour",
-                            value = "Anyways",
-                            icon = Tabler.Outline.Palette,
                             position = ListItemPosition.Middle,
                             onClick = {},
-                        )
+                        ) {
+                            +"Accent colour"
+                            leading { +Tabler.Outline.Palette }
+                            trailing { settingValue("Anyways") }
+                        }
                         var notify by remember { mutableStateOf(true) }
                         SettingRow(
-                            label = "Delay alerts",
-                            supporting = "Only for favourited routes",
-                            icon = Tabler.Outline.Bell,
                             position = ListItemPosition.Last,
                             onClick = { notify = !notify },
-                            trailing = {
-                                Switch(checked = notify, onCheckedChange = null)
-                            },
-                        )
+                        ) {
+                            +"Delay alerts"
+                            supporting { +"Only for favourited routes" }
+                            leading { +Tabler.Outline.Bell }
+                            trailing {
+                                                            Switch(checked = notify, onCheckedChange = null)
+                                                        
+                            }
+                        }
                     }
                 }
 
@@ -175,11 +181,10 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                             ),
                         ),
                     ) {
-                        ListItem(
-                            label = "Perth Busport",
-                            supporting = "Swipe either way",
-                            onClick = {},
-                        )
+                        ListItem(onClick = {}) {
+                            +"Perth Busport"
+                            supporting { +"Swipe either way" }
+                        }
                     }
                 }
 

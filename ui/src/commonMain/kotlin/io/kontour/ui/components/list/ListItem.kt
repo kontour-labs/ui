@@ -29,7 +29,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.foundation.ContentScope
+import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.FeedbackIntent
@@ -165,23 +169,8 @@ object ListItemDefaults {
  */
 @Composable
 fun ListItem(
-    label: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    supporting: String? = null,
-    overline: String? = null,
-    /**
-     * A glyph at the leading edge, drawn muted and dimmed with the row.
-     *
-     * The shorthand for the common case, and the only one that gets the colour
-     * right by default: an icon passed through [leading] inherits whatever
-     * content colour is in scope, so a `SettingRow` and a `ListItem` in the same
-     * group used to disagree about how dark their icons were. Use [leading] for
-     * anything that is not a single glyph — an avatar, a checkbox, a thumbnail.
-     */
-    leadingIcon: ImageVector? = null,
-    leading: (@Composable () -> Unit)? = null,
-    trailing: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     selected: Boolean = false,
     role: Role = Role.Button,
@@ -196,13 +185,17 @@ fun ListItem(
     containerColor: Color = Theme.colors.surfaceSunken,
     selectedContainerColor: Color = Theme.colors.accentContainer,
     contentColor: Color = Theme.colors.content,
-    minHeight: Dp = if (supporting != null || overline != null) {
-        ListItemDefaults.TwoLineMinHeight
-    } else {
-        ListItemDefaults.MinHeight
-    },
+    /**
+     * Unspecified derives it from the content: a row with an [ListItemScope.overline]
+     * or [ListItemScope.supporting] line is taller. It used to be a default
+     * expression over the string parameters, which a builder cannot be — nothing
+     * knows what the row holds until the builder has run.
+     */
+    minHeight: Dp = Dp.Unspecified,
     interactionSource: MutableInteractionSource? = null,
+    content: ListItemScope.() -> Unit,
 ) {
+    val slots = listItemSlots(content)
     val colors = Theme.colors
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -252,11 +245,17 @@ fun ListItem(
         )
     }
 
+    val resolvedMinHeight = when {
+        minHeight != Dp.Unspecified -> minHeight
+        slots.isMultiLine -> ListItemDefaults.TwoLineMinHeight
+        else -> ListItemDefaults.MinHeight
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {}
-            .defaultMinSize(minHeight = minHeight)
+            .defaultMinSize(minHeight = resolvedMinHeight)
             // Keyed on being a control at all, not on being enabled — a row that
             // changed height when it greyed out would jump the list around it.
             .then(if (onClick != null) Modifier.minimumTouchTarget() else Modifier)
@@ -268,46 +267,47 @@ fun ListItem(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (leadingIcon != null) {
-            Icon(
-                imageVector = leadingIcon,
-                contentDescription = null,
-                size = Theme.sizing.iconLarge,
-                tint = if (enabled) colors.contentMuted else colors.contentDisabled,
-            )
-        }
+        val muted = if (enabled) colors.contentMuted else colors.contentDisabled
 
-        if (leading != null) {
-            Box(contentAlignment = Alignment.Center) { leading() }
+        slots.leading?.let { leading ->
+            Box(contentAlignment = Alignment.Center) {
+                // Muted and `iconLarge`, which is what the old `leadingIcon`
+                // parameter did. Anything that is not a bare glyph — an avatar, a
+                // checkbox — sets its own colours and is unaffected.
+                ProvideContentColor(muted) {
+                    ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
+                }
+            }
         }
 
         Column(Modifier.weight(1f)) {
-            if (overline != null) {
-                Text(
-                    text = overline,
-                    style = Theme.typography.labelSmall,
-                    color = if (enabled) colors.contentMuted else colors.contentDisabled,
-                    maxLines = 1,
-                )
+            slots.overline?.let { overline ->
+                ProvideContentColor(muted) {
+                    ProvideTextStyle(Theme.typography.labelSmall) {
+                        ContentSlot(maxLines = 1, content = overline)
+                    }
+                }
             }
-            Text(
-                text = label,
-                style = Theme.typography.bodyMedium,
-                color = content,
-                maxLines = 2,
-            )
-            if (supporting != null) {
-                Text(
-                    text = supporting,
-                    style = Theme.typography.bodySmall,
-                    color = if (enabled) colors.contentMuted else colors.contentDisabled,
-                    maxLines = 2,
-                )
+            slots.label?.let { label ->
+                ProvideContentColor(content) {
+                    ProvideTextStyle(Theme.typography.bodyMedium) {
+                        ContentSlot(maxLines = 2, content = label)
+                    }
+                }
+            }
+            slots.supporting?.let { supporting ->
+                ProvideContentColor(muted) {
+                    ProvideTextStyle(Theme.typography.bodySmall) {
+                        ContentSlot(maxLines = 2, content = supporting)
+                    }
+                }
             }
         }
 
-        if (trailing != null) {
-            Box(contentAlignment = Alignment.Center) { trailing() }
+        slots.trailing?.let { trailing ->
+            Box(contentAlignment = Alignment.Center) {
+                ContentSlot(content = trailing)
+            }
         }
     }
 }
@@ -414,35 +414,44 @@ fun listPositions(count: Int): List<ListItemPosition> =
  */
 @Composable
 fun SettingRow(
-    label: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    value: String? = null,
-    supporting: String? = null,
-    icon: ImageVector? = null,
     onClick: (() -> Unit)? = null,
     position: ListItemPosition = ListItemPosition.Only,
-    trailing: (@Composable () -> Unit)? = value?.let {
-        {
-            Text(
-                text = it,
-                style = Theme.typography.bodyMedium,
-                color = Theme.colors.contentMuted,
-                maxLines = 1,
-            )
-        }
-    },
     interactionSource: MutableInteractionSource? = null,
+    content: ListItemScope.() -> Unit,
 ) {
     ListItem(
-        label = label,
         modifier = modifier,
-        supporting = supporting,
-        leadingIcon = icon,
-        trailing = trailing,
         onClick = onClick,
         enabled = enabled,
         position = position,
         interactionSource = interactionSource,
+        content = content,
+    )
+}
+
+/**
+ * The value a setting is currently at, drawn at the trailing edge.
+ *
+ * `SettingRow` used to take this as a `value: String?` whose whole job was to
+ * build a default for its `trailing` slot — the parallel-parameter shape the slot
+ * API exists to delete. It is a one-line helper now, and it composes with
+ * anything else the trailing edge wants.
+ *
+ * ```kotlin
+ * SettingRow(onClick = ::openUnits) {
+ *     +"Units"
+ *     trailing { settingValue("Kilometres") }
+ * }
+ * ```
+ */
+@Composable
+fun ContentScope.settingValue(value: String) {
+    Text(
+        text = value,
+        style = Theme.typography.bodyMedium,
+        color = Theme.colors.contentMuted,
+        maxLines = 1,
     )
 }

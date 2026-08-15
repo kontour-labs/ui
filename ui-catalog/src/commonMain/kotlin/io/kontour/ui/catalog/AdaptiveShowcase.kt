@@ -195,15 +195,17 @@ private fun StopList() {
         val stops = listOf("Perth Underground", "Elizabeth Quay", "Perth Busport", "McIver")
         stops.forEachIndexed { index, name ->
             ListItem(
-                label = name,
-                supporting = "Platform ${index + 1}",
-                leading = {
-                    Icon(Tabler.Outline.Bus, contentDescription = null, size = Theme.sizing.iconLarge)
-                },
                 position = ListItemPosition.of(index, stops.size),
                 selected = index == 1,
                 onClick = {},
-            )
+            ) {
+                +name
+                supporting { +"Platform ${index + 1}" }
+                leading {
+                                    Icon(Tabler.Outline.Bus, contentDescription = null, size = Theme.sizing.iconLarge)
+                                
+                }
+            }
         }
     }
 }

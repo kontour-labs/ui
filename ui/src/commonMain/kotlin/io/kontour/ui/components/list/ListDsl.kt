@@ -75,17 +75,18 @@ class ListGroupScope internal constructor() {
     ) {
         rows += { position ->
             ListItem(
-                label = label,
                 enabled = enabled,
-                supporting = supporting,
-                overline = overline,
-                leadingIcon = icon,
-                trailing = trailing,
                 onClick = onClick,
                 selected = selected,
                 role = role,
                 position = position,
-            )
+            ) {
+                +label
+                if (overline != null) overline { +overline }
+                if (supporting != null) supporting { +supporting }
+                if (icon != null) leading { +icon }
+                if (trailing != null) trailing { trailing() }
+            }
         }
     }
 
@@ -100,14 +101,15 @@ class ListGroupScope internal constructor() {
     ) {
         rows += { position ->
             SettingRow(
-                label = label,
                 enabled = enabled,
-                value = value,
-                supporting = supporting,
-                icon = icon,
                 onClick = onClick,
                 position = position,
-            )
+            ) {
+                +label
+                if (supporting != null) supporting { +supporting }
+                if (icon != null) leading { +icon }
+                if (value != null) trailing { settingValue(value) }
+            }
         }
     }
 

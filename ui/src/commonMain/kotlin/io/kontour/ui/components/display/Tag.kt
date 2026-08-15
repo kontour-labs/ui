@@ -105,7 +105,12 @@ fun Tag(
             ProvideTextStyle(
                 Theme.typography.labelSmall.copy()
             ) {
-                contentScope(iconSize = TagIconSize, content = content)
+                contentScope(
+                    iconSize = TagIconSize,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    content = content,
+                )
             }
         }
     }

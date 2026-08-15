@@ -1,0 +1,110 @@
+package io.kontour.ui.components.list
+
+import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.AnnotatedString
+import io.kontour.ui.foundation.ContentScope
+
+/**
+ * The regions of a [ListItem], filled by name.
+ *
+ * ```kotlin
+ * ListItem(onClick = { open(stop) }) {
+ *     +stop.name
+ *     supporting { +stop.detail }
+ *     leading { +Tabler.Outline.Bus }
+ *     trailing { Switch(saved, onCheckedChange = ::save) }
+ * }
+ * ```
+ *
+ * A bare `+` fills the label, because that is the one every row has and the one
+ * written every time. The rest are named.
+ *
+ * ### Why this one collects rather than emits
+ *
+ * A row is four regions in two containers, so the content cannot simply run where
+ * it is written — the label belongs inside a `Column` inside a `Row`, next to a
+ * leading slot that was declared after it. So this builder is an ordinary lambda
+ * that records what goes where, and [ListItem] composes the regions afterwards in
+ * the order the layout wants.
+ *
+ * That is the same shape as [ListGroupScope] and Compose's own `LazyListScope`:
+ * a plain builder collecting `@Composable` content. Single-region components —
+ * `Button`, `Chip` — keep a normal composable slot instead, where `+` emits in
+ * place. Two mechanisms, one spelling, and the call site cannot tell.
+ *
+ * ### No slot takes a modifier
+ *
+ * The rule every shorthand in the library follows. A region that needs one has
+ * outgrown the shorthand, and the slot takes a composable, so the component you
+ * wanted is one line away inside it.
+ */
+@LayoutScopeMarker
+class ListItemScope internal constructor() {
+
+    internal var label: (@Composable ContentScope.() -> Unit)? = null
+        private set
+    internal var supporting: (@Composable ContentScope.() -> Unit)? = null
+        private set
+    internal var overline: (@Composable ContentScope.() -> Unit)? = null
+        private set
+    internal var leading: (@Composable ContentScope.() -> Unit)? = null
+        private set
+    internal var trailing: (@Composable ContentScope.() -> Unit)? = null
+        private set
+
+    /** The row's name. What it announces, and the one region every row has. */
+    operator fun String.unaryPlus() {
+        val text = this
+        label = { +text }
+    }
+
+    /** The row's name, carrying its own spans. */
+    operator fun AnnotatedString.unaryPlus() {
+        val text = this
+        label = { +text }
+    }
+
+    /** The label, when it is more than text. */
+    fun label(content: @Composable ContentScope.() -> Unit) {
+        label = content
+    }
+
+    /** The second line: an address, a status, a time. Muted and smaller. */
+    fun supporting(content: @Composable ContentScope.() -> Unit) {
+        supporting = content
+    }
+
+    /** A line *above* the label — a category, a route number. */
+    fun overline(content: @Composable ContentScope.() -> Unit) {
+        overline = content
+    }
+
+    /**
+     * The leading edge: an icon, an avatar, a checkbox.
+     *
+     * `+icon` here draws muted and at [io.kontour.ui.theme.Sizing.iconLarge],
+     * which is what the old `leadingIcon` parameter did — an icon at the start of
+     * a row is scenery for the label, not a second thing to read.
+     */
+    fun leading(content: @Composable ContentScope.() -> Unit) {
+        leading = content
+    }
+
+    /** The trailing edge: a switch, a chevron, a value, a badge. */
+    fun trailing(content: @Composable ContentScope.() -> Unit) {
+        trailing = content
+    }
+
+    /** True once anything has claimed the label. */
+    internal val hasLabel: Boolean get() = label != null
+
+    /** Two-line rows are taller. Known only after the builder has run. */
+    internal val isMultiLine: Boolean get() = supporting != null || overline != null
+}
+
+/** Runs [content] and hands back what it claimed. */
+internal fun listItemSlots(content: ListItemScope.() -> Unit): ListItemScope =
+    ListItemScope().apply(content)

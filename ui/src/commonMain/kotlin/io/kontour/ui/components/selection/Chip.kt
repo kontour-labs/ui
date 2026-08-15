@@ -191,7 +191,11 @@ fun FilterChip(
                 }
             }
             ProvideTextStyle(Theme.typography.labelMedium) {
-                contentScope(iconSize = Theme.sizing.iconSmall, content = content)
+                contentScope(
+                    iconSize = Theme.sizing.iconSmall,
+                    maxLines = 1,
+                    content = content,
+                )
             }
         }
     }
@@ -255,7 +259,11 @@ fun InputChip(
             LocalContentColor provides if (enabled) colors.content else colors.contentDisabled
         ) {
             ProvideTextStyle(Theme.typography.labelMedium) {
-                contentScope(iconSize = Theme.sizing.iconSmall, content = content)
+                contentScope(
+                    iconSize = Theme.sizing.iconSmall,
+                    maxLines = 1,
+                    content = content,
+                )
             }
             if (removeIcon != null) {
                 Row(
@@ -320,7 +328,11 @@ private fun ChipSurface(
     ) {
         CompositionLocalProvider(LocalContentColor provides contentColor) {
             ProvideTextStyle(Theme.typography.labelMedium) {
-                contentScope(iconSize = Theme.sizing.iconSmall, content = content)
+                contentScope(
+                    iconSize = Theme.sizing.iconSmall,
+                    maxLines = 1,
+                    content = content,
+                )
             }
         }
     }
