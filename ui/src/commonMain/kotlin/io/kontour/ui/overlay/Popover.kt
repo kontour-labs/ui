@@ -1,6 +1,5 @@
 package io.kontour.ui.overlay
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +18,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -109,6 +107,7 @@ fun Popover(
                 content = {
                     AnchoredOverlayLayout(
                         anchorInRoot = { latestAnchor },
+                        fromScale = 0.94f,
                         side = side,
                         alignment = alignment,
                         gap = Theme.spacing.xxs,
@@ -141,15 +140,8 @@ private fun PopoverPanel(
     onDismissRequest: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val motion = Theme.motion
-    // Driven by the host, in both directions — a panel that set its own
-    // `appeared` flag on first composition could only ever run 0 -> 1, which is
-    // why nothing in the library animated *out*.
-    val progress = LocalOverlayProgress.current
-
     OverlaySurface(
         modifier = modifier
-            .overlayAppearance(progress, fromScale = 0.94f)
             .widthIn(max = maxWidth)
             .onPreviewKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {

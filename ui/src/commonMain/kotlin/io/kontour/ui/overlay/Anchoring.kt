@@ -3,13 +3,17 @@ package io.kontour.ui.overlay
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
@@ -295,6 +299,8 @@ internal fun AnchoredOverlayLayout(
     modifier: Modifier = Modifier,
     arrow: ArrowSpec? = null,
     minWidth: Dp = Dp.Unspecified,
+    /** How small the whole thing starts. A tooltip can afford more than a menu. */
+    fromScale: Float = 0.9f,
     content: @Composable () -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -310,12 +316,25 @@ internal fun AnchoredOverlayLayout(
         if (minWidth == Dp.Unspecified) 0 else minWidth.roundToPx()
     }
 
+    // The appearance transform lives here rather than on the panel inside, for
+    // two reasons. The arrow is drawn by *this* node, so a panel scaling in its
+    // own layer came away from a pointer that stayed put. And this node fills the
+    // host, which is the room `overlayAppearance` needs for the panel's shadow to
+    // stay inside its compositing buffer.
+    //
+    // Origin is the anchor, so the panel and its arrow grow out of the control
+    // they belong to rather than out of their own middle. Written during measure
+    // and read at draw, which is the right order within a frame.
+    var origin by remember { mutableStateOf(TransformOrigin.Center) }
+
     Layout(
-        modifier = modifier.drawWithContent {
-            drawContent()
-            val path = geometry.path
-            if (path != null && arrow != null) drawPath(path, arrow.color)
-        },
+        modifier = modifier
+            .overlayAppearance(LocalOverlayProgress.current, fromScale, origin)
+            .drawWithContent {
+                drawContent()
+                val path = geometry.path
+                if (path != null && arrow != null) drawPath(path, arrow.color)
+            },
         content = content,
     ) { measurables, constraints ->
         val container = IntSize(constraints.maxWidth, constraints.maxHeight)
@@ -344,6 +363,13 @@ internal fun AnchoredOverlayLayout(
             isRtl = isRtl,
         )
 
+        val width = container.width.orContent(contentSize.width).coerceAtLeast(1)
+        val height = container.height.orContent(contentSize.height).coerceAtLeast(1)
+        origin = TransformOrigin(
+            pivotFractionX = (anchorInHost.center.x / width).coerceIn(0f, 1f),
+            pivotFractionY = (anchorInHost.center.y / height).coerceIn(0f, 1f),
+        )
+
         geometry.path = arrow?.let {
             arrowPath(
                 placement = placement,
@@ -357,10 +383,7 @@ internal fun AnchoredOverlayLayout(
         // Fill the container, except on an axis that has no size to fill —
         // laying out at `Constraints.Infinity` throws exactly like measuring at
         // it does. An unbounded axis takes the content's own extent instead.
-        layout(
-            container.width.orContent(contentSize.width),
-            container.height.orContent(contentSize.height),
-        ) {
+        layout(width, height) {
             placeables.forEach { it.place(placement.x, placement.y) }
         }
     }

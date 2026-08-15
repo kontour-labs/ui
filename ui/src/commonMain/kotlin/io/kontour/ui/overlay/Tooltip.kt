@@ -1,6 +1,5 @@
 package io.kontour.ui.overlay
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,7 +24,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
@@ -238,6 +236,11 @@ private fun TooltipOverlay(
                 content = {
                     AnchoredOverlayLayout(
                         anchorInRoot = { latestAnchor },
+                        // A little overshoot on the way in. A tooltip is one of
+                        // the few places a flourish costs nothing — it is already
+                        // transient, and nobody is waiting on it to finish before
+                        // acting.
+                        fromScale = 0.8f,
                         side = side,
                         alignment = alignment,
                         gap = 0.dp,
@@ -259,18 +262,8 @@ private fun TooltipOverlay(
 
 @Composable
 private fun TooltipBubble(text: String) {
-    val motion = Theme.motion
-    // Driven by the host, in both directions — a panel that set its own
-    // `appeared` flag on first composition could only ever run 0 -> 1, which is
-    // why nothing in the library animated *out*.
-    val progress = LocalOverlayProgress.current
-
     Surface(
         modifier = Modifier
-            // A little overshoot on the way in. A tooltip is one of the few
-            // places a flourish costs nothing — it is already transient, and
-            // nobody is waiting on it to finish before acting.
-            .overlayAppearance(progress, fromScale = 0.8f)
             .widthIn(max = TooltipDefaults.MaxWidth),
         shape = Theme.shapes.small,
         color = Theme.colors.surfaceInverse,
@@ -414,6 +407,7 @@ private fun CoachMarkOverlay(
                 content = {
                     AnchoredOverlayLayout(
                         anchorInRoot = { latestAnchor },
+                        fromScale = 0.85f,
                         side = side,
                         alignment = alignment,
                         gap = Theme.spacing.xxs,
@@ -443,15 +437,8 @@ private fun CoachMarkBubble(
     onDismiss: () -> Unit,
 ) {
     val colors = Theme.colors
-    val motion = Theme.motion
-    // Driven by the host, in both directions — a panel that set its own
-    // `appeared` flag on first composition could only ever run 0 -> 1, which is
-    // why nothing in the library animated *out*.
-    val progress = LocalOverlayProgress.current
-
     Surface(
         modifier = Modifier
-            .overlayAppearance(progress, fromScale = 0.85f)
             .widthIn(max = 320.dp)
             .semantics(mergeDescendants = true) { contentDescription = "$title. $text" },
         shape = Theme.shapes.medium,

@@ -84,7 +84,18 @@ fun Dialog(
                     onDismiss = onDismissRequest,
                     content = {
                         Box(
-                            Modifier.fillMaxSize().windowInsetsPadding(windowInsets),
+                            Modifier
+                                .fillMaxSize()
+                                // On the full-size box rather than on the dialog
+                                // itself: the fade needs a compositing buffer
+                                // wide enough to hold the dialog's shadow, which
+                                // bleeds ~70dp past its edge. See
+                                // `Modifier.overlayAppearance`.
+                                .overlayAppearance(
+                                    LocalOverlayProgress.current,
+                                    fromScale = 0.92f,
+                                )
+                                .windowInsetsPadding(windowInsets),
                             contentAlignment = Alignment.Center,
                         ) {
                             // `AnimatedVisibility(visible = true, exit = …)` used
@@ -95,10 +106,6 @@ fun Dialog(
                             run {
                                 Surface(
                                     modifier = modifier
-                                        .overlayAppearance(
-                                            LocalOverlayProgress.current,
-                                            fromScale = 0.92f,
-                                        )
                                         .padding(Theme.spacing.lg)
                                         .widthIn(max = 400.dp)
                                         .semantics { dialog() },

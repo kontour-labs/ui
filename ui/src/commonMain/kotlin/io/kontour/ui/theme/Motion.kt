@@ -84,6 +84,21 @@ data class Motion(
         tween(durationMillis = fast, easing = standard)
 
     /**
+     * For something on its way out.
+     *
+     * [standard] is a hard ease-*out* — `cubic-bezier(0.16, 1, 0.30, 1)` covers
+     * most of its distance almost immediately and then crawls. That is right for
+     * an arrival and wrong for a departure: run in reverse it makes an overlay
+     * drop most of its opacity at once and then linger, barely visible, for the
+     * rest of the duration. Which reads as a pause before it disappears, because
+     * that is what it is.
+     *
+     * [exit] accelerates away instead, so the last frame is the fast one.
+     */
+    fun <T> tweenExit(): FiniteAnimationSpec<T> =
+        tween(durationMillis = fast, easing = exit)
+
+    /**
      * A tween at [slow], collapsed to [fast] under reduced motion — use for
      * anything that would otherwise travel a long distance.
      */

@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,7 +38,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
@@ -69,6 +69,7 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import kotlinx.coroutines.delay
 
 /** Sizing shared by every menu surface. Override per call site if you must. */
 object MenuDefaults {
@@ -77,6 +78,14 @@ object MenuDefaults {
 
     /** How close a menu may come to the edge of the window. */
     val ScreenMargin: Dp = 8.dp
+
+    /**
+     * How long a nested menu waits after the pointer leaves before closing.
+     *
+     * Long enough to cross the gap between the row and the submenu, short enough
+     * that a menu you have moved away from does not linger.
+     */
+    val SubmenuCloseDelay: Long = 220L
 
     val MinWidth: Dp = 180.dp
     val MaxWidth: Dp = 320.dp
@@ -214,8 +223,6 @@ fun AnchoredDropdownMenu(
                         MenuPanel(
                             modifier = modifier,
                             shape = shape,
-                            side = side,
-                            alignment = alignment,
                             matchAnchorWidth = matchAnchorWidth,
                             autoFocus = modality == InputModality.Keyboard,
                             onDismissRequest = { dismiss() },
@@ -232,8 +239,6 @@ fun AnchoredDropdownMenu(
 private fun MenuPanel(
     modifier: Modifier,
     shape: Shape,
-    side: OverlaySide,
-    alignment: OverlayAlignment,
     matchAnchorWidth: Boolean,
     autoFocus: Boolean,
     onDismissRequest: () -> Unit,
@@ -244,33 +249,8 @@ private fun MenuPanel(
         if (autoFocus) runCatching { focusRequester.requestFocus() }
     }
 
-    // The host drives this, in both directions — see `LocalOverlayProgress`.
-    // A panel that set its own `appeared` flag on first composition could only
-    // ever run 0 -> 1, which is why nothing in the library animated *out*.
-    val progress = LocalOverlayProgress.current
-
-    // Grow from the corner nearest the anchor, so the menu reads as unfolding
-    // out of the control rather than materialising over it.
-    val origin = TransformOrigin(
-        pivotFractionX = when {
-            side == OverlaySide.Start -> 1f
-            side == OverlaySide.End -> 0f
-            alignment == OverlayAlignment.End -> 1f
-            alignment == OverlayAlignment.Center -> 0.5f
-            else -> 0f
-        },
-        pivotFractionY = when (side) {
-            OverlaySide.Top -> 1f
-            OverlaySide.Bottom -> 0f
-            else -> 0.5f
-        },
-    )
-
     OverlaySurface(
         modifier = modifier
-            // Scale only from 0.9 — a menu springing from nothing is a lot of
-            // movement for something the user opens dozens of times.
-            .overlayAppearance(progress, fromScale = 0.9f, origin = origin)
             .widthIn(
                 min = if (matchAnchorWidth) Dp.Unspecified else MenuDefaults.MinWidth,
                 max = MenuDefaults.MaxWidth,
@@ -484,15 +464,35 @@ fun SubMenu(
     var open by remember { mutableStateOf(false) }
     var bounds by remember { mutableStateOf<Rect?>(null) }
     val interactions = remember { MutableInteractionSource() }
+    val panelInteractions = remember { MutableInteractionSource() }
     val hovered by interactions.collectIsHoveredAsState()
+    val panelHovered by panelInteractions.collectIsHoveredAsState()
     val modality = LocalInputModality.current
 
-    // Hover opens it for a pointer; a tap opens it for a finger. Closing on
-    // un-hover is deliberately not done here — the pointer has to travel across
-    // the gap to reach the submenu, and closing en route is the classic
-    // nested-menu frustration. The outside-tap scrim closes it instead.
-    LaunchedEffect(hovered, modality) {
-        if (hovered && modality.supportsHover) open = true
+    // Hover opens it for a pointer; a tap opens it for a finger.
+    //
+    // Closing watches the *submenu* as well as the row, and waits a moment
+    // before acting. Both halves are needed. Closing the instant the pointer
+    // leaves the row would close it while the pointer is crossing the gap to
+    // reach it — the classic nested-menu frustration, and the reason an earlier
+    // version did not close on un-hover at all. But not closing meant the
+    // submenu sat there until something else was clicked, which is worse: a menu
+    // you have visibly moved away from should go.
+    //
+    // The delay is load-bearing rather than cosmetic, and it is not obvious why:
+    // the open panel overlaps the row it came from, so opening takes the hover
+    // *off* the row. Written as `open = hovered || panelHovered` — which reads
+    // like the same thing — the two states chase each other every frame and the
+    // composition never settles. `SubMenuHoverTest` catches the taste problem;
+    // the hang is what you get for removing the delay on its own.
+    LaunchedEffect(hovered, panelHovered, modality) {
+        if (!modality.supportsHover) return@LaunchedEffect
+        if (hovered || panelHovered) {
+            open = true
+        } else if (open) {
+            delay(MenuDefaults.SubmenuCloseDelay)
+            open = false
+        }
     }
 
     Box(Modifier.anchorBounds { bounds = it }) {
@@ -511,6 +511,7 @@ fun SubMenu(
         expanded = open && enabled,
         anchor = bounds,
         onDismissRequest = { open = false },
+        modifier = Modifier.hoverable(panelInteractions),
         side = OverlaySide.End,
         alignment = OverlayAlignment.Start,
         content = content,

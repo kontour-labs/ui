@@ -266,7 +266,7 @@ private fun EntryHost(
             // Out faster than in. An overlay arriving wants to be noticed; one
             // leaving is already dealt with, and waiting on it is a delay.
             animationSpec = if (leaving) {
-                motion.tweenFast()
+                motion.tweenExit()
             } else {
                 motion.springOrTween(motion.springSnappy)
             },
