@@ -62,11 +62,51 @@ Parameter order is Material's, because it is a good convention and everyone
 already knows it:
 
 1. required behaviour (`onClick`, `value`/`onValueChange`, `checked`)
-2. `modifier`
-3. `enabled`
-4. appearance (`variant`, `size`, `colors`, `shape`)
-5. `interactionSource`
-6. slots (`leadingIcon`, `content`) — trailing lambda last
+2. `modifier` — **the first optional parameter, always**
+3. `enabled` — **directly after `modifier`, always**
+4. content (`label`, `supporting`, `leadingIcon`)
+5. appearance (`variant`, `size`, `colors`, `shape`)
+6. `windowInsets`, where the component sits at the window's edge
+7. `interactionSource` — after every non-slot parameter
+8. slots — trailing lambda last
+
+Rules 2, 3 and 7 are checked by `./gradlew :ui:checkApiConventions`, which
+`check` depends on. They were established in one sweep and would otherwise drift
+apart again one component at a time, which is exactly how they got out of order
+the first time.
+
+`enabled` sits directly after `modifier` with no exceptions. An earlier draft let
+it follow an optional `onClick` instead — which reads better on the three
+components where it applies, and misfired on the first component with two
+callbacks. A rule with an exception is a rule nobody can apply without looking it
+up.
+
+### The words
+
+One name per idea, across the whole library. A second name for the same thing is
+how an API stops feeling like one library, and it is the thing a reader notices
+first.
+
+| Word | Means | Not |
+|---|---|---|
+| `label` | The short name of a control — a button, chip, tab, field, menu item, row | `text`, `headline`, `title` |
+| `title` | The heading of a *region* — a dialog, a sheet, a section, a top bar | `label` |
+| `message` | The prose under a title | `body`, `description` |
+| `supporting` | Secondary text under a label | `supportingText`, `subtitle` |
+| `placeholder` | What a field shows while empty | `hint` |
+| `text` | A body of text in a text-rendering primitive — `Text`, `Tooltip` | anything with a shorter name |
+| `leading` / `trailing` | A composable slot at one end | |
+| `leadingIcon` / `trailingIcon` | An `ImageVector` at one end — the same slot, without the ceremony | |
+| `onDismissRequest` | *You* own `visible`; the component is asking to be hidden | `onDismiss` |
+| `onDismiss` | The *host* owns visibility; it has already gone and is telling you | |
+| `onClose` / `onDismissSupporting` | A close *control* was pressed. What it closes is something else — `SheetHeader`'s button closes the sheet, not the header — and `null` means "no button", not "not dismissible" | |
+| `enabled` | This component's own state | `isEnabled` |
+| `windowInsets` | What this component keeps its content clear of | |
+
+A predicate is named for what it decides, never `isEnabled` — `DatePicker` takes
+`isDateSelectable`, because `enabled` already means "is the whole picker usable".
+
+The banned column is enforced by `checkApiConventions` too.
 
 **Defaults live in a `<Component>Defaults` object**, never inline in the
 signature, so a caller can reference and override one value:

@@ -70,7 +70,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         stops.forEachIndexed { index, (name, detail) ->
                             ListItem(
-                                headline = name,
+                                label = name,
                                 supporting = detail,
                                 leading = {
                                     Icon(
@@ -94,7 +94,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                     // The case a three-item example never exercises: all four
                     // corners round, not just the outside ones.
                     ListItem(
-                        headline = "Perth Underground",
+                        label = "Perth Underground",
                         supporting = "Only stop on this route",
                         position = ListItemPosition.Only,
                         onClick = {},
@@ -179,7 +179,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                         ),
                     ) {
                         ListItem(
-                            headline = "Perth Busport",
+                            label = "Perth Busport",
                             supporting = "Swipe either way",
                             onClick = {},
                         )
@@ -201,7 +201,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                         ) {
                             repeat(10) { index ->
                                 ListItem(
-                                    headline = "Departure ${index + 1}",
+                                    label = "Departure ${index + 1}",
                                     supporting = "Elizabeth Quay",
                                     position = ListItemPosition.of(index, 10),
                                 )

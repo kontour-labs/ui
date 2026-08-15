@@ -86,7 +86,7 @@ import io.kontour.ui.theme.Theme
  * @param outputTransformation Formats what is *displayed* without changing what
  *   is stored — a phone mask, a card-number grouping. The caller still reads
  *   clean digits out of [state].
- * @param supportingText Guidance shown below the field. Replaced by
+ * @param supporting Guidance shown below the field. Replaced by
  *   [errorMessage] when the field is invalid, so the two never stack.
  */
 @Composable
@@ -97,9 +97,10 @@ fun TextField(
     readOnly: Boolean = false,
     label: String? = null,
     placeholder: String? = null,
-    supportingText: String? = null,
+    supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
+    leading: (@Composable () -> Unit)? = null,
     trailingIcon: ImageVector? = null,
     trailing: (@Composable () -> Unit)? = null,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
@@ -139,9 +140,10 @@ fun TextField(
         metrics = metrics,
         shape = shape,
         label = label,
-        supportingText = supportingText,
+        supporting = supporting,
         errorMessage = errorMessage,
         leadingIcon = leadingIcon,
+        leading = leading,
         trailing = trailing ?: trailingIcon?.let {
             {
                 Icon(
@@ -242,7 +244,7 @@ fun TextArea(
     readOnly: Boolean = false,
     label: String? = null,
     placeholder: String? = null,
-    supportingText: String? = null,
+    supporting: String? = null,
     errorMessage: String? = null,
     minLines: Int = 3,
     maxLines: Int = 8,
@@ -257,7 +259,7 @@ fun TextArea(
         readOnly = readOnly,
         label = label,
         placeholder = placeholder,
-        supportingText = supportingText,
+        supporting = supporting,
         errorMessage = errorMessage,
         variant = variant,
         imeAction = ImeAction.Default,

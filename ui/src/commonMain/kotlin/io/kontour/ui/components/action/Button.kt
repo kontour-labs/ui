@@ -233,7 +233,7 @@ private fun RowScope.ButtonContent(
  */
 @Composable
 fun Button(
-    text: String,
+    label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -261,6 +261,6 @@ fun Button(
         metrics = metrics,
         interactionSource = interactionSource,
     ) {
-        Text(text)
+        Text(label)
     }
 }

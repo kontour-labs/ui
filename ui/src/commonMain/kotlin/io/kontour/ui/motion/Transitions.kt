@@ -38,8 +38,12 @@ enum class MotionAxis { X, Y, Z }
  * Every preset reads `Theme.motion`, so all of them collapse to a plain
  * cross-fade under reduced motion — movement is the thing the preference exists
  * to remove, and a fade is not movement.
+ *
+ * Named `Transitions` rather than `Motion` because [io.kontour.ui.theme.Motion]
+ * is the token set these read from, and a file that wanted both could not import
+ * them without an alias.
  */
-object Motion {
+object Transitions {
 
     /**
      * For content that replaces content, with no relationship between them.

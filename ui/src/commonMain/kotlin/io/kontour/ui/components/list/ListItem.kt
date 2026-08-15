@@ -66,7 +66,7 @@ enum class ListItemPosition {
          * ```kotlin
          * itemsIndexed(stops) { index, stop ->
          *     ListItem(
-         *         headline = stop.name,
+         *         label = stop.name,
          *         position = ListItemPosition.of(index, stops.size),
          *         onClick = { open(stop) },
          *     )
@@ -131,7 +131,7 @@ object ListItemDefaults {
  *
  * ```kotlin
  * ListItem(
- *     headline = "Perth Underground",
+ *     label = "Perth Underground",
  *     supporting = "Platform 2 · Joondalup line",
  *     leading = { Icon(Tabler.Outline.Train, contentDescription = null) },
  *     trailing = { Text("4 min") },
@@ -156,14 +156,14 @@ object ListItemDefaults {
  */
 @Composable
 fun ListItem(
-    headline: String,
+    label: String,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     supporting: String? = null,
     overline: String? = null,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
-    enabled: Boolean = true,
     selected: Boolean = false,
     role: Role = Role.Button,
     position: ListItemPosition = ListItemPosition.Only,
@@ -263,7 +263,7 @@ fun ListItem(
                 )
             }
             Text(
-                text = headline,
+                text = label,
                 style = Theme.typography.bodyMedium,
                 color = content,
                 maxLines = 2,
@@ -301,8 +301,8 @@ fun ListItem(
  */
 @Composable
 fun ListSection(
-    title: String? = null,
     modifier: Modifier = Modifier,
+    title: String? = null,
     description: String? = null,
     action: (@Composable RowScope.() -> Unit)? = null,
     spacing: Dp = ListItemDefaults.Spacing,
@@ -368,7 +368,7 @@ fun SectionHeader(
  * ```kotlin
  * val positions = listPositions(stops.size)
  * stops.forEachIndexed { index, stop ->
- *     ListItem(headline = stop.name, position = positions[index], …)
+ *     ListItem(label = stop.name, position = positions[index], …)
  * }
  * ```
  *
@@ -388,11 +388,11 @@ fun listPositions(count: Int): List<ListItemPosition> =
 fun SettingRow(
     label: String,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     value: String? = null,
     supporting: String? = null,
     icon: ImageVector? = null,
     onClick: (() -> Unit)? = null,
-    enabled: Boolean = true,
     position: ListItemPosition = ListItemPosition.Only,
     trailing: (@Composable () -> Unit)? = value?.let {
         {
@@ -404,9 +404,10 @@ fun SettingRow(
             )
         }
     },
+    interactionSource: MutableInteractionSource? = null,
 ) {
     ListItem(
-        headline = label,
+        label = label,
         modifier = modifier,
         supporting = supporting,
         leading = icon?.let {
@@ -423,5 +424,6 @@ fun SettingRow(
         onClick = onClick,
         enabled = enabled,
         position = position,
+        interactionSource = interactionSource,
     )
 }

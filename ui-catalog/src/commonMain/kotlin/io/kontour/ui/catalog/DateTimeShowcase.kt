@@ -43,7 +43,7 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                         selected = LocalDate(2026, 6, 18),
                         onSelect = {},
                         today = today,
-                        isEnabled = { it >= today },
+                        isDateSelectable = { it >= today },
                         previousIcon = Tabler.Outline.ChevronLeft,
                         nextIcon = Tabler.Outline.ChevronRight,
                     )

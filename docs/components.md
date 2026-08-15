@@ -72,7 +72,7 @@ FloatingActionButton(Icons.Plus, "Add favourite", ::add)
 
 ExtendedFloatingActionButton(
     icon = Icons.Navigation,
-    text = "Start trip",
+    label = "Start trip",
     contentDescription = "Start trip",
     expanded = !listState.isScrollingDown,
     onClick = ::start,

@@ -496,7 +496,7 @@ private fun CoachMarkBubble(
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs, Alignment.End),
             ) {
                 Button(
-                    text = dismissLabel,
+                    label = dismissLabel,
                     onClick = onDismiss,
                     variant = ButtonVariant.Ghost,
                     // Ghost takes its label from LocalContentColor, which the

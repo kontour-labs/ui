@@ -18,6 +18,8 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -30,6 +32,7 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 
@@ -131,6 +134,16 @@ fun ToastHost(
     state: ToastHostState,
     modifier: Modifier = Modifier,
     alignment: Alignment = Alignment.BottomCenter,
+    /**
+     * What a toast keeps clear of. The gesture bar, the cutout and the keyboard —
+     * a confirmation of what the user just typed, hidden behind the keyboard they
+     * typed it with, is the one place it is guaranteed not to be read.
+     *
+     * It does **not** account for a navigation bar: that is a component, not an
+     * inset, and a screen with one should pass a
+     * `WindowInsets(bottom = barHeight)` union of its own.
+     */
+    windowInsets: WindowInsets = WindowInsets.sheetEdges,
 ) {
     val host = LocalOverlayHost.current
     val motion = Theme.motion
@@ -154,7 +167,10 @@ fun ToastHost(
                 dismissOnOutside = false,
                 trapFocus = false,
                 content = {
-                    Box(Modifier.fillMaxSize(), contentAlignment = alignment) {
+                    Box(
+                        Modifier.fillMaxSize().windowInsetsPadding(windowInsets),
+                        contentAlignment = alignment,
+                    ) {
                         AnimatedVisibility(
                             visible = true,
                             enter = slideInVertically(motion.tweenDefault()) { it / 2 } +
@@ -236,7 +252,7 @@ private fun ToastSurface(
             }
             if (toast.actionLabel != null) {
                 Button(
-                    text = toast.actionLabel,
+                    label = toast.actionLabel,
                     onClick = onAction,
                     variant = ButtonVariant.Ghost,
                     size = ButtonSize.XSmall,

@@ -106,7 +106,7 @@ private fun ToolbarAction(label: String, action: (() -> Unit)?, hide: () -> Unit
     // the two that apply harder to hit.
     if (action == null) return
     Button(
-        text = label,
+        label = label,
         onClick = {
             action()
             hide()

@@ -99,7 +99,7 @@ fun ErrorState(
         action = if (onRetry != null) {
             {
                 io.kontour.ui.components.action.Button(
-                    text = retryLabel,
+                    label = retryLabel,
                     onClick = onRetry,
                     variant = io.kontour.ui.components.action.ButtonVariant.Secondary,
                 )

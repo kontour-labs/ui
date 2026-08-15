@@ -157,9 +157,9 @@ fun TabBarScope.Tab(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     icon: ImageVector? = null,
     badge: Int? = null,
-    enabled: Boolean = true,
     key: Any = label,
     interactionSource: MutableInteractionSource? = null,
 ) {

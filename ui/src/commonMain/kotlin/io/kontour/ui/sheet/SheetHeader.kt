@@ -50,8 +50,8 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun DragHandle(
-    state: SheetState? = LocalSheetState.current,
     modifier: Modifier = Modifier,
+    state: SheetState? = LocalSheetState.current,
     expandLabel: String = "Expand sheet",
     collapseLabel: String = "Collapse sheet",
 ) {

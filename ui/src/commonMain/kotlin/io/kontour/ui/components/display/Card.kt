@@ -59,9 +59,9 @@ enum class CardVariant {
 @Composable
 fun Card(
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     variant: CardVariant = CardVariant.Elevated,
     onClick: (() -> Unit)? = null,
-    enabled: Boolean = true,
     shape: Shape = Theme.shapes.medium,
     color: Color = cardColorFor(variant),
     border: BorderStroke? = cardBorderFor(variant),

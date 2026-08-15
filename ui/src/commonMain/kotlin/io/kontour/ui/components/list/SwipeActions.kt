@@ -163,10 +163,10 @@ object SwipeActionsDefaults {
 @Composable
 fun SwipeActions(
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     start: List<SwipeAction> = emptyList(),
     end: List<SwipeAction> = emptyList(),
     state: SwipeActionsState = rememberSwipeActionsState(),
-    enabled: Boolean = true,
     shape: Shape = Theme.shapes.medium,
     actionWidth: Dp = SwipeActionsDefaults.ActionWidth,
     content: @Composable () -> Unit,
@@ -345,7 +345,7 @@ private fun Modifier.clickableAction(onClick: () -> Unit, label: String): Modifi
  *
  * ```kotlin
  * SwipeToDismiss(
- *     onDismiss = { viewModel.remove(favourite) },
+ *     onDismissRequest = { viewModel.remove(favourite) },
  *     label = "Remove favourite",
  *     icon = Tabler.Outline.Trash,
  * ) {
@@ -363,13 +363,13 @@ private fun Modifier.clickableAction(onClick: () -> Unit, label: String): Modifi
  */
 @Composable
 fun SwipeToDismiss(
-    onDismiss: () -> Unit,
+    onDismissRequest: () -> Unit,
     label: String,
     icon: ImageVector,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     background: Color = Theme.colors.danger.solid,
     state: SwipeActionsState = rememberSwipeActionsState(),
-    enabled: Boolean = true,
     shape: Shape = Theme.shapes.medium,
     content: @Composable () -> Unit,
 ) {
@@ -379,7 +379,7 @@ fun SwipeToDismiss(
             SwipeAction(
                 label = label,
                 icon = icon,
-                onAction = onDismiss,
+                onAction = onDismissRequest,
                 background = background,
                 isFullSwipeAction = true,
             )

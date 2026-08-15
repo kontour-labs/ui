@@ -92,6 +92,15 @@ class OverlayEntry(
     val dismissOnBack: Boolean = true,
     val trapFocus: Boolean = true,
     val dismissLabel: String? = null,
+    /**
+     * Called after this entry has been dismissed.
+     *
+     * `onDismiss`, not `onDismissRequest`, and the difference is not cosmetic:
+     * the host owns whether an entry is showing, so by the time this runs the
+     * entry is already gone and there is nothing to decline. Every *component*
+     * takes `onDismissRequest` instead, because there the caller owns `visible`
+     * and is being asked rather than told.
+     */
     val onDismiss: (() -> Unit)? = null,
     val content: @Composable () -> Unit,
 )
@@ -274,7 +283,7 @@ fun OverlayHost(
                 if (entry.scrim != ScrimStyle.None) {
                     Scrim(
                         visible = true,
-                        onDismiss = if (entry.dismissOnOutside) {
+                        onDismissRequest = if (entry.dismissOnOutside) {
                             { state.dismissOutside(entry) }
                         } else {
                             null

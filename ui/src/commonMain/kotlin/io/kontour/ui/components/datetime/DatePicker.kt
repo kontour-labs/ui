@@ -74,7 +74,7 @@ fun rememberCalendarNavigationState(initial: LocalDate): CalendarNavigationState
  *     selected = departureDate,
  *     onSelect = viewModel::setDepartureDate,
  *     today = today,
- *     isEnabled = { it >= today },
+ *     isDateSelectable = { it >= today },
  *     previousIcon = Tabler.Outline.ChevronLeft,
  *     nextIcon = Tabler.Outline.ChevronRight,
  * )
@@ -91,7 +91,7 @@ fun DatePicker(
     onSelect: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate? = null,
-    isEnabled: (LocalDate) -> Boolean = { true },
+    isDateSelectable: (LocalDate) -> Boolean = { true },
     markerFor: ((LocalDate) -> androidx.compose.ui.graphics.Color?)? = null,
     previousIcon: ImageVector? = null,
     nextIcon: ImageVector? = null,
@@ -111,7 +111,7 @@ fun DatePicker(
             month = month,
             isSelected = { it == selected },
             onSelect = onSelect,
-            isEnabled = isEnabled,
+            isDateSelectable = isDateSelectable,
             today = today,
             markerFor = markerFor,
             formats = formats,
@@ -137,7 +137,7 @@ fun DateRangePicker(
     onSelect: (start: LocalDate, end: LocalDate?) -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate? = null,
-    isEnabled: (LocalDate) -> Boolean = { true },
+    isDateSelectable: (LocalDate) -> Boolean = { true },
     previousIcon: ImageVector? = null,
     nextIcon: ImageVector? = null,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(
@@ -162,7 +162,7 @@ fun DateRangePicker(
                     else -> onSelect(start, tapped)
                 }
             },
-            isEnabled = isEnabled,
+            isDateSelectable = isDateSelectable,
             today = today,
             rangePositionOf = { date -> rangePosition(date, start, end) },
             formats = formats,

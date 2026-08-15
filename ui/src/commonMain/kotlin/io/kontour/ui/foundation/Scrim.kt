@@ -27,17 +27,17 @@ import io.kontour.ui.theme.Theme
  * overlays gets one scrim at the right depth instead of several multiplying
  * into opacity.
  *
- * @param onDismiss Called when the scrim is tapped. Pass `null` for a modal that
+ * @param onDismissRequest Called when the scrim is tapped. Pass `null` for a modal that
  *   must be dismissed explicitly — a destructive confirmation, say — and the
  *   scrim will still block input without offering a way out.
  * @param dismissLabel What a screen reader announces for the dismiss action.
- *   Required when [onDismiss] is set, because "button" is not a useful thing to
+ *   Required when [onDismissRequest] is set, because "button" is not a useful thing to
  *   hear when a dialog opens.
  */
 @Composable
 fun Scrim(
     visible: Boolean,
-    onDismiss: (() -> Unit)?,
+    onDismissRequest: (() -> Unit)?,
     modifier: Modifier = Modifier,
     dismissLabel: String? = null,
     color: Color = Theme.colors.scrim,
@@ -56,15 +56,15 @@ fun Scrim(
             .fillMaxSize()
             .drawBehind { drawRect(animated) }
             .then(
-                if (onDismiss != null && visible) {
+                if (onDismissRequest != null && visible) {
                     Modifier
-                        .pointerInput(onDismiss) {
-                            detectTapGestures { onDismiss() }
+                        .pointerInput(onDismissRequest) {
+                            detectTapGestures { onDismissRequest() }
                         }
                         .semantics {
                             if (dismissLabel != null) contentDescription = dismissLabel
                             onClick(label = dismissLabel) {
-                                onDismiss()
+                                onDismissRequest()
                                 true
                             }
                         }

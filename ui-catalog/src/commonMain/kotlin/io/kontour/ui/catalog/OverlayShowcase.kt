@@ -113,7 +113,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                 Panel("Menu with a nested row") {
                     Box(Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 72.dp)) {
                         Button(
-                            text = "Sort",
+                            label = "Sort",
                             onClick = {},
                             variant = ButtonVariant.Secondary,
                         )
@@ -158,7 +158,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             "You can add it back any time.",
                         confirmLabel = "Remove",
                         onConfirm = {},
-                        onDismiss = {},
+                        onDismissRequest = {},
                         destructive = true,
                     )
                 }
@@ -224,7 +224,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                     // The flip case: anchored at the bottom, asked to open
                     // downward, and there is nowhere to go.
                     Box(Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
-                        Button(text = "Options", onClick = {}, variant = ButtonVariant.Ghost)
+                        Button(label = "Options", onClick = {}, variant = ButtonVariant.Ghost)
                         DropdownMenu(
                             expanded = true,
                             onDismissRequest = {},

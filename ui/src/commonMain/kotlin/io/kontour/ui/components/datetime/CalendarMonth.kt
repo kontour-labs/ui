@@ -55,7 +55,7 @@ enum class RangePosition { None, Start, Middle, End, StartAndEnd }
  *     month = visibleMonth,
  *     isSelected = { it == chosen },
  *     onSelect = { chosen = it },
- *     isEnabled = { it >= today },
+ *     isDateSelectable = { it >= today },
  * )
  * ```
  *
@@ -64,7 +64,7 @@ enum class RangePosition { None, Start, Middle, End, StartAndEnd }
  * to know which one it is in.
  *
  * @param month Any date within the month to show; only its year and month matter.
- * @param isEnabled Days for which this returns false are shown but not
+ * @param isDateSelectable Days for which this returns false are shown but not
  *   selectable — greyed rather than hidden, so the calendar keeps its shape and
  *   the user can see *why* a date is unavailable.
  * @param markerFor Draws a dot under a day. For "this day has departures", or a
@@ -79,7 +79,7 @@ fun CalendarMonth(
     isSelected: (LocalDate) -> Boolean,
     onSelect: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
-    isEnabled: (LocalDate) -> Boolean = { true },
+    isDateSelectable: (LocalDate) -> Boolean = { true },
     today: LocalDate? = null,
     markerFor: ((LocalDate) -> Color?)? = null,
     rangePositionOf: ((LocalDate) -> RangePosition)? = null,
@@ -132,7 +132,7 @@ fun CalendarMonth(
                             date = date,
                             modifier = Modifier.weight(1f),
                             selected = isSelected(date),
-                            enabled = isEnabled(date),
+                            enabled = isDateSelectable(date),
                             isToday = date == today,
                             marker = markerFor?.invoke(date),
                             rangePosition = rangePositionOf?.invoke(date) ?: RangePosition.None,

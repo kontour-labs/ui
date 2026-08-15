@@ -3,6 +3,7 @@ package io.kontour.ui.adaptive
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
@@ -50,3 +51,23 @@ val WindowInsets.Companion.bottomEdges: WindowInsets
  */
 val WindowInsets.Companion.leadingEdges: WindowInsets
     @Composable get() = edges.only(WindowInsetsSides.Start + WindowInsetsSides.Vertical)
+
+/**
+ * [edges] **plus the keyboard**, limited to the bottom and the sides.
+ *
+ * What a bottom sheet or a toast clears. The opposite call to [bottomEdges], and
+ * for the opposite reason: a sheet routinely holds a text field, and one sitting
+ * behind the keyboard is unusable rather than merely untidy. A navigation bar
+ * holds no text field and should stay where it is while the user types.
+ */
+val WindowInsets.Companion.sheetEdges: WindowInsets
+    @Composable get() = edges.union(ime).only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
+
+/**
+ * Every edge, keyboard included. What something centred in the window clears.
+ *
+ * A dialog is not pinned to an edge, so there is no side it can safely ignore —
+ * and it is as likely to hold a text field as a sheet is.
+ */
+val WindowInsets.Companion.allEdges: WindowInsets
+    @Composable get() = edges.union(ime)

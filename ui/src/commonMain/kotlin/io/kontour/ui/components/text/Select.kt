@@ -104,13 +104,13 @@ fun <T> Select(
     options: List<T>,
     onValueChange: (T) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     label: String? = null,
     placeholder: String = "Select…",
     optionLabel: (T) -> String = { it.toString() },
     optionIcon: ((T) -> ImageVector?)? = null,
     optionEnabled: (T) -> Boolean = { true },
-    enabled: Boolean = true,
-    supportingText: String? = null,
+    supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
@@ -125,7 +125,7 @@ fun <T> Select(
         modifier = modifier,
         label = label,
         enabled = enabled,
-        supportingText = supportingText,
+        supporting = supporting,
         errorMessage = errorMessage,
         leadingIcon = leadingIcon ?: value?.let { optionIcon?.invoke(it) },
         colors = colors,
@@ -135,7 +135,7 @@ fun <T> Select(
     ) { dismiss ->
         for (option in options) {
             MenuItem(
-                text = optionLabel(option),
+                label = optionLabel(option),
                 onClick = {
                     onValueChange(option)
                     dismiss()
@@ -179,6 +179,7 @@ fun <T> MultiSelect(
     options: List<T>,
     onValuesChange: (Set<T>) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     label: String? = null,
     placeholder: String = "Select…",
     optionLabel: (T) -> String = { it.toString() },
@@ -192,8 +193,7 @@ fun <T> MultiSelect(
             else -> "${labels.size} selected"
         }
     },
-    enabled: Boolean = true,
-    supportingText: String? = null,
+    supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
@@ -208,7 +208,7 @@ fun <T> MultiSelect(
         modifier = modifier,
         label = label,
         enabled = enabled,
-        supportingText = supportingText,
+        supporting = supporting,
         errorMessage = errorMessage,
         leadingIcon = leadingIcon,
         colors = colors,
@@ -218,7 +218,7 @@ fun <T> MultiSelect(
     ) {
         for (option in options) {
             MenuItem(
-                text = optionLabel(option),
+                label = optionLabel(option),
                 onClick = {
                     onValuesChange(
                         if (option in values) values - option else values + option
@@ -260,6 +260,7 @@ fun <T> Combobox(
     options: List<T>,
     onValueChange: (T) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     label: String? = null,
     placeholder: String = "Select…",
     optionLabel: (T) -> String = { it.toString() },
@@ -268,8 +269,7 @@ fun <T> Combobox(
         optionLabel(option).contains(query, ignoreCase = true)
     },
     emptyLabel: String = "No matches",
-    enabled: Boolean = true,
-    supportingText: String? = null,
+    supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
@@ -294,7 +294,7 @@ fun <T> Combobox(
         modifier = modifier,
         label = label,
         enabled = enabled,
-        supportingText = supportingText,
+        supporting = supporting,
         errorMessage = errorMessage,
         leadingIcon = leadingIcon,
         colors = colors,
@@ -338,7 +338,7 @@ fun <T> Combobox(
         }
         for (option in filtered) {
             MenuItem(
-                text = optionLabel(option),
+                label = optionLabel(option),
                 onClick = {
                     onValueChange(option)
                     dismiss()
@@ -373,7 +373,7 @@ private fun SelectFrame(
     modifier: Modifier,
     label: String?,
     enabled: Boolean,
-    supportingText: String?,
+    supporting: String?,
     errorMessage: String?,
     leadingIcon: ImageVector?,
     colors: TextFieldColors,
@@ -421,7 +421,7 @@ private fun SelectFrame(
         metrics = metrics,
         shape = Theme.shapes.small,
         label = label,
-        supportingText = supportingText,
+        supporting = supporting,
         errorMessage = errorMessage,
         leadingIcon = leadingIcon,
         trailing = {

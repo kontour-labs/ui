@@ -49,7 +49,7 @@ enum class BannerTone { Info, Success, Warning, Danger }
  *     title = "Delays on the Armadale line",
  *     message = "Services are running up to 12 minutes late.",
  *     icon = Tabler.Outline.AlertTriangle,
- *     onDismiss = viewModel::dismissAlert,
+ *     onDismissRequest = viewModel::dismissAlert,
  * )
  * ```
  *
@@ -79,7 +79,7 @@ fun Banner(
     tone: BannerTone = BannerTone.Info,
     title: String? = null,
     icon: ImageVector? = null,
-    onDismiss: (() -> Unit)? = null,
+    onDismissRequest: (() -> Unit)? = null,
     dismissIcon: ImageVector? = null,
     dismissLabel: String = "Dismiss",
     action: (@Composable () -> Unit)? = null,
@@ -126,11 +126,11 @@ fun Banner(
                 }
             }
 
-            if (onDismiss != null && dismissIcon != null) {
+            if (onDismissRequest != null && dismissIcon != null) {
                 IconButton(
                     icon = dismissIcon,
                     contentDescription = dismissLabel,
-                    onClick = onDismiss,
+                    onClick = onDismissRequest,
                     size = ButtonSize.XSmall,
                 )
             }
@@ -153,7 +153,7 @@ fun AnimatedBanner(
     tone: BannerTone = BannerTone.Info,
     title: String? = null,
     icon: ImageVector? = null,
-    onDismiss: (() -> Unit)? = null,
+    onDismissRequest: (() -> Unit)? = null,
     dismissIcon: ImageVector? = null,
     action: (@Composable () -> Unit)? = null,
 ) {
@@ -169,7 +169,7 @@ fun AnimatedBanner(
             tone = tone,
             title = title,
             icon = icon,
-            onDismiss = onDismiss,
+            onDismissRequest = onDismissRequest,
             dismissIcon = dismissIcon,
             action = action,
         )

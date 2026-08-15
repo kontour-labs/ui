@@ -20,6 +20,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -40,6 +42,7 @@ import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
+import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -92,7 +95,13 @@ fun BottomSheet(
     containerColor: androidx.compose.ui.graphics.Color = Theme.colors.surfaceRaised,
     contentColor: androidx.compose.ui.graphics.Color = Theme.colors.content,
     paneTitle: String? = null,
-    dragHandle: (@Composable () -> Unit)? = { DragHandle(state) },
+    dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
+    /**
+     * What the sheet's *content* keeps clear of. The gesture bar, the cutout and
+     * **the keyboard**, so a text field in a sheet is not typed at from behind
+     * it. The sheet's own surface still reaches the bottom of the window.
+     */
+    windowInsets: WindowInsets = WindowInsets.sheetEdges,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val density = LocalDensity.current
@@ -138,6 +147,7 @@ fun BottomSheet(
             SheetSurface(
                 state = state,
                 shape = shape,
+                windowInsets = windowInsets,
                 containerColor = containerColor,
                 contentColor = contentColor,
                 dragHandle = dragHandle,
@@ -182,7 +192,13 @@ fun ModalBottomSheet(
     dismissOnOutside: Boolean = true,
     dismissLabel: String = "Close",
     paneTitle: String? = null,
-    dragHandle: (@Composable () -> Unit)? = { DragHandle(state) },
+    dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
+    /**
+     * What the sheet's *content* keeps clear of. The gesture bar, the cutout and
+     * **the keyboard**, so a text field in a sheet is not typed at from behind
+     * it. The sheet's own surface still reaches the bottom of the window.
+     */
+    windowInsets: WindowInsets = WindowInsets.sheetEdges,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -237,6 +253,7 @@ fun ModalBottomSheet(
 private fun BoxScope.SheetSurface(
     state: SheetState,
     shape: androidx.compose.ui.graphics.Shape,
+    windowInsets: WindowInsets,
     containerColor: androidx.compose.ui.graphics.Color,
     contentColor: androidx.compose.ui.graphics.Color,
     dragHandle: (@Composable () -> Unit)?,
@@ -257,7 +274,10 @@ private fun BoxScope.SheetSurface(
         shadow = Theme.elevation.overlay,
     ) {
         CompositionLocalProvider(LocalSheetState provides state) {
-            Column(Modifier.fillMaxWidth()) {
+            // Inside the surface: the sheet's own colour still runs to the
+            // bottom of the window, so the gesture bar sits on the sheet rather
+            // than on a strip of whatever is behind it.
+            Column(Modifier.fillMaxWidth().windowInsetsPadding(windowInsets)) {
                 dragHandle?.invoke()
                 content()
             }

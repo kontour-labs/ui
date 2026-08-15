@@ -18,6 +18,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -35,6 +37,7 @@ import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
+import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mirrorHorizontally
 import kotlin.math.roundToInt
@@ -81,6 +84,12 @@ fun SideSheet(
     dismissOnOutside: Boolean = true,
     dismissLabel: String = "Close",
     paneTitle: String? = null,
+    /**
+     * What the sheet's *content* keeps clear of. Every edge including the
+     * keyboard: a side sheet is full height, so it meets the status bar and the
+     * gesture bar at once, and it holds forms as often as a bottom sheet does.
+     */
+    windowInsets: WindowInsets = WindowInsets.allEdges,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -113,6 +122,10 @@ fun SideSheet(
                         containerColor = containerColor,
                         contentColor = contentColor,
                         paneTitle = paneTitle,
+                        // Captured as an object, not a measurement: the modifier
+                        // reads the live inset at layout time, so the sheet still
+                        // lifts when the keyboard opens after it was shown.
+                        windowInsets = windowInsets,
                         content = body,
                     )
                 },
@@ -130,6 +143,7 @@ private fun SideSheetPanel(
     containerColor: Color,
     contentColor: Color,
     paneTitle: String?,
+    windowInsets: WindowInsets,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val motion = Theme.motion
@@ -177,7 +191,12 @@ private fun SideSheetPanel(
                 shadow = Theme.elevation.overlay,
             ) {
                 CompositionLocalProvider(LocalSheetState provides null) {
-                    Column(Modifier.fillMaxSize(), content = content)
+                    Column(
+                        // Inside the surface, so the sheet's colour still runs
+                        // to the edges of the window.
+                        Modifier.fillMaxSize().windowInsetsPadding(windowInsets),
+                        content = content,
+                    )
                 }
             }
         }

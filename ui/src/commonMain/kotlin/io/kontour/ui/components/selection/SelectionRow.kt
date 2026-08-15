@@ -57,8 +57,8 @@ fun SelectionRow(
     role: Role,
     control: @Composable () -> Unit,
     modifier: Modifier = Modifier,
-    supporting: String? = null,
     enabled: Boolean = true,
+    supporting: String? = null,
     controlPosition: ControlPosition = ControlPosition.Trailing,
     interactionSource: MutableInteractionSource? = null,
 ) {

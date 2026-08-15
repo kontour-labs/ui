@@ -1,6 +1,7 @@
 package io.kontour.ui.components.datetime
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,9 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.LocalTime
 
@@ -131,10 +135,15 @@ fun TimeField(
     time: LocalTime,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    label: String? = null,
     enabled: Boolean = true,
+    label: String? = null,
     formats: DateTimeFormats = LocalDateTimeFormats.current,
+    interactionSource: MutableInteractionSource? = null,
 ) {
+    val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    val feedback = LocalFeedback.current
+    val shape = Theme.shapes.small
+
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (label != null) {
             Text(
@@ -146,8 +155,20 @@ fun TimeField(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .androidxClickable(enabled, onClick),
-            shape = Theme.shapes.small,
+                .clickable(
+                    interactionSource = interactions,
+                    // The same press wash every other tappable surface in the
+                    // system uses. It read as inert without it — the one field
+                    // in the library that did not respond to a press.
+                    indication = kontourIndication(shape, pressScale = 1f),
+                    enabled = enabled,
+                    role = Role.Button,
+                    onClick = {
+                        feedback.perform(FeedbackIntent.Selection)
+                        onClick()
+                    },
+                ),
+            shape = shape,
             color = Theme.colors.surfaceSunken,
             contentAlignment = Alignment.CenterStart,
         ) {
@@ -163,6 +184,3 @@ fun TimeField(
         }
     }
 }
-
-private fun Modifier.androidxClickable(enabled: Boolean, onClick: () -> Unit): Modifier =
-    clickable(enabled = enabled, role = Role.Button, onClick = onClick)

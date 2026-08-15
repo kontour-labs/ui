@@ -41,7 +41,7 @@ import io.kontour.ui.theme.Theme
  * @param frameModifier Applied to the bordered box, not the whole control —
  *   where a `clickable` belongs for a control that opens something, so the tap
  *   target is the field and not the label and helper text as well.
- * @param content Fills the box between the leading icon and the trailing slot.
+ * @param content Fills the box between the leading slots and the trailing slot.
  *   Give it `Modifier.weight(1f)` unless the control is meant to hug its value.
  */
 @Composable
@@ -53,9 +53,10 @@ internal fun FieldScaffold(
     metrics: TextFieldMetrics,
     shape: Shape,
     label: String? = null,
-    supportingText: String? = null,
+    supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
+    leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     frameModifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
@@ -123,6 +124,8 @@ internal fun FieldScaffold(
             horizontalArrangement = Arrangement.spacedBy(metrics.gap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            leading?.invoke()
+
             if (leadingIcon != null) {
                 Icon(
                     imageVector = leadingIcon,
@@ -140,12 +143,12 @@ internal fun FieldScaffold(
         // Helper and error occupy the same slot and animate in place, so the
         // form does not jump by a line height every time validation flips.
         AnimatedVisibility(
-            visible = errorMessage != null || supportingText != null,
+            visible = errorMessage != null || supporting != null,
             enter = fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast()),
             exit = fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast()),
         ) {
             Text(
-                text = errorMessage ?: supportingText.orEmpty(),
+                text = errorMessage ?: supporting.orEmpty(),
                 style = Theme.typography.bodySmall,
                 color = if (isError) colors.error else colors.helper,
             )

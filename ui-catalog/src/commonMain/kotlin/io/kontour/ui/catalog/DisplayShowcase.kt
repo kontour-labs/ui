@@ -155,7 +155,7 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                         title = "Delays on the Armadale line",
                         message = "Services are running up to 12 minutes late.",
                         icon = Tabler.Outline.AlertTriangle,
-                        onDismiss = {},
+                        onDismissRequest = {},
                         dismissIcon = Tabler.Outline.X,
                     )
                     Banner(

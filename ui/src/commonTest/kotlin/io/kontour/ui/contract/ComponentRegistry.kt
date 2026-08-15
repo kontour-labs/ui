@@ -122,7 +122,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         add(
             ComponentSpec("Button ($variant)", Role.Button) { modifier, enabled, onClick ->
                 Button(
-                    text = "Label",
+                    label = "Label",
                     onClick = onClick,
                     modifier = modifier,
                     enabled = enabled,
@@ -173,7 +173,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec("ExtendedFloatingActionButton", Role.Button) { modifier, enabled, onClick ->
             ExtendedFloatingActionButton(
                 icon = Tabler.Outline.Star,
-                text = "Add stop",
+                label = "Add stop",
                 contentDescription = "Add stop",
                 onClick = onClick,
                 modifier = modifier,
@@ -442,7 +442,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec("ListItem", Role.Button) { modifier, enabled, onClick ->
             ListItem(
-                headline = "Perth Underground",
+                label = "Perth Underground",
                 supporting = "Platform 2",
                 onClick = onClick,
                 modifier = modifier,

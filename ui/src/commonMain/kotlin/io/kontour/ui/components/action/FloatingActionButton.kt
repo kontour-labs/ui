@@ -111,7 +111,7 @@ fun FloatingActionButton(
  * ```
  * ExtendedFloatingActionButton(
  *     icon = Icons.Navigation,
- *     text = "Start trip",
+ *     label = "Start trip",
  *     contentDescription = "Start trip",
  *     expanded = !listState.isScrollingDown,
  *     onClick = ::startTrip,
@@ -123,18 +123,18 @@ fun FloatingActionButton(
  * Cross-fading makes the icon appear to jump sideways.
  *
  * @param contentDescription Announced by a screen reader. Kept separate from
- *   [text] because the label may be terse where the announcement should not be
+ *   [label] because the label may be terse where the announcement should not be
  *   — "Start" on screen, "Start trip to Perth Station" for a screen reader.
  */
 @Composable
 fun ExtendedFloatingActionButton(
     icon: ImageVector,
-    text: String,
+    label: String,
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    expanded: Boolean = true,
     enabled: Boolean = true,
+    expanded: Boolean = true,
     size: FabSize = FabSize.Medium,
     shape: Shape = Theme.shapes.pill,
     containerColor: Color = Theme.colors.primary,
@@ -191,7 +191,7 @@ fun ExtendedFloatingActionButton(
                     fadeOut(motion.tweenFast()),
             ) {
                 ProvideTextStyle(Theme.typography.labelLarge) {
-                    Text(text, maxLines = 1)
+                    Text(label, maxLines = 1)
                 }
             }
         }

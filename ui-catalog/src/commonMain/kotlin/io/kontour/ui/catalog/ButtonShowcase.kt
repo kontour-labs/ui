@@ -103,13 +103,13 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                     FloatingActionButton(Tabler.Outline.Plus, "Add", {}, size = FabSize.Large)
                     ExtendedFloatingActionButton(
                         icon = Tabler.Outline.Navigation,
-                        text = "Start trip",
+                        label = "Start trip",
                         contentDescription = "Start trip",
                         onClick = {},
                     )
                     ExtendedFloatingActionButton(
                         icon = Tabler.Outline.Navigation,
-                        text = "Start trip",
+                        label = "Start trip",
                         contentDescription = "Start trip",
                         expanded = false,
                         onClick = {},

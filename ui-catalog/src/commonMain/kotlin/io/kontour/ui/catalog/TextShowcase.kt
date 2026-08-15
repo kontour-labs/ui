@@ -58,7 +58,7 @@ fun TextShowcase(modifier: Modifier = Modifier) {
                         state = rememberTextFieldState("Read only"),
                         label = "Disabled",
                         enabled = false,
-                        supportingText = "Not available on this network",
+                        supporting = "Not available on this network",
                     )
                 }
 
@@ -67,7 +67,7 @@ fun TextShowcase(modifier: Modifier = Modifier) {
                         state = rememberTextFieldState("Filled field"),
                         label = "Filled",
                         variant = TextFieldVariant.Filled,
-                        supportingText = "For dense forms and fields inside a card",
+                        supporting = "For dense forms and fields inside a card",
                     )
                 }
             }
@@ -105,12 +105,12 @@ fun TextShowcase(modifier: Modifier = Modifier) {
                     PhoneField(
                         state = rememberTextFieldState("0412345678"),
                         label = "Mobile",
-                        supportingText = "Masked for display; stored as digits",
+                        supporting = "Masked for display; stored as digits",
                     )
                     NumberField(
                         state = rememberTextFieldState("42"),
                         label = "Walk speed",
-                        supportingText = "Non-numeric keystrokes never arrive",
+                        supporting = "Non-numeric keystrokes never arrive",
                     )
                 }
 

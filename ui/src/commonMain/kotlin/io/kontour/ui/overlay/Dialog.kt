@@ -21,6 +21,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.dialog
 import androidx.compose.ui.semantics.semantics
@@ -29,6 +31,7 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.CompletableDeferred
 
@@ -36,7 +39,7 @@ import kotlinx.coroutines.CompletableDeferred
  * A modal dialog.
  *
  * ```
- * Dialog(visible = showing, onDismiss = { showing = false }) {
+ * Dialog(visible = showing, onDismissRequest = { showing = false }) {
  *     Text("Delete this favourite?", style = Theme.typography.titleMedium)
  *     …
  * }
@@ -54,11 +57,17 @@ import kotlinx.coroutines.CompletableDeferred
 @Composable
 fun Dialog(
     visible: Boolean,
-    onDismiss: () -> Unit,
+    onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     key: Any = remember { Any() },
     dismissOnOutside: Boolean = true,
     dismissLabel: String = "Dismiss",
+    /**
+     * What the dialog keeps clear of. Every edge including the keyboard — a
+     * dialog is centred rather than pinned, so there is no side it can safely
+     * ignore, and a confirmation with a text field in it is common.
+     */
+    windowInsets: WindowInsets = WindowInsets.allEdges,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -72,9 +81,12 @@ fun Dialog(
                     layer = OverlayLayer.Dialog,
                     dismissOnOutside = dismissOnOutside,
                     dismissLabel = dismissLabel,
-                    onDismiss = onDismiss,
+                    onDismiss = onDismissRequest,
                     content = {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(
+                            Modifier.fillMaxSize().windowInsetsPadding(windowInsets),
+                            contentAlignment = Alignment.Center,
+                        ) {
                             AnimatedVisibility(
                                 visible = true,
                                 enter = fadeIn(motion.tweenFast()) +
@@ -121,7 +133,7 @@ fun Dialog(
  *     message = "Perth Station will be removed from your list.",
  *     confirmLabel = "Delete",
  *     onConfirm = { viewModel.delete(); confirming = false },
- *     onDismiss = { confirming = false },
+ *     onDismissRequest = { confirming = false },
  *     destructive = true,
  * )
  * ```
@@ -139,7 +151,7 @@ fun Dialog(
 fun AlertDialog(
     visible: Boolean,
     title: String,
-    onDismiss: () -> Unit,
+    onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     message: String? = null,
     confirmLabel: String? = null,
@@ -150,7 +162,7 @@ fun AlertDialog(
 ) {
     Dialog(
         visible = visible,
-        onDismiss = onDismiss,
+        onDismissRequest = onDismissRequest,
         modifier = modifier,
         dismissOnOutside = dismissOnOutside,
     ) {
@@ -173,14 +185,14 @@ fun AlertDialog(
         ) {
             if (cancelLabel != null) {
                 Button(
-                    text = cancelLabel,
-                    onClick = onDismiss,
+                    label = cancelLabel,
+                    onClick = onDismissRequest,
                     variant = ButtonVariant.Ghost,
                 )
             }
             if (confirmLabel != null && onConfirm != null) {
                 Button(
-                    text = confirmLabel,
+                    label = confirmLabel,
                     onClick = onConfirm,
                     variant = if (destructive) {
                         ButtonVariant.Destructive
@@ -277,6 +289,6 @@ fun ConfirmHost(controller: ConfirmationController) {
         cancelLabel = pending?.cancelLabel,
         destructive = pending?.destructive == true,
         onConfirm = { controller.answer(true) },
-        onDismiss = { controller.answer(false) },
+        onDismissRequest = { controller.answer(false) },
     )
 }

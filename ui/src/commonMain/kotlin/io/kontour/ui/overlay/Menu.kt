@@ -318,13 +318,13 @@ private fun MenuPanel(
  */
 @Composable
 fun MenuItem(
-    text: String,
+    label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     leadingIcon: ImageVector? = null,
     trailingIcon: ImageVector? = null,
     trailingText: String? = null,
-    enabled: Boolean = true,
     selected: Boolean = false,
     destructive: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
@@ -374,7 +374,7 @@ fun MenuItem(
         }
 
         Text(
-            text = text,
+            text = label,
             modifier = Modifier.weight(1f),
             style = Theme.typography.bodyMedium,
             color = contentColor,
@@ -427,9 +427,9 @@ fun MenuDivider(modifier: Modifier = Modifier) {
  * — a heading that can be tabbed to but does nothing is a dead stop.
  */
 @Composable
-fun MenuSectionHeader(text: String, modifier: Modifier = Modifier) {
+fun MenuSectionHeader(title: String, modifier: Modifier = Modifier) {
     Text(
-        text = text,
+        text = title,
         modifier = modifier.padding(
             start = Theme.spacing.sm,
             end = Theme.spacing.sm,
@@ -463,10 +463,10 @@ fun MenuSectionHeader(text: String, modifier: Modifier = Modifier) {
  */
 @Composable
 fun SubMenu(
-    text: String,
+    label: String,
     modifier: Modifier = Modifier,
-    leadingIcon: ImageVector? = null,
     enabled: Boolean = true,
+    leadingIcon: ImageVector? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -485,7 +485,7 @@ fun SubMenu(
 
     Box(Modifier.anchorBounds { bounds = it }) {
         MenuItem(
-            text = text,
+            label = label,
             onClick = { open = !open },
             modifier = modifier,
             leadingIcon = leadingIcon,

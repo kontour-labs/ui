@@ -84,7 +84,7 @@ fun SelectShowcase(modifier: Modifier = Modifier) {
                     label = "Preferred mode",
                     placeholder = "No preference",
                     optionLabel = { it.label },
-                    supportingText = "Used to break ties between equal routes",
+                    supporting = "Used to break ties between equal routes",
                 )
                 Select(
                     value = Departure.ArriveBy,
@@ -143,7 +143,7 @@ fun SelectShowcase(modifier: Modifier = Modifier) {
                     options = operators,
                     onValueChange = { operator = it },
                     label = "Operator",
-                    supportingText = "Type to narrow a long list",
+                    supporting = "Type to narrow a long list",
                 )
             }
 
