@@ -249,6 +249,15 @@ internal fun Modifier.parentBounds(onBounds: (Rect?) -> Unit): Modifier =
         onBounds(if (parent != null && parent.isAttached) parent.boundsInRoot() else null)
     }
 
+/**
+ * How far an arrow's base is buried in the panel it points from.
+ *
+ * Enough to swallow two antialiased edges at any scale the appearance animation
+ * passes through, small enough that a panel one dp shorter would look identical —
+ * see [arrowPath].
+ */
+private val ArrowOverlap: Dp = 1.dp
+
 /** A pointer showing which element an overlay belongs to. */
 @Immutable
 data class ArrowSpec(
@@ -312,6 +321,7 @@ internal fun AnchoredOverlayLayout(
     val marginPx = with(density) { margin.roundToPx() }
     val arrowWidthPx = with(density) { (arrow?.width ?: 0.dp).toPx() }
     val arrowHeightPx = with(density) { (arrow?.height ?: 0.dp).toPx() }
+    val arrowOverlapPx = with(density) { ArrowOverlap.toPx() }
     val minWidthPx = with(density) {
         if (minWidth == Dp.Unspecified) 0 else minWidth.roundToPx()
     }
@@ -377,6 +387,7 @@ internal fun AnchoredOverlayLayout(
                 anchor = anchorInHost,
                 width = arrowWidthPx,
                 height = arrowHeightPx,
+                overlap = arrowOverlapPx,
             )
         }
 
@@ -390,12 +401,31 @@ internal fun AnchoredOverlayLayout(
 }
 
 /**
- * The triangle, in host coordinates, with its base flush against the resolved
- * edge of the surface and its tip toward the anchor.
+ * The triangle, in host coordinates, with its base buried just inside the
+ * resolved edge of the surface and its tip toward the anchor.
  *
  * Kept clear of the surface's corners by half the arrow's width, since an arrow
  * growing out of a rounded corner reads as a rendering fault rather than a
  * pointer.
+ *
+ * ### Why the base sits *inside* the panel rather than against it
+ *
+ * A base exactly on the panel's edge puts two antialiased edges on the same line
+ * with nothing behind them. Where that line falls on a fractional pixel, neither
+ * shape covers it fully and the two half-covered edges composite to something
+ * paler than either — a hairline of background between the arrow and the panel it
+ * belongs to.
+ *
+ * Static, that is a faint line nobody mentions. Animated it is worse than it
+ * sounds: `overlayAppearance` scales the whole thing, so the seam sweeps through
+ * fractional positions and blinks on and off, and the arrow reads as coming away
+ * from its bubble. Reported against the exit rather than the entry because the
+ * `exit` easing holds opacity high while the scale is already visibly small,
+ * while the entry spring is through that range in a frame or two at low alpha.
+ *
+ * [overlap] carries the base past the edge so the two shapes share coverage
+ * instead of meeting at it. The tip does not move and the arrow is drawn over the
+ * panel in the same colour, so nothing about the silhouette changes.
  */
 private fun arrowPath(
     placement: AnchoredPlacement,
@@ -403,6 +433,7 @@ private fun arrowPath(
     anchor: Rect,
     width: Float,
     height: Float,
+    overlap: Float,
 ): Path {
     val half = width / 2f
     val inset = width
@@ -419,13 +450,14 @@ private fun arrowPath(
                     hi = placement.x + contentSize.width - inset,
                 )
                 if (placement.side == ResolvedSide.Below) {
-                    val base = placement.y.toFloat()
-                    moveTo(cx, base - height)
+                    val base = placement.y.toFloat() + overlap
+                    moveTo(cx, placement.y.toFloat() - height)
                     lineTo(cx + half, base)
                     lineTo(cx - half, base)
                 } else {
-                    val base = (placement.y + contentSize.height).toFloat()
-                    moveTo(cx, base + height)
+                    val edge = (placement.y + contentSize.height).toFloat()
+                    val base = edge - overlap
+                    moveTo(cx, edge + height)
                     lineTo(cx - half, base)
                     lineTo(cx + half, base)
                 }
@@ -438,13 +470,14 @@ private fun arrowPath(
                     hi = placement.y + contentSize.height - inset,
                 )
                 if (placement.side == ResolvedSide.Right) {
-                    val base = placement.x.toFloat()
-                    moveTo(base - height, cy)
+                    val base = placement.x.toFloat() + overlap
+                    moveTo(placement.x.toFloat() - height, cy)
                     lineTo(base, cy - half)
                     lineTo(base, cy + half)
                 } else {
-                    val base = (placement.x + contentSize.width).toFloat()
-                    moveTo(base + height, cy)
+                    val edge = (placement.x + contentSize.width).toFloat()
+                    val base = edge - overlap
+                    moveTo(edge + height, cy)
                     lineTo(base, cy + half)
                     lineTo(base, cy - half)
                 }

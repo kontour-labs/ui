@@ -74,7 +74,16 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
             }
 
             SheetPanel("Modal") {
-                ModalBottomSheet(visible = true, onDismissRequest = {}) {
+                // Seeded from the literal these used to be, so the goldens still
+                // catch them open and the scrim, the close button and the swipe
+                // all actually work. A dead `onDismissRequest` on a *controlled*
+                // component is not an inert demo — it is a sheet that refuses to
+                // close, which is what it looked like.
+                val modal = seed(true)
+                ModalBottomSheet(
+                    visible = modal.value,
+                    onDismissRequest = { modal.value = false },
+                ) {
                     SheetHeader(
                         title = "Rename favourite",
                         supporting = "Perth Underground",
@@ -104,9 +113,10 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
             }
 
             SheetPanel("Side sheet") {
+                val side = seed(true)
                 SideSheet(
-                    visible = true,
-                    onDismissRequest = {},
+                    visible = side.value,
+                    onDismissRequest = { side.value = false },
                     side = SheetSide.End,
                     width = 260.dp,
                 ) {

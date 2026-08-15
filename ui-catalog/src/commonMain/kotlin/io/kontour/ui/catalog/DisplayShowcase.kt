@@ -150,14 +150,17 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                 verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
             ) {
                 Section("Banners") {
-                    Banner(
-                        tone = BannerTone.Warning,
-                        title = "Delays on the Armadale line",
-                        message = "Services are running up to 12 minutes late.",
-                        icon = Tabler.Outline.AlertTriangle,
-                        onDismissRequest = {},
-                        dismissIcon = Tabler.Outline.X,
-                    )
+                    val delays = seed(true)
+                    if (delays.value) {
+                        Banner(
+                            tone = BannerTone.Warning,
+                            title = "Delays on the Armadale line",
+                            message = "Services are running up to 12 minutes late.",
+                            icon = Tabler.Outline.AlertTriangle,
+                            onDismissRequest = { delays.value = false },
+                            dismissIcon = Tabler.Outline.X,
+                        )
+                    }
                     Banner(
                         tone = BannerTone.Danger,
                         message = "Couldn't reach the server.",
@@ -254,11 +257,12 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
 
                 Section("Accordion") {
                     Card(variant = CardVariant.Outlined) {
+                        val open = seed(true)
                         Accordion(
                             title = "Accessibility",
                             supporting = "Contrast, motion, text size",
-                            expanded = true,
-                            onExpandedChange = {},
+                            expanded = open.value,
+                            onExpandedChange = { open.value = it },
                             chevron = Tabler.Outline.ChevronDown,
                         ) {
                             Text(

@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -81,11 +85,62 @@ class OverlayMotionScreenshotTest {
         }
         assertTrue(file.length() > 0, "overlays-appearing rendered an empty file")
     }
+
+    /**
+     * And the same overlays on their way back out.
+     *
+     * A separate golden because leaving is not appearing in reverse: the entry
+     * runs a stiff spring, the exit a tween on the `exit` easing, so they pass
+     * through the same scales at very different opacities. Anything that only
+     * shows at high opacity and small scale is invisible in the entry frame and
+     * plain here — which is where the arrows were reported coming away from their
+     * bubbles after the entry frame said they were attached.
+     *
+     * Dismissal is driven from inside the content rather than by the harness, so
+     * this needs no new hook: each overlay is shown, given time to settle, and
+     * then hidden, with the frame count landing partway through the exit.
+     */
+    @Test
+    fun rendersOverlaysWhileTheyAreLeaving() {
+        val file = Screenshot.render(
+            name = "overlays-leaving",
+            width = 4340,
+            height = 900,
+            // Settled by frame 12, dismissed there, and this lands three frames
+            // into the 150ms exit.
+            frames = 15,
+        ) {
+            KontourTheme(darkTheme = false, reduceMotion = false) {
+                AppearingOverlays(dismissAfterFrames = 12)
+            }
+        }
+        assertTrue(file.length() > 0, "overlays-leaving rendered an empty file")
+    }
 }
 
-/** One panel with no arrow, three with one, and one that is not anchored at all. */
+/**
+ * One panel with no arrow, three with one, and one that is not anchored at all.
+ *
+ * @param dismissAfterFrames How many rendered frames to wait before hiding them
+ *   all, or `null` to leave them open.
+ *
+ *   Frames rather than a `delay`, and that is not a detail. `ImageComposeScene`
+ *   drives animations from the frame clock the harness advances by hand, but
+ *   `delay` resolves against wall time — so a `delay(400)` fires whenever the
+ *   render loop happens to take 400ms, which on a warm JVM is somewhere in the
+ *   first few frames and on a cold one is never. The first version of this
+ *   golden did that and came out empty: everything had already finished leaving.
+ */
 @Composable
-private fun AppearingOverlays() {
+private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
+    val showing = remember { mutableStateOf(true) }
+    if (dismissAfterFrames != null) {
+        LaunchedEffect(Unit) {
+            repeat(dismissAfterFrames) { withFrameNanos { } }
+            showing.value = false
+        }
+    }
+
     Surface(modifier = Modifier.fillMaxSize(), color = Theme.colors.background) {
         Row(
             modifier = Modifier.padding(Theme.spacing.lg),
@@ -99,7 +154,7 @@ private fun AppearingOverlays() {
                         onClick = {},
                     )
                     DropdownMenu(
-                        expanded = true,
+                        expanded = showing.value,
                         onDismissRequest = {},
                         alignment = OverlayAlignment.Center,
                     ) {
@@ -117,7 +172,7 @@ private fun AppearingOverlays() {
                         contentDescription = "Save this trip",
                         onClick = {},
                     )
-                    Tooltip(visible = true, text = "Save this trip")
+                    Tooltip(visible = showing.value, text = "Save this trip")
                 }
             }
 
@@ -130,6 +185,7 @@ private fun AppearingOverlays() {
                             contentDescription = "Save this trip",
                             onClick = {},
                             modifier = Modifier.coachMark(
+                                enabled = showing.value,
                                 id = "save-trip",
                                 title = "Save this trip",
                                 text = "Saved trips show up on the home screen.",
@@ -147,7 +203,7 @@ private fun AppearingOverlays() {
                         contentDescription = "Details",
                         onClick = {},
                     )
-                    Popover(expanded = true, onDismissRequest = {}) {
+                    Popover(expanded = showing.value, onDismissRequest = {}) {
                         Text(
                             "Runs every 15 minutes until 11pm.",
                             style = Theme.typography.bodySmall,
@@ -161,7 +217,7 @@ private fun AppearingOverlays() {
             // place at full opacity with its shadow cut into a square.
             MotionPanel("Dialog") {
                 AlertDialog(
-                    visible = true,
+                    visible = showing.value,
                     title = "Remove this favourite?",
                     message = "Perth Underground will be taken off your home screen.",
                     confirmLabel = "Remove",

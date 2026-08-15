@@ -157,8 +157,8 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                         message = "Perth Underground will be taken off your home screen. " +
                             "You can add it back any time.",
                         confirmLabel = "Remove",
-                        onConfirm = {},
-                        onDismissRequest = {},
+                        onConfirm = { alert.value = false },
+                        onDismissRequest = { alert.value = false },
                         destructive = true,
                     )
                 }

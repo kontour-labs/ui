@@ -514,6 +514,19 @@ fun SubMenu(
         modifier = Modifier.hoverable(panelInteractions),
         side = OverlaySide.End,
         alignment = OverlayAlignment.Start,
+        // No scrim of its own, unlike every other menu — and this is the whole
+        // reason hover-to-open works at all.
+        //
+        // `ScrimStyle.Transparent` blocks pointer input across the entire host,
+        // which is right for a menu opened from the page: a click outside should
+        // close it rather than land on whatever was underneath. A submenu is
+        // already inside a menu that is doing exactly that, so its own scrim adds
+        // no protection — it only covers the parent menu, including the row the
+        // submenu opened from. The pointer resting on that row would then be
+        // hovering the scrim instead, the row would go cold, the submenu would
+        // close, and its scrim would go with it — putting the pointer back on the
+        // row. A submenu that blinks on and off for as long as you look at it.
+        scrim = ScrimStyle.None,
         content = content,
     )
 }

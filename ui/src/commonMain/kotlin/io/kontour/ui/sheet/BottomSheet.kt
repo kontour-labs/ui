@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -44,6 +45,8 @@ import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.theme.Theme
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -211,8 +214,9 @@ fun ModalBottomSheet(
 
     // Drag it shut and the caller finds out, so `visible` and the sheet cannot
     // disagree about whether it is open.
+    val showing by rememberUpdatedState(visible)
     LaunchedEffect(state) {
-        snapshotOfHidden(state) { dismiss() }
+        snapshotOfHidden(state, stillVisible = { showing }) { dismiss() }
     }
 
     LaunchedEffect(visible) {
@@ -305,8 +309,53 @@ private fun offsetOrHidden(state: SheetState): Int {
     }
 }
 
-/** Calls [onHidden] whenever the sheet settles closed. */
-private suspend fun snapshotOfHidden(state: SheetState, onHidden: () -> Unit) {
+/**
+ * Reports every settle at [SheetDetent.Hidden] to [onHidden], and puts the sheet
+ * back if the caller does not accept it.
+ *
+ * `visible` belongs to the caller, so a drag to the bottom is a *request*. Most
+ * callers say yes, but declining is a real case — unsaved changes, a required
+ * choice — and the sheet has to come back rather than stay where the drag left
+ * it. Without this it sits off the bottom of the window with its scrim still up,
+ * so the screen is dimmed and blocked by a sheet nobody can see. A dead
+ * `onDismissRequest` produces exactly the same picture, which is how it was
+ * found.
+ *
+ * [stillVisible] is read *after* giving the caller a couple of frames, because
+ * `onDismissRequest` sets state that only reaches this composable at the next
+ * composition — read immediately, every dismissal would look declined.
+ *
+ * Frames rather than a timeout, and not only because it is two lines shorter:
+ * the question being asked is "has `visible` changed yet", and `visible` changes
+ * at a composition. A duration is a guess at how long that takes.
+ */
+private suspend fun snapshotOfHidden(
+    state: SheetState,
+    stillVisible: () -> Boolean,
+    onHidden: () -> Unit,
+) {
     snapshotFlow { state.currentDetent }
-        .collect { if (it == SheetDetent.Hidden) onHidden() }
+        // A sheet cannot be dismissed before it has opened, and `snapshotFlow`
+        // hands over the current value first — which for a sheet is `Hidden`,
+        // since that is where every one of them starts. Reported, that closes a
+        // sheet declared `visible = true` on the frame it appears: the caller is
+        // told to dismiss something the user has not seen yet, and `state.show()`
+        // has not run. Only a *transition* into `Hidden` is a dismissal.
+        .drop(1)
+        .filter { it == SheetDetent.Hidden }
+        .collect {
+            onHidden()
+            repeat(SheetDismissalFrames) { withFrameNanos { } }
+            if (stillVisible()) state.show()
+        }
 }
+
+/**
+ * How many frames the caller gets to act on a dismissal before it counts as
+ * declined.
+ *
+ * Two: one for the state written by `onDismissRequest` to be applied, one for it
+ * to reach this composable. Internal rather than private so a test can step
+ * exactly this far; there is nothing here for a caller to tune.
+ */
+internal const val SheetDismissalFrames = 2
