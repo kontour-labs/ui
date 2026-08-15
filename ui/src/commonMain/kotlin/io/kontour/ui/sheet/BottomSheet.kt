@@ -172,7 +172,7 @@ fun BottomSheet(
            +"Rename favourite"
        }
  *     TextField(state = name, label = "Name")
- *     Button(onClick = ::save, fillMaxWidth = true) { +"Save" }
+ *     Button(onClick = ::save, modifier = Modifier.fillMaxWidth()) { +"Save" }
  * }
  * ```
  *
@@ -213,6 +213,18 @@ fun ModalBottomSheet(
     val scope = rememberCoroutineScope()
     val dismiss by rememberUpdatedState(onDismissRequest)
     val body by rememberUpdatedState(content)
+    // Everything the entry's content reads has to be read *live*. The effect
+    // below is keyed on `visible` alone, so anything else it closes over is
+    // frozen at the moment the sheet was shown: re-theming a sheet that is
+    // already up, or swapping its drag handle, did nothing until it was closed
+    // and reopened. `content` and `onDismissRequest` were already hoisted for
+    // this reason; the appearance was missed.
+    val latestModifier by rememberUpdatedState(modifier)
+    val latestShape by rememberUpdatedState(shape)
+    val latestContainerColor by rememberUpdatedState(containerColor)
+    val latestContentColor by rememberUpdatedState(contentColor)
+    val latestPaneTitle by rememberUpdatedState(paneTitle)
+    val latestDragHandle by rememberUpdatedState(dragHandle)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
@@ -251,12 +263,12 @@ fun ModalBottomSheet(
                     content = {
                         BottomSheet(
                             state = state,
-                            modifier = modifier,
-                            shape = shape,
-                            containerColor = containerColor,
-                            contentColor = contentColor,
-                            paneTitle = paneTitle,
-                            dragHandle = dragHandle,
+                            modifier = latestModifier,
+                            shape = latestShape,
+                            containerColor = latestContainerColor,
+                            contentColor = latestContentColor,
+                            paneTitle = latestPaneTitle,
+                            dragHandle = latestDragHandle,
                             content = body,
                         )
                     },

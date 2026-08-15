@@ -99,6 +99,14 @@ fun SideSheet(
     val key = remember { Any() }
     val dismiss by rememberUpdatedState(onDismissRequest)
     val body by rememberUpdatedState(content)
+    // Read live, not captured: the effect is keyed on `visible`, `side`, `width`
+    // and `scrim`, so anything else the entry closes over is frozen at the moment
+    // the sheet appeared.
+    val latestModifier by rememberUpdatedState(modifier)
+    val latestShape by rememberUpdatedState(shape)
+    val latestContainerColor by rememberUpdatedState(containerColor)
+    val latestContentColor by rememberUpdatedState(contentColor)
+    val latestPaneTitle by rememberUpdatedState(paneTitle)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
@@ -118,13 +126,13 @@ fun SideSheet(
                 onDismiss = { dismiss() },
                 content = {
                     SideSheetPanel(
-                        modifier = modifier,
+                        modifier = latestModifier,
                         side = side,
                         width = width,
-                        shape = shape,
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        paneTitle = paneTitle,
+                        shape = latestShape,
+                        containerColor = latestContainerColor,
+                        contentColor = latestContentColor,
+                        paneTitle = latestPaneTitle,
                         // Captured as an object, not a measurement: the modifier
                         // reads the live inset at layout time, so the sheet still
                         // lifts when the keyboard opens after it was shown.

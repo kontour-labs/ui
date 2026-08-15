@@ -101,11 +101,11 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                             style = Theme.typography.bodySmall,
                             color = Theme.colors.contentMuted,
                         )
-                        Button(onClick = {}, fillMaxWidth = true) { +"Save" }
+                        Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { +"Save" }
                         Button(
                             onClick = {},
+                            modifier = Modifier.fillMaxWidth(),
                             variant = ButtonVariant.Ghost,
-                            fillMaxWidth = true,
                         ) {
                             +"Cancel"
                         }

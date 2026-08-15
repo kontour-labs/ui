@@ -62,7 +62,6 @@ fun Avatar(
     fallbackIcon: ImageVector? = null,
     size: AvatarSize = AvatarSize.Medium,
     contentDescription: String? = null,
-    border: Color? = null,
 ) {
     val announcement = contentDescription ?: name
     val palette = avatarPalette()
@@ -84,14 +83,7 @@ fun Avatar(
             }
             .size(size.diameter)
             .clip(Theme.shapes.pill)
-            .background(if (image != null) Theme.colors.surfaceSunken else background)
-            .then(
-                if (border != null) {
-                    Modifier.border(2.dp, border, Theme.shapes.pill)
-                } else {
-                    Modifier
-                }
-            ),
+            .background(if (image != null) Theme.colors.surfaceSunken else background),
         contentAlignment = Alignment.Center,
     ) {
         when {
@@ -152,8 +144,16 @@ fun AvatarGroup(
             Box(Modifier.offset(x = -overlap * index)) {
                 Avatar(
                     name = name,
+                    // The ring that separates one overlapping avatar from the
+                    // next. A `Modifier.border` at the call site, because that is
+                    // all it ever was — the parameter carried a colour and hid a
+                    // hardcoded 2dp and pill shape behind it.
+                    modifier = Modifier.border(
+                        AvatarGroupRing,
+                        Theme.colors.surface,
+                        Theme.shapes.pill,
+                    ),
                     size = size,
-                    border = Theme.colors.surface,
                     contentDescription = null,
                 )
             }
@@ -213,3 +213,6 @@ private fun String.initials(): String =
         .map { it.first().uppercaseChar() }
         .joinToString("")
         .ifEmpty { "?" }
+
+/** The ring that keeps overlapping avatars legible against one another. */
+private val AvatarGroupRing = 2.dp

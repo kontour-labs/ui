@@ -86,6 +86,9 @@ fun Popover(
     // entry was built — see `AnchoredOverlayLayout`.
     val latestAnchor by rememberUpdatedState(anchor)
     val body by rememberUpdatedState(content)
+    // As with the anchor: read live rather than captured when the entry was
+    // published, so a modifier change reaches a popover that is already open.
+    val latestModifier by rememberUpdatedState(modifier)
 
     Box(Modifier.parentBounds { anchor = it })
 
@@ -119,7 +122,7 @@ fun Popover(
                         },
                     ) {
                         PopoverPanel(
-                            modifier = modifier,
+                            modifier = latestModifier,
                             maxWidth = maxWidth,
                             border = !showArrow,
                             onDismissRequest = { dismiss() },

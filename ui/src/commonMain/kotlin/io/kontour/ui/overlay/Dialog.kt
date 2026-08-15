@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -77,6 +78,14 @@ fun Dialog(
 ) {
     val host = LocalOverlayHost.current
     val motion = Theme.motion
+    // Read live by the entry's content rather than captured when it was
+    // published. The effect below is keyed on `visible` and `key` only, so
+    // anything else the content closes over is frozen at the moment the overlay
+    // was shown — change the modifier of a dialog that is already up and nothing
+    // happens until it is dismissed and reopened.
+    val latestModifier by rememberUpdatedState(modifier)
+    val latestInsets by rememberUpdatedState(windowInsets)
+    val body by rememberUpdatedState(content)
 
     LaunchedEffect(visible, key) {
         if (visible) {
@@ -100,7 +109,7 @@ fun Dialog(
                                     LocalOverlayProgress.current,
                                     fromScale = 0.92f,
                                 )
-                                .windowInsetsPadding(windowInsets),
+                                .windowInsetsPadding(latestInsets),
                             contentAlignment = Alignment.Center,
                         ) {
                             // `AnimatedVisibility(visible = true, exit = …)` used
@@ -110,7 +119,7 @@ fun Dialog(
                             // progress drives both directions now.
                             run {
                                 Surface(
-                                    modifier = modifier
+                                    modifier = latestModifier
                                         .padding(Theme.spacing.lg)
                                         .widthIn(max = 400.dp)
                                         .semantics { dialog() },
@@ -121,7 +130,7 @@ fun Dialog(
                                     Column(
                                         modifier = Modifier.padding(Theme.spacing.lg),
                                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-                                        content = content,
+                                        content = body,
                                     )
                                 }
                             }

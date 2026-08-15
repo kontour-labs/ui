@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -83,8 +82,6 @@ import io.kontour.ui.theme.Theme
  * @param loading Shows a spinner in place of the content and blocks input.
  * @param loadingLabel What a screen reader announces while [loading]. Defaults
  *   to "Loading"; pass something specific where you can ("Planning your trip").
- * @param fillMaxWidth Stretches to the full width of the parent. For the single
- *   main action at the bottom of a screen or sheet.
  */
 @Composable
 fun Button(
@@ -95,7 +92,6 @@ fun Button(
     size: ButtonSize = ButtonSize.Medium,
     loading: Boolean = false,
     loadingLabel: String = "Loading",
-    fillMaxWidth: Boolean = false,
     shape: Shape = Theme.shapes.small,
     colors: ButtonColors = ButtonDefaults.colors(variant),
     metrics: ButtonMetrics = ButtonDefaults.metrics(size),
@@ -127,7 +123,6 @@ fun Button(
             }
             .minimumTouchTarget()
             .focusRing(interactions, shape)
-            .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier)
             .height(metrics.height)
             .clip(shape)
             .background(container, shape)

@@ -54,7 +54,17 @@ import io.kontour.ui.theme.Theme
  *   to fall back on, so an icon button without a description is a control a
  *   screen-reader user simply cannot identify. If the icon is genuinely
  *   decorative, it is not a button.
- * @param rotation Degrees to rotate the icon, animated. For disclosure chevrons
+ * @param rotation Degrees to rotate the icon, animated.
+ *
+ *   Deliberately *not* `Modifier.rotate()` at the call site, for two reasons.
+ *   The caller's `modifier` lands on the outer box, which carries the touch
+ *   target, the focus ring, the ripple and the container — a rotation there
+ *   turns the hit rectangle and the focus ring with the glyph, which is
+ *   invisible on a pill and wrong everywhere else. And this is a *target*, not a
+ *   value: it is animated through `springBouncy`, so it overshoots a few degrees
+ *   and settles, which a static modifier cannot express.
+ *
+ *   For disclosure chevrons
  *   and menu/close morphs — pass `if (expanded) 90f else 0f` rather than
  *   swapping between two icons, which reads as a flicker.
  */
