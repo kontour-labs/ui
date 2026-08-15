@@ -2,6 +2,7 @@ package io.kontour.ui.catalog
 
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -27,6 +28,10 @@ import kotlin.test.assertTrue
  * was transparent at every tier.
  */
 class ThemeShowcaseScreenshotTest {
+
+    /** Reports every golden that moved, not just the first one in a loop. */
+    @AfterTest
+    fun allGoldensMatched() = Screenshot.assertAllMatched()
 
     private data class Variant(val name: String, val dark: Boolean, val contrast: ContrastLevel)
 

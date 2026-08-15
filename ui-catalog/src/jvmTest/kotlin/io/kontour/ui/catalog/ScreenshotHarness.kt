@@ -35,8 +35,31 @@ import kotlin.test.fail
  * `-Pkontour.screenshots.update=true` and review the resulting diff before
  * committing it. That is the step that matters: a golden nobody looked at pins
  * whatever was broken when it was recorded.
+ *
+ * ### Every mismatch, not the first one
+ *
+ * [render] records a mismatch and carries on; [assertAllMatched] is what fails,
+ * from an `@AfterTest`. Throwing from [render] would end the loop its caller is
+ * in, and every one of these tests renders the same showcase in four schemes —
+ * so a change that moved all four reported one, and you found the other three by
+ * fixing that one and running again. Four runs of a ninety-second suite to learn
+ * something the first run already knew.
  */
 object Screenshot {
+
+    private val mismatches = mutableListOf<String>()
+
+    /**
+     * Fails with everything that differed since the last call, and clears it.
+     *
+     * Call from an `@AfterTest`. Nothing recorded, nothing thrown.
+     */
+    fun assertAllMatched() {
+        if (mismatches.isEmpty()) return
+        val all = mismatches.joinToString("\n\n")
+        mismatches.clear()
+        fail(all)
+    }
 
     private val outputDir: File by lazy {
         File(System.getProperty("kontour.screenshots.dir") ?: "screenshots").apply { mkdirs() }
@@ -94,7 +117,8 @@ object Screenshot {
     }
 
     /**
-     * Fails if [rendered] differs from [golden] by more than [TOLERATED_FRACTION].
+     * Records a mismatch if [rendered] differs from [golden] by more than
+     * [TOLERATED_FRACTION]. [assertAllMatched] is what turns that into a failure.
      *
      * Pixels are compared with a small per-channel tolerance rather than by
      * bytes. Byte equality would be stricter but would also fail on a Skia point
@@ -110,11 +134,11 @@ object Screenshot {
 
         if (expected.width != actual.width || expected.height != actual.height) {
             writeEvidence(name, rendered, diff = null)
-            fail(
-                "$name changed size: golden is ${expected.width}×${expected.height}, " +
-                    "render is ${actual.width}×${actual.height}. If the showcase grew, " +
-                    "update the canvas in the test and re-record."
-            )
+            mismatches += "$name changed size: golden is " +
+                "${expected.width}×${expected.height}, render is " +
+                "${actual.width}×${actual.height}. If the showcase grew, update " +
+                "the canvas in the test and re-record."
+            return
         }
 
         val diff = BufferedImage(expected.width, expected.height, BufferedImage.TYPE_INT_RGB)
@@ -137,12 +161,10 @@ object Screenshot {
         if (fraction > TOLERATED_FRACTION) {
             writeEvidence(name, rendered, diff)
             val percent = (fraction * 100).toString().take(5)
-            fail(
-                "$name differs from its golden: $differing of $total pixels ($percent%). " +
-                    "See ${diffDir.absolutePath}/$name-{actual,diff}.png. " +
-                    "If the change is intended, re-run with " +
-                    "-Pkontour.screenshots.update=true and review the new golden."
-            )
+            mismatches += "$name differs from its golden: $differing of $total pixels " +
+                "($percent%). See ${diffDir.absolutePath}/$name-{actual,diff}.png. " +
+                "If the change is intended, re-run with " +
+                "-Pkontour.screenshots.update=true and review the new golden."
         }
     }
 

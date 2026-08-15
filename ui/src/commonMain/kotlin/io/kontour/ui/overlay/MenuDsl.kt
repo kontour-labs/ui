@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.vector.ImageVector
+import io.kontour.ui.components.display.Kbd
 
 /**
  * The shorthand for a menu's contents.
@@ -137,7 +138,9 @@ internal class MenuScopeImpl(
             +label
             if (icon != null) leading { +icon }
             if (trailingIcon != null) trailing { +trailingIcon }
-            if (shortcut != null) trailing { +shortcut }
+            // A key cap, not muted text. `⌘S` set in the row's own type reads
+            // as part of the label; the border is what says it is a key.
+            if (shortcut != null) trailing { Kbd(shortcut) }
         }
     }
 

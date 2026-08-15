@@ -137,8 +137,22 @@ object ListItemDefaults {
      */
     val InnerCorner: Dp = Spacing
 
-    val MinHeight: Dp = 56.dp
-    val TwoLineMinHeight: Dp = 72.dp
+    /**
+     * The floor for a one-line row, and for a two-line one.
+     *
+     * These are what make a row as tall as it is — not the padding, which is the
+     * thing that gets blamed. At 12dp vertical a single line of text came to
+     * 44dp and the 56dp floor lifted it the rest of the way, so trimming the
+     * padding to 8dp changed the row's height by *nothing*: it only ever showed
+     * up on a three-region row, where the content finally cleared the floor.
+     *
+     * 56 and 72 are Material's numbers, and they are sized for a row with a
+     * 40dp avatar in it. The lists this is for are mostly a line of text and a
+     * time, so they come down to the touch-target floor and one step above it,
+     * which is where the padding starts doing the work instead.
+     */
+    val MinHeight: Dp = 48.dp
+    val TwoLineMinHeight: Dp = 64.dp
 }
 
 /**
@@ -270,7 +284,12 @@ fun ListItem(
             // ground exists to prevent, failing at the tier that needs it most.
             .then(contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier)
             .then(clickModifier)
-            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
+            // `xs`, not `sm`. The 12dp version put 24dp of air around a
+            // single line of text inside a row whose minimum is already 56dp,
+            // so the padding was never what set the height — it only pushed a
+            // two-line row taller than it needed to be. `MinHeight` holds the
+            // floor for the one-line case, which is what it is for.
+            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.xs),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -333,12 +352,20 @@ fun ListItem(
  * jump between sections. It does *not* set each child's [ListItemPosition] —
  * doing that would mean walking the composed children, which Compose has no way
  * to do. Use [listPositions] or [ListItemPosition.of] at the call site.
+ *
+ * @param description Sits under the title, above the rows. For what the group
+ *   *is*.
+ * @param footer Sits under the rows. For what the setting *does* — the sentence
+ *   a settings screen puts below a switch to explain the consequence of it.
+ *   Spelled like [description] rather than as a slot because it is the same kind
+ *   of thing, and the two should not read as different mechanisms.
  */
 @Composable
 fun ListSection(
     modifier: Modifier = Modifier,
     title: String? = null,
     description: String? = null,
+    footer: String? = null,
     action: (@Composable RowScope.() -> Unit)? = null,
     spacing: Dp = ListItemDefaults.Spacing,
     content: @Composable ColumnScope.() -> Unit,
@@ -355,6 +382,18 @@ fun ListSection(
             )
         }
         content()
+        if (footer != null) {
+            Text(
+                text = footer,
+                modifier = Modifier.padding(
+                    start = Theme.spacing.md,
+                    end = Theme.spacing.md,
+                    top = Theme.spacing.xxs,
+                ),
+                style = Theme.typography.bodySmall,
+                color = Theme.colors.contentMuted,
+            )
+        }
     }
 }
 

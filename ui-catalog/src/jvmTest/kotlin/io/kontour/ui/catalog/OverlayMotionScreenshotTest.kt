@@ -38,6 +38,7 @@ import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -70,6 +71,10 @@ import kotlin.test.assertTrue
  * upgrade, in which case re-record and look at the new frame.
  */
 class OverlayMotionScreenshotTest {
+
+    /** Reports every golden that moved, not just the first one in a loop. */
+    @AfterTest
+    fun allGoldensMatched() = Screenshot.assertAllMatched()
 
     @Test
     fun rendersOverlaysWhileTheyAreStillAppearing() {

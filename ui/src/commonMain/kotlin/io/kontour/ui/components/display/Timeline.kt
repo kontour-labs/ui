@@ -57,6 +57,11 @@ enum class ConnectorStyle {
  * detail that makes a timeline look built rather than assembled: a fixed-height
  * connector leaves gaps against tall rows and overshoots short ones.
  */
+object TimelineDefaults {
+    /** Space above the node, and between it and the line leaving it. */
+    val NodeGap: Dp = 2.dp
+}
+
 @Composable
 fun Timeline(
     modifier: Modifier = Modifier,
@@ -73,6 +78,11 @@ fun Timeline(
  * @param nodeColor The dot's colour. Takes a route colour straight from a feed.
  * @param filled A solid dot for a place the traveller actually stops; a hollow
  *   one for a point they pass through.
+ * @param connectorWidth How thick the line to the next item is. Per item, not
+ *   per timeline, because a leg's weight is part of what it *is*: a 4dp train
+ *   segment and a 2dp walk between two stations says which part of the journey
+ *   is the journey. Also sets the hollow node's ring, so a dot and the line
+ *   leaving it stay the same weight.
  */
 @Composable
 fun TimelineItem(
@@ -83,6 +93,7 @@ fun TimelineItem(
     filled: Boolean = true,
     nodeSize: Dp = 12.dp,
     gutterWidth: Dp = 28.dp,
+    connectorWidth: Dp = Theme.sizing.borderWidthStrong,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Row(
@@ -96,11 +107,15 @@ fun TimelineItem(
             Canvas(Modifier.fillMaxHeight().width(gutterWidth)) {
                 val centreX = size.width / 2f
                 val nodeRadius = nodeSize.toPx() / 2f
-                val stroke = 2.dp.toPx()
-                val nodeCentreY = nodeRadius + 2.dp.toPx()
+                val stroke = connectorWidth.toPx()
+                // The gap above and below the node is its own measure, not the
+                // stroke's — a thick segment should not shove its dot down the
+                // gutter and out of line with the ones above it.
+                val nodeGap = TimelineDefaults.NodeGap.toPx()
+                val nodeCentreY = nodeRadius + nodeGap
 
                 if (connector != ConnectorStyle.None) {
-                    val top = nodeCentreY + nodeRadius + 2.dp.toPx()
+                    val top = nodeCentreY + nodeRadius + nodeGap
                     if (top < size.height) {
                         drawLine(
                             color = connectorColor,

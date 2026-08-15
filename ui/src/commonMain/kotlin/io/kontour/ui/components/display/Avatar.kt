@@ -25,12 +25,57 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 import kotlin.math.absoluteValue
 
-/** Standard avatar sizes. */
-enum class AvatarSize(internal val diameter: Dp, internal val textSize: Dp) {
-    Small(24.dp, 10.dp),
-    Medium(40.dp, 15.dp),
-    Large(56.dp, 20.dp),
-    XLarge(80.dp, 28.dp),
+/**
+ * How big an avatar is drawn.
+ *
+ * ```kotlin
+ * Avatar(name = "Aaron", size = AvatarSize.Medium)
+ * Avatar(name = "Aaron", size = AvatarSize(32.dp))   // anything the layout needs
+ * ```
+ *
+ * It was an `enum` of four — 24, 40, 56, 80 — and the answer to "we need 32"
+ * was to add a fifth entry, then a sixth, and then to argue about what to call
+ * the one between `Small` and `Medium`. A ladder that has to be enumerated grows
+ * awkward names faster than it grows sizes. The five below are the ones worth
+ * naming; every other diameter is one call away, and nothing renumbered, so
+ * `AvatarSize.Medium` is the same 40dp it always was.
+ */
+@JvmInline
+value class AvatarSize(val diameter: Dp) {
+
+    /**
+     * Initials, sized from the diameter.
+     *
+     * `diameter * 0.3125 + 2.5dp`, which reproduces the old hand-listed 10, 15
+     * and 20 exactly. It is a line rather than a ratio because the old table was
+     * one: the text-to-diameter *ratio* fell from 0.42 to 0.35 as the avatar
+     * grew, which is the optical correction a small avatar needs to stay
+     * readable, and a single multiplier would have thrown it away.
+     *
+     * The one value it does not reproduce is `XLarge`'s 28dp, which the line
+     * puts at 27.5 — a rounding somebody did by hand, and half a dp.
+     */
+    internal val textSize: Dp get() = diameter * TextRatio + TextOffset
+
+    companion object {
+        /** 20dp. Inline in a line of text, or a dense list. */
+        val XSmall = AvatarSize(20.dp)
+
+        /** 24dp. A stack of participants, a compact row. */
+        val Small = AvatarSize(24.dp)
+
+        /** 40dp. The list-row default. */
+        val Medium = AvatarSize(40.dp)
+
+        /** 56dp. A header, a card. */
+        val Large = AvatarSize(56.dp)
+
+        /** 80dp. A profile screen. */
+        val XLarge = AvatarSize(80.dp)
+
+        private const val TextRatio = 0.3125f
+        private val TextOffset = 2.5.dp
+    }
 }
 
 /**

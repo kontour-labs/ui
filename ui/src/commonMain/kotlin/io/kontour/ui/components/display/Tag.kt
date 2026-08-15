@@ -20,6 +20,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColorFor
 import io.kontour.ui.foundation.Icon
@@ -30,6 +32,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
+import kotlin.math.roundToInt
 
 /** The meaning a [Tag] carries. Maps to the scheme's status tones. */
 enum class TagTone { Neutral, Accent, Success, Warning, Danger, Info }
@@ -196,10 +199,25 @@ fun Badge(
 }
 
 /**
- * Positions a [Badge] over the top-trailing corner of [content].
+ * Straddles a [Badge] over the top-trailing corner of [content].
  *
- * The badge overhangs rather than being inset, so it does not eat into the icon
- * it is annotating. Give the parent a little padding if it might be clipped.
+ * The badge's centre sits **on** the corner, so it overhangs by half of itself
+ * in each direction and does not eat into the icon it is annotating.
+ *
+ * ### Why this is a Layout and not a Box with padding
+ *
+ * It used to be `align(TopEnd).padding(start = 12.dp, bottom = 12.dp)`, which
+ * shifts the badge up and right by a fixed 12dp however big the badge is. A dot
+ * badge is 8dp and a "9+" is nearer 24, so the same call left one of them
+ * floating clear of the corner and the other sitting mostly inside the icon.
+ * The offset has to come from the badge's own measured size, and a modifier
+ * cannot read that.
+ *
+ * The second thing it fixes is clipping. The old version drew the badge outside
+ * its own bounds, so any ancestor with a `clip` — a rounded nav item, a
+ * `Surface` — took a bite out of it, and the fix at each call site was to
+ * remember to add padding. This reports a size that *includes* the overhang, so
+ * there is nothing outside the bounds to clip.
  */
 @Composable
 fun BadgedBox(
@@ -207,16 +225,36 @@ fun BadgedBox(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    Box(modifier, contentAlignment = Alignment.Center) {
-        content()
-        Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .padding(start = 12.dp, bottom = 12.dp),
-        ) {
-            badge()
+    Layout(
+        modifier = modifier,
+        content = {
+            Box(contentAlignment = Alignment.Center) { content() }
+            Box { badge() }
+        },
+    ) { measurables, constraints ->
+        val body = measurables[0].measure(constraints)
+        // Unbounded: the badge is an annotation, and squeezing it to fit the
+        // thing it annotates is how a count ends up ellipsised.
+        val mark = measurables[1].measure(Constraints())
+
+        val outX = (mark.width * BadgeDefaults.Overhang).roundToInt()
+        val outY = (mark.height * BadgeDefaults.Overhang).roundToInt()
+
+        layout(body.width + outX, body.height + outY) {
+            body.placeRelative(0, outY)
+            mark.placeRelative(body.width + outX - mark.width, 0)
         }
     }
+}
+
+object BadgeDefaults {
+    /**
+     * How much of the badge hangs past the corner, as a fraction of itself.
+     *
+     * `0.5` puts its centre exactly on the corner. Less would inset it into the
+     * icon; more would leave it floating beside one.
+     */
+    const val Overhang: Float = 0.5f
 }
 
 @Composable
