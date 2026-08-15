@@ -28,6 +28,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -56,6 +58,7 @@ import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.sheet.SideSheet
+import io.kontour.ui.adaptive.leadingEdges
 import io.kontour.ui.theme.Theme
 
 object NavDrawerDefaults {
@@ -98,6 +101,11 @@ fun NavDrawer(
     indicatorColor: Color = Theme.colors.accentContainer,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
+    /**
+     * What the drawer's *content* keeps clear of. The status bar, the gesture bar
+     * and the display cutout on the leading side by default.
+     */
+    windowInsets: WindowInsets = WindowInsets.leadingEdges,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
@@ -110,6 +118,9 @@ fun NavDrawer(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
+                // Inside the surface, so the drawer's colour still reaches the
+                // edge of the window.
+                .windowInsetsPadding(windowInsets)
                 .padding(Theme.spacing.sm),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
         ) {

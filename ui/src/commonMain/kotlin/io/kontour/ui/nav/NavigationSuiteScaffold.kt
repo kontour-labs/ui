@@ -1,6 +1,7 @@
 package io.kontour.ui.nav
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.adaptive.LocalWindowSizeClass
+import io.kontour.ui.adaptive.bottomEdges
+import io.kontour.ui.adaptive.leadingEdges
 import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.Theme
@@ -87,6 +90,12 @@ fun NavigationSuiteScaffold(
     containerColor: Color = Theme.colors.background,
     action: (@Composable () -> Unit)? = null,
     drawerHeader: (@Composable ColumnScope.() -> Unit)? = null,
+    /**
+     * What the navigation surface keeps clear of, passed through to whichever one
+     * this window gets. Sided automatically: a bar takes the bottom and the sides,
+     * a rail or drawer takes the leading side and the top and bottom.
+     */
+    windowInsets: WindowInsets? = null,
     content: @Composable (contentPadding: Dp) -> Unit,
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = containerColor) {
@@ -115,6 +124,7 @@ fun NavigationSuiteScaffold(
                     style = barStyle,
                     showLabels = showLabels,
                     action = action,
+                    windowInsets = windowInsets ?: WindowInsets.bottomEdges,
                 )
             }
 
@@ -125,6 +135,7 @@ fun NavigationSuiteScaffold(
                     showLabels = showLabels,
                     header = drawerHeader,
                     action = action?.let { { it() } },
+                    windowInsets = windowInsets ?: WindowInsets.leadingEdges,
                 )
                 Box(Modifier.weight(1f)) { content(0.dp) }
             }
@@ -133,6 +144,7 @@ fun NavigationSuiteScaffold(
                 NavDrawer(
                     header = drawerHeader,
                     footer = action?.let { { it() } },
+                    windowInsets = windowInsets ?: WindowInsets.leadingEdges,
                 ) {
                     items.forEachIndexed { index, item ->
                         NavDrawerItem(

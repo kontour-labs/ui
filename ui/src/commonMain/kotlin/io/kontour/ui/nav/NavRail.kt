@@ -17,6 +17,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -33,6 +35,7 @@ import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.adaptive.leadingEdges
 import io.kontour.ui.theme.Theme
 
 object NavRailDefaults {
@@ -104,6 +107,12 @@ fun NavRail(
     collapseLabel: String = "Collapse navigation",
     header: (@Composable ColumnScope.() -> Unit)? = null,
     action: (@Composable ColumnScope.() -> Unit)? = null,
+    /**
+     * What the rail's *content* keeps clear of. The status bar, the gesture bar
+     * and the display cutout on the leading side by default — a landscape phone
+     * puts the cutout exactly where the rail is.
+     */
+    windowInsets: WindowInsets = WindowInsets.leadingEdges,
 ) {
     val indicator = rememberSelectionIndicatorState()
     val motion = Theme.motion
@@ -130,6 +139,10 @@ fun NavRail(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
+                // Inside the surface, so the rail's colour still reaches the edge
+                // of the window and the cutout sits on the rail rather than on a
+                // strip of whatever is behind it.
+                .windowInsetsPadding(windowInsets)
                 // Horizontal padding as well as vertical: the destinations run
                 // full-width so the leading-edge marker sits at a consistent x,
                 // and without this that x is the rail's own rounded edge, which

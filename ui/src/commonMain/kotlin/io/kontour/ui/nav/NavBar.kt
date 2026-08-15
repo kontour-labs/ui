@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -24,6 +26,7 @@ import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.adaptive.bottomEdges
 import io.kontour.ui.theme.Theme
 
 /** How a [NavBar] sits on the screen. */
@@ -133,6 +136,18 @@ fun NavBar(
     indicatorColor: Color = Theme.colors.accentContainer,
     search: (@Composable () -> Unit)? = null,
     action: (@Composable () -> Unit)? = null,
+    /**
+     * What the bar keeps clear of. The gesture bar and the display cutout by
+     * default; pass `WindowInsets(0)` when something outside has already
+     * accounted for them.
+     *
+     * A [NavBarStyle.Floating] bar moves *up* by the inset, because it is a shape
+     * with air around it and there is nothing to extend. A [NavBarStyle.Docked]
+     * bar is full bleed, so its surface reaches the bottom of the window and only
+     * its content is inset — the gesture bar sits on the bar rather than on a
+     * strip of the screen behind it.
+     */
+    windowInsets: WindowInsets = WindowInsets.bottomEdges,
 ) {
     val indicator = rememberSelectionIndicatorState()
     val sizing = when {
@@ -169,7 +184,16 @@ fun NavBar(
                 )
                 // A minimum, not a height: at 200% type the content is taller than
                 // 64dp and the bar has to grow rather than clip it.
-                .defaultMinSize(minHeight = NavBarDefaults.MinHeight),
+                .defaultMinSize(minHeight = NavBarDefaults.MinHeight)
+                // Docked only: a floating bar is inset as a whole below, and
+                // doing both would count the gesture bar twice.
+                .then(
+                    if (style == NavBarStyle.Docked) {
+                        Modifier.windowInsetsPadding(windowInsets)
+                    } else {
+                        Modifier
+                    }
+                ),
             shape = shape,
             color = containerColor,
             contentColor = contentColor,
@@ -256,6 +280,7 @@ fun NavBar(
         NavBarStyle.Floating -> Row(
             modifier = modifier
                 .fillMaxWidth()
+                .windowInsetsPadding(windowInsets)
                 .padding(NavBarDefaults.FloatingInset),
             horizontalArrangement = Arrangement.spacedBy(
                 Theme.spacing.xs,

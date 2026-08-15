@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -25,6 +27,7 @@ import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.theme.Theme
 
 /** How much room a [TopBar] takes, and where its title sits. */
@@ -97,9 +100,18 @@ fun TopBar(
      * collapse a [TopBarStyle.Large] bar. Ignored by the other styles.
      */
     collapseProgress: Float = 0f,
+    /**
+     * What the bar's *content* keeps clear of. The status bar and the display
+     * cutout by default; pass `WindowInsets(0)` when something above has already
+     * accounted for them, or when this bar is not at the top of the window.
+     */
+    windowInsets: WindowInsets = WindowInsets.topEdges,
 ) {
     Surface(modifier = modifier.fillMaxWidth(), color = containerColor, contentColor = contentColor) {
-        Column {
+        // Inside the surface, so the container colour still reaches the top of the
+        // window and the status bar sits on the bar rather than on a strip of
+        // whatever is behind it.
+        Column(Modifier.windowInsetsPadding(windowInsets)) {
             when (style) {
                 TopBarStyle.Small, TopBarStyle.Centred -> Row(
                     modifier = Modifier
