@@ -100,6 +100,13 @@ component means adding a line there; see
 pulled Material in. The whole system exists to not be Material, and one
 transitive dependency would undo that quietly.
 
+**`EverythingRespondsTest`** presses every enabled control in every showcase and
+requires that something observable changed — the semantics tree, or the toast a
+specimen with no state of its own raises to say what was tapped. `onClick = {}`
+looks alive while doing nothing, and a control nobody can tell is dead has
+hidden two real defects in this project already. Whatever is **disabled** is
+exempt and nothing else is; if something should not respond, disable it.
+
 **Screenshot goldens** in `ui-catalog/screenshots/` are compared, not just
 regenerated. A mismatch fails and writes the render plus a diff with every
 changed pixel in magenta to `ui-catalog/build/screenshot-diffs/`. To accept an

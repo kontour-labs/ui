@@ -47,6 +47,7 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
+import kotlinx.coroutines.delay
 
 private val stops = listOf(
     "Perth Underground" to "Platform 2 · Joondalup line",
@@ -54,6 +55,9 @@ private val stops = listOf(
     "Perth Busport" to "Stand 24 · Route 950",
     "McIver" to "Platform 1 · Midland line",
 )
+
+private val themes = listOf("Match system", "Always light", "Always dark")
+private val accents = listOf("Anyways", "Transperth", "Monochrome")
 
 /** List items, sections, swipe actions and the scroll affordances. */
 @Composable
@@ -72,17 +76,18 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                     // move — which is the claim the shorthands make: the same
                     // components, with the index arithmetic deleted rather than
                     // rewritten at every call site.
+                    val current = seed(1)
                     ListGroup(spacing = 2.dp) {
                         stops.forEachIndexed { index, (name, detail) ->
                             item(
                                 label = name,
                                 supporting = detail,
                                 icon = Tabler.Outline.Bus,
-                                selected = index == 1,
+                                selected = index == current.value,
                                 trailing = {
                                     Tag(tone = TagTone.Neutral) { +"${4 + index * 6} min" }
                                 },
-                                onClick = {},
+                                onClick = { current.value = index },
                             )
                         }
                     }
@@ -93,7 +98,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                     // corners round, not just the outside ones.
                     ListItem(
                         position = ListItemPosition.Only,
-                        onClick = {},
+                        onClick = tap("Perth Underground"),
                     ) {
                         +"Perth Underground"
                         supporting { +"Only stop on this route" }
@@ -112,21 +117,28 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                         footer = "Delay alerts use your last-known location and " +
                             "stop when you close the app.",
                     ) {
+                        // A setting row's whole job is to open something and
+                        // come back with a new value. Cycling through the values
+                        // in place is the shortest thing that shows that
+                        // happening without a picker in the way.
+                        val theme = seed(0)
+                        val accent = seed(0)
+
                         SettingRow(
                             position = ListItemPosition.First,
-                            onClick = {},
+                            onClick = { theme.value = (theme.value + 1) % themes.size },
                         ) {
                             +"Theme"
                             leading { +Tabler.Outline.Moon }
-                            trailing { settingValue("Match system") }
+                            trailing { settingValue(themes[theme.value]) }
                         }
                         SettingRow(
                             position = ListItemPosition.Middle,
-                            onClick = {},
+                            onClick = { accent.value = (accent.value + 1) % accents.size },
                         ) {
                             +"Accent colour"
                             leading { +Tabler.Outline.Palette }
-                            trailing { settingValue("Anyways") }
+                            trailing { settingValue(accents[accent.value]) }
                         }
                         var notify by remember { mutableStateOf(true) }
                         SettingRow(
@@ -136,19 +148,29 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                             +"Delay alerts"
                             supporting { +"Only for favourited routes" }
                             leading { +Tabler.Outline.Bell }
-                            trailing {
-                                                            Switch(checked = notify, onCheckedChange = null)
-                                                        
-                            }
+                            trailing { Switch(checked = notify, onCheckedChange = null) }
                         }
                     }
                 }
 
                 Section("Loading more") {
+                    // The spinner is the exhibit, and a request in flight is
+                    // supposed to swallow a second tap — the one control on this
+                    // page that is inert on purpose.
                     LoadMore(state = LoadMoreState.Loading, onLoadMore = {})
+
+                    // The retry actually retries, and fails again a moment later,
+                    // so the round trip can be watched rather than described.
+                    val more = seed(LoadMoreState.Error)
+                    LaunchedEffect(more.value) {
+                        if (more.value == LoadMoreState.Loading) {
+                            delay(1_200)
+                            more.value = LoadMoreState.Error
+                        }
+                    }
                     LoadMore(
-                        state = LoadMoreState.Error,
-                        onLoadMore = {},
+                        state = more.value,
+                        onLoadMore = { more.value = LoadMoreState.Loading },
                         errorLabel = "Couldn't load more departures",
                     )
                 }
@@ -169,7 +191,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                             SwipeAction(
                                 label = "Remove",
                                 icon = Tabler.Outline.Trash,
-                                onAction = {},
+                                onAction = tap("Remove"),
                                 background = Theme.colors.danger.solid,
                                 isFullSwipeAction = true,
                             ),
@@ -178,12 +200,12 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                             SwipeAction(
                                 label = "Favourite",
                                 icon = Tabler.Outline.Star,
-                                onAction = {},
+                                onAction = tap("Favourite"),
                                 background = Theme.colors.success.solid,
                             ),
                         ),
                     ) {
-                        ListItem(onClick = {}) {
+                        ListItem(onClick = tap("Perth Busport")) {
                             +"Perth Busport"
                             supporting { +"Swipe either way" }
                         }

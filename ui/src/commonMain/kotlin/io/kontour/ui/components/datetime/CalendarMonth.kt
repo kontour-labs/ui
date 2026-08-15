@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -320,11 +321,6 @@ private fun DayCell(
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .semantics {
-                role = Role.Button
-                this.selected = filled
-                stateDescription = formats.dateFull(date)
-            }
             // Inset on the outside of the range only.
             //
             // A flat 1dp all round put 2dp of gap between every pair of
@@ -364,7 +360,20 @@ private fun DayCell(
                 .minimumTouchTarget()
                 .matchCellSize()
                 .clip(shape)
-                .clickable(
+                // On the node that is pressed, not on the fill behind it.
+                //
+                // The date and the selection used to be announced from the
+                // decorative box that draws the highlight — a sibling of this
+                // one, which a screen reader reaches separately if at all. So
+                // the thing a user actually lands on said "18, button" and
+                // nothing about it being the date they had chosen.
+                //
+                // `selectable` rather than `clickable`: a day in a calendar is
+                // one of a set of choices, and this is the modifier that says so
+                // and carries the state with the action.
+                .semantics { stateDescription = formats.dateFull(date) }
+                .selectable(
+                    selected = filled,
                     interactionSource = interactions,
                     indication = null,
                     enabled = enabled,

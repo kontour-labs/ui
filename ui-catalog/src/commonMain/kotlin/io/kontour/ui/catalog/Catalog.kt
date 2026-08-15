@@ -54,6 +54,8 @@ import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavigationSuiteScaffold
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.ToastHost
+import io.kontour.ui.overlay.rememberToasts
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.theme.ContrastLevel
@@ -139,6 +141,15 @@ fun Catalog() {
             ) {
                 WindowSizeClassProvider(Modifier.fillMaxSize()) {
                     OverlayHost {
+                        // Where a specimen with no state of its own sends its
+                        // press, so that nothing in the gallery is wired to a
+                        // callback you cannot tell is being called. Remembered
+                        // rather than written inline: the local is static, and a
+                        // fresh lambda every recomposition would recompose the
+                        // whole gallery under it.
+                        val toasts = rememberToasts()
+                        ToastHost(toasts)
+
                         val settingsButton = @Composable {
                             IconButton(
                                 icon = Tabler.Outline.AdjustmentsHorizontal,
@@ -147,59 +158,65 @@ fun Catalog() {
                             )
                         }
 
-                        // Twelve destinations is more than a bottom bar can hold
-                        // — the labels truncate to three letters each — so on
-                        // compact the catalog drives its own modal drawer rather
-                        // than taking what `NavigationSuiteScaffold` would pick.
-                        // That is not a gap in the scaffold: it chooses correctly
-                        // for an app with three to five destinations, which a
-                        // gallery is not. Above compact the scaffold's choice is
-                        // right and it makes it.
-                        if (LocalWindowSizeClass.current.width == WindowWidthClass.Compact) {
-                            CompactCatalog(
-                                selected = selected,
-                                onSelect = { selected = it },
-                                action = settingsButton,
-                            )
-                        } else {
-                            NavigationSuiteScaffold(
-                                items = pages.mapIndexed { index, page ->
-                                    NavItem(
-                                        label = page.title,
-                                        icon = page.icon,
-                                        onClick = { selected = index },
-                                    )
-                                },
-                                selectedIndex = selected,
-                                action = settingsButton,
-                            ) { contentPadding ->
-                                Box(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .verticalScroll(rememberScrollState())
-                                        .padding(bottom = contentPadding)
-                                ) {
-                                    pages[selected].content(Modifier.fillMaxWidth())
+                        CompositionLocalProvider(
+                            LocalCatalogEcho provides remember(toasts) {
+                                { what: String -> toasts.show(what) }
+                            }
+                        ) {
+                            // Twelve destinations is more than a bottom bar can hold
+                            // — the labels truncate to three letters each — so on
+                            // compact the catalog drives its own modal drawer rather
+                            // than taking what `NavigationSuiteScaffold` would pick.
+                            // That is not a gap in the scaffold: it chooses correctly
+                            // for an app with three to five destinations, which a
+                            // gallery is not. Above compact the scaffold's choice is
+                            // right and it makes it.
+                            if (LocalWindowSizeClass.current.width == WindowWidthClass.Compact) {
+                                CompactCatalog(
+                                    selected = selected,
+                                    onSelect = { selected = it },
+                                    action = settingsButton,
+                                )
+                            } else {
+                                NavigationSuiteScaffold(
+                                    items = pages.mapIndexed { index, page ->
+                                        NavItem(
+                                            label = page.title,
+                                            icon = page.icon,
+                                            onClick = { selected = index },
+                                        )
+                                    },
+                                    selectedIndex = selected,
+                                    action = settingsButton,
+                                ) { contentPadding ->
+                                    Box(
+                                        Modifier
+                                            .fillMaxSize()
+                                            .verticalScroll(rememberScrollState())
+                                            .padding(bottom = contentPadding)
+                                    ) {
+                                        pages[selected].content(Modifier.fillMaxWidth())
+                                    }
                                 }
                             }
-                        }
 
-                        SettingsSheet(
-                            visible = settingsOpen,
-                            dark = dark,
-                            onDarkChange = { dark = it },
-                            highContrast = highContrast,
-                            onHighContrastChange = { highContrast = it },
-                            fontScale = fontScale,
-                            onFontScaleChange = { fontScale = it },
-                            rtl = rtl,
-                            onRtlChange = { rtl = it },
-                            reduceMotion = reduceMotion,
-                            onReduceMotionChange = { reduceMotion = it },
-                            modality = modality,
-                            onModalityChange = { modality = it },
-                            onDismiss = { settingsOpen = false },
-                        )
+                            SettingsSheet(
+                                visible = settingsOpen,
+                                dark = dark,
+                                onDarkChange = { dark = it },
+                                highContrast = highContrast,
+                                onHighContrastChange = { highContrast = it },
+                                fontScale = fontScale,
+                                onFontScaleChange = { fontScale = it },
+                                rtl = rtl,
+                                onRtlChange = { rtl = it },
+                                reduceMotion = reduceMotion,
+                                onReduceMotionChange = { reduceMotion = it },
+                                modality = modality,
+                                onModalityChange = { modality = it },
+                                onDismiss = { settingsOpen = false },
+                            )
+                        }
                     }
                 }
             }

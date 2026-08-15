@@ -140,13 +140,22 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                         +"Ferries"
                     }
                     FilterChip(selected = false, onClick = {}, enabled = false) { +"Disabled" }
-                    Chip(onClick = {}) { +"Share" }
-                    InputChip(
-                        onRemove = {},
-                        removeIcon = Tabler.Outline.X,
-                        removeLabel = "Remove Perth Station",
-                    ) {
-                        +"Perth Station"
+                    Chip(onClick = tap("Share")) { +"Share" }
+
+                    // An input chip that actually removes itself, and a way back:
+                    // a gallery where the only interactive thing a control does is
+                    // disappear for good is one you can try exactly once.
+                    val place = seed(true)
+                    if (place.value) {
+                        InputChip(
+                            onRemove = { place.value = false },
+                            removeIcon = Tabler.Outline.X,
+                            removeLabel = "Remove Perth Station",
+                        ) {
+                            +"Perth Station"
+                        }
+                    } else {
+                        Chip(onClick = { place.value = true }) { +"Undo" }
                     }
                 }
             }

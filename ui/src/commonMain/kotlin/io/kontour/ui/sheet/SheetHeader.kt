@@ -108,17 +108,27 @@ fun DragHandle(
 }
 
 /**
- * Closes the sheet this header is inside, or null when there is no sheet.
+ * Closes the sheet this header is inside, or null when there is nothing to close.
  *
- * The default for [SheetHeader]'s `onClose`, which makes the three cases fall
- * out of one parameter: inside a sheet you get a close button that animates it
- * shut, outside one you get no close button, and passing a lambda overrides
- * both. Animating matters — a caller-supplied close that only flips a boolean
- * makes the sheet vanish rather than leave.
+ * The default for [SheetHeader]'s `onClose`, which makes the cases fall out of
+ * one parameter: inside a sheet that can close you get a close button that
+ * animates it shut, anywhere else you get no close button, and passing a lambda
+ * overrides both. Animating matters — a caller-supplied close that only flips a
+ * boolean makes the sheet vanish rather than leave.
+ *
+ * ### Null when the sheet has no [SheetDetent.Hidden]
+ *
+ * A sheet's detents are what it can be, and one whose detents are `peek` and
+ * `half` cannot be nothing: [SheetState.hide] on it is documented as a no-op.
+ * Offering a close button there drew a control that could not do the one thing
+ * its icon promises — which is worse than the absence of one, because a user who
+ * presses it learns nothing except that the app ignored them. Found by a test
+ * that presses every control in the catalog and asks what changed.
  */
 @Composable
 fun closeEnclosingSheet(): (() -> Unit)? {
     val state = LocalSheetState.current ?: return null
+    if (SheetDetent.Hidden !in state.detents) return null
     val scope = rememberCoroutineScope()
     return { scope.launch { state.hide() } }
 }

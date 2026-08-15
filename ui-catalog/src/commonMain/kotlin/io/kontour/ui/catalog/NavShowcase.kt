@@ -107,7 +107,7 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                                 +"Favourites"
                             }
                             TopBar(
-                                onBack = {},
+                                onBack = tap("Back"),
                                 showDivider = true,
                             ) {
                                 +"Perth Underground"
@@ -115,14 +115,14 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                             }
                             TopBar(
                                 style = TopBarStyle.Large,
-                                onBack = {},
+                                onBack = tap("Back"),
                                 collapseProgress = 0f,
                             ) {
                                 +"Route 950"
                             }
                             TopBar(
                                 style = TopBarStyle.Large,
-                                onBack = {},
+                                onBack = tap("Back"),
                                 // Half collapsed: the small title is fading in
                                 // exactly as the large one leaves.
                                 collapseProgress = 0.5f,
@@ -144,7 +144,7 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                                 IconButton(
                                     icon = Tabler.Outline.DotsVertical,
                                     contentDescription = "More",
-                                    onClick = {},
+                                    onClick = tap("More"),
                                     variant = ButtonVariant.Ghost,
                                     size = ButtonSize.Small,
                                 )
@@ -159,8 +159,8 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                     Section("Breadcrumbs") {
                         Breadcrumbs(
                             listOf(
-                                Crumb("Routes", onClick = {}),
-                                Crumb("Route 950", onClick = {}),
+                                Crumb("Routes", onClick = tap("Routes")),
+                                Crumb("Route 950", onClick = tap("Route 950")),
                                 Crumb("Stops"),
                             )
                         )
@@ -168,9 +168,28 @@ fun NavShowcase(modifier: Modifier = Modifier) {
 
                     Section("Pagination") {
                         Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-                            Pagination(page = 0, pageCount = 40, onPageChange = {})
-                            Pagination(page = 19, pageCount = 40, onPageChange = {})
-                            Pagination(page = 2, pageCount = 5, onPageChange = {})
+                            // Seeded at the three positions the collapsing
+                            // logic branches on — first, middle, and a count
+                            // small enough not to collapse at all — and each one
+                            // pages for real from there.
+                            val first = seed(0)
+                            val middle = seed(19)
+                            val short = seed(2)
+                            Pagination(
+                                page = first.value,
+                                pageCount = 40,
+                                onPageChange = { first.value = it },
+                            )
+                            Pagination(
+                                page = middle.value,
+                                pageCount = 40,
+                                onPageChange = { middle.value = it },
+                            )
+                            Pagination(
+                                page = short.value,
+                                pageCount = 5,
+                                onPageChange = { short.value = it },
+                            )
                         }
                     }
                 }
@@ -267,7 +286,7 @@ private fun BarPanel(
                         FloatingActionButton(
                             icon = Tabler.Outline.Search,
                             contentDescription = "Search",
-                            onClick = {},
+                            onClick = tap("Search"),
                             size = FabSize.Small,
                         )
                     }
@@ -280,6 +299,10 @@ private fun BarPanel(
 @Composable
 private fun RailPanel(expanded: Boolean) {
     var selected by remember { mutableStateOf(1) }
+    // The pair of panels shows both widths at once, and each one can be expanded
+    // and collapsed from its own chevron — which is the control the rail exists
+    // to have.
+    var wide by remember { mutableStateOf(expanded) }
 
     Box(
         Modifier
@@ -294,13 +317,13 @@ private fun RailPanel(expanded: Boolean) {
         NavRail(
             items = destinations(selected) { selected = it },
             selectedIndex = selected,
-            expanded = expanded,
-            onExpandedChange = {},
+            expanded = wide,
+            onExpandedChange = { wide = it },
             action = {
                 FloatingActionButton(
                     icon = Tabler.Outline.Search,
                     contentDescription = "Search",
-                    onClick = {},
+                    onClick = tap("Search"),
                 )
             },
         )
@@ -340,7 +363,7 @@ private fun DevicePanel(title: String, width: Dp, height: Dp) {
                         FloatingActionButton(
                             icon = Tabler.Outline.Search,
                             contentDescription = "Search",
-                            onClick = {},
+                            onClick = tap("Search"),
                         )
                     },
                 ) { contentPadding ->
@@ -358,7 +381,6 @@ private fun DevicePanel(title: String, width: Dp, height: Dp) {
                             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                         ) {
                             TopBar(
-                                actions = {},
                                 containerColor = Theme.colors.surfaceSunken,
                             ) {
                                 +"Map"

@@ -94,13 +94,17 @@ fun SelectShowcase(modifier: Modifier = Modifier) {
                     optionLabel = { it.label },
                     enabled = false,
                 )
+                // Live, and still shows its error: the message is the exhibit,
+                // and a field you cannot answer cannot show the error clearing.
+                val whenToLeave = seed<Departure?>(null)
                 Select(
-                    value = null,
+                    value = whenToLeave.value,
                     options = Departure.entries,
-                    onValueChange = {},
+                    onValueChange = { whenToLeave.value = it },
                     label = "With an error",
                     optionLabel = { it.label },
-                    errorMessage = "Pick when you want to travel",
+                    errorMessage = "Pick when you want to travel"
+                        .takeIf { whenToLeave.value == null },
                 )
             }
 

@@ -166,14 +166,13 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                         +"Couldn't reach the server."
                         leading { +Tabler.Outline.AlertTriangle }
                         action {
-                                                    Button(
-                                                        onClick = {},
-                                                        variant = ButtonVariant.Secondary,
-                                                        size = ButtonSize.XSmall,
-                                                    ) {
-                                                        +"Retry"
-                                                    }
-                                                
+                            Button(
+                                onClick = tap("Retry"),
+                                variant = ButtonVariant.Secondary,
+                                size = ButtonSize.XSmall,
+                            ) {
+                                +"Retry"
+                            }
                         }
                     }
                     Banner(tone = BannerTone.Success) {
@@ -244,18 +243,17 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                             supporting { +"Star a stop or route and it will appear here." }
                             leading { +Tabler.Outline.Star }
                             action {
-                                                            Button(
-                                                                onClick = {},
-                                                                variant = ButtonVariant.Secondary,
-                                                            ) {
-                                                                +"Browse routes"
-                                                            }
-                                                        
+                                Button(
+                                    onClick = tap("Browse routes"),
+                                    variant = ButtonVariant.Secondary,
+                                ) {
+                                    +"Browse routes"
+                                }
                             }
                         }
                     }
                     Card(variant = CardVariant.Outlined) {
-                        ErrorState(onRetry = {}) {
+                        ErrorState(onRetry = tap("Retry")) {
                             +"Couldn't load departures"
                             supporting { +"Check your connection and try again." }
                             leading { +Tabler.Outline.AlertTriangle }
@@ -281,12 +279,21 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                                 color = Theme.colors.contentMuted,
                             )
                         }
+                        // Seeded closed, so the pair still shows both states
+                        // in a golden, and both open.
+                        val notifications = seed(false)
                         Accordion(
-                            expanded = false,
-                            onExpandedChange = {},
+                            expanded = notifications.value,
+                            onExpandedChange = { notifications.value = it },
                             header = { +"Notifications" },
                             chevron = Tabler.Outline.ChevronDown,
-                        ) {}
+                        ) {
+                            Text(
+                                "Delay alerts, service changes and trip reminders.",
+                                style = Theme.typography.bodySmall,
+                                color = Theme.colors.contentMuted,
+                            )
+                        }
                     }
                 }
             }

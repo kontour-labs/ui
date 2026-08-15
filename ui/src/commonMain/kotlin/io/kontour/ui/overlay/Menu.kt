@@ -457,6 +457,7 @@ fun SubMenu(
     content: @Composable MenuScope.() -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
+    var openedByHover by remember { mutableStateOf(false) }
     var bounds by remember { mutableStateOf<Rect?>(null) }
     val interactions = remember { MutableInteractionSource() }
     val panelInteractions = remember { MutableInteractionSource() }
@@ -480,19 +481,28 @@ fun SubMenu(
     // like the same thing — the two states chase each other every frame and the
     // composition never settles. `SubMenuHoverTest` catches the taste problem;
     // the hang is what you get for removing the delay on its own.
+    // Only what hover opened does hover close. A pointer user who *clicks* the
+    // row rather than resting on it was opening the submenu and watching it shut
+    // again a moment later without having moved — the close ran on any device
+    // that could hover, whatever had opened it.
     LaunchedEffect(hovered, panelHovered, modality) {
         if (!modality.supportsHover) return@LaunchedEffect
         if (hovered || panelHovered) {
             open = true
-        } else if (open) {
+            openedByHover = true
+        } else if (open && openedByHover) {
             delay(MenuDefaults.SubmenuCloseDelay)
             open = false
+            openedByHover = false
         }
     }
 
     Box(Modifier.anchorBounds { bounds = it }) {
         MenuItem(
-            onClick = { open = !open },
+            onClick = {
+                open = !open
+                openedByHover = false
+            },
             modifier = modifier,
             enabled = enabled,
             interactionSource = interactions,

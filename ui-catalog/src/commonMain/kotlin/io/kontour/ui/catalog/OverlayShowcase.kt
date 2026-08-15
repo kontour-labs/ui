@@ -86,7 +86,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                         IconButton(
                             icon = Tabler.Outline.Dots,
                             contentDescription = "More",
-                            onClick = {},
+                            onClick = { menu.value = !menu.value },
                         )
                         DropdownMenu(
                             expanded = menu.value,
@@ -97,15 +97,30 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             // did not move — which is the claim the shorthands
                             // make: the same components, fewer places to slip.
                             section("This stop")
-                            item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S") {}
-                            item("Copy stop ID", icon = Tabler.Outline.Copy) {}
-                            item("Set a reminder", icon = Tabler.Outline.Clock, enabled = false) {}
+                            item(
+                                "Share",
+                                icon = Tabler.Outline.Share,
+                                shortcut = "⌘S",
+                                onClick = tap("Share"),
+                            )
+                            item(
+                                "Copy stop ID",
+                                icon = Tabler.Outline.Copy,
+                                onClick = tap("Copy stop ID"),
+                            )
+                            item(
+                                "Set a reminder",
+                                icon = Tabler.Outline.Clock,
+                                enabled = false,
+                                onClick = {},
+                            )
                             divider()
                             item(
                                 "Remove favourite",
                                 icon = Tabler.Outline.Trash,
                                 destructive = true,
-                            ) {}
+                                onClick = tap("Remove favourite"),
+                            )
                         }
                     }
                 }
@@ -113,18 +128,27 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                 Panel("Menu with a nested row") {
                     Box(Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 72.dp)) {
                         Button(
-                            onClick = {},
+                            onClick = { sort.value = !sort.value },
                             variant = ButtonVariant.Secondary,
                         ) {
                             +"Sort"
                         }
                         DropdownMenu(expanded = sort.value, onDismissRequest = { sort.value = false }) {
-                            item("Departure time", selected = true) {}
-                            item("Journey length") {}
+                            val order = seed(0)
+                            item(
+                                "Departure time",
+                                selected = order.value == 0,
+                                onClick = { order.value = 0 },
+                            )
+                            item(
+                                "Journey length",
+                                selected = order.value == 1,
+                                onClick = { order.value = 1 },
+                            )
                             divider()
                             submenu("Group by", icon = Tabler.Outline.ArrowsSort) {
-                                item("Route") {}
-                                item("Operator") {}
+                                item("Route", onClick = tap("Group by route"))
+                                item("Operator", onClick = tap("Group by operator"))
                             }
                         }
                     }
@@ -135,7 +159,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                         IconButton(
                             icon = Tabler.Outline.InfoCircle,
                             contentDescription = "About this route",
-                            onClick = {},
+                            onClick = { popover.value = !popover.value },
                         )
                         Popover(expanded = popover.value, onDismissRequest = { popover.value = false }) {
                             Text("Route 950", style = Theme.typography.titleSmall)
@@ -177,7 +201,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                         IconButton(
                             icon = Tabler.Outline.Bookmark,
                             contentDescription = "Save this trip",
-                            onClick = {},
+                            onClick = { tooltip.value = !tooltip.value },
                         )
                         Tooltip(visible = tooltip.value, text = "Save this trip")
                     }
@@ -192,7 +216,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             IconButton(
                                 icon = Tabler.Outline.Bookmark,
                                 contentDescription = "Save this trip",
-                                onClick = {},
+                                onClick = tap("Save this trip"),
                                 modifier = Modifier.coachMark(
                                     id = "save-trip",
                                     title = "Save this trip",
@@ -210,17 +234,22 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                 Panel("Toast") {
                     val toasts = rememberToasts()
                     ToastHost(toasts)
+                    // Hoisted out of the effect: `tap` reads a composition local,
+                    // and a coroutine is not a composition.
+                    val retry = tap("Retry")
                     LaunchedEffect(Unit) {
                         toasts.show(
                             "Couldn't reach the timetable service",
                             tone = ToastTone.Danger,
                             actionLabel = "Retry",
-                            onAction = {},
-                            // A toast dismisses itself, and `delay` runs on wall
-                            // time rather than the frame clock — so the default
-                            // eight seconds is a race against how long the
-                            // render takes. Pinned so the golden is a golden.
-                            durationMillis = 10 * 60 * 1000,
+                            onAction = retry,
+                            // Pinned, so the golden is a golden: a toast that
+                            // dismisses itself is a race against how long the
+                            // render takes. Zero says "stays" rather than naming
+                            // a number big enough to look like one — which is
+                            // also what stops a test advancing its clock through
+                            // ten minutes of frames.
+                            durationMillis = 0,
                         )
                     }
                 }
@@ -233,16 +262,19 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                     // The flip case: anchored at the bottom, asked to open
                     // downward, and there is nowhere to go.
                     Box(Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
-                        Button(onClick = {}, variant = ButtonVariant.Ghost) { +"Options" }
+                        Button(
+                            onClick = { edgeMenu.value = !edgeMenu.value },
+                            variant = ButtonVariant.Ghost,
+                        ) { +"Options" }
                         DropdownMenu(
                             expanded = edgeMenu.value,
                             onDismissRequest = { edgeMenu.value = false },
                             side = OverlaySide.Bottom,
                         ) {
-                            MenuItem(onClick = {}) {
+                            MenuItem(onClick = tap("Report a problem")) {
                                 +"Report a problem"
                             }
-                            MenuItem(onClick = {}) {
+                            MenuItem(onClick = tap("Suggest a correction")) {
                                 +"Suggest a correction"
                             }
                         }

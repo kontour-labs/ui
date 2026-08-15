@@ -17,6 +17,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColorFor
 import io.kontour.ui.a11y.minimumTouchTarget
@@ -139,7 +143,17 @@ fun Switch(
                         indication = null,
                     )
                 } else {
-                    Modifier
+                    // Not interactive, but still *state*. A switch handed a null
+                    // callback is showing what a row decided, and if it says
+                    // nothing a screen reader reads the row as a button with a
+                    // name and no on or off. The row publishes this too when it
+                    // is `toggleable`; the same value merged twice is harmless,
+                    // and a `SettingRow` — which is `clickable`, not
+                    // `toggleable` — publishes nothing at all without it.
+                    Modifier.semantics {
+                        role = Role.Switch
+                        toggleableState = ToggleableState(checked)
+                    }
                 }
             )
             .size(width = TrackWidth, height = TrackHeight)

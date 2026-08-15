@@ -66,7 +66,7 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                         IconButton(
                             icon = Tabler.Outline.CurrentLocation,
                             contentDescription = "Recentre",
-                            onClick = {},
+                            onClick = tap("Recentre"),
                             variant = ButtonVariant.Secondary,
                         )
                     },
@@ -112,9 +112,12 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                             style = Theme.typography.bodySmall,
                             color = Theme.colors.contentMuted,
                         )
-                        Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { +"Save" }
                         Button(
-                            onClick = {},
+                            onClick = tap("Save"),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { +"Save" }
+                        Button(
+                            onClick = tap("Cancel"),
                             modifier = Modifier.fillMaxWidth(),
                             variant = ButtonVariant.Ghost,
                         ) {
@@ -161,7 +164,7 @@ private fun StopSheetBody(peekAnchored: Boolean) {
     SheetHeader(
         modifier = if (peekAnchored) Modifier.sheetPeekAnchor() else Modifier,
         actions = {
-            IconButton(Tabler.Outline.Star, "Add to favourites", onClick = {})
+            IconButton(Tabler.Outline.Star, "Add to favourites", onClick = tap("Favourite"))
         },
     ) {
         +"Perth Underground"

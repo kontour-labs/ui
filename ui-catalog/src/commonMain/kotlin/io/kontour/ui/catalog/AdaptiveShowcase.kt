@@ -48,19 +48,39 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
                 Frame("List–detail, one pane", width = 380.dp, height = 460.dp) {
+                    // The whole point of the one-pane arrangement is that
+                    // picking a stop *replaces* the list and back brings it
+                    // returns — which a hardcoded focus can show but not do.
+                    val narrow = seed(PaneFocus.List)
+                    val narrowStop = seed(1)
                     ListDetailPaneScaffold(
-                        focus = PaneFocus.List,
-                        onBack = {},
-                        list = { StopList() },
+                        focus = narrow.value,
+                        onBack = { narrow.value = PaneFocus.List },
+                        list = {
+                            StopList(selected = narrowStop.value) {
+                                narrowStop.value = it
+                                narrow.value = PaneFocus.Detail
+                            }
+                        },
                         detail = { StopDetail() },
                     )
                 }
 
                 Frame("List–detail, two panes", width = 900.dp, height = 460.dp) {
+                    // Both panes are on screen here, so focus decides which one
+                    // the back gesture and the screen reader treat as current
+                    // rather than which one is drawn.
+                    val wide = seed(PaneFocus.Detail)
+                    val wideStop = seed(1)
                     ListDetailPaneScaffold(
-                        focus = PaneFocus.Detail,
-                        onBack = {},
-                        list = { StopList() },
+                        focus = wide.value,
+                        onBack = { wide.value = PaneFocus.List },
+                        list = {
+                            StopList(selected = wideStop.value) {
+                                wideStop.value = it
+                                wide.value = PaneFocus.Detail
+                            }
+                        },
                         detail = { StopDetail() },
                         resizable = true,
                     )
@@ -184,7 +204,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun StopList() {
+private fun StopList(selected: Int, onSelect: (Int) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -196,14 +216,17 @@ private fun StopList() {
         stops.forEachIndexed { index, name ->
             ListItem(
                 position = ListItemPosition.of(index, stops.size),
-                selected = index == 1,
-                onClick = {},
+                selected = index == selected,
+                onClick = { onSelect(index) },
             ) {
                 +name
                 supporting { +"Platform ${index + 1}" }
                 leading {
-                                    Icon(Tabler.Outline.Bus, contentDescription = null, size = Theme.sizing.iconLarge)
-                                
+                    Icon(
+                        Tabler.Outline.Bus,
+                        contentDescription = null,
+                        size = Theme.sizing.iconLarge,
+                    )
                 }
             }
         }

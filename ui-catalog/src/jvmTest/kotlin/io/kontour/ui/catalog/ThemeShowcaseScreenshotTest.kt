@@ -121,7 +121,11 @@ class ThemeShowcaseScreenshotTest {
                 height = 1420,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
-                    DateTimeShowcase()
+                    // The time field opens its picker in a modal sheet, and a
+                    // sheet demands a host at composition rather than when it is
+                    // first shown — which is the right way round: the alternative
+                    // is a crash the first time a user taps it.
+                    OverlayHost(Modifier.fillMaxSize()) { DateTimeShowcase() }
                 }
             }
             assertTrue(file.length() > 0, "$name datetime rendered an empty file")

@@ -83,7 +83,12 @@ class ToastHostState {
      * Queues a toast.
      *
      * @param durationMillis How long before it dismisses itself. Longer when
-     *   there is an action, since the user has to read it *and* decide.
+     *   there is an action, since the user has to read it *and* decide. **Zero
+     *   means it stays** until [dismissCurrent] or [clear] — for a toast whose
+     *   action is the point and which the user must actually answer. Reach for
+     *   it rarely: a confirmation that will not go away is a banner that has
+     *   been put in the wrong place, and [io.kontour.ui.components.display.Banner]
+     *   is the component for that.
      */
     fun show(
         message: String,
@@ -191,6 +196,12 @@ fun ToastHost(
                 },
             )
         )
+
+        // Zero means it stays: there is nothing to wait for, so there is nothing
+        // to schedule. That is also what keeps a pinned toast out of a test's
+        // clock — a `delay` here is advanced frame by frame, and one pinned for
+        // ten minutes is thirty-seven thousand frames of the page under it.
+        if (toast.durationMillis <= 0) return@LaunchedEffect
 
         delay(toast.durationMillis)
         state.dismissCurrent()
