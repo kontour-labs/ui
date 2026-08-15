@@ -56,6 +56,16 @@ kotlin {
             implementation(libs.bundles.icons)
         }
 
+        // The contract suite lives here, not in `:ui`. It is a list of specimens
+        // and seven assertions over them, and the *same* list drives the
+        // per-component renders in `jvmTest` — which cannot see a test source
+        // set in another module. One list, in the module that owns the gallery.
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.compose.uiTest)
+        }
+
         jvmTest.dependencies {
             implementation(libs.kotlin.test)
             // Skiko, so the screenshot harness has a real canvas to render into.

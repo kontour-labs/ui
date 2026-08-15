@@ -141,7 +141,7 @@ object ButtonDefaults {
 ## The rules
 
 These are asserted by the shared contract suite
-(`ui/src/commonTest/…/contract/`) over every component in
+(`ui-catalog/src/commonTest/…/contract/`) over every component in
 `componentRegistry`. A component that skips one fails CI.
 
 They are not hypothetical. The suite failed on its first run and found six real

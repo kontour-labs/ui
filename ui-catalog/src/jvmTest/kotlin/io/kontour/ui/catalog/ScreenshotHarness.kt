@@ -106,6 +106,10 @@ object Screenshot {
             }.bytes
 
             val golden = File(outputDir, "$name.png")
+            // A name can carry a directory — the per-component pass writes
+            // `components/<slug>-light`. Only `outputDir` itself is created
+            // above, so anything nested has to make its own way.
+            golden.parentFile?.mkdirs()
             if (updating || !golden.exists()) {
                 golden.writeBytes(encoded)
                 return golden

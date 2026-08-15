@@ -215,7 +215,10 @@ where visual order and composition order disagree.
 ## The per-component contract
 
 **Enforced by** `ComponentContractTest`, which runs the same six assertions over
-every entry in `componentRegistry` — 28 components at the time of writing.
+every entry in `componentRegistry` that is under contract — 32 of its 42
+specimens. The other ten are there to be *drawn*: the registry also feeds the
+per-component renders, and a `Kbd` has no role, no disabled state and no touch
+target to assert.
 Every component in the system must:
 
 1. take `modifier: Modifier = Modifier` as its first optional parameter, and

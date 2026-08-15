@@ -282,8 +282,12 @@ class ComponentContractTest {
      * whole registry shares — into a dozen sequential fixes.
      */
     private fun forEachComponent(check: (ComponentSpec) -> Unit) {
+        // Only the ones under contract. The registry also carries specimens that
+        // exist to be *drawn* — a `Kbd`, a `Scrollbar` — and every assertion
+        // below asks a question about being operable, which those are not.
+        val under = componentRegistry.filter { it.underContract }
         val failures = mutableListOf<String>()
-        for (spec in componentRegistry) {
+        for (spec in under) {
             try {
                 check(spec)
             } catch (error: Throwable) {
@@ -292,7 +296,7 @@ class ComponentContractTest {
         }
         if (failures.isNotEmpty()) {
             fail(
-                "${failures.size} of ${componentRegistry.size} components failed:\n" +
+                "${failures.size} of ${under.size} components failed:\n" +
                     failures.joinToString("\n") { "  · $it" }
             )
         }
