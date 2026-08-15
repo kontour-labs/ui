@@ -10,24 +10,29 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.dialog
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.StateScope
@@ -37,8 +42,6 @@ import io.kontour.ui.foundation.ProvideContentColor
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.adaptive.allEdges
-import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.CompletableDeferred
 
@@ -178,6 +181,15 @@ fun AlertDialog(
     confirmLabel: String? = null,
     onConfirm: (() -> Unit)? = null,
     cancelLabel: String? = "Cancel",
+    /**
+     * A third way out — "Don't save" beside "Save" and "Cancel".
+     *
+     * Rare, and worth resisting: a dialog with three answers is usually a
+     * question that has not been decided yet. It exists because the one case
+     * that genuinely needs it — discarding work — cannot be expressed as two.
+     */
+    neutralLabel: String? = null,
+    onNeutral: (() -> Unit)? = null,
     destructive: Boolean = false,
     dismissOnOutside: Boolean = true,
     content: StateScope.() -> Unit,
@@ -206,30 +218,71 @@ fun AlertDialog(
             }
         }
 
-        FlowRow(
+        // The buttons share the width rather than sizing to their labels.
+        //
+        // Content-sized and end-aligned is right for a desktop dialog and wrong
+        // for the one shape this is nearly always in: a phone, where "Cancel"
+        // and "Delete favourite" came out as a small target beside a large one,
+        // both crowded into the trailing corner and neither near a thumb. Equal
+        // halves make the choice read as a choice.
+        //
+        // Three is the case that has to break the row. Three equal thirds put
+        // three labels in a third of a dialog each, which is where a button
+        // starts ellipsising its own verb — so the two secondary answers share a
+        // row and the confirm takes a full line of its own beneath them.
+        val secondary = buildList<@Composable RowScope.() -> Unit> {
+            if (neutralLabel != null && onNeutral != null) {
+                add {
+                    Button(
+                        onClick = onNeutral,
+                        modifier = Modifier.weight(1f),
+                        variant = ButtonVariant.Ghost,
+                    ) { +neutralLabel }
+                }
+            }
+            if (cancelLabel != null) {
+                add {
+                    Button(
+                        onClick = onDismissRequest,
+                        modifier = Modifier.weight(1f),
+                        variant = ButtonVariant.Ghost,
+                    ) { +cancelLabel }
+                }
+            }
+        }
+        val confirm: (@Composable (Modifier) -> Unit)? =
+            if (confirmLabel != null && onConfirm != null) {
+                { buttonModifier ->
+                    Button(
+                        onClick = onConfirm,
+                        modifier = buttonModifier,
+                        variant = if (destructive) {
+                            ButtonVariant.Destructive
+                        } else {
+                            ButtonVariant.Primary
+                        },
+                    ) { +confirmLabel }
+                }
+            } else {
+                null
+            }
+
+        val ownLine = secondary.size >= 2
+
+        Column(
             modifier = Modifier.padding(top = Theme.spacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(
-                Theme.spacing.xs,
-                Alignment.End,
-            ),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {
-            if (cancelLabel != null) {
-                Button(
-                    onClick = onDismissRequest,
-                    variant = ButtonVariant.Ghost,
-                ) { +cancelLabel }
+            if (secondary.isNotEmpty() || confirm != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                ) {
+                    secondary.forEach { it() }
+                    if (!ownLine) confirm?.invoke(Modifier.weight(1f))
+                }
             }
-            if (confirmLabel != null && onConfirm != null) {
-                Button(
-                    onClick = onConfirm,
-                    variant = if (destructive) {
-                        ButtonVariant.Destructive
-                    } else {
-                        ButtonVariant.Primary
-                    },
-                ) { +confirmLabel }
-            }
+            if (ownLine) confirm?.invoke(Modifier.fillMaxWidth())
         }
     }
 }

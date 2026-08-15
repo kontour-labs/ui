@@ -11,8 +11,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,19 +26,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.StatusColors
 import io.kontour.ui.theme.Theme
+import kotlin.math.roundToInt
 
 /** How serious a [Banner] is. Ports the four severities from `home`'s `StatusBanner`. */
 enum class BannerTone { Info, Success, Warning, Danger, Accent }
@@ -110,9 +114,9 @@ fun Banner(
                 }
             }
 
-            Column(
+            BannerBody(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                action = slots.action?.let { action -> { ContentSlot(content = action) } },
             ) {
                 slots.title?.let { title ->
                     ProvideTextStyle(Theme.typography.titleSmall) {
@@ -122,11 +126,6 @@ fun Banner(
                 slots.message?.let { message ->
                     ProvideTextStyle(Theme.typography.bodySmall) {
                         ContentSlot(content = message)
-                    }
-                }
-                slots.action?.let { action ->
-                    Box(Modifier.padding(top = Theme.spacing.xs)) {
-                        ContentSlot(content = action)
                     }
                 }
             }
@@ -226,4 +225,80 @@ private fun bannerColorsFor(tone: BannerTone): StatusColors = when (tone) {
     // loose fields it had no `border`, so a banner could not have been built
     // out of it without inventing one here.
     BannerTone.Accent -> Theme.colors.accent
+}
+
+/**
+ * The text of a banner, with its action beside it or under it.
+ *
+ * Beside when the action fits without squeezing the text below
+ * [BannerDefaults.MinTextShare] of the width, underneath when it does not. The
+ * action was always underneath, which wastes a line on "Delays on the Armadale
+ * line" / "Retry" and reads as a second paragraph rather than as the thing to do
+ * about the first.
+ *
+ * `SubcomposeLayout` because the decision needs the action's *measured* width
+ * against this banner's *actual* width, and neither is known at composition. A
+ * `FlowRow` gets close and gets one case wrong: it wraps on overflow, so an
+ * action that fits in the remaining 20% stays on the line and leaves the message
+ * as a column of single words.
+ */
+@Composable
+private fun BannerBody(
+    modifier: Modifier,
+    action: (@Composable () -> Unit)?,
+    text: @Composable ColumnScope.() -> Unit,
+) {
+    val spacing = Theme.spacing
+    if (action == null) {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp), content = text)
+        return
+    }
+
+    SubcomposeLayout(modifier) { constraints ->
+        val available = constraints.maxWidth
+        val gap = spacing.sm.roundToPx()
+        val stack = spacing.xs.roundToPx()
+
+        val actionPlaceable = subcompose(BannerSlot.Action) {
+            Box { action() }
+        }.first().measure(Constraints())
+
+        val remaining = available - actionPlaceable.width - gap
+        val beside = available != Constraints.Infinity &&
+            remaining >= (available * BannerDefaults.MinTextShare).roundToInt()
+
+        val textWidth = if (beside) remaining else available
+        val textPlaceable = subcompose(BannerSlot.Text) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp), content = text)
+        }.first().measure(constraints.copy(minWidth = 0, maxWidth = textWidth))
+
+        if (beside) {
+            val height = maxOf(textPlaceable.height, actionPlaceable.height)
+            layout(available, height) {
+                textPlaceable.placeRelative(0, (height - textPlaceable.height) / 2)
+                actionPlaceable.placeRelative(
+                    available - actionPlaceable.width,
+                    (height - actionPlaceable.height) / 2,
+                )
+            }
+        } else {
+            layout(available, textPlaceable.height + stack + actionPlaceable.height) {
+                textPlaceable.placeRelative(0, 0)
+                actionPlaceable.placeRelative(0, textPlaceable.height + stack)
+            }
+        }
+    }
+}
+
+private enum class BannerSlot { Text, Action }
+
+object BannerDefaults {
+    /**
+     * How much of the width the text keeps before the action is sent below it.
+     *
+     * At 0.6 a "Retry" sits beside a one-line message and a paragraph with a
+     * "Replan my trip" beside it does not — which is the line between an action
+     * that annotates the text and one that competes with it for the row.
+     */
+    const val MinTextShare: Float = 0.6f
 }

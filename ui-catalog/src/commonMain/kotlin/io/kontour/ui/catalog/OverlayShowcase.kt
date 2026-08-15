@@ -157,6 +157,9 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                         confirmLabel = "Remove",
                         onConfirm = { alert.value = false },
                         onDismissRequest = { alert.value = false },
+                        // Three actions, so the confirm takes its own line.
+                        neutralLabel = "Hide instead",
+                        onNeutral = { alert.value = false },
                         destructive = true,
                     ) {
                         +"Remove this favourite?"

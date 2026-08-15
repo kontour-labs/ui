@@ -2,27 +2,35 @@ package io.kontour.ui.sheet
 
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -38,25 +46,44 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
-import io.kontour.ui.adaptive.sheetEdges
-import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 object SheetDefaults {
-    /** How far a drag must travel before it commits to the next detent. */
+    /**
+     * How far a drag must travel before it commits to the next detent.
+     *
+     * Applies to a *slow* gesture only. Above `AnchoredDraggableMinFlingVelocity`
+     * — 125dp/s, a private constant in Compose Foundation — direction decides
+     * instead of distance, and the sheet goes to the next anchor whichever side
+     * of the halfway mark the finger left it.
+     *
+     * Which is also why a hard flick and a gentle one land in the same place:
+     * both clear 125dp/s, both move exactly one detent. Skipping detents on a
+     * fast throw needs a `TargetedFlingBehavior` of our own, because the version
+     * of `AnchoredDraggableDefaults.flingBehavior` we are on takes the
+     * positional threshold and the snap spec and nothing else — there is no
+     * velocity parameter to raise. Worth doing, and worth doing against a real
+     * finger rather than a JVM host, since the failure mode of getting the drag
+     * mutex wrong inside `performFling` is a sheet that stops responding.
+     */
     val PositionalThreshold: (Float) -> Float = { distance -> distance * 0.5f }
 
     /** A sheet wider than this is a panel; centre it rather than stretching it. */
     val MaxWidth: Dp = 640.dp
+
+    /** Between the sheet's top edge and anything riding above it. */
+    val ActionsGap: Dp = 8.dp
 }
 
 /**
@@ -108,10 +135,24 @@ fun BottomSheet(
      * it. The sheet's own surface still reaches the bottom of the window.
      */
     windowInsets: WindowInsets = WindowInsets.sheetEdges,
+    /**
+     * Controls that ride *above* the sheet's top edge rather than inside it.
+     *
+     * For the things that must stay reachable while the content scrolls — a
+     * close button, a "recentre" on a map, a filter. Inside the sheet they would
+     * either scroll away or need a pinned header eating the sheet's height; here
+     * they sit on whatever is behind it and move with the sheet as it is
+     * dragged, which is the arrangement every maps app converges on.
+     *
+     * End-aligned by default. The row is a `RowScope`, so `Arrangement` and
+     * `Modifier.align` are how you say otherwise.
+     */
+    actions: (@Composable RowScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val density = LocalDensity.current
     val motion = Theme.motion
+    val actionsGap = SheetDefaults.ActionsGap
 
     val fling = AnchoredDraggableDefaults.flingBehavior(
         state = state.anchoredState,
@@ -159,6 +200,32 @@ fun BottomSheet(
                 dragHandle = dragHandle,
                 density = density,
                 content = content,
+            )
+        }
+
+        if (actions != null) {
+            var actionsHeight by remember { mutableIntStateOf(0) }
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .widthIn(max = SheetDefaults.MaxWidth)
+                    .onSizeChanged { actionsHeight = it.height }
+                    // The sheet's own offset, less this row's height and a gap,
+                    // so it rides the top edge wherever the drag leaves it.
+                    // Placed after the sheet so it draws over the surface's
+                    // shadow rather than under it.
+                    .offset {
+                        IntOffset(
+                            0,
+                            offsetOrHidden(state) - actionsHeight - actionsGap.roundToPx(),
+                        )
+                    }
+                    .windowInsetsPadding(windowInsets.only(WindowInsetsSides.Horizontal))
+                    .padding(horizontal = Theme.spacing.md),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.Bottom,
+                content = actions,
             )
         }
     }

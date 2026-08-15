@@ -126,6 +126,10 @@ fun Modifier.tooltip(
         visible = showing,
         anchor = bounds,
         text = text,
+        // Nothing to pass: this entry point is a modifier on the *trigger*, and
+        // the bubble it shows is not addressable from the call site. Use the
+        // `Tooltip` composable when the bubble itself needs one.
+        modifier = Modifier,
         side = side,
         alignment = alignment,
         onDismissRequest = { showing = false },
@@ -179,6 +183,16 @@ fun Modifier.tooltip(
 fun Tooltip(
     visible: Boolean,
     text: String,
+    /**
+     * Applied to the *bubble*, not to the trigger.
+     *
+     * This composable emits a zero-size probe where it is written, purely to
+     * read its parent's bounds, so there was nowhere sensible for a modifier to
+     * go and it did not take one — the one component in the library missing the
+     * parameter every other one has. `Modifier.widthIn` on a long tooltip is the
+     * case that made it worth resolving rather than documenting.
+     */
+    modifier: Modifier = Modifier,
     side: OverlaySide = OverlaySide.Top,
     alignment: OverlayAlignment = OverlayAlignment.Center,
     onDismissRequest: () -> Unit = {},
@@ -190,6 +204,7 @@ fun Tooltip(
         visible = visible,
         anchor = bounds,
         text = text,
+        modifier = modifier,
         side = side,
         alignment = alignment,
         onDismissRequest = onDismissRequest,
@@ -202,6 +217,7 @@ private fun TooltipOverlay(
     visible: Boolean,
     anchor: Rect?,
     text: String,
+    modifier: Modifier,
     side: OverlaySide,
     alignment: OverlayAlignment,
     onDismissRequest: () -> Unit,
@@ -214,6 +230,7 @@ private fun TooltipOverlay(
     // Read live by the overlay's measure pass rather than captured when the
     // entry was built — see `AnchoredOverlayLayout`.
     val latestAnchor by rememberUpdatedState(anchor)
+    val latestModifier by rememberUpdatedState(modifier)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
@@ -247,7 +264,7 @@ private fun TooltipOverlay(
                         margin = MenuDefaults.ScreenMargin,
                         arrow = ArrowSpec(color = colors.surfaceInverse),
                     ) {
-                        TooltipBubble(text)
+                        TooltipBubble(text, latestModifier)
                     }
                 },
             )
@@ -261,9 +278,11 @@ private fun TooltipOverlay(
 }
 
 @Composable
-private fun TooltipBubble(text: String) {
+private fun TooltipBubble(text: String, modifier: Modifier) {
     Surface(
-        modifier = Modifier
+        // The caller's modifier first, so a `widthIn` of their own wins the
+        // constraint rather than being clamped by the default behind it.
+        modifier = modifier
             .widthIn(max = TooltipDefaults.MaxWidth),
         shape = Theme.shapes.small,
         color = Theme.colors.surfaceInverse,

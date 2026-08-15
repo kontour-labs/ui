@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
+import com.composables.icons.tabler.outline.CurrentLocation
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
@@ -59,12 +60,22 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                 LaunchedEffect(Unit) { sheet.animateTo(SheetDetent.peek(140.dp)) }
 
                 MapStandIn()
-                BottomSheet(sheet) { StopSheetBody(peekAnchored = true) }
+                BottomSheet(
+                    state = sheet,
+                    actions = {
+                        IconButton(
+                            icon = Tabler.Outline.CurrentLocation,
+                            contentDescription = "Recentre",
+                            onClick = {},
+                            variant = ButtonVariant.Secondary,
+                        )
+                    },
+                ) { StopSheetBody(peekAnchored = true) }
             }
 
             SheetPanel("Half open") {
                 val sheet = rememberSheetState(
-                    detents = listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Expanded),
+                    detents = listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Full),
                     initialDetent = SheetDetent.Hidden,
                 )
                 LaunchedEffect(Unit) { sheet.animateTo(SheetDetent.Half) }
@@ -118,8 +129,12 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                 SideSheet(
                     visible = side.value,
                     onDismissRequest = { side.value = false },
-                    side = SheetSide.End,
+                    // Start side and a back arrow: both were reachable and
+                    // neither was ever rendered, which is how `SheetSide.Start`
+                    // went unconfirmed for as long as it did.
+                    side = SheetSide.Start,
                     width = 260.dp,
+                    onBack = { side.value = false },
                 ) {
                     SheetHeader() {
                         +"Filters"

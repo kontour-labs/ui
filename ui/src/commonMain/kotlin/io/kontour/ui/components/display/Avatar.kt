@@ -23,6 +23,7 @@ import io.kontour.ui.a11y.contentColorFor
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
+import kotlin.jvm.JvmInline
 import kotlin.math.absoluteValue
 
 /**

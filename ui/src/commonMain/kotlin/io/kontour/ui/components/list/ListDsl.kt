@@ -140,6 +140,14 @@ class ListGroupScope internal constructor() {
  * favourites. Use [listGroup] inside a `LazyColumn` when the list is long enough
  * that composing all of it would be wasteful.
  *
+ * @param spacing A `Dp`, not an `Arrangement`, unlike every other spacing
+ *   parameter in the library.
+ *
+ *   `ListItemDefaults.InnerCorner` is *derived* from this value — the notch
+ *   between two rows is as deep as the gap between them, which is the whole
+ *   reason a group of rows reads as one object. An `Arrangement` would let a
+ *   caller write `SpaceBetween` on a group whose corners are cut for a fixed
+ *   gap, and the rows would come apart with the notches still in them.
  * @param spacing The gap between rows. The default is the hairline that makes a
  *   group read as one object; widen it and the rows read as separate cards.
  */

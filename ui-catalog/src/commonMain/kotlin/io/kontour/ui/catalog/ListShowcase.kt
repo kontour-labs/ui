@@ -109,6 +109,8 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                     ListSection(
                         title = "Appearance",
                         description = "How the app looks on this device",
+                        footer = "Delay alerts use your last-known location and " +
+                            "stop when you close the app.",
                     ) {
                         SettingRow(
                             position = ListItemPosition.First,

@@ -75,7 +75,18 @@ object TextFieldDefaults {
         val c = Theme.colors
         return TextFieldColors(
             container = if (variant == TextFieldVariant.Filled) c.surfaceSunken else Color.Transparent,
-            containerFocused = if (variant == TextFieldVariant.Filled) c.surfaceSunken else Color.Transparent,
+            // Focus tints the *ground*, not only the border. A 2dp accent edge
+            // is the whole of "you are typing here" today, and on a form of six
+            // fields that is a thin line the eye has to go looking for. The tint
+            // is the thing you see without looking.
+            containerFocused = if (variant == TextFieldVariant.Filled) {
+                c.accent.container
+            } else {
+                // Outlined has no ground of its own, so the tint is what appears
+                // — at half strength, because it is arriving rather than
+                // changing.
+                c.accent.container.copy(alpha = 0.5f)
+            },
             containerDisabled = c.surfaceSunken,
             content = c.content,
             contentDisabled = c.contentDisabled,

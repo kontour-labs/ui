@@ -102,26 +102,38 @@ fun TimePicker(
                     label = { it.toString().padStart(2, '0') },
                 )
             }
-        }
 
-        if (!is24) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = Theme.spacing.sm),
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                Box(Modifier.width(180.dp)) {
-                    SegmentedControl(
-                        options = listOf("AM", "PM"),
+            // A third wheel, not a segmented control below.
+            //
+            // AM/PM is part of the time, and the picker reads as one instrument
+            // when every column of it works the same way. Underneath as a
+            // segmented control it was a second control the thumb had to travel
+            // to, in a different idiom, deciding something the two wheels above
+            // it were already deciding half of.
+            //
+            // Two items on a five-row wheel is mostly empty space, so this one
+            // shows three rows.
+            if (!is24) {
+                Box(
+                    Modifier
+                        .padding(start = Theme.spacing.sm)
+                        .width(64.dp)
+                        .semantics { contentDescription = "AM or PM" }
+                ) {
+                    WheelPicker(
+                        items = MERIDIEMS,
                         selectedIndex = if (isPm) 1 else 0,
                         onSelect = { emit(pm = it == 1) },
+                        label = { it },
+                        visibleItems = 3,
                     )
                 }
             }
         }
     }
 }
+
+private val MERIDIEMS = listOf("AM", "PM")
 
 /**
  * The chosen time, shown as a tappable field.

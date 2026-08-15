@@ -113,12 +113,12 @@ fun SkeletonText(
     modifier: Modifier = Modifier,
     lines: Int = 3,
     lineHeight: Dp = 12.dp,
-    spacing: Dp = 8.dp,
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(8.dp),
     lastLineFraction: Float = 0.6f,
 ) {
     Column(
         modifier.clearAndSetSemantics { },
-        verticalArrangement = Arrangement.spacedBy(spacing),
+        verticalArrangement = verticalArrangement,
     ) {
         repeat(lines) { index ->
             val isLast = index == lines - 1

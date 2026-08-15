@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,13 +24,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Calendar
+import com.composables.icons.tabler.outline.DotsVertical
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
 import com.composables.icons.tabler.outline.Search
 import io.kontour.ui.adaptive.WindowSizeClassProvider
-import androidx.compose.foundation.text.input.rememberTextFieldState
+import io.kontour.ui.components.action.ButtonSize
+import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.FabSize
 import io.kontour.ui.components.action.FloatingActionButton
+import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
@@ -151,7 +155,17 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                 ) {
                     Section("Tabs — within one screen") {
                         var tab by remember { mutableStateOf(1) }
-                        TabBar {
+                        TabBar(
+                            actions = {
+                                IconButton(
+                                    icon = Tabler.Outline.DotsVertical,
+                                    contentDescription = "More",
+                                    onClick = {},
+                                    variant = ButtonVariant.Ghost,
+                                    size = ButtonSize.Small,
+                                )
+                            },
+                        ) {
                             Tab("Departures", selected = tab == 0, onClick = { tab = 0 })
                             Tab("Route map", selected = tab == 1, onClick = { tab = 1 })
                             Tab("Alerts", selected = tab == 2, onClick = { tab = 2 }, badge = 2)

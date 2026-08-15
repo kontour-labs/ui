@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -86,6 +87,15 @@ fun TabBar(
     containerColor: Color = Color.Transparent,
     indicatorColor: Color = Theme.colors.accent.solid,
     showDivider: Boolean = true,
+    /**
+     * Controls at the trailing edge — an overflow menu, a filter.
+     *
+     * Outside `selectableGroup()`, deliberately. Inside it a menu button is
+     * announced as "tab 4 of 4" and counted in the set the user is choosing
+     * from, which is a lie about what pressing it does. It is also outside the
+     * indicator box, so the travelling bar cannot decide to slide underneath it.
+     */
+    actions: (@Composable RowScope.() -> Unit)? = null,
     content: @Composable TabBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
@@ -102,8 +112,13 @@ fun TabBar(
             // and the tabs scroll together and the scroll offset never enters the
             // arithmetic. Wrapping the scroll container instead is how the old
             // implementation drifted away from its tabs as the row scrolled.
+            Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
-                if (scrollable) Modifier.horizontalScroll(rememberScrollState()) else Modifier.fillMaxWidth()
+                if (scrollable) {
+                    Modifier.horizontalScroll(rememberScrollState()).weight(1f, fill = false)
+                } else {
+                    Modifier.weight(1f)
+                }
             ) {
                 SelectionIndicatorBox(
                     state = indicator,
@@ -134,6 +149,18 @@ fun TabBar(
                     ) {
                         scope.content()
                     }
+                }
+            }
+
+                if (actions != null) {
+                    Row(
+                        modifier = Modifier
+                            .height(TabBarDefaults.Height)
+                            .padding(end = Theme.spacing.xs),
+                        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+                        verticalAlignment = Alignment.CenterVertically,
+                        content = actions,
+                    )
                 }
             }
 

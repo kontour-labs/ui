@@ -1,5 +1,6 @@
 package io.kontour.ui.components.text
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -7,6 +8,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -78,6 +80,13 @@ internal fun FieldScaffold(
         animationSpec = motion.tweenFast(),
         label = "fieldBorderWidth",
     )
+    // Animated for the same reason the border is: a ground that changes colour
+    // between frames reads as a repaint, and one that fades reads as a response.
+    val containerColor by animateColorAsState(
+        targetValue = colors.container(enabled, focused),
+        animationSpec = motion.tweenFast(),
+        label = "fieldContainer",
+    )
     val labelColor by animateColorAsState(
         targetValue = when {
             !enabled -> colors.contentDisabled
@@ -114,7 +123,7 @@ internal fun FieldScaffold(
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = metrics.minHeight)
                 .clip(shape)
-                .background(colors.container(enabled, focused), shape)
+                .background(containerColor, shape)
                 .border(borderWidth, borderColor, shape)
                 .then(frameModifier)
                 .padding(
@@ -147,11 +156,24 @@ internal fun FieldScaffold(
             enter = fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast()),
             exit = fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast()),
         ) {
-            Text(
-                text = errorMessage ?: supporting.orEmpty(),
-                style = Theme.typography.bodySmall,
-                color = if (isError) colors.error else colors.helper,
-            )
+            // Crossfaded, not swapped. The slot already animates open and
+            // shut; what it did not do was change *between* two messages, so a
+            // field that was showing a hint and then failed validation replaced
+            // one sentence with another between frames — the one moment in the
+            // form where the user most needs to notice something changed.
+            AnimatedContent(
+                targetState = errorMessage ?: supporting.orEmpty(),
+                transitionSpec = {
+                    fadeIn(motion.tweenFast()) togetherWith fadeOut(motion.tweenFast())
+                },
+                label = "fieldMessage",
+            ) { message ->
+                Text(
+                    text = message,
+                    style = Theme.typography.bodySmall,
+                    color = if (isError) colors.error else colors.helper,
+                )
+            }
         }
     }
 }

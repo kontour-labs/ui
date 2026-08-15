@@ -299,14 +299,14 @@ fun InputChip(
 @Composable
 fun ChipGroup(
     modifier: Modifier = Modifier,
-    horizontalSpacing: androidx.compose.ui.unit.Dp = Theme.spacing.xs,
-    verticalSpacing: androidx.compose.ui.unit.Dp = Theme.spacing.xs,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(Theme.spacing.xs),
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(Theme.spacing.xs),
     content: @Composable () -> Unit,
 ) {
     FlowRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(horizontalSpacing),
-        verticalArrangement = Arrangement.spacedBy(verticalSpacing),
+        horizontalArrangement = horizontalArrangement,
+        verticalArrangement = verticalArrangement,
     ) {
         content()
     }

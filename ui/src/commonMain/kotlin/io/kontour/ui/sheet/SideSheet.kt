@@ -4,10 +4,14 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -15,14 +19,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.isTraversalGroup
@@ -32,14 +33,19 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.ArrowLeft
+import com.composables.icons.tabler.outline.ArrowRight
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.adaptive.allEdges
+import io.kontour.ui.components.action.ButtonVariant
+import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.overlay.LocalOverlayHost
-import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.LocalOverlayProgress
+import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
-import io.kontour.ui.adaptive.allEdges
-import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mirrorHorizontally
 import kotlin.math.roundToInt
@@ -80,13 +86,34 @@ fun SideSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     side: SheetSide = SheetSide.End,
-    width: Dp = 400.dp,
+    /**
+     * 480dp, not 400.
+     *
+     * A side sheet holds the same content a bottom sheet does — a list of
+     * departures, a form — laid out in a column with padding on both sides. At
+     * 400 that column was 400 − 32 = 368dp wide, which is narrower than the
+     * phone the same content renders fine on, and it read as a cramped strip
+     * rather than a panel.
+     */
+    width: Dp = SideSheetDefaults.Width,
     shape: CornerBasedShape = Theme.shapes.sideSheet,
     containerColor: Color = Theme.colors.surfaceRaised,
     contentColor: Color = Theme.colors.content,
     scrim: ScrimStyle = ScrimStyle.Dimmed,
     dismissOnOutside: Boolean = true,
     dismissLabel: String = "Close",
+    /**
+     * Shown as a back arrow at the sheet's leading edge, above the content.
+     *
+     * For a sheet that was pushed onto from another one — a stop, then a route
+     * within it. `null` for a sheet with nothing behind it, where the scrim and
+     * a close button in the content are the way out.
+     *
+     * The arrow follows the reading direction rather than the sheet's side: back
+     * means back, and a start-side sheet does not point the other way.
+     */
+    onBack: (() -> Unit)? = null,
+    backLabel: String = "Back",
     paneTitle: String? = null,
     /**
      * What the sheet's *content* keeps clear of. Every edge including the
@@ -108,6 +135,8 @@ fun SideSheet(
     val latestContainerColor by rememberUpdatedState(containerColor)
     val latestContentColor by rememberUpdatedState(contentColor)
     val latestPaneTitle by rememberUpdatedState(paneTitle)
+    val latestOnBack by rememberUpdatedState(onBack)
+    val latestBackLabel by rememberUpdatedState(backLabel)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
@@ -134,6 +163,8 @@ fun SideSheet(
                         containerColor = latestContainerColor,
                         contentColor = latestContentColor,
                         paneTitle = latestPaneTitle,
+                        onBack = latestOnBack,
+                        backLabel = latestBackLabel,
                         // Captured as an object, not a measurement: the modifier
                         // reads the live inset at layout time, so the sheet still
                         // lifts when the keyboard opens after it was shown.
@@ -146,6 +177,11 @@ fun SideSheet(
     }
 }
 
+object SideSheetDefaults {
+    /** Wide enough for a column of content with padding on both sides. */
+    val Width: Dp = 480.dp
+}
+
 @Composable
 private fun SideSheetPanel(
     modifier: Modifier,
@@ -155,6 +191,8 @@ private fun SideSheetPanel(
     containerColor: Color,
     contentColor: Color,
     paneTitle: String?,
+    onBack: (() -> Unit)?,
+    backLabel: String,
     windowInsets: WindowInsets,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -204,8 +242,29 @@ private fun SideSheetPanel(
                         // Inside the surface, so the sheet's colour still runs
                         // to the edges of the window.
                         Modifier.fillMaxSize().windowInsetsPadding(windowInsets),
-                        content = content,
-                    )
+                    ) {
+                        if (onBack != null) {
+                            IconButton(
+                                // Reading direction, not sheet side. Back is
+                                // back; a start-side sheet does not point the
+                                // other way because it happens to open from the
+                                // left.
+                                icon = if (isRtl) {
+                                    Tabler.Outline.ArrowRight
+                                } else {
+                                    Tabler.Outline.ArrowLeft
+                                },
+                                contentDescription = backLabel,
+                                onClick = onBack,
+                                variant = ButtonVariant.Ghost,
+                                modifier = Modifier.padding(
+                                    start = Theme.spacing.xs,
+                                    top = Theme.spacing.xs,
+                                ),
+                            )
+                        }
+                        content()
+                    }
                 }
             }
         }

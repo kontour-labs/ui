@@ -76,13 +76,14 @@ fun <T> ColorSwatchPicker(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     swatchSize: Dp = 40.dp,
-    spacing: Dp = Theme.spacing.xs,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(Theme.spacing.xs),
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(Theme.spacing.xs),
     automaticIcon: ImageVector? = null,
 ) {
     FlowRow(
         modifier = modifier.selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(spacing),
-        verticalArrangement = Arrangement.spacedBy(spacing),
+        horizontalArrangement = horizontalArrangement,
+        verticalArrangement = verticalArrangement,
     ) {
         for (option in options) {
             Swatch(

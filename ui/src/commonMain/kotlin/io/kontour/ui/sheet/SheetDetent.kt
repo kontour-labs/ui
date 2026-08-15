@@ -48,6 +48,18 @@ class SheetDetent(
             minOf(sheet, container)
         }
 
+        /**
+         * The whole container, whatever the content's height.
+         *
+         * The one [Expanded] cannot express. A sheet that is a screen — a full
+         * trip plan, a form — wants the window even when its content is short,
+         * and `Expanded` deliberately gives it exactly its content instead.
+         * Reach for this when the sheet *is* the destination and for nothing
+         * else; a three-row sheet blown up to full screen is a modal wearing a
+         * sheet's clothes.
+         */
+        val Full: SheetDetent = SheetDetent("full") { container, _ -> container }
+
         /** Half the container. The common resting position for a sheet over a map. */
         val Half: SheetDetent = fraction("half", 0.5f)
 

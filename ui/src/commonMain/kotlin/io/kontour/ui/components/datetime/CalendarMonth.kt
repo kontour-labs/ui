@@ -19,17 +19,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.Feedback
@@ -73,6 +74,11 @@ enum class RangePosition { None, Start, Middle, End, StartAndEnd }
  *   middle get a square fill so the run reads as continuous; the ends get the
  *   rounded cap.
  */
+object CalendarMonthDefaults {
+    /** Breathing room around a day cell, outside a range only. */
+    val CellInset: Dp = 1.dp
+}
+
 @Composable
 fun CalendarMonth(
     month: LocalDate,
@@ -169,6 +175,14 @@ private fun DayCell(
         rangePosition == RangePosition.StartAndEnd
     val filled = selected || isEndpoint
 
+    // Whether the band carries on into the neighbouring cell. Layout-direction
+    // aware by construction: `Start`/`End` are the range's ends, and `start`/`end`
+    // padding resolves the same way the shape's `topStart`/`topEnd` do.
+    val continuesBefore = rangePosition == RangePosition.Middle ||
+        rangePosition == RangePosition.End
+    val continuesAfter = rangePosition == RangePosition.Middle ||
+        rangePosition == RangePosition.Start
+
     // A run of selected days reads as continuous because the middle keeps square
     // edges and only the ends are capped.
     val shape: Shape = when (rangePosition) {
@@ -219,7 +233,19 @@ private fun DayCell(
                 this.selected = filled
                 stateDescription = formats.dateFull(date)
             }
-            .padding(1.dp),
+            // Inset on the outside of the range only.
+            //
+            // A flat 1dp all round put 2dp of gap between every pair of
+            // neighbours, so the band a range draws came out as a row of
+            // separate tiles — the shape logic above caps only the ends
+            // precisely so the middle reads continuous, and the padding was
+            // undoing it a pixel at a time.
+            .padding(
+                start = if (continuesBefore) 0.dp else CalendarMonthDefaults.CellInset,
+                end = if (continuesAfter) 0.dp else CalendarMonthDefaults.CellInset,
+                top = CalendarMonthDefaults.CellInset,
+                bottom = CalendarMonthDefaults.CellInset,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Box(
