@@ -135,15 +135,22 @@ fun NavBar(
     action: (@Composable () -> Unit)? = null,
 ) {
     val indicator = rememberSelectionIndicatorState()
-    // With separate circles the marker cannot be a pill *behind* an icon that
-    // already sits in its own circle — that is two concentric shapes. The
-    // container becomes the marker instead.
-    val sizing = when (itemStyle) {
-        NavBarItemStyle.Grouped -> IndicatorSizing.Fixed(
+    val sizing = when {
+        // Separate circles: the marker cannot be a pill *behind* an icon that
+        // already sits in its own circle — that is two concentric shapes. The
+        // container becomes the marker instead.
+        itemStyle == NavBarItemStyle.Separate -> IndicatorSizing.Fill
+
+        // With labels the marker wraps the whole destination. Sized to the icon
+        // it leaves the label hanging outside it, which reads as a blob behind
+        // the glyph rather than as the destination being marked.
+        showLabels -> IndicatorSizing.Inset(Theme.spacing.xxs)
+
+        // Icon only: there is nothing else in the item, so the pill is the icon's.
+        else -> IndicatorSizing.Fixed(
             width = NavItemDefaults.IndicatorWidth,
             height = NavItemDefaults.IndicatorHeight,
         )
-        NavBarItemStyle.Separate -> IndicatorSizing.Fill
     }
     val shape: Shape = when (style) {
         NavBarStyle.Floating -> Theme.shapes.pill

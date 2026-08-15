@@ -139,6 +139,13 @@ internal fun NavDestinationItem(
         .focusRing(interactions, shape, enabled = item.enabled)
         .clip(shape)
         .background(containerColor, shape)
+        // The standalone fallback marker, for an item rendered outside a group.
+        // Around the whole destination when it has a label, for the same reason
+        // the travelling one is: a pill sized to the icon leaves the label
+        // outside it.
+        .then(
+            if (!grouped && showLabel) Modifier.background(container, shape) else Modifier
+        )
         .selectable(
             selected = selected,
             interactionSource = interactions,
@@ -162,7 +169,10 @@ internal fun NavDestinationItem(
                 Modifier
                     .graphicsLayer {
                         scaleX = 0.5f + 0.5f * emphasis
-                        alpha = if (grouped) 0f else emphasis
+                        // Drawn only when this item is on its own *and* has no
+                        // label — otherwise the marker is the whole-item
+                        // background above, or the group's travelling pill.
+                        alpha = if (grouped || showLabel) 0f else emphasis
                     }
                     .size(NavItemDefaults.IndicatorWidth, NavItemDefaults.IndicatorHeight)
                     .background(container, shape)
