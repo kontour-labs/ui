@@ -117,10 +117,19 @@ object ListItemDefaults {
      * have lines drawn on it — the same reason a physical card stack has visible
      * edges.
      */
-    val InnerCorner: Dp = 4.dp
-
     /** Gap between items in a group. */
     val Spacing: Dp = 2.dp
+
+    /**
+     * The rounding on the two corners that face each other across a seam.
+     *
+     * Derived from [Spacing] rather than set beside it, because the two are one
+     * decision: the notch between two rows should be as deep as the gap between
+     * them. At 4dp against a 2dp gap it read deeper than the gap it was
+     * describing, which is the same near-miss that makes any two nested shapes
+     * look mismatched.
+     */
+    val InnerCorner: Dp = Spacing
 
     val MinHeight: Dp = 56.dp
     val TwoLineMinHeight: Dp = 72.dp

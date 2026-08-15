@@ -235,7 +235,7 @@ fun darkColorScheme(
     surfaceRaised: Color = Palette.Slate800,
     surfaceInverse: Color = Palette.Paper,
     onSurfaceInverse: Color = Palette.Ink,
-    content: Color = Palette.Paper,
+    content: Color = Palette.Slate200,
     contentMuted: Color = Palette.Slate400,
     contentSubtle: Color = Palette.Slate500,
     contentDisabled: Color = Palette.Slate300,

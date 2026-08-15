@@ -79,6 +79,17 @@ internal object Palette {
     val Slate500 = Color(0xFF9A93A2)
     val Slate400 = Color(0xFFA79FB0)
     val Slate300 = Color(0xFF5C5566)
+    /**
+     * Dark-mode body text.
+     *
+     * Not [Paper], which is 13.2:1 on the lightest dark surface — nearly three
+     * times the 4.5 it has to clear, and bright enough to glare against a
+     * near-black page. This sits at 11.8:1: still far above the floor, still
+     * clearly separated from [Slate400] and [Slate500] below it, and no longer
+     * the brightest thing on the screen.
+     */
+    val Slate200 = Color(0xFFE8E4EE)
+
     val Paper = Color(0xFFF4F1F8)
 
     // --- Status -----------------------------------------------------------

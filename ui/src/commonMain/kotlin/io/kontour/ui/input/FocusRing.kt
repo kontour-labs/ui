@@ -9,6 +9,9 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -64,7 +67,30 @@ fun Modifier.focusRing(
         // its centre — sits `gap` away from the component.
         val grow = gap + stroke / 2f
         val ringSize = Size(size.width + grow * 2f, size.height + grow * 2f)
-        val outline = shape.createOutline(ringSize, layoutDirection, this)
+
+        // Grow the *corners* by the same amount, not just the box.
+        //
+        // Two rounded rectangles are concentric when the outer radius is the
+        // inner radius plus the distance between them. Drawing the ring at the
+        // component's own radius on a box 6dp larger left every dp-based shape
+        // in the library under-rounded by exactly that much: a `Button` at 8dp
+        // needed 11, a `ListItem` at 12 needed 15, a `Checkbox` at 4 needed 7.
+        // The gap read wider at the corners than along the edges, which is the
+        // tell that two shapes are not concentric.
+        //
+        // Resolved in pixels against the component's *own* size, so a
+        // percentage corner comes out right too: `pill` on a 40px box resolves
+        // to 20, plus 3 is 23 — exactly half of the 46px ring. Which is why
+        // `pill` never looked wrong and everything else did.
+        val ringShape = (shape as? CornerBasedShape)?.let { corners ->
+            RoundedCornerShape(
+                topStart = CornerSize(corners.topStart.toPx(size, this) + grow),
+                topEnd = CornerSize(corners.topEnd.toPx(size, this) + grow),
+                bottomEnd = CornerSize(corners.bottomEnd.toPx(size, this) + grow),
+                bottomStart = CornerSize(corners.bottomStart.toPx(size, this) + grow),
+            )
+        } ?: shape
+        val outline = ringShape.createOutline(ringSize, layoutDirection, this)
 
         onDrawWithContent {
             drawContent()

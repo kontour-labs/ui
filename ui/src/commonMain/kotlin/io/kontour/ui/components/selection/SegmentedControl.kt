@@ -36,7 +36,19 @@ import io.kontour.ui.theme.Theme
 
 object SegmentedControlDefaults {
     /** The gap between the track's edge and the thumb inside it. */
-    val TrackPadding: Dp = 3.dp
+    /**
+     * The inset between the track and its thumb.
+     *
+     * 4dp rather than 3dp so the two shapes are concentric: the track is
+     * `small` (8dp) and the thumb is `extraSmall` (4dp), and 8 − 4 = 4. At 3dp
+     * the thumb read one dp too square inside its track — not obviously wrong,
+     * but the kind of near-miss the eye reads as a rendering fault rather than
+     * as a choice.
+     *
+     * The general rule: **inner radius = outer radius − gap**. Where the gap is
+     * on the 4dp grid, the shape scale already has the right token at both ends.
+     */
+    val TrackPadding: Dp = 4.dp
 }
 
 /**
