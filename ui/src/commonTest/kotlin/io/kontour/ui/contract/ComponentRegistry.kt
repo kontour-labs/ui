@@ -355,9 +355,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
             control = hasClickAction(),
         ) { modifier, enabled, onClick ->
             Accordion(
-                title = "Accessibility",
                 expanded = false,
                 onExpandedChange = { onClick() },
+                header = { +"Accessibility" },
                 modifier = modifier,
                 enabled = enabled,
             ) {

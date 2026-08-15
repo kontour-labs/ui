@@ -154,28 +154,31 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                     if (delays.value) {
                         Banner(
                             tone = BannerTone.Warning,
-                            title = "Delays on the Armadale line",
-                            message = "Services are running up to 12 minutes late.",
-                            icon = Tabler.Outline.AlertTriangle,
                             onDismissRequest = { delays.value = false },
                             dismissIcon = Tabler.Outline.X,
-                        )
-                    }
-                    Banner(
-                        tone = BannerTone.Danger,
-                        message = "Couldn't reach the server.",
-                        icon = Tabler.Outline.AlertTriangle,
-                        action = {
-                            Button(
-                                onClick = {},
-                                variant = ButtonVariant.Secondary,
-                                size = ButtonSize.XSmall,
-                            ) {
-                                +"Retry"
-                            }
+                        ) {
+                            +"Services are running up to 12 minutes late."
+                            title { +"Delays on the Armadale line" }
+                            leading { +Tabler.Outline.AlertTriangle }
                         }
-                    )
-                    Banner(tone = BannerTone.Success, message = "Trip saved to favourites.")
+                    }
+                    Banner(tone = BannerTone.Danger) {
+                        +"Couldn't reach the server."
+                        leading { +Tabler.Outline.AlertTriangle }
+                        action {
+                                                    Button(
+                                                        onClick = {},
+                                                        variant = ButtonVariant.Secondary,
+                                                        size = ButtonSize.XSmall,
+                                                    ) {
+                                                        +"Retry"
+                                                    }
+                                                
+                        }
+                    }
+                    Banner(tone = BannerTone.Success) {
+                        +"Trip saved to favourites."
+                    }
                     Callout {
                         Text(
                             "Melbourne, Sydney and Canberra do not currently support " +
@@ -233,27 +236,27 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
             ) {
                 Section("States") {
                     Card(variant = CardVariant.Outlined) {
-                        EmptyState(
-                            icon = Tabler.Outline.Star,
-                            title = "No favourites yet",
-                            message = "Star a stop or route and it will appear here.",
-                            action = {
-                                Button(
-                                    onClick = {},
-                                    variant = ButtonVariant.Secondary,
-                                ) {
-                                    +"Browse routes"
-                                }
+                        EmptyState() {
+                            +"No favourites yet"
+                            supporting { +"Star a stop or route and it will appear here." }
+                            leading { +Tabler.Outline.Star }
+                            action {
+                                                            Button(
+                                                                onClick = {},
+                                                                variant = ButtonVariant.Secondary,
+                                                            ) {
+                                                                +"Browse routes"
+                                                            }
+                                                        
                             }
-                        )
+                        }
                     }
                     Card(variant = CardVariant.Outlined) {
-                        ErrorState(
-                            icon = Tabler.Outline.AlertTriangle,
-                            title = "Couldn't load departures",
-                            message = "Check your connection and try again.",
-                            onRetry = {},
-                        )
+                        ErrorState(onRetry = {}) {
+                            +"Couldn't load departures"
+                            supporting { +"Check your connection and try again." }
+                            leading { +Tabler.Outline.AlertTriangle }
+                        }
                     }
                 }
 
@@ -261,10 +264,12 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                     Card(variant = CardVariant.Outlined) {
                         val open = seed(true)
                         Accordion(
-                            title = "Accessibility",
-                            supporting = "Contrast, motion, text size",
                             expanded = open.value,
                             onExpandedChange = { open.value = it },
+                            header = {
+                                +"Accessibility"
+                                supporting { +"Contrast, motion, text size" }
+                            },
                             chevron = Tabler.Outline.ChevronDown,
                         ) {
                             Text(
@@ -274,9 +279,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                             )
                         }
                         Accordion(
-                            title = "Notifications",
                             expanded = false,
                             onExpandedChange = {},
+                            header = { +"Notifications" },
                             chevron = Tabler.Outline.ChevronDown,
                         ) {}
                     }

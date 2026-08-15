@@ -31,7 +31,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.LocalContentColor
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.StatusColors
@@ -74,16 +76,14 @@ enum class BannerTone { Info, Success, Warning, Danger }
  */
 @Composable
 fun Banner(
-    message: String,
     modifier: Modifier = Modifier,
     tone: BannerTone = BannerTone.Info,
-    title: String? = null,
-    icon: ImageVector? = null,
     onDismissRequest: (() -> Unit)? = null,
     dismissIcon: ImageVector? = null,
     dismissLabel: String = "Dismiss",
-    action: (@Composable () -> Unit)? = null,
+    content: BannerScope.() -> Unit,
 ) {
+    val slots = bannerSlots(content)
     val colors = bannerColorsFor(tone)
     val shape = Theme.shapes.small
 
@@ -104,25 +104,30 @@ fun Banner(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
     ) {
         CompositionLocalProvider(LocalContentColor provides colors.onContainer) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    size = Theme.sizing.iconMedium,
-                    modifier = Modifier.padding(top = 1.dp),
-                )
+            slots.leading?.let { leading ->
+                Box(Modifier.padding(top = 1.dp)) {
+                    ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
+                }
             }
 
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                if (title != null) {
-                    Text(title, style = Theme.typography.titleSmall)
+                slots.title?.let { title ->
+                    ProvideTextStyle(Theme.typography.titleSmall) {
+                        ContentSlot(content = title)
+                    }
                 }
-                Text(message, style = Theme.typography.bodySmall)
-                if (action != null) {
-                    Box(Modifier.padding(top = Theme.spacing.xs)) { action() }
+                slots.message?.let { message ->
+                    ProvideTextStyle(Theme.typography.bodySmall) {
+                        ContentSlot(content = message)
+                    }
+                }
+                slots.action?.let { action ->
+                    Box(Modifier.padding(top = Theme.spacing.xs)) {
+                        ContentSlot(content = action)
+                    }
                 }
             }
 
@@ -148,14 +153,11 @@ fun Banner(
 @Composable
 fun AnimatedBanner(
     visible: Boolean,
-    message: String,
     modifier: Modifier = Modifier,
     tone: BannerTone = BannerTone.Info,
-    title: String? = null,
-    icon: ImageVector? = null,
     onDismissRequest: (() -> Unit)? = null,
     dismissIcon: ImageVector? = null,
-    action: (@Composable () -> Unit)? = null,
+    content: BannerScope.() -> Unit,
 ) {
     val motion = Theme.motion
     AnimatedVisibility(
@@ -164,14 +166,11 @@ fun AnimatedBanner(
         exit = fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenDefault()),
     ) {
         Banner(
-            message = message,
             modifier = modifier,
             tone = tone,
-            title = title,
-            icon = icon,
             onDismissRequest = onDismissRequest,
             dismissIcon = dismissIcon,
-            action = action,
+            content = content,
         )
     }
 }

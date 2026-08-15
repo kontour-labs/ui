@@ -27,7 +27,12 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.components.list.ListItemScope
+import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
@@ -62,19 +67,26 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun Accordion(
-    title: String,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
+    /**
+     * The row that is always visible, in the same shape a [ListItem] takes —
+     * because that is what it is. `+` fills its title.
+     *
+     * A named builder rather than the trailing lambda, since the trailing one is
+     * the body: an accordion is the one component here with two regions of
+     * caller content, and the body is the one you read.
+     */
+    header: ListItemScope.() -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    supporting: String? = null,
-    leadingIcon: ImageVector? = null,
     chevron: ImageVector? = null,
     expandedLabel: String = "Expanded",
     collapsedLabel: String = "Collapsed",
     interactionSource: MutableInteractionSource? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val slots = listItemSlots(header)
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val motion = Theme.motion
     val feedback = Feedback
@@ -111,30 +123,30 @@ fun Accordion(
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (leadingIcon != null) {
-                Icon(
-                    imageVector = leadingIcon,
-                    contentDescription = null,
-                    tint = if (enabled) Theme.colors.contentMuted else Theme.colors.contentDisabled,
-                )
+            val muted = if (enabled) Theme.colors.contentMuted else Theme.colors.contentDisabled
+
+            slots.leading?.let { leading ->
+                ProvideContentColor(muted) {
+                    ContentSlot(content = leading)
+                }
             }
 
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = Theme.typography.titleSmall,
-                    color = if (enabled) Theme.colors.content else Theme.colors.contentDisabled,
-                )
-                if (supporting != null) {
-                    Text(
-                        text = supporting,
-                        style = Theme.typography.bodySmall,
-                        color = if (enabled) {
-                            Theme.colors.contentMuted
-                        } else {
-                            Theme.colors.contentDisabled
-                        },
-                    )
+                slots.label?.let { title ->
+                    ProvideContentColor(
+                        if (enabled) Theme.colors.content else Theme.colors.contentDisabled
+                    ) {
+                        ProvideTextStyle(Theme.typography.titleSmall) {
+                            ContentSlot(content = title)
+                        }
+                    }
+                }
+                slots.supporting?.let { supporting ->
+                    ProvideContentColor(muted) {
+                        ProvideTextStyle(Theme.typography.bodySmall) {
+                            ContentSlot(content = supporting)
+                        }
+                    }
                 }
             }
 

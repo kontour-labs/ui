@@ -63,7 +63,9 @@ object PaneScaffoldDefaults {
  *     focus = if (selected == null) PaneFocus.List else PaneFocus.Detail,
  *     onBack = { selected = null },
  *     list = { StopList(onSelect = { selected = it }) },
- *     detail = { selected?.let { StopDetail(it) } ?: EmptyState("Pick a stop") },
+ *     detail = { selected?.let { StopDetail(it) } ?: EmptyState() {
+                                                          +"Pick a stop"
+                                                      } },
  * )
  * ```
  *

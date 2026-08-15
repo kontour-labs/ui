@@ -15,7 +15,10 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 
@@ -43,19 +46,13 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun EmptyState(
-    title: String,
     modifier: Modifier = Modifier,
-    message: String? = null,
-    icon: ImageVector? = null,
-    action: (@Composable () -> Unit)? = null,
+    content: StateScope.() -> Unit,
 ) {
     StateBlock(
         modifier = modifier,
-        icon = icon,
+        slots = stateSlots(content),
         iconTint = Theme.colors.contentSubtle,
-        title = title,
-        message = message,
-        action = action,
         assertive = false,
     )
 }
@@ -82,41 +79,39 @@ fun EmptyState(
  */
 @Composable
 fun ErrorState(
-    title: String,
     modifier: Modifier = Modifier,
-    message: String? = null,
-    icon: ImageVector? = null,
     onRetry: (() -> Unit)? = null,
     retryLabel: String = "Try again",
+    content: StateScope.() -> Unit,
 ) {
-    StateBlock(
-        modifier = modifier,
-        icon = icon,
-        iconTint = Theme.colors.danger.onContainer,
-        title = title,
-        message = message,
-        assertive = true,
-        action = if (onRetry != null) {
-            {
+    val slots = stateSlots {
+        content()
+        // The retry button is the component's, not the caller's: an error with no
+        // way forward is a dead end, and the commonest cause of one — a dropped
+        // connection — is exactly where retrying works. A caller that wants
+        // something else puts it in `action` and leaves `onRetry` null.
+        if (onRetry != null && action == null) {
+            action {
                 io.kontour.ui.components.action.Button(
                     onClick = onRetry,
                     variant = io.kontour.ui.components.action.ButtonVariant.Secondary,
                 ) { +retryLabel }
             }
-        } else {
-            null
-        },
+        }
+    }
+    StateBlock(
+        modifier = modifier,
+        slots = slots,
+        iconTint = Theme.colors.danger.onContainer,
+        assertive = true,
     )
 }
 
 @Composable
 private fun StateBlock(
     modifier: Modifier,
-    icon: ImageVector?,
+    slots: StateScope,
     iconTint: androidx.compose.ui.graphics.Color,
-    title: String,
-    message: String?,
-    action: (@Composable () -> Unit)?,
     assertive: Boolean,
 ) {
     Column(
@@ -129,35 +124,40 @@ private fun StateBlock(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
     ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                size = 40.dp,
-                modifier = Modifier.padding(bottom = Theme.spacing.xs),
-            )
+        slots.leading?.let { leading ->
+            Box(Modifier.padding(bottom = Theme.spacing.xs)) {
+                ProvideContentColor(iconTint) {
+                    ContentSlot(iconSize = StateIconSize, content = leading)
+                }
+            }
         }
 
-        Text(
-            text = title,
-            style = Theme.typography.titleMedium,
-            textAlign = TextAlign.Center,
-        )
-
-        if (message != null) {
-            Text(
-                text = message,
-                style = Theme.typography.bodyMedium,
-                color = Theme.colors.contentMuted,
-                textAlign = TextAlign.Center,
-                // Long lines are hard to read centred; cap the measure.
-                modifier = Modifier.widthIn(max = 320.dp),
-            )
+        slots.title?.let { title ->
+            ProvideTextStyle(Theme.typography.titleMedium.copy(textAlign = TextAlign.Center)) {
+                ContentSlot(content = title)
+            }
         }
 
-        if (action != null) {
-            Box(Modifier.padding(top = Theme.spacing.sm)) { action() }
+        slots.supporting?.let { supporting ->
+            // Long lines are hard to read centred; cap the measure.
+            Box(Modifier.widthIn(max = 320.dp)) {
+                ProvideContentColor(Theme.colors.contentMuted) {
+                    ProvideTextStyle(
+                        Theme.typography.bodyMedium.copy(textAlign = TextAlign.Center)
+                    ) {
+                        ContentSlot(content = supporting)
+                    }
+                }
+            }
+        }
+
+        slots.action?.let { action ->
+            Box(Modifier.padding(top = Theme.spacing.sm)) {
+                ContentSlot(content = action)
+            }
         }
     }
 }
+
+/** Large enough to read as an illustration rather than as an icon in a row. */
+private val StateIconSize = 40.dp
