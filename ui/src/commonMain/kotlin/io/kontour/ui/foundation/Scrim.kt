@@ -27,6 +27,24 @@ import io.kontour.ui.theme.Theme
  * overlays gets one scrim at the right depth instead of several multiplying
  * into opacity.
  *
+ * ### The scrim does not animate itself
+ *
+ * [fraction] is how far in the thing *in front* of it is, and the scrim is
+ * simply that much dark. It used to run its own `animateColorAsState` — 220ms on
+ * the standard easing — while the overlay it belonged to left on a 150ms exit
+ * tween, or, for a modal sheet, on a gentle spring it knew nothing about. Two
+ * animations of different lengths and different shapes describing one event, so
+ * the dimming and the thing being dimmed always drifted apart. Worst on sheets,
+ * because a spring and a tween disagree most in the middle.
+ *
+ * A lambda rather than a value, read in the draw phase: the fraction changes
+ * every frame, and reading it during composition would recompose the scrim and
+ * everything under it for each one.
+ *
+ * The *colour* still animates, because that is a different event — a scrim stops
+ * being the darkened one when another overlay opens above it, and that swap is
+ * not tied to anything appearing or leaving.
+ *
  * @param onDismissRequest Called when the scrim is tapped. Pass `null` for a modal that
  *   must be dismissed explicitly — a destructive confirmation, say — and the
  *   scrim will still block input without offering a way out.
@@ -36,27 +54,27 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun Scrim(
-    visible: Boolean,
+    fraction: () -> Float,
     onDismissRequest: (() -> Unit)?,
     modifier: Modifier = Modifier,
     dismissLabel: String? = null,
     color: Color = Theme.colors.scrim,
 ) {
-    val target = if (visible) color else Color.Transparent
     val animated by animateColorAsState(
-        targetValue = target,
+        targetValue = color,
         animationSpec = Theme.motion.tweenDefault(),
-        label = "scrim",
+        label = "scrimColor",
     )
-
-    if (!visible && animated.alpha == 0f) return
 
     Box(
         modifier
             .fillMaxSize()
-            .drawBehind { drawRect(animated) }
+            .drawBehind {
+                val f = fraction().coerceIn(0f, 1f)
+                if (f > 0f) drawRect(animated.copy(alpha = animated.alpha * f))
+            }
             .then(
-                if (onDismissRequest != null && visible) {
+                if (onDismissRequest != null) {
                     Modifier
                         .pointerInput(onDismissRequest) {
                             detectTapGestures { onDismissRequest() }

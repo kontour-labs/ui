@@ -107,6 +107,19 @@ class OverlayEntry(
      */
     val managesOwnExit: Boolean = false,
     /**
+     * How far in this entry is, 0..1, for its scrim to match.
+     *
+     * `null` — the usual case — means the host's own progress, which is what
+     * drives the panel too, so the two are the same number by construction.
+     *
+     * An entry that animates itself has to say so. A modal sheet slides on its
+     * `SheetState`'s spring, which the host knows nothing about: left to the
+     * host's progress its scrim would fade over 150ms while the sheet was still
+     * travelling, which is the "background disappears before the sheet does"
+     * that reads as two separate events rather than one.
+     */
+    val visibility: (() -> Float)? = null,
+    /**
      * Called after this entry has been dismissed.
      *
      * `onDismiss`, not `onDismissRequest`, and the difference is not cosmetic:
@@ -276,10 +289,14 @@ private fun EntryHost(
 
     if (entry.scrim != ScrimStyle.None) {
         Scrim(
-            visible = !leaving,
-            onDismissRequest = if (entry.dismissOnOutside) {
+            // The same number the panel is drawn with, so the dimming and the
+            // thing it dims are one movement — see `Scrim`.
+            fraction = entry.visibility ?: { progress.value },
+            onDismissRequest = if (entry.dismissOnOutside && !leaving) {
                 { state.dismissOutside(entry) }
             } else {
+                // Still consumes taps on the way out; it just no longer offers a
+                // dismissal for something already dismissed.
                 null
             },
             dismissLabel = entry.dismissLabel,

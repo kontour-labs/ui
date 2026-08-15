@@ -231,6 +231,12 @@ fun ModalBottomSheet(
                     // The sheet slides itself down and hides the entry when it
                     // has landed — see the `else` branch below.
                     managesOwnExit = true,
+                    // The sheet slides on its own spring, so the scrim has to
+                    // follow the sheet rather than the host's fade — otherwise
+                    // the dimming is gone while the sheet is still on its way
+                    // down. This is the worst of the desyncs, because a spring
+                    // and a tween disagree most in the middle.
+                    visibility = { state.visibleFraction },
                     // Tell the caller, not just the sheet. This used to only
                     // launch `state.hide()`, so after an outside tap the host
                     // had dropped the entry while the caller's `visible` was

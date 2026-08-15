@@ -140,6 +140,25 @@ class SheetState internal constructor(
     val progress: Float get() = anchoredState.progress(currentDetent, targetDetent)
 
     /**
+     * How much of the sheet is on screen, 0..1 — what a scrim behind it matches.
+     *
+     * Not [progress], which measures travel between two detents and so reads 1
+     * whenever the sheet has settled anywhere, including hidden. This is
+     * absolute: 0 with the sheet off the bottom of the window, 1 with it fully
+     * out. A modal sheet's scrim is exactly this dark, so the two move as one.
+     *
+     * A sheet with an intermediate detent therefore dims proportionally on the
+     * way to it, which is the honest reading of "as dark as the sheet is
+     * present" — and modal sheets here are Hidden-to-Expanded by default, so it
+     * is 0 or 1 unless a caller asks for more.
+     */
+    val visibleFraction: Float
+        get() {
+            val height = sheetHeight
+            return if (height <= 0f) 0f else (visibleHeight / height).coerceIn(0f, 1f)
+        }
+
+    /**
      * Where the sheet should go once it has anchors.
      *
      * A screen that starts with its sheet open calls [animateTo] from a

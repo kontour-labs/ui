@@ -33,6 +33,9 @@ import io.kontour.ui.overlay.Popover
 import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.overlay.coachMark
 import io.kontour.ui.overlay.rememberOverlayQueue
+import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.sheet.SheetHeader
+import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 import kotlin.test.Test
@@ -115,6 +118,69 @@ class OverlayMotionScreenshotTest {
             }
         }
         assertTrue(file.length() > 0, "overlays-leaving rendered an empty file")
+    }
+
+    /**
+     * Sheets on their way out, with their scrims.
+     *
+     * The scrim and the thing it dims are one event, and they used to be drawn by
+     * two animations that disagreed about how long that event takes. A modal
+     * sheet was the worst of it: the sheet slides on `springGentle` while the
+     * scrim ran a 220ms tween, so the dimming was gone with the sheet still
+     * halfway down the screen.
+     *
+     * A still frame catches that: a sheet only part-way out from the bottom, over
+     * a scrim that is still dark, is the two agreeing. A pale scrim behind a sheet
+     * that has barely moved is the bug.
+     */
+    @Test
+    fun rendersSheetsWhileTheyAreLeaving() {
+        val file = Screenshot.render(
+            name = "sheets-leaving",
+            width = 2000,
+            height = 1240,
+            frames = 26,
+        ) {
+            KontourTheme(darkTheme = false, reduceMotion = false) {
+                LeavingSheets(dismissAfterFrames = 20)
+            }
+        }
+        assertTrue(file.length() > 0, "sheets-leaving rendered an empty file")
+    }
+}
+
+/** A modal sheet and a side sheet, both dismissed part-way through the render. */
+@Composable
+private fun LeavingSheets(dismissAfterFrames: Int) {
+    val showing = remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        repeat(dismissAfterFrames) { withFrameNanos { } }
+        showing.value = false
+    }
+
+    Surface(modifier = Modifier.fillMaxSize(), color = Theme.colors.background) {
+        Row(
+            modifier = Modifier.padding(Theme.spacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+        ) {
+            MotionPanel("Modal sheet") {
+                ModalBottomSheet(
+                    visible = showing.value,
+                    onDismissRequest = { showing.value = false },
+                ) {
+                    SheetHeader(title = "Rename favourite", supporting = "Perth Underground")
+                }
+            }
+            MotionPanel("Side sheet") {
+                SideSheet(
+                    visible = showing.value,
+                    onDismissRequest = { showing.value = false },
+                    width = 220.dp,
+                ) {
+                    SheetHeader(title = "Filters")
+                }
+            }
+        }
     }
 }
 
