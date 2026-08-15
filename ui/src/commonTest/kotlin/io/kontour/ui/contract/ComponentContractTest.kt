@@ -160,6 +160,34 @@ class ComponentContractTest {
     }
 
     @Test
+    fun everyControlAnnouncesSomething() {
+        forEachComponent { spec ->
+            // Something with no role is not a control and has nothing to be
+            // called; a `namedByContext` one is named by the row it sits in.
+            // Everything else has to answer to a name.
+            spec.role ?: return@forEachComponent
+            if (spec.namedByContext) return@forEachComponent
+            runComposeUiTest {
+                setContent {
+                    Harness { spec.content(Modifier.testTag(tag), true) {} }
+                }
+
+                val config = control(spec).fetchSemanticsNode().config
+                val spoken = buildList {
+                    config.getOrNull(SemanticsProperties.ContentDescription)?.let(::addAll)
+                    config.getOrNull(SemanticsProperties.Text)?.forEach { add(it.text) }
+                    config.getOrNull(SemanticsProperties.StateDescription)?.let(::add)
+                }
+                assertTrue(
+                    spoken.any { it.isNotBlank() },
+                    "${spec.name} announces nothing at all — a screen reader reaches " +
+                        "it and has no way to say what it is",
+                )
+            }
+        }
+    }
+
+    @Test
     fun theTouchTargetMeetsThePlatformMinimum() {
         forEachComponent { spec ->
             if (!spec.expectsMinimumTarget) return@forEachComponent

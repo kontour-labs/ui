@@ -82,6 +82,18 @@ class ComponentSpec(
     val activatedByClick: Boolean = true,
     val control: SemanticsMatcher? = null,
     val accessibleName: String? = null,
+    /**
+     * True for a control that cannot name itself and is designed not to.
+     *
+     * A bare `Checkbox` has no text of its own — it is meant to sit in a
+     * `SelectionRow`, or beside a label whose click target it shares, and take
+     * its name from there. Material's does the same.
+     *
+     * An opt-out rather than an opt-in, so a component that *loses* its name —
+     * which is now possible, since slots let a caller build a row with no label
+     * in it — fails rather than passing quietly.
+     */
+    val namedByContext: Boolean = false,
     val content: @Composable (modifier: Modifier, enabled: Boolean, onActivate: () -> Unit) -> Unit,
 )
 
@@ -186,7 +198,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     // --- Selection -------------------------------------------------------
     add(
-        ComponentSpec("Checkbox", Role.Checkbox) { modifier, enabled, onClick ->
+        ComponentSpec("Checkbox", Role.Checkbox, namedByContext = true) { modifier, enabled, onClick ->
             Checkbox(
                 checked = false,
                 onCheckedChange = { onClick() },
@@ -197,7 +209,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("RadioButton", Role.RadioButton) { modifier, enabled, onClick ->
+        ComponentSpec("RadioButton", Role.RadioButton, namedByContext = true) { modifier, enabled, onClick ->
             RadioButton(
                 selected = false,
                 onClick = onClick,
@@ -208,7 +220,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("Switch", Role.Switch) { modifier, enabled, onClick ->
+        ComponentSpec("Switch", Role.Switch, namedByContext = true) { modifier, enabled, onClick ->
             Switch(
                 checked = false,
                 onCheckedChange = { onClick() },
@@ -252,7 +264,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("TriStateCheckbox", Role.Checkbox) { modifier, enabled, onClick ->
+        ComponentSpec("TriStateCheckbox", Role.Checkbox, namedByContext = true) { modifier, enabled, onClick ->
             TriStateCheckbox(
                 state = ToggleableState.Indeterminate,
                 onClick = onClick,

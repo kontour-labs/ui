@@ -1,7 +1,122 @@
-# The shorthands
+# Slots, and the `+` that keeps them short
 
-Every component in the library takes parameters and slots. Some of them also
-have a **shorthand** — a scope with a handful of small functions on it, for the
+Every component in this library takes its content as **slots** rather than as
+strings. That is the whole API; there is no `label: String` to fall back to.
+
+```kotlin
+Button(onClick = ::save) { +"Save" }
+
+ListItem(onClick = { open(stop) }) {
+    +stop.name
+    supporting { +stop.detail }
+    leading { +Tabler.Outline.Bus }
+    trailing { Switch(saved, onCheckedChange = ::save) }
+}
+```
+
+## Why slots at all
+
+A `String` cannot carry a second colour, an inline tag, an `AnnotatedString`, or
+whatever the design wants next. So a component that takes one grows a parallel
+slot beside it the first time anybody needs any of those, and then has two
+vocabularies in one signature. `ListItem` had reached three strings and two
+slots. `SettingRow` had a `value: String?` whose entire job was to build a
+default for its `trailing` slot.
+
+Slots cost brevity, which is why Material call sites run long. The `+` is what
+buys it back.
+
+---
+
+## The `+` vocabulary
+
+Inside any slot, `+` takes four things and nothing else:
+
+| | becomes |
+|---|---|
+| `String` | `Text`, in the slot's style |
+| `AnnotatedString` | `Text`, its spans merged over the slot's style |
+| `ImageVector` | `Icon`, decorative, at the slot's size |
+| `Painter` | `Icon`, decorative, at the slot's size |
+
+A fifth overload would be the point at which the call site should be writing a
+composable — and it can, because a slot is a slot:
+
+```kotlin
+Button(onClick = ::save) {
+    +Tabler.Outline.Check
+    +"Save"
+    if (count > 0) Badge(count)          // ordinary composable, same block
+}
+```
+
+### Style comes from the slot, not the call site
+
+`+"…"` never says how to draw itself. Each slot wraps its content in
+`ProvideTextStyle` and `ProvideContentColor`, so the same character is
+`bodySmall` and muted under a row's supporting line, and the button's own label
+style inside a button. That is the whole reason it can be one character: there is
+nothing left for the call site to decide.
+
+It follows that **a component's own text styling lives in the component**, not in
+its `Text` calls. When you add a region, provide its style around the slot rather
+than passing `style =` to something inside it.
+
+### `+icon` is decorative
+
+It takes no content description, because the text beside it is the accessible
+name and a screen reader announcing both says everything twice. For an icon that
+is the only thing saying what something is, use `icon(image, contentDescription)`
+— and if you reach for that often, the component probably wants a real
+`contentDescription` parameter instead.
+
+### One sharp edge
+
+`+` binds tighter than `+`. A long string split across lines does not compile:
+
+```kotlin
+supporting { +"Perth Underground will be taken off " +      // ✗ unaryPlus(…).plus(…)
+    "your home screen." }
+
+supporting { +("Perth Underground will be taken off " +     // ✓
+    "your home screen.") }
+```
+
+---
+
+## Two kinds of scope, one spelling
+
+Which one a component uses is invisible at the call site, and the difference is
+worth understanding only when you are writing a component.
+
+**Emitting.** `Button`, `Chip`, `Tag` — anything whose content is a single run of
+things. The slot is a normal `@Composable` lambda and `+` emits where it is
+written. The scope extends the layout scope the lambda already had
+(`RowContentScope : RowScope`), so `Modifier.weight` still means what it did.
+
+**Collecting.** `ListItem`, `Banner`, `TopBar`, `MenuItem`, `SheetHeader` —
+anything with more than one region. Content cannot run where it is written: a
+row's label belongs inside a `Column` inside a `Row`, next to a leading slot
+declared after it. So the builder is a plain lambda that *records* what goes
+where, and the component composes the regions in the order the layout wants.
+
+`TopBar` is the clearest case for why. `TopBarStyle.Large` renders the title
+**twice** — small and fading in, large and sliding out — at two type scales. A
+slot that emitted where it was written could only ever be in one of them.
+
+A collecting builder is not composable, so you cannot call a composable or read
+`Theme` in the builder itself — only inside the slots it hands you. This is the
+same shape as Compose's own `LazyListScope`.
+
+**A bare `+` fills whatever the component requires.** A row's label, a banner's
+message, a state screen's title. That rule is what makes the one-region call one
+line everywhere.
+
+---
+
+## The shorthands
+
+On top of the slots, a few scopes carry a handful of small functions for the
 shape you write nine times out of ten.
 
 ```kotlin
@@ -16,9 +131,11 @@ DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
 }
 ```
 
----
+These still take strings, and that is deliberate: a shorthand exists for the
+common shape, and the common shape is text. They build through the slot API
+underneath.
 
-## They do not replace anything
+### They do not replace anything
 
 Each scope **extends the receiver the content lambda already had**, so every
 component still works inside it, unchanged:
@@ -29,16 +146,12 @@ component still works inside it, unchanged:
 | `NavDrawerScope` | `ColumnScope` | `NavDrawer`, `ModalNavDrawer`, `NavDrawerSection`, `NavDrawerGroup` |
 | `ListGroupScope` | — | `ListGroup`, `LazyListScope.listGroup` |
 
-That is why adopting them broke nothing: a menu body written against
-`ColumnScope` before is a menu body written against `MenuScope` now, because
-`MenuScope` *is* a `ColumnScope`. Mix them freely.
-
 ```kotlin
 DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
     item("Share") { share(stop) }
 
     // Not in the shorthand — nothing here takes a modifier. Use the component.
-    MenuItem("Pin", onClick = ::pin, modifier = Modifier.testTag("pin"))
+    MenuItem(onClick = ::pin, modifier = Modifier.testTag("pin")) { +"Pin" }
 }
 ```
 
@@ -48,9 +161,9 @@ component is right there in the same scope.
 
 ---
 
-## What each one is actually for
+## What each shorthand is actually for
 
-Not brevity. Each shorthand deletes a specific mistake.
+Not brevity. Each one deletes a specific mistake.
 
 ### `MenuScope` — the menu that stays open
 
@@ -58,7 +171,7 @@ Not brevity. Each shorthand deletes a specific mistake.
 by hand, every row is:
 
 ```kotlin
-MenuItem("Share", onClick = { open = false; share(stop) })
+MenuItem(onClick = { open = false; share(stop) }) { +"Share" }
 ```
 
 and the one that forgets leaves a menu hanging over the screen it just navigated
@@ -79,7 +192,7 @@ call site.
 ```kotlin
 val positions = listPositions(stops.size)          // the bit people forget
 stops.forEachIndexed { index, stop ->
-    ListItem(label = stop.name, position = positions[index], …)
+    ListItem(position = positions[index], …) { +stop.name }
 }
 ```
 
@@ -135,46 +248,55 @@ NavDrawer(header = { AppMark() }) {
 
 ---
 
-## The `ListGroupScope` builder is not composable
+## The escape hatch
 
-It **collects** rows rather than emitting them, because the position of the first
-row depends on how many come after it. It still runs inside composition, so
-
-```kotlin
-ListGroup {
-    item("Profile") { … }
-    if (signedIn) item("Sign out") { … }      // fine — recomposes on the state read
-}
-```
-
-works. What you cannot do is call a composable or read `Theme` in the builder
-itself. Use `row` for that — it takes the whole `@Composable` and hands you the
-position:
+`ListGroupScope.row` takes the whole `@Composable` and hands you the position, so
+a row that has outgrown `item` does not have to leave the group:
 
 ```kotlin
 ListGroup {
     item("Notifications") { … }
     row { position ->
-        ListItem(label = "Sign out", position = position, onClick = ::signOut)
+        ListItem(position = position, onClick = ::signOut) { +"Sign out" }
     }
 }
 ```
 
-`row` is the escape hatch, and the reason the other shorthands can stay small.
+`row` is the reason the other shorthands can stay small.
 
 ---
 
-## How they are tested
+## What this cost, and what pays for it
 
-Two ways, because the two claims are different.
+`ListItem(label = "…")` could not produce a row without an accessible name.
+`ListItem { leading { +icon } }` can. That is a real regression in what the type
+system guarantees, and it was the known price of moving to slots.
 
-**"It renders the same thing."** Two catalog panels — the menu and the grouped
-rows — were rewritten with the shorthands, and their screenshot goldens did not
-move. That is not an assertion anybody wrote; it is the existing golden refusing
-to change.
+`ComponentContractTest.everyControlAnnouncesSomething` is what pays for it: every
+component in the registry that declares a role must announce a non-empty name.
+The four bare selection controls — `Checkbox`, `RadioButton`, `Switch`,
+`TriStateCheckbox` — opt out through `namedByContext`, because they genuinely
+cannot name themselves and are designed to be labelled by the row they sit in.
+An opt-out rather than an opt-in, so a component that *loses* its name fails
+rather than passing quietly.
+
+That is a stronger guarantee than the string parameter gave, because it tests the
+rendered semantics rather than the signature.
+
+---
+
+## How this is tested
+
+**"It renders the same thing."** Every component was converted to slots and
+~150 call sites rewritten, and **not one screenshot golden moved**. That is not
+an assertion anybody wrote; it is the existing goldens refusing to change.
 
 **"It does the thing a golden cannot see."** `DslBehaviourTest` covers the
 positions each row is handed (including the one-row and two-row cases a
 three-item example never exercises) and whether a menu closes itself. Both guards
 were verified by reverting: reading the lazy builder's running offset late
 instead of capturing it makes every row `Middle`, and the test says so.
+
+`checkApiConventions` counts a builder as a slot, so `ListItemScope.() -> Unit`
+sits in the same place and under the same name as a `@Composable` one — last,
+called `content`.
