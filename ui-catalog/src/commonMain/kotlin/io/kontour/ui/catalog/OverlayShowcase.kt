@@ -113,10 +113,11 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                 Panel("Menu with a nested row") {
                     Box(Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 72.dp)) {
                         Button(
-                            label = "Sort",
                             onClick = {},
                             variant = ButtonVariant.Secondary,
-                        )
+                        ) {
+                            +"Sort"
+                        }
                         DropdownMenu(expanded = sort.value, onDismissRequest = { sort.value = false }) {
                             item("Departure time", selected = true) {}
                             item("Journey length") {}
@@ -224,7 +225,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                     // The flip case: anchored at the bottom, asked to open
                     // downward, and there is nowhere to go.
                     Box(Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
-                        Button(label = "Options", onClick = {}, variant = ButtonVariant.Ghost)
+                        Button(onClick = {}, variant = ButtonVariant.Ghost) { +"Options" }
                         DropdownMenu(
                             expanded = edgeMenu.value,
                             onDismissRequest = { edgeMenu.value = false },

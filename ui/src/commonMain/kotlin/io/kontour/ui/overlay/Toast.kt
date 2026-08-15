@@ -252,11 +252,10 @@ private fun ToastSurface(
             }
             if (toast.actionLabel != null) {
                 Button(
-                    label = toast.actionLabel,
                     onClick = onAction,
                     variant = ButtonVariant.Ghost,
                     size = ButtonSize.XSmall,
-                )
+                ) { +toast.actionLabel }
             }
         }
     }

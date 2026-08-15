@@ -45,14 +45,14 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
         ) {
             Section("Variants") {
                 Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-                    Button("Primary", {}, variant = ButtonVariant.Primary)
-                    Button("Secondary", {}, variant = ButtonVariant.Secondary)
-                    Button("Tertiary", {}, variant = ButtonVariant.Tertiary)
-                    Button("Ghost", {}, variant = ButtonVariant.Ghost)
+                    Button(onClick = {}, variant = ButtonVariant.Primary) { +"Primary" }
+                    Button(onClick = {}, variant = ButtonVariant.Secondary) { +"Secondary" }
+                    Button(onClick = {}, variant = ButtonVariant.Tertiary) { +"Tertiary" }
+                    Button(onClick = {}, variant = ButtonVariant.Ghost) { +"Ghost" }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-                    Button("Destructive", {}, variant = ButtonVariant.Destructive)
-                    Button("Destructive ghost", {}, variant = ButtonVariant.DestructiveGhost)
+                    Button(onClick = {}, variant = ButtonVariant.Destructive) { +"Destructive" }
+                    Button(onClick = {}, variant = ButtonVariant.DestructiveGhost) { +"Destructive ghost" }
                 }
             }
 
@@ -61,25 +61,27 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Button("XSmall", {}, size = ButtonSize.XSmall)
-                    Button("Small", {}, size = ButtonSize.Small)
-                    Button("Medium", {}, size = ButtonSize.Medium)
-                    Button("Large", {}, size = ButtonSize.Large)
-                    Button("XLarge", {}, size = ButtonSize.XLarge)
+                    Button(onClick = {}, size = ButtonSize.XSmall) { +"XSmall" }
+                    Button(onClick = {}, size = ButtonSize.Small) { +"Small" }
+                    Button(onClick = {}, size = ButtonSize.Medium) { +"Medium" }
+                    Button(onClick = {}, size = ButtonSize.Large) { +"Large" }
+                    Button(onClick = {}, size = ButtonSize.XLarge) { +"XLarge" }
                 }
             }
 
             Section("States") {
                 Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-                    Button("Enabled", {})
-                    Button("Disabled", {}, enabled = false)
-                    Button("Loading", {}, loading = true)
-                    Button("Secondary off", {}, variant = ButtonVariant.Secondary, enabled = false)
+                    Button(onClick = {}) { +"Enabled" }
+                    Button(onClick = {}, enabled = false) { +"Disabled" }
+                    Button(onClick = {}, loading = true) { +"Loading" }
+                    Button(onClick = {}, variant = ButtonVariant.Secondary, enabled = false) {
+                        +"Secondary off"
+                    }
                 }
             }
 
             Section("Full width") {
-                Button("Plan a trip", {}, size = ButtonSize.Large, fillMaxWidth = true)
+                Button(onClick = {}, size = ButtonSize.Large, fillMaxWidth = true) { +"Plan a trip" }
             }
 
             Section("Icon buttons") {

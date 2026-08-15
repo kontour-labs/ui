@@ -122,12 +122,13 @@ val componentRegistry: List<ComponentSpec> = buildList {
         add(
             ComponentSpec("Button ($variant)", Role.Button) { modifier, enabled, onClick ->
                 Button(
-                    label = "Label",
                     onClick = onClick,
                     modifier = modifier,
                     enabled = enabled,
                     variant = variant,
-                )
+                ) {
+                    +"Label"
+                }
             }
         )
     }
@@ -218,31 +219,34 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     add(
         ComponentSpec("Chip", Role.Button) { modifier, enabled, onClick ->
-            Chip(label = "Bus", onClick = onClick, modifier = modifier, enabled = enabled)
+            Chip(onClick = onClick, modifier = modifier, enabled = enabled) { +"Bus" }
         }
     )
 
     add(
         ComponentSpec("FilterChip", Role.Checkbox) { modifier, enabled, onClick ->
             FilterChip(
-                label = "Bus",
                 selected = false,
                 onClick = onClick,
                 modifier = modifier,
                 enabled = enabled,
-            )
+            ) {
+                +"Bus"
+            }
         }
     )
 
     add(
         ComponentSpec("InputChip", Role.Button) { modifier, enabled, onClick ->
             InputChip(
-                label = "Perth",
                 onRemove = {},
                 onClick = onClick,
                 modifier = modifier,
                 enabled = enabled,
-            )
+                removeLabel = "Remove Perth",
+            ) {
+                +"Perth"
+            }
         }
     )
 

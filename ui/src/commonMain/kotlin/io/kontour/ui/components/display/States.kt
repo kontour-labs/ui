@@ -27,7 +27,7 @@ import io.kontour.ui.theme.Theme
  *     icon = Tabler.Outline.Star,
  *     title = "No favourites yet",
  *     message = "Star a stop or route and it will appear here.",
- *     action = { Button("Browse routes", onClick = ::browse) },
+ *     action = { Button(onClick = ::browse) { +"Browse routes" } },
  * )
  * ```
  *
@@ -99,10 +99,9 @@ fun ErrorState(
         action = if (onRetry != null) {
             {
                 io.kontour.ui.components.action.Button(
-                    label = retryLabel,
                     onClick = onRetry,
                     variant = io.kontour.ui.components.action.ButtonVariant.Secondary,
-                )
+                ) { +retryLabel }
             }
         } else {
             null

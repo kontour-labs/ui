@@ -34,6 +34,8 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColor
 import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.foundation.RowContentScope
+import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
@@ -48,13 +50,19 @@ private val ChipHeight = 34.dp
  *
  * ```
  * // Filter — toggles a facet on and off
- * FilterChip(selected = showBuses, onClick = ::toggleBuses, label = "Buses")
+ * FilterChip(selected = showBuses, onClick = ::toggleBuses) { +"Buses" }
  *
  * // Assist — performs an action
- * Chip(onClick = ::shareTrip, label = "Share", leadingIcon = Icons.Share)
+ * Chip(onClick = ::shareTrip) {
+     +Icons.Share
+     +"Share"
+ }
  *
  * // Input — represents a value the user entered, and can be removed
- * InputChip(label = "Perth Station", onRemove = ::clearOrigin)
+ * InputChip(onRemove = ::clearOrigin,
+     removeLabel = "Remove Perth Station") {
+     +"Perth Station"
+ }
  * ```
  *
  * Chips are for things that come in *sets*. A single chip on a screen is
@@ -62,13 +70,11 @@ private val ChipHeight = 34.dp
  */
 @Composable
 fun Chip(
-    label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    leadingIcon: ImageVector? = null,
-    trailingIcon: ImageVector? = null,
     interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowContentScope.() -> Unit
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colors = Theme.colors
@@ -91,9 +97,7 @@ fun Chip(
                 },
             ),
         contentColor = if (enabled) colors.content else colors.contentDisabled,
-        label = label,
-        leadingIcon = leadingIcon,
-        trailingIcon = trailingIcon,
+        content = content
     )
 }
 
@@ -107,14 +111,13 @@ fun Chip(
  */
 @Composable
 fun FilterChip(
-    label: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    leadingIcon: ImageVector? = null,
     selectedIcon: ImageVector? = null,
     interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowContentScope.() -> Unit
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colors = Theme.colors
@@ -187,11 +190,8 @@ fun FilterChip(
                     Icon(selectedIcon, contentDescription = null, size = Theme.sizing.iconSmall)
                 }
             }
-            if (leadingIcon != null && !selected) {
-                Icon(leadingIcon, contentDescription = null, size = Theme.sizing.iconSmall)
-            }
             ProvideTextStyle(Theme.typography.labelMedium) {
-                Text(label, maxLines = 1)
+                contentScope(iconSize = Theme.sizing.iconSmall, content = content)
             }
         }
     }
@@ -206,15 +206,21 @@ fun FilterChip(
  */
 @Composable
 fun InputChip(
-    label: String,
     onRemove: () -> Unit,
+    /**
+     * What the remove button announces — "Remove Perth Station", not "Remove".
+     *
+     * Required, and it used to default to `"Remove $label"`. With the label in a
+     * slot there is no string to interpolate, and a bare "Remove" in a row of
+     * five chips tells a screen-reader user nothing about which one goes.
+     */
+    removeLabel: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     removeIcon: ImageVector? = null,
-    removeLabel: String = "Remove $label",
-    leadingIcon: ImageVector? = null,
     onClick: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowContentScope.() -> Unit
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colors = Theme.colors
@@ -248,11 +254,8 @@ fun InputChip(
         CompositionLocalProvider(
             LocalContentColor provides if (enabled) colors.content else colors.contentDisabled
         ) {
-            if (leadingIcon != null) {
-                Icon(leadingIcon, contentDescription = null, size = Theme.sizing.iconSmall)
-            }
             ProvideTextStyle(Theme.typography.labelMedium) {
-                Text(label, maxLines = 1)
+                contentScope(iconSize = Theme.sizing.iconSmall, content = content)
             }
             if (removeIcon != null) {
                 Row(
@@ -305,9 +308,7 @@ fun ChipGroup(
 private fun ChipSurface(
     modifier: Modifier,
     contentColor: Color,
-    label: String,
-    leadingIcon: ImageVector?,
-    trailingIcon: ImageVector?,
+    content: @Composable RowContentScope.() -> Unit
 ) {
     Row(
         modifier = modifier
@@ -318,14 +319,8 @@ private fun ChipSurface(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CompositionLocalProvider(LocalContentColor provides contentColor) {
-            if (leadingIcon != null) {
-                Icon(leadingIcon, contentDescription = null, size = Theme.sizing.iconSmall)
-            }
             ProvideTextStyle(Theme.typography.labelMedium) {
-                Text(label, maxLines = 1)
-            }
-            if (trailingIcon != null) {
-                Icon(trailingIcon, contentDescription = null, size = Theme.sizing.iconSmall)
+                contentScope(iconSize = Theme.sizing.iconSmall, content = content)
             }
         }
     }

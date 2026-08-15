@@ -23,7 +23,10 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColorFor
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.theme.Theme
 
 /** The meaning a [Tag] carries. Maps to the scheme's status tones. */
@@ -33,8 +36,8 @@ enum class TagTone { Neutral, Accent, Success, Warning, Danger, Info }
  * A small, non-interactive label — a status, a category, a route number.
  *
  * ```
- * Tag("Live", tone = TagTone.Success)
- * Tag("960", color = routeColor)          // colour straight out of a GTFS feed
+ * Tag(tone = TagTone.Success) { +"Live" }
+ * Tag(color = routeColor) { +"960" }          // colour straight out of a GTFS feed
  * ```
  *
  * Not a [io.kontour.ui.components.selection.Chip]. A chip is something the user
@@ -58,16 +61,22 @@ enum class TagTone { Neutral, Accent, Success, Warning, Danger, Info }
  */
 @Composable
 fun Tag(
-    label: String,
     modifier: Modifier = Modifier,
     tone: TagTone = TagTone.Neutral,
     color: Color = Color.Unspecified,
-    leadingIcon: ImageVector? = null,
     shape: Shape = Theme.shapes.extraSmall,
+    /**
+     * Overrides what the tag announces.
+     *
+     * Rarely needed: the content is merged, so `+"Delayed"` already announces as
+     * "Delayed". This is for a tag whose text is an abbreviation the spoken form
+     * should expand — "PU" reading as "Perth Underground".
+     */
     contentDescription: String? = null,
+    content: @Composable RowContentScope.() -> Unit
 ) {
     val container = if (color != Color.Unspecified) color else tagContainerFor(tone)
-    val content = if (color != Color.Unspecified) {
+    val contentColor = if (color != Color.Unspecified) {
         contentColorFor(
             background = color,
             light = Theme.colors.onPrimary.takeIf { !Theme.colors.isDark } ?: Theme.colors.content,
@@ -79,28 +88,31 @@ fun Tag(
 
     Row(
         modifier = modifier
-            .semantics { this.contentDescription = contentDescription ?: label }
+            // Merged rather than described: a tag used to build its own
+            // `contentDescription` from its `label`, and with the label in a slot
+            // there is no string to build one from. Merging is the better answer
+            // anyway — whatever the content is, that is what it announces.
+            .semantics(mergeDescendants = true) {
+                if (contentDescription != null) this.contentDescription = contentDescription
+            }
             .clip(shape)
             .background(container, shape)
             .padding(horizontal = 8.dp, vertical = 3.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColor provides content) {
-            if (leadingIcon != null) {
-                Icon(leadingIcon, contentDescription = null, size = 12.dp)
+        CompositionLocalProvider(LocalContentColor provides contentColor) {
+            ProvideTextStyle(
+                Theme.typography.labelSmall.copy()
+            ) {
+                contentScope(iconSize = TagIconSize, content = content)
             }
-            Text(
-                text = label,
-                style = Theme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                // The Row already announces; a nested node would repeat it.
-                modifier = Modifier.clearAndSetSemantics { },
-            )
         }
     }
 }
+
+/** Smaller than `iconSmall`: a tag is a label, not a control. */
+private val TagIconSize = 12.dp
 
 /**
  * A count or a dot, for attaching to something else.

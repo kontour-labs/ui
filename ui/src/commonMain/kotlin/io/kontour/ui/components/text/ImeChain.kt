@@ -33,7 +33,7 @@ class ImeChainStep internal constructor(
  * TextField(state = from, label = "From", imeChain = chain["from"])
  * TextField(state = to, label = "To", imeChain = chain["to"])
  * TextField(state = note, label = "Note", imeChain = chain["note"])
- * Button("Plan trip", onClick = viewModel::plan)
+ * Button(onClick = viewModel::plan) { +"Plan trip" }
  * ```
  *
  * Every field but the last shows **Next** and moves to the one after it; the

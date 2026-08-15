@@ -106,14 +106,13 @@ private fun ToolbarAction(label: String, action: (() -> Unit)?, hide: () -> Unit
     // the two that apply harder to hit.
     if (action == null) return
     Button(
-        label = label,
         onClick = {
             action()
             hide()
         },
         variant = ButtonVariant.Ghost,
         size = ButtonSize.Small,
-    )
+    ) { +label }
 }
 
 /** What the framework asked to be shown, and where. */

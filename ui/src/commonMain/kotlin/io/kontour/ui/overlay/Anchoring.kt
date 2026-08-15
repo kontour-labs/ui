@@ -235,7 +235,7 @@ fun Modifier.anchorBounds(onBounds: (Rect?) -> Unit): Modifier =
  *
  * ```
  * Box {
- *     Button("Sort", onClick = { expanded = true })
+ *     Button(onClick = { expanded = true }) { +"Sort" }
  *     DropdownMenu(expanded, onDismissRequest = { expanded = false }) { … }
  * }
  * ```

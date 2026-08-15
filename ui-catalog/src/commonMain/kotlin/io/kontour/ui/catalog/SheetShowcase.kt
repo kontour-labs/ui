@@ -101,13 +101,14 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                             style = Theme.typography.bodySmall,
                             color = Theme.colors.contentMuted,
                         )
-                        Button("Save", onClick = {}, fillMaxWidth = true)
+                        Button(onClick = {}, fillMaxWidth = true) { +"Save" }
                         Button(
-                            "Cancel",
                             onClick = {},
                             variant = ButtonVariant.Ghost,
                             fillMaxWidth = true,
-                        )
+                        ) {
+                            +"Cancel"
+                        }
                     }
                 }
             }
@@ -162,11 +163,10 @@ private fun StopSheetBody(peekAnchored: Boolean) {
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Tag(
-                    label = "${950 + index}",
-                    tone = if (index == 1) TagTone.Warning else TagTone.Neutral,
-                    leadingIcon = Tabler.Outline.Bus,
-                )
+                Tag(tone = if (index == 1) TagTone.Warning else TagTone.Neutral) {
+                    +Tabler.Outline.Bus
+                    +"${950 + index}"
+                }
                 Column(Modifier.weight(1f)) {
                     Text("Elizabeth Quay", style = Theme.typography.bodyMedium)
                     Text(

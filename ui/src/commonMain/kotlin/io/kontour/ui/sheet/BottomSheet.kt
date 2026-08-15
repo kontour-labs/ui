@@ -168,7 +168,7 @@ fun BottomSheet(
  * ModalBottomSheet(visible = editing, onDismissRequest = { editing = false }) {
  *     SheetHeader("Rename favourite")
  *     TextField(state = name, label = "Name")
- *     Button("Save", onClick = ::save, fillMaxWidth = true)
+ *     Button(onClick = ::save, fillMaxWidth = true) { +"Save" }
  * }
  * ```
  *

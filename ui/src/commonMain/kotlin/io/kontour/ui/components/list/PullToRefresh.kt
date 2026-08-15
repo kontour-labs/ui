@@ -305,7 +305,7 @@ fun LoadMore(
                     style = Theme.typography.bodySmall,
                     color = Theme.colors.contentMuted,
                 )
-                Button(retryLabel, onClick = onRetry, variant = ButtonVariant.Ghost)
+                Button(onClick = onRetry, variant = ButtonVariant.Ghost) { +retryLabel }
             }
 
             LoadMoreState.End -> if (endLabel != null) {

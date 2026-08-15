@@ -40,6 +40,8 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.foundation.LocalContentColor
 import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.foundation.RowContentScope
+import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
@@ -98,7 +100,7 @@ fun Button(
     colors: ButtonColors = ButtonDefaults.colors(variant),
     metrics: ButtonMetrics = ButtonDefaults.metrics(size),
     interactionSource: MutableInteractionSource? = null,
-    content: @Composable RowScope.() -> Unit,
+    content: @Composable RowContentScope.() -> Unit
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val interactive = enabled && !loading
@@ -179,7 +181,7 @@ fun Button(
 private fun RowScope.ButtonContent(
     loading: Boolean,
     metrics: ButtonMetrics,
-    content: @Composable RowScope.() -> Unit,
+    content: @Composable RowContentScope.() -> Unit
 ) {
     val motion = Theme.motion
 
@@ -195,9 +197,10 @@ private fun RowScope.ButtonContent(
                 .alpha(labelAlpha)
                 .then(if (loading) Modifier.clearAndSetSemantics { } else Modifier),
             horizontalArrangement = Arrangement.spacedBy(metrics.gap, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-            content = content,
-        )
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            contentScope(iconSize = metrics.iconSize, content = content)
+        }
 
         AnimatedContent(
             targetState = loading,
@@ -222,45 +225,3 @@ private fun RowScope.ButtonContent(
     }
 }
 
-/**
- * A button with a text label — the common case, without the ceremony.
- *
- * Every parameter of the slot overload is forwarded, so reaching for the slot
- * version is only ever about the *content*. A button that needs different
- * colours or a different shape should not have to grow a `content` lambda to
- * get them: the one place this bites is a button on a coloured ground, where
- * the variant's own resolution is against the wrong surface.
- */
-@Composable
-fun Button(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    variant: ButtonVariant = ButtonVariant.Primary,
-    size: ButtonSize = ButtonSize.Medium,
-    loading: Boolean = false,
-    loadingLabel: String = "Loading",
-    fillMaxWidth: Boolean = false,
-    shape: Shape = Theme.shapes.small,
-    colors: ButtonColors = ButtonDefaults.colors(variant),
-    metrics: ButtonMetrics = ButtonDefaults.metrics(size),
-    interactionSource: MutableInteractionSource? = null,
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier,
-        enabled = enabled,
-        variant = variant,
-        size = size,
-        loading = loading,
-        loadingLabel = loadingLabel,
-        fillMaxWidth = fillMaxWidth,
-        shape = shape,
-        colors = colors,
-        metrics = metrics,
-        interactionSource = interactionSource,
-    ) {
-        Text(label)
-    }
-}

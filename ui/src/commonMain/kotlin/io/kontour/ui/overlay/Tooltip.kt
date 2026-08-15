@@ -471,13 +471,12 @@ private fun CoachMarkBubble(
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs, Alignment.End),
             ) {
                 Button(
-                    label = dismissLabel,
                     onClick = onDismiss,
                     variant = ButtonVariant.Ghost,
                     // Ghost takes its label from LocalContentColor, which the
                     // bubble's Surface has already set to `onAccent`.
                     size = ButtonSize.Small,
-                )
+                ) { +dismissLabel }
             }
         }
     }

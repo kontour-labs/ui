@@ -117,30 +117,35 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                     val ferries = seed(false)
 
                     FilterChip(
-                        "Buses",
                         selected = buses.value,
                         onClick = { buses.value = !buses.value },
                         selectedIcon = Tabler.Outline.Check,
-                    )
+                    ) {
+                        +"Buses"
+                    }
                     FilterChip(
-                        "Trains",
                         selected = trains.value,
                         onClick = { trains.value = !trains.value },
-                        leadingIcon = Tabler.Outline.Bus,
                         selectedIcon = Tabler.Outline.Check,
-                    )
+                    ) {
+                        +Tabler.Outline.Bus
+                        +"Trains"
+                    }
                     FilterChip(
-                        "Ferries",
                         selected = ferries.value,
                         onClick = { ferries.value = !ferries.value },
-                    )
-                    FilterChip("Disabled", selected = false, onClick = {}, enabled = false)
-                    Chip("Share", onClick = {})
+                    ) {
+                        +"Ferries"
+                    }
+                    FilterChip(selected = false, onClick = {}, enabled = false) { +"Disabled" }
+                    Chip(onClick = {}) { +"Share" }
                     InputChip(
-                        "Perth Station",
                         onRemove = {},
                         removeIcon = Tabler.Outline.X,
-                    )
+                        removeLabel = "Remove Perth Station",
+                    ) {
+                        +"Perth Station"
+                    }
                 }
             }
 

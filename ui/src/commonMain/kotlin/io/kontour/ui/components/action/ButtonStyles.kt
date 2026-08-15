@@ -91,8 +91,8 @@ data class ButtonMetrics(
  * ```
  * Button(
  *     colors = ButtonDefaults.colors(ButtonVariant.Primary).copy(container = brandOverride),
- *     …
- * )
+ *     onClick = ::save,
+ * ) { +"Save" }
  * ```
  */
 object ButtonDefaults {

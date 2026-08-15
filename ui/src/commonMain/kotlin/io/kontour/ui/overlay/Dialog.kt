@@ -192,21 +192,19 @@ fun AlertDialog(
         ) {
             if (cancelLabel != null) {
                 Button(
-                    label = cancelLabel,
                     onClick = onDismissRequest,
                     variant = ButtonVariant.Ghost,
-                )
+                ) { +cancelLabel }
             }
             if (confirmLabel != null && onConfirm != null) {
                 Button(
-                    label = confirmLabel,
                     onClick = onConfirm,
                     variant = if (destructive) {
                         ButtonVariant.Destructive
                     } else {
                         ButtonVariant.Primary
                     },
-                )
+                ) { +confirmLabel }
             }
         }
     }

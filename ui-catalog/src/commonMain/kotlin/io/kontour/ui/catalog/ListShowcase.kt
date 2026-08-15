@@ -79,7 +79,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                                 icon = Tabler.Outline.Bus,
                                 selected = index == 1,
                                 trailing = {
-                                    Tag("${4 + index * 6} min", tone = TagTone.Neutral)
+                                    Tag(tone = TagTone.Neutral) { +"${4 + index * 6} min" }
                                 },
                                 onClick = {},
                             )

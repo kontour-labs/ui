@@ -86,11 +86,11 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Tag("Live", tone = TagTone.Success)
-                        Tag("Delayed", tone = TagTone.Warning)
-                        Tag("Cancelled", tone = TagTone.Danger)
-                        Tag("Beta", tone = TagTone.Accent)
-                        Tag("Neutral")
+                        Tag(tone = TagTone.Success) { +"Live" }
+                        Tag(tone = TagTone.Warning) { +"Delayed" }
+                        Tag(tone = TagTone.Danger) { +"Cancelled" }
+                        Tag(tone = TagTone.Accent) { +"Beta" }
+                        Tag() { +"Neutral" }
                     }
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
@@ -98,9 +98,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                     ) {
                         // Colours a GTFS feed might hand us — the label colour
                         // is derived, not designed.
-                        Tag("960", color = Color(0xFF1B5E20))
-                        Tag("SPT", color = Color(0xFFFFD54F))
-                        Tag("RED", color = Color(0xFFB3261E))
+                        Tag(color = Color(0xFF1B5E20)) { +"960" }
+                        Tag(color = Color(0xFFFFD54F)) { +"SPT" }
+                        Tag(color = Color(0xFFB3261E)) { +"RED" }
                         BadgedBox(badge = { Badge(count = 3) }) {
                             Icon(Tabler.Outline.Bus, contentDescription = "Routes")
                         }
@@ -167,12 +167,13 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                         icon = Tabler.Outline.AlertTriangle,
                         action = {
                             Button(
-                                "Retry",
                                 onClick = {},
                                 variant = ButtonVariant.Secondary,
                                 size = ButtonSize.XSmall,
-                            )
-                        },
+                            ) {
+                                +"Retry"
+                            }
+                        }
                     )
                     Banner(tone = BannerTone.Success, message = "Trip saved to favourites.")
                     Callout {
@@ -238,11 +239,12 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                             message = "Star a stop or route and it will appear here.",
                             action = {
                                 Button(
-                                    "Browse routes",
                                     onClick = {},
                                     variant = ButtonVariant.Secondary,
-                                )
-                            },
+                                ) {
+                                    +"Browse routes"
+                                }
+                            }
                         )
                     }
                     Card(variant = CardVariant.Outlined) {
