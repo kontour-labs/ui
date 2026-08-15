@@ -40,7 +40,9 @@ import kotlin.math.abs
  * )
  *
  * BottomSheet(sheet) {
- *     SheetHeader("Perth Underground", Modifier.sheetPeekAnchor())
+ *     SheetHeader(Modifier.sheetPeekAnchor()) {
+           +"Perth Underground"
+       }
  *     LazyColumn { … }
  * }
  * ```

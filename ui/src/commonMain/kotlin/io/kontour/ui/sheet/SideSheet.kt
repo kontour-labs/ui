@@ -51,7 +51,9 @@ enum class SheetSide { Start, End }
  *
  * ```kotlin
  * SideSheet(visible = filtersOpen, onDismissRequest = { filtersOpen = false }) {
- *     SheetHeader("Filters")
+ *     SheetHeader() {
+           +"Filters"
+       }
  *     …
  * }
  * ```

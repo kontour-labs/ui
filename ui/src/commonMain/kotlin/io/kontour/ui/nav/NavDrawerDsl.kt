@@ -105,15 +105,17 @@ internal class NavDrawerScopeImpl(
         onClick: () -> Unit,
     ) {
         NavDrawerItem(
-            label = label,
             selected = selected,
             onClick = onClick,
+            key = label,
             enabled = enabled,
-            icon = icon,
             badge = badge,
             contentDescription = contentDescription,
             nestLevel = nestLevel,
-        )
+        ) {
+            +label
+            if (icon != null) leading { +icon }
+        }
     }
 
     @Composable

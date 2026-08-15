@@ -42,7 +42,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
+import io.kontour.ui.components.list.ListItemScope
+import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorEdge
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.LocalSelectionIndicator
@@ -247,18 +252,26 @@ private fun DrawerItems(
  */
 @Composable
 fun NavDrawerItem(
-    label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    /**
+     * This destination's identity, for the travelling selection marker.
+     *
+     * Required, where it used to default to `label`. With the label in a slot
+     * there is nothing to default from — and a key derived from a *translated*
+     * string was never right anyway: it changed under the marker whenever the
+     * user changed language, which is exactly when it must not.
+     */
+    key: Any,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     badge: Int? = null,
     nestLevel: Int = 0,
-    key: Any = label,
     contentDescription: String? = null,
     interactionSource: MutableInteractionSource? = null,
+    content: ListItemScope.() -> Unit,
 ) {
+    val slots = listItemSlots(content)
     val colors = Theme.colors
     val motion = Theme.motion
     val feedback = LocalFeedback.current
@@ -313,21 +326,18 @@ fun NavDrawerItem(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                size = Theme.sizing.iconLarge,
-                tint = content,
-            )
+        ProvideContentColor(content) {
+            slots.leading?.let { leading ->
+                ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
+            }
+            Box(Modifier.weight(1f)) {
+                slots.label?.let { label ->
+                    ProvideTextStyle(Theme.typography.bodyMedium) {
+                        ContentSlot(maxLines = 1, content = label)
+                    }
+                }
+            }
         }
-        Text(
-            text = label,
-            modifier = Modifier.weight(1f),
-            style = Theme.typography.bodyMedium,
-            color = content,
-            maxLines = 1,
-        )
         if (badge != null) {
             Badge(count = badge)
         }

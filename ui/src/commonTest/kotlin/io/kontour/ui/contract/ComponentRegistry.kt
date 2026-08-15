@@ -385,12 +385,12 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec("NavDrawerItem", Role.Tab) { modifier, enabled, onClick ->
             NavDrawerItem(
-                label = "Favourites",
                 selected = false,
                 onClick = onClick,
+                key = "drawer-item",
                 modifier = modifier,
                 enabled = enabled,
-            )
+            ) { +"Favourites" }
         }
     )
 

@@ -115,27 +115,32 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                 ) {
                     Section("Top bars — a title, not destinations") {
                         Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-                            TopBar(title = "Favourites")
+                            TopBar() {
+                                +"Favourites"
+                            }
                             TopBar(
-                                title = "Perth Underground",
-                                subtitle = "Platform 2 · Joondalup line",
                                 onBack = {},
                                 showDivider = true,
-                            )
+                            ) {
+                                +"Perth Underground"
+                                supporting { +"Platform 2 · Joondalup line" }
+                            }
                             TopBar(
-                                title = "Route 950",
                                 style = TopBarStyle.Large,
                                 onBack = {},
                                 collapseProgress = 0f,
-                            )
+                            ) {
+                                +"Route 950"
+                            }
                             TopBar(
-                                title = "Route 950",
                                 style = TopBarStyle.Large,
                                 onBack = {},
                                 // Half collapsed: the small title is fading in
                                 // exactly as the large one leaves.
                                 collapseProgress = 0.5f,
-                            )
+                            ) {
+                                +"Route 950"
+                            }
                         }
                     }
                 }
@@ -338,10 +343,11 @@ private fun DevicePanel(title: String, width: Dp, height: Dp) {
                             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                         ) {
                             TopBar(
-                                title = "Map",
                                 actions = {},
                                 containerColor = Theme.colors.surfaceSunken,
-                            )
+                            ) {
+                                +"Map"
+                            }
                             Text(
                                 "content",
                                 style = Theme.typography.monoLabel,

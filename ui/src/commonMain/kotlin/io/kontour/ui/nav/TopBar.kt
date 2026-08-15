@@ -23,7 +23,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.list.ListItemScope
+import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
@@ -84,9 +89,7 @@ object TopBarDefaults {
  */
 @Composable
 fun TopBar(
-    title: String,
     modifier: Modifier = Modifier,
-    subtitle: String? = null,
     style: TopBarStyle = TopBarStyle.Small,
     onBack: (() -> Unit)? = null,
     backLabel: String = "Back",
@@ -106,7 +109,18 @@ fun TopBar(
      * accounted for them, or when this bar is not at the top of the window.
      */
     windowInsets: WindowInsets = WindowInsets.topEdges,
+    /**
+     * The bar's title, and its subtitle. `+` fills the title.
+     *
+     * A collected builder rather than a composable slot, and
+     * [TopBarStyle.Large] is why: it renders the title *twice* — small and
+     * fading in, large and sliding out — so the content has to be something the
+     * component can compose in two places at two sizes. A slot that emitted
+     * where it was written could only be in one of them.
+     */
+    content: ListItemScope.() -> Unit,
 ) {
+    val slots = listItemSlots(content)
     Surface(modifier = modifier.fillMaxWidth(), color = containerColor, contentColor = contentColor) {
         // Inside the surface, so the container colour still reaches the top of the
         // window and the status bar sits on the bar rather than on a strip of
@@ -123,8 +137,7 @@ fun TopBar(
                 ) {
                     Leading(onBack, backLabel, navigation)
                     TitleBlock(
-                        title = title,
-                        subtitle = subtitle,
+                        slots = slots,
                         modifier = Modifier.weight(1f),
                         centred = style == TopBarStyle.Centred,
                     )
@@ -143,14 +156,17 @@ fun TopBar(
                         Leading(onBack, backLabel, navigation)
                         // The small title fades in exactly as the large one
                         // leaves, so the screen always has a title somewhere.
-                        Text(
-                            text = title,
-                            modifier = Modifier
+                        Box(
+                            Modifier
                                 .weight(1f)
-                                .graphicsLayer { alpha = collapseProgress },
-                            style = Theme.typography.titleMedium,
-                            maxLines = 1,
-                        )
+                                .graphicsLayer { alpha = collapseProgress }
+                        ) {
+                            slots.label?.let { title ->
+                                ProvideTextStyle(Theme.typography.titleMedium) {
+                                    ContentSlot(maxLines = 1, content = title)
+                                }
+                            }
+                        }
                         actions?.invoke(this)
                     }
 
@@ -170,7 +186,7 @@ fun TopBar(
                                 bottom = Theme.spacing.sm,
                             )
                     ) {
-                        TitleBlock(title = title, subtitle = subtitle, large = true)
+                        TitleBlock(slots = slots, large = true)
                     }
                 }
             }
@@ -198,31 +214,32 @@ private fun Leading(
 
 @Composable
 private fun TitleBlock(
-    title: String,
-    subtitle: String?,
+    slots: ListItemScope,
     modifier: Modifier = Modifier,
     centred: Boolean = false,
     large: Boolean = false,
 ) {
+    val align = if (centred) TextAlign.Center else TextAlign.Unspecified
     Column(
         modifier = modifier,
         horizontalAlignment = if (centred) Alignment.CenterHorizontally else Alignment.Start,
     ) {
-        Text(
-            text = title,
-            modifier = Modifier.semantics { heading() },
-            style = if (large) Theme.typography.displaySmall else Theme.typography.titleMedium,
-            textAlign = if (centred) TextAlign.Center else null,
-            maxLines = if (large) 2 else 1,
-        )
-        if (subtitle != null) {
-            Text(
-                text = subtitle,
-                style = Theme.typography.bodySmall,
-                color = Theme.colors.contentMuted,
-                textAlign = if (centred) TextAlign.Center else null,
-                maxLines = 1,
-            )
+        slots.label?.let { title ->
+            Box(Modifier.semantics { heading() }) {
+                ProvideTextStyle(
+                    (if (large) Theme.typography.displaySmall else Theme.typography.titleMedium)
+                        .copy(textAlign = align)
+                ) {
+                    ContentSlot(maxLines = if (large) 2 else 1, content = title)
+                }
+            }
+        }
+        slots.supporting?.let { subtitle ->
+            ProvideContentColor(Theme.colors.contentMuted) {
+                ProvideTextStyle(Theme.typography.bodySmall.copy(textAlign = align)) {
+                    ContentSlot(maxLines = 1, content = subtitle)
+                }
+            }
         }
     }
 }

@@ -84,10 +84,10 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                     visible = modal.value,
                     onDismissRequest = { modal.value = false },
                 ) {
-                    SheetHeader(
-                        title = "Rename favourite",
-                        supporting = "Perth Underground",
-                    )
+                    SheetHeader() {
+                        +"Rename favourite"
+                        supporting { +"Perth Underground" }
+                    }
                     Column(
                         modifier = Modifier.padding(
                             start = Theme.spacing.md,
@@ -121,7 +121,9 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                     side = SheetSide.End,
                     width = 260.dp,
                 ) {
-                    SheetHeader(title = "Filters")
+                    SheetHeader() {
+                        +"Filters"
+                    }
                     Column(
                         modifier = Modifier.padding(horizontal = Theme.spacing.md),
                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
@@ -142,13 +144,14 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
 @Composable
 private fun StopSheetBody(peekAnchored: Boolean) {
     SheetHeader(
-        title = "Perth Underground",
-        supporting = "Platform 2 · Joondalup line",
         modifier = if (peekAnchored) Modifier.sheetPeekAnchor() else Modifier,
         actions = {
             IconButton(Tabler.Outline.Star, "Add to favourites", onClick = {})
         },
-    )
+    ) {
+        +"Perth Underground"
+        supporting { +"Platform 2 · Joondalup line" }
+    }
     Column(
         modifier = Modifier.padding(
             start = Theme.spacing.md,

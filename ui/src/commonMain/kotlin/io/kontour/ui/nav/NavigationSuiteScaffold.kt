@@ -148,14 +148,18 @@ fun NavigationSuiteScaffold(
                 ) {
                     items.forEachIndexed { index, item ->
                         NavDrawerItem(
-                            label = item.label,
                             selected = index == selectedIndex,
                             onClick = item.onClick,
-                            icon = item.iconFor(index == selectedIndex),
+                            key = item.label,
                             badge = item.badge,
                             enabled = item.enabled,
                             contentDescription = item.contentDescription,
-                        )
+                        ) {
+                            +item.label
+                            item.iconFor(index == selectedIndex)?.let { icon ->
+                                leading { +icon }
+                            }
+                        }
                     }
                 }
                 Box(Modifier.weight(1f)) { content(0.dp) }

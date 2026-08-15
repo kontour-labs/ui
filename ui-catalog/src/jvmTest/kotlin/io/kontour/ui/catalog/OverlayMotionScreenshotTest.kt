@@ -168,7 +168,10 @@ private fun LeavingSheets(dismissAfterFrames: Int) {
                     visible = showing.value,
                     onDismissRequest = { showing.value = false },
                 ) {
-                    SheetHeader(title = "Rename favourite", supporting = "Perth Underground")
+                    SheetHeader() {
+                        +"Rename favourite"
+                        supporting { +"Perth Underground" }
+                    }
                 }
             }
             MotionPanel("Side sheet") {
@@ -177,7 +180,9 @@ private fun LeavingSheets(dismissAfterFrames: Int) {
                     onDismissRequest = { showing.value = false },
                     width = 220.dp,
                 ) {
-                    SheetHeader(title = "Filters")
+                    SheetHeader() {
+                        +"Filters"
+                    }
                 }
             }
         }

@@ -29,6 +29,11 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.list.ListItemScope
+import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
@@ -141,15 +146,15 @@ fun closeEnclosingSheet(): (() -> Unit)? {
  */
 @Composable
 fun SheetHeader(
-    title: String,
     modifier: Modifier = Modifier,
-    supporting: String? = null,
     onClose: (() -> Unit)? = closeEnclosingSheet(),
     closeLabel: String = "Close",
     closeIcon: ImageVector = SystemIcons.Close,
-    leading: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
+    content: ListItemScope.() -> Unit,
 ) {
+    val slots = listItemSlots(content)
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -162,22 +167,22 @@ fun SheetHeader(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        leading?.invoke()
+        slots.leading?.let { leading -> ContentSlot(content = leading) }
 
         Column(Modifier.weight(1f)) {
-            Text(
-                text = title,
-                modifier = Modifier.semantics { heading() },
-                style = Theme.typography.titleMedium,
-                maxLines = 2,
-            )
-            if (supporting != null) {
-                Text(
-                    text = supporting,
-                    style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentMuted,
-                    maxLines = 1,
-                )
+            slots.label?.let { title ->
+                Box(Modifier.semantics { heading() }) {
+                    ProvideTextStyle(Theme.typography.titleMedium) {
+                        ContentSlot(maxLines = 2, content = title)
+                    }
+                }
+            }
+            slots.supporting?.let { supporting ->
+                ProvideContentColor(Theme.colors.contentMuted) {
+                    ProvideTextStyle(Theme.typography.bodySmall) {
+                        ContentSlot(maxLines = 1, content = supporting)
+                    }
+                }
             }
         }
 

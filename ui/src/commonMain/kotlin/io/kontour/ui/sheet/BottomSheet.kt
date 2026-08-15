@@ -69,7 +69,9 @@ object SheetDefaults {
  * Box(Modifier.fillMaxSize()) {
  *     Map(contentPadding = PaddingValues(bottom = with(density) { sheet.visibleHeight.toDp() }))
  *     BottomSheet(sheet, Modifier.align(Alignment.BottomCenter)) {
- *         SheetHeader("Perth Underground", Modifier.sheetPeekAnchor())
+ *         SheetHeader(Modifier.sheetPeekAnchor()) {
+               +"Perth Underground"
+           }
  *         LazyColumn { … }
  *     }
  * }
@@ -166,7 +168,9 @@ fun BottomSheet(
  *
  * ```kotlin
  * ModalBottomSheet(visible = editing, onDismissRequest = { editing = false }) {
- *     SheetHeader("Rename favourite")
+ *     SheetHeader() {
+           +"Rename favourite"
+       }
  *     TextField(state = name, label = "Name")
  *     Button(onClick = ::save, fillMaxWidth = true) { +"Save" }
  * }

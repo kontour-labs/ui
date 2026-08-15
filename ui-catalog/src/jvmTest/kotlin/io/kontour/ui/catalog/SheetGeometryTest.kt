@@ -105,7 +105,9 @@ class SheetGeometryTest {
             detents = listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Expanded),
             openAt = SheetDetent.Half,
         ) {
-            SheetHeader(title = "Perth Underground")
+            SheetHeader() {
+                +"Perth Underground"
+            }
             Box(Modifier.height(400.dp)) { Text("body") }
         }
 
@@ -122,7 +124,9 @@ class SheetGeometryTest {
             detents = listOf(SheetDetent.Hidden, SheetDetent.Half),
             openAt = SheetDetent.Half,
         ) {
-            SheetHeader(title = "Perth Underground")
+            SheetHeader() {
+                +"Perth Underground"
+            }
             Box(Modifier.height(900.dp)) { Text("a very tall body") }
         }
 

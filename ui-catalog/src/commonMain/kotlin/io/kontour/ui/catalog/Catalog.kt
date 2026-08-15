@@ -225,7 +225,6 @@ private fun CompactCatalog(
     Scaffold(
         topBar = {
             TopBar(
-                title = pages[selected].title,
                 navigation = {
                     IconButton(
                         icon = Tabler.Outline.Menu2,
@@ -234,7 +233,9 @@ private fun CompactCatalog(
                     )
                 },
                 actions = { action() },
-            )
+            ) {
+                +pages[selected].title
+            }
         },
     ) { padding ->
         Box(
@@ -280,7 +281,9 @@ private fun SettingsSheet(
             Modifier.padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         ) {
-            SheetHeader(title = "Display settings")
+            SheetHeader() {
+                +"Display settings"
+            }
 
             Toggle("Dark", dark, onDarkChange)
             Toggle("High contrast", highContrast, onHighContrastChange)

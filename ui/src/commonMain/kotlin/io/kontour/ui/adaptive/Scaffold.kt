@@ -31,7 +31,9 @@ object ScaffoldDefaults {
  *
  * ```kotlin
  * Scaffold(
- *     topBar = { TopBar(title = "Favourites") },
+ *     topBar = { TopBar() {
+                      +"Favourites"
+                  } },
  *     floatingActionButton = { FloatingActionButton(Tabler.Outline.Plus, "Add", ::add) },
  * ) { padding ->
  *     LazyColumn(contentPadding = padding) { … }
