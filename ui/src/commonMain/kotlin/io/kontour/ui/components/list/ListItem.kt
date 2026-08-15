@@ -1,6 +1,7 @@
 package io.kontour.ui.components.list
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +40,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 
 /**
@@ -262,6 +264,11 @@ fun ListItem(
             .focusRing(interactions, shape, enabled = interactive)
             .clip(shape)
             .background(container, shape)
+            // `surfaceSunken` on `background` is 1.06:1 at the high-contrast
+            // light tier, so a group of rows reads as loose text rather than as
+            // one object with rows in it — which is the exact thing the sunken
+            // ground exists to prevent, failing at the tier that needs it most.
+            .then(contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier)
             .then(clickModifier)
             .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),

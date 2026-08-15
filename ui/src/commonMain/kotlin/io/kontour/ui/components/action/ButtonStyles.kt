@@ -8,6 +8,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 
 /**
@@ -134,8 +135,18 @@ object ButtonDefaults {
                 Color.Transparent
             else -> c.surfaceSunken
         }
-        val disabledBorder = when (variant) {
-            ButtonVariant.Secondary -> c.outline
+        // A disabled button is a flat sunken ground on a page that is nearly the
+        // same colour, so at the high-contrast tier it needs an edge for exactly
+        // the reason `Tertiary` does. Disabled controls are exempt from the
+        // *text* minimum, not from having a discernible boundary.
+        val edge = contrastEdge()
+        val disabledBorder = when {
+            variant == ButtonVariant.Secondary -> c.outline
+            // Every variant, ghosts included. An enabled ghost gains an edge at
+            // this tier, so a disabled one without it is not a fainter button —
+            // it is not a button, and the row of icon buttons reads as five
+            // controls and one stray glyph.
+            edge != null -> c.outline
             else -> null
         }
 
@@ -158,10 +169,13 @@ object ButtonDefaults {
                 disabledBorder = disabledBorder,
             )
 
+            // `surfaceSunken` on `background` is 1.06:1 at the high-contrast
+            // light tier — a button-shaped region of the page. The edge is what
+            // makes it a control.
             ButtonVariant.Tertiary -> ButtonColors(
                 container = c.surfaceSunken,
                 content = c.content,
-                border = null,
+                border = edge?.let { c.outline },
                 disabledContainer = disabledContainer,
                 disabledContent = c.contentDisabled,
                 disabledBorder = disabledBorder,
@@ -173,10 +187,15 @@ object ButtonDefaults {
             // the content colour: near-black on a card, white on a danger
             // toast, `onAccent` inside a coach mark. On an ordinary surface
             // this resolves to `c.content` and nothing changes.
+            // A ghost button is chrome-less on purpose, and at the high-contrast
+            // tier that purpose loses: a control whose only boundary is the
+            // shape of its own text is one WCAG 1.4.11 has an opinion about. It
+            // becomes a secondary button, which is the right answer for a user
+            // who asked for this.
             ButtonVariant.Ghost -> ButtonColors(
                 container = Color.Transparent,
                 content = LocalContentColor.current,
-                border = null,
+                border = edge?.let { LocalContentColor.current },
                 disabledContainer = disabledContainer,
                 disabledContent = disabledGhostContent(),
                 disabledBorder = disabledBorder,
@@ -194,7 +213,9 @@ object ButtonDefaults {
             ButtonVariant.DestructiveGhost -> ButtonColors(
                 container = Color.Transparent,
                 content = c.danger.onContainer,
-                border = null,
+                // The tone's own border, so the edge stays part of the button
+                // rather than a grey rectangle drawn around a red label.
+                border = edge?.let { c.danger.border },
                 disabledContainer = disabledContainer,
                 disabledContent = c.contentDisabled,
                 disabledBorder = disabledBorder,

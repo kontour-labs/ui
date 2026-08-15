@@ -52,3 +52,30 @@ data class Sizing(
      */
     val selectionIndicator: Dp = 3.dp,
 )
+
+/**
+ * [Sizing] for a contrast tier.
+ *
+ * Every line in the system is here, and at [ContrastLevel.High] every line gets
+ * thicker. This is the cheapest half of the high-contrast work by a distance: a
+ * component that reads `Theme.sizing.borderWidth` responds without being touched,
+ * and there are far more of those than there are components with a border to add.
+ *
+ * It used to be `remember { Sizing() }` with no key at all, so a user who asked
+ * for high contrast got a scheme with a darker `outline` drawn at exactly the
+ * same 1dp — the *colour* of every edge changed and the *weight* of none of them
+ * did. A hairline is a hairline whatever colour it is.
+ *
+ * The steps are one notch each rather than a doubling. A 2dp divider reads as
+ * deliberate; a 3dp one reads as a rule, and a list of them reads as a fence.
+ */
+fun kontourSizing(contrast: ContrastLevel): Sizing = when (contrast) {
+    ContrastLevel.Standard -> Sizing()
+    ContrastLevel.High -> Sizing(
+        borderWidth = 2.dp,
+        borderWidthStrong = 3.dp,
+        dividerThickness = 2.dp,
+        focusRingWidth = 3.dp,
+        selectionIndicator = 4.dp,
+    )
+}

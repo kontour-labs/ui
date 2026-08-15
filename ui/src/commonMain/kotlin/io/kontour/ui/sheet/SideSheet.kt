@@ -39,6 +39,7 @@ import io.kontour.ui.overlay.LocalOverlayProgress
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.adaptive.allEdges
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mirrorHorizontally
 import kotlin.math.roundToInt
@@ -195,6 +196,7 @@ private fun SideSheetPanel(
                 shape = if (fromRight) shape else shape.mirrorHorizontally(),
                 color = containerColor,
                 contentColor = contentColor,
+                border = contrastEdge(),
                 shadow = Theme.elevation.overlay,
             ) {
                 CompositionLocalProvider(LocalSheetState provides null) {

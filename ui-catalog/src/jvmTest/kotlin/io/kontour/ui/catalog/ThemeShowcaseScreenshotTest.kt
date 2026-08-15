@@ -11,6 +11,20 @@ import kotlin.test.assertTrue
  * The visual counterpart to `ColorSchemeContrastTest`: that one proves a pairing
  * is *legal*, this one lets a human see whether it is *right*. Both are needed —
  * a palette can clear every ratio and still look muddy.
+ *
+ * ### Why five of these render at high contrast too
+ *
+ * Because nothing ever had. `ContrastLevel` reached the UI through exactly one
+ * mechanism — picking a different `ColorScheme` — and `LocalContrastLevel` was
+ * read by nothing in the repo. What that looked like on screen was `outline`
+ * jumping while every filled and borderless container stayed exactly as it was,
+ * and it went unnoticed for as long as it did because the high-contrast tier was
+ * only ever screenshotted as a palette, never as components.
+ *
+ * The five below are where the gap lived: containers that lean on a shadow for
+ * their edge (`Card`, `Chip`, `ListItem`), buttons whose variants have no
+ * border, the selection controls, and `TextFieldVariant.Filled`, whose border
+ * was transparent at every tier.
  */
 class ThemeShowcaseScreenshotTest {
 
@@ -43,7 +57,7 @@ class ThemeShowcaseScreenshotTest {
 
     @Test
     fun rendersActionComponents() {
-        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+        for ((name, dark, contrast) in variants) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "actions-"),
                 width = 1100,
@@ -59,7 +73,7 @@ class ThemeShowcaseScreenshotTest {
 
     @Test
     fun rendersSelectionControls() {
-        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+        for ((name, dark, contrast) in variants) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "selection-"),
                 width = 1100,
@@ -75,7 +89,7 @@ class ThemeShowcaseScreenshotTest {
 
     @Test
     fun rendersTextFields() {
-        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+        for ((name, dark, contrast) in variants) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "text-"),
                 // Canvas is in pixels at 2x density, so this is ~920dp of layout width.
@@ -163,7 +177,7 @@ class ThemeShowcaseScreenshotTest {
 
     @Test
     fun rendersCollections() {
-        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+        for ((name, dark, contrast) in variants) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "lists-"),
                 width = 2440,
@@ -214,7 +228,7 @@ class ThemeShowcaseScreenshotTest {
 
     @Test
     fun rendersDisplayComponents() {
-        for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
+        for ((name, dark, contrast) in variants) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "display-"),
                 width = 2560,

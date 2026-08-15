@@ -38,6 +38,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.adaptive.allEdges
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.CompletableDeferred
 
@@ -125,6 +126,7 @@ fun Dialog(
                                         .semantics { dialog() },
                                     shape = Theme.shapes.large,
                                     color = Theme.colors.surfaceRaised,
+                                    border = contrastEdge(),
                                     shadow = Theme.elevation.overlay,
                                 ) {
                                     Column(

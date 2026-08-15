@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.theme.Theme
 
 /**
@@ -81,7 +82,16 @@ object TextFieldDefaults {
             placeholder = c.contentSubtle,
             label = c.contentMuted,
             labelFocused = c.accent,
-            border = if (variant == TextFieldVariant.Filled) Color.Transparent else c.outlineStrong,
+            // Filled had `Color.Transparent` unconditionally — the only
+            // component in the library that stated the high-contrast problem
+            // outright. A filled field is `surfaceSunken` on `background`, so
+            // with no border there is nothing on screen saying where the input
+            // starts.
+            border = if (variant == TextFieldVariant.Filled) {
+                if (highContrast()) c.outline else Color.Transparent
+            } else {
+                c.outlineStrong
+            },
             borderFocused = c.accent,
             borderError = c.danger.solid,
             borderDisabled = c.outline,

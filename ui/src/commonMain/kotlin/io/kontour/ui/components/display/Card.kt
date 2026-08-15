@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.Role
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Shadow
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 
 /** How a card separates itself from the page behind it. */
@@ -108,7 +109,12 @@ private fun cardColorFor(variant: CardVariant): Color = when (variant) {
 @Composable
 private fun cardBorderFor(variant: CardVariant): BorderStroke? = when (variant) {
     CardVariant.Outlined -> BorderStroke(Theme.sizing.borderWidth, Theme.colors.outline)
-    else -> null
+    // Elevated is white on white with a shadow for an edge, and Filled is
+    // `surfaceSunken` on `background` — 1.3:1 and 1.06:1 respectively at the
+    // high-contrast tier, where the shadow does not change and the two grounds
+    // are nearly the same colour. Both become outlined cards rather than
+    // gaining a second, different edge treatment.
+    else -> contrastEdge()
 }
 
 @Composable

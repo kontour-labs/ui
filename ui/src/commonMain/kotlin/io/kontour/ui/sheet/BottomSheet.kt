@@ -44,6 +44,7 @@ import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.adaptive.sheetEdges
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -307,6 +308,7 @@ private fun BoxScope.SheetSurface(
         shape = shape,
         color = containerColor,
         contentColor = contentColor,
+        border = contrastEdge(),
         shadow = Theme.elevation.overlay,
     ) {
         CompositionLocalProvider(LocalSheetState provides state) {

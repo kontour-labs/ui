@@ -99,7 +99,7 @@ fun Banner(
             }
             .clip(shape)
             .background(colors.container, shape)
-            .border(BorderStroke(1.dp, colors.border), shape)
+            .border(BorderStroke(Theme.sizing.borderWidth, colors.border), shape)
             .padding(Theme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
     ) {

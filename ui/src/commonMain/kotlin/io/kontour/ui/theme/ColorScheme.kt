@@ -317,6 +317,15 @@ fun darkColorScheme(
 
 /** The light scheme at [ContrastLevel.High]: pure black text, AAA body contrast. */
 fun highContrastLightColorScheme(): ColorScheme = lightColorScheme(
+    // The press and hover washes are the four values easiest to miss, because
+    // they are not named after anything visible: a 6% wash is invisible at this
+    // tier, so a control the user is pressing looks like a control they are not.
+    // The scrim goes darker for the same reason — what it is separating from is
+    // now higher contrast, so the old alpha separates less.
+    scrim = Color(0xB3000000),
+    overlayHover = Color(0x1F000000),
+    overlayPressed = Color(0x3D000000),
+    overlayDragged = Color(0x4D000000),
     surfaceSunken = Palette.GreyHcSunken,
     surfaceInverse = Palette.Black,
     content = Palette.Black,
@@ -363,6 +372,10 @@ fun highContrastLightColorScheme(): ColorScheme = lightColorScheme(
 
 /** The dark scheme at [ContrastLevel.High]: pure black ground, pure white text. */
 fun highContrastDarkColorScheme(): ColorScheme = darkColorScheme(
+    scrim = Color(0xC2000000),
+    overlayHover = Color(0x24FFFFFF),
+    overlayPressed = Color(0x47FFFFFF),
+    overlayDragged = Color(0x54FFFFFF),
     background = Palette.Black,
     surface = Palette.InkHcSurface,
     surfaceSunken = Palette.InkHcSunken,

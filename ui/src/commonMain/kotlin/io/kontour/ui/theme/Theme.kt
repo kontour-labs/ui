@@ -108,7 +108,7 @@ fun KontourTheme(
     spacing: Spacing = remember { Spacing() },
     elevation: Elevation = remember(darkTheme) { kontourElevation(darkTheme) },
     motion: Motion = remember(reduceMotion) { kontourMotion(reduceMotion) },
-    sizing: Sizing = remember { Sizing() },
+    sizing: Sizing = remember(contrast) { kontourSizing(contrast) },
     feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(),
     content: @Composable () -> Unit,
 ) {

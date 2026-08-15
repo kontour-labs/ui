@@ -1,6 +1,7 @@
 package io.kontour.ui.components.display
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.contentScope
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 
 /** The meaning a [Tag] carries. Maps to the scheme's status tones. */
@@ -97,6 +99,15 @@ fun Tag(
             }
             .clip(shape)
             .background(container, shape)
+            // Each tone's own border rather than a grey rectangle drawn around
+            // a coloured one. Neutral is the tone that needs this — it is
+            // `surfaceSunken`, which at the high-contrast tier is within 1.14:1
+            // of the page it sits on — but a tag that gained an edge only when
+            // it was grey would read as a different kind of tag.
+            .then(
+                contrastEdge(tagBorderFor(tone))
+                    ?.let { Modifier.border(it, shape) } ?: Modifier
+            )
             .padding(horizontal = 8.dp, vertical = 3.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -217,6 +228,17 @@ private fun tagContainerFor(tone: TagTone): Color = when (tone) {
     TagTone.Warning -> Theme.colors.warning.container
     TagTone.Danger -> Theme.colors.danger.container
     TagTone.Info -> Theme.colors.info.container
+}
+
+@Composable
+@ReadOnlyComposable
+private fun tagBorderFor(tone: TagTone): Color = when (tone) {
+    TagTone.Neutral -> Theme.colors.outline
+    TagTone.Accent -> Theme.colors.accent
+    TagTone.Success -> Theme.colors.success.border
+    TagTone.Warning -> Theme.colors.warning.border
+    TagTone.Danger -> Theme.colors.danger.border
+    TagTone.Info -> Theme.colors.info.border
 }
 
 @Composable

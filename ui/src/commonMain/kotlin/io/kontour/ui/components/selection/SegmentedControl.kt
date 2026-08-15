@@ -2,6 +2,7 @@ package io.kontour.ui.components.selection
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Shadow
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 
 object SegmentedControlDefaults {
@@ -101,12 +103,16 @@ fun SegmentedControl(
             .height(height)
             .clip(outerShape)
             .background(colors.surfaceSunken, outerShape)
+            .then(
+                contrastEdge()?.let { Modifier.border(it, outerShape) } ?: Modifier
+            )
             .padding(SegmentedControlDefaults.TrackPadding),
         indicator = {
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 shape = innerShape,
                 color = if (enabled) colors.surface else colors.surfaceSunken,
+                border = contrastEdge(),
                 shadow = if (enabled) Theme.elevation.low else Shadow.None,
                 content = {},
             )

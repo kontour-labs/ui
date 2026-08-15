@@ -27,6 +27,7 @@ import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.adaptive.bottomEdges
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 
 /** How a [NavBar] sits on the screen. */
@@ -197,6 +198,7 @@ fun NavBar(
             shape = shape,
             color = containerColor,
             contentColor = contentColor,
+            border = contrastEdge(),
             shadow = if (style == NavBarStyle.Floating) {
                 // `medium` is the token whose doc says "nav bars, raised cards";
                 // `high` is for menus and popovers, which sit above this.
