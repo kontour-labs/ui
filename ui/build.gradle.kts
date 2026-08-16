@@ -272,6 +272,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.dokka)
     `maven-publish`
 }
 
@@ -327,6 +328,66 @@ publishing {
                 url = "https://github.com/kontour-labs/ui"
                 connection = "scm:git:https://github.com/kontour-labs/ui.git"
             }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The API reference
+// ---------------------------------------------------------------------------
+//
+//     ./gradlew :ui:dokkaGenerateHtml     # build/dokka/html
+//
+// Generated from the KDoc that is already there, and it earns its place by being
+// *complete* in the one way the hand-written pages are not: every public symbol
+// appears, whether or not anybody remembered to write it up.
+//
+// The two do different jobs and neither replaces the other. Dokka knows every
+// signature and no reasons; `docs/using/` carries the comparisons, the "reach
+// for this instead", and the bug histories — the things that are true of a
+// component but not visible in it.
+//
+// It is not published anywhere yet. Generating it in CI is what stops it rotting
+// before it is: Dokka fails on a malformed `@param` or a `[Link]` to something
+// that no longer exists, which is a class of KDoc defect nothing else here sees.
+dokka {
+    // A warning here is a broken cross-reference in the KDoc — a `[Link]` to a
+    // symbol that was renamed or deleted — and without this Dokka prints it and
+    // succeeds, which makes the CI step an artifact upload rather than a gate.
+    // Verified by pointing a link at a symbol that does not exist.
+    dokkaPublications.configureEach {
+        failOnWarning = true
+    }
+
+    // Not "Kontour UI". The module name becomes a *directory* in the output,
+    // slugified — a display name with a space in it produced `-kontour -u-i/`
+    // and every link on the index carried an unencoded space. This matches the
+    // root project and the repository, and stays a legal path segment.
+    moduleName = "kontour-ui"
+    // The same value the artifact gets, so a page and a jar cannot disagree
+    // about which release they are.
+    moduleVersion = version.toString()
+
+    dokkaSourceSets.configureEach {
+        // The module and package overviews. Without this every package index is
+        // a bare list of symbols with no statement of what the package is for,
+        // and the generated site has no way back to the pages that explain the
+        // reasoning — which is the half of the documentation Dokka cannot
+        // produce and should not pretend to replace.
+        includes.from("Module.md")
+
+        // The library is common code first; the JDK is an implementation detail
+        // of one of its five targets. Linking to it makes `String` on a page
+        // about a Compose Multiplatform component point at java.lang, and the
+        // lookup needs the network at build time — which then fails on any
+        // runner that cannot reach docs.oracle.com and prints six identical
+        // warnings while succeeding anyway.
+        enableJdkDocumentationLink = false
+
+        sourceLink {
+            localDirectory = layout.projectDirectory.dir("src").asFile
+            remoteUrl("https://github.com/kontour-labs/ui/tree/main/ui/src")
+            remoteLineSuffix = "#L"
         }
     }
 }

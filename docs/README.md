@@ -1,7 +1,7 @@
 # Kontour UI
 
-The design system in [`app/ui`](../ui). A custom component library
-built directly on Compose Foundation, with no Material dependency.
+The design system in [`ui/`](../ui). A custom component library built directly
+on Compose Foundation, with no Material dependency.
 
 ## Why it exists
 
@@ -77,12 +77,25 @@ The documentation is split by who is reading it.
 | [`using/overlays.md`](using/overlays.md) | Dialogs, menus, tooltips and toasts — the stack, the queue, and which to reach for |
 | [`using/sheets.md`](using/sheets.md) | Bottom and side sheets, and the detent model the map screens need |
 
+Every example on those pages is compiled — they live in [`ui-samples/`](../ui-samples)
+and the pages hold checked copies, so one that no longer works fails the build.
+
+The **API reference** is generated from the KDoc and lists every public symbol,
+which is the half the pages above do not attempt:
+
+```sh
+./gradlew :ui:dokkaGenerateHtml     # ui/build/dokka/html
+```
+
+It knows every signature and no reasons; the pages carry the comparisons, the
+"reach for this instead", and the bug histories. Read the page first.
+
 ### Building it — you are adding to the system
 
 | | |
 |---|---|
 | [`building/contributing.md`](building/contributing.md) | The shape of a component, the naming rules, the checklist |
-| [`building/testing.md`](building/testing.md) | The five gates, what each one asks, and what they have caught |
+| [`building/testing.md`](building/testing.md) | Every gate, what each one asks, and what they have caught |
 
 ## Status
 
@@ -106,20 +119,24 @@ The documentation is split by who is reading it.
 | 15 | API consistency sweep | done |
 | 16 | Slot APIs and the `+` vocabulary | done |
 | 17 | Interaction defects, one nav bar, every catalog control live | done |
-| 18 | Per-component renders, documentation split by audience | in progress |
-| 19 | New components — see [`using/components.md`](using/components.md#not-yet-built) | not started |
+| 18 | Per-component renders, documentation split by audience | done |
+| 19 | API consistency, the move to its own repository, neutral defaults | done |
+| 20 | Render states, compiled examples, the API reference | in progress |
+| 21 | New components — see [`using/components.md`](using/components.md#not-yet-built) | not started |
 
 ## Verifying
 
 ```sh
-cd app
 ./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
-          :ui-catalog:jvmTest
+          :ui:checkKdocSamples :ui-catalog:jvmTest \
+          :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples
+python3 docs/check-links.py
 ```
 
-Five gates, all on the JVM without an emulator or a simulator — the contract
-suite, `checkNoMaterial`, `checkApiConventions`, `EverythingRespondsTest` and the
-screenshot goldens. What each one asks, and what each has caught, is in
+All on the JVM without an emulator or a simulator — the contract suite,
+`checkNoMaterial`, `checkApiConventions`, `EverythingRespondsTest`, the
+screenshot goldens, the documentation's compiled examples, and every link in the
+repository. What each one asks, and what each has caught, is in
 [`building/testing.md`](building/testing.md).
 
 ## The catalog

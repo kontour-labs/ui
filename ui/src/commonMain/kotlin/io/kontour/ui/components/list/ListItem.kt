@@ -90,7 +90,7 @@ enum class ListItemPosition {
 }
 
 /**
- * Resolves [position] against a corner radius.
+ * Resolves this [ListItemPosition] against a corner radius.
  *
  * Pure, and tested, because an off-by-one here is the kind of thing that looks
  * fine on a three-item list in the catalog and wrong on every one-item list in

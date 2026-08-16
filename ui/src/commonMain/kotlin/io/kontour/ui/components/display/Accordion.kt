@@ -69,7 +69,7 @@ fun Accordion(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     /**
-     * The row that is always visible, in the same shape a [ListItem] takes —
+     * The row that is always visible, in the same shape a [io.kontour.ui.components.list.ListItem] takes —
      * because that is what it is. `+` fills its title.
      *
      * A named builder rather than the trailing lambda, since the trailing one is

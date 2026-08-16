@@ -35,6 +35,6 @@ data class NavItem(
     val contentDescription: String? = null,
 )
 
-/** The icon to draw for [item], given whether it is the current destination. */
+/** The icon to draw for this [NavItem], given whether it is the current destination. */
 internal fun NavItem.iconFor(selected: Boolean): ImageVector =
     if (selected) selectedIcon ?: icon else icon

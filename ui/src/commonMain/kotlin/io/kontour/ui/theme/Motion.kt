@@ -86,7 +86,7 @@ data class Motion(
     /**
      * For something on its way out.
      *
-     * [standard] is a hard ease-*out* — `cubic-bezier(0.16, 1, 0.30, 1)` covers
+     * [Motion.standard] is a hard ease-*out* — `cubic-bezier(0.16, 1, 0.30, 1)` covers
      * most of its distance almost immediately and then crawls. That is right for
      * an arrival and wrong for a departure: run in reverse it makes an overlay
      * drop most of its opacity at once and then linger, barely visible, for the
@@ -116,7 +116,7 @@ data class Motion(
 /**
  * The default motion scale.
  *
- * [standard] is the marketing site's easing verbatim, so a transition in the
+ * [Motion.standard] is the marketing site's easing verbatim, so a transition in the
  * app and the same transition on the web feel like the same product.
  */
 fun kontourMotion(reduceMotion: Boolean): Motion = Motion(

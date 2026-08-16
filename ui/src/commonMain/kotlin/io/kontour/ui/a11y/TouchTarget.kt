@@ -100,6 +100,6 @@ private class MinimumTouchTargetNode :
     }
 }
 
-/** True when [modality] implies the larger, finger-sized target. */
+/** True when this [InputModality] implies the larger, finger-sized target. */
 internal val InputModality.usesTouchSizedTargets: Boolean
     get() = needsLargeTargets

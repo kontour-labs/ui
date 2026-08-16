@@ -131,6 +131,23 @@ jobs:
             :showcase:android:assembleDebug \
             :ui:assemble
 
+      # The API reference. Here rather than in `test` because Dokka resolves
+      # every source set including the native ones, and this is the job with the
+      # Konan cache.
+      #
+      # It is not published yet, and generating it anyway is the point: Dokka
+      # fails on a malformed `@param` or a `[Link]` to a symbol that no longer
+      # exists, which is a class of KDoc defect nothing else here can see.
+      - name: Generate the API reference
+        run: ./gradlew --no-daemon :ui:dokkaGenerateHtml
+
+      - name: Upload the API reference
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-reference
+          path: ui/build/dokka/html/
+          if-no-files-found: error
+
   publish:
     name: Publish
     if: startsWith(github.ref, 'refs/tags/v')

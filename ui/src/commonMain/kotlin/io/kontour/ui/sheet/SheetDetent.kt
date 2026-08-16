@@ -64,7 +64,7 @@ class SheetDetent(
         val Half: SheetDetent = fraction("half", 0.5f)
 
         /**
-         * Showing whatever the content marked with [Modifier.sheetPeekAnchor].
+         * Showing whatever the content marked with [io.kontour.ui.sheet.sheetPeekAnchor].
          *
          * The sheet peeks exactly far enough to show its header and no further,
          * whatever that header turns out to be — which is the detent the map

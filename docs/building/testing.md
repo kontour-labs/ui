@@ -1,12 +1,13 @@
 # Testing the design system
 
-Five gates, all running on the JVM without an emulator or a simulator. That is
-the reason `:ui` has a `jvm()` target it never ships to.
+Everything below runs on the JVM without an emulator or a simulator. That is the
+reason `:ui` has a `jvm()` target it never ships to.
 
 ```sh
-cd app
 ./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
-          :ui-catalog:jvmTest
+          :ui:checkKdocSamples :ui-catalog:jvmTest \
+          :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples
+python3 docs/check-links.py
 ```
 
 | Gate | Asks |
@@ -16,8 +17,12 @@ cd app
 | [`checkApiConventions`](#checkapiconventions) | Do the signatures follow the house order? |
 | [`EverythingRespondsTest`](#everythingrespondstest) | Does every control in the catalog do something? |
 | [Screenshot goldens](#screenshot-goldens) | Did anything change how it looks? |
+| [`:ui-samples`](#the-examples-compile) | Do the documentation's examples still compile? |
+| [`checkDocSamples`](#the-examples-compile) | Is the copy on the page the code that was compiled? |
+| [`check-links.py`](#the-documentation-is-checked-too) | Does every link in the repository resolve? |
+| [`checkKdocSamples`](#the-examples-compile) | Does a KDoc snippet name a parameter that exists? |
 
-Per-target compilation is the sixth, and runs only in CI
+Per-target compilation runs only in CI
 ([`ci.yml`](../../.github/workflows/ci.yml)) because it is slow:
 
 ```sh
@@ -26,7 +31,9 @@ Per-target compilation is the sixth, and runs only in CI
 ```
 
 A component that compiles on the JVM and not on Wasm is a component that ships
-broken, and `commonMain` will not tell you which.
+broken, and `commonMain` will not tell you which. The
+[API reference](#the-kdoc-itself-is-generated) is generated in the same job, for
+the same reason: it fails on KDoc nothing else reads.
 
 ---
 
@@ -271,3 +278,22 @@ context for each, and the useful examples would drown in the scaffolding.
 cannot see. It parses rather than compiles, so it only catches a wrong or
 missing argument name — the weaker check, kept for the place the strong one
 cannot reach.
+
+### The KDoc itself is generated
+
+```sh
+./gradlew :ui:dokkaGenerateHtml     # ui/build/dokka/html
+```
+
+The API reference, from the KDoc that is already there. It is not published
+anywhere yet, and generating it in CI regardless is what stops it rotting before
+it is: Dokka fails on a malformed `@param` or a `[Link]` to a symbol that no
+longer exists, which is a class of KDoc defect nothing else here sees. The run
+uploads the site as a build artifact.
+
+It earns its place by being **complete** in the one way the hand-written pages
+are not — every public symbol appears, whether or not anybody remembered to
+write it up. The two do different jobs: Dokka knows every signature and no
+reasons; `docs/using/` carries the comparisons, the "reach for this instead" and
+the bug histories. `ui/Module.md` is the module and package overview, and it
+says so on the reference's own landing page.

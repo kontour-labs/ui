@@ -60,7 +60,7 @@ enum class NavigationSuiteType {
  * navigation page: `docs/using/components/navigation.md`.
  *
  * The surface **overlays** the content rather than sitting below it, so read
- * [contentPadding] and inset your own scrolling content by it — the same way a
+ * the padding handed to [content] and inset your own scrolling content by it — the same way a
  * map insets its controls by a sheet's `visibleHeight`.
  *
  * @param type Override the automatic choice. For a screen that genuinely needs a

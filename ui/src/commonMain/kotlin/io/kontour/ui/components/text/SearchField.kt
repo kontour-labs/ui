@@ -38,7 +38,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * )
  * ```
  *
- * [onQueryChange] fires on a [debounceMillis] delay rather than on every
+ * [onQuery] fires on a [debounceMillis] delay rather than on every
  * keystroke, so a search-as-you-type field does not fire a request per
  * character. The debounce lives here rather than in every caller's view model
  * because getting it wrong is invisible until you look at the network log.

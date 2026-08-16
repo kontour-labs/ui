@@ -16,7 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import io.kontour.ui.theme.Theme
 
-/** Which way a [sharedAxis] transition travels. */
+/** Which way a [Transitions.sharedAxis] transition travels. */
 enum class MotionAxis { X, Y, Z }
 
 /**
@@ -28,7 +28,7 @@ enum class MotionAxis { X, Y, Z }
  * | | For | Says |
  * |---|---|---|
  * | [fadeThrough] | Unrelated content in the same place | "a different thing" |
- * | [sharedAxis] | A step forward or back in a sequence | "further along" |
+ * | [Transitions.sharedAxis] | A step forward or back in a sequence | "further along" |
  * | [containerTransform] | One thing becoming a bigger view of itself | "the same thing" |
  *
  * Picking the wrong one is not a cosmetic mistake. A shared-axis slide between

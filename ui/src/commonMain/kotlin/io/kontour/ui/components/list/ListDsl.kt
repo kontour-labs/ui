@@ -39,7 +39,7 @@ import io.kontour.ui.components.list.ListItemDefaults
  * The builder lambda is plain Kotlin. It still runs inside composition, so
  * `if (signedIn) item(…)` works and reading state in the condition recomposes
  * the group. What you cannot do is read `Theme` or call a composable directly
- * in the builder. Use [row] for that: it takes the whole `@Composable` and
+ * in the builder. Use [item] for that: it takes the whole `@Composable` and
  * hands you the position.
  *
  * ### Why it is not `@Composable`, which was tried
@@ -74,7 +74,7 @@ class ListGroupScope internal constructor() {
      * One row.
      *
      * No `modifier`, like every shorthand in the library — a row that needs one
-     * has outgrown this, and [ListItem] is one line away through [row].
+     * has outgrown this, and [ListItem] is one line away through [item].
      */
     fun item(
         label: String,

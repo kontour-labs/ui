@@ -60,7 +60,7 @@ enum class BannerTone { Info, Success, Warning, Danger, Accent }
  *
  * For something the user should know about the screen they are on. For something
  * that happened *because of an action they took*, use a
- * [io.kontour.ui.components.overlay.Toast] instead — a banner that appears in
+ * [io.kontour.ui.overlay.Toast] instead — a banner that appears in
  * response to a tap is easy to miss, because the user is looking at their finger.
  *
  * A banner is a live region, so it is read out when it appears.
