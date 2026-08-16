@@ -69,6 +69,7 @@ The documentation is split by who is reading it.
 
 | | |
 |---|---|
+| [`using/installing.md`](using/installing.md) | Getting the artifact to resolve — the token, CI, and what each failure means |
 | [`using/components.md`](using/components.md) | **Start here.** Every component, what it is for, and what to reach for instead |
 | [`using/tokens.md`](using/tokens.md) | Colour, type, spacing, shape, elevation, motion, sizing — the full reference |
 | [`using/theming.md`](using/theming.md) | Installing the theme, overriding one group, authoring a whole scheme |

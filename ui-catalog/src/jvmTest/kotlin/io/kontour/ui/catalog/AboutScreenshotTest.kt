@@ -29,7 +29,7 @@ class AboutScreenshotTest {
         Screenshot.render(
             name = "about-${if (dark) "dark" else "light"}",
             width = 1600,
-            height = 2500,
+            height = 2600,
         ) {
             KontourTheme(darkTheme = dark, reduceMotion = true) {
                 AboutShowcase(Modifier.fillMaxSize())

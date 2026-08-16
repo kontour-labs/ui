@@ -25,9 +25,9 @@ KontourTheme {
 
 ## Installing
 
-Published privately to GitHub Packages, so it needs a token that can read
-packages — a **classic** personal access token with `read:packages`. The
-fine-grained kind cannot read packages at the time of writing.
+Published privately to GitHub Packages, so it needs a **classic** personal access
+token with `read:packages` — the fine-grained kind cannot read packages at the
+time of writing.
 
 ```kotlin
 // settings.gradle.kts
@@ -37,9 +37,9 @@ dependencyResolutionManagement {
         maven("https://maven.pkg.github.com/kontour-labs/ui") {
             credentials {
                 username = providers.gradleProperty("gpr.user")
-                    .orElse(providers.environmentVariable("GITHUB_ACTOR")).orNull
+                    .orElse(providers.environmentVariable("KONTOUR_PACKAGES_ACTOR")).orNull
                 password = providers.gradleProperty("gpr.key")
-                    .orElse(providers.environmentVariable("GITHUB_TOKEN")).orNull
+                    .orElse(providers.environmentVariable("KONTOUR_PACKAGES_TOKEN")).orNull
             }
             // Not tidiness. GitHub Packages authenticates *every* request,
             // including the ones that come back 404, so an unscoped repository
@@ -58,11 +58,12 @@ implementation("io.kontour:ui:0.1.0")
 ```
 
 `gpr.user` and `gpr.key` go in `~/.gradle/gradle.properties`, not in the
-repository. In GitHub Actions, `GITHUB_ACTOR` and `GITHUB_TOKEN` are already
-there — but a workflow in *another* repository also needs `permissions:
-packages: read`, and the package has to grant that repository access under
-**Packages → ui → Manage Actions access**. Without that the failure is a 401
-that reads exactly like a bad token.
+repository.
+
+**A workflow in another repository cannot use its own `GITHUB_TOKEN` for this**,
+at any permission level, and the per-package grant that would fix it exists only
+for container packages. [`docs/using/installing.md`](docs/using/installing.md)
+covers that, storing the token in CI, and what each failure mode looks like.
 
 ### A note on the Compose version
 
