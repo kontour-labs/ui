@@ -200,3 +200,19 @@ they do the state is the half that looks right — both bugs found while buildin
 sheets were of exactly that kind.
 
 See [`building/testing.md`](../building/testing.md#how-sheets-are-tested).
+
+## Not draggable
+
+`draggable = false` removes the drag gesture **and** the drag handle. A handle is
+the only part of a sheet that says "pull me", so one that does nothing is a lie
+about what the sheet will do.
+
+It takes the nested-scroll connection with it. That connection exists to hand a
+list's overscroll to the sheet, so leaving it behind would mean a flick at the
+top of the content still closed a sheet that cannot be dragged.
+
+The scrim follows the sheet's visible height, so a sheet that cannot be dragged
+also cannot fade its scrim halfway — there is no halfway for it to be at.
+
+`dismissOnOutside = false` is the other half, and it already existed: it stops a
+scrim tap closing a modal sheet or a dialog. `SheetDraggableTest` covers both.

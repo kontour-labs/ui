@@ -129,6 +129,18 @@ fun BottomSheet(
     containerColor: Color = Theme.colors.surfaceRaised,
     contentColor: Color = Theme.colors.content,
     paneTitle: String? = null,
+    /**
+     * Whether the sheet answers a drag.
+     *
+     * `false` removes the gesture **and** the drag handle, because a handle that
+     * does nothing is a lie about what the sheet will do — and a handle is the
+     * only thing on a sheet that says "pull me". A sheet that cannot be dragged
+     * is moved by [SheetState.animateTo] and by whatever the content offers.
+     *
+     * The scrim follows the sheet's visible height, so a sheet that cannot be
+     * dragged also cannot fade its scrim halfway: there is no halfway to be at.
+     */
+    draggable: Boolean = true,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /**
      * What the sheet's *content* keeps clear of. The gesture bar, the cutout and
@@ -203,11 +215,23 @@ fun BottomSheet(
                 .fillMaxWidth()
                 .widthIn(max = SheetDefaults.MaxWidth)
                 .offset { IntOffset(0, offsetOrHidden(state)) }
-                .nestedScroll(state.nestedScrollConnection(settleSpec))
-                .anchoredDraggable(
-                    state = state.anchoredState,
-                    orientation = SheetOrientation,
-                    flingBehavior = fling,
+                .then(
+                    if (draggable) {
+                        Modifier
+                            .nestedScroll(state.nestedScrollConnection(settleSpec))
+                            .anchoredDraggable(
+                                state = state.anchoredState,
+                                orientation = SheetOrientation,
+                                flingBehavior = fling,
+                            )
+                    } else {
+                        // The nested-scroll connection goes with the drag. Its
+                        // whole job is handing a list's overscroll to the sheet,
+                        // and a sheet that does not move should not be receiving
+                        // it — a flick at the top of the list would otherwise
+                        // still close the sheet.
+                        Modifier
+                    }
                 )
                 .semantics {
                     isTraversalGroup = true
@@ -220,7 +244,8 @@ fun BottomSheet(
                 windowInsets = windowInsets,
                 containerColor = containerColor,
                 contentColor = contentColor,
-                dragHandle = dragHandle,
+                // A handle on a sheet that cannot be dragged is a lie.
+                dragHandle = dragHandle.takeIf { draggable },
                 density = density,
                 content = content,
             )
@@ -288,6 +313,8 @@ fun ModalBottomSheet(
     dismissOnOutside: Boolean = true,
     dismissLabel: String = Theme.strings.close,
     paneTitle: String? = null,
+    /** See [BottomSheet]. `false` removes the gesture and the handle with it. */
+    draggable: Boolean = true,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /**
      * What the sheet's *content* keeps clear of. The gesture bar, the cutout and
@@ -314,6 +341,7 @@ fun ModalBottomSheet(
     val latestContentColor by rememberUpdatedState(contentColor)
     val latestPaneTitle by rememberUpdatedState(paneTitle)
     val latestDragHandle by rememberUpdatedState(dragHandle)
+    val latestDraggable by rememberUpdatedState(draggable)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
@@ -357,6 +385,7 @@ fun ModalBottomSheet(
                             containerColor = latestContainerColor,
                             contentColor = latestContentColor,
                             paneTitle = latestPaneTitle,
+                            draggable = latestDraggable,
                             dragHandle = latestDragHandle,
                             content = body,
                         )
