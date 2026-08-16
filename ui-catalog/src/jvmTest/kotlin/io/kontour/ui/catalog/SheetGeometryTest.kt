@@ -73,7 +73,14 @@ class SheetGeometryTest {
         detents: List<SheetDetent>,
         openAt: SheetDetent,
         dragHandle: (@androidx.compose.runtime.Composable () -> Unit)? = null,
-        frames: Int = 20,
+        // Enough for the opening animation to finish.
+        //
+        // A sheet asked to open before layout used to *snap* into place when the
+        // anchors arrived, so any number of frames measured the same thing. It
+        // animates now, which is the point of the fix — and a test that measures
+        // resting geometry has to let it come to rest. 60 frames is about a
+        // second at 16ms, against a 150ms tween under `reduceMotion`.
+        frames: Int = 60,
         body: @androidx.compose.runtime.Composable () -> Unit,
     ): Measured {
         lateinit var captured: SheetState
@@ -251,5 +258,64 @@ class SheetGeometryTest {
                     "the content and merely translated",
             )
         }
+    }
+
+    /**
+     * The first open animates. It used to snap, and only the first one did.
+     *
+     * `animateTo` before layout has no anchors to move to, so the request waits.
+     * Delivering it *as `updateAnchors`' target* — which is what used to happen
+     * — moves the sheet there immediately, so a screen opening its sheet from a
+     * `LaunchedEffect` got a sheet that appeared rather than rose. Every later
+     * open animated, because by then the anchors existed.
+     *
+     * The assertion has to be about the frames in between, not the last one: a
+     * snap and an animation both end fully open. So this samples every frame and
+     * requires at least one to catch the sheet *partway* — which a snap, moving
+     * between exactly two values, can never produce.
+     */
+    @Test
+    fun theFirstOpenAnimatesRatherThanSnapping() {
+        lateinit var captured: SheetState
+        val samples = mutableListOf<Float>()
+
+        val scene = ImageComposeScene(
+            width = 700,
+            height = canvasHeight,
+            density = Density(density),
+        ) {
+            KontourTheme(darkTheme = false, reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize()) {
+                        val sheet = rememberSheetState(
+                            detents = listOf(SheetDetent.Hidden, SheetDetent.Half),
+                            initialDetent = SheetDetent.Hidden,
+                        )
+                        captured = sheet
+                        LaunchedEffect(Unit) { sheet.animateTo(SheetDetent.Half) }
+                        BottomSheet(sheet, dragHandle = null) {
+                            Box(Modifier.height(400.dp)) { Text("body") }
+                        }
+                    }
+                }
+            }
+        }
+        try {
+            repeat(60) { frame ->
+                scene.render(16_000_000L * frame)
+                samples += captured.visibleHeight
+            }
+        } finally {
+            scene.close()
+        }
+
+        val target = canvasHeight / 2f
+        assertEquals(target, samples.last(), "the sheet did not finish opening")
+        assertTrue(
+            samples.any { it > 0.5f && it < target - 0.5f },
+            "the sheet went straight from hidden to open with nothing in " +
+                "between, which is a snap and not an animation. Heights seen: " +
+                samples.distinct().joinToString(),
+        )
     }
 }

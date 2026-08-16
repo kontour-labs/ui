@@ -3,6 +3,7 @@ package io.kontour.ui.sheet
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.runtime.Composable
@@ -237,15 +238,15 @@ class SheetState internal constructor(
             positions.forEach { (detent, offset) -> detent at offset }
         }
 
-        // One call, one target. `updateAnchors` ignores a target when the
-        // anchors it is given are unchanged, so anything decided afterwards is
-        // silently dropped — which is how a sheet asked to open before layout
-        // ended up staying shut.
-        val pending = pendingDetent
+        // The target here only ever keeps the sheet where it already is.
+        //
+        // A pending detent used to be resolved *as* this target, and that is
+        // why a sheet snapped open the first time and animated every time
+        // after: `updateAnchors` moves to its target immediately. The first
+        // open is the one with no anchors yet, so it was the one that snapped.
+        // Delivering it is [deliverPending]'s job now, and that animates.
         val newTarget = when {
-            // A detent requested before there were anchors to move to.
-            pending != null && pending in positions -> pending
-            // Otherwise keep the sheet where it is, if that detent survives.
+            // Keep the sheet where it is, if that detent survives.
             anchoredState.targetValue in positions -> anchoredState.targetValue
             // And if it did not, fall to the nearest surviving position rather
             // than the first in the list, which would slam a half-open sheet
@@ -259,8 +260,26 @@ class SheetState internal constructor(
                 }
             }
         }
-        if (pending != null && pending in positions) pendingDetent = null
         anchoredState.updateAnchors(anchors, newTarget)
+    }
+
+    /** True once anchors exist and a detent is waiting to be animated to. */
+    internal val hasPendingDelivery: Boolean
+        get() = pendingDetent != null && hasAnchors
+
+    /**
+     * Animates to a detent that was requested before there were anchors.
+     *
+     * The counterpart to [updateAnchors] not consuming it. A sheet told to open
+     * from a `LaunchedEffect` asks before the first layout, so the request waits
+     * here; delivering it through `animateTo` is what makes the first open look
+     * like every one after it.
+     */
+    internal suspend fun deliverPending() {
+        val target = pendingDetent ?: return
+        if (!hasAnchors) return
+        pendingDetent = null
+        if (target in detents) anchoredState.animateTo(target)
     }
 
     /**
@@ -271,8 +290,21 @@ class SheetState internal constructor(
      * expanded, then moves the list. Without it, a sheet with a `LazyColumn`
      * inside is either undraggable or unscrollable, depending on which
      * modifier won.
+     *
+     * @param settleSpec How the sheet finishes its travel once a fling hands
+     *   over. **The same spec the sheet's own `flingBehavior` uses**, and it is
+     *   a parameter for that reason: two settling policies on one sheet is a
+     *   sheet that arrives differently depending on whether the gesture started
+     *   on the handle or in the list.
+     *
+     *   It also has to be passed rather than assumed, because the alternative is
+     *   the overload that takes a velocity — and that one *throws* on a state
+     *   built without positional and velocity thresholds, which this one is.
+     *   Scrolling anything inside a sheet crashed on it.
      */
-    internal fun nestedScrollConnection(): NestedScrollConnection =
+    internal fun nestedScrollConnection(
+        settleSpec: AnimationSpec<Float>,
+    ): NestedScrollConnection =
         object : NestedScrollConnection {
 
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -311,7 +343,7 @@ class SheetState internal constructor(
                     !expandedOffset.isNaN() &&
                     offset > expandedOffset
                 ) {
-                    anchoredState.settle(available.y)
+                    anchoredState.settle(settleSpec)
                     available
                 } else {
                     Velocity.Zero
@@ -322,7 +354,7 @@ class SheetState internal constructor(
                 consumed: Velocity,
                 available: Velocity,
             ): Velocity {
-                anchoredState.settle(available.y)
+                anchoredState.settle(settleSpec)
                 return available
             }
 

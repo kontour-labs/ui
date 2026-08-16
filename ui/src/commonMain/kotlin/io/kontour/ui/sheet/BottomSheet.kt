@@ -1,5 +1,6 @@
 package io.kontour.ui.sheet
 
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.layout.Arrangement
@@ -154,13 +155,35 @@ fun BottomSheet(
     val motion = Theme.motion
     val actionsGap = SheetDefaults.ActionsGap
 
+    // Critically damped. A sheet that bounces on arrival looks unweighted, and
+    // unlike a button it is carrying content the user is reading.
+    //
+    // Named, because the nested-scroll connection settles with it too — a fling
+    // that starts in the sheet's list has to finish the way one that started on
+    // the handle does.
+    val settleSpec: FiniteAnimationSpec<Float> = motion.springOrTween(motion.springGentle)
+
     val fling = AnchoredDraggableDefaults.flingBehavior(
         state = state.anchoredState,
         positionalThreshold = SheetDefaults.PositionalThreshold,
-        // Critically damped. A sheet that bounces on arrival looks unweighted,
-        // and unlike a button it is carrying content the user is reading.
-        animationSpec = motion.springOrTween(motion.springGentle),
+        animationSpec = settleSpec,
     )
+
+    // A detent asked for before the sheet had been measured, delivered once it
+    // has. `updateAnchors` deliberately does not apply it: doing so snapped, and
+    // the first open is always the one with no anchors yet.
+    //
+    // A `snapshotFlow` rather than a composition read, and the difference is
+    // not style: `hasPendingDelivery` is `pendingDetent != null && hasAnchors`,
+    // which short-circuits. Read during composition while no detent is pending,
+    // it never subscribes to the anchors at all — so the anchors arrive, nothing
+    // recomposes, and the sheet stays shut. `snapshotFlow` re-evaluates the whole
+    // expression on every snapshot commit and does not have that hole.
+    LaunchedEffect(state) {
+        snapshotFlow { state.hasPendingDelivery }
+            .filter { it }
+            .collect { state.deliverPending() }
+    }
 
     Box(
         modifier = Modifier
@@ -180,7 +203,7 @@ fun BottomSheet(
                 .fillMaxWidth()
                 .widthIn(max = SheetDefaults.MaxWidth)
                 .offset { IntOffset(0, offsetOrHidden(state)) }
-                .nestedScroll(state.nestedScrollConnection())
+                .nestedScroll(state.nestedScrollConnection(settleSpec))
                 .anchoredDraggable(
                     state = state.anchoredState,
                     orientation = SheetOrientation,
