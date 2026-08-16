@@ -30,8 +30,11 @@ target and gives a screen reader two nodes for one choice.
 ![Checkbox, unchecked](../../../ui-catalog/screenshots/components/checkbox-light.png)
 ![Checkbox, checked](../../../ui-catalog/screenshots/components/checkbox-checked-light.png)
 
+<!--sample:CheckboxBasics-->
 ```kotlin
-Checkbox(checked = notify, onCheckedChange = viewModel::setNotify)
+var notify by remember { mutableStateOf(false) }
+
+Checkbox(checked = notify, onCheckedChange = { notify = it })
 ```
 
 The tick is drawn on a `Canvas` and *strokes itself on* along its path rather
@@ -53,8 +56,20 @@ saying it, the row announces as a button with a name and no on or off.
 
 ![TriStateCheckbox](../../../ui-catalog/screenshots/components/tristatecheckbox-light.png)
 
+<!--sample:TriStateCheckboxBasics-->
 ```kotlin
-TriStateCheckbox(state = allChildrenState, onClick = ::selectAll)
+var routes by remember { mutableStateOf(listOf(true, false, false)) }
+
+val state = when {
+    routes.all { it } -> ToggleableState.On
+    routes.none { it } -> ToggleableState.Off
+    else -> ToggleableState.Indeterminate
+}
+
+TriStateCheckbox(
+    state = state,
+    onClick = { routes = List(routes.size) { state != ToggleableState.On } },
+)
 ```
 
 `ToggleableState.Indeterminate` draws a dash, for a parent whose children are
@@ -74,11 +89,14 @@ The control on its own. You almost never want this directly — see below.
 
 ![RadioGroup](../../../ui-catalog/screenshots/components/radiogroup-light.png)
 
+<!--sample:RadioGroupBasics-->
 ```kotlin
+var mode by remember { mutableStateOf(Mode.Fastest) }
+
 RadioGroup(
-    options = listOf(Mode.Fastest, Mode.FewestChanges, Mode.LeastWalking),
+    options = Mode.entries,
     selected = mode,
-    onSelectedChange = viewModel::setMode,
+    onSelectedChange = { mode = it },
     label = { it.displayName },
     supporting = { it.explanation },
 )
@@ -105,8 +123,11 @@ scroll.
 ![Switch, unchecked](../../../ui-catalog/screenshots/components/switch-light.png)
 ![Switch, checked](../../../ui-catalog/screenshots/components/switch-checked-light.png)
 
+<!--sample:SwitchBasics-->
 ```kotlin
-Switch(checked = liveAlerts, onCheckedChange = viewModel::setLiveAlerts)
+var liveAlerts by remember { mutableStateOf(true) }
+
+Switch(checked = liveAlerts, onCheckedChange = { liveAlerts = it })
 ```
 
 **Use a switch for a setting that takes effect immediately, and a `Checkbox` for
@@ -126,14 +147,18 @@ control.
 ![SelectionRow, unselected](../../../ui-catalog/screenshots/components/selectionrow-light.png)
 ![SelectionRow, selected](../../../ui-catalog/screenshots/components/selectionrow-selected-light.png)
 
+<!--sample:SelectionRowBasics-->
 ```kotlin
+var notifyOnDelay by remember { mutableStateOf(false) }
+
 SelectionRow(
     selected = notifyOnDelay,
-    onSelectedChange = viewModel::setNotifyOnDelay,
+    onSelectedChange = { notifyOnDelay = it },
     role = Role.Checkbox,
 ) {
     +"Notify me about delays"
     supporting { +"Only for favourited routes" }
+    // The row owns the interaction; the control is here to show state.
     trailing { Checkbox(notifyOnDelay, onCheckedChange = null) }
 }
 ```
@@ -169,23 +194,37 @@ small button wearing the wrong clothes.
 | `FilterChip` | On or off, and shows which. `selected` + `onClick` |
 | `InputChip` | Something the user entered, with a remove button. `onRemove` + `removeLabel` |
 
+<!--sample:FilterChipGroup-->
 ```kotlin
+var active by remember { mutableStateOf(setOf(Mode.Fastest)) }
+
 ChipGroup {
-    modes.forEach { mode ->
+    Mode.entries.forEach { mode ->
         FilterChip(
             selected = mode in active,
-            onClick = { toggle(mode) },
+            onClick = {
+                active = if (mode in active) active - mode else active + mode
+            },
+            selectedIcon = Tabler.Outline.Check,
         ) {
-            +mode.icon
-            +mode.name
+            +mode.displayName
         }
     }
 }
 ```
 
-A selected `FilterChip` grows a tick in front of its label; the tick expands in
-and shoves the label across, which is what makes a filter bar feel responsive
-when you rattle through several.
+A selected `FilterChip` fills with the accent container and takes the accent for
+its label, dropping the outline it wears unselected — the two images above are
+the whole difference.
+
+**The tick is opt-in**, through `selectedIcon`. Pass one and it expands in and
+shoves the label across, which is what makes a filter bar feel responsive when
+you rattle through several. It is not a default because the library ships no
+glyphs at all — the icon set is yours — so there is no tick here to reach for.
+
+Pass one when it matters which chips are on. Without it selection is carried by
+colour alone, which is legible but is a single channel, and a filter bar is
+exactly the place someone scans rather than reads.
 
 `InputChip`'s `removeLabel` is **required** and announces the remove button —
 "Remove Perth Station", not "Remove". It used to default to `"Remove $label"`;
@@ -203,11 +242,14 @@ scrolling row hides options off the edge of the screen.
 
 ![SegmentedControl](../../../ui-catalog/screenshots/components/segmentedcontrol-light.png)
 
+<!--sample:SegmentedControlBasics-->
 ```kotlin
+var selected by remember { mutableStateOf(0) }
+
 SegmentedControl(
     options = listOf("Bus", "Train", "Ferry"),
     selected = selected,
-    onSelectedChange = viewModel::select,
+    onSelectedChange = { selected = it },
 )
 ```
 
@@ -235,11 +277,14 @@ tabs switch which *view* of one screen you are looking at. Announced
 
 ## `ColorSwatchPicker`
 
+<!--sample:ColorSwatchPickerBasics-->
 ```kotlin
+var accent by remember { mutableStateOf(RouteColor.Red) }
+
 ColorSwatchPicker(
     value = accent,
     options = RouteColor.entries,
-    onValueChange = viewModel::setAccent,
+    onValueChange = { accent = it },
     swatchColor = { it.color },
     swatchLabel = { it.displayName },
 )
@@ -266,12 +311,17 @@ Options whose `swatchColor` is `null` render as an outlined swatch with
 
 ![Slider](../../../ui-catalog/screenshots/components/slider-light.png)
 
+<!--sample:SliderBasics-->
 ```kotlin
+var walkSpeed by remember { mutableStateOf(4f) }
+
 Slider(
     value = walkSpeed,
-    onValueChange = viewModel::setWalkSpeed,
+    onValueChange = { walkSpeed = it },
     valueRange = 2f..7f,
     steps = 4,
+    // Without this the announcement is a bare percentage, which is not the
+    // number the user is choosing.
     stateDescription = { "${it.roundToInt()} km/h" },
 )
 ```
@@ -300,12 +350,17 @@ fare to $4.35 by dragging.
 
 ![RangeSlider](../../../ui-catalog/screenshots/components/rangeslider-light.png)
 
+<!--sample:RangeSliderBasics-->
 ```kotlin
+var window by remember { mutableStateOf(7f..19f) }
+
 RangeSlider(
     value = window,
     onValueChange = { window = it },
     valueRange = 0f..24f,
     steps = 23,
+    startContentDescription = "Earliest departure",
+    endContentDescription = "Latest departure",
     stateDescription = { "${it.start.roundToInt()}:00 to ${it.endInclusive.roundToInt()}:00" },
 )
 ```
@@ -342,7 +397,10 @@ cannot enforce that between them.
 
 ![Stepper](../../../ui-catalog/screenshots/components/stepper-light.png)
 
+<!--sample:StepperBasics-->
 ```kotlin
+var adults by remember { mutableStateOf(1) }
+
 Stepper(
     value = adults,
     onValueChange = { adults = it },
@@ -378,10 +436,15 @@ by one or two; nobody taps `+` thirty times.
 
 ![Rating](../../../ui-catalog/screenshots/components/rating-light.png)
 
+<!--sample:RatingBasics-->
 ```kotlin
-Rating(value = 4f, contentDescription = "Your rating", onValueChange = { rating = it })
+var rating by remember { mutableStateOf(0f) }
 
-Rating(value = 4.3f, contentDescription = "Average rating")   // read-only
+Rating(value = rating, contentDescription = "Your rating", onValueChange = { rating = it })
+
+// No callback means read-only, which means not a control at all: no role,
+// no touch target, one node saying "Average rating, 4.3 out of 5".
+Rating(value = 4.3f, contentDescription = "Average rating")
 ```
 
 **`onValueChange = null` makes it read-only, and read-only means it is not a

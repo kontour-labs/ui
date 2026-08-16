@@ -103,10 +103,18 @@ fun Chip(
 /**
  * A chip that toggles a facet on and off.
  *
- * When selected it fills with the accent container and grows a tick in front of
- * the label. The tick *expands in* rather than appearing, pushing the label
- * across — the small shove is what makes a filter bar feel responsive when you
- * rattle through several of them.
+ * When selected it fills with the accent container and takes the accent for its
+ * label, dropping the outline it wears unselected.
+ *
+ * **The tick is opt-in.** Pass [selectedIcon] and it *expands in* rather than
+ * appearing, pushing the label across — the small shove is what makes a filter
+ * bar feel responsive when you rattle through several of them. It is a parameter
+ * rather than a default because the library ships no glyphs at all: the icon set
+ * is the application's choice, so there is no tick here to reach for.
+ *
+ * Without one, selection is carried by colour alone. That is legible, and it is
+ * the only channel — so a filter bar where the distinction matters should pass
+ * an icon, for the same reason a chart should not encode its meaning in hue.
  */
 @Composable
 fun FilterChip(

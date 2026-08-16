@@ -220,9 +220,54 @@ is a bit generous".
 ## The documentation is checked too
 
 ```sh
-task docs:links
+python3 docs/check-links.py
 ```
 
-Resolves every relative link and `#anchor` in `docs/`. A dead link in a document
-about how to use something is the same class of defect as a dead callback in the
-catalog, and just as checkable.
+Resolves every relative link and `#anchor` in **every markdown file in the
+repository**, module READMEs included. A dead link in a document about how to
+use something is the same class of defect as a dead callback in the catalog, and
+just as checkable.
+
+It used to walk `docs/` alone, which is how `ui/README.md` came to spend the
+whole extraction pointing at a directory that no longer existed — and one level
+outside the repository at that. Nothing failed, because nothing looked.
+
+### The examples compile
+
+```sh
+./gradlew :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples
+```
+
+The examples on the pages under `docs/using/` are not written in the
+documentation. They live in `ui-samples/`, which depends on `:ui` the way an app
+would — so an example that reaches for something `internal`, names a parameter
+that has been renamed, or calls a function that no longer exists fails the build
+rather than being discovered by whoever pastes it into their app. Writing the
+first batch found three such: a `Carousel` scroll method, a `NavRail` parameter
+and a `TopBar` one, all of them plausible and none of them real.
+
+A page claims a sample with a comment before the fence:
+
+```
+<!--sample:ButtonBasics-->
+```
+
+`checkDocSamples` then requires the fenced block to be that function's body,
+verbatim. To update the pages after editing a sample:
+
+```sh
+python3 docs/sync-samples.py --write
+```
+
+Compare by default, rewrite behind a flag — the same shape as the screenshot
+goldens, and for the same reason.
+
+**A fence with no marker is left alone**, deliberately. Plenty of blocks in
+these pages are not examples: a signature under discussion, a fragment with an
+ellipsis, a shell command. Requiring every one to compile would mean inventing a
+context for each, and the useful examples would drown in the scaffolding.
+
+`:ui:checkKdocSamples` still covers the snippets inside KDoc, which the compiler
+cannot see. It parses rather than compiles, so it only catches a wrong or
+missing argument name — the weaker check, kept for the place the strong one
+cannot reach.

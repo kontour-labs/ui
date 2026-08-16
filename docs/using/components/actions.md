@@ -16,13 +16,14 @@ Things the user presses to make something happen.
 
 ## `Button`
 
+<!--sample:ButtonBasics-->
 ```kotlin
-Button(onClick = ::plan) {
+Button(onClick = { plan() }) {
     +"Plan a trip"
 }
 
 Button(
-    onClick = ::delete,
+    onClick = { delete() },
     variant = ButtonVariant.Destructive,
     size = ButtonSize.Small,
 ) {
@@ -63,6 +64,15 @@ so a row of buttons does not reflow when one is pressed. The button also blocks
 input and announces itself as busy while loading — a screen-reader user is not
 left tapping a control that already took their input.
 
+<!--sample:ButtonLoading-->
+```kotlin
+var saving by remember { mutableStateOf(false) }
+
+Button(onClick = { saving = true }, loading = saving) {
+    +"Save this trip"
+}
+```
+
 **Disabled** styling is shared across variants on purpose: a disabled outlined
 button and a disabled solid one both mean "not available right now", and should
 not look like two different controls.
@@ -81,15 +91,9 @@ component that announces nothing, which is what replaced the guarantee the old
 
 ![IconButton](../../../ui-catalog/screenshots/components/iconbutton-light.png)
 
+<!--sample:IconButtonBasics-->
 ```kotlin
-IconButton(Tabler.Outline.X, contentDescription = "Close", onClick = ::dismiss)
-
-IconButton(
-    icon = Tabler.Outline.ChevronDown,
-    contentDescription = "Expand",
-    onClick = ::toggle,
-    rotation = if (expanded) 180f else 0f,
-)
+IconButton(Tabler.Outline.X, contentDescription = "Close", onClick = { dismiss() })
 ```
 
 `contentDescription` is **required and non-null**. There is no visible text to
@@ -98,6 +102,18 @@ cannot identify. If the icon is genuinely decorative, it is not a button.
 
 `rotation` animates, which is what makes a disclosure chevron read as the same
 arrow turning rather than two different glyphs swapping.
+
+<!--sample:IconButtonRotation-->
+```kotlin
+var expanded by remember { mutableStateOf(false) }
+
+IconButton(
+    icon = Tabler.Outline.ChevronDown,
+    contentDescription = if (expanded) "Collapse" else "Expand",
+    onClick = { expanded = !expanded },
+    rotation = if (expanded) 180f else 0f,
+)
+```
 
 It defaults to `ButtonVariant.Ghost` and `Theme.shapes.pill`, because an icon
 button is nearly always a low-weight action inside something else. Both are
@@ -112,12 +128,15 @@ The first of those is pixel-for-pixel an [`IconButton`](#iconbutton), and that i
 not a mistake in the picture: unchecked, it *is* one. The accent ground in the
 second is the entire visible difference between the two components.
 
+<!--sample:IconToggleButtonBasics-->
 ```kotlin
+var favourite by remember { mutableStateOf(false) }
+
 IconToggleButton(
     icon = Tabler.Outline.Star,
     contentDescription = "Favourite",
-    checked = isFavourite,
-    onCheckedChange = viewModel::setFavourite,
+    checked = favourite,
+    onCheckedChange = { favourite = it },
 )
 ```
 
@@ -138,8 +157,9 @@ glyph is the whole affordance.
 
 ![FloatingActionButton](../../../ui-catalog/screenshots/components/floatingactionbutton-light.png)
 
+<!--sample:FloatingActionButtonBasics-->
 ```kotlin
-FloatingActionButton(Tabler.Outline.Plus, "Add favourite", onClick = ::add)
+FloatingActionButton(Tabler.Outline.Plus, "Add favourite", onClick = { add() })
 ```
 
 One per screen. A second FAB is two competing "the" actions.
@@ -148,13 +168,16 @@ One per screen. A second FAB is two competing "the" actions.
 
 ![ExtendedFloatingActionButton](../../../ui-catalog/screenshots/components/extendedfloatingactionbutton-light.png)
 
+<!--sample:ExtendedFloatingActionButtonCollapsing-->
 ```kotlin
 ExtendedFloatingActionButton(
     icon = Tabler.Outline.Navigation,
     contentDescription = "Start trip to Perth Station",
-    expanded = !listState.isScrollingDown,
-    onClick = ::start,
-) { +"Start" }
+    expanded = listState.firstVisibleItemIndex == 0,
+    onClick = { start() },
+) {
+    +"Start"
+}
 ```
 
 It animates its *width* when collapsing rather than cross-fading between two
@@ -172,11 +195,16 @@ Station" for a screen reader.
 
 ![ButtonGroup](../../../ui-catalog/screenshots/components/buttongroup-light.png)
 
+<!--sample:ButtonGroupBasics-->
 ```kotlin
 ButtonGroup {
-    item(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
-    item(onClick = ::recentre, contentDescription = "Recentre", icon = Tabler.Outline.CurrentLocation)
-    item(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+    item(onClick = { zoomOut() }, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+    item(
+        onClick = { recentre() },
+        contentDescription = "Recentre",
+        icon = Tabler.Outline.CurrentLocation,
+    )
+    item(onClick = { zoomIn() }, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
 }
 ```
 
@@ -219,14 +247,19 @@ use it is worse than one with a greyed button in it.
 
 ![Toolbar](../../../ui-catalog/screenshots/components/toolbar-light.png)
 
+<!--sample:ToolbarBasics-->
 ```kotlin
 Toolbar {
     ButtonGroup {
-        item(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
-        item(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+        item(
+            onClick = { zoomOut() },
+            contentDescription = "Zoom out",
+            icon = Tabler.Outline.Minus,
+        )
+        item(onClick = { zoomIn() }, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
     }
     ToolbarDivider()
-    IconButton(Tabler.Outline.Stack, "Map layers", onClick = ::openLayers)
+    IconButton(Tabler.Outline.Stack, "Map layers", onClick = { openLayers() })
 }
 ```
 
@@ -255,6 +288,7 @@ An indeterminate activity indicator. The arc sweeps *and* breathes — its lengt
 grows and shrinks as it rotates, so the tail chases the head. Under reduced
 motion the breathing stops and the arc holds a constant length.
 
+<!--sample:SpinnerBasics-->
 ```kotlin
 Spinner(contentDescription = "Loading departures")
 ```

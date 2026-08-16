@@ -59,6 +59,16 @@ jobs:
             :ui:checkKdocSamples \
             :ui-catalog:jvmTest
 
+      # The examples on the documentation pages, compiled. `compileKotlinJvm`
+      # answers "does this still work against the real API"; `checkDocSamples`
+      # answers "is the copy on the page still the code that was compiled".
+      # Neither is much use without the other.
+      - name: Compile the documentation examples
+        run: |
+          ./gradlew --no-daemon \
+            :ui-samples:compileKotlinJvm \
+            :ui-samples:checkDocSamples
+
       - name: Check the docs' links resolve
         run: python3 docs/check-links.py
 

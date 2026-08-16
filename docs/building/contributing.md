@@ -341,7 +341,12 @@ was recorded.
 
 - **KDoc on every public declaration**, with a usage snippet on the component
   itself. Say when to use it rather than restating the signature.
-- **A row in the relevant page** under `docs/app/design-system/`.
+- **A row in the relevant page** under `docs/using/`.
+- **A worked example in `ui-samples/`**, marked into the page with
+  `<!--sample:Name-->` above its fenced block. It is a public top-level function
+  there — visibility is what separates an example from its scaffolding — and it
+  is compiled against `:ui`, so it cannot go stale quietly. `:ui-samples` has
+  the rest.
 - If the component introduces a concept — a new state holder, a new overlay
   layer — it gets a section explaining the concept, not just the API.
 
@@ -361,7 +366,9 @@ was recorded.
 [ ] behaviour tests for what the contract suite cannot know
 [ ] catalog entry covering every state
 [ ] screenshot golden reviewed, not just accepted
+[ ] a RenderState, where the resting picture is not the telling one
 [ ] KDoc with a usage snippet and a "when to use this" paragraph
-[ ] documented in docs/app/design-system/
+[ ] documented in docs/using/
+[ ] a compiled example in ui-samples/, marked into the page
 [ ] checked at 200% font scale and in RTL
 ```

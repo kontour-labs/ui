@@ -118,7 +118,7 @@ object SheetDefaults {
  * A `LazyColumn` inside works without ceremony — the drag hands off between
  * list and sheet at each end, which is why the sheet takes its content as a
  * slot rather than being a modifier. See
- * `docs/app/design-system/using/sheets.md`.
+ * `docs/using/sheets.md`.
  */
 @Composable
 fun BottomSheet(

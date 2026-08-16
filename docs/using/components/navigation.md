@@ -94,10 +94,19 @@ narrow window where it slides over the content instead of sitting beside it.
 
 ### The rail expands
 
+<!--sample:NavRailExpanding-->
 ```kotlin
+var current by remember { mutableStateOf(0) }
+var railOpen by remember { mutableStateOf(false) }
+
+val destinations = listOf(
+    NavItem(label = "Plan", icon = Tabler.Outline.Map, onClick = { current = 0 }),
+    NavItem(label = "Saved", icon = Tabler.Outline.Star, onClick = { current = 1 }),
+)
+
 NavRail(
     items = destinations,
-    selected = current,
+    selectedIndex = current,
     expanded = railOpen,
     onExpandedChange = { railOpen = it },
 )
@@ -147,12 +156,23 @@ clear of the thing it annotates.
 Title and actions. Three styles from `TopBarStyle`: `Small`, `Centred` and
 `Large`.
 
+<!--sample:TopBarCollapsing-->
 ```kotlin
+val listState = rememberLazyListState()
+
+// The bar does not own the scroll state, so the caller hands it the
+// progress. `collapseProgress` computes it from a `LazyListState`.
 TopBar(
-    title = stop.name,
     style = TopBarStyle.Large,
     collapseProgress = collapseProgress(listState),
-)
+) {
+    +"Perth Underground"
+    supporting { +"Platform 2" }
+}
+
+LazyColumn(state = listState) {
+    stopRows()
+}
 ```
 
 `Large` collapses to `Small` as the content scrolls. The bar does not own the
@@ -163,6 +183,28 @@ computes it from a `LazyListState`, and there is a raw
 ## `TabBar`
 
 ![TabBar, with the first tab selected](../../../ui-catalog/screenshots/components/tab-selected-light.png)
+
+<!--sample:TabBarBasics-->
+```kotlin
+var selected by remember { mutableStateOf("departures") }
+
+TabBar {
+    Tab(
+        selected = selected == "departures",
+        onClick = { selected = "departures" },
+        key = "departures",
+    ) {
+        +"Departures"
+    }
+    Tab(
+        selected = selected == "arrivals",
+        onClick = { selected = "arrivals" },
+        key = "arrivals",
+    ) {
+        +"Arrivals"
+    }
+}
+```
 
 **`TabBar` is not app navigation.** Tabs stay within one screen — the stop you
 are looking at, seen three ways. A tab bar used for destinations leaves the user

@@ -21,12 +21,22 @@ Rows, and the things that happen to them.
 
 ![ListItem](../../../ui-catalog/screenshots/components/listitem-light.png)
 
+<!--sample:ListItemBasics-->
 ```kotlin
-ListItem(onClick = { open(stop) }, position = ListItemPosition.of(index, stops.size)) {
-    leading { +Tabler.Outline.Bus }
-    +stop.name
-    supporting { +"${stop.routes.size} routes" }
-    trailing { +Tabler.Outline.ChevronRight }
+LazyColumn {
+    itemsIndexed(stops) { index, stop ->
+        ListItem(
+            onClick = { openStop(stop.name) },
+            // Rounds the outside corners of the group and leaves the seams
+            // square, so a run of rows reads as one block.
+            position = ListItemPosition.of(index, stops.size),
+        ) {
+            leading { +Tabler.Outline.Bus }
+            +stop.name
+            supporting { +"${stop.routes} routes" }
+            trailing { +Tabler.Outline.ChevronRight }
+        }
+    }
 }
 ```
 
@@ -99,6 +109,20 @@ way.
 bug wearing a gesture; pair it with a [`Toast`](../overlays.md) carrying the
 undo.
 
+<!--sample:SwipeToDismissBasics-->
+```kotlin
+SwipeToDismiss(
+    onDismissRequest = { remove(stop.name) },
+    label = "Remove",
+    icon = Tabler.Outline.Trash,
+) {
+    ListItem {
+        +stop.name
+        supporting { +"${stop.routes} routes" }
+    }
+}
+```
+
 ## `ReorderableItem`
 
 ![ReorderableItem, at rest](../../../ui-catalog/screenshots/components/reorderableitem-light.png)
@@ -115,12 +139,40 @@ and for the second picture above.
 dragged row passes another, so the caller's list stays the source of truth
 throughout and there is no pending order to reconcile on release.
 
+<!--sample:ReorderableList-->
+```kotlin
+var stops by remember { mutableStateOf(initial) }
+val listState = rememberLazyListState()
+val reorder = rememberReorderableState(listState) { from, to ->
+    stops = stops.toMutableList().apply { add(to, removeAt(from)) }
+}
+
+LazyColumn(state = listState) {
+    itemsIndexed(stops, key = { _, stop -> stop.name }) { index, stop ->
+        ReorderableItem(state = reorder, index = index, itemCount = stops.size) {
+            ListItem { +stop.name }
+        }
+    }
+}
+```
+
 ## `PullToRefresh`
 
 ![PullToRefresh](../../../ui-catalog/screenshots/components/pulltorefresh-light.png)
 
 Pull at the top of a list to reload. The indicator appears past a threshold, so
 a list that is merely over-scrolled does not fire a request.
+
+<!--sample:PullToRefreshBasics-->
+```kotlin
+PullToRefresh(refreshing = refreshing, onRefresh = { refresh() }) {
+    LazyColumn {
+        items(stops) { stop ->
+            ListItem { +stop.name }
+        }
+    }
+}
+```
 
 ## Gestures are shortcuts, never routes
 

@@ -146,10 +146,22 @@ assembled rather than built.
 Disclosure with hoisted state, so the caller decides what is open — including
 opening the section containing whatever the user searched for.
 
+<!--sample:AccordionBasics-->
+```kotlin
+Accordion(
+    expanded = expanded,
+    onExpandedChange = onExpandedChange,
+    header = { +"Accessibility" },
+) {
+    Text("Step-free access at all platforms.")
+}
+```
+
 ## `Stat`
 
 ![Stat](../../../ui-catalog/screenshots/components/stat-light.png)
 
+<!--sample:StatBasics-->
 ```kotlin
 Stat {
     value("4 min")
@@ -182,11 +194,14 @@ having none.
 
 ![KeyValueList](../../../ui-catalog/screenshots/components/keyvaluelist-light.png)
 
+<!--sample:KeyValueListBasics-->
 ```kotlin
 KeyValueList {
     item("Operator", "Transperth")
     item("Platform", "2")
     item("Fare", "$3.20")
+    // A slot draws nothing a screen reader can read, so it says what to
+    // announce instead.
     item("Accessible", announcement = "yes") { +Tabler.Outline.Check }
 }
 ```
@@ -219,11 +234,13 @@ an intrinsic width re-rags it every time the content changes.
 
 ![Carousel](../../../ui-catalog/screenshots/components/carousel-light.png)
 
+<!--sample:CarouselWithIndicator-->
 ```kotlin
+val scope = rememberCoroutineScope()
 val carousel = rememberCarouselState { photos.size }
 
 Carousel(carousel, contentDescription = "Stop photos") { page ->
-    AspectRatioBox(16f / 9f) { Image(photos[page]) }
+    Text(photos[page])
 }
 PageIndicator(carousel, onPageSelect = { scope.launch { carousel.scrollToPage(it) } })
 ```

@@ -39,6 +39,11 @@ include(":ui")
 // the library's tests live.
 include(":ui-catalog")
 
+// The examples in `docs/using/`, as source. The docs hold copies; this is what
+// the compiler reads, so an example that no longer compiles fails the build
+// rather than being found by whoever pastes it into their app.
+include(":ui-samples")
+
 // Hosts that put the gallery on a screen. None of them ships; they exist so the
 // library can be run and poked at on each platform it claims to support.
 include(":showcase:desktop")

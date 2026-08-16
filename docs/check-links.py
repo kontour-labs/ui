@@ -7,10 +7,17 @@ finds out until they follow it. This walks every markdown file under `docs/`,
 resolves every relative link against the file that carries it, and checks that
 any `#anchor` names a heading that actually exists in the file it points at.
 
-    python3 docs/check-links.py          # the whole tree
-    python3 docs/check-links.py docs/app # one subtree
+    python3 docs/check-links.py            # every markdown file in the repository
+    python3 docs/check-links.py docs/using # one subtree
 
 Exits non-zero and prints `file:line` for each failure.
+
+**The default is the repository, not `docs/`**, and that is a correction rather
+than a flourish. It used to walk `docs/` alone, so the module READMEs beside the
+code were never checked — and `ui/README.md` spent the whole move to this
+repository pointing at `../../docs/app/design-system/`, a directory that had not
+existed since the extraction and was one level outside the repository besides.
+Nothing failed, because nothing looked.
 
 External links are not followed. Checking those needs the network, would fail
 for reasons that have nothing to do with this repository, and is a different
@@ -61,9 +68,18 @@ def anchors(path: Path) -> set[str]:
     return found
 
 
+def markdown(root: Path) -> list[Path]:
+    """Every markdown file worth checking, skipping build output."""
+    return sorted(
+        path
+        for path in root.rglob("*.md")
+        if not any(part in {"build", ".git", ".gradle"} for part in path.parts)
+    )
+
+
 def check(root: Path) -> list[str]:
     problems: list[str] = []
-    for path in sorted(root.rglob("*.md")):
+    for path in markdown(root):
         lines = path.read_text(encoding="utf-8").split("\n")
         for number, line in enumerate(lines, start=1):
             for target in LINK.findall(line):
@@ -91,15 +107,14 @@ def check(root: Path) -> list[str]:
 
 
 def main() -> int:
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else "docs")
+    root = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
     if not root.is_dir():
         print(f"not a directory: {root}", file=sys.stderr)
         return 2
 
     problems = check(root)
     if not problems:
-        total = sum(1 for _ in root.rglob("*.md"))
-        print(f"every link in {total} markdown files resolves.")
+        print(f"every link in {len(markdown(root))} markdown files resolves.")
         return 0
 
     print(f"{len(problems)} broken link(s):", file=sys.stderr)

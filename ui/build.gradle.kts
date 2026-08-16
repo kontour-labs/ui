@@ -788,7 +788,7 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                     appendLine("API conventions broken in ${problems.size} place(s):")
                     problems.forEach { appendLine("  - $it") }
                     appendLine()
-                    appendLine("The conventions are in docs/app/design-system/building/contributing.md.")
+                    appendLine("The conventions are in docs/building/contributing.md.")
                 }
             )
         }

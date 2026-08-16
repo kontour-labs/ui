@@ -73,7 +73,7 @@ import io.kontour.ui.theme.Theme
  * Pass [errorMessage] to mark the field invalid; it sets `error` semantics as
  * well as colouring the border, because colour alone would fail WCAG 1.4.1.
  * Error outranks focus — see
- * `docs/app/design-system/using/components/text-editing.md`.
+ * `docs/using/components/text-editing.md`.
  *
  * @param inputTransformation Filters keystrokes as they arrive — max length,
  *   digits only. Rejected input never reaches the state, so the field cannot

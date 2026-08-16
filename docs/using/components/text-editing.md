@@ -3,8 +3,10 @@
 Every field is built on foundation's state-based `BasicTextField`, so the caller
 owns a `TextFieldState` rather than a `String` plus a callback:
 
+<!--sample:TextFieldBasics-->
 ```kotlin
 val query = rememberTextFieldState()
+
 TextField(state = query, label = "Where to?", placeholder = "Station, stop or address")
 ```
 
@@ -131,8 +133,13 @@ A command palette — a search field over *actions* rather than values — is
 
 ## Keyboard action chaining
 
+<!--sample:ImeChainForm-->
 ```kotlin
-val chain = rememberImeChain("from", "to", "note", onSubmit = viewModel::plan)
+val from = rememberTextFieldState()
+val to = rememberTextFieldState()
+val note = rememberTextFieldState()
+
+val chain = rememberImeChain("from", "to", "note", onSubmit = { plan() })
 
 TextField(state = from, label = "From", imeChain = chain["from"])
 TextField(state = to, label = "To", imeChain = chain["to"])

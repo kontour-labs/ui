@@ -84,7 +84,7 @@ object Theme {
  * ```
  *
  * Every token group is a parameter, so a screen or a product can override one
- * without forking the rest — `docs/app/design-system/using/theming.md` has the
+ * without forking the rest — `docs/using/theming.md` has the
  * recipes.
  *
  * [darkTheme], [contrast] and [reduceMotion] default to what the operating
