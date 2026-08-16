@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.remember
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
@@ -78,6 +81,40 @@ fun Stepper(
     val canIncrement = enabled && shown + step <= range.last
     val feedback = Feedback
 
+    // The value cell is as wide as the *widest value this stepper can show*,
+    // not as wide as the value it is showing.
+    //
+    // A fixed minimum is not enough once `format` puts words in: "1 bag" is
+    // narrower than "2 bags", so incrementing pushed the `+` button sideways and
+    // the whole control twitched. Measuring the candidates is the only way to
+    // reserve the right amount, because only `format` knows how wide a value
+    // gets.
+    //
+    // Sampled rather than exhaustive: a range of 1..9 is nine strings, but
+    // nothing stops a caller passing 0..100000. The ends and each digit
+    // boundary between them cover the two things that actually change the
+    // width — the number of digits, and singular versus plural at the bottom of
+    // the range.
+    val valueStyle = Theme.typography.titleMedium
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val widestValue = remember(range, step, valueStyle, density, measurer, format) {
+        val candidates = buildSet {
+            add(range.first)
+            add(range.last)
+            add((range.first + step).coerceIn(range))
+            var boundary = 9
+            while (boundary < range.last) {
+                if (boundary >= range.first) add(boundary)
+                add((boundary + 1).coerceIn(range))
+                boundary = boundary * 10 + 9
+            }
+        }
+        with(density) {
+            candidates.maxOf { measurer.measure(format(it), valueStyle).size.width }.toDp()
+        }
+    }
+
     Row(
         modifier = modifier.semantics {
             this.contentDescription = contentDescription
@@ -102,13 +139,13 @@ fun Stepper(
 
         Text(
             text = format(shown),
-            style = Theme.typography.titleMedium,
+            style = valueStyle,
             textAlign = TextAlign.Center,
             // Cleared rather than merged: the row above already announces the
             // value as its state, and a bare "2" read out between two buttons
             // is a node with no meaning of its own.
             modifier = Modifier
-                .widthIn(min = valueWidth)
+                .widthIn(min = maxOf(valueWidth, widestValue))
                 .clearAndSetSemantics {},
         )
 

@@ -13,11 +13,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
@@ -200,13 +200,18 @@ private fun Mark(
                 Modifier
                     .size(size)
                     .scale(if (springOnFill) scale else 1f)
-                    .clipToBounds()
-                    .layout { measurable, constraints ->
-                        val placeable = measurable.measure(constraints)
-                        // Width is the fraction; the glyph keeps its own size and
-                        // is clipped by the box rather than squashed into it.
-                        layout((placeable.width * fill).toInt(), placeable.height) {
-                            placeable.placeRelative(0, 0)
+                    // Clipped in the *draw* phase, not the layout phase.
+                    //
+                    // Narrowing the layout instead — which is what this did —
+                    // leaves `Modifier.size` holding a fixed box around a child
+                    // that measures smaller, and a fixed box centres what it
+                    // cannot fill. So a half-filled star was clipped correctly
+                    // and then placed in the middle of the cell, floating free
+                    // of the empty star underneath it. Clipping the drawing
+                    // leaves the glyph exactly where it was laid out.
+                    .drawWithContent {
+                        clipRect(right = this.size.width * fill) {
+                            this@drawWithContent.drawContent()
                         }
                     },
             ) {
