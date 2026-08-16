@@ -314,6 +314,18 @@ needs a visible path too.
 
 ---
 
+## Alert dialogs with three answers
+
+Three equal thirds put three labels in a third of a dialog each, which is where a
+button starts ellipsising its own verb. So one of them takes a line of its own —
+and it is **cancel**, because cancel is not one of the answers.
+
+"Save" and "Don't save" are the question; "Cancel" is declining to answer it.
+Putting it beside them made the dialog read as a three-way choice rather than a
+two-way one with a way out.
+
+![A three-action alert dialog](../../ui-catalog/screenshots/overlays-light.png)
+
 ## Toasts
 
 ```kotlin
