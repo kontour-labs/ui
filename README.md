@@ -25,8 +25,9 @@ KontourTheme {
 
 ## Installing
 
-Published privately to GitHub Packages. Add the repository, authenticating with
-a token that has `read:packages`:
+Published privately to GitHub Packages, so it needs a token that can read
+packages — a **classic** personal access token with `read:packages`. The
+fine-grained kind cannot read packages at the time of writing.
 
 ```kotlin
 // settings.gradle.kts
@@ -35,9 +36,17 @@ dependencyResolutionManagement {
         mavenCentral()
         maven("https://maven.pkg.github.com/kontour-labs/ui") {
             credentials {
-                username = providers.gradleProperty("gpr.user").orNull
-                password = providers.gradleProperty("gpr.token").orNull
+                username = providers.gradleProperty("gpr.user")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR")).orNull
+                password = providers.gradleProperty("gpr.key")
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN")).orNull
             }
+            // Not tidiness. GitHub Packages authenticates *every* request,
+            // including the ones that come back 404, so an unscoped repository
+            // sends a credentialed request for every dependency in your build
+            // and anyone without a token watches all of them fail before Gradle
+            // reaches Maven Central.
+            content { includeGroup("io.kontour") }
         }
     }
 }
@@ -47,6 +56,13 @@ dependencyResolutionManagement {
 // build.gradle.kts
 implementation("io.kontour:ui:0.1.0")
 ```
+
+`gpr.user` and `gpr.key` go in `~/.gradle/gradle.properties`, not in the
+repository. In GitHub Actions, `GITHUB_ACTOR` and `GITHUB_TOKEN` are already
+there — but a workflow in *another* repository also needs `permissions:
+packages: read`, and the package has to grant that repository access under
+**Packages → ui → Manage Actions access**. Without that the failure is a 401
+that reads exactly like a bad token.
 
 ### A note on the Compose version
 
@@ -106,3 +122,27 @@ past a review:
 | Screenshot goldens | a render that moved |
 
 [`docs/building/`](docs/building/) has the rest.
+
+## Releasing
+
+A release is a tag, and nothing else:
+
+```sh
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+CI runs the checks, then publishes `io.kontour:ui:0.2.0` to GitHub Packages. The
+version comes from the tag, so the artifact cannot disagree with it.
+
+To cut one without tagging — from a branch, or to re-publish — run the **CI**
+workflow manually and give it a version. That is the only other way to get a
+publishable version out of the build: on a branch with no version supplied, the
+version is `0.1.0-SNAPSHOT` and the publish job does not run.
+
+```sh
+./gradlew :ui:coordinate    # what this checkout would publish as
+```
+
+It publishes from Linux. Kotlin cross-compiles the Apple **klibs**, which is what
+a consumer resolves; what needs Xcode is linking a *framework*, and that happens
+in the consuming app.

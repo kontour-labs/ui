@@ -15,6 +15,14 @@ on:
     branches: [main]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: >-
+          Publish this version to GitHub Packages (e.g. 0.1.0). Leave blank to
+          run the checks only. Use this to cut a release from a branch, where
+          `GITHUB_REF_NAME` is a branch name and the build refuses it.
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -150,13 +158,16 @@ jobs:
 
   publish:
     name: Publish
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.version != ''
     needs: [test, targets]
-    # macOS, and not for speed: `linkDebugFrameworkIosArm64` and every other
-    # Apple task needs Xcode. Publishing from Linux succeeds and uploads a
-    # module with no iOS variants, which resolves fine right up until a consumer
-    # builds for a device.
-    runs-on: macos-14
+    # Ubuntu, not macOS. This job used to run on `macos-14` on the belief that
+    # Apple targets cannot be cross-compiled — but Kotlin 2.x cross-compiles
+    # Apple *klibs*, which is exactly what a library consumer resolves. Verified
+    # by publishing locally on Linux and reading `native_targets=ios_arm64` out
+    # of the resulting klib manifest, rather than by trusting the build to say
+    # so. What still needs Xcode is linking a *framework*, and that happens in
+    # the consuming app.
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -177,10 +188,24 @@ jobs:
           key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
           restore-keys: konan-${{ runner.os }}-
 
-      # The version comes from the tag through `GITHUB_REF_NAME`, so this step
-      # takes no version argument and cannot disagree with the tag.
+      # Say what is about to be uploaded before uploading it. The version is
+      # resolved from three sources with a precedence between them, and a
+      # package registry has no undo.
+      - name: Show the coordinate
+        run: |
+          ./gradlew --no-daemon --quiet \
+            ${{ inputs.version && format('-Pkontour.version={0}', inputs.version) || '' }} \
+            :ui:coordinate
+
+      # On a tag this takes no version argument and so cannot disagree with the
+      # tag: the build reads `GITHUB_REF_TYPE`/`GITHUB_REF_NAME` itself. A manual
+      # run supplies one explicitly, which is the only other way to get a
+      # publishable version out of that logic.
       - name: Publish to GitHub Packages
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./gradlew --no-daemon publishAllPublicationsToGitHubPackagesRepository
+        run: |
+          ./gradlew --no-daemon \
+            ${{ inputs.version && format('-Pkontour.version={0}', inputs.version) || '' }} \
+            publishAllPublicationsToGitHubPackagesRepository
