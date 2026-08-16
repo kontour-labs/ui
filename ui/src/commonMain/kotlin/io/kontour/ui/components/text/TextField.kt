@@ -70,15 +70,10 @@ import io.kontour.ui.theme.Theme
  * programmatically, and characters dropping under fast typing because state
  * hoisting round-tripped through a recomposition.
  *
- * ### Validation
- *
- * Pass [errorMessage] to mark the field invalid. It sets `error` semantics —
- * so a screen reader announces the problem rather than leaving the user to
- * discover it — and colours the border, which is *not* sufficient on its own:
- * colour alone would fail WCAG 1.4.1.
- *
- * Error state outranks focus. A focused invalid field keeps its error border,
- * because an accent ring would hide the thing the user needs to fix.
+ * Pass [errorMessage] to mark the field invalid; it sets `error` semantics as
+ * well as colouring the border, because colour alone would fail WCAG 1.4.1.
+ * Error outranks focus — see
+ * `docs/app/design-system/using/components/text-editing.md`.
  *
  * @param inputTransformation Filters keystrokes as they arrive — max length,
  *   digits only. Rejected input never reaches the state, so the field cannot

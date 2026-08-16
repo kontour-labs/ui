@@ -22,24 +22,15 @@ import io.kontour.ui.foundation.ContentScope
  * A bare `+` fills the label, because that is the one every row has and the one
  * written every time. The rest are named.
  *
- * ### Why this one collects rather than emits
- *
- * A row is four regions in two containers, so the content cannot simply run where
- * it is written — the label belongs inside a `Column` inside a `Row`, next to a
- * leading slot that was declared after it. So this builder is an ordinary lambda
- * that records what goes where, and [ListItem] composes the regions afterwards in
+ * **This one collects rather than emits.** A row is four regions in two
+ * containers, so content cannot run where it is written — the label belongs
+ * inside a `Column` inside a `Row`, next to a leading slot declared after it.
+ * The builder records what goes where and [ListItem] composes the regions in
  * the order the layout wants.
  *
- * That is the same shape as [ListGroupScope] and Compose's own `LazyListScope`:
- * a plain builder collecting `@Composable` content. Single-region components —
- * `Button`, `Chip` — keep a normal composable slot instead, where `+` emits in
- * place. Two mechanisms, one spelling, and the call site cannot tell.
- *
- * ### No slot takes a modifier
- *
- * The rule every shorthand in the library follows. A region that needs one has
- * outgrown the shorthand, and the slot takes a composable, so the component you
- * wanted is one line away inside it.
+ * No slot takes a `modifier`; a region that needs one has outgrown the
+ * shorthand, and the slot takes a composable. Both rules, and the two kinds of
+ * scope behind them, are in `docs/app/design-system/using/dsls.md`.
  */
 @LayoutScopeMarker
 class ListItemScope internal constructor() {

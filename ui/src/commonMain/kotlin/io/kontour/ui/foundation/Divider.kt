@@ -19,13 +19,9 @@ import io.kontour.ui.theme.Theme
  *
  * ```
  * Column {
- *     ListItem() {
-           +…
-       }
+ *     ListItem { +… }
  *     HorizontalDivider(startIndent = Theme.spacing.md)   // aligned to the text
- *     ListItem() {
-           +…
-       }
+ *     ListItem { +… }
  * }
  * ```
  *

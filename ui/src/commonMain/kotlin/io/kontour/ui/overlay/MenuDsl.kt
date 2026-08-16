@@ -21,33 +21,17 @@ import io.kontour.ui.components.display.Kbd
  * }
  * ```
  *
- * ### It does not replace anything
+ * `MenuScope` extends `ColumnScope`, so [MenuItem] and anything else still work
+ * inside it — reach past the shorthand the moment you need a `modifier`, which
+ * no shorthand takes. That rule, and the rest of the vocabulary, are in
+ * `docs/app/design-system/using/dsls.md`.
  *
- * `MenuScope` **extends** `ColumnScope`, which is what a menu's content lambda
- * already was. So [MenuItem], [MenuDivider], [MenuSectionHeader] and any
- * composable of your own still work inside it, unchanged — the DSL is a set of
- * extra shorthands sitting beside the components, not a wall in front of them.
- * Reach past it the moment you need something it does not cover:
- *
- * ```kotlin
- * DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
- *     item("Share") { share(stop) }
- *     // Not in the DSL — no shorthand takes a modifier. Use the component.
- *     MenuItem(onClick = ::pin, modifier = Modifier.testTag("pin")) { +"Pin" }
- * }
- * ```
- *
- * That is the rule for every shorthand in the library: **no `modifier`
- * parameter.** A row that needs one has outgrown the shorthand, and the
- * component is right there in the same scope.
- *
- * ### What it is actually for
- *
- * Not brevity. [item] closes the menu after running its action, which the
- * component cannot do for you — `MenuItem` has never been told how. Written out
- * by hand every call site is `onClick = { open = false; share(stop) }`, and the
- * one that forgets leaves a menu hanging over the screen it just navigated away
- * from. That is the bug this exists to delete.
+ * **What it is actually for is not brevity.** [item] closes the menu after
+ * running its action, which the component cannot do for you — `MenuItem` has
+ * never been told how. Written out by hand every call site is
+ * `onClick = { open = false; share(stop) }`, and the one that forgets leaves a
+ * menu hanging over the screen it just navigated away from. That is the bug
+ * this exists to delete.
  */
 @Stable
 interface MenuScope : ColumnScope {

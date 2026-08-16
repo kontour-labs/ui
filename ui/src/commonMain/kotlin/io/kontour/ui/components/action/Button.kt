@@ -52,30 +52,23 @@ import io.kontour.ui.theme.Theme
  * A button.
  *
  * ```
- * Button(onClick = ::planTrip) {
- *     Text("Plan a trip")
- * }
+ * Button(onClick = ::planTrip) { +"Plan a trip" }
  *
  * Button(
  *     onClick = ::deleteFavourite,
  *     variant = ButtonVariant.Destructive,
  *     size = ButtonSize.Small,
  * ) {
- *     Icon(Icons.Trash, contentDescription = null)
- *     Text("Delete")
+ *     +Tabler.Outline.Trash
+ *     +"Delete"
  * }
  * ```
  *
  * Choose [variant] by how important the action is, not by how you want it to
  * look — see [ButtonVariant]. Choose [size] by how dense the surroundings are.
  *
- * ### Loading
- *
- * Setting [loading] swaps the label for a spinner **without changing the
- * button's width**, so a row of buttons does not reflow the moment one is
- * pressed. The button is also non-interactive while loading, and announces
- * itself as busy — so a screen-reader user is not left tapping a control that
- * has already accepted their input.
+ * [loading] swaps the label for a spinner **without changing the button's
+ * width**, so a row of buttons does not reflow the moment one is pressed.
  *
  * @param onClick Fired on click. Not fired when [enabled] is false or [loading]
  *   is true.

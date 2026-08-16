@@ -242,12 +242,8 @@ internal val LocalSelectionIndicator = staticCompositionLocalOf<SelectionIndicat
  * }
  * ```
  *
- * ### Why this exists rather than each item drawing its own marker
- *
- * A marker that fades in on the new item and out on the old reads as two events.
- * One shape that *travels* reads as a single control with a moving part, and the
- * movement itself carries the meaning — which is what lets selection be conveyed
- * without relying on colour (WCAG 1.4.1).
+ * Why one travelling marker rather than each item drawing its own is on the
+ * navigation page: `docs/app/design-system/using/components/navigation.md`.
  *
  * ### Put it inside the scroll container, not around it
  *

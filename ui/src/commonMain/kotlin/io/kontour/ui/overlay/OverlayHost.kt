@@ -364,26 +364,10 @@ val LocalOverlayHost = staticCompositionLocalOf<OverlayHostState> {
  * }
  * ```
  *
- * ### Why in-composition rather than platform windows
- *
- * Material renders each dialog into its own platform window. That is fine on
- * Android and awkward everywhere else: window ordering, animation and dismissal
- * all behave differently per platform, and a menu opened from inside a sheet has
- * to reason about two windows. Rendering the stack in-composition means ordering
- * is a sort on [OverlayLayer], dimming is decided once for the whole stack
- * rather than multiplying into opacity, and every target behaves identically.
- *
- * The cost is that overlays are clipped to this composable's bounds, so it wants
- * to be at the root, and that a platform `Popup` is still needed for the cases
- * that genuinely require a real window — Android IME interaction, chiefly. Those
- * remain available; they are just not the default.
- *
- * ### Focus and reading order
- *
- * The content beneath an overlay is removed from the accessibility traversal
- * order while a focus-trapping entry is showing, so a screen reader cannot walk
- * into content the user cannot see. Each overlay gets a `traversalIndex` above
- * the content for the same reason.
+ * **Overlays are clipped to this composable's bounds**, so it belongs at the
+ * root. Why the stack renders in-composition rather than in platform windows,
+ * and how focus and reading order are handled, are in
+ * `docs/app/design-system/using/overlays.md`.
  */
 @Composable
 fun OverlayHost(

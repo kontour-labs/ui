@@ -67,35 +67,20 @@ object NavBarDefaults {
  * )
  * ```
  *
- * ### Why there is no bar
+ * Why there is no bar, and how the travelling marker works, are on the
+ * navigation page: `docs/app/design-system/using/components/navigation.md`.
  *
- * What makes a row of destinations read as navigation is the **travelling
- * circle**, not the container they sit in — and over a map or a photo a
- * container is a strip of the content you cannot see. The marker moves between
- * destinations; that is the whole of the chrome.
- *
- * This used to be three container styles and two item styles, nine
- * combinations, of which the product wanted one. It is one now.
- *
- * ### How selection is shown
- *
- * A single circle **travels** to the current destination rather than each item
- * fading its own in and out. The movement is what carries the meaning, so the
- * accent tint is a second cue rather than the only one — selection conveyed by
- * colour alone fails WCAG 1.4.1, and is what a colour-blind user has nothing to
- * go on.
- *
- * ### Standing out against content
- *
- * Every circle carries its own elevation, which is enough over a map. Over a
- * photo or a promotional banner it is not, and [backdrop] adds a vertical fade
- * from transparent to the page colour behind the whole row.
+ * This used to be three container styles and two item styles — nine
+ * combinations, of which the product wanted one. It is one now, and that is
+ * worth leaving written down: every one of those styles looked defensible on
+ * its own.
  *
  * @param showLabels Off by default. A word under every icon is a row of words,
  *   and the destinations of an app this size are the four or five its user
  *   already knows. Turn it on for an app whose icons are not obvious.
- * @param backdrop A fade behind the row, for content busy enough that elevation
- *   alone will not separate the circles from it.
+ * @param backdrop A vertical fade from transparent to the page colour behind
+ *   the whole row. Each circle carries its own elevation, which separates it
+ *   from a map; over a photo or a promotional banner it does not.
  * @param search Its own shape in the row, sized to what is left. Outside
  *   `selectableGroup()`, so a screen reader does not announce it as "4 of 4"
  *   among three destinations.

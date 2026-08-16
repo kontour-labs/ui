@@ -74,24 +74,14 @@ object Theme {
  * }
  * ```
  *
- * ### Overriding
+ * Every token group is a parameter, so a screen or a product can override one
+ * without forking the rest — `docs/app/design-system/using/theming.md` has the
+ * recipes.
  *
- * Every token group is a parameter, so a product or a screen can override one
- * without forking the rest:
- *
- * ```
- * // A screen that is always dark, whatever the system says
- * KontourTheme(darkTheme = true) { MapScreen() }
- *
- * // A different brand on the same components
- * KontourTheme(colors = lightColorScheme(accent = Ocean, focusRing = Ocean)) { … }
- * ```
- *
- * ### Accessibility defaults
- *
- * [contrast] and [reduceMotion] default to what the operating system reports,
- * and follow it live — a user who turns on "Reduce Motion" mid-session sees the
- * change immediately. Pass an explicit value to let an in-app setting win.
+ * [darkTheme], [contrast] and [reduceMotion] default to what the operating
+ * system reports and follow it live, so a user who turns on "Reduce Motion"
+ * mid-session sees the change immediately. Pass an explicit value to let an
+ * in-app setting win.
  *
  * @param darkTheme Whether to use the dark scheme. Follows the system by default.
  * @param contrast Which contrast tier to render at. Follows the system by default.

@@ -31,9 +31,7 @@ object ScaffoldDefaults {
  *
  * ```kotlin
  * Scaffold(
- *     topBar = { TopBar() {
-                      +"Favourites"
-                  } },
+ *     topBar = { TopBar { +"Favourites" } },
  *     floatingActionButton = { FloatingActionButton(Tabler.Outline.Plus, "Add", ::add) },
  * ) { padding ->
  *     LazyColumn(contentPadding = padding) { … }
@@ -47,13 +45,12 @@ object ScaffoldDefaults {
  * `LazyColumn` wants it as `contentPadding`, a `Column` wants it as `padding`,
  * and applying it to the wrong one clips the scroll.
  *
- * ### Insets
- *
- * [contentWindowInsets] defaults to `safeDrawing`, covering the status bar, the
- * navigation bar, the display cutout and the keyboard. The padding handed to the
- * content is the **larger** of the bar and the inset on each edge, not their sum
- * — a top bar already sits under the status bar and has padded itself for it, so
- * adding both would inset the content twice.
+ * [contentWindowInsets] defaults to `safeDrawing`. The padding handed to the
+ * content is the **larger** of the bar and the inset on each edge, not their
+ * sum — a top bar already sits under the status bar and has padded itself for
+ * it, so adding both insets the content twice. `ScaffoldGeometryTest` measures
+ * a real scaffold for exactly this, because a double inset looks like a
+ * slightly generous gap rather than a bug.
  *
  * Anything drawn edge to edge behind the bars is the app's business: this hands
  * out measurements, it does not paint.

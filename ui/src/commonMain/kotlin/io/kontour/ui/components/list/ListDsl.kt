@@ -22,23 +22,11 @@ import io.kontour.ui.components.list.ListItemDefaults
  * }
  * ```
  *
- * ### What it is actually for
- *
- * The corners. A group of rows is one object with rows in it, which means the
- * first row rounds its top, the last rounds its bottom and the ones between are
- * square — and by hand that is index arithmetic at every call site:
- *
- * ```kotlin
- * val positions = listPositions(stops.size)      // the bit people forget
- * stops.forEachIndexed { index, stop ->
- *     ListItem(position = positions[index], …) { +stop.name }
- * }
- * ```
- *
- * Get it wrong and you get a group with two rounded rows in the middle of it,
- * which reads as a rendering fault rather than as a mistake. The builder knows
- * how many rows there are because it counted them, so there is nothing to pass
- * and nothing to get wrong.
+ * **What it is actually for is the corners.** Written by hand, each row's
+ * [ListItemPosition] is index arithmetic at the call site, and getting it wrong
+ * gives a group with two rounded rows in the middle of it — which reads as a
+ * rendering fault rather than as a mistake. The builder counted the rows, so
+ * there is nothing to pass and nothing to get wrong.
  *
  * ### Not composable, on purpose
  *

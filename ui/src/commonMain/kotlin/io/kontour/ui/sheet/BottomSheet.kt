@@ -99,9 +99,7 @@ object SheetDefaults {
  * Box(Modifier.fillMaxSize()) {
  *     Map(contentPadding = PaddingValues(bottom = with(density) { sheet.visibleHeight.toDp() }))
  *     BottomSheet(sheet, Modifier.align(Alignment.BottomCenter)) {
- *         SheetHeader(Modifier.sheetPeekAnchor()) {
-               +"Perth Underground"
-           }
+ *         SheetHeader(Modifier.sheetPeekAnchor()) { +"Perth Underground" }
  *         LazyColumn { … }
  *     }
  * }
@@ -115,12 +113,10 @@ object SheetDefaults {
  * For a sheet that *does* take over — a form, a confirmation, a picker — use
  * [ModalBottomSheet].
  *
- * ### Nested scrolling
- *
- * A `LazyColumn` inside the sheet works without ceremony. Dragging down scrolls
- * the list until it reaches the top and then moves the sheet; dragging up moves
- * the sheet until it is expanded and then scrolls the list. That handoff is why
- * the sheet takes its content as a slot rather than being a modifier.
+ * A `LazyColumn` inside works without ceremony — the drag hands off between
+ * list and sheet at each end, which is why the sheet takes its content as a
+ * slot rather than being a modifier. See
+ * `docs/app/design-system/using/sheets.md`.
  */
 @Composable
 fun BottomSheet(
@@ -238,9 +234,7 @@ fun BottomSheet(
  *
  * ```kotlin
  * ModalBottomSheet(visible = editing, onDismissRequest = { editing = false }) {
- *     SheetHeader() {
-           +"Rename favourite"
-       }
+ *     SheetHeader { +"Rename favourite" }
  *     TextField(state = name, label = "Name")
  *     Button(onClick = ::save, modifier = Modifier.fillMaxWidth()) { +"Save" }
  * }

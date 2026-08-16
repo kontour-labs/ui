@@ -63,20 +63,14 @@ enum class BannerTone { Info, Success, Warning, Danger, Accent }
  * [io.kontour.ui.components.overlay.Toast] instead — a banner that appears in
  * response to a tap is easy to miss, because the user is looking at their finger.
  *
- * ### Announcing
+ * A banner is a live region, so it is read out when it appears.
+ * [BannerTone.Danger] announces assertively and everything else politely —
+ * interrupting for a routine notice trains people to ignore the interruption.
  *
- * A banner is a live region, so it is read out when it appears. [BannerTone.Danger]
- * announces assertively — interrupting whatever the screen reader is saying —
- * and everything else politely. That distinction matters: interrupting for a
- * routine notice trains people to ignore the interruption.
- *
- * Colour is never the only signal. Each tone has its own icon slot and the text
- * says what is wrong, because a tone read purely as hue fails WCAG 1.4.1 and is
- * invisible to the most common form of colour blindness.
- *
- * A `leading` icon is strongly recommended, and a distinct one per tone: it is
- * the second signal a tone read purely as hue does not give. `action` renders
- * below the message — "Retry", "View details".
+ * A `leading` icon is strongly recommended, and a distinct one per tone: a tone
+ * read purely as hue fails WCAG 1.4.1 and is invisible to the most common form
+ * of colour blindness. `action` renders below the message — "Retry", "View
+ * details".
  */
 @Composable
 fun Banner(

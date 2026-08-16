@@ -57,6 +57,22 @@ of the same three destinations.
 list**: a drawer is where destinations stop being a flat set of three, and a
 list model would be a tree wearing a list's shape.
 
+### Why the bar has no bar
+
+`NavBar` is free-standing circles floating over whatever the screen is showing.
+What makes a row of destinations read as navigation is the **travelling
+circle**, not the container they sit in — and over a map or a photo a container
+is a strip of the content you cannot see. The marker moves between
+destinations; that is the whole of the chrome.
+
+Each circle carries its own elevation, which is enough to separate it from a
+map. Over a photo or a promotional banner it is not, and `backdrop` adds a
+vertical fade from transparent to the page colour behind the whole row.
+
+`showLabels` is off by default. A word under every icon is a row of words, and
+the destinations of an app this size are the four or five its user already
+knows. Turn it on for an app whose icons are not obvious.
+
 ![NavDrawerSection](../../../../../app/ui-catalog/screenshots/components/navdrawersection-light.png)
 ![NavDrawerGroup](../../../../../app/ui-catalog/screenshots/components/navdrawergroup-light.png)
 

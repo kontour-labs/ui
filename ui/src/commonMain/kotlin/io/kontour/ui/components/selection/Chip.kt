@@ -54,15 +54,14 @@ private val ChipHeight = 34.dp
  *
  * // Assist — performs an action
  * Chip(onClick = ::shareTrip) {
-     +Icons.Share
-     +"Share"
- }
+ *     +Tabler.Outline.Share
+ *     +"Share"
+ * }
  *
  * // Input — represents a value the user entered, and can be removed
- * InputChip(onRemove = ::clearOrigin,
-     removeLabel = "Remove Perth Station") {
-     +"Perth Station"
- }
+ * InputChip(onRemove = ::clearOrigin, removeLabel = "Remove Perth Station") {
+ *     +"Perth Station"
+ * }
  * ```
  *
  * Chips are for things that come in *sets*. A single chip on a screen is

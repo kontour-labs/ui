@@ -33,25 +33,17 @@ import io.kontour.ui.theme.Theme
  * buys it back. The common case is one character; anything richer is a normal
  * composable in the same block, because a slot is a slot.
  *
- * ### Style comes from the slot
- *
- * `+"…"` never says how to draw itself. Each slot wraps its content in
- * [ProvideTextStyle] and [ProvideContentColor], so the same `+` is `bodySmall`
- * and muted under a row's supporting text and the button's own label style
- * inside a button. That is the whole reason this can be one character: the call
- * site has nothing to decide.
- *
- * ### Four types, and no more
- *
- * [String], [AnnotatedString], [ImageVector], [Painter]. A fifth overload is the
- * point at which the call site should be writing a composable — the shorthand is
- * for the shape written nine times out of ten, not a second way to express
- * everything.
+ * Four types and no more — [String], [AnnotatedString], [ImageVector],
+ * [Painter]. A fifth overload is the point at which the call site should be
+ * writing a composable.
  *
  * An icon added with `+` is **decorative**: it takes no content description,
  * because the text beside it is the accessible name and a screen reader
- * announcing both says everything twice. For an icon that carries meaning of its
- * own, use [icon].
+ * announcing both says everything twice. For an icon that carries meaning of
+ * its own, use [icon].
+ *
+ * Why the slot decides the style, and the rest of the vocabulary, are in
+ * `docs/app/design-system/using/dsls.md`.
  */
 @LayoutScopeMarker
 @Stable

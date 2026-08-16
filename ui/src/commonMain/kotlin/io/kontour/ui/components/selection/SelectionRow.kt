@@ -51,19 +51,12 @@ import io.kontour.ui.theme.Theme
  * The nested control takes `onClick = null` / `onCheckedChange = null`: the row
  * owns the interaction, and the control is there to *show* state.
  *
- * ### The control is a slot like any other
- *
- * It used to be a required `control` parameter with a `controlPosition` enum
- * beside it saying which end to put it at. Both are gone: the control goes in
- * [ListItemScope.leading] or [ListItemScope.trailing], and which one you fill
- * *is* the position. Trailing suits a settings list, leading a list of options
- * being picked from.
- *
- * This is [io.kontour.ui.components.list.ListItem]'s builder, not one of its
- * own, because a selection row is a list row that happens to toggle — same
- * regions, same spelling, and the free edge is genuinely free. What it does not
- * borrow is `onClick`: the row is `toggleable` or `selectable` by role, which is
- * the whole reason it is a separate component.
+ * The control is a slot like any other. There used to be a required `control`
+ * parameter and a `controlPosition` enum beside it; both are gone, because
+ * which of [ListItemScope.leading] or [ListItemScope.trailing] you fill *is*
+ * the position. This takes [io.kontour.ui.components.list.ListItem]'s builder
+ * rather than one of its own — but not its `onClick`, since being `toggleable`
+ * or `selectable` by role is the whole reason it is a separate component.
  *
  * @param onSelectedChange What the row should now be, not that it was pressed.
  *   The row is doing the negating either way — `toggleable` hands it the new

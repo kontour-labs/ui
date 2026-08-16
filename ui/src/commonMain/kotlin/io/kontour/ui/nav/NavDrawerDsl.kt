@@ -24,23 +24,15 @@ import io.kontour.ui.foundation.HorizontalDivider
  * }
  * ```
  *
- * ### It does not replace anything
+ * `NavDrawerScope` extends `ColumnScope`, so [NavDrawerItem] and the rest still
+ * work inside it — see `docs/app/design-system/using/dsls.md`.
  *
- * `NavDrawerScope` **extends** `ColumnScope`, which is what a drawer's content
- * lambda already was, so [NavDrawerItem], [NavDrawerSection], [NavDrawerGroup]
- * and anything of your own still work inside it unchanged.
- *
- * As everywhere in the library, the shorthands take no `modifier`. A destination
- * that needs one has outgrown the shorthand, and the component is in scope.
- *
- * ### The nesting is the point
- *
- * A destination inside a [group] inside a [section] is still a destination: it
- * keeps its full touch target, it reports its selection to the travelling pill
- * through a composition local rather than through its parent, and the indent is
- * the only thing nesting changes. Writing that by hand means threading
- * `nestLevel` down every branch, and the branch that forgets is a row that lines
- * up with the wrong column.
+ * **The nesting is the point.** A destination inside a [group] inside a
+ * [section] is still a destination: it keeps its full touch target, and it
+ * reports its selection to the travelling pill through a composition local
+ * rather than through its parent. The indent is the only thing nesting changes.
+ * By hand that means threading `nestLevel` down every branch, and the branch
+ * that forgets is a row that lines up with the wrong column.
  */
 @Stable
 interface NavDrawerScope : ColumnScope {

@@ -45,15 +45,12 @@ import io.kontour.ui.theme.Theme
  *
  * So [Icon] reads the viewport's real aspect ratio and fits the glyph inside a
  * square layout box at its true proportions. Layout stays square, so a row of
- * icons spaces evenly; the glyph inside is never distorted.
+ * icons spaces evenly; the glyph inside is never distorted. The fit normalises
+ * on the longer axis, so a wide glyph renders slightly shorter than its
+ * neighbours rather than overflowing into them.
  *
- * The fit normalises on whichever axis is longer, which means a wider-than-tall
- * glyph renders slightly shorter than its neighbours — a 576×512 star is 89% of
- * the box height. A font would instead normalise on cap height and let the
- * glyph's width overflow. Overflowing is the wrong trade for a component that
- * has to sit in a row without colliding with anything, and at FontAwesome's
- * widest ratio the difference is about a tenth of the icon, which is below the
- * threshold where it reads as inconsistent.
+ * With Tabler — what this repo actually uses — the correction is a no-op, and
+ * `IconMetricsDiagnostic` asserts that it stays one.
  *
  * @param contentDescription What a screen reader announces. **Required, and
  *   nullable on purpose** — passing `null` is how you say "this is decorative",

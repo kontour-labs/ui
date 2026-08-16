@@ -66,24 +66,16 @@ object NavRailDefaults {
  * }
  * ```
  *
- * ### Expanding
+ * Pass [onExpandedChange] to get the toggle; leave it null for a rail fixed at
+ * whatever [expanded] says. The state is hoisted, matching [NavDrawerGroup] —
+ * the app decides whether the rail is open because the user asked or because
+ * the current destination implies it, and the component cannot know which.
  *
- * Pass [onExpandedChange] to get a toggle that grows the rail to a drawer's width
- * with the labels beside the icons, and collapses it back to icons only. Leave it
- * null for a rail fixed at whatever [expanded] says — which is what
- * [NavigationSuiteScaffold] does when the window size is choosing for you.
- *
- * The state is hoisted rather than held internally, matching [NavDrawerGroup] and
- * [io.kontour.ui.components.display.Accordion]: the app decides whether the rail
- * is open because the user asked or because the current destination implies it,
- * and the component cannot know which.
- *
- * A collapsed *expandable* rail drops its labels rather than stacking them under
- * the icons. Stacked-then-inline would move the label to a different side of the
- * icon mid-animation, which is a pop nothing hides; icon-only keeps the icon
- * still and slides the label out from behind it, the same treatment
- * [io.kontour.ui.components.action.ExtendedFloatingActionButton] uses. A rail
- * with no toggle keeps its stacked labels.
+ * A collapsed *expandable* rail drops its labels rather than stacking them
+ * under the icons. Stacked-then-inline would move the label to a different side
+ * of the icon mid-animation, which is a pop nothing hides; icon-only keeps the
+ * icon still and slides the label out from behind it. A rail with no toggle
+ * keeps its stacked labels.
  *
  * @param itemAlignment Where the destinations sit vertically. `Top` by default;
  *   `Center` for a rail whose few destinations look stranded at the top of a tall

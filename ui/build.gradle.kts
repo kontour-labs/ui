@@ -403,6 +403,20 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
             val rel = file.relativeTo(sources.asFile).path
             kdoc.findAll(text).forEach { doc ->
                 val first = text.substring(0, doc.range.first).count { it == '\n' } + 1
+
+                // A line inside a KDoc block that does not start with `*` is
+                // still part of the comment, but nothing trims its indentation,
+                // so it renders with whatever leading whitespace it happens to
+                // have. Round 3's slots conversion rewrote one-line calls into
+                // multi-line lambdas and left 24 of these behind across eight
+                // files, each one a sample that renders as a staircase.
+                doc.groupValues[1].lines().drop(1).forEachIndexed { offset, line ->
+                    if (line.isNotBlank() && !line.trimStart().startsWith("*")) {
+                        problems += "$rel:${first + offset + 1}: KDoc line without its " +
+                            "`*` prefix — `${line.trim().take(48)}`"
+                    }
+                }
+
                 val body = doc.groupValues[1].lines()
                     .joinToString("\n") { it.replace(Regex("""^\s*\* ?"""), "") }
                 sample.findAll(body).forEach { block ->

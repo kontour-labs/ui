@@ -19,12 +19,8 @@ import androidx.compose.runtime.Composable
  * name; edge furniture wants this.
  *
  * ```kotlin
- * TopBar() {
-       +"Favourites"
-   }                       // clears the status bar and cutout
- * TopBar(windowInsets = WindowInsets(0)) {
-       +"Favourites"
-   } // inside a Scaffold that already did
+ * TopBar { +"Favourites" }                      // clears the status bar and cutout
+ * TopBar(windowInsets = WindowInsets(0)) { +"Favourites" }   // inside a Scaffold that already did
  * ```
  *
  * ### Why every bar takes this as a parameter

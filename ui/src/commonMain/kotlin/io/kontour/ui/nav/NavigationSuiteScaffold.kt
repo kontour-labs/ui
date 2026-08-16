@@ -56,24 +56,12 @@ enum class NavigationSuiteType {
  * `MainNavigationRail` and picks between them by hand; this is that, with one
  * declaration.
  *
- * ### Where things go
+ * Which surface goes where, and why it is not configurable, are on the
+ * navigation page: `docs/app/design-system/using/components/navigation.md`.
  *
- * | Window | Surface | Placement |
- * |---|---|---|
- * | Compact | [NavBar] | **Bottom of the screen**, over the content |
- * | Medium | [NavRail] | **Leading edge**, beside the content |
- * | Expanded and up | [NavDrawer] | **Leading edge**, beside the content, labels always shown |
- *
- * That is not configurable by accident and it is not a website's layout.
- * Navigation lives at the bottom on a phone because that is where a thumb
- * reaches, and moves to the leading edge on a wide window because a horizontal
- * bar there would eat the dimension there is least of. A top bar in this system
- * is a [TopBar] — a title and its actions, not a place to put destinations.
- *
- * The bar **overlays** the content rather than sitting below it, matching the
- * floating toolbar the app uses over its map. Read [contentPadding] and inset
- * your own scrolling content by it, the same way a map insets its controls by a
- * sheet's `visibleHeight`.
+ * The surface **overlays** the content rather than sitting below it, so read
+ * [contentPadding] and inset your own scrolling content by it — the same way a
+ * map insets its controls by a sheet's `visibleHeight`.
  *
  * @param type Override the automatic choice. For a screen that genuinely needs a
  *   different surface than its window size implies — rare, and worth a comment
