@@ -237,11 +237,17 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
             Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
                 Panel("Toast") {
                     val toasts = rememberToastHostState()
-                    ToastHost(toasts)
+                    // `showClose`, because these are pinned: a toast that never
+                    // expires and cannot be closed is a sticker.
+                    ToastHost(toasts, showClose = true)
                     // Hoisted out of the effect: `tap` reads a composition local,
                     // and a coroutine is not a composition.
                     val retry = tap("Retry")
                     LaunchedEffect(Unit) {
+                        // Two, so the render shows the stack rather than one
+                        // toast that happens to be alone. The older one peeks
+                        // out behind and above the newer.
+                        toasts.show("Saved for offline", durationMillis = 0)
                         toasts.show(
                             "Couldn't reach the timetable service",
                             tone = ToastTone.Danger,

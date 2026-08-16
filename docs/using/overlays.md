@@ -314,6 +314,39 @@ needs a visible path too.
 
 ---
 
+## Toasts
+
+```kotlin
+val toasts = rememberToastHostState()
+ToastHost(toasts)
+
+toasts.show("Added to favourites")
+toasts.show("Couldn't save", tone = ToastTone.Danger, actionLabel = "Retry", onAction = ::retry)
+```
+
+### They stack, and each one runs its own clock
+
+`ToastHostState` used to hold a *queue* and show its head. A toast pinned for an
+answer stopped every later one from being seen at all, and four rapid
+confirmations took sixteen seconds to get through — each waiting for the one in
+front to expire before its own timer even started.
+
+Up to `ToastDefaults.MaxVisible` are on screen at once now, newest in front,
+older ones scaled and offset behind, each carrying its own timer.
+
+`show` returns an id, so a specific toast can be `dismiss`ed by name.
+`dismissCurrent()` still exists and now means the one in *front* — the newest,
+which is the only reading of "current" that means anything in a stack.
+
+`showClose = true` puts a close control on the front toast. Off by default: one
+that dismisses itself in four seconds does not need it. Turn it on where toasts
+are pinned. Either way a toast can be swiped away, toward whichever edge the
+stack is anchored to.
+
+**Deliberately not done**: expanding the stack on hover, the way sonner does. It
+is a pointer-only affordance on a component whose whole point is that it is
+transient, and it wants a hover state the rest of this library does not have.
+
 ## Input modality
 
 Overlays are where the differences between a finger, a mouse and a keyboard stop
