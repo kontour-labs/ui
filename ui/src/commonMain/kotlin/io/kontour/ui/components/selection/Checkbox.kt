@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.triStateToggleable
 import androidx.compose.runtime.Composable
@@ -97,16 +98,36 @@ fun TriStateCheckbox(
 
     val stroke = selectionStroke(enabled)
 
-    val container by animateColorAsState(
-        targetValue = when {
-            !enabled && selected -> colors.contentDisabled
-            !enabled -> colors.primary.invisible()
-            selected -> colors.primary
-            else -> colors.primary.invisible()
-        },
+    /**
+     * How ticked the box is, counting the part the press is only predicting.
+     *
+     * `0` empty, `1` full — and a third of the way from wherever it is while a
+     * finger is on it, so the mark starts being drawn under the press and starts
+     * being rubbed out under a press on a ticked box. The switch's thumb has
+     * always stretched like this; these two did nothing until the finger came
+     * off, so one tap read as responsive and the other as dead.
+     *
+     * Read from the row's interactions when this box is a passenger in one, for
+     * the same reason the switch does — see [pressSourceFor].
+     */
+    val pressed by pressSourceFor(interactions, interactionSource, onClick != null)
+        .collectIsPressedAsState()
+    val press = if (pressed && enabled) SelectionPressPreview else 0f
+    val filled by animateFloatAsState(
+        targetValue = if (selected) 1f - press else press,
+        animationSpec = motion.springOrTween(motion.springSnappy),
+        label = "checkboxFill",
+    )
+
+    // The ground the tick is drawn on. Its *colour* animates for enabled and
+    // disabled; how much of it there is comes from `filled`, so the box fills
+    // and empties with the mark rather than a frame behind it.
+    val containerBase by animateColorAsState(
+        targetValue = if (enabled) colors.primary else colors.contentDisabled,
         animationSpec = motion.tweenFast(),
         label = "checkboxContainer",
     )
+    val container = containerBase.copy(alpha = containerBase.alpha * filled)
     val border by animateColorAsState(
         targetValue = when {
             !enabled -> colors.contentDisabled
@@ -116,16 +137,13 @@ fun TriStateCheckbox(
         animationSpec = motion.tweenFast(),
         label = "checkboxBorder",
     )
-    // The mark strokes on: 0 to 1 is the fraction of the tick path drawn.
-    val markProgress by animateFloatAsState(
-        targetValue = if (selected) 1f else 0f,
-        animationSpec = motion.springOrTween(motion.springSnappy),
-        label = "checkboxMark",
-    )
+    // The mark strokes on: 0 to 1 is the fraction of the tick path drawn, and
+    // that is exactly how full the box is.
+    val markProgress = filled
     // The box itself springs up to meet the tick — the bounce lands on the way
     // *in*, which is the one place an overshoot on arrival is right.
     val boxScale by animateFloatAsState(
-        targetValue = if (selected) 1f else 0.92f,
+        targetValue = 0.92f + 0.08f * (if (selected) 1f - press else press),
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "checkboxScale",
     )

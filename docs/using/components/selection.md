@@ -52,6 +52,14 @@ a [`SettingRow`](collections.md#settingrow), which is `clickable` rather than
 saying it, the row announces as a button with a name and no on or off.
 `InertControlPublishesStateTest` covers all three controls.
 
+**The box answers the press, not the release.** The tick starts being drawn under
+the finger and starts being rubbed out under a press on a ticked box — a third of
+the way, so a press-and-slide-off still comes back. `RadioButton` does the same
+with its dot. A switch's thumb has stretched like this since it was written; these
+two sat still until the value committed, so the same tap read as responsive on one
+control and dead on the others. Inside a `SelectionRow` they read the row's press,
+which is what `LocalRowInteractionSource` was always for.
+
 ## `TriStateCheckbox`
 
 ![TriStateCheckbox](../../../ui-catalog/screenshots/components/tristatecheckbox-light.png)

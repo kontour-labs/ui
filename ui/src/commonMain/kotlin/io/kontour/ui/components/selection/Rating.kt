@@ -264,10 +264,24 @@ private fun Mark(
         animationSpec = Theme.motion.springOrTween(Theme.motion.springBouncy),
         label = "ratingMark",
     )
+    // The fill travels rather than appearing.
+    //
+    // A mark used to be full or empty between one frame and the next, so
+    // setting a score was five stars blinking on. Easing the clip is what turns
+    // it into them filling — and it is the same value on the way out, so a
+    // score coming down empties rather than switching off.
+    //
+    // Starts at its target, so a read-only rating renders settled on its first
+    // frame and no golden waits for a spring.
+    val shownFill by animateFloatAsState(
+        targetValue = fill,
+        animationSpec = Theme.motion.springOrTween(Theme.motion.springSnappy),
+        label = "ratingFill",
+    )
 
     Box(Modifier.size(size), contentAlignment = Alignment.Center) {
         Icon(empty, contentDescription = null, tint = emptyColor, modifier = Modifier.size(size))
-        if (fill > 0f) {
+        if (shownFill > 0f) {
             Box(
                 Modifier
                     .size(size)
@@ -282,7 +296,7 @@ private fun Mark(
                     // of the empty star underneath it. Clipping the drawing
                     // leaves the glyph exactly where it was laid out.
                     .drawWithContent {
-                        clipRect(right = this.size.width * fill) {
+                        clipRect(right = this.size.width * shownFill) {
                             this@drawWithContent.drawContent()
                         }
                     },

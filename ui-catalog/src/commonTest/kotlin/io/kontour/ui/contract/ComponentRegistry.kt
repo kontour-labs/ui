@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -40,7 +41,10 @@ import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.Kbd
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import io.kontour.ui.components.display.PageIndicator
+import io.kontour.ui.components.display.PageIndicatorStyle
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.Stat
@@ -669,6 +673,36 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             underContract = false,
             renderHeight = 160,
+            states = listOf(
+                // The worm, which the default render cannot show: the dots
+                // style and the worm style draw the same thing on page one and
+                // differ only in what happens between two pages.
+                // Caught halfway between two pages, because that is the only
+                // position where a worm looks like anything: at rest it is a
+                // dot, and the stretch is the whole of what it adds.
+                RenderState("worm", height = 60) { modifier ->
+                    val carousel = rememberCarouselState { 4 }
+                    LaunchedEffect(Unit) {
+                        val pitch = snapshotFlow {
+                            carousel.listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size
+                        }.filterNotNull().first()
+                        carousel.listState.scrollToItem(0, pitch / 2)
+                    }
+                    Column(modifier.fillMaxWidth()) {
+                        // Off the bottom of the frame: the pages exist so the
+                        // list has something to be halfway through, and the
+                        // render is cropped to its ink anyway.
+                        Carousel(
+                            state = carousel,
+                            contentDescription = "Pages",
+                            modifier = Modifier.fillMaxWidth().height(1.dp),
+                        ) { Box(Modifier.fillMaxWidth().height(1.dp)) }
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            PageIndicator(carousel, style = PageIndicatorStyle.Worm)
+                        }
+                    }
+                },
+            ),
         ) { modifier, enabled, _ ->
             val carousel = rememberCarouselState { 3 }
             Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {

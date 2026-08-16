@@ -275,6 +275,25 @@ make a sustained one. So:
 A carousel with a decorative indicator and no arrows is operable by exactly one
 input method, and the app has four.
 
+### Indicator styles
+
+`PageIndicator(style = PageIndicatorStyle.Worm)` replaces the widening dot with a
+single pill that stretches from the dot it is leaving to the one it is arriving
+at, then contracts.
+
+![The worm, halfway between two pages](../../../ui-catalog/screenshots/components/carousel-worm-light.png)
+
+It reads as one thing travelling rather than one dot going out and another coming
+on, and it is the only style that shows the *middle* of a swipe: the pill is at
+its longest exactly halfway between two pages. That needs a fractional page
+position, which is what `CarouselState.pagePosition` is for — `currentPage` is
+the right answer for anything that has to *name* a page, and this is for anything
+that has to draw the space between two.
+
+Under a worm every dot is a track, so `Dots` remains the better choice when the
+indicator is also the control: there each dot keeps its own footprint and its own
+target.
+
 ## `PageIndicator`
 
 **The current dot widens** rather than only changing colour. Colour alone fails
