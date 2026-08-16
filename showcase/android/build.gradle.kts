@@ -16,6 +16,22 @@ android {
         versionName = "1.0"
     }
 
+    buildTypes {
+        // Signed with the debug key so `installRelease` works without a keystore.
+        //
+        // Judging performance from a debug build is judging the wrong thing. A
+        // debug build has no baseline profile, so the first run through any code
+        // path is interpreted — and opening a sheet for the first time runs a
+        // great deal of code for the first time. That reads exactly like "the
+        // app drops to a low frame rate when a sheet opens", and it is not what
+        // a user would see. Anything measured with the frame readout should be
+        // measured here.
+        release {
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

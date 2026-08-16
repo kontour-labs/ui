@@ -288,17 +288,29 @@ private fun EntryHost(
     }
 
     if (entry.scrim != ScrimStyle.None) {
-        Scrim(
-            // The same number the panel is drawn with, so the dimming and the
-            // thing it dims are one movement — see `Scrim`.
-            fraction = entry.visibility ?: { progress.value },
-            onDismissRequest = if (entry.dismissOnOutside && !leaving) {
+        // Remembered, because `Scrim` uses it as its `pointerInput` key.
+        //
+        // Written inline, this was a fresh lambda on every composition of
+        // `EntryHost` — and `EntryHost` recomposes on every frame an overlay is
+        // animating, because it reads `progress.value` to publish it below. So
+        // the scrim's gesture coroutine was cancelled and relaunched a dozen
+        // times per open. Mostly that is waste; the part that is not is that a
+        // tap landing in the wrong frame meets a detector that has just been
+        // torn down.
+        val dismiss: (() -> Unit)? = remember(entry, state, entry.dismissOnOutside, leaving) {
+            if (entry.dismissOnOutside && !leaving) {
                 { state.dismissOutside(entry) }
             } else {
                 // Still consumes taps on the way out; it just no longer offers a
                 // dismissal for something already dismissed.
                 null
-            },
+            }
+        }
+        Scrim(
+            // The same number the panel is drawn with, so the dimming and the
+            // thing it dims are one movement — see `Scrim`.
+            fraction = entry.visibility ?: { progress.value },
+            onDismissRequest = dismiss,
             dismissLabel = entry.dismissLabel,
             color = if (dimmed) Theme.colors.scrim else Color.Transparent,
         )

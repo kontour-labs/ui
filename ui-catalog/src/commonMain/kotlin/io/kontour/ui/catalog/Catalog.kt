@@ -129,6 +129,7 @@ fun Catalog() {
     var rtl by remember { mutableStateOf(false) }
     var reduceMotion by remember { mutableStateOf(false) }
     var modality by remember { mutableStateOf<InputModality?>(null) }
+    var frameTimes by remember { mutableStateOf(false) }
     var selected by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
 
@@ -154,6 +155,7 @@ fun Catalog() {
                 LocalInputModality provides (overridden ?: LocalInputModality.current)
             ) {
                 WindowSizeClassProvider(Modifier.fillMaxSize()) {
+                  Box(Modifier.fillMaxSize()) {
                     OverlayHost {
                         // Where a specimen with no state of its own sends its
                         // press, so that nothing in the gallery is wired to a
@@ -228,10 +230,24 @@ fun Catalog() {
                                 onReduceMotionChange = { reduceMotion = it },
                                 modality = modality,
                                 onModalityChange = { modality = it },
+                                frameTimes = frameTimes,
+                                onFrameTimesChange = { frameTimes = it },
                                 onDismiss = { settingsOpen = false },
                             )
                         }
                     }
+
+                    // Outside the host on purpose. A readout drawn *inside* it
+                    // would be covered by the first sheet that opened, which is
+                    // precisely the moment there is something to read.
+                    if (frameTimes) {
+                        FrameReadout(
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(Theme.spacing.sm)
+                        )
+                    }
+                  }
                 }
             }
         }
@@ -305,6 +321,8 @@ private fun SettingsSheet(
     onReduceMotionChange: (Boolean) -> Unit,
     modality: InputModality?,
     onModalityChange: (InputModality?) -> Unit,
+    frameTimes: Boolean,
+    onFrameTimesChange: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) {
@@ -320,6 +338,7 @@ private fun SettingsSheet(
             Toggle("High contrast", highContrast, onHighContrastChange)
             Toggle("Right to left", rtl, onRtlChange)
             Toggle("Reduce motion", reduceMotion, onReduceMotionChange)
+            Toggle("Frame times", frameTimes, onFrameTimesChange)
 
             Text("Text size", style = Theme.typography.labelMedium)
             SegmentedControl(
