@@ -126,9 +126,12 @@ A collecting builder is not composable, so you cannot call a composable or read
 `Theme` in the builder itself — only inside the slots it hands you. This is the
 same shape as Compose's own `LazyListScope`.
 
-**A bare `+` fills whatever the component requires.** A row's label, a banner's
-message, a state screen's title. That rule is what makes the one-region call one
-line everywhere.
+**A bare `+` fills the component's primary text** — the region a one-line call
+means. A row's label, a banner's message, a state screen's title, a stat's label.
+Those are four different *names* because they are four different things, and the
+[word table](../building/contributing.md#the-words) keeps them apart: a `label`
+names a control, a `title` heads a region, a `message` is prose. What is uniform
+is which one `+` reaches, not what it is called.
 
 ---
 
@@ -287,12 +290,12 @@ down every branch.
 
 ```kotlin
 NavDrawer(header = { AppMark() }) {
-    destination("Home", Tabler.Outline.Home, selected = tab == Tab.Home) { go(Tab.Home) }
+    item("Home", Tabler.Outline.Home, selected = tab == Tab.Home) { go(Tab.Home) }
 
     section("Saved") {
-        destination("Favourites", Tabler.Outline.Star, badge = 3) { go(Tab.Favourites) }
+        item("Favourites", Tabler.Outline.Star, badge = 3) { go(Tab.Favourites) }
         group("Routes", expanded = open, onExpandedChange = { open = it }) {
-            destination("950", selected = route == "950") { go("950") }
+            item("950", selected = route == "950") { go("950") }
         }
     }
 }
@@ -300,21 +303,31 @@ NavDrawer(header = { AppMark() }) {
 
 ---
 
-## The escape hatch
+## One verb: `item`
 
-`ListGroupScope.row` takes the whole `@Composable` and hands you the position, so
-a row that has outgrown `item` does not have to leave the group:
+Every builder scope calls its child `item`, whatever the component draws — a menu
+row, a drawer destination, a button in a group, a key-and-value pair. There were
+four names for this once (`item`, `row`, `action`, `destination`), which meant
+knowing which component you were inside before you could write a line of it.
+
+`action` was the worst of them, because `action` already means something else
+here: a *content region* holding a button, in `BannerScope` and `StateScope`. The
+same word for a child and for a region is how a vocabulary stops being one.
+
+`ListGroupScope` takes an overloaded `item` that hands you the position, so a row
+that has outgrown the shorthand does not have to leave the group:
 
 ```kotlin
 ListGroup {
     item("Notifications") { … }
-    row { position ->
+    item { position ->
         ListItem(position = position, onClick = ::signOut) { +"Sign out" }
     }
 }
 ```
 
-`row` is the reason the other shorthands can stay small.
+That overload is the reason the other shorthands can stay small — and it is an
+overload rather than a fifth verb because a group holds items either way.
 
 ---
 

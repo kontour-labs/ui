@@ -369,16 +369,16 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
                     ) {
                         KeyValueList {
-                            row("Operator", "Transperth")
-                            row("Platform", "2")
-                            row("Fare", "$3.20")
-                            row("Accessible", announcement = "yes") {
+                            item("Operator", "Transperth")
+                            item("Platform", "2")
+                            item("Fare", "$3.20")
+                            item("Accessible", announcement = "yes") {
                                 +Tabler.Outline.Check
                             }
                         }
                         KeyValueList(dividers = true) {
-                            row("Route", "950")
-                            row("Towards", "Perth Busport via Broadway")
+                            item("Route", "950")
+                            item("Towards", "Perth Busport via Broadway")
                         }
                     }
                 }

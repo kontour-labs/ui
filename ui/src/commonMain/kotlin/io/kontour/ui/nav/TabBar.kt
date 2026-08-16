@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -181,6 +183,8 @@ fun TabBar(
  * given a duplicate index and overwrote another tab's bounds. Nothing here
  * counts, so nothing can be miscounted.
  */
+@LayoutScopeMarker
+@Stable
 class TabBarScope internal constructor()
 
 /**

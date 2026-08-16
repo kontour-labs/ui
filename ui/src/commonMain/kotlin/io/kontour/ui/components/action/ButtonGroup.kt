@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,9 +24,9 @@ import io.kontour.ui.theme.Theme
  *
  * ```kotlin
  * ButtonGroup {
- *     action(onClick = ::zoomOut, contentDescription = "Zoom out") { +Tabler.Outline.Minus }
- *     action(onClick = ::recentre, contentDescription = "Recentre") { +Tabler.Outline.CurrentLocation }
- *     action(onClick = ::zoomIn, contentDescription = "Zoom in") { +Tabler.Outline.Plus }
+ *     item(onClick = ::zoomOut, contentDescription = "Zoom out") { +Tabler.Outline.Minus }
+ *     item(onClick = ::recentre, contentDescription = "Recentre") { +Tabler.Outline.CurrentLocation }
+ *     item(onClick = ::zoomIn, contentDescription = "Zoom in") { +Tabler.Outline.Plus }
  * }
  * ```
  *
@@ -170,11 +172,13 @@ internal class ButtonGroupAction(
  * [io.kontour.ui.components.list.ListGroupScope] for what annotating the
  * builder `@Composable` actually does to a scope that collects.
  */
+@LayoutScopeMarker
+@Stable
 class ButtonGroupScope internal constructor() {
     internal val actions = mutableListOf<ButtonGroupAction>()
 
     /** An icon-only action. `contentDescription` is required, as ever. */
-    fun action(
+    fun item(
         onClick: () -> Unit,
         contentDescription: String,
         icon: ImageVector,
@@ -192,7 +196,7 @@ class ButtonGroupScope internal constructor() {
     }
 
     /** An action with content — a label, or a label and an icon. */
-    fun action(
+    fun item(
         onClick: () -> Unit,
         enabled: Boolean = true,
         interactionSource: MutableInteractionSource? = null,

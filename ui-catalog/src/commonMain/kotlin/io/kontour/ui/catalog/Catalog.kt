@@ -267,7 +267,7 @@ private fun CompactCatalog(
 
     ModalNavDrawer(visible = drawerOpen, onDismissRequest = { drawerOpen = false }) {
         pages.forEachIndexed { index, page ->
-            destination(page.title, page.icon, selected = index == selected) {
+            item(page.title, page.icon, selected = index == selected) {
                 onSelectedChange(index)
                 drawerOpen = false
             }

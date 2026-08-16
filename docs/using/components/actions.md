@@ -169,9 +169,9 @@ Station" for a screen reader.
 
 ```kotlin
 ButtonGroup {
-    action(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
-    action(onClick = ::recentre, contentDescription = "Recentre", icon = Tabler.Outline.CurrentLocation)
-    action(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+    item(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+    item(onClick = ::recentre, contentDescription = "Recentre", icon = Tabler.Outline.CurrentLocation)
+    item(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
 }
 ```
 
@@ -217,8 +217,8 @@ use it is worse than one with a greyed button in it.
 ```kotlin
 Toolbar {
     ButtonGroup {
-        action(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
-        action(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+        item(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+        item(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
     }
     ToolbarDivider()
     IconButton(Tabler.Outline.Stack, "Map layers", onClick = ::openLayers)

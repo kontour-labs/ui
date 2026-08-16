@@ -1,6 +1,7 @@
 package io.kontour.ui.components.list
 
 import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,6 +34,7 @@ import io.kontour.ui.foundation.ContentScope
  * scope behind them, are in `docs/app/design-system/using/dsls.md`.
  */
 @LayoutScopeMarker
+@Stable
 class ListItemScope internal constructor() {
 
     internal var label: (@Composable ContentScope.() -> Unit)? = null

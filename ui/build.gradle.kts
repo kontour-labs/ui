@@ -179,6 +179,34 @@ object KotlinSignatures {
         RegexOption.MULTILINE,
     )
 
+    /** One declared type: what it is called, and what it is annotated with. */
+    data class DeclaredType(
+        val name: String,
+        val visibility: String,
+        val annotations: List<String>,
+        val line: Int,
+    ) {
+        val isPublic: Boolean get() = visibility == "public"
+    }
+
+    /** Every class, interface and object in a file, at any indent. */
+    fun types(text: String): List<DeclaredType> {
+        val clean = withoutComments(text)
+        return typeHeader.findAll(clean).map { match ->
+            val head = clean.substring(0, match.range.first)
+            val modifiers = match.value
+            DeclaredType(
+                name = match.groupValues[2],
+                visibility = listOf("private", "internal")
+                    .firstOrNull { " $it " in " $modifiers " } ?: "public",
+                annotations = head.trimEnd('\n').split("\n").asReversed()
+                    .takeWhile { it.trimStart().startsWith("@") }
+                    .map { it.trim() },
+                line = head.count { it == '\n' } + 1,
+            )
+        }.toList()
+    }
+
     fun declarations(text: String): List<Declaration> {
         val clean = withoutComments(text)
         val found = mutableListOf<Declaration>()
@@ -447,6 +475,30 @@ val checkApiConventions = tasks.register("checkApiConventions") {
         sources.asFileTree.matching { include("**/*.kt") }.forEach { file ->
             val text = file.readText()
             val rel = file.relativeTo(sources.asFile).path
+
+            // Every public scope carries both markers.
+            //
+            // `@LayoutScopeMarker` is a `@DslMarker`, and it is the one doing
+            // work: without it, an inner scope's block can implicitly call an
+            // *outer* scope's members, so `supporting { … }` written inside a
+            // `leading { … }` silently attaches to the row rather than failing.
+            // Seven of twelve scopes were missing it, and the nesting ones —
+            // `MenuScope.submenu`, `NavDrawerScope.section` — needed it most.
+            //
+            // `@Stable` is the mirror image: it was on five, missing from seven,
+            // and true of all of them (no scope has public mutable state). It
+            // claims nothing false and it means the pair can be one rule rather
+            // than two with exceptions.
+            KotlinSignatures.types(text)
+                .filter { it.isPublic && it.name.endsWith("Scope") }
+                .forEach { type ->
+                    listOf("@LayoutScopeMarker", "@Stable")
+                        .filterNot { it in type.annotations }
+                        .forEach { missing ->
+                            problems += "$rel:${type.line} :: ${type.name}: a scope must " +
+                                "carry `$missing`"
+                        }
+                }
 
             // Every public declaration, at any indent, one line or many.
             //

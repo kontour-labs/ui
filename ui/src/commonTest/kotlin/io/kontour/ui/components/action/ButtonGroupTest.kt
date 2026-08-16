@@ -45,9 +45,9 @@ class ButtonGroupTest {
         setContent {
             KontourTheme {
                 ButtonGroup {
-                    action(onClick = { pressed += "out" }, contentDescription = "Zoom out", icon = icon)
-                    action(onClick = { pressed += "centre" }, contentDescription = "Recentre", icon = icon)
-                    action(onClick = { pressed += "in" }, contentDescription = "Zoom in", icon = icon)
+                    item(onClick = { pressed += "out" }, contentDescription = "Zoom out", icon = icon)
+                    item(onClick = { pressed += "centre" }, contentDescription = "Recentre", icon = icon)
+                    item(onClick = { pressed += "in" }, contentDescription = "Zoom in", icon = icon)
                 }
             }
         }
@@ -65,8 +65,8 @@ class ButtonGroupTest {
         setContent {
             KontourTheme {
                 ButtonGroup(enabled = false) {
-                    action(onClick = {}, contentDescription = "Zoom out", icon = icon)
-                    action(onClick = {}, contentDescription = "Zoom in", icon = icon)
+                    item(onClick = {}, contentDescription = "Zoom out", icon = icon)
+                    item(onClick = {}, contentDescription = "Zoom in", icon = icon)
                 }
             }
         }
@@ -88,8 +88,8 @@ class ButtonGroupTest {
         setContent {
             KontourTheme {
                 ButtonGroup {
-                    action(onClick = {}, contentDescription = "Zoom out", icon = icon)
-                    action(onClick = {}, contentDescription = "Zoom in", icon = icon, enabled = false)
+                    item(onClick = {}, contentDescription = "Zoom out", icon = icon)
+                    item(onClick = {}, contentDescription = "Zoom in", icon = icon, enabled = false)
                 }
             }
         }
@@ -113,8 +113,8 @@ class ButtonGroupTest {
             KontourTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     ButtonGroup(Modifier.testTag("group")) {
-                        action(onClick = {}, contentDescription = "First", icon = icon)
-                        action(onClick = {}, contentDescription = "Last", icon = icon)
+                        item(onClick = {}, contentDescription = "First", icon = icon)
+                        item(onClick = {}, contentDescription = "Last", icon = icon)
                     }
                 }
             }

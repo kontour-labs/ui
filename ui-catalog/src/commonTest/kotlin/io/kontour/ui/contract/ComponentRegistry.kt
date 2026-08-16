@@ -453,9 +453,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
             renderHeight = 160,
         ) { modifier, _, _ ->
             KeyValueList(modifier) {
-                row("Operator", "Transperth")
-                row("Platform", "2")
-                row("Fare", "$3.20")
+                item("Operator", "Transperth")
+                item("Platform", "2")
+                item("Fare", "$3.20")
             }
         }
     )
@@ -473,9 +473,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
             underContract = false,
         ) { modifier, enabled, onActivate ->
             ButtonGroup(modifier, enabled = enabled) {
-                action(onClick = onActivate, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
-                action(onClick = onActivate, contentDescription = "Recentre", icon = Tabler.Outline.CurrentLocation)
-                action(onClick = onActivate, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+                item(onClick = onActivate, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+                item(onClick = onActivate, contentDescription = "Recentre", icon = Tabler.Outline.CurrentLocation)
+                item(onClick = onActivate, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
             }
         }
     )
@@ -490,8 +490,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ) { modifier, enabled, onActivate ->
             Toolbar(modifier) {
                 ButtonGroup(enabled = enabled) {
-                    action(onClick = onActivate, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
-                    action(onClick = onActivate, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+                    item(onClick = onActivate, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+                    item(onClick = onActivate, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
                 }
                 ToolbarDivider()
                 IconButton(
@@ -875,8 +875,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     add(
         ComponentSpec("NavDrawerSection", role = null, underContract = false) { modifier, _, _ ->
-            NavDrawerSection(label = { +"Saved" }, modifier = modifier) {
-                destination(label = "Nearby", selected = false, onClick = {})
+            NavDrawerSection(title = { +"Saved" }, modifier = modifier) {
+                item(label = "Nearby", selected = false, onClick = {})
             }
         }
     )
@@ -889,7 +889,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 onExpandedChange = {},
                 modifier = modifier,
             ) {
-                destination(label = "Joondalup", selected = false, onClick = {})
+                item(label = "Joondalup", selected = false, onClick = {})
             }
         }
     )

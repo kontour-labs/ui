@@ -104,8 +104,8 @@ class StatAndKeyValueTest {
         setContent {
             KontourTheme {
                 KeyValueList {
-                    row("Operator", "Transperth")
-                    row("Platform", "2")
+                    item("Operator", "Transperth")
+                    item("Platform", "2")
                 }
             }
         }
@@ -127,7 +127,7 @@ class StatAndKeyValueTest {
         setContent {
             KontourTheme {
                 KeyValueList {
-                    row("Accessible", announcement = "yes") { +"✓" }
+                    item("Accessible", announcement = "yes") { +"✓" }
                 }
             }
         }

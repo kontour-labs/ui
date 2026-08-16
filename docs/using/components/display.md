@@ -183,10 +183,10 @@ having none.
 
 ```kotlin
 KeyValueList {
-    row("Operator", "Transperth")
-    row("Platform", "2")
-    row("Fare", "$3.20")
-    row("Accessible", announcement = "yes") { +Tabler.Outline.Check }
+    item("Operator", "Transperth")
+    item("Platform", "2")
+    item("Fare", "$3.20")
+    item("Accessible", announcement = "yes") { +Tabler.Outline.Check }
 }
 ```
 

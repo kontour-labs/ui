@@ -3,6 +3,7 @@ package io.kontour.ui.components.list
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
@@ -64,6 +65,7 @@ import io.kontour.ui.components.list.ListItemDefaults
  * position arithmetic needs.
  */
 @Stable
+@LayoutScopeMarker
 class ListGroupScope internal constructor() {
 
     internal val rows = mutableListOf<@Composable (ListItemPosition) -> Unit>()
@@ -131,16 +133,20 @@ class ListGroupScope internal constructor() {
      * The escape hatch, and the reason the shorthands can stay small. Anything
      * the library draws with a `position` parameter belongs here.
      *
+     * An overload of [item] rather than its own verb: a group holds items, and
+     * whether one is written as a shorthand or as a composable of your own does
+     * not change what it is.
+     *
      * ```kotlin
      * ListGroup {
      *     item("Notifications") { … }
-     *     row { position ->
+     *     item { position ->
      *         ListItem(position = position, onClick = ::signOut) { +"Sign out" }
      *     }
      * }
      * ```
      */
-    fun row(content: @Composable (ListItemPosition) -> Unit) {
+    fun item(content: @Composable (ListItemPosition) -> Unit) {
         rows += content
     }
 }

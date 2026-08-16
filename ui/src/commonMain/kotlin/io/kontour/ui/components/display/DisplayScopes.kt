@@ -1,6 +1,7 @@
 package io.kontour.ui.components.display
 
 import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.AnnotatedString
 import io.kontour.ui.foundation.ContentScope
@@ -23,6 +24,7 @@ import io.kontour.ui.foundation.ContentScope
  * line. For a banner that is the message; for an [EmptyState] it is the title.
  */
 @LayoutScopeMarker
+@Stable
 class BannerScope internal constructor() {
 
     internal var message: (@Composable ContentScope.() -> Unit)? = null
@@ -83,6 +85,7 @@ class BannerScope internal constructor() {
  * always has.
  */
 @LayoutScopeMarker
+@Stable
 class StateScope internal constructor() {
 
     internal var title: (@Composable ContentScope.() -> Unit)? = null

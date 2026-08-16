@@ -179,22 +179,22 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ButtonGroup {
-                        action(onClick = zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
-                        action(onClick = recentre, contentDescription = "Recentre", icon = Tabler.Outline.CurrentLocation)
-                        action(onClick = zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+                        item(onClick = zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+                        item(onClick = recentre, contentDescription = "Recentre", icon = Tabler.Outline.CurrentLocation)
+                        item(onClick = zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
                     }
                     // Labels rather than icons, and one of them unavailable —
                     // a group has to be able to grey one button without the
                     // caller hiding it and changing the cluster's width.
                     ButtonGroup(variant = ButtonVariant.Secondary) {
-                        action(onClick = day) { +"Day" }
-                        action(onClick = week) { +"Week" }
-                        action(onClick = month, enabled = false) { +"Month" }
+                        item(onClick = day) { +"Day" }
+                        item(onClick = week) { +"Week" }
+                        item(onClick = month, enabled = false) { +"Month" }
                     }
                     // A group of one, which is the case index arithmetic gets
                     // wrong: both ends round, no seams.
                     ButtonGroup {
-                        action(onClick = only, contentDescription = "Only", icon = Tabler.Outline.Star)
+                        item(onClick = only, contentDescription = "Only", icon = Tabler.Outline.Star)
                     }
                 }
             }
@@ -205,8 +205,8 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
 
                 Toolbar {
                     ButtonGroup {
-                        action(onClick = out, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
-                        action(onClick = into, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+                        item(onClick = out, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+                        item(onClick = into, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
                     }
                     ToolbarDivider()
                     IconButton(Tabler.Outline.Stack, "Map layers", tap("Map layers"))

@@ -1,6 +1,7 @@
 package io.kontour.ui.nav
 
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -11,14 +12,14 @@ import io.kontour.ui.foundation.HorizontalDivider
  *
  * ```kotlin
  * NavDrawer(header = { AppMark() }) {
- *     destination("Home", Tabler.Outline.Home, selected = tab == Tab.Home) { go(Tab.Home) }
- *     destination("Map", Tabler.Outline.Map, selected = tab == Tab.Map) { go(Tab.Map) }
+ *     item("Home", Tabler.Outline.Home, selected = tab == Tab.Home) { go(Tab.Home) }
+ *     item("Map", Tabler.Outline.Map, selected = tab == Tab.Map) { go(Tab.Map) }
  *
  *     section("Saved") {
- *         destination("Favourites", Tabler.Outline.Star, badge = 3) { go(Tab.Favourites) }
+ *         item("Favourites", Tabler.Outline.Star, badge = 3) { go(Tab.Favourites) }
  *         group("Routes", expanded = routesOpen, onExpandedChange = { routesOpen = it }) {
- *             destination("950", selected = route == "950") { go("950") }
- *             destination("998", selected = route == "998") { go("998") }
+ *             item("950", selected = route == "950") { go("950") }
+ *             item("998", selected = route == "998") { go("998") }
  *         }
  *     }
  * }
@@ -35,6 +36,7 @@ import io.kontour.ui.foundation.HorizontalDivider
  * that forgets is a row that lines up with the wrong column.
  */
 @Stable
+@LayoutScopeMarker
 interface NavDrawerScope : ColumnScope {
 
     /**
@@ -46,7 +48,7 @@ interface NavDrawerScope : ColumnScope {
      *   when a single word does not say where the row goes.
      */
     @Composable
-    fun destination(
+    fun item(
         label: String,
         icon: ImageVector? = null,
         selected: Boolean = false,
@@ -58,7 +60,7 @@ interface NavDrawerScope : ColumnScope {
 
     /** A titled run of destinations. */
     @Composable
-    fun section(label: String, content: @Composable NavDrawerScope.() -> Unit)
+    fun section(title: String, content: @Composable NavDrawerScope.() -> Unit)
 
     /** A run of destinations that collapses. */
     @Composable
@@ -87,7 +89,7 @@ internal class NavDrawerScopeImpl(
 ) : NavDrawerScope, ColumnScope by column {
 
     @Composable
-    override fun destination(
+    override fun item(
         label: String,
         icon: ImageVector?,
         selected: Boolean,
@@ -111,9 +113,9 @@ internal class NavDrawerScopeImpl(
     }
 
     @Composable
-    override fun section(label: String, content: @Composable NavDrawerScope.() -> Unit) {
+    override fun section(title: String, content: @Composable NavDrawerScope.() -> Unit) {
         val level = nestLevel
-        NavDrawerSection(label = { +label }) {
+        NavDrawerSection(title = { +title }) {
             NavDrawerScopeImpl(this, level).content()
         }
     }

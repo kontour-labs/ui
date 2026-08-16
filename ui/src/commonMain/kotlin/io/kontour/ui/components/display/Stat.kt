@@ -3,6 +3,8 @@ package io.kontour.ui.components.display
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -128,6 +130,8 @@ private fun StatTrend.color() = when (this) {
  * plain Kotlin, for the reason argued on
  * [io.kontour.ui.components.list.ListGroupScope].
  */
+@LayoutScopeMarker
+@Stable
 class StatScope internal constructor() {
     internal var value: (@Composable ContentScope.() -> Unit)? = null
         private set

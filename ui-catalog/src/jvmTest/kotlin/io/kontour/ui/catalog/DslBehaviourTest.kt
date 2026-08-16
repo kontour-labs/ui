@@ -76,7 +76,7 @@ class DslBehaviourTest {
             KontourTheme {
                 LazyColumn(Modifier.fillMaxSize()) {
                     listGroup(listOf("a", "b", "c")) { element ->
-                        row { position ->
+                        item { position ->
                             seen += position
                             Text(element)
                         }
@@ -101,8 +101,8 @@ class DslBehaviourTest {
             KontourTheme {
                 LazyColumn(Modifier.fillMaxSize()) {
                     listGroup(listOf("a", "b", "c")) { element ->
-                        row { position -> seen += position; Text("$element-1") }
-                        row { position -> seen += position; Text("$element-2") }
+                        item { position -> seen += position; Text("$element-1") }
+                        item { position -> seen += position; Text("$element-2") }
                     }
                 }
             }
@@ -196,7 +196,7 @@ private fun androidx.compose.ui.test.ComposeUiTest.positionsFromGroup(
         KontourTheme {
             ListGroup {
                 repeat(count) { index ->
-                    row { position ->
+                    item { position ->
                         seen += position
                         Text("row $index")
                     }

@@ -85,7 +85,7 @@ object NavDrawerDefaults {
  *             leading { +Tabler.Outline.LayoutDashboard }
  *             +"Overview"
  *         }
- *         NavDrawerSection(label = { +"Content" }) {
+ *         NavDrawerSection(title = { +"Content" }) {
  *             NavDrawerItem(selected = here == Routes, onClick = { go(Routes) }, key = Routes) {
  *                 leading { +Tabler.Outline.Route }
  *                 +"Routes"
@@ -466,7 +466,7 @@ fun NavDrawerGroup(
 /** A labelled divider between groups of drawer items. */
 @Composable
 fun NavDrawerSection(
-    label: @Composable ContentScope.() -> Unit,
+    title: @Composable ContentScope.() -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable NavDrawerScope.() -> Unit,
 ) {
@@ -485,7 +485,7 @@ fun NavDrawerSection(
         ) {
             ProvideTextStyle(Theme.typography.labelSmall) {
                 ProvideContentColor(Theme.colors.contentMuted) {
-                    ContentSlot(iconSize = Theme.sizing.iconSmall, content = label)
+                    ContentSlot(iconSize = Theme.sizing.iconSmall, content = title)
                 }
             }
         }

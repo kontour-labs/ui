@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,10 +27,10 @@ import io.kontour.ui.theme.Theme
  *
  * ```kotlin
  * KeyValueList {
- *     row("Operator", "Transperth")
- *     row("Platform", "2")
- *     row("Fare", "$3.20")
- *     row("Accessible") { +Tabler.Outline.Check }
+ *     item("Operator", "Transperth")
+ *     item("Platform", "2")
+ *     item("Fare", "$3.20")
+ *     item("Accessible") { +Tabler.Outline.Check }
  * }
  * ```
  *
@@ -122,11 +124,13 @@ internal class KeyValueRow(
  * [ListGroupScope] — a collecting scope with a composable builder collects in
  * one recompose scope and is consumed in another.
  */
+@LayoutScopeMarker
+@Stable
 class KeyValueScope internal constructor() {
     internal val rows = mutableListOf<KeyValueRow>()
 
     /** The common case: two strings. */
-    fun row(label: String, value: String) {
+    fun item(label: String, value: String) {
         rows += KeyValueRow(
             label = { +label },
             value = { +value },
@@ -142,7 +146,7 @@ class KeyValueScope internal constructor() {
      * icon in an "Accessible" row announces as "Accessible" and nothing else,
      * which reads as a row with a missing value.
      */
-    fun row(
+    fun item(
         label: String,
         announcement: String? = null,
         value: @Composable ContentScope.() -> Unit,
@@ -155,7 +159,7 @@ class KeyValueScope internal constructor() {
     }
 
     /** Both regions as content, for a label that is more than a word. */
-    fun row(
+    fun item(
         label: @Composable ContentScope.() -> Unit,
         announcement: String? = null,
         value: @Composable ContentScope.() -> Unit,
