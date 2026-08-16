@@ -80,10 +80,19 @@ object NavDrawerDefaults {
  * // Always visible, on a window with room for it:
  * Row(Modifier.fillMaxSize()) {
  *     NavDrawer(header = { Logo() }) {
- *         NavDrawerItem("Overview", Tabler.Outline.LayoutDashboard, selected, ::go)
+ *         NavDrawerItem(selected = here == Overview, onClick = ::go, key = Overview) {
+ *             leading { +Tabler.Outline.LayoutDashboard }
+ *             +"Overview"
+ *         }
  *         NavDrawerSection("Content") {
- *             NavDrawerItem("Routes", Tabler.Outline.Route, …)
- *             NavDrawerItem("Stops", Tabler.Outline.MapPin, …)
+ *             NavDrawerItem(selected = here == Routes, onClick = { go(Routes) }, key = Routes) {
+ *                 leading { +Tabler.Outline.Route }
+ *                 +"Routes"
+ *             }
+ *             NavDrawerItem(selected = here == Stops, onClick = { go(Stops) }, key = Stops) {
+ *                 leading { +Tabler.Outline.MapPin }
+ *                 +"Stops"
+ *             }
  *         }
  *     }
  *     Content(Modifier.weight(1f))
@@ -147,7 +156,9 @@ fun NavDrawer(
  *
  * ```kotlin
  * ModalNavDrawer(visible = menuOpen, onDismissRequest = { menuOpen = false }) {
- *     NavDrawerItem("Overview", Tabler.Outline.LayoutDashboard, selected, ::go)
+ *     NavDrawerItem(selected = here == Overview, onClick = ::go, key = Overview) {
+ *         +"Overview"
+ *     }
  * }
  * ```
  *
@@ -349,8 +360,8 @@ fun NavDrawerItem(
  *
  * ```kotlin
  * NavDrawerGroup("Content", icon = Tabler.Outline.Folder, expanded = open, onExpandedChange = { open = it }) {
- *     NavDrawerItem("Routes", …, nestLevel = 1)
- *     NavDrawerItem("Stops", …, nestLevel = 1)
+ *     NavDrawerItem(here == Routes, ::goRoutes, key = Routes, nestLevel = 1) { +"Routes" }
+ *     NavDrawerItem(here == Stops, ::goStops, key = Stops, nestLevel = 1) { +"Stops" }
  * }
  * ```
  *

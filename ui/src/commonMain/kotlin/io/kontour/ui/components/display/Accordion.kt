@@ -49,7 +49,7 @@ import io.kontour.ui.theme.Theme
  *     onExpandedChange = { section = if (it) Section.Accessibility else null },
  *     header = { +"Accessibility" },
  * ) {
- *     SelectionRow(…)
+ *     SelectionRow(reduceMotion, viewModel::setReduceMotion, Role.Switch) { +"Reduce motion" }
  * }
  * ```
  *

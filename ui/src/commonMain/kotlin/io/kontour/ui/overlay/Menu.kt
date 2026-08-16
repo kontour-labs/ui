@@ -434,8 +434,8 @@ fun MenuSectionHeader(title: String, modifier: Modifier = Modifier) {
  *
  * ```
  * SubMenu("Sort by") {
- *     MenuItem("Departure", onClick = { … }, selected = sort == Departure)
- *     MenuItem("Duration", onClick = { … }, selected = sort == Duration)
+ *     MenuItem(onClick = ::sortByDeparture, selected = sort == Departure) { +"Departure" }
+ *     MenuItem(onClick = ::sortByDuration, selected = sort == Duration) { +"Duration" }
  * }
  * ```
  *
@@ -545,8 +545,8 @@ fun SubMenu(
  * ```
  * ContextMenuArea(
  *     menu = {
- *         MenuItem("Copy stop ID", onClick = ::copy)
- *         MenuItem("Add to favourites", onClick = ::favourite)
+ *         MenuItem(onClick = ::copy) { +"Copy stop ID" }
+ *         MenuItem(onClick = ::favourite) { +"Add to favourites" }
  *     },
  * ) {
  *     StopRow(stop)

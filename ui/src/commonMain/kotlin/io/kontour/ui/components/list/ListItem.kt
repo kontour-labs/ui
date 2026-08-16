@@ -341,9 +341,9 @@ fun ListItem(
  * A titled group of [ListItem]s.
  *
  * ```kotlin
- * ListSection("Notifications") {
- *     SelectionRow("Delays", …)
- *     SelectionRow("Cancellations", …)
+ * ListSection(title = "Notifications") {
+ *     SelectionRow(delays, viewModel::setDelays, Role.Switch) { +"Delays" }
+ *     SelectionRow(cancels, viewModel::setCancels, Role.Switch) { +"Cancellations" }
  * }
  * ```
  *
