@@ -3,9 +3,13 @@
 # Three jobs, and they are separate because they fail for different reasons and
 # at different speeds. `test` is the one that catches a regression; `targets` is
 # the one that catches a component which compiles on the JVM and nowhere else;
-# `publish` only runs for a tag and only on macOS, because Apple targets cannot
-# be cross-compiled from Linux and a Linux publish would upload a set with the
-# iOS artifacts silently missing.
+# `publish` uploads to GitHub Packages and runs only for a release — a `v*` tag,
+# or a manual run given a version.
+#
+# All three run on Linux, `publish` included. It used to be pinned to macOS on
+# the belief that Apple targets cannot be cross-compiled, which is true of a
+# *framework* and not of a klib — and a klib is what a library consumer
+# resolves. See the job for how that was checked.
 
 name: CI
 
