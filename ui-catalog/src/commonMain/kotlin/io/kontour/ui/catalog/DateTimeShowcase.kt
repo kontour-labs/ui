@@ -33,14 +33,8 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
     val today = LocalDate(2026, 6, 12)
 
     Surface(modifier = modifier, color = Theme.colors.background) {
-        Row(
-            modifier = Modifier.padding(Theme.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
-        ) {
-            Column(
-                Modifier.width(360.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+        Panels {
+            Panel(width = 360.dp, spacing = Theme.spacing.md) {
                 Section("Date picker") {
                     // Seeded from what each of these used to hardcode, so every
                     // golden is unchanged and every picker can now be used. A
@@ -60,10 +54,7 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Column(
-                Modifier.width(360.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+            Panel(width = 360.dp, spacing = Theme.spacing.md) {
                 Section("Range picker") {
                     // `end` is nullable: a range being drawn has a start and no
                     // end yet, which is the state the in-flight band shows.
@@ -81,10 +72,7 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Column(
-                Modifier.width(320.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+            Panel(width = 320.dp, spacing = Theme.spacing.md) {
                 Section("Time picker — 24h") {
                     val at = seed(LocalTime(8, 15))
                     TimePicker(

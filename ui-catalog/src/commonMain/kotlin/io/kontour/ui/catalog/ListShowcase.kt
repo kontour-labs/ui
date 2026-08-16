@@ -63,14 +63,8 @@ private val accents = listOf("Anyways", "Transperth", "Monochrome")
 @Composable
 fun ListShowcase(modifier: Modifier = Modifier) {
     Surface(modifier = modifier, color = Theme.colors.background) {
-        Row(
-            modifier = Modifier.padding(Theme.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
-        ) {
-            Column(
-                modifier = Modifier.width(380.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+        Panels {
+            Panel(width = 380.dp, spacing = Theme.spacing.md) {
                 Section("Grouped rows") {
                     // Written with the DSL, and the golden for this panel did not
                     // move — which is the claim the shorthands make: the same
@@ -106,10 +100,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Column(
-                modifier = Modifier.width(380.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+            Panel(width = 380.dp, spacing = Theme.spacing.md) {
                 Section("Sections and settings") {
                     ListSection(
                         title = { +"Appearance" },
@@ -178,10 +169,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Column(
-                modifier = Modifier.width(380.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+            Panel(width = 380.dp, spacing = Theme.spacing.md) {
                 Section("Swipe actions, revealed") {
                     val swipe = rememberSwipeActionsState()
                     // Held open so the golden shows them; in use a drag reveals

@@ -240,8 +240,17 @@ fun Switch(
             style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
         )
 
-        val thumbPx = ThumbSize.toPx()
-        val stretchedWidth = thumbPx * thumbStretch
+        // Drawn to the box it was *given*, not the box it asked for.
+        //
+        // `Modifier.size` states a preference, and a `Row` that has run out of
+        // width hands out less — or nothing. The thumb used to be clamped with
+        // `coerceIn(0f, size.width - stretchedWidth)`, and `coerceIn` **throws**
+        // on an inverted range: a switch measured narrower than its own thumb
+        // took the frame down with it, from inside draw, where there is nothing
+        // to catch it. A switch squeezed to nothing should look squeezed.
+        val thumbPx = ThumbSize.toPx().coerceAtMost(size.width)
+        val stretchedWidth = (thumbPx * thumbStretch).coerceAtMost(size.width)
+        val travelRoom = (size.width - stretchedWidth).coerceAtLeast(0f)
         // Stretch away from the direction of travel, so the leading edge holds
         // its position and the trailing edge lags — which is what reads as give.
         val left = if (checked) {
@@ -249,11 +258,11 @@ fun Switch(
         } else {
             drawnOffset.toPx()
         }
-        val top = (size.height - thumbPx) / 2f
+        val top = (size.height - thumbPx).coerceAtLeast(0f) / 2f
 
         drawRoundRect(
             color = thumbColor,
-            topLeft = Offset(left.coerceIn(0f, size.width - stretchedWidth), top),
+            topLeft = Offset(left.coerceIn(0f, travelRoom), top),
             size = Size(stretchedWidth, thumbPx),
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(thumbPx / 2f),
         )

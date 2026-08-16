@@ -30,14 +30,8 @@ import io.kontour.ui.theme.Theme
 @Composable
 fun TextShowcase(modifier: Modifier = Modifier) {
     Surface(modifier = modifier, color = Theme.colors.background) {
-        Row(
-            modifier = Modifier.padding(Theme.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
-        ) {
-            Column(
-                Modifier.width(420.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+        Panels {
+            Panel(width = 420.dp, spacing = Theme.spacing.md) {
                 Section("States") {
                     TextField(
                         state = rememberTextFieldState("Perth Station"),
@@ -73,10 +67,7 @@ fun TextShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Column(
-                Modifier.width(420.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+            Panel(width = 420.dp, spacing = Theme.spacing.md) {
                 Section("Search") {
                     SearchField(
                         state = rememberTextFieldState("Elizabeth Quay"),

@@ -2,10 +2,12 @@ package io.kontour.ui.catalog
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,10 +24,10 @@ import io.kontour.ui.components.selection.ChipGroup
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
 import io.kontour.ui.components.selection.RadioButton
-import io.kontour.ui.components.selection.SegmentedControl
-import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.Rating
+import io.kontour.ui.components.selection.SegmentedControl
+import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.selection.Slider
 import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.selection.Switch
@@ -42,9 +44,16 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
         ) {
             Section("Checkbox, radio, switch") {
-                Row(
+                // `FlowRow`, because eleven controls and ten gaps need more than
+                // a phone has. A `Row` handed the checkboxes and radios all of
+                // it and the three switches nothing at all — and a `Switch`
+                // measured at zero width used to *throw*, which is how this
+                // whole round started. Wrapping is the honest fix; the switch
+                // was made to survive the squeeze as well, because the next row
+                // to run out of width will not be this one.
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                 ) {
                     // Seeded from what each of these used to hardcode, so every
                     // golden is unchanged and every control now responds. The
@@ -73,7 +82,7 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Selection rows") {
-                Column(Modifier.width(460.dp)) {
+                Column(Modifier.widthIn(max = 460.dp)) {
                     val delays = seed(true)
                     val live = seed(false)
                     val leaveNow = seed(true)
@@ -164,10 +173,7 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Segmented control") {
-                Column(
-                    Modifier.width(420.dp),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                ) {
+                Panel(width = 420.dp, spacing = Theme.spacing.xs) {
                     val when_ = seed(0)
                     val span = seed(1)
 
@@ -185,10 +191,7 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Slider") {
-                Column(
-                    Modifier.width(460.dp),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                ) {
+                Panel(width = 460.dp, spacing = Theme.spacing.xs) {
                     val amount = seed(0.35f)
                     val stepped = seed(3f)
 
@@ -214,10 +217,7 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("RangeSlider") {
-                Column(
-                    Modifier.width(460.dp),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                ) {
+                Panel(width = 460.dp, spacing = Theme.spacing.xs) {
                     val window = seed(0.25f..0.7f)
                     // Both thumbs on the same value, which is what "no filter
                     // set" looks like and the one state a range slider can get

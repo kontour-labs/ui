@@ -238,15 +238,3 @@ internal fun ToggleableState.next(): ToggleableState = when (this) {
     ToggleableState.On -> ToggleableState.Indeterminate
     ToggleableState.Indeterminate -> ToggleableState.Off
 }
-
-@Composable
-internal fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-        Text(
-            text = title.uppercase(),
-            style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
-        )
-        content()
-    }
-}

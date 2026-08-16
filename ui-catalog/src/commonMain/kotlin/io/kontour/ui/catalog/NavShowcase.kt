@@ -74,7 +74,7 @@ fun NavShowcase(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+            DeviceStrip {
                 DevicePanel("Compact — bar at the bottom", width = 360.dp, height = 620.dp)
                 DevicePanel("Medium — rail on the leading edge", width = 700.dp, height = 620.dp)
                 DevicePanel("Expanded — drawer", width = 900.dp, height = 620.dp)
@@ -90,17 +90,14 @@ fun NavShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Rail — collapsed and expanded") {
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+                DeviceStrip {
                     RailPanel(expanded = false)
                     RailPanel(expanded = true)
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
-                Column(
-                    modifier = Modifier.width(520.dp),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-                ) {
+            DeviceStrip {
+                Panel(width = 520.dp, spacing = Theme.spacing.md) {
                     Section("Top bars — a title, not destinations") {
                         Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
                             TopBar() {
@@ -133,10 +130,7 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                     }
                 }
 
-                Column(
-                    modifier = Modifier.width(520.dp),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-                ) {
+                Panel(width = 520.dp, spacing = Theme.spacing.md) {
                     Section("Tabs — within one screen") {
                         var tab by remember { mutableStateOf(1) }
                         TabBar(

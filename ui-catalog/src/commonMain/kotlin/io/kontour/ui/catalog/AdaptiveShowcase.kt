@@ -46,7 +46,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+            DeviceStrip {
                 Frame("List–detail, one pane", width = 380.dp, height = 460.dp) {
                     // The whole point of the one-pane arrangement is that
                     // picking a stop *replaces* the list and back brings it
@@ -94,11 +94,8 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
-                Column(
-                    modifier = Modifier.width(600.dp),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                ) {
+            DeviceStrip {
+                Panel(width = 600.dp, spacing = Theme.spacing.xs) {
                     Text(
                         text = "ATMOSPHERE AND GLASS",
                         style = Theme.typography.monoLabel,
@@ -142,10 +139,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                     }
                 }
 
-                Column(
-                    modifier = Modifier.width(600.dp),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                ) {
+                Panel(width = 600.dp, spacing = Theme.spacing.xs) {
                     Text(
                         text = "EDGE VIGNETTE AND SHIMMER",
                         style = Theme.typography.monoLabel,

@@ -62,10 +62,7 @@ private val operators = listOf(
 @Composable
 fun SelectShowcase(modifier: Modifier = Modifier) {
     Surface(modifier = modifier, color = Theme.colors.background) {
-        Row(
-            modifier = Modifier.padding(Theme.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
-        ) {
+        Panels {
             FormPanel("Select, closed") {
                 var departure by remember { mutableStateOf(Departure.DepartAt) }
                 var mode by remember { mutableStateOf<Mode?>(null) }
@@ -190,10 +187,7 @@ private val FormPanelHeight = 420.dp
 
 @Composable
 private fun FormPanel(title: String, content: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier.width(400.dp),
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-    ) {
+    Panel(width = 400.dp, spacing = Theme.spacing.md) {
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,

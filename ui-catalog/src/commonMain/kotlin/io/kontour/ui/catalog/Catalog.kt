@@ -64,13 +64,22 @@ import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 
 /** One page of the gallery. */
-private class Page(
+internal class Page(
     val title: String,
     val icon: ImageVector,
     val content: @Composable (Modifier) -> Unit,
 )
 
-private val pages = listOf(
+/**
+ * Every page, in order.
+ *
+ * `internal` rather than private so the test suite can render each one on its
+ * own. That is not a courtesy: the shell's goldens only ever show the page that
+ * happens to be selected, so a list the tests cannot walk is a list where eleven
+ * of thirteen pages are drawn by nothing — which is how a crash on two of them
+ * reached a phone.
+ */
+internal val pages = listOf(
     // First, and it is a change of purpose rather than of order: a gallery
     // whose first page is a colour ramp tells someone who has just been
     // handed the library nothing about what it is or where the writing is.

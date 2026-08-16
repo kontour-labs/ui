@@ -348,10 +348,7 @@ private fun Panel(
     height: Dp = 300.dp,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    Column(
-        modifier = Modifier.width(360.dp),
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-    ) {
+    Panel(width = 360.dp, spacing = Theme.spacing.xs) {
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
