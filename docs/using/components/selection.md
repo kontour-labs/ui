@@ -27,7 +27,8 @@ target and gives a screen reader two nodes for one choice.
 
 ## `Checkbox`
 
-![Checkbox](../../../ui-catalog/screenshots/components/checkbox-light.png)
+![Checkbox, unchecked](../../../ui-catalog/screenshots/components/checkbox-light.png)
+![Checkbox, checked](../../../ui-catalog/screenshots/components/checkbox-checked-light.png)
 
 ```kotlin
 Checkbox(checked = notify, onCheckedChange = viewModel::setNotify)
@@ -64,7 +65,8 @@ not clear it — that is the caller's decision, and the common wrong answer.
 
 ## `RadioButton`
 
-![RadioButton](../../../ui-catalog/screenshots/components/radiobutton-light.png)
+![RadioButton, unselected](../../../ui-catalog/screenshots/components/radiobutton-light.png)
+![RadioButton, selected](../../../ui-catalog/screenshots/components/radiobutton-selected-light.png)
 
 The control on its own. You almost never want this directly — see below.
 
@@ -100,7 +102,8 @@ scroll.
 
 ## `Switch`
 
-![Switch](../../../ui-catalog/screenshots/components/switch-light.png)
+![Switch, unchecked](../../../ui-catalog/screenshots/components/switch-light.png)
+![Switch, checked](../../../ui-catalog/screenshots/components/switch-checked-light.png)
 
 ```kotlin
 Switch(checked = liveAlerts, onCheckedChange = viewModel::setLiveAlerts)
@@ -120,7 +123,8 @@ control.
 
 ## `SelectionRow`
 
-![SelectionRow](../../../ui-catalog/screenshots/components/selectionrow-light.png)
+![SelectionRow, unselected](../../../ui-catalog/screenshots/components/selectionrow-light.png)
+![SelectionRow, selected](../../../ui-catalog/screenshots/components/selectionrow-selected-light.png)
 
 ```kotlin
 SelectionRow(
@@ -152,7 +156,8 @@ control you nested in it.
 ## `Chip`, `FilterChip`, `InputChip`
 
 ![Chip](../../../ui-catalog/screenshots/components/chip-light.png)
-![FilterChip](../../../ui-catalog/screenshots/components/filterchip-light.png)
+![FilterChip, unselected](../../../ui-catalog/screenshots/components/filterchip-light.png)
+![FilterChip, selected](../../../ui-catalog/screenshots/components/filterchip-selected-light.png)
 ![InputChip](../../../ui-catalog/screenshots/components/inputchip-light.png)
 
 Chips are for things that come in *sets*. A single chip on a screen is usually a

@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import io.kontour.ui.contract.ComponentSpec
 import io.kontour.ui.contract.componentRegistry
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
@@ -32,12 +32,26 @@ import kotlin.test.assertTrue
  * twice — and a component added for its render gets the contract for free if it
  * is operable.
  *
- * ### One canvas for all of them
+ * ### One canvas, then cropped to the ink
  *
- * Rather than a size per specimen. A gallery of components photographed at the
- * same distance can be compared; one where each was framed to fit cannot, and
- * the sizes would be a second thing to keep current. One specimen overrides it —
- * see `ComponentSpec.renderHeight`, and the reason there.
+ * Every specimen draws into the same generous card at the same density, and the
+ * card is then trimmed to what was actually drawn. Both halves matter, and they
+ * used to be in tension:
+ *
+ * - **Same density for all of them** is what makes a gallery comparable — a
+ *   `Button` really is smaller than a `ListItem`, and a set of images each
+ *   scaled to fill its own frame hides exactly that.
+ * - **Cropping** is what makes each one a picture of a component rather than a
+ *   picture of a card. `iconbutton` was 1.1% button and 98.9% background, which
+ *   on a documentation page is a large empty rectangle with a star in it.
+ *
+ * Choosing a canvas per specimen would have got the second without the first,
+ * and would have been a second set of numbers to keep current. Measuring the
+ * drawn pixels gets both and keeps itself current.
+ *
+ * A specimen may still ask for a taller card — see `ComponentSpec.renderHeight`
+ * and `RenderState.height` — but only ever to *fit*, never to frame: anything
+ * it does not use is cropped off again.
  *
  * ### Every render is checked for having drawn something
  *
@@ -68,11 +82,30 @@ class ComponentRenderTest {
                 name = "components/${spec.slug}-$suffix",
                 width = CanvasWidth,
                 height = spec.renderHeight?.times(2) ?: CanvasHeight,
+                trim = InkMargin,
             ) {
-                Frame(dark = dark, spec = spec)
+                Frame(dark = dark) { spec.content(Modifier, true) {} }
             }
             if (inkedFraction(file) < MinimumInk) blank += spec.name
             drawn += spec.slug
+
+            // The states a component cannot be caught in at rest. Same frame and
+            // same density, so the extra picture is comparable with the resting
+            // one rather than being a differently-scaled photograph of the same
+            // thing — the crop changes where the edges are, never how big the
+            // component is drawn.
+            for (state in spec.states) {
+                val stateFile = Screenshot.render(
+                    name = "components/${spec.slug}-${state.name}-$suffix",
+                    width = CanvasWidth,
+                    height = state.height?.times(2) ?: spec.renderHeight?.times(2) ?: CanvasHeight,
+                    trim = InkMargin,
+                ) {
+                    Frame(dark = dark) { state.content(Modifier) }
+                }
+                if (inkedFraction(stateFile) < MinimumInk) blank += "${spec.name} (${state.name})"
+                drawn += "${spec.slug}-${state.name}"
+            }
         }
 
         assertTrue(
@@ -102,7 +135,7 @@ class ComponentRenderTest {
      * compose one whether or not they show anything in it.
      */
     @androidx.compose.runtime.Composable
-    private fun Frame(dark: Boolean, spec: ComponentSpec) {
+    private fun Frame(dark: Boolean, content: @Composable () -> Unit) {
         KontourTheme(darkTheme = dark, reduceMotion = true) {
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(
@@ -112,7 +145,7 @@ class ComponentRenderTest {
                         .padding(Theme.spacing.md),
                     contentAlignment = Alignment.Center,
                 ) {
-                    spec.content(Modifier, true) {}
+                    content()
                 }
             }
         }
@@ -147,6 +180,15 @@ class ComponentRenderTest {
          */
         const val CanvasWidth = 600
         const val CanvasHeight = 240
+
+        /**
+         * How much background to leave round the drawn component, in pixels.
+         *
+         * 12dp at the goldens' 2×. Enough that a focus ring or a shadow is not
+         * shaved by a pixel and the component does not sit flush against the
+         * image edge; little enough that the picture is the component.
+         */
+        const val InkMargin = 24
 
         /**
          * Below this, the card is blank.

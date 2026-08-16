@@ -105,7 +105,12 @@ parameters when it is not.
 
 ## `IconToggleButton`
 
-![IconToggleButton](../../../ui-catalog/screenshots/components/icontogglebutton-light.png)
+![IconToggleButton, unchecked](../../../ui-catalog/screenshots/components/icontogglebutton-light.png)
+![IconToggleButton, checked](../../../ui-catalog/screenshots/components/icontogglebutton-checked-light.png)
+
+The first of those is pixel-for-pixel an [`IconButton`](#iconbutton), and that is
+not a mistake in the picture: unchecked, it *is* one. The accent ground in the
+second is the entire visible difference between the two components.
 
 ```kotlin
 IconToggleButton(

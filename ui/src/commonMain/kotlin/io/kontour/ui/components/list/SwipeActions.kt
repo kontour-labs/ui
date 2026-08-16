@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -138,10 +139,27 @@ class SwipeActionsState internal constructor(
     }
 }
 
+/**
+ * Remembers a [SwipeActionsState].
+ *
+ * @param initialValue Where the row starts. [SwipeActionsState.animateTo] is the
+ *   way to move it *later*; this is the way to have it never be anywhere else,
+ *   which is a different thing and the one that has no workaround. An animation
+ *   needs frames to run in, and there are contexts that have none: a screenshot
+ *   is a single moment, and a row restored from saved state should be where it
+ *   was rather than sliding there. `rememberSheetState` takes `initialDetent`
+ *   for the same reason; this factory was the odd one out.
+ *
+ *   The row starts here without animating, because the anchors are attached
+ *   after the first measure and `updateAnchors` settles on the current value
+ *   rather than travelling to it.
+ */
 @Composable
-fun rememberSwipeActionsState(): SwipeActionsState {
+fun rememberSwipeActionsState(
+    initialValue: SwipeValue = SwipeValue.Resting,
+): SwipeActionsState {
     val anchored = remember {
-        AnchoredDraggableState(initialValue = SwipeValue.Resting)
+        AnchoredDraggableState(initialValue = initialValue)
     }
     return remember { SwipeActionsState(anchored) }
 }
@@ -353,13 +371,32 @@ private fun RowScope.SwipeActionButton(
         contentColor = content,
         contentAlignment = Alignment.Center,
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxHeight()
                 .clickableAction(onClick, action.label)
                 .padding(Theme.spacing.xs),
             contentAlignment = Alignment.Center,
         ) {
+            // The label goes when there is no room for it, rather than being
+            // clipped to a stripe of its own ascenders.
+            //
+            // This was clipped on every single-line row in the library — a
+            // `ListItem` is 48dp and icon + gap + label + padding wants 59dp —
+            // and nothing had ever seen it: the actions are only drawn once the
+            // row is swiped, and no test or render had ever swiped one. The
+            // first picture of a revealed row showed a red panel with a star and
+            // four pixels of "Remove" under it.
+            //
+            // Measured rather than compared against a magic dp, so it stays
+            // right at 200% type, where the label is twice as tall and the icon
+            // is not.
+            val labelHeight = with(LocalDensity.current) {
+                Theme.typography.labelSmall.lineHeight.toDp()
+            }
+            val roomForLabel =
+                maxHeight >= Theme.sizing.iconLarge + Theme.spacing.xxs + labelHeight
+
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
@@ -370,12 +407,18 @@ private fun RowScope.SwipeActionButton(
                     size = Theme.sizing.iconLarge,
                     tint = content,
                 )
-                Text(
-                    text = action.label,
-                    style = Theme.typography.labelSmall,
-                    color = content,
-                    maxLines = 1,
-                )
+                // Dropping it costs nothing a screen reader can tell: the label
+                // still reaches `CustomAccessibilityAction` on the row and
+                // `onClickLabel` on this button, which is where it was always
+                // doing the accessibility work.
+                if (roomForLabel) {
+                    Text(
+                        text = action.label,
+                        style = Theme.typography.labelSmall,
+                        color = content,
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }

@@ -53,6 +53,14 @@ of the same three destinations.
 ![NavRailItem](../../../ui-catalog/screenshots/components/navrailitem-light.png)
 ![NavDrawerItem](../../../ui-catalog/screenshots/components/navdraweritem-light.png)
 
+The same three selected. Each surface draws the indicator its own way — a filled
+circle, a pill behind the icon, a pill across the whole row — and that indicator
+is the only thing distinguishing a destination you are on from one you are not:
+
+![NavBarItem, selected](../../../ui-catalog/screenshots/components/navbaritem-selected-light.png)
+![NavRailItem, selected](../../../ui-catalog/screenshots/components/navrailitem-selected-light.png)
+![NavDrawerItem, selected](../../../ui-catalog/screenshots/components/navdraweritem-selected-light.png)
+
 `NavBar` and `NavRail` take a `List<NavItem>`. **A drawer takes a slot, not a
 list**: a drawer is where destinations stop being a flat set of three, and a
 list model would be a tree wearing a list's shape.
@@ -154,7 +162,7 @@ computes it from a `LazyListState`, and there is a raw
 
 ## `TabBar`
 
-![Tab](../../../ui-catalog/screenshots/components/tab-light.png)
+![TabBar, with the first tab selected](../../../ui-catalog/screenshots/components/tab-selected-light.png)
 
 **`TabBar` is not app navigation.** Tabs stay within one screen — the stop you
 are looking at, seen three ways. A tab bar used for destinations leaves the user

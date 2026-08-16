@@ -127,6 +127,22 @@ changed pixel in magenta to `ui-catalog/build/screenshot-diffs/`.
   on its own, light and dark, driven from the registry. These are what the
   [component pages](../using/components.md) show.
 
+A component whose defining state is not its resting one also declares a
+`RenderState`, which adds `<slug>-<state>-{light,dark}.png` beside the resting
+pair — `swipetodismiss-revealed`, `tab-selected`, `accordion-expanded`. Resting
+keeps the bare slug, so adding one moves no existing link. Add one when the
+resting picture would not let a reader tell the component from a plain row, and
+not otherwise: a second image a reader could have predicted from the first is a
+file to keep current for nothing.
+
+Every one of these is **cropped to the pixels it drew**, plus a 12dp margin.
+They all render into the same generous card at the same density — that is what
+keeps a gallery of them comparable, since a `Button` really is smaller than a
+`ListItem` — and the empty space is then trimmed off. Before that, `iconbutton`
+was 1.1% button. A specimen may still ask for a taller card to *fit* in, and it
+costs nothing if it over-asks, because whatever it does not use is cropped away
+again.
+
 To accept an intended change:
 
 ```sh

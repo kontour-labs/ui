@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -49,7 +50,9 @@ import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.SwipeToDismiss
+import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberReorderableState
+import io.kontour.ui.components.list.rememberSwipeActionsState
 import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.components.list.settingValue
 import io.kontour.ui.components.selection.Checkbox
@@ -82,6 +85,45 @@ import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.sheet.DragHandle
 import kotlin.time.Duration.Companion.minutes
+
+/**
+ * One extra picture of a component, in a state it cannot be caught in at rest.
+ *
+ * The per-component renders were all resting, and for a good half of the library
+ * that is the wrong picture: `SwipeToDismiss` and `ReorderableItem` at rest are
+ * both a plain row, so their images were the same row twice under two names, and
+ * neither showed the gesture the component exists for. A `Tab` at rest is an
+ * unselected tab, which is the one state a reader does not need to see, and
+ * `IconButton` and `IconToggleButton` were byte-for-byte the same file.
+ *
+ * A state supplies its own arrangement rather than a script the harness runs.
+ * That sounds like more work per state and is less: driving the component means
+ * hoisting its state object and launching one call in a `LaunchedEffect`, which
+ * is exactly what a caller would write, and the screenshot theme already runs
+ * with `reduceMotion` so the animation lands on the first frame.
+ *
+ * ### Which components get one
+ *
+ * The ones whose defining state is not the resting one. That is a narrower set
+ * than "every state a component has": `TriStateCheckbox` has three and gets
+ * none, because the one that distinguishes it from `Checkbox` — indeterminate —
+ * is what its resting specimen already draws. A second picture that a reader
+ * could have predicted from the first is a file to keep current for nothing.
+ *
+ * @param name Becomes the slug: `<component>-<name>-{light,dark}.png`. Named
+ *   after the *parameter* that differs from the resting render — `checked`,
+ *   `selected`, `expanded` — so the slug says what was changed rather than
+ *   describing how it looks. The two gesture states are the exception, since
+ *   neither is reached by a parameter. The resting render keeps the bare
+ *   `<component>-{light,dark}.png` it always had, so no documentation link moves.
+ * @param height A taller card, in dp, where the state needs one — a revealed
+ *   swipe row does not, an expanded accordion does.
+ */
+class RenderState(
+    val name: String,
+    val height: Int? = null,
+    val content: @Composable (modifier: Modifier) -> Unit,
+)
 
 /**
  * One interactive component, as the contract suite sees it.
@@ -160,6 +202,14 @@ class ComponentSpec(
      * standard card offers 88.
      */
     val renderHeight: Int? = null,
+    /**
+     * Extra renders beyond the resting one — see [RenderState].
+     *
+     * Empty for most components, because most of them look like themselves
+     * standing still. The ones that do not are the ones whose whole point is
+     * something they do.
+     */
+    val states: List<RenderState> = emptyList(),
     val content: @Composable (modifier: Modifier, enabled: Boolean, onActivate: () -> Unit) -> Unit,
 ) {
     /**
@@ -242,7 +292,25 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("IconToggleButton", Role.Checkbox) { modifier, enabled, onClick ->
+        ComponentSpec(
+            name = "IconToggleButton",
+            role = Role.Checkbox,
+            states = listOf(
+                // Unchecked, this draws an icon in a hit target and nothing
+                // else — which is `IconButton`, and the two renders really were
+                // the same bytes. The checked ground is the entire difference
+                // between the two components.
+                RenderState("checked") { modifier ->
+                    IconToggleButton(
+                        icon = Tabler.Outline.Star,
+                        contentDescription = "Favourite",
+                        checked = true,
+                        onCheckedChange = {},
+                        modifier = modifier,
+                    )
+                },
+            ),
+        ) { modifier, enabled, onClick ->
             IconToggleButton(
                 icon = Tabler.Outline.Star,
                 contentDescription = "Favourite",
@@ -280,7 +348,19 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     // --- Selection -------------------------------------------------------
     add(
-        ComponentSpec("Checkbox", Role.Checkbox, namedByContext = true) { modifier, enabled, onClick ->
+        // The three toggles all rest in the off state, which is the state that
+        // looks like an empty box. The tick, the dot and the moved knob are the
+        // whole of what each one draws.
+        ComponentSpec(
+            name = "Checkbox",
+            role = Role.Checkbox,
+            namedByContext = true,
+            states = listOf(
+                RenderState("checked") { modifier ->
+                    Checkbox(checked = true, onCheckedChange = {}, modifier = modifier)
+                },
+            ),
+        ) { modifier, enabled, onClick ->
             Checkbox(
                 checked = false,
                 onCheckedChange = { onClick() },
@@ -291,7 +371,16 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("RadioButton", Role.RadioButton, namedByContext = true) { modifier, enabled, onClick ->
+        ComponentSpec(
+            name = "RadioButton",
+            role = Role.RadioButton,
+            namedByContext = true,
+            states = listOf(
+                RenderState("selected") { modifier ->
+                    RadioButton(selected = true, onClick = {}, modifier = modifier)
+                },
+            ),
+        ) { modifier, enabled, onClick ->
             RadioButton(
                 selected = false,
                 onClick = onClick,
@@ -302,7 +391,16 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("Switch", Role.Switch, namedByContext = true) { modifier, enabled, onClick ->
+        ComponentSpec(
+            name = "Switch",
+            role = Role.Switch,
+            namedByContext = true,
+            states = listOf(
+                RenderState("checked") { modifier ->
+                    Switch(checked = true, onCheckedChange = {}, modifier = modifier)
+                },
+            ),
+        ) { modifier, enabled, onClick ->
             Switch(
                 checked = false,
                 onCheckedChange = { onClick() },
@@ -319,7 +417,21 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("FilterChip", Role.Checkbox) { modifier, enabled, onClick ->
+        ComponentSpec(
+            name = "FilterChip",
+            role = Role.Checkbox,
+            states = listOf(
+                // Unselected it is a `Chip` — an outlined pill. Selected it
+                // swaps the outline for the accent container and takes the
+                // accent for its text, which is the whole difference and is
+                // worth showing precisely because it is only colour. No tick:
+                // `selectedIcon` defaults to null, and this render flips
+                // `selected` and nothing else.
+                RenderState("selected") { modifier ->
+                    FilterChip(selected = true, onClick = {}, modifier = modifier) { +"Bus" }
+                },
+            ),
+        ) { modifier, enabled, onClick ->
             FilterChip(
                 selected = false,
                 onClick = onClick,
@@ -357,7 +469,27 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("SelectionRow", Role.Checkbox) { modifier, enabled, onClick ->
+        ComponentSpec(
+            name = "SelectionRow",
+            role = Role.Checkbox,
+            states = listOf(
+                // The row and the control it carries move together — that they
+                // agree is the thing worth photographing, since a row wired to a
+                // checkbox that does not follow it is the defect this component
+                // exists to prevent.
+                RenderState("selected") { modifier ->
+                    SelectionRow(
+                        selected = true,
+                        onSelectedChange = {},
+                        modifier = modifier,
+                        role = Role.Checkbox,
+                    ) {
+                        +"Notify me about delays"
+                        trailing { Checkbox(checked = true, onCheckedChange = null) }
+                    }
+                },
+            ),
+        ) { modifier, enabled, onClick ->
             SelectionRow(
                 selected = false,
                 onSelectedChange = { onClick() },
@@ -627,6 +759,22 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "Accordion",
             role = Role.Button,
             control = hasClickAction(),
+            states = listOf(
+                // Collapsed, the panel is the half of this component that does
+                // not exist yet — so the resting render is a header row with a
+                // chevron on it, and the chevron is the only hint that anything
+                // is under there.
+                RenderState("expanded", height = 340) { modifier ->
+                    Accordion(
+                        expanded = true,
+                        onExpandedChange = {},
+                        header = { +"Accessibility" },
+                        modifier = modifier,
+                    ) {
+                        Text("Step-free access at all platforms.")
+                    }
+                },
+            ),
         ) { modifier, enabled, onClick ->
             Accordion(
                 expanded = false,
@@ -642,7 +790,23 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     // --- Navigation ------------------------------------------------------
     add(
-        ComponentSpec("NavBarItem", Role.Tab) { modifier, enabled, onClick ->
+        // Every navigation item rests unselected, and unselected is the state
+        // with no indicator in it. The pill — its shape, its colour, where it
+        // sits relative to icon and label — is what distinguishes these three
+        // from one another and from a plain row, and none of it was on show.
+        ComponentSpec(
+            name = "NavBarItem",
+            role = Role.Tab,
+            states = listOf(
+                RenderState("selected") { modifier ->
+                    NavBarItem(
+                        item = NavItem(label = "Plan", icon = Tabler.Outline.Star, onClick = {}),
+                        selected = true,
+                        modifier = modifier,
+                    )
+                },
+            ),
+        ) { modifier, enabled, onClick ->
             NavBarItem(
                 item = NavItem(
                     label = "Plan",
@@ -657,7 +821,20 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("NavDrawerItem", Role.Tab) { modifier, enabled, onClick ->
+        ComponentSpec(
+            name = "NavDrawerItem",
+            role = Role.Tab,
+            states = listOf(
+                RenderState("selected") { modifier ->
+                    NavDrawerItem(
+                        selected = true,
+                        onClick = {},
+                        key = "drawer-item",
+                        modifier = modifier,
+                    ) { +"Favourites" }
+                },
+            ),
+        ) { modifier, enabled, onClick ->
             NavDrawerItem(
                 selected = false,
                 onClick = onClick,
@@ -669,7 +846,19 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("NavRailItem", Role.Tab) { modifier, enabled, onClick ->
+        ComponentSpec(
+            name = "NavRailItem",
+            role = Role.Tab,
+            states = listOf(
+                RenderState("selected") { modifier ->
+                    NavRailItem(
+                        item = NavItem(label = "Map", icon = Tabler.Outline.Star, onClick = {}),
+                        selected = true,
+                        modifier = modifier,
+                    )
+                },
+            ),
+        ) { modifier, enabled, onClick ->
             NavRailItem(
                 item = NavItem(
                     label = "Map",
@@ -701,7 +890,25 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("Tab", Role.Tab) { modifier, enabled, onClick ->
+        ComponentSpec(
+            name = "Tab",
+            role = Role.Tab,
+            states = listOf(
+                // Two tabs rather than one, because the underline is drawn by
+                // the *bar* and sized to the selected tab — a bar holding one
+                // tab cannot show that, and showing it is the point. This is
+                // the one state where the specimen is deliberately not the
+                // resting one with a parameter flipped.
+                RenderState("selected") { modifier ->
+                    TabBar {
+                        Tab(selected = true, onClick = {}, key = "departures", modifier = modifier) {
+                            +"Departures"
+                        }
+                        Tab(selected = false, onClick = {}, key = "arrivals") { +"Arrivals" }
+                    }
+                },
+            ),
+        ) { modifier, enabled, onClick ->
             // A `Tab` only exists inside a `TabBar` — it reports its width to the
             // bar so the indicator can follow it. The tag still goes on the tab,
             // so what is asserted is the tab and not its container.
@@ -851,20 +1058,81 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("SwipeToDismiss", role = null, underContract = false) { modifier, _, _ ->
+        ComponentSpec(
+            name = "SwipeToDismiss",
+            role = null,
+            underContract = false,
+            states = listOf(
+                // At rest this is a list row and nothing else, so the resting
+                // render was a picture of `ListItem` under another name — which
+                // is exactly the complaint that started this. The component is
+                // the reveal.
+                RenderState("revealed") { modifier ->
+                    // `initialValue` rather than `animateTo`, and the first
+                    // render is why: `animateTo` animates, a screenshot is one
+                    // moment, and six frames of spring got the row about a
+                    // tenth of the way open — a picture of a red sliver, which
+                    // is the same nothing the resting render showed.
+                    val swipe = rememberSwipeActionsState(initialValue = SwipeValue.End)
+                    SwipeToDismiss(
+                        onDismissRequest = {},
+                        label = "Remove",
+                        icon = Tabler.Outline.Star,
+                        modifier = modifier,
+                        state = swipe,
+                    ) {
+                        ListItem {
+                            +"Elizabeth Quay Station"
+                            supporting { +"Fremantle Line · Platform 2" }
+                        }
+                    }
+                },
+            ),
+        ) { modifier, _, _ ->
+            // A two-line row rather than one, in both renders, and for the
+            // revealed one's sake: an action panel shows its label only where
+            // there is room for one, and a single-line row has 48dp where icon
+            // plus label wants 59. The resting render matches it so the pair
+            // differ by the reveal and nothing else.
             SwipeToDismiss(
                 onDismissRequest = {},
                 label = "Remove",
                 icon = Tabler.Outline.Star,
                 modifier = modifier,
             ) {
-                ListItem { +"Perth Underground" }
+                ListItem {
+                    +"Elizabeth Quay Station"
+                    supporting { +"Fremantle Line · Platform 2" }
+                }
             }
         }
     )
 
     add(
-        ComponentSpec("ReorderableItem", role = null, underContract = false) { modifier, _, _ ->
+        ComponentSpec(
+            name = "ReorderableItem",
+            role = null,
+            underContract = false,
+            states = listOf(
+                // Lifted: the shadow, the scale and the offset that say "this row
+                // is in your hand". None of it is visible at rest, and until
+                // `ReorderableState.start` went public there was no way to reach
+                // it from outside a gesture.
+                RenderState("dragging") { modifier ->
+                    val listState = rememberLazyListState()
+                    val reorder = rememberReorderableState(listState) { _, _ -> }
+                    LaunchedEffect(Unit) { reorder.start(0) }
+                    ReorderableItem(
+                        state = reorder,
+                        index = 0,
+                        modifier = modifier,
+                        itemCount = 3,
+                    ) {
+                        ListItem { +"Perth Underground" }
+                    }
+                },
+            ),
+        ) { modifier, _, _ ->
             val listState = rememberLazyListState()
             val reorder = rememberReorderableState(listState) { _, _ -> }
             ReorderableItem(state = reorder, index = 0, modifier = modifier, itemCount = 3) {

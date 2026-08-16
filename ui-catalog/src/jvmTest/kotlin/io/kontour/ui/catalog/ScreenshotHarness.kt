@@ -89,6 +89,7 @@ object Screenshot {
         density: Float = 2f,
         frames: Int = 6,
         allowOverflow: Boolean = false,
+        trim: Int? = null,
         content: @Composable () -> Unit,
     ): File {
         ImageComposeScene(
@@ -104,9 +105,10 @@ object Screenshot {
 
             if (!allowOverflow) checkFits(name, scene, width, height)
 
-            val encoded = requireNotNull(image.encodeToData(EncodedImageFormat.PNG)) {
+            val rendered = requireNotNull(image.encodeToData(EncodedImageFormat.PNG)) {
                 "Skia failed to encode $name to PNG"
             }.bytes
+            val encoded = if (trim == null) rendered else trimToContent(rendered, trim)
 
             val golden = File(outputDir, "$name.png")
             // A name can carry a directory — the per-component pass writes
@@ -132,6 +134,68 @@ object Screenshot {
             compare(name, golden, encoded)
             return golden
         }
+    }
+
+    /**
+     * Crops [rendered] to what was actually drawn, leaving [margin] pixels round it.
+     *
+     * A per-component render is a picture of a component, and a 48dp button
+     * centred in a 300×120dp card was 1.1% button. Rather than choosing a canvas
+     * per specimen — a second thing to keep current, and one nobody would notice
+     * going stale — the canvas stays generous and the drawn pixels decide the
+     * frame.
+     *
+     * **This measures ink, not layout.** Stage 1a's overflow guard cannot do
+     * this job: `calculateContentSize()` measures at unbounded constraints,
+     * where a `fillMaxWidth` component collapses to its minimum intrinsic width
+     * and reports a height for a column it will never be drawn in. This runs
+     * after the draw, so what it sees is what a reader will see.
+     *
+     * ### It also makes the overflow guard's false positives free
+     *
+     * That guard is deliberately conservative and sometimes demands a canvas
+     * several times taller than the component needs — the expanded `Accordion`
+     * measures 554×677 for something that draws 439×87. Before this, satisfying
+     * it meant shipping the empty space. Now growing a canvas costs nothing: the
+     * crop takes back whatever the component did not use, so the two can both be
+     * strict without fighting.
+     *
+     * The background is read from the corner, the same assumption
+     * `ComponentRenderTest.inkedFraction` makes and safe for the same reason —
+     * the specimen is centred inside a padded frame. A render with no ink at all
+     * is returned untouched, so the blank-card check still sees a full card and
+     * reports it.
+     */
+    private fun trimToContent(rendered: ByteArray, margin: Int): ByteArray {
+        val image = ImageIO.read(rendered.inputStream()) ?: return rendered
+        val background = image.getRGB(0, 0)
+
+        var left = image.width
+        var top = image.height
+        var right = -1
+        var bottom = -1
+        for (y in 0 until image.height) {
+            for (x in 0 until image.width) {
+                if (image.getRGB(x, y) == background) continue
+                if (x < left) left = x
+                if (x > right) right = x
+                if (y < top) top = y
+                if (y > bottom) bottom = y
+            }
+        }
+        if (right < 0) return rendered
+
+        val x0 = maxOf(0, left - margin)
+        val y0 = maxOf(0, top - margin)
+        val x1 = minOf(image.width - 1, right + margin)
+        val y1 = minOf(image.height - 1, bottom + margin)
+
+        val cropped = BufferedImage(x1 - x0 + 1, y1 - y0 + 1, BufferedImage.TYPE_INT_RGB)
+        cropped.createGraphics().apply {
+            drawImage(image, -x0, -y0, null)
+            dispose()
+        }
+        return java.io.ByteArrayOutputStream().also { ImageIO.write(cropped, "png", it) }.toByteArray()
     }
 
     /**
@@ -281,9 +345,21 @@ object Screenshot {
             abs((a and 0xFF) - (b and 0xFF)) > CHANNEL_TOLERANCE
     }
 
+    /**
+     * Writes the actual render and the diff for a mismatch.
+     *
+     * `mkdirs` on the leaf rather than on [diffDir], because a name can carry a
+     * directory — the per-component pass writes `components/<slug>-light`, the
+     * same way [render] does for the golden itself. Missing that meant the first
+     * component render ever to mismatch threw `FileNotFoundException` from
+     * inside the reporting path, so the run failed with a stack trace where the
+     * comparison should have been. It had been latent since per-component
+     * renders landed: nothing in that directory had mismatched until now.
+     */
     private fun writeEvidence(name: String, rendered: ByteArray, diff: BufferedImage?) {
-        diffDir.mkdirs()
-        File(diffDir, "$name-actual.png").writeBytes(rendered)
+        val actual = File(diffDir, "$name-actual.png")
+        actual.parentFile?.mkdirs()
+        actual.writeBytes(rendered)
         if (diff != null) ImageIO.write(diff, "png", File(diffDir, "$name-diff.png"))
     }
 
@@ -298,12 +374,6 @@ object Screenshot {
     private const val CHANNEL_TOLERANCE = 8
 
     /**
-     * How much of the image may change before the test fails.
-     *
-     * A tenth of a percent of a 1100×2080 canvas is about 2,300 pixels — a
-     * scattering of edge pixels, but far less than any glyph, icon or component.
-     */
-    /**
      * How much of the canvas's width the content must want before its measured
      * *height* is believed.
      *
@@ -315,6 +385,12 @@ object Screenshot {
      */
     private const val WIDTH_CONFIDENCE = 0.75
 
+    /**
+     * How much of the image may change before the test fails.
+     *
+     * A tenth of a percent of a 1100×2080 canvas is about 2,300 pixels — a
+     * scattering of edge pixels, but far less than any glyph, icon or component.
+     */
     private const val TOLERATED_FRACTION = 0.001
 
     private const val DIFF_COLOUR = 0xFFFF00FF.toInt()

@@ -72,7 +72,14 @@ class PullToRefreshState internal constructor(
     /** True once a release would trigger a refresh. */
     val willRefresh: Boolean get() = progress >= 1f
 
-    internal fun drag(delta: Float): Float {
+    /**
+     * Pulls the indicator down by [delta] pixels, returning what it consumed.
+     *
+     * Public for the same reason as [ReorderableState.start]: the pulled and
+     * mid-refresh states were unreachable from outside, so neither could be
+     * tested or photographed. Pair with [release].
+     */
+    fun drag(delta: Float): Float {
         val previous = offset
         val resisted = if (offset > thresholdPx) {
             delta * PullToRefreshDefaults.Resistance
@@ -83,7 +90,8 @@ class PullToRefreshState internal constructor(
         return offset - previous
     }
 
-    internal fun release(): Boolean {
+    /** Lets go. Returns whether the pull passed the threshold and refreshing began. */
+    fun release(): Boolean {
         val triggered = willRefresh
         offset = 0f
         return triggered

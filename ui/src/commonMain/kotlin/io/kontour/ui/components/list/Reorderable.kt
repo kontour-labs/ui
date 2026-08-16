@@ -66,13 +66,22 @@ class ReorderableState internal constructor(
 
     private var draggingKey: Any? = null
 
-    internal fun start(index: Int) {
+    /**
+     * Begins a drag on the row at [index], as a long press would.
+     *
+     * Public because a state a caller cannot reach is a state nobody can
+     * verify. Until this was, the only way into a drag was the gesture, so the
+     * lifted row could not be tested, photographed for the documentation, or
+     * driven from a keyboard affordance an app wanted to add. Pair with [stop].
+     */
+    fun start(index: Int) {
         draggingIndex = index
         draggingKey = itemAt(index)?.key
         dragOffset = 0f
     }
 
-    internal fun drag(delta: Float) {
+    /** Moves an in-progress drag by [delta] pixels. Reorders as it crosses rows. */
+    fun drag(delta: Float) {
         val index = draggingIndex ?: return
         dragOffset += delta
 
@@ -93,7 +102,8 @@ class ReorderableState internal constructor(
         draggingIndex = target.index
     }
 
-    internal fun stop() {
+    /** Ends the drag and settles the row. */
+    fun stop() {
         draggingIndex = null
         draggingKey = null
         dragOffset = 0f

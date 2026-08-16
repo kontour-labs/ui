@@ -78,10 +78,22 @@ can jump between sections rather than walking every row.
 
 ## `SwipeActions` / `SwipeToDismiss`
 
-![SwipeToDismiss](../../../ui-catalog/screenshots/components/swipetodismiss-light.png)
+![SwipeToDismiss, at rest](../../../ui-catalog/screenshots/components/swipetodismiss-light.png)
+![SwipeToDismiss, with the action revealed](../../../ui-catalog/screenshots/components/swipetodismiss-revealed-light.png)
 
 Actions revealed by a sideways drag. `SwipeActions` reveals buttons;
 `SwipeToDismiss` removes the row.
+
+At rest it is a row and nothing else, which is the honest picture and a useless
+one — so the second image is a row driven open. Do that in your own code with
+`rememberSwipeActionsState(initialValue = SwipeValue.End)` to start there, or
+`state.animateTo(SwipeValue.End)` to move an already-drawn row, which is how you
+would hint at the gesture on first run.
+
+An action shows its label only where there is room for one. A single-line row is
+48dp and an icon above a label wants 59, so on short rows the icon stands alone —
+the label still reaches the screen reader through the row's custom action either
+way.
 
 `SwipeToDismiss` **needs an undo**. A dismissal with no way back is a data-loss
 bug wearing a gesture; pair it with a [`Toast`](../overlays.md) carrying the
@@ -89,9 +101,15 @@ undo.
 
 ## `ReorderableItem`
 
-![ReorderableItem](../../../ui-catalog/screenshots/components/reorderableitem-light.png)
+![ReorderableItem, at rest](../../../ui-catalog/screenshots/components/reorderableitem-light.png)
+![ReorderableItem, lifted mid-drag](../../../ui-catalog/screenshots/components/reorderableitem-dragging-light.png)
 
 Drag to reorder, with `rememberReorderableState`.
+
+The lift — shadow, scale, offset — is the whole of the feedback, and none of it
+exists at rest. `ReorderableState.start(index)`, `drag(delta)` and `stop()` are
+public so a drag can be begun without one: for a keyboard affordance, for a test,
+and for the second picture above.
 
 **Reordering happens live, under the finger.** `onMove` fires every time the
 dragged row passes another, so the caller's list stays the source of truth
