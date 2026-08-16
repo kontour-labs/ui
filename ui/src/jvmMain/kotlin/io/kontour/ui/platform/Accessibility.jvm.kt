@@ -20,8 +20,8 @@ internal actual val platformMinTouchTarget: Dp = 24.dp
  * setting, which `KontourTheme` accepts as an override.
  */
 @Composable
-internal actual fun platformPrefersReducedMotion(): Boolean = false
+actual fun platformPrefersReducedMotion(): Boolean = false
 
 /** Not readable from the JVM either — see [platformPrefersReducedMotion]. */
 @Composable
-internal actual fun platformPrefersHighContrast(): Boolean = false
+actual fun platformPrefersHighContrast(): Boolean = false

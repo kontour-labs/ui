@@ -25,9 +25,14 @@ import org.jetbrains.compose.resources.Font
  * than as the variable font itself, so every target renders identical weights
  * without depending on per-platform variable-axis support. Licensed under the
  * SIL Open Font License; see `ui/licenses/Outfit-OFL.txt`.
+ *
+ * **Public**, so overriding the type scale does not lock you out of the bundled
+ * font: `kontourTypography(outfitFontFamily()).copy(displayLarge = …)` keeps
+ * Outfit and changes one style, where building a `Typography` from scratch
+ * would mean shipping a font of your own or falling back to the platform's.
  */
 @Composable
-internal fun outfitFontFamily(): FontFamily {
+fun outfitFontFamily(): FontFamily {
     val regular = Font(Res.font.outfit_regular, FontWeight.Normal)
     val medium = Font(Res.font.outfit_medium, FontWeight.Medium)
     val semiBold = Font(Res.font.outfit_semibold, FontWeight.SemiBold)

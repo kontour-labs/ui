@@ -25,7 +25,7 @@ internal actual val platformMinTouchTarget: Dp = 48.dp
  * does not want transitions.
  */
 @Composable
-internal actual fun platformPrefersReducedMotion(): Boolean {
+actual fun platformPrefersReducedMotion(): Boolean {
     val context = LocalContext.current
     return observeGlobalSetting(
         context = context,
@@ -42,7 +42,7 @@ internal actual fun platformPrefersReducedMotion(): Boolean {
  * let the in-app setting be the only route.
  */
 @Composable
-internal actual fun platformPrefersHighContrast(): Boolean {
+actual fun platformPrefersHighContrast(): Boolean {
     val context = LocalContext.current
     if (Build.VERSION.SDK_INT < 34) return false
     return observeSecureSetting(context = context, key = CONTRAST_LEVEL) { resolver ->

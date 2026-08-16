@@ -2,6 +2,23 @@
 
 How to change what the system looks like without touching a component.
 
+## The default has no product in it
+
+Monochrome — ink, white and a grey ramp — plus **one blue** for the accent, and
+the four conventional status hues. That is the whole palette, and it is
+deliberate: a library that shipped somebody's brand would make every app using
+it look like that somebody, and the app that owned the brand would be the only
+one not fighting the defaults.
+
+So the default scheme is not a design; it is a *starting point that offends
+nobody*. `brand` resolves to the accent until you set one, which is the library
+saying it has no opinion rather than pretending to have none.
+
+**The worked example is Kontour's own.** `KontourBrandTheme` in the `anyways`
+app overrides four tokens per tier — accent, brand, focus ring — and inherits
+everything else. It is about a hundred lines, most of them the purple values,
+and it is the shape to copy.
+
 ---
 
 ## Installing the theme
@@ -68,14 +85,29 @@ KontourTheme(
 ) { AppRoot() }
 ```
 
-**Change one colour:**
+**Change the accent:**
 
 ```kotlin
-val ocean = Color(0xFF0B6E99)
 KontourTheme(
-    colors = lightColorScheme(accent = ocean, focusRing = ocean),
+    colors = lightColorScheme(
+        // `accent` is a `StatusColors`, not a `Color` — it is a whole tone, the
+        // same shape as `success` and `danger`, because a component that takes a
+        // tone has to be able to take this one.
+        accent = StatusColors(
+            solid = Color(0xFF0B6E99),
+            onSolid = Color.White,
+            container = Color(0xFFE3F2FA),
+            onContainer = Color(0xFF083D55),
+            border = Color(0xFFBEE0EF),
+        ),
+        focusRing = Color(0xFF0B6E99),
+    ),
 ) { AppRoot() }
 ```
+
+Keeping the whole tone together is what makes the five values consistent: pick
+`solid` on its own and the first `ButtonVariant.Accent` you draw has a label
+nobody can read on it.
 
 `lightColorScheme()` and `darkColorScheme()` default every parameter, so this
 keeps the rest of the palette intact.
@@ -161,7 +193,9 @@ enough, set both to it.
 
 `kontourColorScheme(dark, contrast)` picks between the four built-in schemes.
 A custom theme that wants a high-contrast tier authors a second scheme and
-selects on `ContrastLevel` the same way.
+selects on `ContrastLevel` the same way — and can read
+`platformPrefersHighContrast()` to know which tier to build, the same function
+`KontourTheme` uses for its own default.
 
 If you do not author one, pass your single scheme regardless of tier — users who
 asked for high contrast will get standard contrast, which is a downgrade you
@@ -177,11 +211,17 @@ rather than only by its constructor. That shape is deliberate.
 Today the factories are hand-authored:
 
 ```kotlin
-fun lightColorScheme(…): ColorScheme
-fun darkColorScheme(…): ColorScheme
-fun highContrastLightColorScheme(): ColorScheme
-fun highContrastDarkColorScheme(): ColorScheme
+fun lightColorScheme(…): ColorScheme                 // every token
+fun darkColorScheme(…): ColorScheme                  // every token
+fun highContrastLightColorScheme(accent, brand, focusRing): ColorScheme
+fun highContrastDarkColorScheme(accent, brand, focusRing): ColorScheme
 ```
+
+The high-contrast pair takes three parameters rather than every token, and that
+is not an oversight. At AAA the grounds are pure white or pure black, the content
+is its opposite, and the greys are the lightest values that still clear 7:1 —
+none of that is a design choice, it is what the tier is *for*. The accent is the
+only part a product owns.
 
 Deriving a full palette from a single seed colour — for user-selectable accents,
 or Android's wallpaper-derived colours — means adding one more factory:

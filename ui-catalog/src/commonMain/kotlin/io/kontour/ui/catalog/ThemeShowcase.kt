@@ -109,7 +109,11 @@ private fun ColourRamp() {
             Swatch("primary", c.primary, c.onPrimary)
             Swatch("accent", c.accent.solid, c.accent.onSolid)
             Swatch("accent.container", c.accent.container, c.accent.onContainer)
-            Swatch("brand (decor.)", c.brand, c.content)
+            // Identical to `accent` here, and that is the point: the default
+            // schemes have no product in them, so `brand` resolves to the
+            // accent until an app sets one. Labelled so the swatch reads as
+            // "unset" rather than as a duplicate.
+            Swatch("brand — unset", c.brand, c.accent.onSolid)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
             Swatch("surface", c.surface, c.content)

@@ -138,16 +138,28 @@ class ColorSchemeContrastTest {
  */
 class BrandIsDecorativeOnlyTest {
 
+    /**
+     * A brand colour an app supplies is allowed to fail contrast — that is the
+     * whole reason [ColorScheme.brand] is not [ColorScheme.accent] — but only
+     * where nothing has to be read on it.
+     *
+     * This used to assert the opposite: that brand *must* fail, because brand
+     * was the literal Kontour purple and 2.1:1 on white. The library has no
+     * product colour now, so there is nothing to assert about the default. What
+     * is worth keeping is the check itself, as something an app can run against
+     * its own scheme — which is what [brandIsSafeForText] is for, and what
+     * `anyways` calls on `KontourBrandTheme`.
+     */
     @Test
-    fun brandPurpleCannotCarryTextInLightMode() {
-        val light = lightColorScheme()
-        val ratio = contrastRatio(light.brand, light.background)
-        if (ratio >= ContrastThreshold.BODY_TEXT) {
-            fail(
-                "brand now clears body-text contrast (${ratio}:1) against the light background. " +
-                    "If that is intentional, brand and accent can be merged — but update " +
-                    "the KDoc on ColorScheme.brand and this test together."
-            )
+    fun theDefaultBrandIsTheAccentUntilAnAppSetsOne() {
+        for ((name, colors) in listOf("light" to lightColorScheme(), "dark" to darkColorScheme())) {
+            if (colors.brand != colors.accent.solid) {
+                fail(
+                    "the default $name scheme's brand ($name) has drifted from its accent. " +
+                        "A library with no product in it should have nothing to say about " +
+                        "brand — if that changed on purpose, say so here."
+                )
+            }
         }
     }
 

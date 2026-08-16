@@ -22,13 +22,18 @@ internal expect val platformMinTouchTarget: Dp
  * on screen is making them uncomfortable and waiting for a relaunch is no help.
  */
 @Composable
-internal expect fun platformPrefersReducedMotion(): Boolean
+expect fun platformPrefersReducedMotion(): Boolean
 
 /**
  * Whether the user has asked the operating system to increase contrast.
  *
  * Drives the default [io.kontour.ui.theme.ContrastLevel]. An in-app setting can
  * still override it.
+ *
+ * **Public**, because an app that supplies its own `ColorScheme` has to know
+ * which tier to build — `KontourTheme` takes the scheme and the tier as two
+ * separate parameters, and an app that could not read this would have to
+ * reimplement the platform detection to keep them in step.
  */
 @Composable
-internal expect fun platformPrefersHighContrast(): Boolean
+expect fun platformPrefersHighContrast(): Boolean

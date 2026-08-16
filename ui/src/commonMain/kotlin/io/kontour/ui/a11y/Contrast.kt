@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import io.kontour.ui.theme.ColorScheme
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import io.kontour.ui.theme.ContrastLevel
@@ -62,6 +63,30 @@ fun meetsContrast(
     background: Color,
     threshold: Float = ContrastThreshold.BODY_TEXT,
 ): Boolean = contrastRatio(foreground, background) >= threshold
+
+/**
+ * Whether a scheme's brand colour is safe to put text on.
+ *
+ * A brand colour is under no obligation to pass a contrast checker — that is
+ * the entire reason [io.kontour.ui.theme.ColorScheme.brand] is a separate token
+ * from `accent`, which is under every obligation. Kontour's own `#BB86FC` is
+ * 2.1:1 on white and has to stay decorative.
+ *
+ * So this is not a rule the library enforces; it is a question an app can ask
+ * about its own scheme, once, in a test:
+ *
+ * ```kotlin
+ * @Test
+ * fun theBrandPurpleStaysDecorative() {
+ *     assertFalse(brandIsSafeForText(KontourBrandTheme.colors(dark = false)))
+ * }
+ * ```
+ *
+ * A `false` answer is not a failure. It means "use `accent` for anything with
+ * words on it", which is what the token split exists to make possible.
+ */
+fun brandIsSafeForText(scheme: ColorScheme): Boolean =
+    meetsContrast(scheme.brand, scheme.background, ContrastThreshold.BODY_TEXT)
 
 /**
  * Picks whichever of [light] or [dark] reads better on [background].

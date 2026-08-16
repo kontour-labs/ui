@@ -19,11 +19,11 @@ import org.w3c.dom.events.Event
 internal actual val platformMinTouchTarget: Dp = 44.dp
 
 @Composable
-internal actual fun platformPrefersReducedMotion(): Boolean =
+actual fun platformPrefersReducedMotion(): Boolean =
     observeMediaQuery("(prefers-reduced-motion: reduce)")
 
 @Composable
-internal actual fun platformPrefersHighContrast(): Boolean =
+actual fun platformPrefersHighContrast(): Boolean =
     observeMediaQuery("(prefers-contrast: more)")
 
 /**

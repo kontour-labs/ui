@@ -56,16 +56,22 @@ data class StatusColors(
  * | [contentDisabled] | Only for genuinely disabled controls (WCAG-exempt) |
  * | [outline] | Dividers and decorative rules |
  * | [outlineStrong] | The boundary of anything interactive — inputs, checkboxes |
- * | [accent] | Purple that carries text or a fill label |
- * | [brand] | Purple as pure decoration, where nothing needs to be legible on it |
+ * | [accent] | The interactive colour, which has to carry text and a fill label |
+ * | [brand] | The product's own colour, which may be too vivid to carry anything |
  *
- * @property brand The literal Kontour purple, `#BB86FC`. Decorative only in
- *   light mode — it fails contrast against white, so it must never carry text,
- *   a fill label, or the focus ring. Use [accent] for those. Kept as a token so
- *   brand moments stay on-brand instead of drifting.
- * @property focusRing The keyboard focus indicator. Resolves to a purple that
- *   clears 3:1 against every ground in the scheme, which is why it is a
- *   separate token from [brand].
+ * @property brand The product's own colour, wherever a brand moment wants it and
+ *   nothing has to be legible on top — a splash, a marketing surface, an
+ *   illustration.
+ *
+ *   It is a **role**, not a hue. The default schemes have no product in them, so
+ *   it resolves to the same blue as [accent]; an app that sets one separates the
+ *   two. The reason it is a separate token at all is that a brand colour is
+ *   under no obligation to pass a contrast checker — Kontour's own `#BB86FC` is
+ *   2.1:1 on white — and [accent] is under every obligation, so one token could
+ *   not be both. `KontourBrandTheme` in `anyways` is the worked example.
+ * @property focusRing The keyboard focus indicator. Held to 3:1 against every
+ *   ground in the scheme, which is why it is separate from [brand] and follows
+ *   [accent] instead.
  */
 @Immutable
 data class ColorScheme(
@@ -163,14 +169,14 @@ fun lightColorScheme(
     primary: Color = Palette.Ink,
     onPrimary: Color = Palette.White,
     accent: StatusColors = StatusColors(
-        solid = Palette.PurpleReadable,
+        solid = Palette.BlueReadable,
         onSolid = Palette.White,
-        container = Palette.PurpleTintLight,
-        onContainer = Palette.PurpleDeep,
-        border = Color(0xFFDCC9FB),
+        container = Palette.BlueTintLight,
+        onContainer = Palette.BlueDeep,
+        border = Palette.BlueBorderLight,
     ),
-    brand: Color = Palette.Brand,
-    focusRing: Color = Palette.PurpleReadable,
+    brand: Color = Palette.BlueReadable,
+    focusRing: Color = Palette.BlueReadable,
     success: StatusColors = StatusColors(
         solid = Palette.GreenSolid,
         onSolid = Palette.White,
@@ -193,11 +199,11 @@ fun lightColorScheme(
         border = Color(0xFFF6C9C9),
     ),
     info: StatusColors = StatusColors(
-        solid = Palette.PurpleReadable,
+        solid = Palette.SkySolid,
         onSolid = Palette.White,
-        container = Palette.PurpleTintLight,
-        onContainer = Palette.PurpleDeep,
-        border = Color(0xFFDCC9FB),
+        container = Palette.SkyTint,
+        onContainer = Palette.SkyDeep,
+        border = Palette.SkyBorderLight,
     ),
     scrim: Color = Color(0x8A121212),
     overlayHover: Color = Color(0x0F121212),
@@ -251,14 +257,14 @@ fun darkColorScheme(
     primary: Color = Palette.Paper,
     onPrimary: Color = Palette.Ink,
     accent: StatusColors = StatusColors(
-        solid = Palette.Brand,
-        onSolid = Palette.PurpleOnLight,
-        container = Palette.PurpleTintDark,
-        onContainer = Palette.PurpleLight,
-        border = Color(0xFF453259),
+        solid = Palette.BlueLight,
+        onSolid = Palette.BlueOnLight,
+        container = Palette.BlueTintDark,
+        onContainer = Palette.BluePale,
+        border = Palette.BlueBorderDark,
     ),
-    brand: Color = Palette.Brand,
-    focusRing: Color = Palette.Brand,
+    brand: Color = Palette.BlueLight,
+    focusRing: Color = Palette.BlueLight,
     success: StatusColors = StatusColors(
         solid = Palette.GreenLight,
         onSolid = Palette.GreenOnLight,
@@ -281,11 +287,11 @@ fun darkColorScheme(
         border = Color(0xFF5E2630),
     ),
     info: StatusColors = StatusColors(
-        solid = Palette.VioletLight,
-        onSolid = Palette.VioletOnLight,
-        container = Palette.PurpleTintDark,
-        onContainer = Palette.PurpleLight,
-        border = Color(0xFF453259),
+        solid = Palette.SkyLight,
+        onSolid = Palette.SkyOnLight,
+        container = Palette.SkyDarkTint,
+        onContainer = Palette.SkyPale,
+        border = Palette.SkyBorderDark,
     ),
     scrim: Color = Color(0x99000000),
     overlayHover: Color = Color(0x14FFFFFF),
@@ -321,8 +327,29 @@ fun darkColorScheme(
     isDark = true,
 )
 
-/** The light scheme at [ContrastLevel.High]: pure black text, AAA body contrast. */
-fun highContrastLightColorScheme(): ColorScheme = lightColorScheme(
+/**
+ * The light scheme at [ContrastLevel.High]: pure black text, AAA body contrast.
+ *
+ * **Takes the three tones a product actually owns**, and nothing else. The rest
+ * of this tier is not a design choice: at AAA the grounds are pure white, the
+ * content is pure black, and the greys are the lightest values that still clear 7:1.
+ * Parameterising those would offer a caller the freedom to break the only thing
+ * the tier exists to guarantee.
+ *
+ * An app with a brand supplies its high-contrast accent here, the way
+ * `KontourBrandTheme` in `anyways` does.
+ */
+fun highContrastLightColorScheme(
+    accent: StatusColors = StatusColors(
+        solid = Palette.BlueStrong,
+        onSolid = Palette.White,
+        container = Palette.BlueTintLightHc,
+        onContainer = Palette.BlueDeeper,
+        border = Palette.BlueStrong,
+    ),
+    brand: Color = accent.solid,
+    focusRing: Color = accent.solid,
+): ColorScheme = lightColorScheme(
     // The press and hover washes are the four values easiest to miss, because
     // they are not named after anything visible: a 6% wash is invisible at this
     // tier, so a control the user is pressing looks like a control they are not.
@@ -342,14 +369,9 @@ fun highContrastLightColorScheme(): ColorScheme = lightColorScheme(
     outlineStrong = Palette.GreyHcMuted,
     outlineSubtle = Palette.GreyHcOutlineSubtle,
     primary = Palette.Black,
-    accent = StatusColors(
-        solid = Palette.PurpleStrong,
-        onSolid = Palette.White,
-        container = Palette.PurpleTintLightHc,
-        onContainer = Palette.PurpleDeeper,
-        border = Palette.PurpleStrong,
-    ),
-    focusRing = Palette.PurpleDeep,
+    accent = accent,
+    brand = brand,
+    focusRing = focusRing,
     success = StatusColors(
         solid = Palette.GreenHcSolid,
         onSolid = Palette.White,
@@ -372,16 +394,32 @@ fun highContrastLightColorScheme(): ColorScheme = lightColorScheme(
         border = Palette.RedHcSolid,
     ),
     info = StatusColors(
-        solid = Palette.PurpleStrong,
+        solid = Palette.SkyHcSolid,
         onSolid = Palette.White,
-        container = Palette.PurpleTintLightHc,
-        onContainer = Palette.PurpleDeeper,
-        border = Palette.PurpleStrong,
+        container = Palette.SkyHcTint,
+        onContainer = Palette.SkyDeep,
+        border = Palette.SkyHcSolid,
     ),
 )
 
-/** The dark scheme at [ContrastLevel.High]: pure black ground, pure white text. */
-fun highContrastDarkColorScheme(): ColorScheme = darkColorScheme(
+/**
+ * The dark scheme at [ContrastLevel.High]: pure black ground, pure white text.
+ *
+ * Takes the same three tones as [highContrastLightColorScheme], for the same
+ * reason: at AAA on black, everything but the accent is fixed by the ratio it
+ * has to clear.
+ */
+fun highContrastDarkColorScheme(
+    accent: StatusColors = StatusColors(
+        solid = Palette.BlueLightHc,
+        onSolid = Palette.BlueHcOnLight,
+        container = Palette.BlueTintDarkHc,
+        onContainer = Palette.BluePaleHc,
+        border = Palette.BlueLightHc,
+    ),
+    brand: Color = accent.solid,
+    focusRing: Color = accent.solid,
+): ColorScheme = darkColorScheme(
     scrim = Color(0xC2000000),
     overlayHover = Color(0x24FFFFFF),
     overlayPressed = Color(0x47FFFFFF),
@@ -401,14 +439,9 @@ fun highContrastDarkColorScheme(): ColorScheme = darkColorScheme(
     outlineSubtle = Palette.SlateHcOutlineSubtle,
     primary = Palette.White,
     onPrimary = Palette.Black,
-    accent = StatusColors(
-        solid = Palette.PurpleLightHc,
-        onSolid = Palette.PurpleHcOnLight,
-        container = Palette.PurpleTintDarkHc,
-        onContainer = Palette.PurplePaleHc,
-        border = Palette.PurpleLightHc,
-    ),
-    focusRing = Palette.PurpleLightHc,
+    accent = accent,
+    brand = brand,
+    focusRing = focusRing,
     success = StatusColors(
         solid = Palette.GreenHcLight,
         onSolid = Palette.GreenHcOnLight,
@@ -431,11 +464,11 @@ fun highContrastDarkColorScheme(): ColorScheme = darkColorScheme(
         border = Palette.RedHcLight,
     ),
     info = StatusColors(
-        solid = Palette.VioletPale,
-        onSolid = Palette.VioletHcOnLight,
-        container = Palette.PurpleTintDarkHc,
-        onContainer = Palette.PurplePaleHc,
-        border = Palette.VioletPale,
+        solid = Palette.SkyHcLight,
+        onSolid = Palette.SkyHcOnLight,
+        container = Palette.SkyHcDarkTint,
+        onContainer = Palette.SkyHcPale,
+        border = Palette.SkyHcLight,
     ),
 )
 

@@ -19,7 +19,7 @@ import platform.UIKit.UIAccessibilityReduceMotionStatusDidChangeNotification
 internal actual val platformMinTouchTarget: Dp = 44.dp
 
 @Composable
-internal actual fun platformPrefersReducedMotion(): Boolean =
+actual fun platformPrefersReducedMotion(): Boolean =
     observeAccessibilityFlag(
         notificationName = UIAccessibilityReduceMotionStatusDidChangeNotification,
         read = { UIAccessibilityIsReduceMotionEnabled() },
@@ -30,7 +30,7 @@ internal actual fun platformPrefersReducedMotion(): Boolean =
  * exposes it as *darker system colors*.
  */
 @Composable
-internal actual fun platformPrefersHighContrast(): Boolean =
+actual fun platformPrefersHighContrast(): Boolean =
     observeAccessibilityFlag(
         notificationName = UIAccessibilityDarkerSystemColorsStatusDidChangeNotification,
         read = { UIAccessibilityDarkerSystemColorsEnabled() },

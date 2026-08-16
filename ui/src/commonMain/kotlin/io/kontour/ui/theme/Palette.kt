@@ -9,20 +9,23 @@ import androidx.compose.ui.graphics.Color
  * every component, every layout — reads semantic tokens off [ColorScheme], so
  * that swapping a theme swaps meaning rather than hex codes.
  *
- * The values come from three places:
+ * **Monochrome, plus one blue.** The default scheme has no product in it: ink
+ * and grey for everything structural, blue for the one role that has to say
+ * "interactive", and the four conventional status hues. A library that shipped
+ * somebody's brand would make every app that used it look like that somebody,
+ * and the app that owned the brand would be the only one not fighting it.
  *
- *  - **Kontour's web properties.** `home/src/lib/styles/app.css` and
- *    `admin/src/lib/styles/app.css` are the source for the purple family, the
- *    dark surfaces and the four status tints.
+ * Kontour's own purple used to live here and does not any more. It is in
+ * `anyways`, as `KontourBrandTheme` — which is the shape every product using
+ * this library should copy, and is documented in `docs/using/theming.md`.
+ *
+ * What remains comes from two places:
+ *
  *  - **Uber's structural palette.** Near-black primary actions on white or
  *    near-black grounds, with grey used sparingly and deliberately.
- *  - **WCAG.** Several web values could not survive contact with a contrast
- *    checker and were replaced. The most important: `#BB86FC` on white is only
- *    2.1:1, so it cannot carry text, a fill label or a focus ring in light mode.
- *    It survives here as [Brand] — decoration only — while [PurpleReadable]
- *    does the work that needs contrast.
- *
- * Every pairing these feed into is asserted by `ColorSchemeContrastTest`.
+ *  - **WCAG.** Nothing here is eyeballed. Every pairing these feed into is
+ *    asserted by `ColorSchemeContrastTest`, and several candidate values were
+ *    replaced because they could not survive contact with a contrast checker.
  *
  * **Public**, because the scheme factories default from it — `lightColorScheme`
  * lists `Palette.White` and `Palette.Ink` twenty-eight times — and an app that
@@ -56,24 +59,79 @@ object Palette {
     /** `home --background` / `--text-main`. The near-black everything sits on. */
     val Ink = Color(0xFF121212)
 
-    // --- Purple -----------------------------------------------------------
-    /** `home --accent`. The Kontour purple. Decorative in light mode — see the KDoc above. */
-    val Brand = Color(0xFFBB86FC)
+    // --- Blue -------------------------------------------------------------
+    //
+    // The accent, and the one hue in an otherwise monochrome default. Blue
+    // because it is the least opinionated colour a library can pick: it says
+    // "interactive" in every convention the reader has met, and it is the one
+    // an app is most likely to replace without the replacement looking strange.
+    //
+    // The ramp mirrors what a status colour needs — a solid that carries white
+    // text, a deep tone for text on a tint, the tint itself, and light-on-dark
+    // versions of all three. Every pairing is asserted by
+    // `ColorSchemeContrastTest`; the ratios are not eyeballed.
 
-    /** `home --severity-minor-text`. The purple that can carry text on white. */
-    val PurpleReadable = Color(0xFF6D28D9)
-    val PurpleDeep = Color(0xFF4C1D95)
-    val PurpleDeeper = Color(0xFF3B0F7A)
-    val PurpleStrong = Color(0xFF5B21B6)
+    /** Carries white text and clears non-text contrast on white. 6.7:1. */
+    val BlueReadable = Color(0xFF1D4ED8)
 
-    /** `home --nav-active-bg` flattened onto white — kept opaque so it can be contrast-tested. */
-    val PurpleTintLight = Color(0xFFF3ECFE)
-    val PurpleTintLightHc = Color(0xFFEDE4FD)
-    val PurpleTintDark = Color(0xFF2A1F3D)
-    val PurpleTintDarkHc = Color(0xFF352751)
-    val PurpleLight = Color(0xFFD9BBFD)
-    val PurpleLightHc = Color(0xFFD6B3FF)
-    val PurpleOnLight = Color(0xFF1A1024)
+    /** Text on [BlueTintLight]. */
+    val BlueDeep = Color(0xFF1E3A8A)
+
+    /** The high-contrast tier's text on a tint. 14.7:1 on white. */
+    val BlueDeeper = Color(0xFF172554)
+
+    /** The high-contrast tier's solid. */
+    val BlueStrong = Color(0xFF1E3A8A)
+
+    val BlueTintLight = Color(0xFFEFF6FF)
+    val BlueTintLightHc = Color(0xFFE6EFFE)
+    val BlueTintDark = Color(0xFF1B2739)
+    val BlueTintDarkHc = Color(0xFF24314D)
+
+    /** The dark tier's solid — light enough to read against ink. */
+    val BlueLight = Color(0xFF93C5FD)
+    val BlueLightHc = Color(0xFFB3D3FF)
+
+    /** What sits *on* [BlueLight]: near-black with a blue cast. */
+    val BlueOnLight = Color(0xFF0D1B2E)
+    val BlueHcOnLight = Color(0xFF0A1220)
+
+    /** Text on [BlueTintDark]. */
+    val BluePale = Color(0xFFBFDBFE)
+    val BluePaleHc = Color(0xFFD6E6FF)
+
+    // --- Sky, for `info` -----------------------------------------------
+    //
+    // A separate hue from [BlueReadable], and it has to be. `accent` says
+    // "press this" and `info` says "here is something you should know"; drawn in
+    // the same blue, an info banner and an accent banner are the same object
+    // wearing two names. The other three status tones each have their own hue
+    // for exactly this reason, and info was the odd one out — it used to be a
+    // straight copy of the purple accent.
+
+    /** 5.9:1 on white, and unmistakably cooler than the accent. */
+    val SkySolid = Color(0xFF0369A1)
+    val SkyDeep = Color(0xFF0C4A6E)
+    val SkyTint = Color(0xFFF0F9FF)
+    val SkyBorderLight = Color(0xFFBAE0F5)
+
+    val SkyLight = Color(0xFF7DD3FC)
+    val SkyOnLight = Color(0xFF062534)
+    val SkyDarkTint = Color(0xFF0E2A3A)
+    val SkyPale = Color(0xFFBAE6FD)
+    val SkyBorderDark = Color(0xFF1E4A63)
+
+    val SkyHcSolid = Color(0xFF0C4A6E)
+    val SkyHcTint = Color(0xFFDFF2FD)
+    val SkyHcLight = Color(0xFFA5E8FF)
+    val SkyHcOnLight = Color(0xFF04202E)
+    val SkyHcDarkTint = Color(0xFF12354A)
+    val SkyHcPale = Color(0xFFC8ECFF)
+
+    val BlueBorderLight = Color(0xFFC7DCFD)
+    val BlueBorderDark = Color(0xFF2C3E5C)
+    val BlueBorderLightHc = Color(0xFFB9CFF8)
+    val BlueBorderDarkHc = Color(0xFF3D5480)
 
     // --- Dark-mode surfaces (from `home html.dark`) -------------------------
     val Slate900 = Color(0xFF1A1820)
@@ -125,9 +183,6 @@ object Palette {
     val RedOnLight = Color(0xFF2B0715)
     val RedPale = Color(0xFFFDBDBD)
 
-    val VioletLight = Color(0xFFC4B5FD)
-    val VioletOnLight = Color(0xFF1E1B4B)
-    val VioletPale = Color(0xFFD6C7FF)
 
     // --- High-contrast extras ---------------------------------------------
     val GreyHcMuted = Color(0xFF3A3A3A)
@@ -171,7 +226,4 @@ object Palette {
     val RedHcOnLight = Color(0xFF1F0409)
     val RedHcPale = Color(0xFFFFD9D9)
 
-    val VioletHcOnLight = Color(0xFF14102E)
-    val PurpleHcOnLight = Color(0xFF14091F)
-    val PurplePaleHc = Color(0xFFEBDCFF)
 }
