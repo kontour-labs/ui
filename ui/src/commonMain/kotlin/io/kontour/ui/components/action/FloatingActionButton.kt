@@ -33,6 +33,8 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.foundation.RowContentScope
+import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.theme.Theme
 
 /** How large a [FloatingActionButton] is. */
@@ -111,11 +113,10 @@ fun FloatingActionButton(
  * ```
  * ExtendedFloatingActionButton(
  *     icon = Icons.Navigation,
- *     label = "Start trip",
  *     contentDescription = "Start trip",
  *     expanded = !listState.isScrollingDown,
  *     onClick = ::startTrip,
- * )
+ * ) { +"Start trip" }
  * ```
  *
  * The collapse animates the *width* rather than cross-fading between two
@@ -123,13 +124,14 @@ fun FloatingActionButton(
  * Cross-fading makes the icon appear to jump sideways.
  *
  * @param contentDescription Announced by a screen reader. Kept separate from
- *   [label] because the label may be terse where the announcement should not be
- *   — "Start" on screen, "Start trip to Perth Station" for a screen reader.
+ *   the label slot because the label may be terse where the announcement should
+ *   not be — "Start" on screen, "Start trip to Perth Station" for a screen
+ *   reader. It also has to survive the collapse, when there is no label left to
+ *   read.
  */
 @Composable
 fun ExtendedFloatingActionButton(
     icon: ImageVector,
-    label: String,
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -140,6 +142,7 @@ fun ExtendedFloatingActionButton(
     containerColor: Color = Theme.colors.primary,
     contentColor: Color = Theme.colors.onPrimary,
     interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowContentScope.() -> Unit,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val motion = Theme.motion
@@ -191,7 +194,9 @@ fun ExtendedFloatingActionButton(
                     fadeOut(motion.tweenFast()),
             ) {
                 ProvideTextStyle(Theme.typography.labelLarge) {
-                    Text(label, maxLines = 1)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        contentScope(maxLines = 1, content = content)
+                    }
                 }
             }
         }

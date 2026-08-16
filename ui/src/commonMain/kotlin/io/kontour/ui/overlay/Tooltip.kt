@@ -33,6 +33,9 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
+import io.kontour.ui.foundation.ContentScope
+import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
@@ -125,7 +128,7 @@ fun Modifier.tooltip(
     TooltipOverlay(
         visible = showing,
         anchor = bounds,
-        text = text,
+        content = { +text },
         // Nothing to pass: this entry point is a modifier on the *trigger*, and
         // the bubble it shows is not addressable from the call site. Use the
         // `Tooltip` composable when the bubble itself needs one.
@@ -166,7 +169,7 @@ fun Modifier.tooltip(
  * ```
  * Box {
  *     IconButton(Tabler.Outline.Route, "Show route", onClick = ::show)
- *     Tooltip(visible = firstRun, text = "Tap to see the whole route")
+ *     Tooltip(visible = firstRun) { +"Tap to see the whole route" }
  * }
  * ```
  *
@@ -182,7 +185,6 @@ fun Modifier.tooltip(
 @Composable
 fun Tooltip(
     visible: Boolean,
-    text: String,
     /**
      * Applied to the *bubble*, not to the trigger.
      *
@@ -196,6 +198,7 @@ fun Tooltip(
     side: OverlaySide = OverlaySide.Top,
     alignment: OverlayAlignment = OverlayAlignment.Center,
     onDismissRequest: () -> Unit = {},
+    content: @Composable ContentScope.() -> Unit,
 ) {
     var bounds by remember { mutableStateOf<Rect?>(null) }
     Box(Modifier.parentBounds { bounds = it })
@@ -203,7 +206,7 @@ fun Tooltip(
     TooltipOverlay(
         visible = visible,
         anchor = bounds,
-        text = text,
+        content = content,
         modifier = modifier,
         side = side,
         alignment = alignment,
@@ -216,7 +219,7 @@ fun Tooltip(
 private fun TooltipOverlay(
     visible: Boolean,
     anchor: Rect?,
-    text: String,
+    content: @Composable ContentScope.() -> Unit,
     modifier: Modifier,
     side: OverlaySide,
     alignment: OverlayAlignment,
@@ -231,10 +234,16 @@ private fun TooltipOverlay(
     // entry was built — see `AnchoredOverlayLayout`.
     val latestAnchor by rememberUpdatedState(anchor)
     val latestModifier by rememberUpdatedState(modifier)
+    // Same reason as the anchor: the bubble's content is read when the overlay
+    // composes, not captured when the entry was built. It also keeps the slot
+    // out of the effect's keys below — a lambda is a new object every
+    // recomposition, so keying on it would tear the entry down and rebuild it
+    // on every frame.
+    val latestContent by rememberUpdatedState(content)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor != null, text, side, alignment) {
+    LaunchedEffect(visible, anchor != null, side, alignment) {
         if (!visible || anchor == null) {
             host.hide(key)
             return@LaunchedEffect
@@ -264,7 +273,7 @@ private fun TooltipOverlay(
                         margin = MenuDefaults.ScreenMargin,
                         arrow = ArrowSpec(color = colors.surfaceInverse),
                     ) {
-                        TooltipBubble(text, latestModifier)
+                        TooltipBubble(latestContent, latestModifier)
                     }
                 },
             )
@@ -278,7 +287,7 @@ private fun TooltipOverlay(
 }
 
 @Composable
-private fun TooltipBubble(text: String, modifier: Modifier) {
+private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier: Modifier) {
     Surface(
         // The caller's modifier first, so a `widthIn` of their own wins the
         // constraint rather than being clamped by the default behind it.
@@ -288,14 +297,16 @@ private fun TooltipBubble(text: String, modifier: Modifier) {
         color = Theme.colors.surfaceInverse,
         contentColor = Theme.colors.onSurfaceInverse,
     ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(
+        Box(
+            Modifier.padding(
                 horizontal = Theme.spacing.sm,
                 vertical = Theme.spacing.xxs,
-            ),
-            style = Theme.typography.labelMedium,
-        )
+            )
+        ) {
+            ProvideTextStyle(Theme.typography.labelMedium) {
+                ContentSlot(iconSize = Theme.sizing.iconSmall, content = content)
+            }
+        }
     }
 }
 

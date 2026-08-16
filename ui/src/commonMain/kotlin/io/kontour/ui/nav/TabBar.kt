@@ -44,6 +44,10 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.foundation.RowContentScope
+import io.kontour.ui.foundation.contentScope
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.theme.Theme
 
 object TabBarDefaults {
@@ -55,9 +59,9 @@ object TabBarDefaults {
  *
  * ```kotlin
  * TabBar {
- *     Tab("Departures", selected = tab == 0, onClick = { tab = 0 })
- *     Tab("Route map", selected = tab == 1, onClick = { tab = 1 })
- *     Tab("Alerts", selected = tab == 2, onClick = { tab = 2 }, badge = 2)
+ *     Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) { +"Departures" }
+ *     Tab(selected = tab == 1, onClick = { tab = 1 }, key = 1) { +"Route map" }
+ *     Tab(selected = tab == 2, onClick = { tab = 2 }, key = 2, badge = 2) { +"Alerts" }
  * }
  * ```
  *
@@ -188,22 +192,21 @@ class TabBarScope internal constructor()
  */
 @Composable
 fun TabBarScope.Tab(
-    label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    key: Any,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    icon: ImageVector? = null,
     badge: Int? = null,
-    key: Any = label,
     interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowContentScope.() -> Unit,
 ) {
     val colors = Theme.colors
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
-    val content by animateColorAsState(
+    val contentColor by animateColorAsState(
         targetValue = when {
             !enabled -> colors.contentDisabled
             selected -> colors.accent.solid
@@ -234,20 +237,11 @@ fun TabBarScope.Tab(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                size = Theme.sizing.iconMedium,
-                tint = content,
-            )
+        ProvideTextStyle(Theme.typography.labelLarge) {
+            ProvideContentColor(contentColor) {
+                contentScope(maxLines = 1, content = content)
+            }
         }
-        Text(
-            text = label,
-            style = Theme.typography.labelLarge,
-            color = content,
-            maxLines = 1,
-        )
         // Beside the label, not over it. `BadgedBox` overlays its badge on the
         // top-right of what it wraps, which is right for an icon and lands on
         // the last two letters of a word.

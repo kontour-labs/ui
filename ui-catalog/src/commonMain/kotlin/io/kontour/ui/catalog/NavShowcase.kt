@@ -150,9 +150,15 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                                 )
                             },
                         ) {
-                            Tab("Departures", selected = tab == 0, onClick = { tab = 0 })
-                            Tab("Route map", selected = tab == 1, onClick = { tab = 1 })
-                            Tab("Alerts", selected = tab == 2, onClick = { tab = 2 }, badge = 2)
+                            Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) {
+                                +"Departures"
+                            }
+                            Tab(selected = tab == 1, onClick = { tab = 1 }, key = 1) {
+                                +"Route map"
+                            }
+                            Tab(selected = tab == 2, onClick = { tab = 2 }, key = 2, badge = 2) {
+                                +"Alerts"
+                            }
                         }
                     }
 

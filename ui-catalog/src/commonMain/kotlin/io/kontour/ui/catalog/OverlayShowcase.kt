@@ -206,7 +206,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             contentDescription = "Save this trip",
                             onClick = { tooltip.value = !tooltip.value },
                         )
-                        Tooltip(visible = tooltip.value, text = "Save this trip")
+                        Tooltip(visible = tooltip.value) { +"Save this trip" }
                     }
                 }
 

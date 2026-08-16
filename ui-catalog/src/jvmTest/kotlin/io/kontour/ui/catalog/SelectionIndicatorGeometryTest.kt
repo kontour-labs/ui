@@ -251,16 +251,16 @@ class SelectionIndicatorGeometryTest {
             KontourTheme(darkTheme = false, reduceMotion = true) {
                 Box(Modifier.onGloballyPositioned { barBottom = it.rectInRoot().bottom }) {
                     TabBar {
-                        Tab("One", selected = false, onClick = {})
+                        Tab(selected = false, onClick = {}, key = "one") { +"One" }
                         Tab(
-                            "Two",
                             selected = true,
                             onClick = {},
+                            key = "two",
                             modifier = Modifier.onGloballyPositioned {
                                 selectedTab = it.rectInRoot()
                             },
-                        )
-                        Tab("Three", selected = false, onClick = {})
+                        ) { +"Two" }
+                        Tab(selected = false, onClick = {}, key = "three") { +"Three" }
                     }
                 }
             }

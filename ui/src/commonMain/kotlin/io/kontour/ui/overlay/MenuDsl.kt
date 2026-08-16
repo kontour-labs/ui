@@ -124,7 +124,7 @@ internal class MenuScopeImpl(
             if (trailingIcon != null) trailing { +trailingIcon }
             // A key cap, not muted text. `⌘S` set in the row's own type reads
             // as part of the label; the border is what says it is a key.
-            if (shortcut != null) trailing { Kbd(shortcut) }
+            if (shortcut != null) trailing { Kbd { +shortcut } }
         }
     }
 
@@ -135,7 +135,7 @@ internal class MenuScopeImpl(
 
     @Composable
     override fun section(title: String) {
-        MenuSectionHeader(title)
+        MenuSectionHeader { +title }
     }
 
     @Composable
@@ -149,7 +149,7 @@ internal class MenuScopeImpl(
         // action is done with the menu, and leaving the parent open over the
         // result is the same hanging-menu bug one level up.
         val dismiss = onDismissRequest
-        SubMenu(label = label, enabled = enabled, leadingIcon = icon) {
+        SubMenu(label = { +label }, enabled = enabled, leadingIcon = icon) {
             MenuScopeImpl(this, dismiss).content()
         }
     }

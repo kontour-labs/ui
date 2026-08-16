@@ -44,6 +44,7 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColor
@@ -84,7 +85,7 @@ object NavDrawerDefaults {
  *             leading { +Tabler.Outline.LayoutDashboard }
  *             +"Overview"
  *         }
- *         NavDrawerSection("Content") {
+ *         NavDrawerSection(label = { +"Content" }) {
  *             NavDrawerItem(selected = here == Routes, onClick = { go(Routes) }, key = Routes) {
  *                 leading { +Tabler.Outline.Route }
  *                 +"Routes"
@@ -359,7 +360,12 @@ fun NavDrawerItem(
  * A drawer item that expands to reveal its children.
  *
  * ```kotlin
- * NavDrawerGroup("Content", icon = Tabler.Outline.Folder, expanded = open, onExpandedChange = { open = it }) {
+ * NavDrawerGroup(
+ *     expanded = open,
+ *     onExpandedChange = { open = it },
+ *     label = { +"Content" },
+ *     icon = Tabler.Outline.Folder,
+ * ) {
  *     NavDrawerItem(here == Routes, ::goRoutes, key = Routes, nestLevel = 1) { +"Routes" }
  *     NavDrawerItem(here == Stops, ::goStops, key = Stops, nestLevel = 1) { +"Stops" }
  * }
@@ -375,9 +381,9 @@ fun NavDrawerItem(
  */
 @Composable
 fun NavDrawerGroup(
-    label: String,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
+    label: @Composable ContentScope.() -> Unit,
     modifier: Modifier = Modifier,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     nestLevel: Int = 0,
@@ -428,12 +434,11 @@ fun NavDrawerGroup(
                     tint = colors.contentMuted,
                 )
             }
-            Text(
-                text = label,
-                modifier = Modifier.weight(1f),
-                style = Theme.typography.bodyMedium,
-                maxLines = 1,
-            )
+            Box(Modifier.weight(1f)) {
+                ProvideTextStyle(Theme.typography.bodyMedium) {
+                    ContentSlot(maxLines = 1, content = label)
+                }
+            }
             Icon(
                 imageVector = SystemIcons.ChevronDown,
                 contentDescription = null,
@@ -461,7 +466,7 @@ fun NavDrawerGroup(
 /** A labelled divider between groups of drawer items. */
 @Composable
 fun NavDrawerSection(
-    label: String,
+    label: @Composable ContentScope.() -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable NavDrawerScope.() -> Unit,
 ) {
@@ -469,18 +474,21 @@ fun NavDrawerSection(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
     ) {
-        Text(
-            text = label,
-            modifier = Modifier
+        Box(
+            Modifier
                 .padding(
                     start = Theme.spacing.md,
                     top = Theme.spacing.md,
                     bottom = Theme.spacing.xxs,
                 )
-                .semantics { heading() },
-            style = Theme.typography.labelSmall,
-            color = Theme.colors.contentMuted,
-        )
+                .semantics(mergeDescendants = true) { heading() }
+        ) {
+            ProvideTextStyle(Theme.typography.labelSmall) {
+                ProvideContentColor(Theme.colors.contentMuted) {
+                    ContentSlot(iconSize = Theme.sizing.iconSmall, content = label)
+                }
+            }
+        }
         NavDrawerScopeImpl(this).content()
     }
 }

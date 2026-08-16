@@ -149,18 +149,16 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                     val collapsed = seed(false)
                     ExtendedFloatingActionButton(
                         icon = Tabler.Outline.Navigation,
-                        label = "Start trip",
                         contentDescription = "Start trip",
                         expanded = extended.value,
                         onClick = { extended.value = !extended.value },
-                    )
+                    ) { +"Start trip" }
                     ExtendedFloatingActionButton(
                         icon = Tabler.Outline.Navigation,
-                        label = "Start trip",
                         contentDescription = "Start trip",
                         expanded = collapsed.value,
                         onClick = { collapsed.value = !collapsed.value },
-                    )
+                    ) { +"Start trip" }
                 }
             }
 

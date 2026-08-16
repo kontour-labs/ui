@@ -3,10 +3,23 @@
 Every component in this library takes its **content** as slots rather than as
 strings. That is the whole API; there is no `label: String` to fall back to.
 
-The rule is about content, so a field's floating label is not covered by it —
-`TextField` and `Select` take `label: String?` because that label is chrome: it
-animates between two positions, becomes the control's accessible name, and has
-nowhere to put a composable. It is the one exception, and it is deliberate.
+The rule is about **content**, and three kinds of `String` are not content. Each
+survives on purpose, and each is a different reason:
+
+| | Example | Why |
+|---|---|---|
+| **Chrome** | `TextField.label`, `Select.placeholder` | Animates between two positions, becomes the control's accessible name, and has nowhere to put a composable |
+| **A projection** | `Avatar.name`, `Select.optionLabel` | Not drawn as given — it derives the initials and the stable colour index, or turns one of *your* objects into a row |
+| **An announcement** | `SwipeToDismiss.label`, `LoadingOverlay.label` | Reaches an API that accepts only a `String` — `contentDescription`, `onClickLabel`, `CustomAccessibilityAction`, `stateDescription` |
+
+The third is the one worth stating carefully, because it looks like a miss and
+is not. Where text is both **drawn and announced**, one `String` makes the two
+agree by construction. Split it into a slot plus a name and a caller can write a
+swipe background that says *Delete* and announces *Archive* — a class of
+accessibility bug the single parameter makes impossible. `InputChip.removeLabel`
+argues the same case from the other direction.
+
+Everything else is a slot.
 
 ```kotlin
 Button(onClick = ::save) { +"Save" }
@@ -140,6 +153,40 @@ These still take strings, and that is deliberate: a shorthand exists for the
 common shape, and the common shape is text. They build through the slot API
 underneath.
 
+So does `Modifier.tooltip`, which is a shorthand wearing a different hat — the
+brief form of the `Tooltip` component, taking a `String` where the component
+takes a slot. A modifier has no composition position to hang a slot on, and the
+relationship is the same one every scope here has with the component beside it.
+
+### The scopes that *do* offer both
+
+`StatScope` and `KeyValueScope` take a `String` **and** a slot for the same
+region, which reads like drift beside `ListItemScope`. It is the announcement
+rule again, one level down.
+
+Both components merge their whole block into a single announcement — `Stat`
+draws `semantics(mergeDescendants = true) { contentDescription = … }` — so the
+drawn nodes stop speaking for themselves and the scope has to collect the words
+in speaking order. `value("12")` contributes "12"; `value { +"12" }` cannot, and
+that is exactly what `announcement()` is for:
+
+```kotlin
+Stat {
+    value("12")            // drawn and spoken
+    +"Stops away"
+}
+
+Stat {
+    value { Countdown(arrivesAt) }   // drawn only…
+    +"Until departure"
+    announcement("4 minutes until departure")   // …so say it explicitly
+}
+```
+
+`ListItemScope`, `BannerScope` and `StateScope` merge nothing, so their drawn
+text speaks for itself and a `String` overload would buy nothing. Whether a
+scope offers one is decided by whether its component merges, not by taste.
+
 ### They do not replace anything
 
 Each scope **extends the receiver the content lambda already had**, so every
@@ -214,7 +261,7 @@ Inside a `LazyColumn`, use `listGroup`:
 
 ```kotlin
 LazyColumn(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
-    item { SectionHeader("Saved places") }
+    item { SectionHeader { +"Saved places" } }
     listGroup(savedPlaces, key = { it.id }) { place ->
         item(place.name, supporting = place.detail, icon = Tabler.Outline.Bus) {
             open(place)

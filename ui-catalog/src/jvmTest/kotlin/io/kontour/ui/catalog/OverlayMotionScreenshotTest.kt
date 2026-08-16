@@ -248,7 +248,7 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
                         contentDescription = "Save this trip",
                         onClick = {},
                     )
-                    Tooltip(visible = showing.value, text = "Save this trip")
+                    Tooltip(visible = showing.value) { +"Save this trip" }
                 }
             }
 

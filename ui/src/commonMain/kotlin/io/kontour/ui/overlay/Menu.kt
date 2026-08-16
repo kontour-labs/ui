@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.ProvideContentColor
@@ -415,25 +416,31 @@ fun MenuDivider(modifier: Modifier = Modifier) {
  * — a heading that can be tabbed to but does nothing is a dead stop.
  */
 @Composable
-fun MenuSectionHeader(title: String, modifier: Modifier = Modifier) {
-    Text(
-        text = title,
-        modifier = modifier.padding(
+fun MenuSectionHeader(
+    modifier: Modifier = Modifier,
+    content: @Composable ContentScope.() -> Unit,
+) {
+    Box(
+        modifier.padding(
             start = Theme.spacing.sm,
             end = Theme.spacing.sm,
             top = Theme.spacing.xs,
             bottom = Theme.spacing.xxs,
-        ),
-        style = Theme.typography.labelSmall,
-        color = Theme.colors.contentMuted,
-    )
+        )
+    ) {
+        ProvideTextStyle(Theme.typography.labelSmall) {
+            ProvideContentColor(Theme.colors.contentMuted) {
+                ContentSlot(iconSize = Theme.sizing.iconSmall, content = content)
+            }
+        }
+    }
 }
 
 /**
  * A menu item that opens a menu of its own.
  *
  * ```
- * SubMenu("Sort by") {
+ * SubMenu(label = { +"Sort by" }) {
  *     MenuItem(onClick = ::sortByDeparture, selected = sort == Departure) { +"Departure" }
  *     MenuItem(onClick = ::sortByDuration, selected = sort == Duration) { +"Duration" }
  * }
@@ -451,7 +458,7 @@ fun MenuSectionHeader(title: String, modifier: Modifier = Modifier) {
  */
 @Composable
 fun SubMenu(
-    label: String,
+    label: ListItemScope.() -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     leadingIcon: ImageVector? = null,
@@ -508,7 +515,7 @@ fun SubMenu(
             enabled = enabled,
             interactionSource = interactions,
         ) {
-            +label
+            label()
             if (leadingIcon != null) leading { +leadingIcon }
             trailing { +SystemIcons.ChevronForward }
         }

@@ -112,10 +112,12 @@ fun ListShowcase(modifier: Modifier = Modifier) {
             ) {
                 Section("Sections and settings") {
                     ListSection(
-                        title = "Appearance",
-                        description = "How the app looks on this device",
-                        footer = "Delay alerts use your last-known location and " +
-                            "stop when you close the app.",
+                        title = { +"Appearance" },
+                        description = { +"How the app looks on this device" },
+                        footer = {
+                            +("Delay alerts use your last-known location and " +
+                                "stop when you close the app.")
+                        },
                     ) {
                         // A setting row's whole job is to open something and
                         // come back with a new value. Cycling through the values

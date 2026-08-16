@@ -15,16 +15,20 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.ContentScope
+import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.theme.Theme
 
 /**
  * A key cap — one key, or one accelerator.
  *
  * ```kotlin
- * Kbd("⌘S")
+ * Kbd { +"⌘S" }
  * Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
- *     Kbd("Ctrl"); Kbd("K")
+ *     Kbd { +"Ctrl" }
+ *     Kbd { +"K" }
  * }
  * ```
  *
@@ -39,14 +43,15 @@ import io.kontour.ui.theme.Theme
  * every row is noise — the row already announces what it does. When a shortcut
  * is the *only* thing conveying an action, put it in the label.
  *
- * @param key One key or one accelerator. Multi-key chords read better as
- *   several of these in a row with a gap than as one long cap.
+ * @param content One key or one accelerator. Multi-key chords read better as
+ *   several of these in a row with a gap than as one long cap. Kept to one line:
+ *   a key cap that wraps is not a key cap.
  */
 @Composable
 fun Kbd(
-    key: String,
     modifier: Modifier = Modifier,
     color: Color = Theme.colors.contentMuted,
+    content: @Composable ContentScope.() -> Unit,
 ) {
     val shape = Theme.shapes.extraSmall
     Row(
@@ -60,12 +65,11 @@ fun Kbd(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = key,
-            style = Theme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-            color = color,
-            maxLines = 1,
-        )
+        ProvideTextStyle(Theme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace)) {
+            ProvideContentColor(color) {
+                ContentSlot(iconSize = Theme.sizing.iconSmall, maxLines = 1, content = content)
+            }
+        }
     }
 }
 

@@ -146,11 +146,10 @@ One per screen. A second FAB is two competing "the" actions.
 ```kotlin
 ExtendedFloatingActionButton(
     icon = Tabler.Outline.Navigation,
-    label = "Start",
     contentDescription = "Start trip to Perth Station",
     expanded = !listState.isScrollingDown,
     onClick = ::start,
-)
+) { +"Start" }
 ```
 
 It animates its *width* when collapsing rather than cross-fading between two

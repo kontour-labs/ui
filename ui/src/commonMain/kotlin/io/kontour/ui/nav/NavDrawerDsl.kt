@@ -113,7 +113,7 @@ internal class NavDrawerScopeImpl(
     @Composable
     override fun section(label: String, content: @Composable NavDrawerScope.() -> Unit) {
         val level = nestLevel
-        NavDrawerSection(label = label) {
+        NavDrawerSection(label = { +label }) {
             NavDrawerScopeImpl(this, level).content()
         }
     }
@@ -128,7 +128,7 @@ internal class NavDrawerScopeImpl(
     ) {
         val level = nestLevel
         NavDrawerGroup(
-            label = label,
+            label = { +label },
             expanded = expanded,
             onExpandedChange = onExpandedChange,
             icon = icon,

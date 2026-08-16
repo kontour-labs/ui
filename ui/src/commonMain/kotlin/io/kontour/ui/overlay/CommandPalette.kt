@@ -293,7 +293,7 @@ private fun PaletteBody(
                         ) {
                             command.icon?.let { icon -> leading { +icon } }
                             +command.label
-                            command.shortcut?.let { shortcut -> trailing { Kbd(shortcut) } }
+                            command.shortcut?.let { shortcut -> trailing { Kbd { +shortcut } } }
                         }
                     }
                 }

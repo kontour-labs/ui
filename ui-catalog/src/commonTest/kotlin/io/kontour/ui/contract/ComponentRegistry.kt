@@ -270,12 +270,11 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec("ExtendedFloatingActionButton", Role.Button) { modifier, enabled, onClick ->
             ExtendedFloatingActionButton(
                 icon = Tabler.Outline.Star,
-                label = "Add stop",
                 contentDescription = "Add stop",
                 onClick = onClick,
                 modifier = modifier,
                 enabled = enabled,
-            )
+            ) { +"Add stop" }
         }
     )
 
@@ -708,12 +707,12 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // so what is asserted is the tab and not its container.
             TabBar {
                 Tab(
-                    label = "Departures",
                     selected = false,
                     onClick = onClick,
+                    key = "departures",
                     modifier = modifier,
                     enabled = enabled,
-                )
+                ) { +"Departures" }
             }
         }
     )
@@ -781,7 +780,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     add(
         ComponentSpec("Kbd", role = null, underContract = false) { modifier, _, _ ->
-            Kbd(key = "⌘K", modifier = modifier)
+            Kbd(modifier = modifier) { +"⌘K" }
         }
     )
 
@@ -876,7 +875,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     add(
         ComponentSpec("NavDrawerSection", role = null, underContract = false) { modifier, _, _ ->
-            NavDrawerSection(label = "Saved", modifier = modifier) {
+            NavDrawerSection(label = { +"Saved" }, modifier = modifier) {
                 destination(label = "Nearby", selected = false, onClick = {})
             }
         }
@@ -885,7 +884,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec("NavDrawerGroup", role = null, underContract = false) { modifier, _, _ ->
             NavDrawerGroup(
-                label = "Lines",
+                label = { +"Lines" },
                 expanded = true,
                 onExpandedChange = {},
                 modifier = modifier,

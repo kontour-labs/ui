@@ -104,6 +104,8 @@ first.
 | `text` | A body of text in a text-rendering primitive — `Text`, `Tooltip` | anything with a shorter name |
 | `leading` / `trailing` | A composable slot at one end | |
 | `leadingIcon` / `trailingIcon` | An `ImageVector` at one end — the same slot, without the ceremony | |
+| `content` | The component's own content, in its trailing slot | `body`, `children` |
+| `action` / `actions` | A slot holding *other controls* — see below | |
 | `onDismissRequest` | *You* own `visible`; the component is asking to be hidden | `onDismiss` |
 | `onDismiss` | The *host* owns visibility; it has already gone and is telling you | |
 | `onClose` / `onDismissSupporting` | A close *control* was pressed. What it closes is something else — `SheetHeader`'s button closes the sheet, not the header — and `null` means "no button", not "not dismissible" | |
@@ -114,6 +116,24 @@ A predicate is named for what it decides, never `isEnabled` — `DatePicker` tak
 `isDateSelectable`, because `enabled` already means "is the whole picker usable".
 
 The banned column is enforced by `checkApiConventions` too.
+
+### Which row scope a slot gets
+
+Two row-shaped slot types, and the line between them is not about the layout:
+
+- **`RowContentScope`** when the slot **is the control's own label** — `Button`,
+  `Chip`, `Tag`, `ButtonGroupScope.action`, `Tab`. The caller writes
+  `+"Save"` and `+icon`, and the component decides the style and the icon size.
+- **plain `RowScope`** when the slot holds **other controls** — `TopBar.actions`,
+  `TabBar.actions`, `SheetHeader.actions`, `BottomSheet.actions`,
+  `SectionHeader.action`, `ListSection.action`, `Toolbar.content`. There is no
+  one text style to provide, because what goes in is buttons.
+
+Ten slots on the first side, nine on the second, and no exceptions. `Toolbar`
+looks like the odd one out — it is the only *container* whose whole content is a
+raw `RowScope` — but it holds icon buttons and dividers exactly as
+`TopBar.actions` does, and giving it the `+` vocabulary would put it out of step
+with the slot it most resembles.
 
 ### If it gets a shorthand
 

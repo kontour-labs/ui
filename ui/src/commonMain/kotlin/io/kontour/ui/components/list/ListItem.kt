@@ -341,7 +341,7 @@ fun ListItem(
  * A titled group of [ListItem]s.
  *
  * ```kotlin
- * ListSection(title = "Notifications") {
+ * ListSection(title = { +"Notifications" }) {
  *     SelectionRow(delays, viewModel::setDelays, Role.Switch) { +"Delays" }
  *     SelectionRow(cancels, viewModel::setCancels, Role.Switch) { +"Cancellations" }
  * }
@@ -355,16 +355,18 @@ fun ListItem(
  * @param description Sits under the title, above the rows. For what the group
  *   *is*.
  * @param footer Sits under the rows. For what the setting *does* — the sentence
- *   a settings screen puts below a switch to explain the consequence of it.
- *   Spelled like [description] rather than as a slot because it is the same kind
- *   of thing, and the two should not read as different mechanisms.
+ *   a settings screen puts below a switch to explain the consequence of it. A
+ *   slot like [description] because it is the same kind of thing, and the two
+ *   should not read as different mechanisms.
+ * @param action Holds *controls* rather than the section's own text, which is
+ *   why it is a plain `RowScope` and the three above are content slots.
  */
 @Composable
 fun ListSection(
     modifier: Modifier = Modifier,
-    title: String? = null,
-    description: String? = null,
-    footer: String? = null,
+    title: (@Composable ContentScope.() -> Unit)? = null,
+    description: (@Composable ContentScope.() -> Unit)? = null,
+    footer: (@Composable ContentScope.() -> Unit)? = null,
     action: (@Composable RowScope.() -> Unit)? = null,
     spacing: Dp = ListItemDefaults.Spacing,
     content: @Composable ColumnScope.() -> Unit,
@@ -375,23 +377,29 @@ fun ListSection(
     ) {
         if (title != null || action != null) {
             SectionHeader(
-                title = title.orEmpty(),
                 description = description,
                 action = action,
+                // An action with no title used to draw an empty `Text`, which
+                // took a line's height to say nothing. An empty slot draws
+                // nothing at all.
+                title = title ?: {},
             )
         }
         content()
         if (footer != null) {
-            Text(
-                text = footer,
-                modifier = Modifier.padding(
+            Box(
+                Modifier.padding(
                     start = Theme.spacing.md,
                     end = Theme.spacing.md,
                     top = Theme.spacing.xxs,
-                ),
-                style = Theme.typography.bodySmall,
-                color = Theme.colors.contentMuted,
-            )
+                )
+            ) {
+                ProvideTextStyle(Theme.typography.bodySmall) {
+                    ProvideContentColor(Theme.colors.contentMuted) {
+                        ContentSlot(content = footer)
+                    }
+                }
+            }
         }
     }
 }
@@ -399,10 +407,10 @@ fun ListSection(
 /** A heading above a group of rows. */
 @Composable
 fun SectionHeader(
-    title: String,
     modifier: Modifier = Modifier,
-    description: String? = null,
+    description: (@Composable ContentScope.() -> Unit)? = null,
     action: (@Composable RowScope.() -> Unit)? = null,
+    title: @Composable ContentScope.() -> Unit,
 ) {
     Row(
         modifier = modifier
@@ -417,18 +425,23 @@ fun SectionHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(
-                text = title,
-                modifier = Modifier.semantics { heading() },
-                style = Theme.typography.labelMedium,
-                color = Theme.colors.contentMuted,
-            )
+            // `mergeDescendants` so the heading node carries the title's text,
+            // the way it did when the title was a `Text` wearing the modifier
+            // itself. A heading a screen reader can find but not read is worse
+            // than no heading.
+            Box(Modifier.semantics(mergeDescendants = true) { heading() }) {
+                ProvideTextStyle(Theme.typography.labelMedium) {
+                    ProvideContentColor(Theme.colors.contentMuted) {
+                        ContentSlot(content = title)
+                    }
+                }
+            }
             if (description != null) {
-                Text(
-                    text = description,
-                    style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentSubtle,
-                )
+                ProvideTextStyle(Theme.typography.bodySmall) {
+                    ProvideContentColor(Theme.colors.contentSubtle) {
+                        ContentSlot(content = description)
+                    }
+                }
             }
         }
         action?.invoke(this)
