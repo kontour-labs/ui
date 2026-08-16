@@ -1,0 +1,59 @@
+[versions]
+# Core build and tooling
+agp = "9.3.1"
+kotlin = "2.4.10"
+# A release candidate, deliberately. `ImageComposeScene.calculateContentSize()`
+# and the screenshot harness this library's tests are built on land here; see the
+# README for what that means for a consumer.
+composeMultiplatform = "1.12.0-rc01"
+dokka = "2.1.0"
+
+# Android
+android-compileSdk = "37"
+android-minSdk = "29"
+android-targetSdk = "37"
+androidx-activity = "1.13.0"
+
+# Icons — used by the catalog and the tests, never by the library itself
+composables-icons = "2.2.1"
+
+# KotlinX
+kotlinx-coroutines = "1.11.0"
+kotlinx-datetime = "0.8.0"
+kotlinx-browser = "0.5.0"
+
+[libraries]
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
+kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "kotlinx-browser" }
+
+# Compose Foundation and nothing above it. Material is absent on purpose and
+# `:ui:checkNoMaterial` fails the build if it ever arrives transitively.
+compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
+compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
+compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
+compose-uiTooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "composeMultiplatform" }
+compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
+compose-uiTest = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "composeMultiplatform" }
+
+composables-tabler-outline = { module = "com.composables:icons-tabler-outline-cmp", version.ref = "composables-icons" }
+composables-tabler-filled = { module = "com.composables:icons-tabler-filled-cmp", version.ref = "composables-icons" }
+
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
+
+[bundles]
+icons = [
+    "composables-tabler-outline",
+    "composables-tabler-filled",
+]
+
+[plugins]
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
+composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+androidApplication = { id = "com.android.application", version.ref = "agp" }
+androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
