@@ -1,6 +1,7 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap as snapSpec
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
@@ -167,6 +168,52 @@ fun RangeSlider(
         currentOnValueChange(updated)
     }
 
+    // Everything below mirrors `Slider`. Two sliders in one library that answer
+    // the same gesture differently is worse than either of them being wrong.
+    val detented = steps > 0 && !motion.reduceMotion
+
+    /** The detent one thumb is on, pulled toward the finger if it is the one being dragged. */
+    fun targetFor(thumb: Thumb, base: Float): Float =
+        if (detented && activeThumb == thumb && !dragFraction.isNaN()) {
+            base + (dragFraction - base) * SliderDefaults.DetentPull
+        } else {
+            base
+        }
+
+    val startSettled by animateFloatAsState(
+        targetValue = targetFor(Thumb.Start, startFraction),
+        animationSpec = motion.springOrTween(motion.springSnappy),
+        label = "rangeStartDetent",
+    )
+    val endSettled by animateFloatAsState(
+        targetValue = targetFor(Thumb.End, endFraction),
+        animationSpec = motion.springOrTween(motion.springSnappy),
+        label = "rangeEndDetent",
+    )
+
+    /** See `Slider`'s `tapEased`: a tapped thumb travels, a dragged one tracks. */
+    val startTapEased by animateFloatAsState(
+        targetValue = startFraction,
+        animationSpec = if (dragFraction.isNaN()) motion.springOrTween(motion.springSnappy) else snapSpec(),
+        label = "rangeStartTap",
+    )
+    val endTapEased by animateFloatAsState(
+        targetValue = endFraction,
+        animationSpec = if (dragFraction.isNaN()) motion.springOrTween(motion.springSnappy) else snapSpec(),
+        label = "rangeEndTap",
+    )
+
+    fun drawn(thumb: Thumb, base: Float, settled: Float, tapEased: Float): Float = when {
+        detented -> settled.coerceIn(0f, 1f)
+        // Only the thumb under the finger tracks it exactly; the other one is
+        // standing still and may as well ease if something moved it.
+        activeThumb == thumb && !dragFraction.isNaN() -> base
+        else -> tapEased.coerceIn(0f, 1f)
+    }
+
+    val drawnStart = drawn(Thumb.Start, startFraction, startSettled, startTapEased)
+    val drawnEnd = drawn(Thumb.End, endFraction, endSettled, endTapEased)
+
     Box(
         modifier = modifier
             .semantics {
@@ -252,11 +299,16 @@ fun RangeSlider(
                                 toStart < toEnd -> Thumb.Start
                                 else -> Thumb.End
                             }
+                            // The thumb comes to the finger, as `Slider`'s
+                            // does — but only once one of them has been picked.
+                            // With the two coincident the choice is deferred to
+                            // the first delta's direction, and moving a thumb
+                            // before knowing which one would move the wrong one.
                             dragFraction = when (activeThumb) {
-                                Thumb.Start -> startFraction
-                                Thumb.End -> endFraction
+                                Thumb.Start, Thumb.End -> f.coerceIn(0f, 1f)
                                 Thumb.None -> Float.NaN
                             }
+                            if (activeThumb != Thumb.None) emit(activeThumb, dragFraction)
                         },
                         onDragStopped = {
                             feedback.perform(FeedbackIntent.GestureEnd)
@@ -275,8 +327,8 @@ fun RangeSlider(
                         val inactiveColor = if (enabled) colors.outline else colors.surfaceSunken
 
                         onDrawBehind {
-                            val startX = size.width * startFraction
-                            val endX = size.width * endFraction
+                            val startX = size.width * drawnStart
+                            val endX = size.width * drawnEnd
 
                             drawRoundRect(
                                 color = inactiveColor,

@@ -1,6 +1,7 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -15,12 +16,19 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorSizing
@@ -118,7 +126,55 @@ fun SegmentedControl(
             )
         },
     ) {
-        Row(Modifier.fillMaxWidth().fillMaxHeight()) {
+        /**
+         * Drag across the segments and the thumb comes with you.
+         *
+         * The thumb slides, so a finger put on it and moved sideways should
+         * carry it — and until now the whole control could only be tapped, which
+         * is the one gesture that does not use the thing that makes it a
+         * segmented control rather than three buttons.
+         *
+         * On the track rather than on each segment: a drag that starts on
+         * "Depart" and ends on "Arrive" leaves the segment it began in, and a
+         * per-segment gesture loses the pointer at the boundary. The taps stay
+         * per-segment, and `detectHorizontalDragGestures` waits for touch slop,
+         * so a press that never travels is still a tap on the segment under it.
+         */
+        var trackWidth by remember { mutableFloatStateOf(0f) }
+        val currentSelected by rememberUpdatedState(selected)
+        val currentChange by rememberUpdatedState(onSelectedChange)
+        val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+
+        fun selectAt(x: Float) {
+            if (trackWidth <= 0f) return
+            val fraction = (x / trackWidth).coerceIn(0f, 1f)
+            val raw = (fraction * options.size).toInt().coerceIn(options.indices)
+            val index = if (isRtl) options.size - 1 - raw else raw
+            if (index == currentSelected) return
+            // Once per segment crossed, the way a stepped slider ticks: a user
+            // dragging without looking can feel where the boundaries are.
+            feedback.perform(FeedbackIntent.Tick)
+            currentChange(index)
+        }
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .onSizeChanged { trackWidth = it.width.toFloat() }
+                .then(
+                    if (enabled) {
+                        Modifier.pointerInput(options.size, isRtl) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset -> selectAt(offset.x) },
+                                onHorizontalDrag = { change, _ -> selectAt(change.position.x) },
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
+        ) {
             options.forEachIndexed { index, option ->
                 val selected = index == selected
                 val interactions = remember { MutableInteractionSource() }

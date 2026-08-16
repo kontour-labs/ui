@@ -1,6 +1,7 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap as snapSpec
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
@@ -192,9 +193,37 @@ fun Slider(
         label = "sliderDetent",
     )
 
+    /**
+     * A continuous slider's thumb, which eases to a tap and tracks a drag.
+     *
+     * Tapping a track used to teleport the thumb — the value is the value, and
+     * there is nothing between one frame and the next to say it travelled.
+     * Springing it is what turns "the number changed" into "the thumb went
+     * there", and on a slider that is the whole of the feedback.
+     *
+     * The spec becomes `snap()` while a finger is down, because a thumb that
+     * eases toward the finger holding it reads as lag rather than as polish. And
+     * `drawnFraction` below takes the raw value during a drag anyway, so this is
+     * only kept in step so that letting go does not hand the thumb back to a
+     * stale animation — the mistake stage 1 found in the detents.
+     */
+    val tapEased by animateFloatAsState(
+        targetValue = fraction,
+        animationSpec = if (dragFraction.isNaN()) {
+            motion.springOrTween(motion.springSnappy)
+        } else {
+            snapSpec()
+        },
+        label = "sliderTap",
+    )
+
     // Coerced because `springSnappy` is underdamped and a thumb that overshoots
     // the end of its own track reads as a bug rather than as bounce.
-    val drawnFraction = if (detented) settled.coerceIn(0f, 1f) else fraction
+    val drawnFraction = when {
+        detented -> settled.coerceIn(0f, 1f)
+        dragFraction.isNaN() -> tapEased.coerceIn(0f, 1f)
+        else -> fraction
+    }
 
     fun emit(newFraction: Float) {
         val next = snap(newFraction)
@@ -270,7 +299,24 @@ fun Slider(
                     orientation = Orientation.Horizontal,
                     enabled = enabled,
                     interactionSource = interactions,
-                    onDragStarted = { dragFraction = fraction },
+                    // The thumb comes to the finger, rather than the finger
+                    // having to go and find the thumb. Pressing at 80% of a
+                    // slider sitting at 20% and dragging used to move it from
+                    // 20%, so the first part of every drag was spent catching
+                    // up to where the press already was.
+                    //
+                    // Not eased, unlike a tap: the finger is *there*, and a thumb
+                    // easing toward a finger that has already started moving
+                    // arrives late to somewhere it no longer is.
+                    onDragStarted = { start ->
+                        val at = if (layoutDirection == LayoutDirection.Rtl) {
+                            1f - start.x / widthPx
+                        } else {
+                            start.x / widthPx
+                        }
+                        dragFraction = at.coerceIn(0f, 1f)
+                        emit(dragFraction)
+                    },
                     onDragStopped = {
                         feedback.perform(FeedbackIntent.GestureEnd)
                         lastStepIndex = Float.NaN

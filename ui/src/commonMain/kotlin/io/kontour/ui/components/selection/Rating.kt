@@ -1,6 +1,7 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -18,12 +20,17 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
@@ -31,6 +38,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
 import kotlin.math.ceil
 
 /**
@@ -52,11 +60,20 @@ import kotlin.math.ceil
  * "3 stars" is a thing a screen-reader user can navigate to and choose rather
  * than a slider they have to drag blind.
  *
- * A fractional [value] is drawn as a partly-filled mark, and only makes sense
- * read-only — an interactive rating snaps to whole marks, because a tap cannot
- * mean 3.4.
+ * **Press and drag across the marks to set it.** A row of stars is the most
+ * obviously swipeable control there is, and until now every one of them was five
+ * separate tap targets. The taps still work — the drag waits for touch slop —
+ * and each mark crossed ticks, so a score can be set without looking.
+ *
+ * A fractional [value] is drawn as a partly-filled mark. A *tap* cannot mean
+ * 3.4, so tapping is always whole marks; a drag can, and [allowHalf] is where
+ * that is turned on.
  *
  * @param value The score. Clamped into `0f..count`.
+ * @param allowHalf Whether a drag can stop on a half mark. Off by default: a
+ *   rating that emits 3.5 when every caller expected 3 or 4 is a change of
+ *   contract, not a nicety. On, the left half of a mark is `.5` and the right
+ *   half is whole, which is the only mapping anyone guesses right first time.
  * @param contentDescription What the score is *of* — "Your rating", "Average
  *   rating". Required: five stars with no name is a row of decoration.
  * @param onValueChange `null` for read-only. Receives whole numbers, as the
@@ -74,6 +91,7 @@ fun Rating(
     enabled: Boolean = true,
     onValueChange: ((Float) -> Unit)? = null,
     count: Int = RatingDefaults.Count,
+    allowHalf: Boolean = false,
     icon: ImageVector? = null,
     filledIcon: ImageVector? = null,
     markSize: Dp = Theme.sizing.iconLarge,
@@ -117,6 +135,40 @@ fun Rating(
     val feedback = Feedback
     val selected = ceil(clamped).toInt()
 
+    /**
+     * Where each mark actually is, relative to the row.
+     *
+     * Measured rather than divided, because the marks are not evenly pitched:
+     * `minimumTouchTarget` grows each one to 48dp and the gap between them is
+     * 4dp, so `width / count` drifts by a third of a mark by the right-hand end
+     * and a drag over the fifth star would set the fourth. Five callbacks is
+     * cheap; `CalendarMonth` chose arithmetic over forty-two, and this is not
+     * that.
+     */
+    val markLeft = remember(count) { FloatArray(count) }
+    val markWidth = remember(count) { FloatArray(count) }
+    val currentValue by rememberUpdatedState(clamped)
+    val currentChange by rememberUpdatedState(onValueChange)
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+
+    fun setFromX(x: Float) {
+        if (markWidth.all { it <= 0f }) return
+        val nearest = markLeft.indices.minByOrNull { abs(markLeft[it] + markWidth[it] / 2f - x) }
+            ?: return
+        val index = if (isRtl) count - 1 - nearest else nearest
+        val within = ((x - markLeft[nearest]) / markWidth[nearest]).coerceIn(0f, 1f)
+        val next = when {
+            !allowHalf -> (index + 1).toFloat()
+            // The left half of a mark is the half mark. Mirrored in RTL, where
+            // "the left half" is the far side of the same star.
+            (if (isRtl) 1f - within else within) < 0.5f -> index + 0.5f
+            else -> (index + 1).toFloat()
+        }
+        if (next == currentValue) return
+        feedback.perform(FeedbackIntent.Tick)
+        currentChange(next)
+    }
+
     Row(
         modifier = modifier
             .selectableGroup()
@@ -124,7 +176,19 @@ fun Rating(
                 this.contentDescription = contentDescription
                 this.stateDescription = spoken
                 if (!enabled) disabled()
-            },
+            }
+            .then(
+                if (enabled) {
+                    Modifier.pointerInput(count, allowHalf, isRtl) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { setFromX(it.x) },
+                            onHorizontalDrag = { change, _ -> setFromX(change.position.x) },
+                        )
+                    }
+                } else {
+                    Modifier
+                }
+            ),
         horizontalArrangement = Arrangement.spacedBy(RatingDefaults.Gap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -137,6 +201,10 @@ fun Rating(
 
             Box(
                 modifier = Modifier
+                    .onGloballyPositioned {
+                        markLeft[index] = it.positionInParent().x
+                        markWidth[index] = it.size.width.toFloat()
+                    }
                     .minimumTouchTarget()
                     .focusRing(interactions, Theme.shapes.small)
                     .selectable(
@@ -156,7 +224,11 @@ fun Rating(
                 contentAlignment = Alignment.Center,
             ) {
                 Mark(
-                    fill = if (markValue <= selected) 1f else 0f,
+                    // The same expression the read-only row uses. With whole
+                    // values it is identical to the old `if (markValue <=
+                    // selected) 1f else 0f`; with `allowHalf` it is what draws
+                    // the half.
+                    fill = (clamped - index).coerceIn(0f, 1f),
                     empty = empty,
                     full = full,
                     size = markSize,
