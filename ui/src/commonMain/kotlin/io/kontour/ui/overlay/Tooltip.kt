@@ -356,7 +356,7 @@ fun Modifier.coachMark(
     priority: Int = 0,
     minSessions: Int = 0,
     prerequisites: Set<String> = emptySet(),
-    dismissLabel: String = "Got it",
+    dismissLabel: String = Theme.strings.gotIt,
     enabled: Boolean = true,
 ): Modifier {
     val queue = LocalOverlayQueue.current ?: return this

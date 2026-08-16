@@ -118,8 +118,8 @@ fun Carousel(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     pageSpacing: Dp = Theme.spacing.xs,
-    previousLabel: String = "Previous",
-    nextLabel: String = "Next",
+    previousLabel: String = Theme.strings.previous,
+    nextLabel: String = Theme.strings.next,
     content: @Composable (page: Int) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -195,7 +195,7 @@ fun PageIndicator(
     onPageSelect: ((Int) -> Unit)? = null,
     activeColor: Color = Theme.colors.primary,
     inactiveColor: Color = Theme.colors.outlineStrong,
-    label: (Int, Int) -> String = { page, count -> "Page ${page + 1} of $count" },
+    label: (Int, Int) -> String = Theme.strings.pageOfCount,
 ) {
     val count = state.count
     val current = state.currentPage

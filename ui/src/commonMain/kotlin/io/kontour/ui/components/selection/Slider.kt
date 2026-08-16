@@ -27,6 +27,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
@@ -81,6 +82,16 @@ fun Slider(
     enabled: Boolean = true,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     steps: Int = 0,
+    /**
+     * What the slider is *of*, when nothing beside it says.
+     *
+     * `null` — the default — is right whenever a label sits next to it, which
+     * is the common case and why this is not required. A slider on its own
+     * announces as an unnamed slider without it, and until now there was no
+     * parameter to fix that with: [RangeSlider] could name both its thumbs and
+     * this could name nothing.
+     */
+    contentDescription: String? = null,
     stateDescription: ((Float) -> String)? = null,
     onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
@@ -193,6 +204,9 @@ fun Slider(
         modifier = modifier
             .semantics {
                 if (!enabled) disabled()
+                if (contentDescription != null) {
+                    this.contentDescription = contentDescription
+                }
                 progressBarRangeInfo = ProgressBarRangeInfo(
                     current = value,
                     range = valueRange,

@@ -159,8 +159,8 @@ fun ReorderableItem(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     itemCount: Int = Int.MAX_VALUE,
-    moveUpLabel: String = "Move up",
-    moveDownLabel: String = "Move down",
+    moveUpLabel: String = Theme.strings.moveUp,
+    moveDownLabel: String = Theme.strings.moveDown,
     content: @Composable () -> Unit,
 ) {
     val feedback = LocalFeedback.current

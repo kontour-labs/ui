@@ -80,8 +80,8 @@ fun Accordion(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     chevron: ImageVector? = null,
-    expandedLabel: String = "Expanded",
-    collapsedLabel: String = "Collapsed",
+    expandedLabel: String = Theme.strings.expanded,
+    collapsedLabel: String = Theme.strings.collapsed,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {

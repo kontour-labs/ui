@@ -78,7 +78,7 @@ fun Banner(
     tone: BannerTone = BannerTone.Info,
     onDismissRequest: (() -> Unit)? = null,
     dismissIcon: ImageVector? = null,
-    dismissLabel: String = "Dismiss",
+    dismissLabel: String = Theme.strings.dismiss,
     content: BannerScope.() -> Unit,
 ) {
     val slots = bannerSlots(content)

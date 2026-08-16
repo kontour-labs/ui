@@ -24,7 +24,14 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 object KotlinSignatures {
 
     /** One declared parameter, or one primary-constructor property. */
-    data class Parameter(val name: String, val type: String, val optional: Boolean)
+    data class Parameter(
+        val name: String,
+        val type: String,
+        /** The default expression's source text, or `null` when there is none. */
+        val default: String?,
+    ) {
+        val optional: Boolean get() = default != null
+    }
 
     enum class Kind { Function, Class }
 
@@ -149,7 +156,11 @@ object KotlinSignatures {
                 ?: return@mapNotNull null
             val equals = flatChunk.indexOf('=', colon)
             val end = if (equals >= 0) equals else chunk.length
-            Parameter(declared, chunk.substring(colon + 1, end).trim(), equals >= 0)
+            Parameter(
+                name = declared,
+                type = chunk.substring(colon + 1, end).trim(),
+                default = if (equals >= 0) chunk.substring(equals + 1).trim() else null,
+            )
         }
     }
 
@@ -475,6 +486,39 @@ val checkApiConventions = tasks.register("checkApiConventions") {
         sources.asFileTree.matching { include("**/*.kt") }.forEach { file ->
             val text = file.readText()
             val rel = file.relativeTo(sources.asFile).path
+
+            // No user-visible English welded into a default.
+            //
+            // Forty-nine of these existed, and the only way to change one was to
+            // pass it at every call site — which for a library shared across
+            // projects means an app ships English it never chose and cannot find.
+            // They live in `Theme.strings` now, and a default reads from there.
+            //
+            // Two of the forty-nine were missed by the survey that found the
+            // rest, because it looked for `name: String = "…"` and they were
+            // spelled `String? = "Cancel"` and `val copy: String = "Copy"` in a
+            // data class. This rule does not have that problem, which is the
+            // argument for having it rather than trusting the sweep.
+            //
+            // `Theme.strings.x` and a non-literal expression both pass. So does
+            // `Strings.kt` itself, which is where the words are supposed to be.
+            if (!rel.endsWith("theme/Strings.kt")) {
+                KotlinSignatures.declarations(text)
+                    .filter { it.isPublic }
+                    .forEach { declaration ->
+                        declaration.parameters
+                            .filter { Regex("""^String\??$""").matches(it.type.trim()) }
+                            .forEach { parameter ->
+                                val default = parameter.default?.trim().orEmpty()
+                                if (Regex("""^"[^"]*[A-Za-z]{2}[^"]*"$""").matches(default)) {
+                                    problems += "$rel:${declaration.line} :: " +
+                                        "${declaration.qualified}: `${parameter.name}` defaults to " +
+                                        "the literal $default — put the word in `Theme.strings` " +
+                                        "and default from there"
+                                }
+                            }
+                    }
+            }
 
             // Every public scope carries both markers.
             //

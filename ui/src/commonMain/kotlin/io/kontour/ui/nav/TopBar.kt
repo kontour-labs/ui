@@ -92,7 +92,7 @@ fun TopBar(
     modifier: Modifier = Modifier,
     style: TopBarStyle = TopBarStyle.Small,
     onBack: (() -> Unit)? = null,
-    backLabel: String = "Back",
+    backLabel: String = Theme.strings.back,
     navigation: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
     containerColor: Color = Theme.colors.background,

@@ -79,7 +79,7 @@ fun EmptyState(
 fun ErrorState(
     modifier: Modifier = Modifier,
     onRetry: (() -> Unit)? = null,
-    retryLabel: String = "Try again",
+    retryLabel: String = Theme.strings.retry,
     content: StateScope.() -> Unit,
 ) {
     val slots = stateSlots {

@@ -95,8 +95,8 @@ fun NavRail(
     containerColor: Color = Theme.colors.surface,
     contentColor: Color = Theme.colors.content,
     indicatorColor: Color = Theme.colors.accent.container,
-    expandLabel: String = "Expand navigation",
-    collapseLabel: String = "Collapse navigation",
+    expandLabel: String = Theme.strings.expandNavigation,
+    collapseLabel: String = Theme.strings.collapseNavigation,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     action: (@Composable ColumnScope.() -> Unit)? = null,
     /**

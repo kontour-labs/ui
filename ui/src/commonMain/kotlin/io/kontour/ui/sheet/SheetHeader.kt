@@ -57,8 +57,8 @@ import kotlinx.coroutines.launch
 fun DragHandle(
     modifier: Modifier = Modifier,
     state: SheetState? = LocalSheetState.current,
-    expandLabel: String = "Expand sheet",
-    collapseLabel: String = "Collapse sheet",
+    expandLabel: String = Theme.strings.expandSheet,
+    collapseLabel: String = Theme.strings.collapseSheet,
 ) {
     val scope = rememberCoroutineScope()
     val motion = Theme.motion
@@ -159,7 +159,7 @@ fun closeEnclosingSheet(): (() -> Unit)? {
 fun SheetHeader(
     modifier: Modifier = Modifier,
     onClose: (() -> Unit)? = closeEnclosingSheet(),
-    closeLabel: String = "Close",
+    closeLabel: String = Theme.strings.close,
     closeIcon: ImageVector = SystemIcons.Close,
     actions: (@Composable RowScope.() -> Unit)? = null,
     content: ListItemScope.() -> Unit,

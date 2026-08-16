@@ -20,6 +20,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.theme.Theme
 
 /**
  * A password field, with a reveal toggle.
@@ -56,8 +57,8 @@ fun PasswordField(
     errorMessage: String? = null,
     revealIcon: ImageVector? = null,
     hideIcon: ImageVector? = null,
-    revealLabel: String = "Show password",
-    hideLabel: String = "Hide password",
+    revealLabel: String = Theme.strings.showPassword,
+    hideLabel: String = Theme.strings.hidePassword,
     isNewPassword: Boolean = false,
     imeAction: ImeAction = ImeAction.Done,
     variant: TextFieldVariant = TextFieldVariant.Outlined,

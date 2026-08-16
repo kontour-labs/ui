@@ -84,8 +84,10 @@ fun RangeSlider(
     enabled: Boolean = true,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     steps: Int = 0,
-    startContentDescription: String = "Range start",
-    endContentDescription: String = "Range end",
+    /** What the range is *of*. `null` when a label beside it already says. */
+    contentDescription: String? = null,
+    startContentDescription: String = Theme.strings.rangeStart,
+    endContentDescription: String = Theme.strings.rangeEnd,
     stateDescription: ((ClosedFloatingPointRange<Float>) -> String)? = null,
     onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
@@ -169,6 +171,9 @@ fun RangeSlider(
         modifier = modifier
             .semantics {
                 isTraversalGroup = true
+                if (contentDescription != null) {
+                    this.contentDescription = contentDescription
+                }
                 // The thumbs each say so too, but the group is what a caller
                 // tags and what the contract suite reads: a disabled control
                 // whose own node does not announce it is a control that looks

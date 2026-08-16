@@ -54,8 +54,8 @@ fun Pagination(
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
     window: Int = 1,
-    previousLabel: String = "Previous page",
-    nextLabel: String = "Next page",
+    previousLabel: String = Theme.strings.previousPage,
+    nextLabel: String = Theme.strings.nextPage,
 ) {
     if (pageCount <= 1) return
 

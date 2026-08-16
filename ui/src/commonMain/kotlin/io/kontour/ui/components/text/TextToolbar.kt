@@ -23,13 +23,29 @@ import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.theme.Theme
 
-/** The labels the selection toolbar shows. Pull them from your string resources. */
+/**
+ * The labels the selection toolbar shows.
+ *
+ * Defaulted from [io.kontour.ui.theme.Strings] rather than from literals here,
+ * so an app that has already told the theme its words does not have to tell
+ * this as well. Construct it inside composition — [textToolbarLabels] — or pass
+ * every field.
+ */
 data class TextToolbarLabels(
-    val copy: String = "Copy",
-    val cut: String = "Cut",
-    val paste: String = "Paste",
-    val selectAll: String = "Select all",
+    val copy: String,
+    val cut: String,
+    val paste: String,
+    val selectAll: String,
 )
+
+/** [TextToolbarLabels] taking the theme's words. */
+@Composable
+fun textToolbarLabels(
+    copy: String = Theme.strings.copy,
+    cut: String = Theme.strings.cut,
+    paste: String = Theme.strings.paste,
+    selectAll: String = Theme.strings.selectAll,
+): TextToolbarLabels = TextToolbarLabels(copy, cut, paste, selectAll)
 
 /**
  * Replaces the platform's text-selection popup with one drawn in the design
@@ -61,7 +77,7 @@ data class TextToolbarLabels(
  */
 @Composable
 fun KontourTextToolbar(
-    labels: TextToolbarLabels = TextToolbarLabels(),
+    labels: TextToolbarLabels = textToolbarLabels(),
     content: @Composable () -> Unit,
 ) {
     if (!platformWantsCustomTextToolbar) {

@@ -99,7 +99,7 @@ fun SideSheet(
     contentColor: Color = Theme.colors.content,
     scrim: ScrimStyle = ScrimStyle.Dimmed,
     dismissOnOutside: Boolean = true,
-    dismissLabel: String = "Close",
+    dismissLabel: String = Theme.strings.close,
     /**
      * Shown as a back arrow at the sheet's leading edge, above the content.
      *
@@ -111,7 +111,7 @@ fun SideSheet(
      * means back, and a start-side sheet does not point the other way.
      */
     onBack: (() -> Unit)? = null,
-    backLabel: String = "Back",
+    backLabel: String = Theme.strings.back,
     paneTitle: String? = null,
     /**
      * What the sheet's *content* keeps clear of. Every edge including the

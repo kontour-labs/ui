@@ -69,8 +69,8 @@ fun Stepper(
     size: ButtonSize = ButtonSize.Medium,
     valueWidth: Dp = StepperDefaults.ValueWidth,
     format: (Int) -> String = { it.toString() },
-    decrementLabel: String = "Decrease",
-    incrementLabel: String = "Increase",
+    decrementLabel: String = Theme.strings.decrease,
+    incrementLabel: String = Theme.strings.increase,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val shown = value.coerceIn(range)

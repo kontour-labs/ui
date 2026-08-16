@@ -58,6 +58,15 @@ object Theme {
 
     val sizing: Sizing
         @Composable @ReadOnlyComposable get() = LocalSizing.current
+
+    /**
+     * Every word the library puts on screen that the caller did not supply.
+     *
+     * Read by parameter defaults rather than at the point of use, so a call site
+     * can still override one without going through the theme.
+     */
+    val strings: Strings
+        @Composable @ReadOnlyComposable get() = LocalStrings.current
 }
 
 /**
@@ -99,6 +108,7 @@ fun KontourTheme(
     elevation: Elevation = remember(darkTheme) { kontourElevation(darkTheme) },
     motion: Motion = remember(reduceMotion) { kontourMotion(reduceMotion) },
     sizing: Sizing = remember(contrast) { kontourSizing(contrast) },
+    strings: Strings = remember { Strings() },
     feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(),
     content: @Composable () -> Unit,
 ) {
@@ -116,6 +126,7 @@ fun KontourTheme(
         LocalElevation provides elevation,
         LocalMotion provides motion,
         LocalSizing provides sizing,
+        LocalStrings provides strings,
         LocalContrastLevel provides contrast,
         LocalContentColor provides colors.content,
         LocalTextStyle provides typography.bodyMedium,
@@ -154,6 +165,7 @@ internal val LocalSpacing = staticCompositionLocalOf<Spacing> { error(NOT_IN_THE
 internal val LocalElevation = staticCompositionLocalOf<Elevation> { error(NOT_IN_THEME) }
 internal val LocalMotion = staticCompositionLocalOf<Motion> { error(NOT_IN_THEME) }
 internal val LocalSizing = staticCompositionLocalOf<Sizing> { error(NOT_IN_THEME) }
+internal val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
 
 /**
  * The tier the current theme is rendering at. Components rarely need this —

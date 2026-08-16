@@ -128,9 +128,9 @@ fun PullToRefresh(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     state: PullToRefreshState = rememberPullToRefreshState(),
-    refreshingLabel: String = "Refreshing",
-    pullLabel: String = "Pull to refresh",
-    releaseLabel: String = "Release to refresh",
+    refreshingLabel: String = Theme.strings.refreshing,
+    pullLabel: String = Theme.strings.pullToRefresh,
+    releaseLabel: String = Theme.strings.releaseToRefresh,
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -273,9 +273,9 @@ fun LoadMore(
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
     onRetry: () -> Unit = onLoadMore,
-    loadingLabel: String = "Loading more",
-    errorLabel: String = "Couldn't load more",
-    retryLabel: String = "Try again",
+    loadingLabel: String = Theme.strings.loadingMore,
+    errorLabel: String = Theme.strings.loadMoreFailed,
+    retryLabel: String = Theme.strings.retry,
     endLabel: String? = null,
 ) {
     val load by rememberUpdatedState(onLoadMore)

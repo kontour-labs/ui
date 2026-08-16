@@ -84,7 +84,7 @@ fun Button(
     variant: ButtonVariant = ButtonVariant.Primary,
     size: ButtonSize = ButtonSize.Medium,
     loading: Boolean = false,
-    loadingLabel: String = "Loading",
+    loadingLabel: String = Theme.strings.loading,
     shape: Shape = Theme.shapes.small,
     colors: ButtonColors = ButtonDefaults.colors(variant),
     metrics: ButtonMetrics = ButtonDefaults.metrics(size),

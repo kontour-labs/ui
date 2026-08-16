@@ -32,6 +32,29 @@ Every token group is a parameter, so you override one and inherit the rest.
 KontourTheme(darkTheme = true) { MapScreen() }
 ```
 
+**Change the words the library puts on screen:**
+
+```kotlin
+KontourTheme(
+    strings = Strings(
+        dismiss = "Schließen",
+        back = "Zurück",
+        pullToRefresh = "Zum Aktualisieren ziehen",
+    ),
+) { AppRoot() }
+```
+
+`Strings` is a token group like the rest, and it holds every word the library
+draws that you did not supply — 51 of them. Each component still takes its own
+parameter, defaulted from here, so a one-off at a call site keeps working and an
+app-wide change is one argument rather than a sweep through every call site.
+
+One field per idea, not per parameter: `SheetHeader`, `SideSheet` and
+`ModalBottomSheet` all say "Close" and all three read `strings.close`. It is not
+a localisation system — no plurals, no locale lookup, no resource bundle — and
+it is not trying to be. What it guarantees is that no English is welded into a
+component, so an app can feed it from whatever it already uses.
+
 **Let an in-app setting win over the OS:**
 
 ```kotlin

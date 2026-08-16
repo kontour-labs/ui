@@ -71,7 +71,7 @@ fun Dialog(
     modifier: Modifier = Modifier,
     key: Any = remember { Any() },
     dismissOnOutside: Boolean = true,
-    dismissLabel: String = "Dismiss",
+    dismissLabel: String = Theme.strings.dismiss,
     /**
      * What the dialog keeps clear of. Every edge including the keyboard — a
      * dialog is centred rather than pinned, so there is no side it can safely
@@ -181,7 +181,7 @@ fun AlertDialog(
     modifier: Modifier = Modifier,
     confirmLabel: String? = null,
     onConfirm: (() -> Unit)? = null,
-    cancelLabel: String? = "Cancel",
+    cancelLabel: String? = Theme.strings.cancel,
     /**
      * A third way out — "Don't save" beside "Save" and "Cancel".
      *
@@ -316,18 +316,25 @@ class ConfirmationController {
     internal class PendingConfirmation(
         val title: String,
         val message: String?,
-        val confirmLabel: String,
-        val cancelLabel: String,
+        val confirmLabel: String?,
+        val cancelLabel: String?,
         val destructive: Boolean,
         val result: CompletableDeferred<Boolean>,
     )
 
     /** Shows a confirmation and suspends until the user answers. */
+    /**
+     * @param confirmLabel `null` — the default — takes the theme's word for it.
+     *   Resolved where the dialog is drawn rather than here, because this is a
+     *   plain state holder: a `suspend fun` on a controller has no composition
+     *   to read `Theme.strings` from, and giving the controller a copy of the
+     *   theme to carry around would be the wrong end of the problem.
+     */
     suspend fun confirm(
         title: String,
         message: String? = null,
-        confirmLabel: String = "Confirm",
-        cancelLabel: String = "Cancel",
+        confirmLabel: String? = null,
+        cancelLabel: String? = null,
         destructive: Boolean = false,
     ): Boolean {
         // Any confirmation already waiting is answered "no" rather than left
@@ -366,8 +373,8 @@ fun ConfirmHost(controller: ConfirmationController) {
 
     AlertDialog(
         visible = pending != null,
-        confirmLabel = pending?.confirmLabel,
-        cancelLabel = pending?.cancelLabel,
+        confirmLabel = pending?.let { it.confirmLabel ?: Theme.strings.confirm },
+        cancelLabel = pending?.let { it.cancelLabel ?: Theme.strings.cancel },
         destructive = pending?.destructive == true,
         onConfirm = { controller.answer(true) },
         onDismissRequest = { controller.answer(false) },

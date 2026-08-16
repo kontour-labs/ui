@@ -261,7 +261,7 @@ fun ModalBottomSheet(
     containerColor: androidx.compose.ui.graphics.Color = Theme.colors.surfaceRaised,
     contentColor: androidx.compose.ui.graphics.Color = Theme.colors.content,
     dismissOnOutside: Boolean = true,
-    dismissLabel: String = "Close",
+    dismissLabel: String = Theme.strings.close,
     paneTitle: String? = null,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /**
