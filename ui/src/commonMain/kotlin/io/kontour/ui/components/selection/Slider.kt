@@ -154,39 +154,47 @@ fun Slider(
         return valueRange.start + snapped * range
     }
 
+    // Only a stepped slider has detents to strain against. A continuous one
+    // reads `fraction` straight through: there is nothing to land on, and easing
+    // a value that already tracks the finger is only lag.
+    val detented = steps > 0 && !motion.reduceMotion
+
     /**
-     * The detent the thumb is currently *on*, eased rather than jumped to.
+     * Where the thumb is trying to be, which on a stepped slider is neither the
+     * value nor the finger.
      *
-     * A stepped slider's value is quantised, so without this the thumb teleports
-     * a whole step the instant the finger crosses a midpoint. Springing it is
-     * what turns that into the thumb being let go of and landing on the next one.
+     * It is the detent, pulled part of the way toward the finger by
+     * [SliderDefaults.DetentPull]. The finger can be at most half a step past a
+     * detent before [snap] moves on, so the thumb strains a little further from
+     * the notch the longer the drag is held there, and lets go when it goes.
+     * Pulling *all* the way would just be a continuous slider that reports
+     * quantised values, which is the thing detents exist not to be.
      *
-     * Continuous sliders read `fraction` directly below — there is nothing to
-     * land on, and easing a value that already tracks the finger is only lag.
+     * The pull is folded into the animation's **target**, not added on top of its
+     * output, and that is the whole of this fix. Added on top, the two terms move
+     * in opposite directions the instant a detent is crossed: the finger is now
+     * half a step *behind* the new detent, so the pull flips from `+0.225` of a
+     * step to `−0.225` while the eased term is still sitting on the old detent it
+     * has yet to leave. The thumb jumped back most of half a step and then
+     * animated the whole way forward — the reported "snaps back before it
+     * advances". Inside the target, crossing a detent moves the target forward
+     * and only forward, so the thumb carries on from wherever it had got to.
      */
+    val thumbTarget = if (detented && !dragFraction.isNaN()) {
+        fraction + (dragFraction - fraction) * SliderDefaults.DetentPull
+    } else {
+        fraction
+    }
+
     val settled by animateFloatAsState(
-        targetValue = fraction,
+        targetValue = thumbTarget,
         animationSpec = motion.springOrTween(motion.springSnappy),
         label = "sliderDetent",
     )
 
-    /**
-     * Where the thumb is drawn, which on a stepped slider is neither the value
-     * nor the finger.
-     *
-     * It sits on the settled detent, pulled part of the way toward the finger by
-     * [SliderDefaults.DetentPull]. The finger can be at most half a step past a
-     * detent before [snap] moves on, so the thumb strains a little further from
-     * the notch the longer the drag is held there, and springs when it goes.
-     * Pulling *all* the way would just be a continuous slider that reports
-     * quantised values, which is the thing detents exist not to be.
-     */
-    val drawnFraction = when {
-        steps <= 0 || dragFraction.isNaN() -> fraction
-        motion.reduceMotion -> fraction
-        else -> (settled + (dragFraction - fraction) * SliderDefaults.DetentPull)
-            .coerceIn(0f, 1f)
-    }
+    // Coerced because `springSnappy` is underdamped and a thumb that overshoots
+    // the end of its own track reads as a bug rather than as bounce.
+    val drawnFraction = if (detented) settled.coerceIn(0f, 1f) else fraction
 
     fun emit(newFraction: Float) {
         val next = snap(newFraction)
