@@ -59,7 +59,7 @@ object SegmentedControlDefaults {
  * ```
  * SegmentedControl(
  *     options = listOf("Depart", "Arrive"),
- *     selectedIndex = mode,
+ *     selected = mode,
  *     onSelectedChange = viewModel::setMode,
  * )
  * ```
@@ -77,7 +77,7 @@ object SegmentedControlDefaults {
 @Composable
 fun SegmentedControl(
     options: List<String>,
-    selectedIndex: Int,
+    selected: Int,
     onSelectedChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -120,7 +120,7 @@ fun SegmentedControl(
     ) {
         Row(Modifier.fillMaxWidth().fillMaxHeight()) {
             options.forEachIndexed { index, option ->
-                val selected = index == selectedIndex
+                val selected = index == selected
                 val interactions = remember { MutableInteractionSource() }
 
                 val labelColor by animateColorAsState(

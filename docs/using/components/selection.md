@@ -201,7 +201,7 @@ scrolling row hides options off the edge of the screen.
 ```kotlin
 SegmentedControl(
     options = listOf("Bus", "Train", "Ferry"),
-    selectedIndex = selected,
+    selected = selected,
     onSelectedChange = viewModel::select,
 )
 ```

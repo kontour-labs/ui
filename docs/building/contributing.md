@@ -82,6 +82,21 @@ module's 391 declarations. The 130 indented ones it could not see are every
 method on every builder scope, so the gate reported no problems for as long as
 the drift stayed inside a shorthand.
 
+Nine rules, and each one is there because it caught something real:
+
+| | |
+|---|---|
+| Banned parameter names | the table below |
+| `modifier` first among the optionals, `enabled` straight after | |
+| Everything between `modifier` and the trailing slots is defaulted | a required parameter further down means naming every default before it to reach it |
+| `interactionSource` after every non-slot | |
+| `on<X>Change` has an `<x>` or an `is<X>` beside it | a callback named for a change is half of a pair; a notification borrowing the shape promises state that is not there |
+| `expanded` never pairs with `onDismissRequest` | an overlay the caller owns is `visible` |
+| No English literal in a default | it belongs in `Theme.strings` |
+| No `internal` type in a public default | a default you can read and cannot write |
+| Every `*Scope` carries `@LayoutScopeMarker` and `@Stable` | without the marker an inner block reaches the outer scope's members |
+| No fully-qualified `androidx.*` in a signature | it is what the API reference prints |
+
 `enabled` sits directly after `modifier` with no exceptions. An earlier draft let
 it follow an optional `onClick` instead — which reads better on the three
 components where it applies, and misfired on the first component with two

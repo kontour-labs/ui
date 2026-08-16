@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.lazy.LazyListState
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
@@ -263,7 +264,7 @@ fun collapseProgress(scrolled: Float, distance: Float): Float =
 /** [collapseProgress] for a lazy list, using the first item's scroll offset. */
 @Composable
 fun collapseProgress(
-    state: androidx.compose.foundation.lazy.LazyListState,
+    state: LazyListState,
     distance: Dp = TopBarDefaults.LargeHeight - TopBarDefaults.Height,
 ): Float {
     val distancePx = with(androidx.compose.ui.platform.LocalDensity.current) { distance.toPx() }

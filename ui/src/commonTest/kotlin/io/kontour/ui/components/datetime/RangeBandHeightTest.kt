@@ -53,7 +53,7 @@ class RangeBandHeightTest {
                                 // Two caps and four middles, all on one row.
                                 start = LocalDate(2026, 6, 9),
                                 end = LocalDate(2026, 6, 14),
-                                onSelectedChange = { _, _ -> },
+                                onRangeSelected = { _, _ -> },
                                 today = null,
                             )
                         }

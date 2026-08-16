@@ -310,7 +310,7 @@ private fun SettingsSheet(
             Text("Text size", style = Theme.typography.labelMedium)
             SegmentedControl(
                 options = fontScales.map { it.first },
-                selectedIndex = fontScales.indexOfFirst { it.second == fontScale }
+                selected = fontScales.indexOfFirst { it.second == fontScale }
                     .coerceAtLeast(0),
                 onSelectedChange = { onFontScaleChange(fontScales[it].second) },
                 modifier = Modifier.fillMaxWidth(),
@@ -319,7 +319,7 @@ private fun SettingsSheet(
             Text("Input modality", style = Theme.typography.labelMedium)
             SegmentedControl(
                 options = modalities.map { it.first },
-                selectedIndex = modalities.indexOfFirst { it.second == modality }
+                selected = modalities.indexOfFirst { it.second == modality }
                     .coerceAtLeast(0),
                 onSelectedChange = { onModalityChange(modalities[it].second) },
                 modifier = Modifier.fillMaxWidth(),

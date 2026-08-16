@@ -89,7 +89,7 @@ narrow window where it slides over the content instead of sitting beside it.
 ```kotlin
 NavRail(
     items = destinations,
-    selectedIndex = current,
+    selected = current,
     expanded = railOpen,
     onExpandedChange = { railOpen = it },
 )

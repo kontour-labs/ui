@@ -692,7 +692,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ) { modifier, enabled, onClick ->
             SegmentedControl(
                 options = listOf("Bus", "Train"),
-                selectedIndex = 0,
+                selected = 0,
                 onSelectedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,

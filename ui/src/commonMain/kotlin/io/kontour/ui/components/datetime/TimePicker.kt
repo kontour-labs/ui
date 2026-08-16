@@ -86,7 +86,7 @@ fun TimePicker(
             Box(Modifier.width(72.dp).semantics { contentDescription = "Hour" }) {
                 WheelPicker(
                     items = hours,
-                    selectedIndex = hourIndex,
+                    selected = hourIndex,
                     onSelectedChange = { emit(hourValue = hours[it]) },
                     label = { if (is24) it.toString().padStart(2, '0') else it.toString() },
                 )
@@ -97,7 +97,7 @@ fun TimePicker(
             Box(Modifier.width(72.dp).semantics { contentDescription = "Minute" }) {
                 WheelPicker(
                     items = minutes,
-                    selectedIndex = minuteIndex,
+                    selected = minuteIndex,
                     onSelectedChange = { emit(minute = minutes[it]) },
                     label = { it.toString().padStart(2, '0') },
                 )
@@ -122,7 +122,7 @@ fun TimePicker(
                 ) {
                     WheelPicker(
                         items = MERIDIEMS,
-                        selectedIndex = if (isPm) 1 else 0,
+                        selected = if (isPm) 1 else 0,
                         onSelectedChange = { emit(pm = it == 1) },
                         label = { it },
                         visibleItems = 3,

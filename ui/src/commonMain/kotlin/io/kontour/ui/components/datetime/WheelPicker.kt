@@ -43,7 +43,7 @@ import kotlin.math.abs
  * ```
  * WheelPicker(
  *     items = (0..23).toList(),
- *     selectedIndex = hour,
+ *     selected = hour,
  *     onSelectedChange = { hour = it },
  *     label = { it.toString().padStart(2, '0') },
  * )
@@ -55,7 +55,7 @@ import kotlin.math.abs
 @Composable
 fun <T> WheelPicker(
     items: List<T>,
-    selectedIndex: Int,
+    selected: Int,
     onSelectedChange: (Int) -> Unit,
     label: (T) -> String,
     modifier: Modifier = Modifier,
@@ -66,7 +66,7 @@ fun <T> WheelPicker(
     if (items.isEmpty()) return
 
     val edgeItems = visibleItems / 2
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selected)
     val flingBehavior = rememberSnapFlingBehavior(listState)
     val feedback = Feedback
     val currentOnSelect by rememberUpdatedState(onSelectedChange)
@@ -88,9 +88,9 @@ fun <T> WheelPicker(
         }
     }
 
-    LaunchedEffect(selectedIndex) {
-        if (selectedIndex != centredIndex && !listState.isScrollInProgress) {
-            listState.scrollToItem(selectedIndex)
+    LaunchedEffect(selected) {
+        if (selected != centredIndex && !listState.isScrollInProgress) {
+            listState.scrollToItem(selected)
         }
     }
 

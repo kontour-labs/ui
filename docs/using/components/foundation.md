@@ -35,9 +35,15 @@ submenu with no chevron gives no sign it opens anything, and a menu item with no
 tick cannot show which option is current. Making the caller supply those means
 every component ships looking broken until someone remembers to pass one in.
 
-`SystemIcons` is `internal`, and each glyph is a separate top-level declaration,
-so the ones `:ui` never touches are stripped by R8 and by the JS/Wasm dead-code
-eliminator rather than travelling with the artifact.
+`SystemIcons` is **public**, because it is shipped rather than hidden:
+`SheetHeader.closeIcon` defaults to `SystemIcons.Close`, and a default a caller
+can read but cannot write is worse than no default. The type is `ImageVector`,
+from a dependency the library already exposes, so nothing about the icon set
+leaks into the API with it.
+
+Each glyph is a separate top-level declaration, so the ones `:ui` never touches
+are stripped by R8 and by the JS/Wasm dead-code eliminator rather than
+travelling with the artifact.
 
 ### Why Tabler
 

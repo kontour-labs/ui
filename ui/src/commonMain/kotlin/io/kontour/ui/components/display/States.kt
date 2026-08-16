@@ -15,6 +15,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColor
@@ -109,7 +110,7 @@ fun ErrorState(
 private fun StateBlock(
     modifier: Modifier,
     slots: StateScope,
-    iconTint: androidx.compose.ui.graphics.Color,
+    iconTint: Color,
     assertive: Boolean,
 ) {
     Column(

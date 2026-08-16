@@ -483,6 +483,16 @@ val checkApiConventions = tasks.register("checkApiConventions") {
 
         val problems = mutableListOf<String>()
 
+        // Every `internal` type the module declares. A public default that names
+        // one is a default the caller cannot write: it renders in the API
+        // reference as `closeIcon: ImageVector = SystemIcons.Close` and there is
+        // no `SystemIcons` to reach for.
+        val internalTypes = sources.asFileTree.matching { include("**/*.kt") }
+            .flatMap { file -> KotlinSignatures.types(file.readText()) }
+            .filter { it.visibility == "internal" }
+            .map { it.name }
+            .toSet()
+
         sources.asFileTree.matching { include("**/*.kt") }.forEach { file ->
             val text = file.readText()
             val rel = file.relativeTo(sources.asFile).path
@@ -589,6 +599,94 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                             problems += "$where: `enabled` must come directly after " +
                                 "`modifier` (found it after ${names[enabledIndex - 1]})"
                         }
+                    }
+
+                    // Everything between `modifier` and the trailing slots is
+                    // defaulted.
+                    //
+                    // The older rule only checked where the *first* default sat,
+                    // so a required parameter further down slipped through: a
+                    // caller then has to supply something from the middle of the
+                    // optional run, and every default before it has to be named
+                    // at the call site to reach it.
+                    //
+                    // Slots are exempt because they come last and are usually
+                    // required — that is the convention, not a violation of it.
+                    if (modifierIndex >= 0) {
+                        val slot = Regex("""(?:->|Scope\.\(\))""")
+                        val firstTrailingSlot = params.indices.reversed()
+                            .takeWhile { slot.containsMatchIn(params[it].type) }
+                            .minOrNull() ?: params.size
+                        params.withIndex()
+                            .filter { (i, p) ->
+                                i > modifierIndex && i < firstTrailingSlot && !p.optional
+                            }
+                            .forEach { (_, parameter) ->
+                                problems += "$where: `${parameter.name}` comes after " +
+                                    "`modifier` and has no default — everything between " +
+                                    "`modifier` and the trailing slots is optional"
+                            }
+                    }
+
+                    // A callback named `onXChange` is half of a pair, so the
+                    // other half has to be there.
+                    //
+                    // This is what `onValuesChange`, `onTimeChange` and
+                    // `onPageChange` all failed: each named a change to
+                    // something the component did not take. It catches the
+                    // shape rather than the four names, so the next one is
+                    // caught too.
+                    if (declaration.isComponent) {
+                        Regex("""^on([A-Z]\w*)Change$""").let { paired ->
+                            names.mapNotNull { paired.find(it) }.forEach { match ->
+                                val noun = match.groupValues[1]
+                                val subject = noun.replaceFirstChar { it.lowercase() }
+                                // `is<X>` counts. A predicate is the hoisted
+                                // state in function form — `CalendarMonth` takes
+                                // `isSelected: (LocalDate) -> Boolean` because
+                                // which dates are selected is the caller's to
+                                // decide, and that is a pair like any other.
+                                if (subject !in names && "is$noun" !in names) {
+                                    problems += "$where: `${match.value}` has no `$subject` " +
+                                        "beside it — a callback named for a change is half " +
+                                        "of a pair, and a notification should not borrow " +
+                                        "the shape"
+                                }
+                            }
+                        }
+
+                        // A caller-owned overlay says `visible`, like `Dialog`.
+                        // `expanded` is for something that grows in place and
+                        // reports through `onExpandedChange` — an accordion, a
+                        // drawer group — and the two were mixed.
+                        if ("expanded" in names && "onDismissRequest" in names) {
+                            problems += "$where: takes `expanded` with `onDismissRequest` " +
+                                "— an overlay the caller owns is `visible`; `expanded` " +
+                                "pairs with `onExpandedChange`"
+                        }
+                    }
+
+                    // No `internal` type in a public default expression.
+                    params.forEach { parameter ->
+                        val leading = Regex("""^([A-Z]\w*)\b""")
+                            .find(parameter.default?.trim().orEmpty())
+                            ?.groupValues?.get(1)
+                        if (leading != null && leading in internalTypes) {
+                            problems += "$where: `${parameter.name}` defaults to " +
+                                "`${parameter.default?.trim()}`, and `$leading` is internal " +
+                                "— a caller cannot write this default"
+                        }
+                    }
+
+                    // No fully-qualified `androidx.*` in a signature.
+                    //
+                    // It compiles and it reads as noise, but the reason it
+                    // matters is downstream: this is what the generated API
+                    // reference prints, so one unimported type makes a column
+                    // of a table three times as wide as the rest.
+                    params.filter { "androidx." in it.type }.forEach { parameter ->
+                        problems += "$where: `${parameter.name}` is typed " +
+                            "`${parameter.type.trim()}` — import it"
                     }
 
                     // `interactionSource` goes last, after everything except the

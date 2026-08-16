@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.list.ListItemScope
@@ -385,7 +386,7 @@ fun NavDrawerGroup(
     onExpandedChange: (Boolean) -> Unit,
     label: @Composable ContentScope.() -> Unit,
     modifier: Modifier = Modifier,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    icon: ImageVector? = null,
     nestLevel: Int = 0,
     content: @Composable NavDrawerScope.() -> Unit,
 ) {

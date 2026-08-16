@@ -35,8 +35,14 @@ import com.composables.icons.tabler.filled.Star as FilledStar
  * They are [Tabler] outline, matching the app. Each is a separate top-level
  * declaration, so the ones this module never touches are dropped by R8 and by
  * the JS/Wasm dead-code eliminator rather than travelling with the artifact.
+ *
+ * **Public**, because they are shipped rather than hidden. `SheetHeader.closeIcon`
+ * defaults to [Close], and a default a caller can read but cannot write is worse
+ * than no default — you can see what it is and have no way to say it. The type
+ * is [ImageVector], from a dependency this module already exposes, so nothing
+ * about the icon set leaks into the API with them.
  */
-internal object SystemIcons {
+object SystemIcons {
     /** Marks the selected item in a list of choices. */
     val Check: ImageVector get() = Tabler.Outline.Check
 

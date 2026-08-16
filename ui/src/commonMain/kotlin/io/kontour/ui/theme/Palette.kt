@@ -23,8 +23,13 @@ import androidx.compose.ui.graphics.Color
  *    does the work that needs contrast.
  *
  * Every pairing these feed into is asserted by `ColorSchemeContrastTest`.
+ *
+ * **Public**, because the scheme factories default from it — `lightColorScheme`
+ * lists `Palette.White` and `Palette.Ink` twenty-eight times — and an app that
+ * wants to change one colour should not have to start from raw hex to keep the
+ * other twenty-seven.
  */
-internal object Palette {
+object Palette {
 
     // --- Neutrals ---------------------------------------------------------
     val White = Color(0xFFFFFFFF)

@@ -73,7 +73,7 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                     DateRangePicker(
                         start = range.value.first,
                         end = range.value.second,
-                        onSelectedChange = { start, end -> range.value = start to end },
+                        onRangeSelected = { start, end -> range.value = start to end },
                         today = today,
                         previousIcon = Tabler.Outline.ChevronLeft,
                         nextIcon = Tabler.Outline.ChevronRight,

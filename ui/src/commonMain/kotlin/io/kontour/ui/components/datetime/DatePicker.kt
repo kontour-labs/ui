@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Text
@@ -92,7 +93,7 @@ fun DatePicker(
     modifier: Modifier = Modifier,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
-    markerFor: ((LocalDate) -> androidx.compose.ui.graphics.Color?)? = null,
+    markerFor: ((LocalDate) -> Color?)? = null,
     previousIcon: ImageVector? = null,
     nextIcon: ImageVector? = null,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(
@@ -127,14 +128,14 @@ fun DatePicker(
  * the current start restarts the range there rather than producing a backwards
  * one — which is what people actually mean when they do it.
  *
- * @param onSelectedChange Receives the range so far. The end is null while only a start
+ * @param onRangeSelected Receives the range so far. The end is null while only a start
  *   has been chosen, so a caller can keep its confirm button disabled.
  */
 @Composable
 fun DateRangePicker(
     start: LocalDate?,
     end: LocalDate?,
-    onSelectedChange: (start: LocalDate, end: LocalDate?) -> Unit,
+    onRangeSelected: (start: LocalDate, end: LocalDate?) -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
@@ -157,9 +158,9 @@ fun DateRangePicker(
             isSelected = { false },
             onSelectedChange = { tapped ->
                 when {
-                    start == null || end != null -> onSelectedChange(tapped, null)
-                    tapped < start -> onSelectedChange(tapped, null)
-                    else -> onSelectedChange(start, tapped)
+                    start == null || end != null -> onRangeSelected(tapped, null)
+                    tapped < start -> onRangeSelected(tapped, null)
+                    else -> onRangeSelected(start, tapped)
                 }
             },
             isDateSelectable = isDateSelectable,
@@ -170,7 +171,7 @@ fun DateRangePicker(
             // ordering them is this component's business, because only it knows
             // that a range's `start` is the earlier of the two.
             onDragSelect = { from, to ->
-                if (to < from) onSelectedChange(to, from) else onSelectedChange(from, to)
+                if (to < from) onRangeSelected(to, from) else onRangeSelected(from, to)
             },
             formats = formats,
         )

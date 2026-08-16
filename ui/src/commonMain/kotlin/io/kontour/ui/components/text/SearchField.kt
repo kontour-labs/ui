@@ -34,7 +34,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  *     placeholder = "Search stops and routes",
  *     searchIcon = FontAwesome.Solid.Search,
  *     clearIcon = FontAwesome.Solid.Times,
- *     onQueryChange = viewModel::search,
+ *     onQuery = viewModel::search,
  * )
  * ```
  *
@@ -63,20 +63,20 @@ fun SearchField(
     clearLabel: String = Theme.strings.clearSearch,
     supporting: String? = null,
     debounceMillis: Long = 250L,
-    onQueryChange: ((String) -> Unit)? = null,
+    onQuery: ((String) -> Unit)? = null,
     onSearch: ((String) -> Unit)? = null,
     variant: TextFieldVariant = TextFieldVariant.Filled,
     shape: Shape = Theme.shapes.small,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    val currentOnQueryChange by rememberUpdatedState(onQueryChange)
+    val currentOnQuery by rememberUpdatedState(onQuery)
 
-    if (onQueryChange != null) {
+    if (onQuery != null) {
         LaunchedEffect(state, debounceMillis) {
             snapshotFlow { state.text.toString() }
                 .debounce(debounceMillis)
                 .distinctUntilChanged()
-                .collect { currentOnQueryChange?.invoke(it) }
+                .collect { currentOnQuery?.invoke(it) }
         }
     }
 

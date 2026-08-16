@@ -173,12 +173,12 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
 
                     SegmentedControl(
                         listOf("Depart", "Arrive"),
-                        selectedIndex = when_.value,
+                        selected = when_.value,
                         onSelectedChange = { when_.value = it },
                     )
                     SegmentedControl(
                         listOf("Day", "Week", "Month"),
-                        selectedIndex = span.value,
+                        selected = span.value,
                         onSelectedChange = { span.value = it },
                     )
                 }

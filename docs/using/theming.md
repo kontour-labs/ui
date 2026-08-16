@@ -192,7 +192,9 @@ fun generatedColorScheme(seed: Color, dark: Boolean, contrast: ContrastLevel): C
 
 and nothing else. No component changes, because no component knows where its
 `ColorScheme` came from. That is the entire reason components are forbidden from
-touching `Palette` directly.
+touching `Palette` directly — the ban is on *components* reading it, not on you:
+`Palette` is public, so an app that wants to change one colour can keep the
+other twenty-seven instead of starting from raw hex.
 
 The generator is not built yet. When it is, it will need to satisfy the same
 contrast suite as the static schemes — which is the hard part of that work, and

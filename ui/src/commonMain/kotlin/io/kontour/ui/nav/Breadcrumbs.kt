@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
@@ -61,7 +62,7 @@ data class Crumb(
 fun Breadcrumbs(
     crumbs: List<Crumb>,
     modifier: Modifier = Modifier,
-    separator: androidx.compose.ui.graphics.vector.ImageVector = SystemIcons.ChevronForward,
+    separator: ImageVector = SystemIcons.ChevronForward,
 ) {
     Row(
         modifier = modifier

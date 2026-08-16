@@ -128,7 +128,7 @@ fun SelectShowcase(modifier: Modifier = Modifier) {
                 var operator by remember { mutableStateOf<String?>("Transperth") }
 
                 MultiSelect(
-                    values = modes,
+                    value = modes,
                     options = Mode.entries,
                     onValueChange = { modes = it },
                     label = "Include",

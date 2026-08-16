@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Color
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.foundation.Surface
@@ -122,9 +124,9 @@ object SheetDefaults {
 fun BottomSheet(
     state: SheetState,
     modifier: Modifier = Modifier,
-    shape: androidx.compose.ui.graphics.Shape = Theme.shapes.sheet,
-    containerColor: androidx.compose.ui.graphics.Color = Theme.colors.surfaceRaised,
-    contentColor: androidx.compose.ui.graphics.Color = Theme.colors.content,
+    shape: Shape = Theme.shapes.sheet,
+    containerColor: Color = Theme.colors.surfaceRaised,
+    contentColor: Color = Theme.colors.content,
     paneTitle: String? = null,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /**
@@ -257,9 +259,9 @@ fun ModalBottomSheet(
         detents = listOf(SheetDetent.Hidden, SheetDetent.Expanded),
         initialDetent = SheetDetent.Hidden,
     ),
-    shape: androidx.compose.ui.graphics.Shape = Theme.shapes.sheet,
-    containerColor: androidx.compose.ui.graphics.Color = Theme.colors.surfaceRaised,
-    contentColor: androidx.compose.ui.graphics.Color = Theme.colors.content,
+    shape: Shape = Theme.shapes.sheet,
+    containerColor: Color = Theme.colors.surfaceRaised,
+    contentColor: Color = Theme.colors.content,
     dismissOnOutside: Boolean = true,
     dismissLabel: String = Theme.strings.close,
     paneTitle: String? = null,
@@ -352,10 +354,10 @@ fun ModalBottomSheet(
 @Composable
 private fun BoxScope.SheetSurface(
     state: SheetState,
-    shape: androidx.compose.ui.graphics.Shape,
+    shape: Shape,
     windowInsets: WindowInsets,
-    containerColor: androidx.compose.ui.graphics.Color,
-    contentColor: androidx.compose.ui.graphics.Color,
+    containerColor: Color,
+    contentColor: Color,
     dragHandle: (@Composable () -> Unit)?,
     density: androidx.compose.ui.unit.Density,
     content: @Composable ColumnScope.() -> Unit,

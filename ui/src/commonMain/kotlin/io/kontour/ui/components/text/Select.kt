@@ -154,7 +154,7 @@ fun <T> Select(
  *
  * ```kotlin
  * MultiSelect(
- *     values = includedModes,
+ *     value = includedModes,
  *     options = TransportMode.entries,
  *     onValueChange = { includedModes = it },
  *     label = "Include",
@@ -176,7 +176,7 @@ fun <T> Select(
  */
 @Composable
 fun <T> MultiSelect(
-    values: Set<T>,
+    value: Set<T>,
     options: List<T>,
     onValueChange: (Set<T>) -> Unit,
     modifier: Modifier = Modifier,
@@ -204,7 +204,7 @@ fun <T> MultiSelect(
     interactionSource: MutableInteractionSource? = null,
 ) {
     SelectFrame(
-        valueLabel = summary(values).takeIf { it.isNotEmpty() },
+        valueLabel = summary(value).takeIf { it.isNotEmpty() },
         placeholder = placeholder,
         modifier = modifier,
         label = label,
@@ -221,11 +221,11 @@ fun <T> MultiSelect(
             MenuItem(
                 onClick = {
                     onValueChange(
-                        if (option in values) values - option else values + option
+                        if (option in value) value - option else value + option
                     )
                 },
                 enabled = optionEnabled(option),
-                selected = option in values,
+                selected = option in value,
             ) {
                 +optionLabel(option)
                 optionIcon?.invoke(option)?.let { icon -> leading { +icon } }
