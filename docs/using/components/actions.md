@@ -271,6 +271,14 @@ controls over the map.
 traversal semantics in one place so a second toolbar does not grow a second set
 of numbers.
 
+**Its corners are concentric with what it holds.** `ToolbarDefaults.Shape` is
+one step up the shape scale from the controls inside — the scale climbs in 4dp
+steps and the content padding is 4dp, so `medium` around `small` puts the two
+curves exactly parallel. It was a pill until a `ButtonGroup`'s corners were
+found poking through it and being sheared flat. If your toolbar holds nothing
+but circular `IconButton`s, `Theme.shapes.pill` is the concentric choice there
+and worth passing.
+
 **It is not a [`TopBar`](navigation.md#topbar).** A top bar is *part of* the
 screen — it holds the title and sits at the top. A toolbar floats **over**
 content that is not its own, which is why it has a shadow and rounded corners

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,8 +27,8 @@ import io.kontour.ui.theme.Theme
  * ```kotlin
  * Toolbar {
  *     ButtonGroup {
- *         action(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
- *         action(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+ *         item(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+ *         item(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
  *     }
  *     ToolbarDivider()
  *     IconButton(Tabler.Outline.Layers, "Map layers", onClick = ::openLayers)
@@ -56,7 +57,7 @@ import io.kontour.ui.theme.Theme
 @Composable
 fun Toolbar(
     modifier: Modifier = Modifier,
-    shape: Shape = Theme.shapes.pill,
+    shape: Shape = ToolbarDefaults.Shape,
     containerColor: Color = Theme.colors.surface,
     shadow: Shadow = Theme.elevation.medium,
     contentPadding: Dp = ToolbarDefaults.ContentPadding,
@@ -101,6 +102,32 @@ fun ToolbarDivider(modifier: Modifier = Modifier) {
 object ToolbarDefaults {
     /** The ring of space between the surface's edge and its first control. */
     val ContentPadding: Dp = 4.dp
+
+    /**
+     * One step up the shape scale from the controls inside, which is what
+     * concentric means at this padding.
+     *
+     * Two rounded shapes nested inside one another look right when the outer
+     * radius is the inner radius *plus* the gap between them, and wrong
+     * otherwise — the corners stop being parallel and the gap pinches. This used
+     * to be [io.kontour.ui.theme.Shapes.pill], which is as far from an 8dp
+     * [ButtonGroup] as a radius can get: the group's top corner fell *outside*
+     * the pill's curve at 4dp of padding and was clipped flat against it, which
+     * is what the toolbar's own render showed and nobody read.
+     *
+     * The scale climbs in 4dp steps and [ContentPadding] is 4dp, so the step
+     * above the children's `small` is exactly `small + ContentPadding`. That
+     * coincidence is not one — the ladder is built to nest. Change
+     * [ContentPadding] and this stops being concentric, so change the shape with
+     * it.
+     *
+     * **A pill is right for a toolbar of nothing but circular
+     * [IconButton]s** — there the children's radius is half their height, the
+     * outer radius is half the toolbar's, and those already differ by the
+     * padding. Pass `Theme.shapes.pill` for that one.
+     */
+    val Shape: CornerBasedShape
+        @Composable get() = Theme.shapes.medium
 
     /**
      * Shorter than the toolbar, so the rule floats rather than butting into the
