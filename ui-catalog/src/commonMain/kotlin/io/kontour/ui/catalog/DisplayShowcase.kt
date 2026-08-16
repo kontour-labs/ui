@@ -44,6 +44,10 @@ import io.kontour.ui.components.display.SkeletonText
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.Tag
+import com.composables.icons.tabler.outline.Check
+import io.kontour.ui.components.display.KeyValueList
+import io.kontour.ui.components.display.Stat
+import io.kontour.ui.components.display.StatTrend
 import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.TimelineItem
@@ -293,6 +297,53 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                                 style = Theme.typography.bodySmall,
                                 color = Theme.colors.contentMuted,
                             )
+                        }
+                    }
+                }
+
+                Section("Stat") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xl)) {
+                        Stat {
+                            value("4 min")
+                            +"Next departure"
+                            supporting("Platform 2")
+                        }
+                        Stat {
+                            value("12")
+                            +"Stops away"
+                            trend(StatTrend.Negative, "3 more than usual")
+                        }
+                        // Right-aligned, which is what a figure in a column of
+                        // figures wants and the one arrangement a left-aligned
+                        // default gets wrong.
+                        Stat(alignment = Alignment.End) {
+                            value("$3.20")
+                            +"Fare"
+                            trend(StatTrend.Positive, "concession")
+                        }
+                    }
+                }
+
+                // Stacked rather than side by side: this page lays out in
+                // three columns and one of these is already 320dp wide, so a
+                // row of two crushes the second into a column of single
+                // characters.
+                Section("KeyValueList") {
+                    Column(
+                        Modifier.width(320.dp),
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                    ) {
+                        KeyValueList {
+                            row("Operator", "Transperth")
+                            row("Platform", "2")
+                            row("Fare", "$3.20")
+                            row("Accessible", announcement = "yes") {
+                                +Tabler.Outline.Check
+                            }
+                        }
+                        KeyValueList(dividers = true) {
+                            row("Route", "950")
+                            row("Towards", "Perth Busport via Broadway")
                         }
                     }
                 }

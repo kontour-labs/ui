@@ -30,6 +30,8 @@ import io.kontour.ui.components.display.Accordion
 import io.kontour.ui.components.display.AnimatedBanner
 import io.kontour.ui.components.display.BannerTone
 import io.kontour.ui.components.display.Kbd
+import io.kontour.ui.components.display.KeyValueList
+import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemPosition
 import io.kontour.ui.components.list.PullToRefresh
@@ -402,6 +404,46 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 enabled = enabled,
                 range = 1..9,
             )
+        }
+    )
+
+    add(
+        // Read, not operated: no role, no touch target, nothing to press. It is
+        // here for its render and for the one rule that does apply to it — that
+        // it survives 200% type in RTL, which a number-over-label block is a
+        // plausible way to break.
+        ComponentSpec(
+            "Stat",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+        ) { modifier, _, _ ->
+            Stat(modifier) {
+                value("4 min")
+                +"Next departure"
+                supporting("Platform 2")
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "KeyValueList",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            // Three rows do not fit the shared 120dp canvas, and a clipped
+            // render is the worst kind: it draws enough ink to pass the blank
+            // check while showing two thirds of the specimen.
+            renderHeight = 160,
+        ) { modifier, _, _ ->
+            KeyValueList(modifier) {
+                row("Operator", "Transperth")
+                row("Platform", "2")
+                row("Fare", "$3.20")
+            }
         }
     )
 

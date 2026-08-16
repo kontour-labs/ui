@@ -15,7 +15,7 @@ over.
 | [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `Slider` `RangeSlider` `Stepper` |
 | [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `NumberField` `PhoneField` `EmailField` `Select` `MultiSelect` `Combobox` |
 | [**Date and time**](components/date-time.md) | Calendars and clocks | `CalendarMonth` `DatePicker` `DateRangePicker` `TimePicker` `TimeField` `WheelPicker` `RelativeTimeText` |
-| [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Skeleton` `EmptyState` `Banner` `Callout` `Timeline` `Accordion` `Kbd` |
+| [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Skeleton` `EmptyState` `Banner` `Callout` `Timeline` `Accordion` `Stat` `KeyValueList` `Kbd` |
 | [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `SettingRow` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` |
 | [**Navigation**](components/navigation.md) | Getting between screens | `NavigationSuiteScaffold` `NavItem` `NavBar` `NavRail` `NavDrawer` `TopBar` `TabBar` `Breadcrumbs` `Pagination` |
 | [**Overlays**](overlays.md) | Things drawn over everything | `Dialog` `AlertDialog` `DropdownMenu` `SubMenu` `ContextMenuArea` `Popover` `Tooltip` `Toast` `LoadingOverlay` |
@@ -44,6 +44,7 @@ The comparisons that get made wrongly, and where each is argued:
 | `Dialog` vs `ModalBottomSheet` | [overlays](overlays.md) |
 | `Chip` vs `Tag` | [display](components/display.md#tag) |
 | `Skeleton` vs `Spinner` | [display](components/display.md#skeletons) |
+| `Stat` vs `KeyValueList` vs `SettingRow` | [display](components/display.md#keyvaluelist) |
 | `EmptyState` vs `ErrorState` | [display](components/display.md#emptystate--errorstate) |
 | `Pagination` vs `LoadMore` | [navigation](components/navigation.md#pagination) |
 | The five sheet entry points | [sheets](sheets.md) |
@@ -68,8 +69,7 @@ calendar for range selection across month boundaries
 exist (`SearchField`, `trapFocus`, `MenuScope.item(shortcut =)`, `Kbd`) and
 nothing composes them; `Combobox` explicitly declines the case.
 
-**Display, remaining** — `Carousel` + `PageIndicator`, `Stat`, `KeyValueList`,
-`Marquee`
+**Display, remaining** — `Carousel` + `PageIndicator`, `Marquee`
 
 **Actions, remaining** — `Toolbar` / `ButtonGroup`, a row of related actions.
 Distinct from `SegmentedControl`, which is single-select with radio semantics,

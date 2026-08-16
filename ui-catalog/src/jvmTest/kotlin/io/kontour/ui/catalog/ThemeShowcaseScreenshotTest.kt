@@ -252,7 +252,12 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "display-"),
                 width = 2560,
-                height = 1560,
+                // Grew for `Stat` and `KeyValueList`. A section added below a
+                // page's canvas is dropped *silently* — the golden does not
+                // move, so the run passes and the page claims coverage of a
+                // component it never drew. After adding a section here, check
+                // that the golden actually changed.
+                height = 2600,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
                     DisplayShowcase()

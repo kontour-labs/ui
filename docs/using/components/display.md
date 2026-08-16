@@ -18,6 +18,8 @@ Things that show rather than take input.
 | [`Callout`](#callout) | The markdown blockquote treatment | `Banner`, for anything dismissible |
 | [`Timeline`](#timeline) | A vertical sequence — the itinerary | A plain list, when there is no progression |
 | [`Accordion`](#accordion) | Disclosure, with hoisted state | — |
+| [`Stat`](#stat) | One figure, said loudly | `KeyValueList`, when none of them is the headline |
+| [`KeyValueList`](#keyvaluelist) | Label-and-value facts about one thing | `SettingRow`, only if the rows are tappable |
 | [`Kbd`](#kbd) | A keyboard shortcut, rendered as a key | — |
 | [`RelativeTimeText`](date-time.md#relativetimetext) | A self-updating "in 4 min" | — |
 
@@ -140,6 +142,75 @@ assembled rather than built.
 
 Disclosure with hoisted state, so the caller decides what is open — including
 opening the section containing whatever the user searched for.
+
+## `Stat`
+
+![Stat](../../../../../app/ui-catalog/screenshots/components/stat-light.png)
+
+```kotlin
+Stat {
+    value("4 min")
+    +"Next departure"
+    supporting("Platform 2")
+    trend(StatTrend.Positive, "2 min earlier than usual")
+}
+```
+
+The label goes **under** the value. A dashboard is scanned by its numbers — the
+reader finds the big thing first and then asks what it is, and a label on top
+makes them read every caption to find the figure they came for.
+
+**Spoken, that order is backwards.** So the block merges into one announcement
+and reverses it: "Next departure. 4 min. Platform 2" — the label first, because
+"4 min" before anything has said what is four minutes away is a number with no
+subject. Pass `announcement(…)` for a figure a reader would mangle: "1.2k" is
+said as "one point two kay".
+
+`StatTrend` is `Positive`, `Negative` or `Neutral` — **sentiment, not
+direction**. A departure two minutes earlier is good news and points down; a
+fare two dollars higher is bad news and points up. Nothing in the component can
+tell which.
+
+**Reach for a `KeyValueList` instead** when there are several figures and none is
+the headline. A screen with six stats has no headline, which is the same as
+having none.
+
+## `KeyValueList`
+
+![KeyValueList](../../../../../app/ui-catalog/screenshots/components/keyvaluelist-light.png)
+
+```kotlin
+KeyValueList {
+    row("Operator", "Transperth")
+    row("Platform", "2")
+    row("Fare", "$3.20")
+    row("Accessible", announcement = "yes") { +Tabler.Outline.Check }
+}
+```
+
+**Not a [`SettingRow`](collections.md#settingrow).** They draw almost the same
+row, and the difference is the whole reason both exist:
+
+| | `KeyValueList` row | `SettingRow` |
+|---|---|---|
+| What it is | text | a control |
+| Role | none | `Role.Button` |
+| Touch target | none | yes |
+| Pressing it | nothing | opens something |
+
+Using a setting row for facts gives a screen-reader user a list of buttons that
+do nothing, which is worse than the visual duplication it saves. If one row needs
+to become tappable, it is not one of these — move it out and leave the rest.
+
+**Each row announces as a pair**, "Platform, 2". Separate nodes make the reader
+hold the label while waiting for the value, and the pairing is the entire
+content. A row whose value is not text needs `announcement` — a tick icon in an
+"Accessible" row otherwise announces as "Accessible" and stops, which reads as a
+row with its value missing.
+
+`labelWidth` is a fixed minimum rather than intrinsic, so the values line up down
+the column. A ragged value column is what makes a details panel look untidy, and
+an intrinsic width re-rags it every time the content changes.
 
 ## `Kbd`
 
