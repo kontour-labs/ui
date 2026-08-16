@@ -113,6 +113,16 @@ fun CommandPalette(
     emptyLabel: String = Theme.strings.noMatchingCommands,
     width: Dp = CommandPaletteDefaults.Width,
     maxHeight: Dp = CommandPaletteDefaults.MaxHeight,
+    /**
+     * How far below the top of the window it sits.
+     *
+     * A companion to [width] and [maxHeight], and here for the same reason they
+     * are: the defaults are sized for a real window, and a host that is not one
+     * needs all three or none of them. Without it the catalog's 300dp panel
+     * spent a third of its height on the inset and clipped the palette at the
+     * bottom, which read as the component being broken.
+     */
+    topInset: Dp = CommandPaletteDefaults.TopInset,
     filter: (String, Command) -> Boolean = ::commandMatches,
 ) {
     val host = LocalOverlayHost.current
@@ -120,6 +130,7 @@ fun CommandPalette(
     val latestCommands by rememberUpdatedState(commands)
     val latestFilter by rememberUpdatedState(filter)
     val latestDismiss by rememberUpdatedState(onDismissRequest)
+    val latestTopInset by rememberUpdatedState(topInset)
 
     LaunchedEffect(visible, key) {
         if (visible) {
@@ -147,9 +158,7 @@ fun CommandPalette(
                             contentAlignment = Alignment.TopCenter,
                         ) {
                             PaletteBody(
-                                modifier = latestModifier.padding(
-                                    top = CommandPaletteDefaults.TopInset,
-                                ),
+                                modifier = latestModifier.padding(top = latestTopInset),
                                 query = query,
                                 commands = latestCommands,
                                 filter = latestFilter,

@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.ArrowsSort
@@ -261,15 +262,20 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                     LoadingOverlay(visible = loading.value, label = "Planning your trip")
                 }
 
-                Panel("Command palette") {
+                Panel("Command palette", height = 440.dp) {
                     // Seeded open so the golden shows the palette, and a
                     // *toggle* rather than a setter — pressing "open" while it
                     // is already open does nothing, which is exactly what
                     // `EverythingRespondsTest` exists to catch. It caught this.
                     val open = seed(true)
+                    // Aligned, like every other trigger in here. Left where it
+                    // fell, it landed on top of the panel's own stand-in text
+                    // and the two drew over each other — which is most of what
+                    // made this panel look broken.
                     Button(
                         onClick = { open.value = !open.value },
                         variant = ButtonVariant.Secondary,
+                        modifier = Modifier.align(Alignment.BottomStart).padding(16.dp),
                     ) { +"Open palette" }
                     CommandPalette(
                         visible = open.value,
@@ -282,9 +288,16 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                                 Command("offline", "Download for offline", onRun = {}, enabled = false),
                             )
                         },
-                        // Narrower than the default, which is sized for a real
-                        // window rather than for a 400dp panel in a gallery.
+                        // All three of these, not just the width. The defaults
+                        // are sized for a real window: 96dp of top inset and
+                        // 360dp of results do not fit a 300dp panel, so the
+                        // palette ran off the bottom and the gallery showed a
+                        // component that looked like it could not lay itself
+                        // out. It lays out fine; it was being given a window a
+                        // fifth the size of the one it was drawn for.
                         width = 320.dp,
+                        topInset = 32.dp,
+                        maxHeight = 240.dp,
                     )
                 }
 
@@ -315,10 +328,18 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
     }
 }
 
-/** A fixed-size screen stand-in with its own overlay host. */
+/**
+ * A fixed-size screen stand-in with its own overlay host.
+ *
+ * @param height Taller for the command palette, which is the one component in
+ *   here that wants a window rather than a card. Squeezed into 300dp it ran off
+ *   the bottom, and a gallery that clips the thing it is showing is worse than
+ *   no gallery.
+ */
 @Composable
 private fun Panel(
     title: String,
+    height: Dp = 300.dp,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Column(
@@ -333,7 +354,7 @@ private fun Panel(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(300.dp)
+                .height(height)
                 .border(
                     width = Theme.sizing.borderWidth,
                     color = Theme.colors.outline,

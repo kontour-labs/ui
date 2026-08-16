@@ -408,3 +408,8 @@ grows downward as the user types and a centred palette jumps up the screen on
 every keystroke. Its search field has no debounce: the list is already in
 memory, and a quarter-second lag between the key and the result is the whole
 difference between instant and broken.
+
+`width`, `maxHeight` and `topInset` are sized for a window — 560dp wide, 360dp
+of results, 96dp down from the top. In a host that is not a window they go
+together: the catalog's panel sets all three, and the version that set only the
+width spent a third of its height on the inset and ran off the bottom.

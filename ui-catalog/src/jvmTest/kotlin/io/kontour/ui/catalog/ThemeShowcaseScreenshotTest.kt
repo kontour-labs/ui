@@ -140,8 +140,11 @@ class ThemeShowcaseScreenshotTest {
                 // Four panels per row. The panels flow, and a width that
                 // leaves slack for a fifth to start without room to finish
                 // draws it as a column of single letters.
+                // Taller since the command palette's panel grew: the palette is
+                // the one overlay in here that wants a window rather than a
+                // card, and a 300dp stand-in clipped it.
                 width = 3120,
-                height = 2160,
+                height = 2440,
                 // Overlays need more than the usual handful. Each one has to be
                 // laid out before its anchor is known, pushed into the host on
                 // the recomposition after that, and then animated in — three
