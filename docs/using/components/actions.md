@@ -8,6 +8,8 @@ Things the user presses to make something happen.
 | [`IconButton`](#iconbutton) | An action with no room for a name | A `Button`, whenever there is room |
 | [`IconToggleButton`](#icontogglebutton) | An icon that is on or off — favourite, mute | A `Switch`, when the state deserves a label |
 | [`FloatingActionButton`](#floatingactionbutton) | The one action a whole screen exists for | A `Button`, for anything else |
+| [`ButtonGroup`](#buttongroup) | Related actions that read as one control | `SegmentedControl`, when one is *selected* |
+| [`Toolbar`](#toolbar) | A floating surface of actions over other content | `TopBar`, when it is the screen's own chrome |
 | [`Spinner`](#spinner) | Work is happening, duration unknown | `LinearProgress`, when you know the fraction |
 
 ---
@@ -159,6 +161,87 @@ treatment when it expands.
 `contentDescription` is separate from `label` because the label may be terse
 where the announcement should not be — "Start" on screen, "Start trip to Perth
 Station" for a screen reader.
+
+---
+
+## `ButtonGroup`
+
+![ButtonGroup](../../../../../app/ui-catalog/screenshots/components/buttongroup-light.png)
+
+```kotlin
+ButtonGroup {
+    action(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+    action(onClick = ::recentre, contentDescription = "Recentre", icon = Tabler.Outline.CurrentLocation)
+    action(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+}
+```
+
+The buttons sit flush and only the outside corners round — the same treatment
+[`ListItemPosition`](collections.md#listitem) gives a group of rows. That is the
+whole visual idea: three separate buttons say "three things", one joined group
+says "one thing, three ways".
+
+It is a **builder**, not a row of `Button`s, because each button's shape depends
+on how many there are — which is not known until they have all been declared.
+Note that the builder collects rather than composes, so a `@Composable` helper
+cannot be called inside it; hoist the value first.
+
+### Not a `SegmentedControl`
+
+They look almost identical and mean opposite things:
+
+| | `ButtonGroup` | [`SegmentedControl`](selection.md#segmentedcontrol) |
+|---|---|---|
+| Each item is | an action | an option |
+| Something is selected | no | always exactly one |
+| Role | `Button` | `RadioButton` |
+| Pressing one | does something | changes a value |
+
+A segmented control with no selection is broken; a button group with a selection
+is a segmented control wearing the wrong clothes. **If the row answers a
+question, it is a segmented control.**
+
+### Not `TopBar`'s `actions`
+
+That slot holds the *screen's* actions, separated from each other. This is a
+cluster that belongs together — zoom in and zoom out — and the joining is what
+says so. A [`TopBar`](navigation.md#topbar) can hold one of these in its slot.
+
+Any single action can be disabled without the others, which is what lets a
+cluster grey a button rather than hide it. A cluster that changes width as you
+use it is worse than one with a greyed button in it.
+
+## `Toolbar`
+
+![Toolbar](../../../../../app/ui-catalog/screenshots/components/toolbar-light.png)
+
+```kotlin
+Toolbar {
+    ButtonGroup {
+        action(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+        action(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+    }
+    ToolbarDivider()
+    IconButton(Tabler.Outline.Stack, "Map layers", onClick = ::openLayers)
+}
+```
+
+A floating surface holding actions, over content it does not belong to — the
+controls over the map.
+
+**Deliberately thin**: a `Surface` and a `Row`. It earns its place the way
+[`Card`](display.md#card) does, by fixing the elevation, shape, padding and
+traversal semantics in one place so a second toolbar does not grow a second set
+of numbers.
+
+**It is not a [`TopBar`](navigation.md#topbar).** A top bar is *part of* the
+screen — it holds the title and sits at the top. A toolbar floats **over**
+content that is not its own, which is why it has a shadow and rounded corners
+and a top bar has neither. If it is the screen's chrome, it is a top bar.
+
+For a translucent one over a live map, use `GlassSurface` and read the note in
+[adaptive](adaptive.md#there-is-no-portable-backdrop-blur) — there is no
+portable backdrop blur.
 
 ---
 

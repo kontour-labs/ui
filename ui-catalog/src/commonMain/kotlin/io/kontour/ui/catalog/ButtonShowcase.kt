@@ -24,7 +24,14 @@ import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.ExtendedFloatingActionButton
 import io.kontour.ui.components.action.FabSize
+import androidx.compose.foundation.layout.Row
+import com.composables.icons.tabler.outline.CurrentLocation
+import com.composables.icons.tabler.outline.Minus
+import com.composables.icons.tabler.outline.Stack
+import io.kontour.ui.components.action.ButtonGroup
 import io.kontour.ui.components.action.FloatingActionButton
+import io.kontour.ui.components.action.Toolbar
+import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.foundation.Surface
@@ -154,6 +161,58 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                         expanded = collapsed.value,
                         onClick = { collapsed.value = !collapsed.value },
                     )
+                }
+            }
+
+            Section("Button group") {
+                // The builder collects rather than composes, so a `@Composable`
+                // helper like `tap` cannot be called inside it. Hoisted, which
+                // is what a caller has to do too.
+                val zoomOut = tap("Zoom out")
+                val recentre = tap("Recentre")
+                val zoomIn = tap("Zoom in")
+                val day = tap("Day")
+                val week = tap("Week")
+                val month = tap("Month")
+                val only = tap("Only")
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ButtonGroup {
+                        action(onClick = zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+                        action(onClick = recentre, contentDescription = "Recentre", icon = Tabler.Outline.CurrentLocation)
+                        action(onClick = zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+                    }
+                    // Labels rather than icons, and one of them unavailable —
+                    // a group has to be able to grey one button without the
+                    // caller hiding it and changing the cluster's width.
+                    ButtonGroup(variant = ButtonVariant.Secondary) {
+                        action(onClick = day) { +"Day" }
+                        action(onClick = week) { +"Week" }
+                        action(onClick = month, enabled = false) { +"Month" }
+                    }
+                    // A group of one, which is the case index arithmetic gets
+                    // wrong: both ends round, no seams.
+                    ButtonGroup {
+                        action(onClick = only, contentDescription = "Only", icon = Tabler.Outline.Star)
+                    }
+                }
+            }
+
+            Section("Toolbar") {
+                val out = tap("Zoom out")
+                val into = tap("Zoom in")
+
+                Toolbar {
+                    ButtonGroup {
+                        action(onClick = out, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+                        action(onClick = into, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+                    }
+                    ToolbarDivider()
+                    IconButton(Tabler.Outline.Stack, "Map layers", tap("Map layers"))
+                    IconButton(Tabler.Outline.CurrentLocation, "My location", tap("My location"))
                 }
             }
         }

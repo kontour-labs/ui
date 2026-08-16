@@ -18,8 +18,13 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.CurrentLocation
+import com.composables.icons.tabler.outline.Minus
+import com.composables.icons.tabler.outline.Plus
+import com.composables.icons.tabler.outline.Stack
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.components.action.Button
+import io.kontour.ui.components.action.ButtonGroup
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.ExtendedFloatingActionButton
 import io.kontour.ui.components.action.FloatingActionButton
@@ -29,6 +34,8 @@ import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.display.Accordion
 import io.kontour.ui.components.display.AnimatedBanner
 import io.kontour.ui.components.display.BannerTone
+import io.kontour.ui.components.action.Toolbar
+import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.Stat
@@ -443,6 +450,50 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 row("Operator", "Transperth")
                 row("Platform", "2")
                 row("Fare", "$3.20")
+            }
+        }
+    )
+
+    add(
+        // The group is a container; its buttons are the controls. The outermost
+        // node is a traversal group with no role and nothing to press, so the
+        // click and touch-target rules apply to the buttons inside rather than
+        // to it. `ButtonGroupTest` is what covers those.
+        ComponentSpec(
+            "ButtonGroup",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+        ) { modifier, enabled, onActivate ->
+            ButtonGroup(modifier, enabled = enabled) {
+                action(onClick = onActivate, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+                action(onClick = onActivate, contentDescription = "Recentre", icon = Tabler.Outline.CurrentLocation)
+                action(onClick = onActivate, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "Toolbar",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+        ) { modifier, enabled, onActivate ->
+            Toolbar(modifier) {
+                ButtonGroup(enabled = enabled) {
+                    action(onClick = onActivate, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+                    action(onClick = onActivate, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+                }
+                ToolbarDivider()
+                IconButton(
+                    icon = Tabler.Outline.Stack,
+                    contentDescription = "Map layers",
+                    onClick = onActivate,
+                    enabled = enabled,
+                )
             }
         }
     )

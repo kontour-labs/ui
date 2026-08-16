@@ -69,7 +69,8 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "actions-"),
                 width = 1100,
-                height = 1420,
+                // Grew for `ButtonGroup` and `Toolbar`.
+                height = 1760,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
                     ButtonShowcase()

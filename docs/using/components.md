@@ -11,7 +11,7 @@ over.
 
 | Family | | |
 |---|---|---|
-| [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `IconToggleButton` `FloatingActionButton` `Spinner` |
+| [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `IconToggleButton` `FloatingActionButton` `ButtonGroup` `Toolbar` `Spinner` |
 | [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `Slider` `RangeSlider` `Stepper` |
 | [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `NumberField` `PhoneField` `EmailField` `Select` `MultiSelect` `Combobox` |
 | [**Date and time**](components/date-time.md) | Calendars and clocks | `CalendarMonth` `DatePicker` `DateRangePicker` `TimePicker` `TimeField` `WheelPicker` `RelativeTimeText` |
@@ -39,7 +39,8 @@ The comparisons that get made wrongly, and where each is argued:
 |---|---|
 | `ListItem` vs `SettingRow` vs `SelectionRow` | [collections](components/collections.md#settingrow) |
 | `Select` vs `Combobox` vs `MultiSelect` vs `RadioGroup` | [text editing](components/text-editing.md#select) |
-| `SegmentedControl` vs `TabBar` | [selection](components/selection.md#segmentedcontrol) |
+| `SegmentedControl` vs `TabBar` vs `ButtonGroup` | [actions](components/actions.md#not-a-segmentedcontrol) |
+| `Toolbar` vs `TopBar` | [actions](components/actions.md#toolbar) |
 | `Banner` vs `Toast` | [display](components/display.md#banner--animatedbanner) |
 | `Dialog` vs `ModalBottomSheet` | [overlays](overlays.md) |
 | `Chip` vs `Tag` | [display](components/display.md#tag) |
@@ -70,10 +71,6 @@ exist (`SearchField`, `trapFocus`, `MenuScope.item(shortcut =)`, `Kbd`) and
 nothing composes them; `Combobox` explicitly declines the case.
 
 **Display, remaining** — `Carousel` + `PageIndicator`, `Marquee`
-
-**Actions, remaining** — `Toolbar` / `ButtonGroup`, a row of related actions.
-Distinct from `SegmentedControl`, which is single-select with radio semantics,
-and from `TopBar`'s `actions` slot, which is a fixed pair of icon buttons.
 
 ### Deliberately not being built
 
