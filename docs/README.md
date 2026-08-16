@@ -142,7 +142,12 @@ repository. What each one asks, and what each has caught, is in
 ## The catalog
 
 `Catalog()` in `:ui-catalog` is every component, in every state, running on all
-five targets from one source. It carries the switches that are hardest to check
+five targets from one source. It opens on **About** — what the library is, how
+to add it, a theming primer and where the writing lives — because a gallery
+whose first page is a colour ramp tells someone who has just been handed the
+library none of that, and reads as a test fixture rather than as documentation.
+That page is also written entirely with shipped components, which makes it the
+one place the system has to work as a document rather than as a form. It carries the switches that are hardest to check
 by eye and easiest to get wrong — dark, high contrast, text size to 200%,
 right-to-left, reduced motion, and a forced input modality — so a component can
 be seen under each without changing a system setting.

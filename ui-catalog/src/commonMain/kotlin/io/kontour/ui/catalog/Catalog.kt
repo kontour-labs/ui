@@ -28,6 +28,7 @@ import com.composables.icons.tabler.outline.AdjustmentsHorizontal
 import com.composables.icons.tabler.outline.Calendar
 import com.composables.icons.tabler.outline.Click
 import com.composables.icons.tabler.outline.Forms
+import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.LayoutBottombar
 import com.composables.icons.tabler.outline.LayoutGrid
 import com.composables.icons.tabler.outline.LayoutList
@@ -70,6 +71,10 @@ private class Page(
 )
 
 private val pages = listOf(
+    // First, and it is a change of purpose rather than of order: a gallery
+    // whose first page is a colour ramp tells someone who has just been
+    // handed the library nothing about what it is or where the writing is.
+    Page("About", Tabler.Outline.InfoCircle) { AboutShowcase(it) },
     Page("Tokens", Tabler.Outline.Palette) { ThemeShowcase(it) },
     Page("Actions", Tabler.Outline.Click) { ButtonShowcase(it) },
     Page("Selection", Tabler.Outline.Forms) { SelectionShowcase(it) },
