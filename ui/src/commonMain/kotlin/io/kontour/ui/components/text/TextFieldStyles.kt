@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.invisible
 
 /**
  * How a text field is drawn.
@@ -89,7 +90,16 @@ object TextFieldDefaults {
     fun colors(variant: TextFieldVariant = TextFieldVariant.Outlined): TextFieldColors {
         val c = Theme.colors
         return TextFieldColors(
-            container = if (variant == TextFieldVariant.Filled) c.surfaceSunken else Color.Transparent,
+            // `invisible()`, not `Color.Transparent`. `FieldScaffold` animates
+            // this to `containerFocused` and back, and `Color.Transparent` is
+            // black — so an outlined field faded *through* a half-opaque
+            // near-black in both directions. That was the grey flash on focus
+            // and the grey flash on blur, and it was two frames long.
+            container = if (variant == TextFieldVariant.Filled) {
+                c.surfaceSunken
+            } else {
+                c.accent.container.invisible()
+            },
             // Focus tints the *ground*, not only the border. A 2dp accent edge
             // is the whole of "you are typing here" today, and on a form of six
             // fields that is a thin line the eye has to go looking for. The tint
@@ -114,7 +124,9 @@ object TextFieldDefaults {
             // with no border there is nothing on screen saying where the input
             // starts.
             border = if (variant == TextFieldVariant.Filled) {
-                if (highContrast()) c.outline else Color.Transparent
+                // Invisible rather than transparent for the same reason as
+                // `container` above: this animates to `borderFocused`.
+                if (highContrast()) c.outline else c.outline.invisible()
             } else {
                 c.outlineStrong
             },

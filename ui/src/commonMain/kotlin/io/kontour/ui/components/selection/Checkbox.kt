@@ -31,6 +31,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.invisible
 
 /** The box's drawn size. The touch target around it is much larger. */
 private val CheckboxSize = 20.dp
@@ -99,9 +100,9 @@ fun TriStateCheckbox(
     val container by animateColorAsState(
         targetValue = when {
             !enabled && selected -> colors.contentDisabled
-            !enabled -> Color.Transparent
+            !enabled -> colors.primary.invisible()
             selected -> colors.primary
-            else -> Color.Transparent
+            else -> colors.primary.invisible()
         },
         animationSpec = motion.tweenFast(),
         label = "checkboxContainer",

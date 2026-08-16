@@ -42,6 +42,7 @@ import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.invisible
 
 private val ChipHeight = 34.dp
 
@@ -134,9 +135,9 @@ fun FilterChip(
 
     val container by animateColorAsState(
         targetValue = when {
-            !enabled -> Color.Transparent
+            !enabled -> colors.accent.container.invisible()
             selected -> colors.accent.container
-            else -> Color.Transparent
+            else -> colors.accent.container.invisible()
         },
         animationSpec = motion.tweenFast(),
         label = "chipContainer",
@@ -153,7 +154,7 @@ fun FilterChip(
     val borderColor by animateColorAsState(
         targetValue = when {
             !enabled -> colors.outline
-            selected -> Color.Transparent
+            selected -> colors.outlineStrong.invisible()
             else -> colors.outlineStrong
         },
         animationSpec = motion.tweenFast(),

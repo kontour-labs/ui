@@ -44,6 +44,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.invisible
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
@@ -291,25 +292,56 @@ private fun DayCell(
         else -> Theme.shapes.pill
     }
 
-    val container by animateColorAsState(
-        targetValue = when {
-            filled -> colors.primary
-            inRange -> colors.accent.container
-            else -> Color.Transparent
-        },
+    /**
+     * A day arrives, but it does not leave.
+     *
+     * Tapping a date should feel like laying down a stone, so a cell joining the
+     * selection eases in. Letting it ease *out* again is a different thing
+     * entirely, and it only shows when a whole range is replaced: every day of
+     * the old one animated away at once, so choosing new dates dragged a trail of
+     * grey circles behind it for a fifth of a second — a near-black cap on its
+     * way to nothing is grey for most of the tween, and there was one on every
+     * day the range used to cover. Nothing about a range you have just replaced
+     * is worth watching leave.
+     *
+     * So the drawn colour is the animated one on the way in and the *target* on
+     * the way out. Not `snap()` as the spec, which is a zero-length animation and
+     * still costs the frame it takes to start — one frame of the old range at
+     * full strength, which is exactly the flash.
+     */
+    val arriving = filled || inRange
+
+    val containerTarget = when {
+        filled -> colors.primary
+        inRange -> colors.accent.container
+        // `invisible()`, not `Color.Transparent`, which is black. This is where
+        // a cell animates *from* when it joins a range, and a lerp moves the
+        // channels as well as the alpha — so the tint used to arrive out of the
+        // dark rather than fading up.
+        else -> colors.accent.container.invisible()
+    }
+    val animatedContainer by animateColorAsState(
+        targetValue = containerTarget,
         animationSpec = motion.tweenFast(),
         label = "dayContainer",
     )
-    val label by animateColorAsState(
-        targetValue = when {
-            !enabled -> colors.contentDisabled
-            filled -> colors.onPrimary
-            inRange -> colors.accent.onContainer
-            else -> colors.content
-        },
+    val container = if (arriving) animatedContainer else containerTarget
+
+    val labelTarget = when {
+        !enabled -> colors.contentDisabled
+        filled -> colors.onPrimary
+        inRange -> colors.accent.onContainer
+        else -> colors.content
+    }
+    val animatedLabel by animateColorAsState(
+        targetValue = labelTarget,
         animationSpec = motion.tweenFast(),
         label = "dayLabel",
     )
+    // Taken away with the fill it is drawn on. Easing the digit back to
+    // `content` over a container that has already gone leaves white text on a
+    // white ground for the length of the tween.
+    val label = if (arriving) animatedLabel else labelTarget
     // The fill springs in rather than fading, so tapping through a range feels
     // like laying down stones rather than watching cells tint.
     val fillScale by animateFloatAsState(

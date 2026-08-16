@@ -15,7 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -29,6 +28,7 @@ import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.invisible
 
 private val TrackWidth = 48.dp
 private val TrackHeight = 28.dp
@@ -86,9 +86,9 @@ fun Switch(
     val trackColor by animateColorAsState(
         targetValue = when {
             !enabled && checked -> colors.contentDisabled
-            !enabled -> Color.Transparent
+            !enabled -> colors.primary.invisible()
             checked -> colors.primary
-            else -> Color.Transparent
+            else -> colors.primary.invisible()
         },
         animationSpec = motion.tweenFast(),
         label = "switchTrack",

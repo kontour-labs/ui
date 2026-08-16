@@ -34,6 +34,7 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.invisible
 
 /**
  * Picks a colour from a fixed set.
@@ -127,7 +128,7 @@ private fun Swatch(
         label = "swatchRing",
     )
     val ringColor by animateColorAsState(
-        targetValue = if (selected) scheme.content else Color.Transparent,
+        targetValue = if (selected) scheme.content else scheme.content.invisible(),
         animationSpec = motion.tweenFast(),
         label = "swatchRingColor",
     )
