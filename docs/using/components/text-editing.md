@@ -32,7 +32,7 @@ hoisting round-tripped through a recomposition.
 
 ## `TextField`
 
-![TextField](../../../../../app/ui-catalog/screenshots/components/textfield-light.png)
+![TextField](../../../ui-catalog/screenshots/components/textfield-light.png)
 
 Label, placeholder, supporting text, error, and leading/trailing slots.
 
@@ -54,7 +54,7 @@ while a long one stays contained.
 
 ## `SearchField`
 
-![SearchField](../../../../../app/ui-catalog/screenshots/components/searchfield-light.png)
+![SearchField](../../../ui-catalog/screenshots/components/searchfield-light.png)
 
 A debounced query callback and an animated clear button. The debounce is the
 point: a field that fires per keystroke into a network call produces a request
@@ -86,7 +86,7 @@ which this one was for most of the project's life.
 
 ## `Select`
 
-![Select](../../../../../app/ui-catalog/screenshots/components/select-light.png)
+![Select](../../../ui-catalog/screenshots/components/select-light.png)
 
 **A select is a field, not a button.** It shares `FieldScaffold` with
 `TextField` rather than resembling it by hand — same frame, same label, same

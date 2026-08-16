@@ -1,0 +1,159 @@
+# Builds, tests and publishes the design system.
+#
+# Three jobs, and they are separate because they fail for different reasons and
+# at different speeds. `test` is the one that catches a regression; `targets` is
+# the one that catches a component which compiles on the JVM and nowhere else;
+# `publish` only runs for a tag and only on macOS, because Apple targets cannot
+# be cross-compiled from Linux and a Linux publish would upload a set with the
+# iOS artifacts silently missing.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The Android SDK is preinstalled on the runner and Gradle finds it through
+      # ANDROID_HOME. `local.properties` is a developer file and is gitignored,
+      # so nothing here may rely on it.
+      - name: Check the Android SDK is present
+        run: test -d "${ANDROID_HOME:?ANDROID_HOME is unset}/platforms"
+
+      # Unit tests, the four structural guards, and the screenshot goldens. The
+      # goldens *compare* — a rendering change fails here rather than turning up
+      # as an untracked file nobody looks at.
+      #
+      # Named explicitly rather than via `check`: the Compose plugin registers a
+      # JS UI-test configuration check that fails for a library target, so
+      # `check` does not run to completion on `:ui`.
+      - name: Test
+        run: |
+          ./gradlew --no-daemon \
+            :ui:jvmTest \
+            :ui:checkNoMaterial \
+            :ui:checkApiConventions \
+            :ui:checkKdocSamples \
+            :ui-catalog:jvmTest
+
+      - name: Check the docs' links resolve
+        run: python3 docs/check-links.py
+
+      # Without this a golden failure is a percentage in a log. With it you can
+      # download the render and the highlighted diff and see what moved.
+      - name: Upload screenshot diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-diffs
+          path: ui-catalog/build/screenshot-diffs/
+          if-no-files-found: ignore
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            ui/build/reports/tests/
+            ui-catalog/build/reports/tests/
+          if-no-files-found: ignore
+
+  targets:
+    name: Compile every target
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Konan pulls a compiler and a platform klib set per target and neither is
+      # in the Gradle cache, so without this the iOS compile re-downloads
+      # hundreds of megabytes on every run — which is most of this job's time.
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
+
+      # The whole point of the module. A component that compiles on the JVM and
+      # not on Wasm ships broken, and `commonMain` will not say which — only the
+      # per-target compile does.
+      #
+      # iOS compiles to a klib here; linking a framework and running a simulator
+      # needs macOS, which is a slower job than this gate should be.
+      - name: Compile
+        run: |
+          ./gradlew --no-daemon \
+            :ui:compileKotlinJs \
+            :ui:compileKotlinWasmJs \
+            :ui:compileKotlinIosArm64 \
+            :ui-catalog:compileKotlinIosArm64 \
+            :showcase:android:assembleDebug \
+            :ui:assemble
+
+  publish:
+    name: Publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, targets]
+    # macOS, and not for speed: `linkDebugFrameworkIosArm64` and every other
+    # Apple task needs Xcode. Publishing from Linux succeeds and uploads a
+    # module with no iOS variants, which resolves fine right up until a consumer
+    # builds for a device.
+    runs-on: macos-14
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
+
+      # The version comes from the tag through `GITHUB_REF_NAME`, so this step
+      # takes no version argument and cannot disagree with the tag.
+      - name: Publish to GitHub Packages
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew --no-daemon publishAllPublicationsToGitHubPackagesRepository

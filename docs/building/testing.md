@@ -18,7 +18,7 @@ cd app
 | [Screenshot goldens](#screenshot-goldens) | Did anything change how it looks? |
 
 Per-target compilation is the sixth, and runs only in CI
-([`app.yml`](../../../../.github/workflows/app.yml)) because it is slow:
+([`ci.yml`](../../.github/workflows/ci.yml)) because it is slow:
 
 ```sh
 ./gradlew :ui:compileKotlinJs :ui:compileKotlinWasmJs \

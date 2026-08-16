@@ -19,7 +19,7 @@ Rows, and the things that happen to them.
 
 ## `ListItem`
 
-![ListItem](../../../../../app/ui-catalog/screenshots/components/listitem-light.png)
+![ListItem](../../../ui-catalog/screenshots/components/listitem-light.png)
 
 ```kotlin
 ListItem(onClick = { open(stop) }, position = ListItemPosition.of(index, stops.size)) {
@@ -55,7 +55,7 @@ button, a radio option or a plain block of text depending on what it is for.
 
 ## `SettingRow`
 
-![SettingRow](../../../../../app/ui-catalog/screenshots/components/settingrow-light.png)
+![SettingRow](../../../ui-catalog/screenshots/components/settingrow-light.png)
 
 The settings-screen shape: an icon, a label, and the current value on the right.
 `onClick` is optional — a row that only displays a value does not need one.
@@ -78,7 +78,7 @@ can jump between sections rather than walking every row.
 
 ## `SwipeActions` / `SwipeToDismiss`
 
-![SwipeToDismiss](../../../../../app/ui-catalog/screenshots/components/swipetodismiss-light.png)
+![SwipeToDismiss](../../../ui-catalog/screenshots/components/swipetodismiss-light.png)
 
 Actions revealed by a sideways drag. `SwipeActions` reveals buttons;
 `SwipeToDismiss` removes the row.
@@ -89,7 +89,7 @@ undo.
 
 ## `ReorderableItem`
 
-![ReorderableItem](../../../../../app/ui-catalog/screenshots/components/reorderableitem-light.png)
+![ReorderableItem](../../../ui-catalog/screenshots/components/reorderableitem-light.png)
 
 Drag to reorder, with `rememberReorderableState`.
 
@@ -99,7 +99,7 @@ throughout and there is no pending order to reconcile on release.
 
 ## `PullToRefresh`
 
-![PullToRefresh](../../../../../app/ui-catalog/screenshots/components/pulltorefresh-light.png)
+![PullToRefresh](../../../ui-catalog/screenshots/components/pulltorefresh-light.png)
 
 Pull at the top of a list to reload. The indicator appears past a threshold, so
 a list that is merely over-scrolled does not fire a request.
@@ -135,7 +135,7 @@ moment anything is behind the list, which over a map is always.
 
 ## `Scrollbar`
 
-![Scrollbar](../../../../../app/ui-catalog/screenshots/components/scrollbar-light.png)
+![Scrollbar](../../../ui-catalog/screenshots/components/scrollbar-light.png)
 
 Purely an indicator, and hidden from the accessibility tree since it conveys
 nothing the list does not already.

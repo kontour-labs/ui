@@ -27,7 +27,7 @@ target and gives a screen reader two nodes for one choice.
 
 ## `Checkbox`
 
-![Checkbox](../../../../../app/ui-catalog/screenshots/components/checkbox-light.png)
+![Checkbox](../../../ui-catalog/screenshots/components/checkbox-light.png)
 
 ```kotlin
 Checkbox(checked = notify, onCheckedChange = viewModel::setNotify)
@@ -50,7 +50,7 @@ saying it, the row announces as a button with a name and no on or off.
 
 ## `TriStateCheckbox`
 
-![TriStateCheckbox](../../../../../app/ui-catalog/screenshots/components/tristatecheckbox-light.png)
+![TriStateCheckbox](../../../ui-catalog/screenshots/components/tristatecheckbox-light.png)
 
 ```kotlin
 TriStateCheckbox(state = allChildrenState, onClick = ::selectAll)
@@ -64,13 +64,13 @@ not clear it — that is the caller's decision, and the common wrong answer.
 
 ## `RadioButton`
 
-![RadioButton](../../../../../app/ui-catalog/screenshots/components/radiobutton-light.png)
+![RadioButton](../../../ui-catalog/screenshots/components/radiobutton-light.png)
 
 The control on its own. You almost never want this directly — see below.
 
 ## `RadioGroup`
 
-![RadioGroup](../../../../../app/ui-catalog/screenshots/components/radiogroup-light.png)
+![RadioGroup](../../../ui-catalog/screenshots/components/radiogroup-light.png)
 
 ```kotlin
 RadioGroup(
@@ -100,7 +100,7 @@ scroll.
 
 ## `Switch`
 
-![Switch](../../../../../app/ui-catalog/screenshots/components/switch-light.png)
+![Switch](../../../ui-catalog/screenshots/components/switch-light.png)
 
 ```kotlin
 Switch(checked = liveAlerts, onCheckedChange = viewModel::setLiveAlerts)
@@ -120,7 +120,7 @@ control.
 
 ## `SelectionRow`
 
-![SelectionRow](../../../../../app/ui-catalog/screenshots/components/selectionrow-light.png)
+![SelectionRow](../../../ui-catalog/screenshots/components/selectionrow-light.png)
 
 ```kotlin
 SelectionRow(
@@ -151,9 +151,9 @@ control you nested in it.
 
 ## `Chip`, `FilterChip`, `InputChip`
 
-![Chip](../../../../../app/ui-catalog/screenshots/components/chip-light.png)
-![FilterChip](../../../../../app/ui-catalog/screenshots/components/filterchip-light.png)
-![InputChip](../../../../../app/ui-catalog/screenshots/components/inputchip-light.png)
+![Chip](../../../ui-catalog/screenshots/components/chip-light.png)
+![FilterChip](../../../ui-catalog/screenshots/components/filterchip-light.png)
+![InputChip](../../../ui-catalog/screenshots/components/inputchip-light.png)
 
 Chips are for things that come in *sets*. A single chip on a screen is usually a
 small button wearing the wrong clothes.
@@ -196,7 +196,7 @@ scrolling row hides options off the edge of the screen.
 
 ## `SegmentedControl`
 
-![SegmentedControl](../../../../../app/ui-catalog/screenshots/components/segmentedcontrol-light.png)
+![SegmentedControl](../../../ui-catalog/screenshots/components/segmentedcontrol-light.png)
 
 ```kotlin
 SegmentedControl(
@@ -259,7 +259,7 @@ Options whose `swatchColor` is `null` render as an outlined swatch with
 
 ## `Slider`
 
-![Slider](../../../../../app/ui-catalog/screenshots/components/slider-light.png)
+![Slider](../../../ui-catalog/screenshots/components/slider-light.png)
 
 ```kotlin
 Slider(
@@ -293,7 +293,7 @@ fare to $4.35 by dragging.
 
 ## `RangeSlider`
 
-![RangeSlider](../../../../../app/ui-catalog/screenshots/components/rangeslider-light.png)
+![RangeSlider](../../../ui-catalog/screenshots/components/rangeslider-light.png)
 
 ```kotlin
 RangeSlider(
@@ -335,7 +335,7 @@ cannot enforce that between them.
 
 ## `Stepper`
 
-![Stepper](../../../../../app/ui-catalog/screenshots/components/stepper-light.png)
+![Stepper](../../../ui-catalog/screenshots/components/stepper-light.png)
 
 ```kotlin
 Stepper(
@@ -371,7 +371,7 @@ by one or two; nobody taps `+` thirty times.
 
 ## `Rating`
 
-![Rating](../../../../../app/ui-catalog/screenshots/components/rating-light.png)
+![Rating](../../../ui-catalog/screenshots/components/rating-light.png)
 
 ```kotlin
 Rating(value = 4f, contentDescription = "Your rating", onValueChange = { rating = it })

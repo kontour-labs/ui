@@ -1,6 +1,6 @@
 # Kontour UI
 
-The design system in [`app/ui`](../../../app/ui). A custom component library
+The design system in [`app/ui`](../ui). A custom component library
 built directly on Compose Foundation, with no Material dependency.
 
 ## Why it exists

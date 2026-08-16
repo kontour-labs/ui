@@ -110,7 +110,7 @@ The message should say how to *leave* the empty state, not restate the title.
 
 ## `Banner` / `AnimatedBanner`
 
-![AnimatedBanner](../../../../../app/ui-catalog/screenshots/components/animatedbanner-light.png)
+![AnimatedBanner](../../../ui-catalog/screenshots/components/animatedbanner-light.png)
 
 An inline message, four severities. `AnimatedBanner` is the same thing that
 animates its own appearance and dismissal, for a banner whose presence is driven
@@ -140,14 +140,14 @@ assembled rather than built.
 
 ## `Accordion`
 
-![Accordion](../../../../../app/ui-catalog/screenshots/components/accordion-light.png)
+![Accordion](../../../ui-catalog/screenshots/components/accordion-light.png)
 
 Disclosure with hoisted state, so the caller decides what is open — including
 opening the section containing whatever the user searched for.
 
 ## `Stat`
 
-![Stat](../../../../../app/ui-catalog/screenshots/components/stat-light.png)
+![Stat](../../../ui-catalog/screenshots/components/stat-light.png)
 
 ```kotlin
 Stat {
@@ -179,7 +179,7 @@ having none.
 
 ## `KeyValueList`
 
-![KeyValueList](../../../../../app/ui-catalog/screenshots/components/keyvaluelist-light.png)
+![KeyValueList](../../../ui-catalog/screenshots/components/keyvaluelist-light.png)
 
 ```kotlin
 KeyValueList {
@@ -216,7 +216,7 @@ an intrinsic width re-rags it every time the content changes.
 
 ## `Carousel`
 
-![Carousel](../../../../../app/ui-catalog/screenshots/components/carousel-light.png)
+![Carousel](../../../ui-catalog/screenshots/components/carousel-light.png)
 
 ```kotlin
 val carousel = rememberCarouselState { photos.size }
@@ -265,7 +265,7 @@ becomes a `Role.RadioButton` naming the page it goes to.
 
 ## `Kbd`
 
-![Kbd](../../../../../app/ui-catalog/screenshots/components/kbd-light.png)
+![Kbd](../../../ui-catalog/screenshots/components/kbd-light.png)
 
 A keyboard shortcut rendered as a key. Used by `MenuScope.item(shortcut = …)`
 and available directly.

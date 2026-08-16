@@ -21,8 +21,8 @@ exception to this — if a value you need is missing, add a token.
 
 ## Colour
 
-Defined in [`theme/ColorScheme.kt`](../../../../app/ui/src/commonMain/kotlin/io/kontour/ui/theme/ColorScheme.kt);
-raw values in [`theme/Palette.kt`](../../../../app/ui/src/commonMain/kotlin/io/kontour/ui/theme/Palette.kt).
+Defined in [`theme/ColorScheme.kt`](../../ui/src/commonMain/kotlin/io/kontour/ui/theme/ColorScheme.kt);
+raw values in [`theme/Palette.kt`](../../ui/src/commonMain/kotlin/io/kontour/ui/theme/Palette.kt).
 
 Four built-in schemes: light, dark, and a high-contrast variant of each.
 
@@ -126,7 +126,7 @@ fields, matching how the web properties already use them:
 
 Outfit, shipped as five static instances cut from the upstream variable font, so
 weights render identically on every target. SIL OFL; licence at
-[`app/ui/licenses/Outfit-OFL.txt`](../../../../app/ui/licenses/Outfit-OFL.txt).
+[`app/ui/licenses/Outfit-OFL.txt`](../../ui/licenses/Outfit-OFL.txt).
 
 | Role | Large | Medium | Small | Weight | Line height |
 |---|---|---|---|---|---|

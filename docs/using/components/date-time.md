@@ -69,7 +69,7 @@ it; a select is right when they are choosing from a list.
 
 ## `RelativeTimeText`
 
-![RelativeTimeText](../../../../../app/ui-catalog/screenshots/components/relativetimetext-light.png)
+![RelativeTimeText](../../../ui-catalog/screenshots/components/relativetimetext-light.png)
 
 **It re-renders at the resolution it is displaying** — every second under a
 minute, every twenty above — rather than on a fixed timer that is either

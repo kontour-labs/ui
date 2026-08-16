@@ -18,7 +18,7 @@ without every child being told.
 `DragHandle` lives here too, in
 [`sheets.md`](../sheets.md#draghandle-is-drawn-not-draggable).
 
-![DragHandle](../../../../../app/ui-catalog/screenshots/components/draghandle-light.png)
+![DragHandle](../../../ui-catalog/screenshots/components/draghandle-light.png)
 
 ---
 

@@ -49,9 +49,9 @@ of the same three destinations.
 
 ## The three surfaces
 
-![NavBarItem](../../../../../app/ui-catalog/screenshots/components/navbaritem-light.png)
-![NavRailItem](../../../../../app/ui-catalog/screenshots/components/navrailitem-light.png)
-![NavDrawerItem](../../../../../app/ui-catalog/screenshots/components/navdraweritem-light.png)
+![NavBarItem](../../../ui-catalog/screenshots/components/navbaritem-light.png)
+![NavRailItem](../../../ui-catalog/screenshots/components/navrailitem-light.png)
+![NavDrawerItem](../../../ui-catalog/screenshots/components/navdraweritem-light.png)
 
 `NavBar` and `NavRail` take a `List<NavItem>`. **A drawer takes a slot, not a
 list**: a drawer is where destinations stop being a flat set of three, and a
@@ -73,8 +73,8 @@ vertical fade from transparent to the page colour behind the whole row.
 the destinations of an app this size are the four or five its user already
 knows. Turn it on for an app whose icons are not obvious.
 
-![NavDrawerSection](../../../../../app/ui-catalog/screenshots/components/navdrawersection-light.png)
-![NavDrawerGroup](../../../../../app/ui-catalog/screenshots/components/navdrawergroup-light.png)
+![NavDrawerSection](../../../ui-catalog/screenshots/components/navdrawersection-light.png)
+![NavDrawerGroup](../../../ui-catalog/screenshots/components/navdrawergroup-light.png)
 
 `NavDrawerSection` separates a titled run of destinations; `NavDrawerGroup`
 nests them behind a disclosure. The group's expansion is hoisted, so the app can
@@ -154,7 +154,7 @@ computes it from a `LazyListState`, and there is a raw
 
 ## `TabBar`
 
-![Tab](../../../../../app/ui-catalog/screenshots/components/tab-light.png)
+![Tab](../../../ui-catalog/screenshots/components/tab-light.png)
 
 **`TabBar` is not app navigation.** Tabs stay within one screen — the stop you
 are looking at, seen three ways. A tab bar used for destinations leaves the user

@@ -40,13 +40,13 @@ row with a trailing chevron, and none of those needed a new parameter.
 
 | Variant | For | |
 |---|---|---|
-| `Primary` | The one action the screen exists for. At most one per screen. Solid, near-black | ![](../../../../../app/ui-catalog/screenshots/components/button-primary-light.png) |
-| `Accent` | The place the product should show up as itself — "Get started", "Plan a trip". Solid, in the accent tone | ![](../../../../../app/ui-catalog/screenshots/components/button-accent-light.png) |
-| `Secondary` | A real alternative to the primary action. Outlined | ![](../../../../../app/ui-catalog/screenshots/components/button-secondary-light.png) |
-| `Tertiary` | Supporting actions that should not compete. Filled with a soft ground | ![](../../../../../app/ui-catalog/screenshots/components/button-tertiary-light.png) |
-| `Ghost` | Lowest weight — toolbar actions, inline "edit". No ground until hovered | ![](../../../../../app/ui-catalog/screenshots/components/button-ghost-light.png) |
-| `Destructive` | Deletes, cancels a booking, ends a trip | ![](../../../../../app/ui-catalog/screenshots/components/button-destructive-light.png) |
-| `DestructiveGhost` | A destructive action that should not shout — inside a menu or row | ![](../../../../../app/ui-catalog/screenshots/components/button-destructiveghost-light.png) |
+| `Primary` | The one action the screen exists for. At most one per screen. Solid, near-black | ![](../../../ui-catalog/screenshots/components/button-primary-light.png) |
+| `Accent` | The place the product should show up as itself — "Get started", "Plan a trip". Solid, in the accent tone | ![](../../../ui-catalog/screenshots/components/button-accent-light.png) |
+| `Secondary` | A real alternative to the primary action. Outlined | ![](../../../ui-catalog/screenshots/components/button-secondary-light.png) |
+| `Tertiary` | Supporting actions that should not compete. Filled with a soft ground | ![](../../../ui-catalog/screenshots/components/button-tertiary-light.png) |
+| `Ghost` | Lowest weight — toolbar actions, inline "edit". No ground until hovered | ![](../../../ui-catalog/screenshots/components/button-ghost-light.png) |
+| `Destructive` | Deletes, cancels a booking, ends a trip | ![](../../../ui-catalog/screenshots/components/button-destructive-light.png) |
+| `DestructiveGhost` | A destructive action that should not shout — inside a menu or row | ![](../../../ui-catalog/screenshots/components/button-destructiveghost-light.png) |
 
 `Primary` and `Accent` are **alternatives to each other, not companions**. Two
 solid buttons on one screen is still one too many.
@@ -79,7 +79,7 @@ component that announces nothing, which is what replaced the guarantee the old
 
 ## `IconButton`
 
-![IconButton](../../../../../app/ui-catalog/screenshots/components/iconbutton-light.png)
+![IconButton](../../../ui-catalog/screenshots/components/iconbutton-light.png)
 
 ```kotlin
 IconButton(Tabler.Outline.X, contentDescription = "Close", onClick = ::dismiss)
@@ -105,7 +105,7 @@ parameters when it is not.
 
 ## `IconToggleButton`
 
-![IconToggleButton](../../../../../app/ui-catalog/screenshots/components/icontogglebutton-light.png)
+![IconToggleButton](../../../ui-catalog/screenshots/components/icontogglebutton-light.png)
 
 ```kotlin
 IconToggleButton(
@@ -131,7 +131,7 @@ glyph is the whole affordance.
 
 ## `FloatingActionButton`
 
-![FloatingActionButton](../../../../../app/ui-catalog/screenshots/components/floatingactionbutton-light.png)
+![FloatingActionButton](../../../ui-catalog/screenshots/components/floatingactionbutton-light.png)
 
 ```kotlin
 FloatingActionButton(Tabler.Outline.Plus, "Add favourite", onClick = ::add)
@@ -141,7 +141,7 @@ One per screen. A second FAB is two competing "the" actions.
 
 ## `ExtendedFloatingActionButton`
 
-![ExtendedFloatingActionButton](../../../../../app/ui-catalog/screenshots/components/extendedfloatingactionbutton-light.png)
+![ExtendedFloatingActionButton](../../../ui-catalog/screenshots/components/extendedfloatingactionbutton-light.png)
 
 ```kotlin
 ExtendedFloatingActionButton(
@@ -165,7 +165,7 @@ Station" for a screen reader.
 
 ## `ButtonGroup`
 
-![ButtonGroup](../../../../../app/ui-catalog/screenshots/components/buttongroup-light.png)
+![ButtonGroup](../../../ui-catalog/screenshots/components/buttongroup-light.png)
 
 ```kotlin
 ButtonGroup {
@@ -212,7 +212,7 @@ use it is worse than one with a greyed button in it.
 
 ## `Toolbar`
 
-![Toolbar](../../../../../app/ui-catalog/screenshots/components/toolbar-light.png)
+![Toolbar](../../../ui-catalog/screenshots/components/toolbar-light.png)
 
 ```kotlin
 Toolbar {

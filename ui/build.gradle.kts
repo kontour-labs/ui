@@ -272,6 +272,63 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    `maven-publish`
+}
+
+// ---------------------------------------------------------------------------
+// Publishing
+// ---------------------------------------------------------------------------
+//
+// The version comes from the tag CI is building, so a release is `git tag v0.2.0`
+// and nothing else. Anything else — a local build, a branch build — is a
+// snapshot, which is what stops an untagged commit quietly taking a release
+// coordinate.
+//
+// Everything is read through `providers`, never `System.getenv`. The
+// configuration cache is on (`gradle.properties`), and a direct environment read
+// at configuration time is invisible to it: the cached entry would be reused
+// with last run's token baked in.
+//
+// **The publish job has to run on macOS.** Apple targets cannot be cross-compiled
+// from Linux, so a Linux publish would upload a set with the iOS artifacts
+// silently missing — which resolves fine until someone tries to build for a
+// device.
+group = "io.kontour"
+version = providers.environmentVariable("GITHUB_REF_NAME")
+    .map { it.removePrefix("v") }
+    .orElse(providers.gradleProperty("kontour.version"))
+    .getOrElse("0.1.0-SNAPSHOT")
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/kontour-labs/ui")
+            credentials {
+                username = providers.environmentVariable("GITHUB_ACTOR").orNull
+                password = providers.environmentVariable("GITHUB_TOKEN").orNull
+            }
+        }
+    }
+
+    publications.withType<MavenPublication>().configureEach {
+        pom {
+            name = "Kontour UI"
+            description = "A Compose Multiplatform design system built on Foundation, without Material."
+            url = "https://github.com/kontour-labs/ui"
+            licenses {
+                license {
+                    name = "Proprietary"
+                    comments = "All rights reserved. The bundled Outfit fonts are SIL OFL 1.1 " +
+                        "and redistributable in this artifact; see ui/licenses/Outfit-OFL.txt."
+                }
+            }
+            scm {
+                url = "https://github.com/kontour-labs/ui"
+                connection = "scm:git:https://github.com/kontour-labs/ui.git"
+            }
+        }
+    }
 }
 
 kotlin {
