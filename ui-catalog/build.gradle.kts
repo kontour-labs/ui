@@ -11,8 +11,15 @@ plugins {
 kotlin {
     jvm()
 
-    iosArm64()
-    iosSimulatorArm64()
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        // A framework, so an Xcode project can link the gallery and run it on a
+        // device. `:ui` publishes klibs for the same targets and does not need
+        // one — this is a host, and a host has to be linkable.
+        target.binaries.framework {
+            baseName = "Catalog"
+            isStatic = true
+        }
+    }
 
     // The catalog builds its own web bundles rather than riding along inside
     // `:webApp`, so shipping the app never ships the gallery.
