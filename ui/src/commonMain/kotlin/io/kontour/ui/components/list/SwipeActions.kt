@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -372,8 +373,14 @@ private fun RowScope.SwipeActionButton(
         contentAlignment = Alignment.Center,
     ) {
         BoxWithConstraints(
+            // `fillMaxSize`, not `fillMaxHeight`. Without the width this box
+            // wrapped the icon and its label — about 40dp of it — and sat
+            // centred in an 88dp panel that was coloured, obviously tappable and
+            // dead down both sides. A press near the edge of a revealed action
+            // did nothing, which reads as the swipe having failed rather than as
+            // the target being narrower than the paint.
             modifier = Modifier
-                .fillMaxHeight()
+                .fillMaxSize()
                 .clickableAction(onClick, action.label)
                 .padding(Theme.spacing.xs),
             contentAlignment = Alignment.Center,

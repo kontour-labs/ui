@@ -62,6 +62,21 @@ data class TextFieldColors(
 data class TextFieldMetrics(
     val minHeight: Dp,
     val horizontalPadding: Dp,
+    /**
+     * The padding on a side that holds an icon rather than text.
+     *
+     * Smaller than [horizontalPadding], and it has to be: a glyph does not fill
+     * its own box. `iconMedium` is 20dp holding 12dp of chevron, so 4dp of clear
+     * space comes free on each side — pad an icon like text and its *ink* lands
+     * 4dp further in than the text's does. A `Select` measured 13dp of clear
+     * space to the left of its value and 16dp to the right of its chevron, which
+     * is what "the padding is asymmetric" looks like from the outside.
+     *
+     * Taking the 4dp off the padding instead of nudging the icon keeps it a
+     * layout fact rather than a drawing trick, and it is the same 4dp every
+     * icon set leaves, because they are all drawn on a grid with a margin.
+     */
+    val iconPadding: Dp,
     val verticalPadding: Dp,
     val gap: Dp,
 )
@@ -118,6 +133,9 @@ object TextFieldDefaults {
     fun metrics(): TextFieldMetrics = TextFieldMetrics(
         minHeight = Theme.sizing.controlHeightLarge,
         horizontalPadding = Theme.spacing.sm,
+        // One step down the scale, which is the 4dp of clear space an icon's own
+        // box already gives it. See `TextFieldMetrics.iconPadding`.
+        iconPadding = Theme.spacing.xs,
         verticalPadding = Theme.spacing.sm,
         gap = Theme.spacing.xs,
     )

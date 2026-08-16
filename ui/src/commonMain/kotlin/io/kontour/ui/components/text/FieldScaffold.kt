@@ -126,9 +126,23 @@ internal fun FieldScaffold(
                 .background(containerColor, shape)
                 .border(borderWidth, borderColor, shape)
                 .then(frameModifier)
+                // Each side is padded for what is actually on it. A glyph does
+                // not fill its own box, so an icon padded like text reads as
+                // further in than the text beside it — see
+                // `TextFieldMetrics.iconPadding` for the measurement.
                 .padding(
-                    horizontal = metrics.horizontalPadding,
-                    vertical = metrics.verticalPadding,
+                    start = if (leading != null || leadingIcon != null) {
+                        metrics.iconPadding
+                    } else {
+                        metrics.horizontalPadding
+                    },
+                    end = if (trailing != null) {
+                        metrics.iconPadding
+                    } else {
+                        metrics.horizontalPadding
+                    },
+                    top = metrics.verticalPadding,
+                    bottom = metrics.verticalPadding,
                 ),
             horizontalArrangement = Arrangement.spacedBy(metrics.gap),
             verticalAlignment = Alignment.CenterVertically,
