@@ -142,6 +142,11 @@ control.
 
 ---
 
+**Drag the thumb.** A switch is the most draggable-looking control there is, and
+a drag that stops short of the middle springs back rather than toggling. It works
+inside a `SelectionRow` too, where the row still owns the tap — the row publishes
+its own toggle for the switch to drag against.
+
 ## `SelectionRow`
 
 ![SelectionRow, unselected](../../../ui-catalog/screenshots/components/selectionrow-light.png)
@@ -275,6 +280,11 @@ tabs switch which *view* of one screen you are looking at. Announced
 
 ---
 
+**Drag across the segments** and the thumb comes with you, ticking at each
+boundary. The gesture is on the track rather than on each segment: a drag from
+"Depart" to "Arrive" leaves the segment it began in, and a per-segment handler
+loses the pointer at the boundary. Taps still belong to the segment under them.
+
 ## `ColorSwatchPicker`
 
 <!--sample:ColorSwatchPickerBasics-->
@@ -345,6 +355,11 @@ the relative position — a slider is for "about this much", and nobody sets a
 fare to $4.35 by dragging.
 
 ---
+
+**Press anywhere and the thumb comes to the finger**, then follows it. A *tap*
+springs the thumb across rather than teleporting it; a drag tracks exactly,
+because a thumb that eases toward the finger holding it reads as lag.
+`RangeSlider` does all of this and the detent easing too.
 
 ## `RangeSlider`
 
@@ -468,3 +483,9 @@ points before the body and reads as a smudge.
 
 `icon` and `filledIcon` default to a star outline and a filled star, and are
 parameters because a rating of hearts is a reasonable thing to want.
+
+**Drag across the marks to set the score.** Each mark crossed ticks, so it can be
+set without looking, and the taps still work. `allowHalf = true` lets a drag stop
+on a half mark — the left half of a mark is `.5`, the right half is whole. Off by
+default, because a rating that starts emitting `3.5` to callers who expected `4`
+is a change of contract rather than a nicety.

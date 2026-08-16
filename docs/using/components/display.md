@@ -232,6 +232,11 @@ an intrinsic width re-rags it every time the content changes.
 
 ## `Carousel`
 
+**Draggable with a pointer**, not only scrollable with a finger. A carousel is a
+stack of cards, and pulling one aside is the only gesture anybody tries; on
+desktop that used to leave the indicator dots as the sole route.
+
+
 ![Carousel](../../../ui-catalog/screenshots/components/carousel-light.png)
 
 <!--sample:CarouselWithIndicator-->

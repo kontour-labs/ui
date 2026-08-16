@@ -1,5 +1,8 @@
 package io.kontour.ui.components.datetime
 
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -26,6 +30,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /**
@@ -94,7 +99,35 @@ fun <T> WheelPicker(
         }
     }
 
-    Box(modifier.height(itemHeight * visibleItems), contentAlignment = Alignment.Center) {
+    /**
+     * A drum you can grab with a mouse.
+     *
+     * A `LazyColumn` scrolls to a wheel and to a finger, and on desktop that is
+     * the whole of it — dragging a list with the mouse is not a thing desktops
+     * do, and Compose is right not to. A *drum* is the exception: nobody has
+     * ever set a time by scrolling a picker with a wheel, they take hold of it
+     * and turn it.
+     *
+     * Wrapped around the list rather than replacing its scrolling, which is what
+     * makes this safe: a child gets the main pointer pass before its parent, so
+     * the list still claims every touch drag itself and this only ever sees the
+     * ones it declined. `dispatchRawDelta` rather than a coroutine per event —
+     * there is one of these per pointer move, and `scrollBy` suspends.
+     */
+    val scope = rememberCoroutineScope()
+
+    Box(
+        modifier
+            .height(itemHeight * visibleItems)
+            .draggable(
+                state = rememberDraggableState { delta -> listState.dispatchRawDelta(-delta) },
+                orientation = Orientation.Vertical,
+                // The list's own fling snaps; a raw drag has to be given back
+                // to the nearest row itself, or the drum is left between two.
+                onDragStopped = { scope.launch { listState.animateScrollToItem(centredIndex) } },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
         LazyColumn(
             state = listState,
             flingBehavior = flingBehavior,

@@ -2,6 +2,9 @@ package io.kontour.ui.nav
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -19,15 +22,21 @@ import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
@@ -54,6 +63,15 @@ import io.kontour.ui.theme.Theme
 
 object TabBarDefaults {
     val Height: Dp = 48.dp
+
+    /**
+     * How far across the pane a [tabSwipe] drag goes per tab.
+     *
+     * A quarter, so a deliberate swipe crosses one tab and a long drag steps
+     * through several at an even pace. Half would mean a flick that stops short
+     * of the middle does nothing at all, which reads as the gesture not existing.
+     */
+    const val SwipeThreshold: Float = 0.25f
 }
 
 /**
@@ -251,4 +269,94 @@ fun TabBarScope.Tab(
         // the last two letters of a word.
         if (badge != null) Badge(count = badge)
     }
+}
+
+/**
+ * Changes tab when the pane under the bar is dragged sideways.
+ *
+ * ```kotlin
+ * TabBar {
+ *     Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) { +"Departures" }
+ *     Tab(selected = tab == 1, onClick = { tab = 1 }, key = 1) { +"Route map" }
+ * }
+ * Box(Modifier.tabSwipe(selected = tab, count = 2, onSelectedChange = { tab = it })) {
+ *     when (tab) { 0 -> Departures(); else -> RouteMap() }
+ * }
+ * ```
+ *
+ * Applied to the **content**, not to the bar. Tabs are the one navigation
+ * control where the gesture and the indicator live in different places: nobody
+ * swipes the bar, they swipe the thing the bar is describing.
+ *
+ * ### It commits as you go, not when you let go
+ *
+ * Every [TabBarDefaults.SwipeThreshold] of the pane's width moves one tab, while
+ * the finger is still down — so the indicator travels with the drag rather than
+ * appearing at the far end once it is over, and a long drag steps through
+ * several. That is also what makes this testable without a state object: what
+ * the gesture does is change the selection, and the selection is the caller's.
+ *
+ * ### It does not steal from what it wraps
+ *
+ * This is an *ancestor* of the pane's content, and a child gets the main pointer
+ * pass first. A carousel, a horizontally scrolling row or a map inside the tab
+ * claims its own drags and this never sees them; it only picks up what nothing
+ * inside wanted. Which is the right rule and the one that needs no parameter.
+ *
+ * @param count How many tabs there are. Below two there is nothing to swipe to
+ *   and this returns the receiver untouched.
+ */
+@Composable
+fun Modifier.tabSwipe(
+    selected: Int,
+    count: Int,
+    onSelectedChange: (Int) -> Unit,
+    enabled: Boolean = true,
+): Modifier {
+    if (!enabled || count <= 1) return this
+
+    val feedback = LocalFeedback.current
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val currentChange by rememberUpdatedState(onSelectedChange)
+
+    var width by remember { mutableFloatStateOf(0f) }
+    // The tab this gesture believes it is on. Held here rather than read back
+    // from `selected`, because several steps can fall inside one frame and the
+    // parameter does not refresh until the next composition — a fast flick
+    // would then commit the same step three times.
+    var index by remember { mutableIntStateOf(selected) }
+    var travelled by remember { mutableFloatStateOf(0f) }
+
+    return this
+        .onSizeChanged { width = it.width.toFloat() }
+        .draggable(
+            state = rememberDraggableState { delta ->
+                if (width <= 0f) return@rememberDraggableState
+                travelled += if (isRtl) -delta else delta
+                val threshold = width * TabBarDefaults.SwipeThreshold
+
+                // Dragging left goes forward, the way a page does.
+                while (travelled <= -threshold && index < count - 1) {
+                    travelled += threshold
+                    index += 1
+                    feedback.perform(FeedbackIntent.Selection)
+                    currentChange(index)
+                }
+                while (travelled >= threshold && index > 0) {
+                    travelled -= threshold
+                    index -= 1
+                    feedback.perform(FeedbackIntent.Selection)
+                    currentChange(index)
+                }
+                // Pinned at the ends, so a drag past the last tab does not bank
+                // travel that then has to be undone before the first step back.
+                travelled = travelled.coerceIn(-threshold, threshold)
+            },
+            orientation = Orientation.Horizontal,
+            onDragStarted = {
+                index = selected
+                travelled = 0f
+            },
+            onDragStopped = { travelled = 0f },
+        )
 }

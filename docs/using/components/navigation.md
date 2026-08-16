@@ -218,6 +218,30 @@ single control with a moving part.
 than a view. Tabs announce `Role.Tab`; segments announce `Role.RadioButton`, and
 a screen reader user acts on that difference.
 
+### Swiping between tabs
+
+`Modifier.tabSwipe` goes on the **content**, not on the bar — nobody swipes a tab
+bar, they swipe the thing it is describing.
+
+```kotlin
+TabBar {
+    Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) { +"Departures" }
+    Tab(selected = tab == 1, onClick = { tab = 1 }, key = 1) { +"Route map" }
+}
+Box(Modifier.tabSwipe(selected = tab, count = 2, onSelectedChange = { tab = it })) {
+    when (tab) { 0 -> Departures(); else -> RouteMap() }
+}
+```
+
+It commits every quarter of the pane's width *while the finger is down*, so the
+indicator travels with the drag instead of appearing at the far end once it is
+over, and a long drag steps through several tabs.
+
+It also does not steal from what it wraps. Being an ancestor of the content is
+the whole mechanism: a child gets the main pointer pass first, so a carousel or a
+scrolling row inside the tab keeps its own drags and the swipe picks up only what
+nothing inside wanted.
+
 ## `Breadcrumbs`
 
 Where you are in a hierarchy, and the way back up. No caller in Anyways today —

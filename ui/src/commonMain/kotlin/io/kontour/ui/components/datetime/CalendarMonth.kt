@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -146,8 +147,6 @@ fun CalendarMonth(
         val cells = leadingBlanks + daysInMonth
         val rows = (cells + 6) / 7
 
-        var dragFrom by remember { mutableStateOf<LocalDate?>(null) }
-
         WeekGrid(
             rows = rows,
             leadingBlanks = leadingBlanks,
@@ -155,8 +154,6 @@ fun CalendarMonth(
             month = month,
             isDateSelectable = isDateSelectable,
             onDragSelect = onDragSelect,
-            dragFrom = dragFrom,
-            setDragFrom = { dragFrom = it },
         ) {
         for (row in 0 until rows) {
             Row(Modifier.fillMaxWidth()) {
@@ -207,41 +204,61 @@ private fun WeekGrid(
     month: LocalDate,
     isDateSelectable: (LocalDate) -> Boolean,
     onDragSelect: ((LocalDate, LocalDate) -> Unit)?,
-    dragFrom: LocalDate?,
-    setDragFrom: (LocalDate?) -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val currentSelect by rememberUpdatedState(onDragSelect)
+    val currentSelectable by rememberUpdatedState(isDateSelectable)
+
     Column(
         Modifier
             .fillMaxWidth()
-            .pointerInput(onDragSelect, leadingBlanks, daysInMonth, rows) {
-                if (onDragSelect == null) return@pointerInput
+            .then(
+                if (onDragSelect == null) {
+                    Modifier
+                } else {
+                    // `month` is a key because `dateAt` builds dates out of it;
+                    // without it a block launched in August goes on reporting
+                    // August dates after the calendar has paged to September.
+                    Modifier.pointerInput(leadingBlanks, daysInMonth, rows, month) {
+                        /**
+                         * Where the finger went down.
+                         *
+                         * A plain local, and it has to be. This was hoisted into
+                         * the composition and read back inside the gesture, where
+                         * it is a value *captured when the block was launched* —
+                         * which is before the drag started, so it was `null` on
+                         * every move and the range never grew past the day it
+                         * began on. The gesture's own anchor is not state anybody
+                         * else reads, so nobody else should be holding it.
+                         */
+                        var anchor: LocalDate? = null
 
-                fun dateAt(offset: Offset): LocalDate? {
-                    if (size.width <= 0 || rows == 0) return null
-                    val cell = size.width / 7f
-                    val column = (offset.x / cell).toInt()
-                    val row = (offset.y / cell).toInt()
-                    if (column !in 0..6 || row !in 0 until rows) return null
-                    val day = row * 7 + column - leadingBlanks + 1
-                    if (day < 1 || day > daysInMonth) return null
-                    val date = LocalDate(month.year, month.month, day)
-                    return if (isDateSelectable(date)) date else null
-                }
+                        fun dateAt(offset: Offset): LocalDate? {
+                            if (size.width <= 0 || rows == 0) return null
+                            val cell = size.width / 7f
+                            val column = (offset.x / cell).toInt()
+                            val row = (offset.y / cell).toInt()
+                            if (column !in 0..6 || row !in 0 until rows) return null
+                            val day = row * 7 + column - leadingBlanks + 1
+                            if (day < 1 || day > daysInMonth) return null
+                            val date = LocalDate(month.year, month.month, day)
+                            return if (currentSelectable(date)) date else null
+                        }
 
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        val start = dateAt(offset)
-                        setDragFrom(start)
-                        start?.let { onDragSelect(it, it) }
-                    },
-                    onDragEnd = { setDragFrom(null) },
-                    onDragCancel = { setDragFrom(null) },
-                ) { change, _ ->
-                    val from = dragFrom ?: return@detectDragGestures
-                    dateAt(change.position)?.let { onDragSelect(from, it) }
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                anchor = dateAt(offset)
+                                anchor?.let { currentSelect?.invoke(it, it) }
+                            },
+                            onDragEnd = { anchor = null },
+                            onDragCancel = { anchor = null },
+                        ) { change, _ ->
+                            val from = anchor ?: return@detectDragGestures
+                            dateAt(change.position)?.let { currentSelect?.invoke(from, it) }
+                        }
+                    }
                 }
-            },
+            ),
         content = content,
     )
 }

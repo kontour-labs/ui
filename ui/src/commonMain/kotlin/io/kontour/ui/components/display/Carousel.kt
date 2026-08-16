@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
@@ -129,6 +132,33 @@ fun Carousel(
     LazyRow(
         modifier = modifier
             .fillMaxWidth()
+            // Draggable with a pointer, not only scrollable with a finger.
+            //
+            // A `LazyRow` answers touch and the wheel, and on desktop that is
+            // all — dragging a list with the mouse is not a thing desktops do.
+            // A carousel is the exception: it is a stack of cards, and grabbing
+            // one and pulling it aside is the only gesture anybody tries.
+            //
+            // Outside the list in the modifier chain, so it is the list's
+            // ancestor: a child gets the main pointer pass first, which leaves
+            // every touch drag to the list's own scrolling and this seeing only
+            // what it declined.
+            .then(
+                if (enabled) {
+                    Modifier.draggable(
+                        state = rememberDraggableState { delta ->
+                            state.listState.dispatchRawDelta(-delta)
+                        },
+                        orientation = Orientation.Horizontal,
+                        // `currentPage` is the page nearest the viewport centre,
+                        // so this settles on whichever one the drag left showing
+                        // — the same answer the fling behaviour would give.
+                        onDragStopped = { scope.launch { state.scrollToPage(state.currentPage) } },
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .semantics {
                 isTraversalGroup = true
                 this.contentDescription = contentDescription

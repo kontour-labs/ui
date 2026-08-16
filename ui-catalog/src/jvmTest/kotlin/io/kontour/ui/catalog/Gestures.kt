@@ -78,15 +78,16 @@ class Scene(
         to: Offset,
         steps: Int = 20,
         release: Boolean = true,
+        pointer: PointerType = PointerType.Touch,
         onFrame: (Int, BufferedImage) -> Unit = { _, _ -> },
     ) {
-        press(from)
+        press(from, pointer)
         repeat(steps) { step ->
             val t = (step + 1).toFloat() / steps
-            move(Offset(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t))
+            move(Offset(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t), pointer)
             onFrame(step, frame())
         }
-        if (release) release(to)
+        if (release) release(to, pointer)
     }
 
     /** Presses and releases at [at], with a frame in between. */
@@ -97,11 +98,14 @@ class Scene(
         frame()
     }
 
-    fun press(at: Offset) = send(PointerEventType.Press, at)
+    fun press(at: Offset, pointer: PointerType = PointerType.Touch) =
+        send(PointerEventType.Press, at, pointer)
 
-    fun move(to: Offset) = send(PointerEventType.Move, to)
+    fun move(to: Offset, pointer: PointerType = PointerType.Touch) =
+        send(PointerEventType.Move, to, pointer)
 
-    fun release(at: Offset) = send(PointerEventType.Release, at)
+    fun release(at: Offset, pointer: PointerType = PointerType.Touch) =
+        send(PointerEventType.Release, at, pointer)
 
     /** A scroll wheel notch at [at]. [delta] is in wheel units, not pixels. */
     fun scroll(at: Offset, delta: Offset) {
@@ -114,12 +118,12 @@ class Scene(
         )
     }
 
-    private fun send(type: PointerEventType, at: Offset) {
+    private fun send(type: PointerEventType, at: Offset, pointer: PointerType) {
         scene.sendPointerEvent(
             eventType = type,
             position = at,
             timeMillis = nanos / 1_000_000L,
-            type = PointerType.Touch,
+            type = pointer,
         )
     }
 
