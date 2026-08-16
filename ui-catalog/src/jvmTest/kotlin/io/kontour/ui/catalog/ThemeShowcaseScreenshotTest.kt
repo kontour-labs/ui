@@ -48,7 +48,7 @@ class ThemeShowcaseScreenshotTest {
     @Test
     fun rendersEveryBuiltInScheme() {
         for ((name, dark, contrast) in variants) {
-            val file = Screenshot.render(name = name, width = 1100, height = 2080) {
+            val file = Screenshot.render(name = name, width = 1620, height = 2080) {
                 KontourTheme(
                     darkTheme = dark,
                     contrast = contrast,
@@ -69,7 +69,6 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "actions-"),
                 width = 1100,
-                // Grew for `ButtonGroup` and `Toolbar`.
                 height = 1760,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
@@ -85,12 +84,7 @@ class ThemeShowcaseScreenshotTest {
         for ((name, dark, contrast) in variants) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "selection-"),
-                width = 1100,
-                // Grew for `RangeSlider` and `Stepper`. A page that outgrows its
-                // canvas does not clip cleanly — the sections that no longer fit
-                // are drawn on top of each other and on the heading above them,
-                // which reads as a layout bug in the components rather than as a
-                // canvas that is too short.
+                width = 1200,
                 height = 2380,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
@@ -143,15 +137,11 @@ class ThemeShowcaseScreenshotTest {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "overlays-"),
-                // Widened for the command-palette panel, to fit *four* per row.
-                // The panels flow, and the old 2320 left just enough slack for a
-                // fourth to start on a row that could not hold it — the last
-                // panel was drawn as a column of single letters. Trimming the
-                // slack did not help: the width has to either fit the next
-                // panel or leave it no room at all, and fitting it is the one
-                // that keeps the gallery readable.
+                // Four panels per row. The panels flow, and a width that
+                // leaves slack for a fifth to start without room to finish
+                // draws it as a column of single letters.
                 width = 3120,
-                height = 2100,
+                height = 2160,
                 // Overlays need more than the usual handful. Each one has to be
                 // laid out before its anchor is known, pushed into the host on
                 // the recomposition after that, and then animated in — three
@@ -171,7 +161,7 @@ class ThemeShowcaseScreenshotTest {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "forms-"),
-                width = 3400,
+                width = 3440,
                 height = 1240,
                 frames = 40,
             ) {
@@ -192,7 +182,7 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "sheets-"),
                 width = 2960,
-                height = 1240,
+                height = 1280,
                 frames = 60,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
@@ -208,7 +198,7 @@ class ThemeShowcaseScreenshotTest {
         for ((name, dark, contrast) in variants) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "lists-"),
-                width = 2440,
+                width = 2480,
                 height = 1080,
                 frames = 20,
             ) {
@@ -242,7 +232,7 @@ class ThemeShowcaseScreenshotTest {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "adaptive-"),
-                width = 4520,
+                width = 4560,
                 height = 2100,
                 frames = 30,
             ) {
@@ -259,12 +249,7 @@ class ThemeShowcaseScreenshotTest {
         for ((name, dark, contrast) in variants) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "display-"),
-                width = 2560,
-                // Grew for `Stat` and `KeyValueList`. A section added below a
-                // page's canvas is dropped *silently* — the golden does not
-                // move, so the run passes and the page claims coverage of a
-                // component it never drew. After adding a section here, check
-                // that the golden actually changed.
+                width = 2640,
                 height = 2780,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {

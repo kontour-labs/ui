@@ -81,7 +81,7 @@ class OverlayMotionScreenshotTest {
         val file = Screenshot.render(
             name = "overlays-appearing",
             width = 4340,
-            height = 900,
+            height = 920,
             // A few frames to lay out, anchor and push each overlay into its
             // host, then a few more into the spring. `springSnappy` is stiff
             // enough that much beyond this has settled.
@@ -113,7 +113,7 @@ class OverlayMotionScreenshotTest {
         val file = Screenshot.render(
             name = "overlays-leaving",
             width = 4340,
-            height = 900,
+            height = 920,
             // Settled by frame 12, dismissed there, and this lands three frames
             // into the 150ms exit.
             frames = 15,

@@ -88,6 +88,7 @@ object Screenshot {
         height: Int,
         density: Float = 2f,
         frames: Int = 6,
+        allowOverflow: Boolean = false,
         content: @Composable () -> Unit,
     ): File {
         ImageComposeScene(
@@ -100,6 +101,8 @@ object Screenshot {
             repeat(frames - 1) { frame ->
                 image = scene.render(FRAME_NANOS * (frame + 1))
             }
+
+            if (!allowOverflow) checkFits(name, scene, width, height)
 
             val encoded = requireNotNull(image.encodeToData(EncodedImageFormat.PNG)) {
                 "Skia failed to encode $name to PNG"
@@ -129,6 +132,72 @@ object Screenshot {
             compare(name, golden, encoded)
             return golden
         }
+    }
+
+    /**
+     * Records a mismatch if the content did not fit the canvas.
+     *
+     * This is the guard the whole harness was missing, and it went missing in
+     * the worst possible direction: **a page that outgrows its canvas fails
+     * silently.** The sections that no longer fit are not clipped at a visible
+     * edge — they are simply never drawn, so the golden does not move, the run
+     * passes, and the page goes on claiming coverage of a component it never
+     * rendered. That happened twice in one round. The mitigation until now was
+     * a comment asking whoever adds a section to remember to check.
+     *
+     * The other half is nearly as bad: content that *nearly* fits is drawn on
+     * top of the heading above it, which reads as a layout bug in the component
+     * rather than as a canvas that is too short.
+     *
+     * ### What it can and cannot see
+     *
+     * `calculateContentSize()` measures at **unbounded** constraints, and that
+     * decides what this can answer.
+     *
+     * **Width is reliable.** Nothing inflates it: content that wants 1614px
+     * wants 1614px. This is what caught the theme page silently losing 514px of
+     * swatches off its right edge — clipped mid-word, and goldened that way
+     * since the day it was recorded.
+     *
+     * **Height is only reliable when the content wanted roughly the canvas's
+     * width.** A `fillMaxWidth` component measured unbounded collapses to its
+     * *minimum intrinsic* width — `AnimatedBanner` reports 112×1003 for
+     * something that draws 600×90 — and the height that falls out of a 112px
+     * column says nothing about the height at 600px. So the height is only
+     * compared when the measured width is at least [WIDTH_CONFIDENCE] of the
+     * canvas. Below that the measurement collapsed and this makes no claim.
+     *
+     * A scrolling container refuses the unbounded measure outright and is
+     * skipped; so is anything passing `allowOverflow`, for the one page that is
+     * meant to scroll.
+     */
+    @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+    private fun checkFits(name: String, scene: ImageComposeScene, width: Int, height: Int) {
+        val content = try {
+            scene.calculateContentSize()
+        } catch (unmeasurable: IllegalStateException) {
+            // The measurement runs at infinite constraints, and a scrolling
+            // container refuses that outright — "Horizontally scrollable
+            // component was measured with an infinity maximum width". There is
+            // no size to compare against, and there does not need to be: a
+            // scrollable is *supposed* to hold more than fits. `Carousel`'s
+            // specimen is the case in hand.
+            return
+        }
+        val tooWide = content.width > width
+        // Only trust the height if the content actually wanted this much width.
+        val heightIsMeaningful = content.width >= width * WIDTH_CONFIDENCE
+        val tooTall = heightIsMeaningful && content.height > height
+        if (!tooWide && !tooTall) return
+
+        val needWidth = maxOf(content.width, width)
+        val needHeight = if (tooTall) maxOf(content.height, height) else height
+        mismatches += "$name does not fit its canvas: content measures " +
+            "${content.width}×${content.height}, canvas is ${width}×$height. " +
+            "Anything past the edge is not drawn at all — the golden would not " +
+            "move and the run would pass. Grow the canvas in the test to at " +
+            "least ${needWidth}×$needHeight, or pass allowOverflow = true if " +
+            "this one is meant to scroll."
     }
 
     /**
@@ -234,6 +303,18 @@ object Screenshot {
      * A tenth of a percent of a 1100×2080 canvas is about 2,300 pixels — a
      * scattering of edge pixels, but far less than any glyph, icon or component.
      */
+    /**
+     * How much of the canvas's width the content must want before its measured
+     * *height* is believed.
+     *
+     * Below this the unbounded measure collapsed the content into a narrow
+     * column and the height it reports is that column's, not the canvas's.
+     * Three quarters is comfortably above the ~20% a collapsed `fillMaxWidth`
+     * reports and comfortably below the ~100% a page that genuinely fills its
+     * canvas reports.
+     */
+    private const val WIDTH_CONFIDENCE = 0.75
+
     private const val TOLERATED_FRACTION = 0.001
 
     private const val DIFF_COLOUR = 0xFFFF00FF.toInt()

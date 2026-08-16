@@ -20,7 +20,14 @@ class CatalogScreenshotTest {
 
     @Test
     fun rendersCompactWithABottomBar() {
-        val file = Screenshot.render(name = "catalog-compact", width = 760, height = 1500) {
+        // The one page that is *meant* to overflow: this renders the whole app
+        // shell, and its content scrolls.
+        val file = Screenshot.render(
+            name = "catalog-compact",
+            width = 760,
+            height = 1500,
+            allowOverflow = true,
+        ) {
             Catalog()
         }
         assertTrue(file.length() > 0, "catalog-compact rendered an empty file")
@@ -28,7 +35,12 @@ class CatalogScreenshotTest {
 
     @Test
     fun rendersLargeWithADrawer() {
-        val file = Screenshot.render(name = "catalog-large", width = 2400, height = 1500) {
+        val file = Screenshot.render(
+            name = "catalog-large",
+            width = 2400,
+            height = 1500,
+            allowOverflow = true,
+        ) {
             Catalog()
         }
         assertTrue(file.length() > 0, "catalog-large rendered an empty file")
