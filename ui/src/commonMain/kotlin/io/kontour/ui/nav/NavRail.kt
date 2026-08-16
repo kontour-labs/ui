@@ -1,6 +1,7 @@
 package io.kontour.ui.nav
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -118,10 +119,22 @@ fun NavRail(
         label = "navRailWidth",
     )
 
+    /**
+     * Whether the rail is *currently wide enough* to be the expanded one.
+     *
+     * Not `expanded`, which is where it is heading. The width animates over a
+     * few hundred milliseconds and the contents used to switch from stacked to
+     * inline on the frame the flag flipped — so the labels appeared beside icons
+     * in an 88dp rail and were clipped until it caught up, which is the jump.
+     * Reading the animated width instead means the contents change when there is
+     * room for them.
+     */
+    val grown = expandable && width > (collapsedWidth + expandedWidth) / 2
+
     // Inline once there is room for a label beside the icon. A collapsed
     // expandable rail shows no label at all; see the note on the function.
-    val layout = if (expandable && expanded) NavItemLayout.Inline else NavItemLayout.Stacked
-    val itemLabels = showLabels && !(expandable && !expanded)
+    val layout = if (grown) NavItemLayout.Inline else NavItemLayout.Stacked
+    val itemLabels = showLabels && !(expandable && !grown)
 
     Surface(
         modifier = modifier.width(width).fillMaxHeight(),
@@ -140,7 +153,13 @@ fun NavRail(
                 // and without this that x is the rail's own rounded edge, which
                 // clips the marker in half.
                 .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.md),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            // Leading-aligned once it has grown. Centred is right for an 88dp
+            // column of glyphs and wrong for a 280dp one: the destinations run
+            // full width and lay their contents out from the leading edge, so a
+            // centred header, toggle and action sat in the middle of the rail
+            // while everything else started at its edge. Nothing lined up with
+            // anything.
+            horizontalAlignment = if (grown) Alignment.Start else Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {
             if (onExpandedChange != null) {
@@ -164,7 +183,13 @@ fun NavRail(
                 // A pill around the whole row, travelling between destinations.
                 // The bar's pill is sized to its icon; a rail row is wider than
                 // that, so the marker follows the row instead.
-                sizing = IndicatorSizing.Inset(Theme.spacing.xxs),
+                // Narrower than the row, and exactly as tall. Inset on both
+                // axes the pill lost 8dp of its height and the label sat hard
+                // against its edge.
+                sizing = IndicatorSizing.Inset(
+                    horizontal = Theme.spacing.xxs,
+                    vertical = 0.dp,
+                ),
                 indicator = {
                     Box(
                         Modifier
@@ -218,17 +243,24 @@ private fun RailToggle(
     collapseLabel: String,
 ) {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val icon = when {
-        expanded && rtl -> SystemIcons.ChevronRight
-        expanded -> SystemIcons.ChevronLeft
-        rtl -> SystemIcons.ChevronLeft
-        else -> SystemIcons.ChevronRight
-    }
+
+    // One chevron, turned round — not two swapped for each other.
+    //
+    // Swapping the glyph made the control *change* rather than *move*, and a
+    // control that changes has nothing to say about what it just did. The select
+    // chevron has always rotated; this now does the same, and the button itself
+    // stays where it is while the rail grows past it.
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = Theme.motion.springOrTween(Theme.motion.springDefault),
+        label = "railToggle",
+    )
 
     IconButton(
-        icon = icon,
+        icon = if (rtl) SystemIcons.ChevronLeft else SystemIcons.ChevronRight,
         contentDescription = if (expanded) collapseLabel else expandLabel,
         onClick = { onExpandedChange(!expanded) },
+        rotation = rotation,
         modifier = Modifier.semantics {
             stateDescription = if (expanded) "Expanded" else "Collapsed"
         },

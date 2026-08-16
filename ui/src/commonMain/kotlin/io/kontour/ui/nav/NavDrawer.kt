@@ -235,8 +235,13 @@ private fun DrawerItems(
             state = indicator,
             // A pill around the whole row, matching the rail. The two surfaces
             // show the same list at different widths and should mark it the
-            // same way.
-            sizing = IndicatorSizing.Inset(Theme.spacing.xxs),
+            // same way: narrower than the row, and exactly as tall. Inset on
+            // both axes the pill lost 8dp of its height, and the label sat
+            // hard against its edge.
+            sizing = IndicatorSizing.Inset(
+                horizontal = Theme.spacing.xxs,
+                vertical = 0.dp,
+            ),
             indicator = {
                 Box(
                     Modifier

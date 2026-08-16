@@ -100,6 +100,22 @@ fun NavBar(
     indicatorSize: DpSize = NavItemDefaults.CircleSize,
     labelGap: Dp = Theme.spacing.xxs,
     search: (@Composable () -> Unit)? = null,
+    /**
+     * Where [search] sits among the items.
+     *
+     * `null` — the default — puts it after all of them, which is where it has
+     * always been. An index puts it *between* two: `items.size / 2` is the
+     * middle, which is the arrangement a map app wants, with destinations either
+     * side of the thing people actually came to do.
+     *
+     * An index rather than a builder because [NavigationSuiteScaffold] hands the
+     * bar, the rail and the drawer one `List<NavItem>` and expects all three to
+     * show the same list. A `NavBarScope` with `item()` and `search()` would be
+     * more flexible and would match `NavDrawerScope`; it would also mean the
+     * suite could no longer drive them from one list. Worth revisiting if the
+     * index proves too blunt.
+     */
+    searchIndex: Int? = null,
     action: (@Composable () -> Unit)? = null,
     /**
      * What the row keeps clear of. The gesture bar and the display cutout by
@@ -172,6 +188,9 @@ fun NavBar(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     items.forEachIndexed { index, item ->
+                        if (search != null && searchIndex == index) {
+                            Box(Modifier.weight(1f)) { search() }
+                        }
                         NavBarItem(
                             item = item,
                             selected = index == selectedIndex,
@@ -194,8 +213,25 @@ fun NavBar(
                 }
             }
 
-            if (search != null) Box(Modifier.weight(1f)) { search() }
-            action?.invoke()
+            // Only when it has not already been placed among the items.
+            if (search != null && searchIndex == null) Box(Modifier.weight(1f)) { search() }
+
+            if (action != null) {
+                // Aligned to the *icons*, not to the row.
+                //
+                // With `showLabels` the items grow a word taller, so centring
+                // the action in the row dropped it half a label below the icons
+                // it is meant to sit beside — a trailing FAB visibly lower than
+                // everything else on the bar. Top-aligned and given the
+                // indicator's height, its centre is the icons' centre whatever
+                // is underneath them.
+                Box(
+                    modifier = Modifier.align(Alignment.Top).height(indicatorSize.height),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    action()
+                }
+            }
         }
     }
 }

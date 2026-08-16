@@ -180,6 +180,37 @@ scroll state, so the caller passes the progress — `collapseProgress(listState)
 computes it from a `LazyListState`, and there is a raw
 `collapseProgress(scrolled, distance)` for anything else.
 
+## `NavRail`, expanded
+
+Four things about the expanded form, all fixed together because they were one
+mistake seen from four angles: the rail grew and its contents did not follow.
+
+- **It lines up.** The column is leading-aligned once it has grown. Centred is
+  right for an 88dp column of glyphs and wrong for a 280dp one — the destinations
+  lay their contents out from the leading edge, so a centred header, toggle and
+  action sat in the middle of the rail while everything else started at its edge.
+- **It grows rather than jumping.** The contents switch from stacked to inline
+  when the *animated width* passes halfway, not when the flag flips. They used to
+  change on the first frame, so labels appeared beside icons in an 88dp rail and
+  were clipped until it caught up.
+- **The pill has room.** `IndicatorSizing.Inset` takes a value per axis now. Inset
+  on both, the marker behind a 48dp destination came out 40dp high with the label
+  hard against its edge.
+- **The toggle stays put and rotates.** One chevron turned round, not two swapped
+  for each other — the same thing the select chevron does. A control that changes
+  has nothing to say about what it just did.
+
+## `NavBar`, search and the trailing action
+
+`searchIndex` puts the search slot *between* two destinations rather than after
+all of them; `items.size / 2` is the middle. It is an index rather than a builder
+because `NavigationSuiteScaffold` hands the bar, the rail and the drawer one
+`List<NavItem>` and expects all three to show the same list.
+
+With `showLabels` the items grow a word taller, and the trailing action used to
+be centred in the row — which put a FAB half a label below the icons it sits
+beside. It is aligned to the icons now.
+
 ## `TabBar`
 
 ![TabBar, with the first tab selected](../../../ui-catalog/screenshots/components/tab-selected-light.png)
