@@ -30,14 +30,38 @@ import io.kontour.ui.components.list.ListItemDefaults
  *
  * ### Not composable, on purpose
  *
- * The builder lambda is plain Kotlin — it *collects* rows rather than emitting
- * them, because the position of the first row depends on how many come after it.
- * It still runs inside composition, so `if (signedIn) item(…)` works and reading
- * state in the condition recomposes the group.
+ * [item] and [setting] do not draw a row where they are called; they add it to
+ * a list that [ListGroup] draws afterwards. They have to, because the position
+ * of the first row depends on how many come after it, and nothing can know that
+ * until the builder has finished.
  *
- * What you cannot do is read `Theme` or call a composable directly in the
- * builder. Use [row] for that: it takes the whole `@Composable` and hands you
- * the position.
+ * The builder lambda is plain Kotlin. It still runs inside composition, so
+ * `if (signedIn) item(…)` works and reading state in the condition recomposes
+ * the group. What you cannot do is read `Theme` or call a composable directly
+ * in the builder. Use [row] for that: it takes the whole `@Composable` and
+ * hands you the position.
+ *
+ * ### Why it is not `@Composable`, which was tried
+ *
+ * `MenuScope` and `NavDrawerScope` do take `@Composable` builders, and the
+ * asymmetry looks like drift. It is not. Those two *emit* — they are
+ * `ColumnScope`s, and every item they declare draws where it is declared. A
+ * collecting scope cannot follow them.
+ *
+ * Annotating this lambda `@Composable` makes it its own restartable group, and
+ * the collection then happens in a different recompose scope from the
+ * consumption. The catalog's grouped rows are wired to
+ * `onClick = { current.value = index }` and read `current.value` back for
+ * `selected`. With the annotation on: the tap fires, the state changes, the
+ * builder's own scope restarts and appends three more rows to a plain
+ * `mutableListOf` that nothing observes, and [ListGroup] — which read no
+ * changed state itself — never re-runs. The rows keep drawing at their first
+ * values. Three specimens went dead and the page still looked right.
+ *
+ * Making [rows] a snapshot list does not rescue it; it turns a stale group into
+ * a group that clears and rebuilds against a lambda Compose is entitled to
+ * skip. Emission and collection are the real fork, and collection is what the
+ * position arithmetic needs.
  */
 @Stable
 class ListGroupScope internal constructor() {

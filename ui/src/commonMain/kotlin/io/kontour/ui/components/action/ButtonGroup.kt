@@ -163,6 +163,12 @@ internal class ButtonGroupAction(
  * declared. Passing `position` by hand at each call site is the arithmetic
  * `ListItemPosition.of` exists to remove, and it goes wrong the same way: a
  * group with two rounded buttons in the middle reads as a rendering fault.
+ *
+ * The lambda is plain Kotlin, so a `@Composable` helper has to be hoisted above
+ * the group rather than called in the block. That is the cost of collecting,
+ * and it is the smaller cost — see
+ * [io.kontour.ui.components.list.ListGroupScope] for what annotating the
+ * builder `@Composable` actually does to a scope that collects.
  */
 class ButtonGroupScope internal constructor() {
     internal val actions = mutableListOf<ButtonGroupAction>()

@@ -120,7 +120,14 @@ private fun StatTrend.color() = when (this) {
     StatTrend.Neutral -> Theme.colors.contentMuted
 }
 
-/** The regions of a [Stat]. A bare `+` fills the label, as everywhere else. */
+/**
+ * The regions of a [Stat]. A bare `+` fills the label, as everywhere else.
+ *
+ * Collects rather than emits, because the merged announcement is assembled in
+ * speaking order once every region has been declared — and so the builder is
+ * plain Kotlin, for the reason argued on
+ * [io.kontour.ui.components.list.ListGroupScope].
+ */
 class StatScope internal constructor() {
     internal var value: (@Composable ContentScope.() -> Unit)? = null
         private set

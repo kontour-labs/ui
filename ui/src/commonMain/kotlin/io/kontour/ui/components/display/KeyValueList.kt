@@ -114,9 +114,13 @@ internal class KeyValueRow(
 /**
  * Collects the rows.
  *
- * A builder rather than emitting in place, matching `ListGroupScope`: the label
+ * A builder rather than emitting in place, matching [ListGroupScope]: the label
  * column is one width shared by every row, and the widest label is not known
  * until they have all been declared.
+ *
+ * Plain Kotlin rather than `@Composable`, for the reason argued at length on
+ * [ListGroupScope] — a collecting scope with a composable builder collects in
+ * one recompose scope and is consumed in another.
  */
 class KeyValueScope internal constructor() {
     internal val rows = mutableListOf<KeyValueRow>()
