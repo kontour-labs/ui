@@ -75,6 +75,13 @@ Rules 2, 3 and 7 are checked by `./gradlew :ui:checkApiConventions`, which
 apart again one component at a time, which is exactly how they got out of order
 the first time.
 
+It reads **every public declaration** — top-level or indented, one line or many,
+functions and the properties of a primary constructor. That is worth stating
+because it used to read only top-level multi-line functions, which is 153 of the
+module's 391 declarations. The 130 indented ones it could not see are every
+method on every builder scope, so the gate reported no problems for as long as
+the drift stayed inside a shorthand.
+
 `enabled` sits directly after `modifier` with no exceptions. An earlier draft let
 it follow an optional `onClick` instead — which reads better on the three
 components where it applies, and misfired on the first component with two

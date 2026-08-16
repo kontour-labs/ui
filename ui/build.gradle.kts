@@ -3,6 +3,231 @@ import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+// ---------------------------------------------------------------------------
+// A very small Kotlin signature reader
+// ---------------------------------------------------------------------------
+//
+// Shared by `checkApiConventions` and `checkKdocSamples` at the bottom of this
+// file. Both need the same thing — given a declaration, what does it take? —
+// and both had grown their own answer, one line-based and one bracket-based.
+// The line-based one could not see a declaration that was indented, and 130 of
+// this module's 391 declarations are: every method on every builder scope,
+// which is precisely where the naming conventions drift.
+//
+// A top-level `object` rather than a script function: a `doLast` lambda that
+// referenced a script function would capture the script instance and break the
+// configuration cache, which is on. A singleton is a static reference and does
+// not. Verified rather than assumed, before any of this was written.
+//
+// This is not a parser. It reads far enough to answer "what is this called and
+// what does it take", which is all either rule set asks.
+object KotlinSignatures {
+
+    /** One declared parameter, or one primary-constructor property. */
+    data class Parameter(val name: String, val type: String, val optional: Boolean)
+
+    enum class Kind { Function, Class }
+
+    data class Declaration(
+        val kind: Kind,
+        val name: String,
+        /** The extension receiver, for `fun ListItemScope.leading(…)`. */
+        val receiver: String?,
+        /** The type this is declared inside, for `ButtonGroupScope.action`. */
+        val enclosing: String?,
+        val visibility: String,
+        val isComposable: Boolean,
+        val indent: Int,
+        val line: Int,
+        val parameters: List<Parameter>,
+    ) {
+        /** How to name this in a message — as close to how it is called as it gets. */
+        val qualified: String
+            get() = listOfNotNull(receiver ?: enclosing, name).joinToString(".")
+
+        /** Public unless it says otherwise — the Kotlin default. */
+        val isPublic: Boolean get() = visibility == "public"
+
+        /**
+         * A component, as opposed to a state holder or a plain function.
+         *
+         * The distinction is load-bearing for the conventions: `OverlayEntry`
+         * takes `onDismiss` and is right to, because the host owns whether the
+         * entry is showing and by the time the callback runs there is nothing
+         * left to decline. A *component* is handed the state by its caller, so
+         * it can only ask — `onDismissRequest`.
+         */
+        val isComponent: Boolean get() = kind == Kind.Function && isComposable
+    }
+
+    /** Index of the `)` closing the `(` at [start]. */
+    fun balanced(text: String, start: Int): Int {
+        var depth = 0
+        for (i in start until text.length) {
+            when (text[i]) {
+                '(' -> depth++
+                ')' -> if (--depth == 0) return i
+            }
+        }
+        return text.length
+    }
+
+    /**
+     * The same text with every comment blanked to spaces.
+     *
+     * Length-preserving, because every index the callers compute is an offset
+     * into the result and they read the original at those offsets.
+     *
+     * Not cosmetic. A parameter carrying its own KDoc is common here and prose
+     * contains commas — "…accounted for them, or when this bar is not at the
+     * top of the window" split `TopBar`'s parameter list *inside* a comment, so
+     * `windowInsets` and everything after it was invisible, and every sample
+     * naming one was reported as naming something that does not exist. Four of
+     * twelve findings on the first run were this.
+     */
+    fun withoutComments(text: String): String {
+        val out = StringBuilder(text.length)
+        var block = 0
+        var line = false
+        var i = 0
+        while (i < text.length) {
+            val two = if (i + 1 < text.length) text.substring(i, i + 2) else ""
+            when {
+                !line && two == "/*" -> { block++; out.append("  "); i += 2 }
+                block > 0 && two == "*/" -> { block--; out.append("  "); i += 2 }
+                block == 0 && !line && two == "//" -> { line = true; out.append("  "); i += 2 }
+                else -> {
+                    val ch = text[i]
+                    if (ch == '\n') line = false
+                    out.append(if ((block > 0 || line) && ch != '\n') ' ' else ch)
+                    i++
+                }
+            }
+        }
+        return out.toString()
+    }
+
+    /**
+     * The same text with everything nested blanked, so only depth-zero
+     * punctuation survives. Comments go first, then `->` is masked to two
+     * spaces: counting `>` as a closing bracket drives the depth negative on
+     * the first `() -> Unit` parameter and blanks the rest of the signature,
+     * which reports every parameter but the first as missing and looks exactly
+     * like a real finding.
+     */
+    fun topLevel(raw: String): String {
+        val masked = withoutComments(raw).replace("->", "  ")
+        val out = StringBuilder(masked.length)
+        var depth = 0
+        for (ch in masked) {
+            when (ch) {
+                '(', '[', '{', '<' -> depth++
+                ')', ']', '}', '>' -> depth--
+            }
+            out.append(if (depth == 0) ch else ' ')
+        }
+        return out.toString()
+    }
+
+    /**
+     * The parameters inside a declaration's brackets, in declared order.
+     *
+     * Order matters as much as the names: a call may satisfy a parameter
+     * positionally, and a convention may require one to sit in a given place.
+     */
+    fun parameters(inner: String): List<Parameter> {
+        val flat = topLevel(inner)
+        val cuts = flat.indices.filter { flat[it] == ',' }
+        val bounds = listOf(-1) + cuts + listOf(flat.length)
+        val name = Regex("""([A-Za-z_]\w*)\s*$""")
+        return bounds.zipWithNext().mapNotNull { (from, to) ->
+            val chunk = inner.substring(from + 1, to)
+            val flatChunk = topLevel(chunk)
+            val colon = flatChunk.indexOf(':')
+            if (colon < 0) return@mapNotNull null
+            val declared = name.find(flatChunk.substring(0, colon))?.groupValues?.get(1)
+                ?: return@mapNotNull null
+            val equals = flatChunk.indexOf('=', colon)
+            val end = if (equals >= 0) equals else chunk.length
+            Parameter(declared, chunk.substring(colon + 1, end).trim(), equals >= 0)
+        }
+    }
+
+    private val functionHeader = Regex(
+        """^([ \t]*)(?:(public|internal|private)\s+)?""" +
+            """(?:(?:override|suspend|inline|operator|infix|expect|actual|tailrec)\s+)*""" +
+            """fun\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?([A-Za-z_]\w*)\s*\(""",
+        RegexOption.MULTILINE,
+    )
+
+    private val classHeader = Regex(
+        """^([ \t]*)(?:(public|internal|private)\s+)?""" +
+            """(?:(?:abstract|open|sealed|data|value|inner|expect|actual)\s+)*""" +
+            """class\s+([A-Za-z_]\w*)\s*(?:<[^>]*>\s*)?(?:internal\s+)?(?:constructor\s*)?\(""",
+        RegexOption.MULTILINE,
+    )
+
+    /**
+     * Every function and every primary constructor in a file, at any indent.
+     *
+     * Comments are blanked before matching, so a `fun` written inside one — in
+     * a KDoc sample, most often — is not read as a declaration.
+     */
+    private val typeHeader = Regex(
+        """^([ \t]*)(?:(?:public|internal|private|abstract|open|sealed|data|value|inner|expect|actual|enum|annotation)\s+)*""" +
+            """(?:class|interface|object)\s+([A-Za-z_]\w*)""",
+        RegexOption.MULTILINE,
+    )
+
+    fun declarations(text: String): List<Declaration> {
+        val clean = withoutComments(text)
+        val found = mutableListOf<Declaration>()
+
+        // Where each type starts and how far it is indented, so an indented
+        // declaration can say which type it belongs to. `action` on its own is
+        // not a name anyone can look up; `ButtonGroupScope.action` is.
+        val types = typeHeader.findAll(clean)
+            .map { Triple(it.range.first, it.groupValues[1].length, it.groupValues[2]) }
+            .toList()
+
+        fun add(kind: Kind, match: MatchResult, indent: String, visibility: String, receiver: String?, name: String) {
+            val opening = clean.indexOf('(', match.range.last - 1)
+            if (opening < 0) return
+            // The innermost type that opened before this and is less indented.
+            val enclosing = types.lastOrNull { (at, depth, _) ->
+                at < match.range.first && depth < indent.length
+            }?.third
+            // Annotations sit on the lines directly above; walk back over the
+            // run of them. `@Composable` is what separates a component from a
+            // state holder, and several rules below turn on that.
+            val annotations = clean.substring(0, match.range.first)
+                .trimEnd('\n')
+                .split("\n")
+                .asReversed()
+                .takeWhile { it.trimStart().startsWith("@") }
+            found += Declaration(
+                kind = kind,
+                name = name,
+                receiver = receiver,
+                enclosing = enclosing,
+                visibility = visibility.ifEmpty { "public" },
+                isComposable = annotations.any { it.trimStart().startsWith("@Composable") },
+                indent = indent.length,
+                line = clean.substring(0, match.range.first).count { it == '\n' } + 1,
+                parameters = parameters(clean.substring(opening + 1, balanced(clean, opening))),
+            )
+        }
+
+        functionHeader.findAll(clean).forEach { m ->
+            add(Kind.Function, m, m.groupValues[1], m.groupValues[2], m.groupValues[3].ifEmpty { null }, m.groupValues[4])
+        }
+        classHeader.findAll(clean).forEach { m ->
+            add(Kind.Class, m, m.groupValues[1], m.groupValues[2], null, m.groupValues[3])
+        }
+        return found.sortedBy { it.line }
+    }
+}
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
@@ -204,6 +429,16 @@ val checkApiConventions = tasks.register("checkApiConventions") {
             "supportingText" to "use `supporting` — it pairs with `label`, which carries no suffix either",
             "headline" to "use `label` — the short name of a control",
             "isEnabled" to "`enabled` is the component's own state; name a predicate for what it decides",
+        )
+
+        // Banned on components only. A state holder that *owns* the visibility
+        // is telling rather than asking, and `OverlayEntry.onDismiss` is right
+        // for exactly that reason — it runs after the host has already removed
+        // the entry, so there is nothing left to decline. This rule was invisible
+        // until the gate learned to read classes, and the first thing it found
+        // was that deliberate exception, which is why it is stated this way
+        // rather than suppressed at the site.
+        val bannedOnComponents = mapOf(
             "onDismiss" to "components take `onDismissRequest` — the caller owns `visible` and is being asked, not told",
         )
 
@@ -213,26 +448,28 @@ val checkApiConventions = tasks.register("checkApiConventions") {
             val text = file.readText()
             val rel = file.relativeTo(sources.asFile).path
 
-            // Public top-level functions and their parameter lists.
-            // Multi-line parameter lists only: `fun foo(` … newline … `)`. A
-            // one-line signature has nothing to get out of order, and matching
-            // it here lets the block run on to the *next* function's closing
-            // paren and report the wrong name.
-            Regex("""^fun\s+(?:<[^>]*>\s+)?(?:[A-Za-z_][A-Za-z0-9_]*\.)?([A-Za-z_][A-Za-z0-9_]*)\s*\(\n([\s\S]*?)^\)""", RegexOption.MULTILINE)
-                .findAll(text)
-                .forEach { match ->
-                    val name = match.groupValues[1]
-                    val body = match.groupValues[2]
-                    val params = Regex("""^ {4}([a-z][A-Za-z0-9_]*)\s*:\s*(.*)$""", RegexOption.MULTILINE)
-                        .findAll(body)
-                        .map { it.groupValues[1] to it.groupValues[2] }
-                        .toList()
-                    if (params.isEmpty()) return@forEach
-                    val names = params.map { it.first }
-                    val where = "$rel :: $name"
+            // Every public declaration, at any indent, one line or many.
+            //
+            // It used to be top-level multi-line functions only — 153 of this
+            // module's 391 declarations. The 130 indented ones it could not see
+            // are every method on every builder scope, and those are exactly
+            // where the naming drifts: `MenuScope.item`, `ButtonGroupScope.action`,
+            // `KeyValueScope.row` and `NavDrawerScope.destination` are four names
+            // for the same idea, and the gate reported no problems throughout.
+            KotlinSignatures.declarations(text)
+                .filter { it.isPublic && it.parameters.isNotEmpty() }
+                .forEach { declaration ->
+                    val params = declaration.parameters
+                    val names = params.map { it.name }
+                    val where = "$rel:${declaration.line} :: ${declaration.qualified}"
 
                     bannedNames.forEach { (banned, why) ->
                         if (banned in names) problems += "$where: parameter `$banned` — $why"
+                    }
+                    if (declaration.isComponent) {
+                        bannedOnComponents.forEach { (banned, why) ->
+                            if (banned in names) problems += "$where: parameter `$banned` — $why"
+                        }
                     }
 
                     // `modifier` is the first optional parameter, so everything
@@ -240,7 +477,7 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                     // same way.
                     val modifierIndex = names.indexOf("modifier")
                     if (modifierIndex >= 0) {
-                        val firstDefaulted = params.indexOfFirst { "=" in it.second }
+                        val firstDefaulted = params.indexOfFirst { it.optional }
                         if (firstDefaulted != modifierIndex) {
                             problems += "$where: `modifier` must be the first optional parameter " +
                                 "(found ${names[firstDefaulted]} before it)"
@@ -272,15 +509,15 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                     val builderType = Regex("[A-Za-z]+Scope\\.\\(\\)\\s*->")
                     val interactionIndex = names.indexOfFirst {
                         it == "interactionSource"
-                    }.takeIf { it >= 0 && "=" in params[it].second } ?: -1
+                    }.takeIf { it >= 0 && params[it].optional } ?: -1
                     if (interactionIndex >= 0) {
                         val trailing = params.drop(interactionIndex + 1)
                             .filterNot {
-                                "Composable" in it.second || builderType.containsMatchIn(it.second)
+                                "Composable" in it.type || builderType.containsMatchIn(it.type)
                             }
                         if (trailing.isNotEmpty()) {
                             problems += "$where: `interactionSource` must come after every " +
-                                "non-slot parameter (found ${trailing.joinToString { it.first }} after it)"
+                                "non-slot parameter (found ${trailing.joinToString { it.name }} after it)"
                         }
                     }
                 }
@@ -359,96 +596,10 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
     val report = layout.buildDirectory.file("reports/kdoc-samples.txt")
 
     doLast {
-        /** Index of the `)` closing the `(` at [start]. */
-        fun balanced(text: String, start: Int): Int {
-            var depth = 0
-            for (i in start until text.length) {
-                when (text[i]) {
-                    '(' -> depth++
-                    ')' -> if (--depth == 0) return i
-                }
-            }
-            return text.length
-        }
+        // The reader at the top of this file, under short local names.
+        val balanced = KotlinSignatures::balanced
+        val topLevel = KotlinSignatures::topLevel
 
-        // Blank out everything nested so only depth-zero commas survive. `->`
-        // is masked to two spaces first: counting `>` as a closing bracket
-        // drives the depth negative on the first `() -> Unit` parameter and
-        // blanks the rest of the signature, which reports every parameter but
-        // the first as missing and looks exactly like a real finding. Spaces
-        // rather than a sentinel because the replacement has to preserve
-        // length — every index below is an offset into this string.
-        // Comments first, blanked to spaces. A parameter carrying its own KDoc
-        // is common here, and prose contains commas — "…accounted for them, or
-        // when this bar is not at the top of the window." split `TopBar`'s
-        // signature *inside* the comment, so `windowInsets` and everything
-        // after it was never seen as a parameter and every sample naming one
-        // was reported as naming something that does not exist. Four of the
-        // twelve first findings were this.
-        //
-        // Spaces rather than deletion because every index below is an offset
-        // into this string.
-        fun withoutComments(text: String): String {
-            val out = StringBuilder(text.length)
-            var block = 0
-            var line = false
-            var i = 0
-            while (i < text.length) {
-                val two = if (i + 1 < text.length) text.substring(i, i + 2) else ""
-                when {
-                    !line && two == "/*" -> { block++; out.append("  "); i += 2 }
-                    block > 0 && two == "*/" -> { block--; out.append("  "); i += 2 }
-                    block == 0 && two == "//" -> { line = true; out.append("  "); i += 2 }
-                    else -> {
-                        val ch = text[i]
-                        if (ch == '\n') line = false
-                        out.append(if ((block > 0 || line) && ch != '\n') ' ' else ch)
-                        i++
-                    }
-                }
-            }
-            return out.toString()
-        }
-
-        fun topLevel(raw: String): String {
-            val inner = withoutComments(raw)
-            val masked = inner.replace("->", "  ")
-            val out = StringBuilder(masked.length)
-            var depth = 0
-            for (ch in masked) {
-                when (ch) {
-                    '(', '[', '{', '<' -> depth++
-                    ')', ']', '}', '>' -> depth--
-                }
-                out.append(if (depth == 0) ch else ' ')
-            }
-            return out.toString()
-        }
-
-        val declaration =
-            Regex("""^(?:public |internal )?(?:@\w+\s+)*fun\s+(?:<[^>]*>\s*)?(?:[\w.]+\.)?(\w+)\s*\(""", RegexOption.MULTILINE)
-        val parameter = Regex("""(?:\A|,)\s*(?:@\w+\s*)*(?:vararg\s+)?(\w+)\s*:""")
-
-        // A declared parameter is its name paired with whether the caller may
-        // omit it. A `Pair` rather than a data class purely because a local
-        // class inside this `doLast` lambda crashes the script compiler.
-        //
-        // The order matters as much as the names: a sample may satisfy a
-        // parameter positionally, and that can only be judged against the
-        // position it was declared in.
-        //
-        // Split the list on its depth-zero commas, keeping each chunk so the
-        // `=` that marks a default is still visible.
-        fun parameters(inner: String): List<Pair<String, Boolean>> {
-            val flat = topLevel(inner)
-            val cuts = flat.mapIndexedNotNull { i, ch -> i.takeIf { ch == ',' } }
-            val bounds = listOf(-1) + cuts + listOf(flat.length)
-            return bounds.zipWithNext().mapNotNull { (from, to) ->
-                val chunk = inner.substring(from + 1, to)
-                val name = parameter.find(topLevel(chunk))?.groupValues?.get(1) ?: return@mapNotNull null
-                name to ('=' in topLevel(chunk))
-            }
-        }
         val kdoc = Regex("""/\*\*([\s\S]*?)\*/""")
         val sample = Regex("""```(?:kotlin)?\n([\s\S]*?)```""")
         val call = Regex("""\b([A-Z]\w*)\s*\(""")
@@ -462,13 +613,10 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
         // `AnnotatedString`, `Icon` an `ImageVector` and a `Painter`. Both
         // overloads are kept, and a sample is judged against whichever it
         // satisfies: an argument only counts as wrong if *no* overload has it.
-        val known = mutableMapOf<String, MutableList<List<Pair<String, Boolean>>>>()
+        val known = mutableMapOf<String, MutableList<List<KotlinSignatures.Parameter>>>()
         files.forEach { file ->
-            val text = file.readText()
-            declaration.findAll(text).forEach { match ->
-                val opening = text.indexOf('(', match.range.last)
-                val inner = text.substring(opening + 1, balanced(text, opening))
-                known.getOrPut(match.groupValues[1]) { mutableListOf() } += parameters(inner)
+            KotlinSignatures.declarations(file.readText()).forEach { declaration ->
+                known.getOrPut(declaration.name) { mutableListOf() } += declaration.parameters
             }
         }
 
@@ -530,20 +678,20 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
                         // lambda fills the last slot, the report did not, so a
                         // sample missing only its `header` was told it was also
                         // missing the `content` sitting right below it.
-                        fun unsatisfied(parameters: List<Pair<String, Boolean>>): List<String> {
+                        fun unsatisfied(parameters: List<KotlinSignatures.Parameter>): List<String> {
                             val supplied = parameters.size - (if (trailingLambda) 1 else 0)
                             return parameters.withIndex()
                                 .filter { (index, parameter) ->
-                                    !parameter.second &&
+                                    !parameter.optional &&
                                         index >= positional &&
-                                        parameter.first !in named &&
+                                        parameter.name !in named &&
                                         !(trailingLambda && index >= supplied)
                                 }
-                                .map { it.value.first }
+                                .map { it.value.name }
                         }
 
-                        fun satisfies(parameters: List<Pair<String, Boolean>>): Boolean =
-                            named.all { given -> parameters.any { it.first == given } } &&
+                        fun satisfies(parameters: List<KotlinSignatures.Parameter>): Boolean =
+                            named.all { given -> parameters.any { it.name == given } } &&
                                 unsatisfied(parameters).isEmpty()
 
                         if (overloads.any(::satisfies)) return@forEach
@@ -551,7 +699,7 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
                         // Nothing accepted it. Report the more specific of the
                         // two failures rather than both — a wrong name is the
                         // one someone can act on immediately.
-                        val declared = overloads.flatten().map { it.first }.toSet()
+                        val declared = overloads.flatten().map { it.name }.toSet()
                         val unknown = named.filter { it !in declared }
                         if (unknown.isNotEmpty()) {
                             unknown.forEach {
