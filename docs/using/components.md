@@ -12,7 +12,7 @@ over.
 | Family | | |
 |---|---|---|
 | [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `IconToggleButton` `FloatingActionButton` `Spinner` |
-| [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `ColorSwatchPicker` `Slider` |
+| [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `Slider` `RangeSlider` `Stepper` |
 | [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `NumberField` `PhoneField` `EmailField` `Select` `MultiSelect` `Combobox` |
 | [**Date and time**](components/date-time.md) | Calendars and clocks | `CalendarMonth` `DatePicker` `DateRangePicker` `TimePicker` `TimeField` `WheelPicker` `RelativeTimeText` |
 | [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Skeleton` `EmptyState` `Banner` `Callout` `Timeline` `Accordion` `Kbd` |
@@ -58,7 +58,7 @@ Per phase — see [README](../README.md#status). Everything above is built.
 
 Listed so the shape of the finished system is visible.
 
-**Selection, remaining** — `RangeSlider`, `Stepper`, `Rating`, `FilePicker`
+**Selection, remaining** — `Rating`, `FilePicker`
 
 **Date and time, remaining** — `DurationPicker`, and a multi-month scrolling
 calendar for range selection across month boundaries

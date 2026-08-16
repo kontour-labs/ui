@@ -42,9 +42,11 @@ import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-private val TrackHeight = 6.dp
-private val ThumbRadius = 11.dp
-private val SliderHeight = 44.dp
+// Shared with `RangeSlider`, which is the same track with a second thumb on it.
+// Two copies of these would be two sliders that drift apart by a pixel.
+internal val SliderTrackHeight = 6.dp
+internal val SliderThumbRadius = 11.dp
+internal val SliderHeight = 44.dp
 
 /**
  * A slider over a continuous or stepped range.
@@ -213,7 +215,7 @@ fun Slider(
             .focusRing(interactions, Theme.shapes.small)
             .fillMaxWidth()
             .height(SliderHeight)
-            .padding(horizontal = ThumbRadius)
+            .padding(horizontal = SliderThumbRadius)
     ) {
         val widthPx = with(density) { maxWidth.toPx() }
 
@@ -258,8 +260,8 @@ fun Slider(
                     },
                 )
                 .drawWithCache {
-                    val trackHeightPx = TrackHeight.toPx()
-                    val thumbRadiusPx = ThumbRadius.toPx()
+                    val trackHeightPx = SliderTrackHeight.toPx()
+                    val thumbRadiusPx = SliderThumbRadius.toPx()
                     val centreY = size.height / 2f
                     val trackTop = centreY - trackHeightPx / 2f
                     val activeColor = if (enabled) colors.primary else colors.contentDisabled

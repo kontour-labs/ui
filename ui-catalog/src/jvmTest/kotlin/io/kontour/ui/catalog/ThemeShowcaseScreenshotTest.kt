@@ -85,7 +85,12 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "selection-"),
                 width = 1100,
-                height = 1720,
+                // Grew for `RangeSlider` and `Stepper`. A page that outgrows its
+                // canvas does not clip cleanly — the sections that no longer fit
+                // are drawn on top of each other and on the heading above them,
+                // which reads as a layout bug in the components rather than as a
+                // canvas that is too short.
+                height = 2260,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
                     SelectionShowcase()

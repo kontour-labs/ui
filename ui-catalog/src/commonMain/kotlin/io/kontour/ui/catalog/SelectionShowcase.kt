@@ -24,7 +24,9 @@ import io.kontour.ui.components.selection.InputChip
 import io.kontour.ui.components.selection.RadioButton
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.SelectionRow
+import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.Slider
+import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.foundation.Surface
@@ -206,6 +208,68 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                         onValueChange = {},
                         enabled = false,
                         modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+
+            Section("RangeSlider") {
+                Column(
+                    Modifier.width(460.dp),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                ) {
+                    val window = seed(0.25f..0.7f)
+                    // Both thumbs on the same value, which is what "no filter
+                    // set" looks like and the one state a range slider can get
+                    // stuck in. It is here so it is on screen, not only in a test.
+                    val closed = seed(4f..4f)
+
+                    RangeSlider(
+                        value = window.value,
+                        onValueChange = { window.value = it },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    RangeSlider(
+                        value = closed.value,
+                        onValueChange = { closed.value = it },
+                        valueRange = 0f..8f,
+                        steps = 7,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    RangeSlider(
+                        value = 0.3f..0.8f,
+                        onValueChange = {},
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+
+            Section("Stepper") {
+                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+                    val adults = seed(2)
+                    val bags = seed(0)
+
+                    Stepper(
+                        value = adults.value,
+                        onValueChange = { adults.value = it },
+                        contentDescription = "Adults",
+                        range = 1..9,
+                    )
+                    // Resting at its lower bound, so the disabled end of the
+                    // control is visible in the golden rather than only
+                    // reachable by pressing.
+                    Stepper(
+                        value = bags.value,
+                        onValueChange = { bags.value = it },
+                        contentDescription = "Bags",
+                        range = 0..4,
+                        format = { if (it == 1) "1 bag" else "$it bags" },
+                    )
+                    Stepper(
+                        value = 3,
+                        onValueChange = {},
+                        contentDescription = "Bikes",
+                        enabled = false,
                     )
                 }
             }

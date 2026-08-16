@@ -12,6 +12,7 @@ import com.composables.icons.tabler.outline.ChevronLeft
 import com.composables.icons.tabler.outline.ChevronRight
 import com.composables.icons.tabler.outline.ChevronUp
 import com.composables.icons.tabler.outline.Minus
+import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.X
 
 /**
@@ -37,8 +38,11 @@ internal object SystemIcons {
     /** Marks the selected item in a list of choices. */
     val Check: ImageVector get() = Tabler.Outline.Check
 
-    /** The indeterminate state of a tri-state control. */
+    /** The indeterminate state of a tri-state control, and a stepper's "less". */
     val Dash: ImageVector get() = Tabler.Outline.Minus
+
+    /** A stepper's "more". Structural: a stepper with no `+` is two blank buttons. */
+    val Plus: ImageVector get() = Tabler.Outline.Plus
 
     /** Dismiss. */
     val Close: ImageVector get() = Tabler.Outline.X

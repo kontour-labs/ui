@@ -110,8 +110,19 @@ object Screenshot {
             // `components/<slug>-light`. Only `outputDir` itself is created
             // above, so anything nested has to make its own way.
             golden.parentFile?.mkdirs()
-            if (updating || !golden.exists()) {
+            if (!golden.exists()) {
                 golden.writeBytes(encoded)
+                return golden
+            }
+            if (updating) {
+                // Only rewrite what actually moved. The comparison below has a
+                // per-pixel tolerance, so a render that is visually identical
+                // still encodes to different bytes — and rewriting every golden
+                // unconditionally turned "accept this one intended change" into
+                // a 41-file diff nobody can review. That defeats the one step
+                // this whole harness exists to protect: looking at the result
+                // before committing it.
+                if (differs(golden, encoded)) golden.writeBytes(encoded)
                 return golden
             }
 
@@ -170,6 +181,27 @@ object Screenshot {
                 "If the change is intended, re-run with " +
                 "-Pkontour.screenshots.update=true and review the new golden."
         }
+    }
+
+    /**
+     * Whether [rendered] is visually different from the golden on disk.
+     *
+     * The same question [compare] asks, and deliberately the same tolerance:
+     * a render this returns `false` for is one that would have passed, so
+     * rewriting it would record a change that no run would ever have reported.
+     */
+    private fun differs(golden: File, rendered: ByteArray): Boolean {
+        val expected = ImageIO.read(golden) ?: return true
+        val actual = ImageIO.read(rendered.inputStream()) ?: return true
+        if (expected.width != actual.width || expected.height != actual.height) return true
+
+        var differing = 0
+        for (y in 0 until expected.height) {
+            for (x in 0 until expected.width) {
+                if (channelsDiffer(expected.getRGB(x, y), actual.getRGB(x, y))) differing++
+            }
+        }
+        return differing.toDouble() / (expected.width * expected.height) > TOLERATED_FRACTION
     }
 
     /** True when any channel differs by more than [CHANNEL_TOLERANCE]. */

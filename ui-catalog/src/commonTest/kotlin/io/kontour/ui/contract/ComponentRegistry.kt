@@ -44,10 +44,12 @@ import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
 import io.kontour.ui.components.selection.RadioButton
+import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.selection.Slider
+import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.components.text.SearchField
@@ -363,6 +365,42 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 onValueChange = {},
                 modifier = modifier,
                 enabled = enabled,
+            )
+        }
+    )
+
+    add(
+        // Same as `Slider`, and for the same reason. Its own two thumbs are
+        // separate semantic nodes inside it, which is what `RangeSliderTest`
+        // covers; here it is one specimen with one outermost node.
+        ComponentSpec("RangeSlider", role = null, activatedByClick = false) { modifier, enabled, _ ->
+            RangeSlider(
+                value = 0.25f..0.75f,
+                onValueChange = {},
+                modifier = modifier,
+                enabled = enabled,
+            )
+        }
+    )
+
+    add(
+        // The row is the component; its two buttons are the controls. It names
+        // itself through `contentDescription`, and pressing it is pressing one
+        // of the buttons rather than the row, so neither the click rule nor the
+        // touch-target rule applies to the outermost node.
+        ComponentSpec(
+            "Stepper",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+        ) { modifier, enabled, _ ->
+            Stepper(
+                value = 2,
+                onValueChange = {},
+                contentDescription = "Adults",
+                modifier = modifier,
+                enabled = enabled,
+                range = 1..9,
             )
         }
     )

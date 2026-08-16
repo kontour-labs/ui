@@ -14,6 +14,8 @@ Controls that record a choice.
 | [`SegmentedControl`](#segmentedcontrol) | Two to four short options, switched often | `RadioGroup`, beyond four or with long labels |
 | [`ColorSwatchPicker`](#colorswatchpicker) | A choice made by looking | `Select`, for anything nameable |
 | [`Slider`](#slider) | A value in a continuous range | A `NumberField`, when the exact figure matters |
+| [`RangeSlider`](#rangeslider) | A band — two values on one track | Two `Slider`s, which cannot stop each other crossing |
+| [`Stepper`](#stepper) | A small exact count | A `Slider`, when the number is approximate |
 
 **The single most important rule on this page:** every one of these belongs
 inside a [`SelectionRow`](#selectionrow) unless something else is already
@@ -286,5 +288,80 @@ not want to run on every frame of a drag.
 the relative position — a slider is for "about this much", and nobody sets a
 fare to $4.35 by dragging.
 
-`RangeSlider`, for two thumbs on one track, is
-[not yet built](../components.md#not-yet-built).
+---
+
+## `RangeSlider`
+
+![RangeSlider](../../../../../app/ui-catalog/screenshots/components/rangeslider-light.png)
+
+```kotlin
+RangeSlider(
+    value = window,
+    onValueChange = { window = it },
+    valueRange = 0f..24f,
+    steps = 23,
+    stateDescription = { "${it.start.roundToInt()}:00 to ${it.endInclusive.roundToInt()}:00" },
+)
+```
+
+Shares [`Slider`](#slider)'s drag accumulator and detent feel. The filled band
+runs **between** the thumbs rather than from the start of the track, because the
+band *is* the value.
+
+**The two thumbs are two things to a screen reader.** One node cannot express
+two values — a `ProgressBarRangeInfo` has a single `current` — so each thumb is
+its own adjustable node, and each one's range is bounded by the other. "Adjust
+to maximum" on the start thumb lands on the end thumb rather than inverting the
+range.
+
+### Two states worth knowing about
+
+**A closed range** (`0.5f..0.5f`, both thumbs on the same pixel) is what "no
+filter set yet" looks like, and it is the state a range slider gets stuck in.
+Distance alone cannot say which thumb you grabbed, and whichever one is picked,
+the clamp then pins it — the control looks dead rather than wrong. The direction
+of the first drag decides instead. There is one in the catalog for this reason.
+
+**Crossing** is clamped, not swapped. Dragging the start thumb past the end stops
+it at the end, because a range that swaps under the finger is a range the user
+has to drag twice to fix.
+
+**Reach for two `Slider`s instead** only if the two values are genuinely
+independent. If one must not exceed the other, they are a range, and two sliders
+cannot enforce that between them.
+
+---
+
+## `Stepper`
+
+![Stepper](../../../../../app/ui-catalog/screenshots/components/stepper-light.png)
+
+```kotlin
+Stepper(
+    value = adults,
+    onValueChange = { adults = it },
+    contentDescription = "Adults",
+    range = 1..9,
+)
+```
+
+A bounded count with a button at each end. `format` renders the number, for
+units — `format = { if (it == 1) "1 bag" else "$it bags" }`.
+
+**The buttons disable individually at each end of `range`**, rather than the
+whole control disabling or the value silently refusing to move. A `+` that looks
+live and does nothing is the defect this shape exists to avoid, and it is
+*announced* as unavailable, not just drawn greyed — which is the half a
+screen-reader user gets.
+
+A `step` that would overshoot disables too: with `range = 0..10` and `step = 4`,
+the button is dead at 8 rather than clamping to 10, which is a value the step
+sequence never contains.
+
+**The number between the buttons is not its own node.** It is the control's
+`stateDescription`, so a screen reader says "Adults, 2" rather than offering an
+unlabelled "2" between two buttons.
+
+**Reach for a [`Slider`](#slider) instead** when the number is approximate and
+the range is wide. A stepper is for a count someone knows exactly and will change
+by one or two; nobody taps `+` thirty times.
