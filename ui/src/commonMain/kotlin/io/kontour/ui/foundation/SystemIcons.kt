@@ -13,7 +13,9 @@ import com.composables.icons.tabler.outline.ChevronRight
 import com.composables.icons.tabler.outline.ChevronUp
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Plus
+import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.X
+import com.composables.icons.tabler.filled.Star as FilledStar
 
 /**
  * The few glyphs the design system draws on its own behalf.
@@ -43,6 +45,17 @@ internal object SystemIcons {
 
     /** A stepper's "more". Structural: a stepper with no `+` is two blank buttons. */
     val Plus: ImageVector get() = Tabler.Outline.Plus
+
+    /**
+     * A `Rating`'s empty and filled marks.
+     *
+     * Structural in the same sense as the tick: a rating is *made of* these, and
+     * one with no glyph is five blank squares. They are still parameters on the
+     * component, because a rating of hearts is a reasonable thing to want — this
+     * is only what it falls back to.
+     */
+    val Star: ImageVector get() = Tabler.Outline.Star
+    val StarFilled: ImageVector get() = Tabler.Filled.FilledStar
 
     /** Dismiss. */
     val Close: ImageVector get() = Tabler.Outline.X

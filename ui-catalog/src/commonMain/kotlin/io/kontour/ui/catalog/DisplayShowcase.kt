@@ -45,7 +45,13 @@ import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.Tag
 import com.composables.icons.tabler.outline.Check
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.KeyValueList
+import io.kontour.ui.components.display.PageIndicator
+import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StatTrend
 import io.kontour.ui.components.display.TagTone
@@ -328,6 +334,35 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                 // three columns and one of these is already 320dp wide, so a
                 // row of two crushes the second into a column of single
                 // characters.
+                Section("Carousel") {
+                    val carousel = rememberCarouselState { 4 }
+                    val scope = rememberCoroutineScope()
+                    Column(
+                        Modifier.width(320.dp),
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Carousel(
+                            state = carousel,
+                            contentDescription = "Stop photos",
+                            modifier = Modifier.fillMaxWidth().height(120.dp),
+                        ) { page ->
+                            Card(variant = CardVariant.Filled, modifier = Modifier.fillMaxWidth().height(120.dp)) {
+                                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    Text("Photo ${page + 1}", style = Theme.typography.titleMedium)
+                                }
+                            }
+                        }
+                        // Given a handler, so the dots are a pointer route
+                        // rather than decoration — which is the whole argument
+                        // on the component's page.
+                        PageIndicator(
+                            state = carousel,
+                            onPageSelect = { page -> scope.launch { carousel.scrollToPage(page) } },
+                        )
+                    }
+                }
+
                 Section("KeyValueList") {
                     Column(
                         Modifier.width(320.dp),

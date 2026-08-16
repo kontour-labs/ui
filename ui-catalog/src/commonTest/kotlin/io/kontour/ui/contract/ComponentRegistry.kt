@@ -1,5 +1,6 @@
 package io.kontour.ui.contract
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,7 +37,10 @@ import io.kontour.ui.components.display.AnimatedBanner
 import io.kontour.ui.components.display.BannerTone
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
+import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.Kbd
+import io.kontour.ui.components.display.PageIndicator
+import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.list.ListItem
@@ -54,6 +58,7 @@ import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
 import io.kontour.ui.components.selection.RadioButton
 import io.kontour.ui.components.selection.RangeSlider
+import io.kontour.ui.components.selection.Rating
 import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.SelectionRow
@@ -64,7 +69,9 @@ import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.TextField
+import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.theme.Theme
 import io.kontour.ui.nav.NavBarItem
 import io.kontour.ui.nav.NavDrawerGroup
 import io.kontour.ui.nav.NavDrawerItem
@@ -494,6 +501,65 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     onClick = onActivate,
                     enabled = enabled,
                 )
+            }
+        }
+    )
+
+    add(
+        // The interactive one. Each mark is a `Role.RadioButton` inside a
+        // `selectableGroup`, so the roles and targets belong to the marks; the
+        // row is the group. `RatingTest` covers the read-only half, which is a
+        // different component wearing the same name.
+        ComponentSpec(
+            "Rating",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+        ) { modifier, enabled, onActivate ->
+            Rating(
+                value = 3f,
+                contentDescription = "Your rating",
+                modifier = modifier,
+                enabled = enabled,
+                onValueChange = { onActivate() },
+            )
+        }
+    )
+
+    add(
+        // Its own node is a scrollable group carrying custom actions, not a
+        // control. `CarouselTest` covers the routes; this exists for the render
+        // and for the layout rules.
+        ComponentSpec(
+            "Carousel",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 160,
+        ) { modifier, enabled, _ ->
+            val carousel = rememberCarouselState { 3 }
+            Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Carousel(
+                    state = carousel,
+                    contentDescription = "Stop photos",
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth().height(80.dp),
+                ) { page ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().height(80.dp),
+                        shape = Theme.shapes.small,
+                        color = Theme.colors.surfaceSunken,
+                    ) {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text("Photo ${page + 1}")
+                        }
+                    }
+                }
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    PageIndicator(carousel)
+                }
             }
         }
     )

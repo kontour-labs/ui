@@ -357,3 +357,54 @@ Every overlay animates in, and every animation respects `reduceMotion`.
 
 Menus scale from 0.9 rather than from nothing on purpose: a menu springing out of
 a point is a lot of movement for something the user opens dozens of times a day.
+
+---
+
+## `CommandPalette`
+
+Search over *actions* rather than values.
+
+```kotlin
+CommandPalette(
+    visible = paletteOpen,
+    onDismissRequest = { paletteOpen = false },
+    commands = listOf(
+        Command("plan", "Plan a trip", onRun = ::plan, shortcut = "⌘P"),
+        Command("saved", "Saved trips", onRun = ::openSaved, keywords = listOf("favourites")),
+    ),
+)
+```
+
+**Not a [`Combobox`](components/text-editing.md#combobox).** A combobox picks a
+*value* and leaves it in a field; a palette runs something and closes. Combobox's
+own documentation declines this case, and the difference shows at the call site:
+a palette has no value, no field to leave behind, and no meaning for "the
+previous selection".
+
+`Command.keywords` matches without being shown — "prefs" finding "Settings".
+Searching labels alone makes a palette useless the moment the user's word for
+something is not the one on screen.
+
+### The keyboard is the point
+
+Up and down move the highlight and **wrap** at both ends; Enter runs what is
+highlighted; Escape dismisses. Nobody opens one of these with a mouse, so a
+palette whose arrows are wrong is a menu with extra steps.
+
+Two things there are easy to get wrong and invisible when they are:
+
+- **Wrapping upward.** Kotlin's `%` keeps the sign of its left operand, so
+  `(0 - 1) % 3` is `-1`, not `2`. Without the `+ size` the highlight goes out of
+  bounds on the first keystroke anyone tries and Enter then runs nothing.
+- **The stale index.** Typing is what shrinks the list, so a remembered
+  highlight is wrong exactly when it matters. It resets to the top on every
+  keystroke — after typing, the user is looking at the top of the results, not
+  at wherever they had arrowed to before the list changed under them.
+
+`CommandPaletteKeyboardTest` covers both, each verified by reverting.
+
+It sits near the **top** of the window rather than centred, because the list
+grows downward as the user types and a centred palette jumps up the screen on
+every keystroke. Its search field has no debounce: the list is already in
+memory, and a quarter-second lag between the key and the result is the whole
+difference between instant and broken.

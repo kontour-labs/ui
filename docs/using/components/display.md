@@ -20,6 +20,8 @@ Things that show rather than take input.
 | [`Accordion`](#accordion) | Disclosure, with hoisted state | — |
 | [`Stat`](#stat) | One figure, said loudly | `KeyValueList`, when none of them is the headline |
 | [`KeyValueList`](#keyvaluelist) | Label-and-value facts about one thing | `SettingRow`, only if the rows are tappable |
+| [`Carousel`](#carousel) | Pages one at a time, that snap | A scrolling `Row`, when they are not pages |
+| [`PageIndicator`](#pageindicator) | Which page of how many | — |
 | [`Kbd`](#kbd) | A keyboard shortcut, rendered as a key | — |
 | [`RelativeTimeText`](date-time.md#relativetimetext) | A self-updating "in 4 min" | — |
 
@@ -211,6 +213,55 @@ row with its value missing.
 `labelWidth` is a fixed minimum rather than intrinsic, so the values line up down
 the column. A ragged value column is what makes a details panel look untidy, and
 an intrinsic width re-rags it every time the content changes.
+
+## `Carousel`
+
+![Carousel](../../../../../app/ui-catalog/screenshots/components/carousel-light.png)
+
+```kotlin
+val carousel = rememberCarouselState { photos.size }
+
+Carousel(carousel, contentDescription = "Stop photos") { page ->
+    AspectRatioBox(16f / 9f) { Image(photos[page]) }
+}
+PageIndicator(carousel, onPageSelect = { scope.launch { carousel.scrollToPage(it) } })
+```
+
+It snaps. A carousel that stops between two pages is showing neither, and the
+indicator under it is then lying whatever it says.
+
+`currentPage` is derived from the scroll **offset**, not from
+`firstVisibleItemIndex`. That index changes the instant a single pixel of the
+next page appears, so an indicator driven by it flips forward at the very start
+of a drag and then sits there while the user is still looking at the previous
+page.
+
+### The swipe is a shortcut, not the route
+
+The house rule from [collections](collections.md#gestures-are-shortcuts-never-routes)
+applies here too, and a carousel is the easiest place to forget it. A drag is
+invisible, has no keyboard equivalent, and is unreachable for anyone who cannot
+make a sustained one. So:
+
+- the carousel carries **previous** and **next** as custom accessibility
+  actions, the same way `SwipeActions` and `ReorderableItem` do;
+- it announces "3 of 5" as its state;
+- and `PageIndicator` becomes a set of real targets the moment you give it
+  `onPageSelect`.
+
+A carousel with a decorative indicator and no arrows is operable by exactly one
+input method, and the app has four.
+
+## `PageIndicator`
+
+**The current dot widens** rather than only changing colour. Colour alone fails
+WCAG 1.4.1, and eight pixels of tinted circle is the hardest place in the system
+to see a tint difference.
+
+`onPageSelect = null` makes the dots decorative *and* hides them from the
+accessibility tree — the carousel already says "3 of 5", and a screen reader
+walking five unlabelled dots after it is noise. Pass a handler and each dot
+becomes a `Role.RadioButton` naming the page it goes to.
 
 ## `Kbd`
 

@@ -34,6 +34,9 @@ import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.AlertDialog
+import androidx.compose.runtime.remember
+import io.kontour.ui.overlay.Command
+import io.kontour.ui.overlay.CommandPalette
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.LoadingOverlay
 import io.kontour.ui.overlay.LocalOverlayQueue
@@ -256,6 +259,33 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
 
                 Panel("Loading overlay") {
                     LoadingOverlay(visible = loading.value, label = "Planning your trip")
+                }
+
+                Panel("Command palette") {
+                    // Seeded open so the golden shows the palette, and a
+                    // *toggle* rather than a setter — pressing "open" while it
+                    // is already open does nothing, which is exactly what
+                    // `EverythingRespondsTest` exists to catch. It caught this.
+                    val open = seed(true)
+                    Button(
+                        onClick = { open.value = !open.value },
+                        variant = ButtonVariant.Secondary,
+                    ) { +"Open palette" }
+                    CommandPalette(
+                        visible = open.value,
+                        onDismissRequest = { open.value = false },
+                        commands = remember {
+                            listOf(
+                                Command("plan", "Plan a trip", onRun = {}, shortcut = "P"),
+                                Command("saved", "Saved trips", onRun = {}, keywords = listOf("favourites")),
+                                Command("settings", "Settings", onRun = {}, keywords = listOf("prefs")),
+                                Command("offline", "Download for offline", onRun = {}, enabled = false),
+                            )
+                        },
+                        // Narrower than the default, which is sized for a real
+                        // window rather than for a 400dp panel in a gallery.
+                        width = 320.dp,
+                    )
                 }
 
                 Panel("Menu near an edge") {

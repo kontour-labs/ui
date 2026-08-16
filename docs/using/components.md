@@ -12,13 +12,13 @@ over.
 | Family | | |
 |---|---|---|
 | [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `IconToggleButton` `FloatingActionButton` `ButtonGroup` `Toolbar` `Spinner` |
-| [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `Slider` `RangeSlider` `Stepper` |
+| [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `Slider` `RangeSlider` `Stepper` `Rating` |
 | [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `NumberField` `PhoneField` `EmailField` `Select` `MultiSelect` `Combobox` |
 | [**Date and time**](components/date-time.md) | Calendars and clocks | `CalendarMonth` `DatePicker` `DateRangePicker` `TimePicker` `TimeField` `WheelPicker` `RelativeTimeText` |
-| [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Skeleton` `EmptyState` `Banner` `Callout` `Timeline` `Accordion` `Stat` `KeyValueList` `Kbd` |
+| [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Skeleton` `EmptyState` `Banner` `Callout` `Timeline` `Accordion` `Stat` `KeyValueList` `Carousel` `Kbd` |
 | [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `SettingRow` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` |
 | [**Navigation**](components/navigation.md) | Getting between screens | `NavigationSuiteScaffold` `NavItem` `NavBar` `NavRail` `NavDrawer` `TopBar` `TabBar` `Breadcrumbs` `Pagination` |
-| [**Overlays**](overlays.md) | Things drawn over everything | `Dialog` `AlertDialog` `DropdownMenu` `SubMenu` `ContextMenuArea` `Popover` `Tooltip` `Toast` `LoadingOverlay` |
+| [**Overlays**](overlays.md) | Things drawn over everything | `Dialog` `AlertDialog` `DropdownMenu` `SubMenu` `ContextMenuArea` `Popover` `Tooltip` `Toast` `LoadingOverlay` `CommandPalette` |
 | [**Sheets**](sheets.md) | Bottom and side panels | `BottomSheet` `ModalBottomSheet` `SideSheet` `SheetHeader` `DragHandle` |
 | [**Adaptive**](components/adaptive.md) | Layout and motion by window | `Scaffold` `ListDetailPaneScaffold` `WindowSizeClass` `GlassSurface` `Motion.*` |
 | [**Foundation**](components/foundation.md) | What the rest is built from | `Text` `Icon` `Surface` `Divider` `Scrim` |
@@ -45,6 +45,7 @@ The comparisons that get made wrongly, and where each is argued:
 | `Dialog` vs `ModalBottomSheet` | [overlays](overlays.md) |
 | `Chip` vs `Tag` | [display](components/display.md#tag) |
 | `Skeleton` vs `Spinner` | [display](components/display.md#skeletons) |
+| `CommandPalette` vs `Combobox` | [overlays](overlays.md#commandpalette) |
 | `Stat` vs `KeyValueList` vs `SettingRow` | [display](components/display.md#keyvaluelist) |
 | `EmptyState` vs `ErrorState` | [display](components/display.md#emptystate--errorstate) |
 | `Pagination` vs `LoadMore` | [navigation](components/navigation.md#pagination) |
@@ -60,17 +61,14 @@ Per phase — see [README](../README.md#status). Everything above is built.
 
 Listed so the shape of the finished system is visible.
 
-**Selection, remaining** — `Rating`, `FilePicker`
+**Selection, remaining** — `FilePicker`
 
 **Date and time, remaining** — `DurationPicker`, and a multi-month scrolling
 calendar for range selection across month boundaries
 
-**Text editing, remaining** — `OtpField`, `TagInput`, `CurrencyField`, and a
-`CommandPalette` — a search field over *actions* rather than values. The pieces
-exist (`SearchField`, `trapFocus`, `MenuScope.item(shortcut =)`, `Kbd`) and
-nothing composes them; `Combobox` explicitly declines the case.
+**Text editing, remaining** — `OtpField`, `TagInput`, `CurrencyField`
 
-**Display, remaining** — `Carousel` + `PageIndicator`, `Marquee`
+**Display, remaining** — `Marquee`
 
 ### Deliberately not being built
 

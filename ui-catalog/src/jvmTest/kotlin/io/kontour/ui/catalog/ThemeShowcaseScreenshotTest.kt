@@ -91,7 +91,7 @@ class ThemeShowcaseScreenshotTest {
                 // are drawn on top of each other and on the heading above them,
                 // which reads as a layout bug in the components rather than as a
                 // canvas that is too short.
-                height = 2260,
+                height = 2380,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
                     SelectionShowcase()
@@ -143,8 +143,15 @@ class ThemeShowcaseScreenshotTest {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "overlays-"),
-                width = 2320,
-                height = 2060,
+                // Widened for the command-palette panel, to fit *four* per row.
+                // The panels flow, and the old 2320 left just enough slack for a
+                // fourth to start on a row that could not hold it — the last
+                // panel was drawn as a column of single letters. Trimming the
+                // slack did not help: the width has to either fit the next
+                // panel or leave it no room at all, and fitting it is the one
+                // that keeps the gallery readable.
+                width = 3120,
+                height = 2100,
                 // Overlays need more than the usual handful. Each one has to be
                 // laid out before its anchor is known, pushed into the host on
                 // the recomposition after that, and then animated in — three
@@ -258,7 +265,7 @@ class ThemeShowcaseScreenshotTest {
                 // move, so the run passes and the page claims coverage of a
                 // component it never drew. After adding a section here, check
                 // that the golden actually changed.
-                height = 2600,
+                height = 2780,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
                     DisplayShowcase()

@@ -16,6 +16,7 @@ Controls that record a choice.
 | [`Slider`](#slider) | A value in a continuous range | A `NumberField`, when the exact figure matters |
 | [`RangeSlider`](#rangeslider) | A band — two values on one track | Two `Slider`s, which cannot stop each other crossing |
 | [`Stepper`](#stepper) | A small exact count | A `Slider`, when the number is approximate |
+| [`Rating`](#rating) | A score out of five | A `Slider`, when the scale is not a score |
 
 **The single most important rule on this page:** every one of these belongs
 inside a [`SelectionRow`](#selectionrow) unless something else is already
@@ -365,3 +366,37 @@ unlabelled "2" between two buttons.
 **Reach for a [`Slider`](#slider) instead** when the number is approximate and
 the range is wide. A stepper is for a count someone knows exactly and will change
 by one or two; nobody taps `+` thirty times.
+
+---
+
+## `Rating`
+
+![Rating](../../../../../app/ui-catalog/screenshots/components/rating-light.png)
+
+```kotlin
+Rating(value = 4f, contentDescription = "Your rating", onValueChange = { rating = it })
+
+Rating(value = 4.3f, contentDescription = "Average rating")   // read-only
+```
+
+**`onValueChange = null` makes it read-only, and read-only means it is not a
+control at all** — no role, no touch target, no click action, one node saying
+"Average rating, 4.3 out of 5".
+
+That is the case that gets built wrong. Most ratings on any screen are
+*averages*, and shipping those as five silent radio buttons gives a
+screen-reader user five things to activate that do nothing —
+[`EverythingRespondsTest`](../../building/testing.md#everythingrespondstest)
+exists to catch exactly that.
+
+Interactive, it is a `selectableGroup` of `Role.RadioButton` marks, because
+picking one of five is what that is. Each announces its own value, so "3 out of
+5" is a thing to navigate to and choose rather than a slider to drag blind.
+
+A fractional `value` draws a partly-filled mark and only makes sense read-only —
+a tap cannot mean 3.4. The fill is a hard clip over the empty glyph rather than
+a gradient: a star is not a rectangle, and a gradient across one fills the
+points before the body and reads as a smudge.
+
+`icon` and `filledIcon` default to a star outline and a filled star, and are
+parameters because a rating of hearts is a reasonable thing to want.

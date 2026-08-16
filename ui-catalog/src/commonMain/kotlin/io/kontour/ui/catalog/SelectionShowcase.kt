@@ -25,6 +25,7 @@ import io.kontour.ui.components.selection.RadioButton
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.selection.RangeSlider
+import io.kontour.ui.components.selection.Rating
 import io.kontour.ui.components.selection.Slider
 import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.selection.Switch
@@ -240,6 +241,29 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                         onValueChange = {},
                         enabled = false,
                         modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+
+            Section("Rating") {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    val score = seed(3)
+                    Rating(
+                        value = score.value.toFloat(),
+                        contentDescription = "Your rating",
+                        onValueChange = { score.value = it },
+                    )
+                    // Read-only, and fractional — the half-filled mark is a
+                    // display-only state an interactive rating can never reach.
+                    Rating(value = 4.3f, contentDescription = "Average rating")
+                    Rating(
+                        value = 2f,
+                        contentDescription = "Locked rating",
+                        onValueChange = {},
+                        enabled = false,
                     )
                 }
             }
