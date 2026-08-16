@@ -138,12 +138,13 @@ fun closeEnclosingSheet(): (() -> Unit)? {
  *
  * ```kotlin
  * SheetHeader(
- *     title = "Perth Underground",
- *     supporting = "Platform 2 · Joondalup line",
- *     onClose = { showing = false },
  *     modifier = Modifier.sheetPeekAnchor(),
+ *     onClose = { showing = false },
  *     actions = { IconButton(Tabler.Outline.Star, "Favourite", onClick = ::favourite) },
- * )
+ * ) {
+ *     +"Perth Underground"
+ *     supporting { +"Platform 2 · Joondalup line" }
+ * }
  * ```
  *
  * Put [Modifier.sheetPeekAnchor] on it for a sheet with a `peek` detent, and the

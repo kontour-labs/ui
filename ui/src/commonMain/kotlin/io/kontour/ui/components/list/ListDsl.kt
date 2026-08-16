@@ -31,7 +31,7 @@ import io.kontour.ui.components.list.ListItemDefaults
  * ```kotlin
  * val positions = listPositions(stops.size)      // the bit people forget
  * stops.forEachIndexed { index, stop ->
- *     ListItem(label = stop.name, position = positions[index], …)
+ *     ListItem(position = positions[index], …) { +stop.name }
  * }
  * ```
  *
@@ -123,7 +123,7 @@ class ListGroupScope internal constructor() {
      * ListGroup {
      *     item("Notifications") { … }
      *     row { position ->
-     *         ListItem(label = "Sign out", position = position, onClick = ::signOut)
+     *         ListItem(position = position, onClick = ::signOut) { +"Sign out" }
      *     }
      * }
      * ```

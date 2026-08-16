@@ -230,8 +230,13 @@ internal val LocalSelectionIndicator = staticCompositionLocalOf<SelectionIndicat
  *     indicator = { Box(Modifier.fillMaxSize().background(Theme.colors.accent.solid, Theme.shapes.pill)) },
  * ) {
  *     Row(Modifier.fillMaxWidth().selectableGroup()) {
- *         items.forEachIndexed { i, item ->
- *             Tab(item, selected = i == current, modifier = Modifier.selectionIndicatorItem(item.id, i == current))
+ *         items.forEachIndexed { index, item ->
+ *             val selected = index == current
+ *             Box(
+ *                 Modifier
+ *                     .selectionIndicatorItem(item.id, selected)
+ *                     .selectable(selected, onClick = { current = index }, role = Role.Tab)
+ *             ) { Text(item.label) }
  *         }
  *     }
  * }

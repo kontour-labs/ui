@@ -15,7 +15,7 @@ app/ui/src/commonMain/kotlin/io/kontour/ui/
     datetime/     pickers, calendars
     text/         text fields
     display/      cards, badges, avatars, progress, banners
-    collection/   list items, tables, swipe actions
+    list/         list items, sections, swipe actions, reordering
   nav/            bars, rails, drawers, tabs
   overlay/        dialogs, menus, tooltips, toasts
   sheet/          bottom and side sheets
@@ -39,7 +39,7 @@ share a file.
  *
  * ```
  * Button(onClick = ::submit, variant = ButtonVariant.Primary) {
- *     Text("Save")
+ *     +"Save"
  * }
  * ```
  *
@@ -54,7 +54,7 @@ fun Button(
     variant: ButtonVariant = ButtonVariant.Primary,
     size: ButtonSize = ButtonSize.Medium,
     interactionSource: MutableInteractionSource? = null,
-    content: @Composable RowScope.() -> Unit,
+    content: @Composable RowContentScope.() -> Unit,
 )
 ```
 
@@ -220,27 +220,33 @@ should.
 For haptics, ask for an *intent*, not a constant:
 
 ```kotlin
-Theme.feedback.perform(FeedbackIntent.Selection)
+Feedback.perform(FeedbackIntent.Selection)
 ```
 
 ---
 
 ## Tests
 
-Every component needs, in `commonTest`:
+Every component needs:
 
-- **Registration in the contract suite**, which covers the rules above.
-- **Behaviour tests** for anything the contract suite cannot know: that a slider
-  clamps, that a text field's output transformation masks correctly, that a
-  sheet settles on the detent it was sent to.
+- **Registration in `componentRegistry`**, which covers the rules above. It
+  lives in `:ui-catalog`'s `commonTest`, not `:ui`'s, because the same list also
+  drives the per-component renders and a test source set is not visible to a
+  downstream module.
+- **Behaviour tests** in `:ui`'s `commonTest`, for anything the contract suite
+  cannot know: that a slider clamps, that a text field's output transformation
+  masks correctly, that a sheet settles on the detent it was sent to.
 - **A catalog entry** covering every state — default, hovered, pressed, focused,
   disabled, loading, error, long content, empty content.
 
 Run them with:
 
 ```sh
-./gradlew :ui:jvmTest
+./gradlew :ui:jvmTest :ui-catalog:jvmTest
 ```
+
+What each gate asks, and what each has caught, is in
+[`testing.md`](testing.md).
 
 ### Registering a component
 
@@ -249,7 +255,7 @@ One entry in `componentRegistry`, and all six rules apply to it:
 ```kotlin
 add(
     ComponentSpec("Chip", Role.Button) { modifier, enabled, onClick ->
-        Chip(label = "Bus", onClick = onClick, modifier = modifier, enabled = enabled)
+        Chip(onClick = onClick, modifier = modifier, enabled = enabled) { +"Bus" }
     }
 )
 ```

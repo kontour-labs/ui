@@ -74,10 +74,9 @@ enum class ListItemPosition {
          * ```kotlin
          * itemsIndexed(stops) { index, stop ->
          *     ListItem(
-         *         label = stop.name,
-         *         position = ListItemPosition.of(index, stops.size),
          *         onClick = { open(stop) },
-         *     )
+         *         position = ListItemPosition.of(index, stops.size),
+         *     ) { +stop.name }
          * }
          * ```
          */
@@ -117,14 +116,6 @@ object ListItemDefaults {
     /** Corner radius on a group's outside edges. */
     val Shape: CornerBasedShape @Composable get() = Theme.shapes.medium
 
-    /**
-     * Radius on the edges facing a neighbour.
-     *
-     * Not zero. A hairline round on the inside corners keeps a group looking
-     * like one object with divisions rather than a solid block that happens to
-     * have lines drawn on it — the same reason a physical card stack has visible
-     * edges.
-     */
     /** Gap between items in a group. */
     val Spacing: Dp = 2.dp
 
@@ -162,13 +153,14 @@ object ListItemDefaults {
  *
  * ```kotlin
  * ListItem(
- *     label = "Perth Underground",
- *     supporting = "Platform 2 · Joondalup line",
- *     leading = { Icon(Tabler.Outline.Train, contentDescription = null) },
- *     trailing = { Text("4 min") },
- *     position = ListItemPosition.of(index, stops.size),
  *     onClick = { open(stop) },
- * )
+ *     position = ListItemPosition.of(index, stops.size),
+ * ) {
+ *     leading { +Tabler.Outline.Train }
+ *     +"Perth Underground"
+ *     supporting { +"Platform 2 · Joondalup line" }
+ *     trailing { +"4 min" }
+ * }
  * ```
  *
  * The row owns the interaction, not the controls inside it. A bare control with
@@ -342,104 +334,104 @@ fun ListItem(
                 }
             }
         }
-        }
     }
+}
 
-    /**
-     * A titled group of [ListItem]s.
-     *
-     * ```kotlin
-     * ListSection("Notifications") {
-     *     SelectionRow("Delays", …)
-     *     SelectionRow("Cancellations", …)
-     * }
-     * ```
-     *
-     * Spaces its children and marks the title as a heading, so a screen reader can
-     * jump between sections. It does *not* set each child's [ListItemPosition] —
-     * doing that would mean walking the composed children, which Compose has no way
-     * to do. Use [listPositions] or [ListItemPosition.of] at the call site.
-     *
-     * @param description Sits under the title, above the rows. For what the group
-     *   *is*.
-     * @param footer Sits under the rows. For what the setting *does* — the sentence
-     *   a settings screen puts below a switch to explain the consequence of it.
-     *   Spelled like [description] rather than as a slot because it is the same kind
-     *   of thing, and the two should not read as different mechanisms.
-     */
-    @Composable
-    fun ListSection(
-        modifier: Modifier = Modifier,
-        title: String? = null,
-        description: String? = null,
-        footer: String? = null,
-        action: (@Composable RowScope.() -> Unit)? = null,
-        spacing: Dp = ListItemDefaults.Spacing,
-        content: @Composable ColumnScope.() -> Unit,
+/**
+ * A titled group of [ListItem]s.
+ *
+ * ```kotlin
+ * ListSection("Notifications") {
+ *     SelectionRow("Delays", …)
+ *     SelectionRow("Cancellations", …)
+ * }
+ * ```
+ *
+ * Spaces its children and marks the title as a heading, so a screen reader can
+ * jump between sections. It does *not* set each child's [ListItemPosition] —
+ * doing that would mean walking the composed children, which Compose has no way
+ * to do. Use [listPositions] or [ListItemPosition.of] at the call site.
+ *
+ * @param description Sits under the title, above the rows. For what the group
+ *   *is*.
+ * @param footer Sits under the rows. For what the setting *does* — the sentence
+ *   a settings screen puts below a switch to explain the consequence of it.
+ *   Spelled like [description] rather than as a slot because it is the same kind
+ *   of thing, and the two should not read as different mechanisms.
+ */
+@Composable
+fun ListSection(
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    description: String? = null,
+    footer: String? = null,
+    action: (@Composable RowScope.() -> Unit)? = null,
+    spacing: Dp = ListItemDefaults.Spacing,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(spacing),
     ) {
-        Column(
-            modifier = modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(spacing),
-        ) {
-            if (title != null || action != null) {
-                SectionHeader(
-                    title = title.orEmpty(),
-                    description = description,
-                    action = action,
-                )
-            }
-            content()
-            if (footer != null) {
-                Text(
-                    text = footer,
-                    modifier = Modifier.padding(
-                        start = Theme.spacing.md,
-                        end = Theme.spacing.md,
-                        top = Theme.spacing.xxs,
-                    ),
-                    style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentMuted,
-                )
-            }
+        if (title != null || action != null) {
+            SectionHeader(
+                title = title.orEmpty(),
+                description = description,
+                action = action,
+            )
         }
-    }
-
-    /** A heading above a group of rows. */
-    @Composable
-    fun SectionHeader(
-        title: String,
-        modifier: Modifier = Modifier,
-        description: String? = null,
-        action: (@Composable RowScope.() -> Unit)? = null,
-    ) {
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(
+        content()
+        if (footer != null) {
+            Text(
+                text = footer,
+                modifier = Modifier.padding(
                     start = Theme.spacing.md,
-                    end = Theme.spacing.xs,
-                    top = Theme.spacing.md,
-                    bottom = Theme.spacing.xxs,
+                    end = Theme.spacing.md,
+                    top = Theme.spacing.xxs,
                 ),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
+                style = Theme.typography.bodySmall,
+                color = Theme.colors.contentMuted,
+            )
+        }
+    }
+}
+
+/** A heading above a group of rows. */
+@Composable
+fun SectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    description: String? = null,
+    action: (@Composable RowScope.() -> Unit)? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(
+                start = Theme.spacing.md,
+                end = Theme.spacing.xs,
+                top = Theme.spacing.md,
+                bottom = Theme.spacing.xxs,
+            ),
+        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = title,
+                modifier = Modifier.semantics { heading() },
+                style = Theme.typography.labelMedium,
+                color = Theme.colors.contentMuted,
+            )
+            if (description != null) {
                 Text(
-                    text = title,
-                    modifier = Modifier.semantics { heading() },
-                    style = Theme.typography.labelMedium,
-                    color = Theme.colors.contentMuted,
+                    text = description,
+                    style = Theme.typography.bodySmall,
+                    color = Theme.colors.contentSubtle,
                 )
-                if (description != null) {
-                    Text(
-                        text = description,
-                        style = Theme.typography.bodySmall,
-                        color = Theme.colors.contentSubtle,
-                    )
-                }
             }
-            action?.invoke(this)
+        }
+        action?.invoke(this)
     }
 }
 
@@ -449,7 +441,7 @@ fun ListItem(
  * ```kotlin
  * val positions = listPositions(stops.size)
  * stops.forEachIndexed { index, stop ->
- *     ListItem(label = stop.name, position = positions[index], …)
+ *     ListItem(position = positions[index], …) { +stop.name }
  * }
  * ```
  *

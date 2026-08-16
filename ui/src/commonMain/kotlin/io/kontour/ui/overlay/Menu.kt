@@ -104,11 +104,11 @@ object MenuDefaults {
  *
  * ```
  * Box {
- *     IconButton(TablerIcons.Dots, "More", onClick = { expanded = true })
+ *     IconButton(Tabler.Outline.Dots, "More", onClick = { expanded = true })
  *     DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
- *         MenuItem("Share", onClick = ::share, leadingIcon = TablerIcons.Share)
- *         MenuDivider()
- *         MenuItem("Delete", onClick = ::delete, destructive = true)
+ *         item("Share", icon = Tabler.Outline.Share, onClick = ::share)
+ *         divider()
+ *         item("Delete", destructive = true, onClick = ::delete)
  *     }
  * }
  * ```
@@ -305,8 +305,9 @@ private fun MenuPanel(
 /**
  * One row in a menu.
  *
- * @param trailingText For a keyboard shortcut. Rendered muted and never
- *   truncated before the label is — the label is what the user is reading.
+ * A keyboard shortcut is not a parameter here — it belongs to the DSL, as
+ * [MenuScope.item]'s `shortcut`, and renders as a [io.kontour.ui.components.display.Kbd].
+ *
  * @param selected Marks the current choice in a menu that picks one of several.
  *   Draws a check and reports `Role.RadioButton` to assistive tech, because "one
  *   of these is on" is the thing being conveyed.

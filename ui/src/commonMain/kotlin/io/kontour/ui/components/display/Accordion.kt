@@ -45,10 +45,9 @@ import io.kontour.ui.theme.Theme
  *
  * ```
  * Accordion(
- *     title = "Accessibility",
  *     expanded = section == Section.Accessibility,
  *     onExpandedChange = { section = if (it) Section.Accessibility else null },
- *     chevron = Tabler.Outline.ChevronDown,
+ *     header = { +"Accessibility" },
  * ) {
  *     SelectionRow(…)
  * }

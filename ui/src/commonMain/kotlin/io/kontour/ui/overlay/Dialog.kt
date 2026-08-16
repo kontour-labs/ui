@@ -155,13 +155,14 @@ fun Dialog(
  * ```
  * AlertDialog(
  *     visible = confirming,
- *     title = "Delete favourite?",
- *     message = "Perth Station will be removed from your list.",
  *     confirmLabel = "Delete",
  *     onConfirm = { viewModel.delete(); confirming = false },
  *     onDismissRequest = { confirming = false },
  *     destructive = true,
- * )
+ * ) {
+ *     title { +"Delete favourite?" }
+ *     message { +"Perth Station will be removed from your list." }
+ * }
  * ```
  *
  * The confirm button is on the trailing edge and the cancel on its leading side,

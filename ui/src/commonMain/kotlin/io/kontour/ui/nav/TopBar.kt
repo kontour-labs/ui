@@ -69,10 +69,9 @@ object TopBarDefaults {
  *
  * ```kotlin
  * TopBar(
- *     title = "Perth Underground",
  *     onBack = navController::popBackStack,
  *     actions = { IconButton(Tabler.Outline.Star, "Favourite", onClick = ::favourite) },
- * )
+ * ) { +"Perth Underground" }
  * ```
  *
  * **Not a navigation surface.** The app's destinations live in a [NavBar] at the
@@ -250,7 +249,7 @@ private fun TitleBlock(
  *
  * ```kotlin
  * val listState = rememberLazyListState()
- * TopBar(title = stop.name, style = TopBarStyle.Large, collapseProgress = collapseProgress(listState))
+ * TopBar(style = TopBarStyle.Large, collapseProgress = collapseProgress(listState)) { +stop.name }
  * LazyColumn(state = listState) { … }
  * ```
  *

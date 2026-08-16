@@ -26,15 +26,15 @@ import io.kontour.ui.theme.Theme
  * What to show where content would be, when there is none.
  *
  * ```
- * EmptyState(
- *     icon = Tabler.Outline.Star,
- *     title = "No favourites yet",
- *     message = "Star a stop or route and it will appear here.",
- *     action = { Button(onClick = ::browse) { +"Browse routes" } },
- * )
+ * EmptyState {
+ *     leading { +Tabler.Outline.Star }
+ *     title { +"No favourites yet" }
+ *     message { +"Star a stop or route and it will appear here." }
+ *     action { Button(onClick = ::browse) { +"Browse routes" } }
+ * }
  * ```
  *
- * The [message] should say *how to get out of the empty state*, not restate the
+ * The message should say *how to get out of the empty state*, not restate the
  * title. "No favourites yet" followed by "You have no favourites" tells the user
  * nothing they cannot see; followed by "Star a stop and it will appear here" it
  * becomes useful.
@@ -61,12 +61,10 @@ fun EmptyState(
  * What to show when something failed.
  *
  * ```
- * ErrorState(
- *     title = "Couldn't load departures",
- *     message = "Check your connection and try again.",
- *     onRetry = viewModel::refresh,
- *     retryLabel = "Try again",
- * )
+ * ErrorState(onRetry = viewModel::refresh, retryLabel = "Try again") {
+ *     title { +"Couldn't load departures" }
+ *     message { +"Check your connection and try again." }
+ * }
  * ```
  *
  * Announced assertively, because unlike an empty state this is something the

@@ -60,9 +60,6 @@ enum class TagTone { Neutral, Accent, Success, Warning, Danger, Info }
  *
  * @param color An explicit background. Overrides [tone]. The label colour is
  *   derived, not guessed.
- * @param contentDescription What a screen reader announces. Defaults to the
- *   label, which is usually right; override for abbreviations a reader would
- *   mangle — "960" is fine, "PM Pk" is not.
  */
 @Composable
 fun Tag(

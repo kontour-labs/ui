@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
  * LazyColumn(state = listState) {
  *     itemsIndexed(favourites, key = { _, it -> it.id }) { index, favourite ->
  *         ReorderableItem(reorder, index) {
- *             ListItem(headline = favourite.name)
+ *             ListItem { +favourite.name }
  *         }
  *     }
  * }
@@ -134,7 +134,7 @@ fun rememberReorderableState(
  *
  * ```kotlin
  * ReorderableItem(reorder, index, itemCount = favourites.size) {
- *     ListItem(headline = favourite.name)
+ *     ListItem { +favourite.name }
  * }
  * ```
  *

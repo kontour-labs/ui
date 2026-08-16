@@ -50,13 +50,12 @@ enum class BannerTone { Info, Success, Warning, Danger, Accent }
  * An inline message about the state of something.
  *
  * ```
- * Banner(
- *     tone = BannerTone.Warning,
- *     title = "Delays on the Armadale line",
- *     message = "Services are running up to 12 minutes late.",
- *     icon = Tabler.Outline.AlertTriangle,
- *     onDismissRequest = viewModel::dismissAlert,
- * )
+ * Banner(tone = BannerTone.Warning, onDismissRequest = viewModel::dismissAlert) {
+ *     leading { +Tabler.Outline.AlertTriangle }
+ *     title { +"Delays on the Armadale line" }
+ *     supporting { +"Services are running up to 12 minutes late." }
+ *     action { Button(onClick = ::showDetail) { +"View details" } }
+ * }
  * ```
  *
  * For something the user should know about the screen they are on. For something
@@ -75,8 +74,9 @@ enum class BannerTone { Info, Success, Warning, Danger, Accent }
  * says what is wrong, because a tone read purely as hue fails WCAG 1.4.1 and is
  * invisible to the most common form of colour blindness.
  *
- * @param icon Strongly recommended. Pass a distinct icon per tone.
- * @param action A button rendered below the message — "Retry", "View details".
+ * A `leading` icon is strongly recommended, and a distinct one per tone: it is
+ * the second signal a tone read purely as hue does not give. `action` renders
+ * below the message — "Retry", "View details".
  */
 @Composable
 fun Banner(

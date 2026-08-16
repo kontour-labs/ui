@@ -164,7 +164,7 @@ object SwipeActionsDefaults {
  *             isFullSwipeAction = true),
  *     ),
  * ) {
- *     ListItem(headline = stop.name, onClick = { open(stop) })
+ *     ListItem(onClick = { open(stop) }) { +stop.name }
  * }
  * ```
  *
@@ -398,7 +398,7 @@ private fun Modifier.clickableAction(onClick: () -> Unit, label: String): Modifi
  *     label = "Remove favourite",
  *     icon = Tabler.Outline.Trash,
  * ) {
- *     ListItem(headline = favourite.name)
+ *     ListItem { +favourite.name }
  * }
  * ```
  *
