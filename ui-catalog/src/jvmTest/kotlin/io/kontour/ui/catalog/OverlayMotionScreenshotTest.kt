@@ -230,7 +230,7 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
                         onClick = {},
                     )
                     DropdownMenu(
-                        expanded = showing.value,
+                        visible = showing.value,
                         onDismissRequest = {},
                         alignment = OverlayAlignment.Center,
                     ) {
@@ -279,7 +279,7 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
                         contentDescription = "Details",
                         onClick = {},
                     )
-                    Popover(expanded = showing.value, onDismissRequest = {}) {
+                    Popover(visible = showing.value, onDismissRequest = {}) {
                         Text(
                             "Runs every 15 minutes until 11pm.",
                             style = Theme.typography.bodySmall,

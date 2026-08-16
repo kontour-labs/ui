@@ -51,7 +51,7 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                     val depart = seed(LocalDate(2026, 6, 18))
                     DatePicker(
                         selected = depart.value,
-                        onSelect = { depart.value = it },
+                        onSelectedChange = { depart.value = it },
                         today = today,
                         isDateSelectable = { it >= today },
                         previousIcon = Tabler.Outline.ChevronLeft,
@@ -73,7 +73,7 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                     DateRangePicker(
                         start = range.value.first,
                         end = range.value.second,
-                        onSelect = { start, end -> range.value = start to end },
+                        onSelectedChange = { start, end -> range.value = start to end },
                         today = today,
                         previousIcon = Tabler.Outline.ChevronLeft,
                         nextIcon = Tabler.Outline.ChevronRight,
@@ -88,8 +88,8 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                 Section("Time picker — 24h") {
                     val at = seed(LocalTime(8, 15))
                     TimePicker(
-                        time = at.value,
-                        onTimeChange = { at.value = it },
+                        value = at.value,
+                        onValueChange = { at.value = it },
                         minuteStep = 5,
                     )
                 }
@@ -100,8 +100,8 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                     ) {
                         val afternoon = seed(LocalTime(14, 30))
                         TimePicker(
-                            time = afternoon.value,
-                            onTimeChange = { afternoon.value = it },
+                            value = afternoon.value,
+                            onValueChange = { afternoon.value = it },
                             minuteStep = 15,
                         )
                     }
@@ -117,7 +117,7 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                     val picking = seed(false)
 
                     TimeField(
-                        time = leaveAt.value,
+                        value = leaveAt.value,
                         onClick = { picking.value = true },
                         label = "Leave at",
                     )
@@ -140,8 +140,8 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                             ),
                         ) {
                             TimePicker(
-                                time = leaveAt.value,
-                                onTimeChange = { leaveAt.value = it },
+                                value = leaveAt.value,
+                                onValueChange = { leaveAt.value = it },
                                 minuteStep = 5,
                             )
                         }

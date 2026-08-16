@@ -32,7 +32,7 @@ import io.kontour.ui.theme.Theme
  * Moves between numbered pages of results.
  *
  * ```kotlin
- * Pagination(page = page, pageCount = totalPages, onPageChange = { page = it })
+ * Pagination(value = page, pageCount = totalPages, onValueChange = { page = it })
  * ```
  *
  * For a table or a result set the user needs to move *around* — jumping to page
@@ -49,9 +49,9 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun Pagination(
-    page: Int,
+    value: Int,
     pageCount: Int,
-    onPageChange: (Int) -> Unit,
+    onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
     window: Int = 1,
     previousLabel: String = "Previous page",
@@ -67,16 +67,16 @@ fun Pagination(
         IconButton(
             icon = SystemIcons.ChevronBack,
             contentDescription = previousLabel,
-            onClick = { onPageChange(page - 1) },
-            enabled = page > 0,
+            onClick = { onValueChange(value - 1) },
+            enabled = value > 0,
         )
 
-        for (slot in paginationSlots(page, pageCount, window)) {
+        for (slot in paginationSlots(value, pageCount, window)) {
             when (slot) {
                 is PaginationSlot.Page -> PageButton(
                     number = slot.index,
-                    selected = slot.index == page,
-                    onClick = { onPageChange(slot.index) },
+                    selected = slot.index == value,
+                    onClick = { onValueChange(slot.index) },
                 )
 
                 PaginationSlot.Gap -> Text(
@@ -95,8 +95,8 @@ fun Pagination(
         IconButton(
             icon = SystemIcons.ChevronForward,
             contentDescription = nextLabel,
-            onClick = { onPageChange(page + 1) },
-            enabled = page < pageCount - 1,
+            onClick = { onValueChange(value + 1) },
+            enabled = value < pageCount - 1,
         )
     }
 }

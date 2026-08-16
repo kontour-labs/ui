@@ -74,11 +74,11 @@ class RatingTest {
      */
     @Test
     fun tappingTheThirdMarkScoresThree() = runComposeUiTest {
-        var score = 0
+        var score = 0f
         setContent {
             KontourTheme {
                 Rating(
-                    value = score.toFloat(),
+                    value = score,
                     contentDescription = "Your rating",
                     onValueChange = { score = it },
                 )
@@ -86,7 +86,7 @@ class RatingTest {
         }
 
         onNodeWithContentDescription("3 out of 5").performClick()
-        assertEquals(3, score)
+        assertEquals(3f, score)
     }
 
     /**
@@ -99,11 +99,11 @@ class RatingTest {
      */
     @Test
     fun tappingTheLastMarkScoresTheMaximum() = runComposeUiTest {
-        var score = 0
+        var score = 0f
         setContent {
             KontourTheme {
                 Rating(
-                    value = score.toFloat(),
+                    value = score,
                     contentDescription = "Your rating",
                     onValueChange = { score = it },
                 )
@@ -111,7 +111,7 @@ class RatingTest {
         }
 
         onNodeWithContentDescription("5 out of 5").performClick()
-        assertEquals(5, score)
+        assertEquals(5f, score)
     }
 
     /**

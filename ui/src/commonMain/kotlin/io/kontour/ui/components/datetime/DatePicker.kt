@@ -72,7 +72,7 @@ fun rememberCalendarNavigationState(initial: LocalDate): CalendarNavigationState
  * ```
  * DatePicker(
  *     selected = departureDate,
- *     onSelect = viewModel::setDepartureDate,
+ *     onSelectedChange = viewModel::setDepartureDate,
  *     today = today,
  *     isDateSelectable = { it >= today },
  *     previousIcon = Tabler.Outline.ChevronLeft,
@@ -88,7 +88,7 @@ fun rememberCalendarNavigationState(initial: LocalDate): CalendarNavigationState
 @Composable
 fun DatePicker(
     selected: LocalDate?,
-    onSelect: (LocalDate) -> Unit,
+    onSelectedChange: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
@@ -110,7 +110,7 @@ fun DatePicker(
         CalendarMonth(
             month = month,
             isSelected = { it == selected },
-            onSelect = onSelect,
+            onSelectedChange = onSelectedChange,
             isDateSelectable = isDateSelectable,
             today = today,
             markerFor = markerFor,
@@ -127,14 +127,14 @@ fun DatePicker(
  * the current start restarts the range there rather than producing a backwards
  * one — which is what people actually mean when they do it.
  *
- * @param onSelect Receives the range so far. The end is null while only a start
+ * @param onSelectedChange Receives the range so far. The end is null while only a start
  *   has been chosen, so a caller can keep its confirm button disabled.
  */
 @Composable
 fun DateRangePicker(
     start: LocalDate?,
     end: LocalDate?,
-    onSelect: (start: LocalDate, end: LocalDate?) -> Unit,
+    onSelectedChange: (start: LocalDate, end: LocalDate?) -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
@@ -155,11 +155,11 @@ fun DateRangePicker(
         CalendarMonth(
             month = month,
             isSelected = { false },
-            onSelect = { tapped ->
+            onSelectedChange = { tapped ->
                 when {
-                    start == null || end != null -> onSelect(tapped, null)
-                    tapped < start -> onSelect(tapped, null)
-                    else -> onSelect(start, tapped)
+                    start == null || end != null -> onSelectedChange(tapped, null)
+                    tapped < start -> onSelectedChange(tapped, null)
+                    else -> onSelectedChange(start, tapped)
                 }
             },
             isDateSelectable = isDateSelectable,
@@ -170,7 +170,7 @@ fun DateRangePicker(
             // ordering them is this component's business, because only it knows
             // that a range's `start` is the earlier of the two.
             onDragSelect = { from, to ->
-                if (to < from) onSelect(to, from) else onSelect(from, to)
+                if (to < from) onSelectedChange(to, from) else onSelectedChange(from, to)
             },
             formats = formats,
         )

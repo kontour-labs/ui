@@ -53,7 +53,7 @@ import io.kontour.ui.overlay.ToastTone
 import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.overlay.coachMark
 import io.kontour.ui.overlay.rememberOverlayQueue
-import io.kontour.ui.overlay.rememberToasts
+import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.theme.Theme
 
 /**
@@ -92,7 +92,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             onClick = { menu.value = !menu.value },
                         )
                         DropdownMenu(
-                            expanded = menu.value,
+                            visible = menu.value,
                             onDismissRequest = { menu.value = false },
                             alignment = OverlayAlignment.Center,
                         ) {
@@ -136,7 +136,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                         ) {
                             +"Sort"
                         }
-                        DropdownMenu(expanded = sort.value, onDismissRequest = { sort.value = false }) {
+                        DropdownMenu(visible = sort.value, onDismissRequest = { sort.value = false }) {
                             val order = seed(0)
                             item(
                                 "Departure time",
@@ -164,7 +164,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             contentDescription = "About this route",
                             onClick = { popover.value = !popover.value },
                         )
-                        Popover(expanded = popover.value, onDismissRequest = { popover.value = false }) {
+                        Popover(visible = popover.value, onDismissRequest = { popover.value = false }) {
                             Text("Route 950", style = Theme.typography.titleSmall)
                             Text(
                                 "Runs every 15 minutes until 11pm, then every 30 " +
@@ -235,7 +235,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
 
             Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
                 Panel("Toast") {
-                    val toasts = rememberToasts()
+                    val toasts = rememberToastHostState()
                     ToastHost(toasts)
                     // Hoisted out of the effect: `tap` reads a composition local,
                     // and a coroutine is not a composition.
@@ -297,7 +297,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                             variant = ButtonVariant.Ghost,
                         ) { +"Options" }
                         DropdownMenu(
-                            expanded = edgeMenu.value,
+                            visible = edgeMenu.value,
                             onDismissRequest = { edgeMenu.value = false },
                             side = OverlaySide.Bottom,
                         ) {

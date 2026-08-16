@@ -130,7 +130,7 @@ fun SelectShowcase(modifier: Modifier = Modifier) {
                 MultiSelect(
                     values = modes,
                     options = Mode.entries,
-                    onValuesChange = { modes = it },
+                    onValueChange = { modes = it },
                     label = "Include",
                     optionLabel = { it.label },
                     optionIcon = {

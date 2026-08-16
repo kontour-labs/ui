@@ -59,7 +59,10 @@ import kotlin.math.ceil
  * @param value The score. Clamped into `0f..count`.
  * @param contentDescription What the score is *of* — "Your rating", "Average
  *   rating". Required: five stars with no name is a row of decoration.
- * @param onValueChange `null` for read-only. Receives whole numbers only.
+ * @param onValueChange `null` for read-only. Receives whole numbers, as the
+ *   `Float` [value] is, so the emitted score assigns straight back without a
+ *   conversion at every call site. A tap cannot produce a half mark; an average
+ *   can, which is why the parameter is a `Float` in the first place.
  * @param icon The empty mark. Defaults to a star outline.
  * @param filledIcon The full mark. Defaults to a filled star.
  */
@@ -69,7 +72,7 @@ fun Rating(
     contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    onValueChange: ((Int) -> Unit)? = null,
+    onValueChange: ((Float) -> Unit)? = null,
     count: Int = RatingDefaults.Count,
     icon: ImageVector? = null,
     filledIcon: ImageVector? = null,
@@ -140,7 +143,7 @@ fun Rating(
                         selected = markValue <= selected,
                         onClick = {
                             feedback.perform(FeedbackIntent.Selection)
-                            onValueChange(markValue)
+                            onValueChange(markValue.toFloat())
                         },
                         enabled = enabled,
                         role = androidx.compose.ui.semantics.Role.RadioButton,

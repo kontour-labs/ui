@@ -204,7 +204,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun StopList(selected: Int, onSelect: (Int) -> Unit) {
+private fun StopList(selected: Int, onSelectedChange: (Int) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -217,7 +217,7 @@ private fun StopList(selected: Int, onSelect: (Int) -> Unit) {
             ListItem(
                 position = ListItemPosition.of(index, stops.size),
                 selected = index == selected,
-                onClick = { onSelect(index) },
+                onClick = { onSelectedChange(index) },
             ) {
                 +name
                 supporting { +"Platform ${index + 1}" }

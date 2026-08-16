@@ -163,7 +163,7 @@ private fun Harness(): OverlayHostState {
     KontourTheme(reduceMotion = true) {
         OverlayHost(Modifier.fillMaxSize(), state = host) {
             Box(Modifier.fillMaxSize().padding(24.dp)) {
-                DropdownMenu(expanded = true, onDismissRequest = {}) {
+                DropdownMenu(visible = true, onDismissRequest = {}) {
                     item("Sort by") {}
                     submenu("Group by") {
                         item("Route") {}

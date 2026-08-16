@@ -60,7 +60,7 @@ object SegmentedControlDefaults {
  * SegmentedControl(
  *     options = listOf("Depart", "Arrive"),
  *     selectedIndex = mode,
- *     onSelect = viewModel::setMode,
+ *     onSelectedChange = viewModel::setMode,
  * )
  * ```
  *
@@ -78,7 +78,7 @@ object SegmentedControlDefaults {
 fun SegmentedControl(
     options: List<String>,
     selectedIndex: Int,
-    onSelect: (Int) -> Unit,
+    onSelectedChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
@@ -144,7 +144,7 @@ fun SegmentedControl(
                             selected = selected,
                             onClick = {
                                 feedback.perform(FeedbackIntent.Selection)
-                                onSelect(index)
+                                onSelectedChange(index)
                             },
                             enabled = enabled,
                             role = Role.RadioButton,

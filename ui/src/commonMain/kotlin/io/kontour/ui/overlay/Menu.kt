@@ -104,8 +104,8 @@ object MenuDefaults {
  *
  * ```
  * Box {
- *     IconButton(Tabler.Outline.Dots, "More", onClick = { expanded = true })
- *     DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+ *     IconButton(Tabler.Outline.Dots, "More", onClick = { visible = true })
+ *     DropdownMenu(visible, onDismissRequest = { visible = false }) {
  *         item("Share", icon = Tabler.Outline.Share, onClick = ::share)
  *         divider()
  *         item("Delete", destructive = true, onClick = ::delete)
@@ -128,7 +128,7 @@ object MenuDefaults {
  */
 @Composable
 fun DropdownMenu(
-    expanded: Boolean,
+    visible: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     side: OverlaySide = OverlaySide.Bottom,
@@ -141,7 +141,7 @@ fun DropdownMenu(
     Box(Modifier.parentBounds { anchor = it })
 
     AnchoredDropdownMenu(
-        expanded = expanded,
+        visible = visible,
         anchor = anchor,
         onDismissRequest = onDismissRequest,
         modifier = modifier,
@@ -160,7 +160,7 @@ fun DropdownMenu(
  * var field by remember { mutableStateOf<Rect?>(null) }
  *
  * Row(Modifier.anchorBounds { field = it }) { … }
- * AnchoredDropdownMenu(expanded, field, onDismissRequest = { … }) { … }
+ * AnchoredDropdownMenu(visible, field, onDismissRequest = { … }) { … }
  * ```
  *
  * [DropdownMenu] covers the common case by anchoring to the layout it is
@@ -173,7 +173,7 @@ fun DropdownMenu(
  */
 @Composable
 fun AnchoredDropdownMenu(
-    expanded: Boolean,
+    visible: Boolean,
     anchor: Rect?,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
@@ -199,8 +199,8 @@ fun AnchoredDropdownMenu(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(expanded, anchor != null, side, alignment, matchAnchorWidth, scrim) {
-        if (!expanded || anchor == null) {
+    LaunchedEffect(visible, anchor != null, side, alignment, matchAnchorWidth, scrim) {
+        if (!visible || anchor == null) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -515,7 +515,7 @@ fun SubMenu(
     }
 
     AnchoredDropdownMenu(
-        expanded = open && enabled,
+        visible = open && enabled,
         anchor = bounds,
         onDismissRequest = { open = false },
         modifier = Modifier.hoverable(panelInteractions),
@@ -614,7 +614,7 @@ fun ContextMenuArea(
     }
 
     AnchoredDropdownMenu(
-        expanded = anchor != null,
+        visible = anchor != null,
         anchor = anchor,
         onDismissRequest = { anchor = null },
         side = OverlaySide.Bottom,

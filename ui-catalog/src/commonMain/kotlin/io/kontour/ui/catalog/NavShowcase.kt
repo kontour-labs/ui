@@ -52,10 +52,10 @@ import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.theme.Theme
 
 @Composable
-private fun destinations(selected: Int, onSelect: (Int) -> Unit) = listOf(
-    NavItem("Home", Tabler.Outline.Home, { onSelect(0) }),
-    NavItem("Map", Tabler.Outline.Map, { onSelect(1) }),
-    NavItem("Plan", Tabler.Outline.Calendar, { onSelect(2) }, badge = 2),
+private fun destinations(selected: Int, onSelectedChange: (Int) -> Unit) = listOf(
+    NavItem("Home", Tabler.Outline.Home, { onSelectedChange(0) }),
+    NavItem("Map", Tabler.Outline.Map, { onSelectedChange(1) }),
+    NavItem("Plan", Tabler.Outline.Calendar, { onSelectedChange(2) }, badge = 2),
 )
 
 /**
@@ -176,19 +176,19 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                             val middle = seed(19)
                             val short = seed(2)
                             Pagination(
-                                page = first.value,
+                                value = first.value,
                                 pageCount = 40,
-                                onPageChange = { first.value = it },
+                                onValueChange = { first.value = it },
                             )
                             Pagination(
-                                page = middle.value,
+                                value = middle.value,
                                 pageCount = 40,
-                                onPageChange = { middle.value = it },
+                                onValueChange = { middle.value = it },
                             )
                             Pagination(
-                                page = short.value,
+                                value = short.value,
                                 pageCount = 5,
-                                onPageChange = { short.value = it },
+                                onValueChange = { short.value = it },
                             )
                         }
                     }

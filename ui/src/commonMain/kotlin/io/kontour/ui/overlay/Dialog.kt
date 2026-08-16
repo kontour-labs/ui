@@ -292,7 +292,7 @@ fun AlertDialog(
  * A confirmation you can `await`.
  *
  * ```
- * val confirmations = rememberConfirmations()
+ * val confirmations = rememberConfirmationController()
  * ConfirmHost(confirmations)
  *
  * // anywhere with a coroutine scope:
@@ -357,7 +357,7 @@ class ConfirmationController {
 }
 
 @Composable
-fun rememberConfirmations(): ConfirmationController = remember { ConfirmationController() }
+fun rememberConfirmationController(): ConfirmationController = remember { ConfirmationController() }
 
 /** Renders whatever [controller] is currently asking. Install once, near the root. */
 @Composable

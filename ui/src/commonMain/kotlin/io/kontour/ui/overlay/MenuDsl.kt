@@ -10,7 +10,7 @@ import io.kontour.ui.components.display.Kbd
  * The shorthand for a menu's contents.
  *
  * ```kotlin
- * DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+ * DropdownMenu(visible = open, onDismissRequest = { open = false }) {
  *     section("This stop")
  *     item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S") { share(stop) }
  *     item("Copy stop ID", icon = Tabler.Outline.Copy) { copy(stop.id) }

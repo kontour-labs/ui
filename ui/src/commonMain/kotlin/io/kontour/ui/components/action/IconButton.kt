@@ -140,7 +140,7 @@ fun IconToggleButton(
     icon: ImageVector,
     contentDescription: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+    onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     size: ButtonSize = ButtonSize.Medium,
@@ -177,17 +177,27 @@ fun IconToggleButton(
         colors = if (checked) accentColors else uncheckedColors,
         metrics = ButtonDefaults.metrics(size),
         interactions = interactions,
-        behaviour = Modifier.toggleable(
-            value = checked,
-            interactionSource = interactions,
-            indication = kontourIndication(shape, ButtonDefaults.pressScale(ButtonVariant.Ghost)),
-            enabled = enabled,
-            role = Role.Checkbox,
-            onValueChange = {
-                feedback.perform(FeedbackIntent.Selection)
-                onCheckedChange(it)
-            },
-        ),
+        // `null` is inert but still announces as a checkbox in its current
+        // state, the same as [Checkbox] and [Switch]. A toggle wired to nothing
+        // that also says nothing is a decoration.
+        behaviour = if (onCheckedChange == null) {
+            Modifier.semantics {
+                role = Role.Checkbox
+                toggleableState = ToggleableState(checked)
+            }
+        } else {
+            Modifier.toggleable(
+                value = checked,
+                interactionSource = interactions,
+                indication = kontourIndication(shape, ButtonDefaults.pressScale(ButtonVariant.Ghost)),
+                enabled = enabled,
+                role = Role.Checkbox,
+                onValueChange = {
+                    feedback.perform(FeedbackIntent.Selection)
+                    onCheckedChange(it)
+                },
+            )
+        },
     )
 }
 

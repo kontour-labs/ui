@@ -16,6 +16,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
@@ -59,6 +63,9 @@ import io.kontour.ui.theme.Theme
  * or `selectable` by role is the whole reason it is a separate component.
  *
  * @param onSelectedChange What the row should now be, not that it was pressed.
+ *   `null` makes the row non-interactive while still announcing its state — for
+ *   a row whose press is handled by a parent, the same as [Checkbox] and
+ *   [Switch].
  *   The row is doing the negating either way — `toggleable` hands it the new
  *   value — and a callback that threw it away made every toggle call site write
  *   `{ x = !x }`, which is the shape that reads `x` twice and can read a stale
@@ -71,7 +78,7 @@ import io.kontour.ui.theme.Theme
 @Composable
 fun SelectionRow(
     selected: Boolean,
-    onSelectedChange: (Boolean) -> Unit,
+    onSelectedChange: ((Boolean) -> Unit)?,
     role: Role,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -84,7 +91,16 @@ fun SelectionRow(
     val shape = Theme.shapes.small
     val feedback = Feedback
 
-    val selectionModifier = when (role) {
+    val selectionModifier = when {
+        // Inert, but still a checkbox that reads as checked. Dropping the
+        // modifier entirely would leave a row a screen reader announces as
+        // plain text.
+        onSelectedChange == null -> Modifier.semantics {
+            this.role = role
+            toggleableState = ToggleableState(selected)
+        }
+
+        else -> when (role) {
         Role.RadioButton -> Modifier.selectable(
             selected = selected,
             onClick = {
@@ -110,6 +126,7 @@ fun SelectionRow(
             interactionSource = interactions,
             indication = kontourIndication(shape, pressScale = 1f),
         )
+        }
     }
 
     // Published so a control inside the row can *show* the row's press — a

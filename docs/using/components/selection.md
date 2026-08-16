@@ -76,7 +76,7 @@ The control on its own. You almost never want this directly — see below.
 RadioGroup(
     options = listOf(Mode.Fastest, Mode.FewestChanges, Mode.LeastWalking),
     selected = mode,
-    onSelect = viewModel::setMode,
+    onSelectedChange = viewModel::setMode,
     label = { it.displayName },
     supporting = { it.explanation },
 )
@@ -202,7 +202,7 @@ scrolling row hides options off the edge of the screen.
 SegmentedControl(
     options = listOf("Bus", "Train", "Ferry"),
     selectedIndex = selected,
-    onSelect = viewModel::select,
+    onSelectedChange = viewModel::select,
 )
 ```
 

@@ -123,7 +123,7 @@ fun RadioButton(
  * RadioGroup(
  *     options = listOf(Depart.Now, Depart.At, Depart.ArriveBy),
  *     selected = departMode,
- *     onSelect = viewModel::setDepartMode,
+ *     onSelectedChange = viewModel::setDepartMode,
  *     label = { it.label },
  * )
  * ```
@@ -140,7 +140,7 @@ fun RadioButton(
 fun <T> RadioGroup(
     options: List<T>,
     selected: T?,
-    onSelect: (T) -> Unit,
+    onSelectedChange: (T) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     label: (T) -> String,
@@ -152,7 +152,7 @@ fun <T> RadioGroup(
             val supportingText = supporting?.invoke(option)
             SelectionRow(
                 selected = isSelected,
-                onSelectedChange = { onSelect(option) },
+                onSelectedChange = { onSelectedChange(option) },
                 enabled = enabled,
                 role = Role.RadioButton,
             ) {

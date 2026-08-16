@@ -35,7 +35,7 @@ import kotlinx.datetime.LocalTime
  * flick where a dial needs two precise drags.
  *
  * ```
- * TimePicker(time = departAt, onTimeChange = viewModel::setDepartAt)
+ * TimePicker(value = departAt, onValueChange = viewModel::setDepartAt)
  * ```
  *
  * The 12/24-hour split comes from [LocalDateTimeFormats], so it follows the
@@ -47,8 +47,8 @@ import kotlinx.datetime.LocalTime
  */
 @Composable
 fun TimePicker(
-    time: LocalTime,
-    onTimeChange: (LocalTime) -> Unit,
+    value: LocalTime,
+    onValueChange: (LocalTime) -> Unit,
     modifier: Modifier = Modifier,
     minuteStep: Int = 1,
     formats: DateTimeFormats = LocalDateTimeFormats.current,
@@ -60,21 +60,21 @@ fun TimePicker(
     val hours = remember(is24) { if (is24) (0..23).toList() else (1..12).toList() }
 
     val displayHour = when {
-        is24 -> time.hour
-        time.hour % 12 == 0 -> 12
-        else -> time.hour % 12
+        is24 -> value.hour
+        value.hour % 12 == 0 -> 12
+        else -> value.hour % 12
     }
     val hourIndex = hours.indexOf(displayHour).coerceAtLeast(0)
-    val minuteIndex = minutes.indexOfFirst { it >= time.minute }.coerceAtLeast(0)
-    val isPm = time.hour >= 12
+    val minuteIndex = minutes.indexOfFirst { it >= value.minute }.coerceAtLeast(0)
+    val isPm = value.hour >= 12
 
-    fun emit(hourValue: Int = displayHour, minute: Int = time.minute, pm: Boolean = isPm) {
+    fun emit(hourValue: Int = displayHour, minute: Int = value.minute, pm: Boolean = isPm) {
         val hour24 = when {
             is24 -> hourValue
             hourValue == 12 -> if (pm) 12 else 0
             else -> if (pm) hourValue + 12 else hourValue
         }
-        onTimeChange(LocalTime(hour24.coerceIn(0, 23), minute.coerceIn(0, 59)))
+        onValueChange(LocalTime(hour24.coerceIn(0, 23), minute.coerceIn(0, 59)))
     }
 
     Column(modifier) {
@@ -87,7 +87,7 @@ fun TimePicker(
                 WheelPicker(
                     items = hours,
                     selectedIndex = hourIndex,
-                    onSelect = { emit(hourValue = hours[it]) },
+                    onSelectedChange = { emit(hourValue = hours[it]) },
                     label = { if (is24) it.toString().padStart(2, '0') else it.toString() },
                 )
             }
@@ -98,7 +98,7 @@ fun TimePicker(
                 WheelPicker(
                     items = minutes,
                     selectedIndex = minuteIndex,
-                    onSelect = { emit(minute = minutes[it]) },
+                    onSelectedChange = { emit(minute = minutes[it]) },
                     label = { it.toString().padStart(2, '0') },
                 )
             }
@@ -123,7 +123,7 @@ fun TimePicker(
                     WheelPicker(
                         items = MERIDIEMS,
                         selectedIndex = if (isPm) 1 else 0,
-                        onSelect = { emit(pm = it == 1) },
+                        onSelectedChange = { emit(pm = it == 1) },
                         label = { it },
                         visibleItems = 3,
                     )
@@ -144,7 +144,7 @@ private val MERIDIEMS = listOf("AM", "PM")
  */
 @Composable
 fun TimeField(
-    time: LocalTime,
+    value: LocalTime,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -185,7 +185,7 @@ fun TimeField(
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(
-                text = formats.time(time),
+                text = formats.time(value),
                 style = Theme.typography.bodyLarge,
                 color = if (enabled) Theme.colors.content else Theme.colors.contentDisabled,
                 modifier = Modifier.padding(

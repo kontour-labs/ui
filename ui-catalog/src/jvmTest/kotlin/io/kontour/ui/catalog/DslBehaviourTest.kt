@@ -139,7 +139,7 @@ class DslBehaviourTest {
             KontourTheme {
                 OverlayHost {
                     Box(Modifier.fillMaxSize()) {
-                        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                        DropdownMenu(visible = open, onDismissRequest = { open = false }) {
                             item("Share") { ran = true }
                             item("Pin", closeOnClick = false) { ran = true }
                         }
@@ -166,7 +166,7 @@ class DslBehaviourTest {
             KontourTheme {
                 OverlayHost {
                     Box(Modifier.fillMaxSize()) {
-                        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                        DropdownMenu(visible = open, onDismissRequest = { open = false }) {
                             item("Only show delays", closeOnClick = false) { presses++ }
                         }
                     }

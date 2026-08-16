@@ -694,7 +694,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             SegmentedControl(
                 options = listOf("Bus", "Train"),
                 selectedIndex = 0,
-                onSelect = { onClick() },
+                onSelectedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
             )
@@ -758,7 +758,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             RadioGroup(
                 options = listOf("Bus", "Train"),
                 selected = "Bus",
-                onSelect = { onClick() },
+                onSelectedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
                 label = { it },

@@ -55,7 +55,7 @@ class Toast internal constructor(
  * Shows short confirmations of things the user just did.
  *
  * ```
- * val toasts = rememberToasts()
+ * val toasts = rememberToastHostState()
  * ToastHost(toasts)
  *
  * toasts.show("Added to favourites")
@@ -121,7 +121,7 @@ class ToastHostState {
 }
 
 @Composable
-fun rememberToasts(): ToastHostState = remember { ToastHostState() }
+fun rememberToastHostState(): ToastHostState = remember { ToastHostState() }
 
 /**
  * Renders whatever [state] has queued. Install once, near the root.

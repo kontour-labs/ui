@@ -125,7 +125,7 @@ On top of the slots, a few scopes carry a handful of small functions for the
 shape you write nine times out of ten.
 
 ```kotlin
-DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+DropdownMenu(visible = open, onDismissRequest = { open = false }) {
     section("This stop")
     item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S") { share(stop) }
     item("Copy stop ID", icon = Tabler.Outline.Copy) { copy(stop.id) }
@@ -152,7 +152,7 @@ component still works inside it, unchanged:
 | `ListGroupScope` | — | `ListGroup`, `LazyListScope.listGroup` |
 
 ```kotlin
-DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+DropdownMenu(visible = open, onDismissRequest = { open = false }) {
     item("Share") { share(stop) }
 
     // Not in the shorthand — nothing here takes a modifier. Use the component.

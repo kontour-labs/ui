@@ -63,7 +63,7 @@ enum class RangePosition { None, Start, Middle, End, StartAndEnd }
  * CalendarMonth(
  *     month = visibleMonth,
  *     isSelected = { it == chosen },
- *     onSelect = { chosen = it },
+ *     onSelectedChange = { chosen = it },
  *     isDateSelectable = { it >= today },
  * )
  * ```
@@ -91,7 +91,7 @@ object CalendarMonthDefaults {
 fun CalendarMonth(
     month: LocalDate,
     isSelected: (LocalDate) -> Boolean,
-    onSelect: (LocalDate) -> Unit,
+    onSelectedChange: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     isDateSelectable: (LocalDate) -> Boolean = { true },
     /**
@@ -176,7 +176,7 @@ fun CalendarMonth(
                             marker = markerFor?.invoke(date),
                             rangePosition = rangePositionOf?.invoke(date) ?: RangePosition.None,
                             formats = formats,
-                            onSelect = onSelect,
+                            onSelectedChange = onSelectedChange,
                         )
                     }
                 }
@@ -255,7 +255,7 @@ private fun DayCell(
     marker: Color?,
     rangePosition: RangePosition,
     formats: DateTimeFormats,
-    onSelect: (LocalDate) -> Unit,
+    onSelectedChange: (LocalDate) -> Unit,
 ) {
     val colors = Theme.colors
     val motion = Theme.motion
@@ -380,7 +380,7 @@ private fun DayCell(
                     role = Role.Button,
                     onClick = {
                         feedback.perform(FeedbackIntent.Selection)
-                        onSelect(date)
+                        onSelectedChange(date)
                     },
                 ),
             contentAlignment = Alignment.Center,

@@ -78,7 +78,7 @@ fun KontourTextToolbar(
 
     val request = state
     AnchoredDropdownMenu(
-        expanded = request != null,
+        visible = request != null,
         anchor = request?.rect,
         onDismissRequest = { toolbar.hide() },
         side = OverlaySide.Top,

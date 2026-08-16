@@ -174,12 +174,12 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                     SegmentedControl(
                         listOf("Depart", "Arrive"),
                         selectedIndex = when_.value,
-                        onSelect = { when_.value = it },
+                        onSelectedChange = { when_.value = it },
                     )
                     SegmentedControl(
                         listOf("Day", "Week", "Month"),
                         selectedIndex = span.value,
-                        onSelect = { span.value = it },
+                        onSelectedChange = { span.value = it },
                     )
                 }
             }
@@ -250,9 +250,11 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    val score = seed(3)
+                    // The score assigns straight back now that `onValueChange`
+                    // emits the type `value` takes.
+                    val score = seed(3f)
                     Rating(
-                        value = score.value.toFloat(),
+                        value = score.value,
                         contentDescription = "Your rating",
                         onValueChange = { score.value = it },
                     )

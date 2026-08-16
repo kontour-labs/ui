@@ -44,7 +44,7 @@ import kotlin.math.abs
  * WheelPicker(
  *     items = (0..23).toList(),
  *     selectedIndex = hour,
- *     onSelect = { hour = it },
+ *     onSelectedChange = { hour = it },
  *     label = { it.toString().padStart(2, '0') },
  * )
  * ```
@@ -56,7 +56,7 @@ import kotlin.math.abs
 fun <T> WheelPicker(
     items: List<T>,
     selectedIndex: Int,
-    onSelect: (Int) -> Unit,
+    onSelectedChange: (Int) -> Unit,
     label: (T) -> String,
     modifier: Modifier = Modifier,
     visibleItems: Int = 5,
@@ -69,7 +69,7 @@ fun <T> WheelPicker(
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
     val flingBehavior = rememberSnapFlingBehavior(listState)
     val feedback = Feedback
-    val currentOnSelect by rememberUpdatedState(onSelect)
+    val currentOnSelect by rememberUpdatedState(onSelectedChange)
 
     // The item under the centre line is the first visible one, because the list
     // is padded by exactly `edgeItems` rows at each end.

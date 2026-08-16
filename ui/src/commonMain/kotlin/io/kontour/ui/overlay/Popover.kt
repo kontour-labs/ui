@@ -67,7 +67,7 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun Popover(
-    expanded: Boolean,
+    visible: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     side: OverlaySide = OverlaySide.Bottom,
@@ -94,8 +94,8 @@ fun Popover(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(expanded, anchor != null, side, alignment, scrim, showArrow, maxWidth) {
-        if (!expanded || anchor == null) {
+    LaunchedEffect(visible, anchor != null, side, alignment, scrim, showArrow, maxWidth) {
+        if (!visible || anchor == null) {
             host.hide(key)
             return@LaunchedEffect
         }

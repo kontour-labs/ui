@@ -55,7 +55,7 @@ import io.kontour.ui.nav.NavigationSuiteScaffold
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
-import io.kontour.ui.overlay.rememberToasts
+import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.theme.ContrastLevel
@@ -147,7 +147,7 @@ fun Catalog() {
                         // rather than written inline: the local is static, and a
                         // fresh lambda every recomposition would recompose the
                         // whole gallery under it.
-                        val toasts = rememberToasts()
+                        val toasts = rememberToastHostState()
                         ToastHost(toasts)
 
                         val settingsButton = @Composable {
@@ -174,7 +174,7 @@ fun Catalog() {
                             if (LocalWindowSizeClass.current.width == WindowWidthClass.Compact) {
                                 CompactCatalog(
                                     selected = selected,
-                                    onSelect = { selected = it },
+                                    onSelectedChange = { selected = it },
                                     action = settingsButton,
                                 )
                             } else {
@@ -234,7 +234,7 @@ fun Catalog() {
 @Composable
 private fun CompactCatalog(
     selected: Int,
-    onSelect: (Int) -> Unit,
+    onSelectedChange: (Int) -> Unit,
     action: @Composable () -> Unit,
 ) {
     var drawerOpen by remember { mutableStateOf(false) }
@@ -268,7 +268,7 @@ private fun CompactCatalog(
     ModalNavDrawer(visible = drawerOpen, onDismissRequest = { drawerOpen = false }) {
         pages.forEachIndexed { index, page ->
             destination(page.title, page.icon, selected = index == selected) {
-                onSelect(index)
+                onSelectedChange(index)
                 drawerOpen = false
             }
         }
@@ -312,7 +312,7 @@ private fun SettingsSheet(
                 options = fontScales.map { it.first },
                 selectedIndex = fontScales.indexOfFirst { it.second == fontScale }
                     .coerceAtLeast(0),
-                onSelect = { onFontScaleChange(fontScales[it].second) },
+                onSelectedChange = { onFontScaleChange(fontScales[it].second) },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -321,7 +321,7 @@ private fun SettingsSheet(
                 options = modalities.map { it.first },
                 selectedIndex = modalities.indexOfFirst { it.second == modality }
                     .coerceAtLeast(0),
-                onSelect = { onModalityChange(modalities[it].second) },
+                onSelectedChange = { onModalityChange(modalities[it].second) },
                 modifier = Modifier.fillMaxWidth(),
             )
         }

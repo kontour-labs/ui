@@ -90,7 +90,7 @@ fun <T> ColorSwatchPicker(
                 color = swatchColor(option),
                 label = swatchLabel(option),
                 selected = option == value,
-                onSelect = { onValueChange(option) },
+                onSelectedChange = { onValueChange(option) },
                 enabled = enabled,
                 size = swatchSize,
                 automaticIcon = automaticIcon,
@@ -104,7 +104,7 @@ private fun Swatch(
     color: Color?,
     label: String,
     selected: Boolean,
-    onSelect: () -> Unit,
+    onSelectedChange: () -> Unit,
     enabled: Boolean,
     size: Dp,
     automaticIcon: ImageVector?,
@@ -157,7 +157,7 @@ private fun Swatch(
                 role = Role.RadioButton,
                 onClick = {
                     feedback.perform(FeedbackIntent.Selection)
-                    onSelect()
+                    onSelectedChange()
                 },
             ),
         contentAlignment = Alignment.Center,

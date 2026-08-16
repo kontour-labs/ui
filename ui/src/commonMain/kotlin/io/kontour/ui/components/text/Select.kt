@@ -156,7 +156,7 @@ fun <T> Select(
  * MultiSelect(
  *     values = includedModes,
  *     options = TransportMode.entries,
- *     onValuesChange = { includedModes = it },
+ *     onValueChange = { includedModes = it },
  *     label = "Include",
  *     optionLabel = { it.label },
  * )
@@ -178,7 +178,7 @@ fun <T> Select(
 fun <T> MultiSelect(
     values: Set<T>,
     options: List<T>,
-    onValuesChange: (Set<T>) -> Unit,
+    onValueChange: (Set<T>) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     label: String? = null,
@@ -220,7 +220,7 @@ fun <T> MultiSelect(
         for (option in options) {
             MenuItem(
                 onClick = {
-                    onValuesChange(
+                    onValueChange(
                         if (option in values) values - option else values + option
                     )
                 },
@@ -477,7 +477,7 @@ private fun SelectFrame(
     }
 
     AnchoredDropdownMenu(
-        expanded = expanded,
+        visible = expanded,
         anchor = anchor,
         onDismissRequest = { setExpanded(false) },
         alignment = OverlayAlignment.Start,
