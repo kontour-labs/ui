@@ -2,6 +2,7 @@ package io.kontour.ui.catalog
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -10,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastHostState
+import io.kontour.ui.overlay.ToastPosition
 import io.kontour.ui.overlay.ToastTone
 import java.awt.image.BufferedImage
 import kotlin.test.Test
@@ -39,9 +41,10 @@ class ToastStackTest {
         val one = heightAfter { toasts -> toasts.show("Added to favourites") }
 
         // Each toast behind the front one peeks out by `ToastDefaults.Peek`,
-        // which is 10dp — twenty pixels here. Two of them, so the stack is at
-        // least thirty pixels taller than a single toast even allowing for the
-        // ones behind being scaled down.
+        // which is 16dp — thirty-two pixels here. Two of them, so the stack is
+        // comfortably taller than a single toast even allowing for the ones
+        // behind being scaled down. The threshold is well under the real figure
+        // on purpose: what is being asserted is that they stack at all.
         assertTrue(
             three > one + 30,
             "three toasts made a stack ${three}px tall against ${one}px for one " +
@@ -135,6 +138,81 @@ class ToastStackTest {
         )
     }
 
+    @Test
+    fun aTopStackSitsAtTheTop() {
+        // The first test of the non-default position, and it has to ask *where*
+        // the ink is rather than how much of it there is. Every other test here
+        // measures the height of the run of toast surfaces, which is the same
+        // number whichever edge the stack is anchored to — so all of them would
+        // pass against a top stack that was drawing in the wrong half of the
+        // screen, or underneath the status bar.
+        val bottom = topmostSurface(ToastPosition.Bottom)
+        val top = topmostSurface(ToastPosition.Top)
+
+        assertTrue(bottom > 0 && top > 0, "one of the stacks drew nothing at all")
+        assertTrue(
+            top < bottom / 2,
+            "a top-anchored stack started ${top}px down a ${SceneHeight}px window " +
+                "against ${bottom}px for a bottom-anchored one — it is not at the top",
+        )
+    }
+
+    @Test
+    fun aTopStackHonoursATopInset() {
+        // What this can and cannot prove is worth being exact about.
+        //
+        // The real defect was the *default*: `windowInsets` was fixed at
+        // `sheetEdges`, which is bottom, horizontal and the IME and has no top
+        // side at all, so a top-anchored stack drew underneath the status bar
+        // and the cutout. That default is not checkable here — every
+        // `WindowInsets` in an `ImageComposeScene` is zero, because there is no
+        // platform to report a status bar, so `sheetEdges` and `topEdges` are
+        // indistinguishable from the harness's point of view. A first draft of
+        // this test passed with the fix reverted for exactly that reason.
+        //
+        // What *is* checkable is the plumbing underneath it: that the stack
+        // applies the top side of whatever insets it is handed. A stack that
+        // ignored them, or padded only the bottom, would fail here — and the
+        // default's correctness is then one expression that can be read.
+        val withoutInset = topmostSurface(ToastPosition.Top, statusBar = 0)
+        val withInset = topmostSurface(ToastPosition.Top, statusBar = StatusBar)
+
+        assertTrue(
+            withInset >= withoutInset + StatusBar - Slack,
+            "a top toast started ${withInset}px down with a ${StatusBar}px status " +
+                "bar and ${withoutInset}px without one — the stack is not applying " +
+                "the top side of its insets",
+        )
+    }
+
+    /** How far down the window the topmost toast surface begins. */
+    private fun topmostSurface(position: ToastPosition, statusBar: Int = 0): Int {
+        var row = -1
+        Scene(width = 600, height = SceneHeight) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(
+                    toasts,
+                    position = position,
+                    windowInsets = WindowInsets(top = statusBar, bottom = statusBar),
+                )
+                LaunchedEffect(Unit) {
+                    toasts.show("Saved for offline", durationMillis = 0)
+                }
+            }
+        }.use { scene ->
+            val image = scene.frames(24)
+            for (y in 0 until image.height) {
+                if ((0 until image.width).any { isSurface(image.getRGB(it, y)) }) {
+                    row = y
+                    break
+                }
+            }
+        }
+        return row
+    }
+
     /** Renders a stack and measures how tall it ended up. */
     private fun heightAfter(
         showClose: Boolean = false,
@@ -215,6 +293,16 @@ class ToastStackTest {
      * toast is stacked ten dp behind the first, so the measurement said nothing
      * about how many were showing.
      */
+    private companion object {
+        const val SceneHeight = 400
+
+        /** A plausible status bar in this scene's pixels. */
+        const val StatusBar = 72
+
+        /** Antialiasing and a pixel of shadow. */
+        const val Slack = 4
+    }
+
     private fun isSurface(rgb: Int): Boolean {
         val luminance =
             ((rgb shr 16 and 0xFF) * 30 + (rgb shr 8 and 0xFF) * 59 + (rgb and 0xFF) * 11) / 100

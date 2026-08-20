@@ -290,11 +290,12 @@ looked away.
 
 **Never put the only copy of something important in a toast**, and never put a
 control in one that is not also available elsewhere. An action that vanishes
-after four seconds is unusable for anyone who reads slowly.
+after a few seconds is unusable for anyone who reads slowly.
 
-**Toasts show one at a time.** A stack of them covers the interface they are
-reporting on, and by the third nobody is reading. Queueing means each is actually
-seen.
+**At most three toasts at once.** Past that the stack is taller than the thing
+it is reporting on and the ones at the back are a stripe of colour rather than a
+message — so `ToastDefaults.MaxVisible` caps it and the rest wait their turn
+while their own timers run.
 
 **A popover is not a small dialog.** It points at the thing it is about and
 leaves the rest of the screen alone. If the content is a decision that must be
@@ -351,9 +352,33 @@ older ones scaled and offset behind, each carrying its own timer.
 which is the only reading of "current" that means anything in a stack.
 
 `showClose = true` puts a close control on the front toast. Off by default: one
-that dismisses itself in four seconds does not need it. Turn it on where toasts
-are pinned. Either way a toast can be swiped away, toward whichever edge the
-stack is anchored to.
+that dismisses itself in two and a half seconds does not need it. Turn it on
+where toasts are pinned. Either way a toast can be swiped away toward whichever
+edge the stack is anchored to — and the swipe target is the whole card *plus*
+the 16dp of padding around it, because a toast is a small thing to aim at.
+
+### How long they stay
+
+`ToastDefaults.Duration` is 2.5 seconds, and `DurationWithAction` is 5 — an
+action has to be read, decided on and reached, and a control that vanishes as
+the finger arrives is worse than one that lingers. Pass `durationMillis` to
+override either, or `0` to pin a toast until something dismisses it.
+
+### Top or bottom
+
+```kotlin
+ToastHost(toasts, position = ToastPosition.Top)
+```
+
+`Bottom` by default. `Top` is what a screen wants when the bottom is spoken for
+— a navigation bar, a sheet, a persistent player — or simply when the thumb
+rests there and a toast underneath it is a toast nobody reads.
+
+The position carries the window insets with it, which is why it is an enum
+rather than an `Alignment`: a top-anchored stack needs the status bar and the
+display cutout, and the bottom-anchored default has no top side at all. It also
+decides which way the stack recedes, which way each toast slides in, and which
+way it is swiped away — one decision, not four.
 
 **Deliberately not done**: expanding the stack on hover, the way sonner does. It
 is a pointer-only affordance on a component whose whole point is that it is
@@ -398,7 +423,7 @@ Every overlay animates in, and every animation respects `reduceMotion`.
 | Popover | Scales from 0.94 |
 | Tooltip | Scales from 0.8 on a bouncy spring — one of the few places a flourish costs nothing, since it is transient and nobody is waiting on it |
 | Coach mark | Scales from 0.85, same spring |
-| Toast | Slides up half its height and fades |
+| Toast | Slides half its height in from whichever edge it is anchored to, and fades |
 
 Menus scale from 0.9 rather than from nothing on purpose: a menu springing out of
 a point is a lot of movement for something the user opens dozens of times a day.

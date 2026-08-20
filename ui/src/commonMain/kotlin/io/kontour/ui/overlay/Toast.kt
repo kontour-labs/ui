@@ -2,6 +2,7 @@ package io.kontour.ui.overlay
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -33,7 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
@@ -52,8 +52,10 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.adaptive.sheetEdges
+import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 /** What a toast is reporting. */
 enum class ToastTone { Neutral, Success, Warning, Danger, Accent }
@@ -138,7 +140,8 @@ class ToastHostState {
         icon: ImageVector? = null,
         actionLabel: String? = null,
         onAction: (() -> Unit)? = null,
-        durationMillis: Long = if (actionLabel != null) 8_000 else 4_000,
+        durationMillis: Long =
+            if (actionLabel != null) ToastDefaults.DurationWithAction else ToastDefaults.Duration,
     ): Long {
         val id = nextId++
         toasts.add(
@@ -185,6 +188,40 @@ class ToastHostState {
 @Composable
 fun rememberToastHostState(): ToastHostState = remember { ToastHostState() }
 
+/**
+ * Which edge a stack of toasts is anchored to.
+ *
+ * [Bottom] by default, which is where they have always been. [Top] is what a
+ * screen wants when the bottom is spoken for — a navigation bar, a sheet, a
+ * persistent player — or simply when the thumb rests there and a toast under it
+ * is a toast nobody reads.
+ *
+ * An enum rather than an `Alignment`, because the position decides two things
+ * and an `Alignment` only carries one of them. The stack used to infer its
+ * direction by casting the alignment to `BiasAlignment` and reading the vertical
+ * bias, defaulting to "bottom" for anything else — so a custom `Alignment`
+ * silently meant bottom, and `Alignment.Center` did too. Worse, the insets could
+ * not follow: they were fixed at [WindowInsets.sheetEdges], which has no top
+ * side at all, so a top-anchored toast drew underneath the status bar and the
+ * display cutout.
+ */
+enum class ToastPosition {
+    Top,
+    Bottom,
+    ;
+
+    /** Where the stack sits in its host. */
+    internal val alignment: Alignment
+        get() = if (this == Top) Alignment.TopCenter else Alignment.BottomCenter
+
+    /**
+     * True when the stack recedes *away* from the viewer's edge — which is up
+     * for a bottom stack and down for a top one. Drives the peek offsets, the
+     * enter and exit slide, and which way a toast is swiped away.
+     */
+    internal val towardEdge: Boolean get() = this == Bottom
+}
+
 object ToastDefaults {
     /**
      * How many toasts are on screen at once.
@@ -217,12 +254,42 @@ object ToastDefaults {
     val MaxWidth: Dp = 420.dp
 
     /**
+     * How long a toast stays before dismissing itself.
+     *
+     * Two and a half seconds — long enough to read a confirmation, short enough
+     * not to sit there once it has been read. It was four, which is a long time
+     * to look at "Saved" and was reported as such.
+     *
+     * These were inline literals on [ToastHostState.show]'s signature, the one
+     * pair of tunables in this file that were not here.
+     */
+    const val Duration: Long = 2_500
+
+    /**
+     * How long a toast with an action stays.
+     *
+     * Twice the plain one, because an action has to be read, decided on *and*
+     * reached — and a control that vanishes as the finger arrives is worse than
+     * one that lingers.
+     */
+    const val DurationWithAction: Long = 5_000
+
+    /**
      * How far a toast has to be dragged toward the edge before it goes.
      *
      * A third of its own height. Short enough that a flick is enough, long
      * enough that a scroll started on top of one does not throw it away.
      */
     const val SwipeAway: Float = 0.33f
+
+    /**
+     * How much of a wrong-way drag actually moves the toast.
+     *
+     * A third. Enough that the card acknowledges the finger, little enough that
+     * it is plainly refusing — the usual rubber band. Zero, which is what this
+     * used to be, is indistinguishable from a control that has hung.
+     */
+    const val Resistance: Float = 0.33f
 }
 
 /**
@@ -243,7 +310,7 @@ object ToastDefaults {
 fun ToastHost(
     state: ToastHostState,
     modifier: Modifier = Modifier,
-    alignment: Alignment = Alignment.BottomCenter,
+    position: ToastPosition = ToastPosition.Bottom,
     maxVisible: Int = ToastDefaults.MaxVisible,
     showClose: Boolean = false,
     closeLabel: String = Theme.strings.dismiss,
@@ -255,8 +322,13 @@ fun ToastHost(
      * It does **not** account for a navigation bar: that is a component, not an
      * inset, and a screen with one should pass a
      * `WindowInsets(bottom = barHeight)` union of its own.
+     *
+     * Follows [position] by default, which is the whole reason that parameter is
+     * an enum: a top-anchored stack needs the status bar and the cutout, and
+     * `sheetEdges` has no top side, so it used to draw under both.
      */
-    windowInsets: WindowInsets = WindowInsets.sheetEdges,
+    windowInsets: WindowInsets =
+        if (position == ToastPosition.Top) WindowInsets.topEdges else WindowInsets.sheetEdges,
 ) {
     val host = LocalOverlayHost.current
     val key = remember { Any() }
@@ -266,7 +338,7 @@ fun ToastHost(
     // pushed once, when the stack goes from empty to occupied, and composed by
     // the host from then on.
     val latest by rememberUpdatedState(
-        ToastHostConfig(modifier, alignment, maxVisible, showClose, closeLabel, windowInsets)
+        ToastHostConfig(modifier, position, maxVisible, showClose, closeLabel, windowInsets)
     )
 
     LaunchedEffect(occupied) {
@@ -292,7 +364,7 @@ fun ToastHost(
 /** What [ToastHost] was called with, so the overlay entry can read it fresh. */
 private data class ToastHostConfig(
     val modifier: Modifier,
-    val alignment: Alignment,
+    val position: ToastPosition,
     val maxVisible: Int,
     val showClose: Boolean,
     val closeLabel: String,
@@ -301,15 +373,14 @@ private data class ToastHostConfig(
 
 @Composable
 private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
-    // The stack grows away from the edge it is anchored to: a bottom-aligned
-    // stack recedes upward, a top-aligned one downward. Read from the alignment
-    // rather than taken as a parameter, because it is not a separate decision.
-    val towardEdge = ((config.alignment as? BiasAlignment)?.verticalBias ?: 1f) >= 0f
+    // The stack grows away from the edge it is anchored to: a bottom-anchored
+    // stack recedes upward, a top-anchored one downward.
+    val towardEdge = config.position.towardEdge
     val visible = state.toasts.takeLast(config.maxVisible)
 
     Box(
         Modifier.fillMaxSize().windowInsetsPadding(config.windowInsets),
-        contentAlignment = config.alignment,
+        contentAlignment = config.position.alignment,
     ) {
         visible.forEachIndexed { index, toast ->
             key(toast.id) {
@@ -391,11 +462,63 @@ private fun ToastCard(
             showClose = showClose && depth == 0,
             closeLabel = closeLabel,
             modifier = modifier
+                // The gesture is the outermost thing, above the padding — and
+                // that is the point. Below it the swipe area was exactly the
+                // visible pill and the 16dp ring around it was dead space, on a
+                // target that is small to begin with. Up here the ring is live,
+                // which is 16dp of slop on every side.
+                //
+                // Only the front one is draggable: the others are behind it and
+                // cannot be reached.
+                .then(
+                    if (depth == 0) {
+                        Modifier.draggable(
+                            state = rememberDraggableState { delta ->
+                                val next = swipe + delta
+                                val awayFromEdge =
+                                    if (towardEdge) next < 0f else next > 0f
+                                // The wrong way still moves, and resists.
+                                // Clamping it outright meant a drag away from
+                                // the anchored edge did nothing at all, which
+                                // reads as a control that has stopped
+                                // responding rather than one that will not go
+                                // that way.
+                                swipe = if (awayFromEdge) next * ToastDefaults.Resistance else next
+                            },
+                            orientation = Orientation.Vertical,
+                            onDragStopped = {
+                                val far = height * ToastDefaults.SwipeAway
+                                val towardTheEdge =
+                                    if (towardEdge) swipe > 0f else swipe < 0f
+                                if (towardTheEdge && abs(swipe) >= far) {
+                                    state.dismiss(toast.id)
+                                } else {
+                                    // Sprung, not snapped. Letting go below the
+                                    // threshold used to put the card back in a
+                                    // single frame, which looks like a glitch
+                                    // rather than like a control returning.
+                                    val from = swipe
+                                    animate(
+                                        initialValue = from,
+                                        targetValue = 0f,
+                                        animationSpec = motion.springOrTween(motion.springSnappy),
+                                    ) { value, _ -> swipe = value }
+                                }
+                            },
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
                 .padding(Theme.spacing.md)
                 // Measured in the layout phase, not read out of the draw phase:
                 // writing state from inside `graphicsLayer` is a write during
                 // draw, and the recomposition it schedules can loop.
                 .onSizeChanged { height = it.height.toFloat() }
+                // Inside the padding, so the depth scale shrinks the *card* and
+                // not the card plus its slop — the stack's geometry is tuned to
+                // `Peek` against the card, and scaling a bigger box moves every
+                // number in it.
                 .graphicsLayer {
                     translationY = depthOffset.toPx() + swipe
                     scaleX = depthScale
@@ -405,38 +528,7 @@ private fun ToastCard(
                     // card behind it, and the text of all three overlapped into
                     // a smear. Offset and scale already say "behind", and they
                     // say it without letting anything show through.
-                }
-                // Swipe it away, toward whichever edge it came from. Only the
-                // front one: the others are behind it and cannot be reached.
-                .then(
-                    if (depth == 0) {
-                        Modifier.draggable(
-                            state = rememberDraggableState { delta ->
-                                // Toward the edge only. Dragging the other way
-                                // would lift the toast off the side of the
-                                // screen it is anchored to, which is a direction
-                                // nothing about it suggests.
-                                val next = swipe + delta
-                                swipe = if (towardEdge) {
-                                    next.coerceAtLeast(0f)
-                                } else {
-                                    next.coerceAtMost(0f)
-                                }
-                            },
-                            orientation = Orientation.Vertical,
-                            onDragStopped = {
-                                val far = height * ToastDefaults.SwipeAway
-                                if (kotlin.math.abs(swipe) >= far) {
-                                    state.dismiss(toast.id)
-                                } else {
-                                    swipe = 0f
-                                }
-                            },
-                        )
-                    } else {
-                        Modifier
-                    }
-                ),
+                },
             onAction = {
                 toast.onAction?.invoke()
                 state.dismiss(toast.id)
