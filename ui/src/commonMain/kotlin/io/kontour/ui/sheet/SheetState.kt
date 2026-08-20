@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Velocity
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Where a sheet is, and where it is going.
@@ -224,7 +225,55 @@ class SheetState internal constructor(
      * ambiguous, and the sheet ends up flickering between two names for one
      * position.
      */
+    /**
+     * How many times [updateAnchors] has done the work.
+     *
+     * An increment and a field, so the test suite can ask how often a sheet
+     * rebuilds its anchors per frame without the question needing a build flag
+     * or a listener. It exists because "twice a frame while sliding" was
+     * invisible until something counted it.
+     */
+    internal var anchorRebuilds: Int = 0
+        private set
+
+    /**
+     * The measurements the current anchors were built from, in whole pixels.
+     *
+     * Anchors depend on the container, the content, the peek anchor and the
+     * detent list. They do **not** depend on where the sheet currently is — so a
+     * sheet that is merely moving needs no new anchors, and rebuilding them
+     * anyway cost a map, a pairwise scan of it and a fresh `DraggableAnchors`
+     * twice on every frame of every slide.
+     *
+     * Rounded to whole pixels before comparison. [peekHeight] is the distance
+     * between two positions in the root, and both of them travel with the sheet
+     * — the distance is constant, but it arrives with sub-pixel jitter that an
+     * exact comparison would mistake for a change.
+     */
+    private var anchoredFor: AnchorInputs? = null
+
+    private data class AnchorInputs(
+        val container: Int,
+        val sheet: Int,
+        val peek: Int,
+        val detents: List<SheetDetent>,
+        val density: Float,
+        val fontScale: Float,
+    )
+
     internal fun updateAnchors(density: Density) {
+        val inputs = AnchorInputs(
+            container = containerHeight.roundToInt(),
+            sheet = sheetHeight.roundToInt(),
+            peek = peekHeight.roundToInt(),
+            detents = detents,
+            density = density.density,
+            fontScale = density.fontScale,
+        )
+        if (inputs == anchoredFor) return
+        anchoredFor = inputs
+
+        anchorRebuilds++
         val positions = resolveAnchors(
             detents = detents,
             containerHeight = containerHeight,

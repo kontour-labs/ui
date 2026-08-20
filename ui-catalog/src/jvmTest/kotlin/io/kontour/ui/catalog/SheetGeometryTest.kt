@@ -231,6 +231,22 @@ class SheetGeometryTest {
      * and a gap of `V - C` of bare screen underneath. `Expanded` sets `V = C`,
      * which is why it was the one detent that looked right — and why the whole
      * thing survived a test suite that only ever asked where the *top* was.
+     *
+     * ### At least the bottom, not exactly the bottom
+     *
+     * This used to require the surface to end *exactly* at the container's
+     * bottom edge, which meant sizing it to `containerHeight - offset` — a height
+     * that changes on every frame the sheet moves, and a node that changes size
+     * cannot keep the drawing it recorded last frame. That cost a full re-record
+     * of the sheet, blurred shadow included, sixty times a second; see
+     * `SheetFramePressureTest`.
+     *
+     * The surface is `containerHeight` tall now and simply starts lower down, so
+     * it ends at `offset + containerHeight` — past the bottom rather than on it.
+     * The requirement was never that the edges coincide, only that no bare screen
+     * shows below the sheet, and what hangs past the container is clipped and
+     * never seen. So the assertion is `>=`, which is what the requirement always
+     * was.
      */
     @Test
     fun theSurfaceReachesTheBottomAtEveryDetent() {
@@ -249,13 +265,12 @@ class SheetGeometryTest {
                 Box(Modifier.height(120.dp)) { Text("a short body") }
             }
 
-            assertEquals(
-                canvasHeight.toFloat(),
-                sheet.drawnBottom,
-                "at $name the sheet's surface ends at ${sheet.drawnBottom} rather " +
-                    "than at the container's ${canvasHeight}. Its content is " +
-                    "shorter than the detent, so the surface is being sized by " +
-                    "the content and merely translated",
+            assertTrue(
+                sheet.drawnBottom >= canvasHeight.toFloat(),
+                "at $name the sheet's surface ends at ${sheet.drawnBottom}, short " +
+                    "of the container's $canvasHeight — so there is a strip of bare " +
+                    "screen below it. Its content is shorter than the detent, so " +
+                    "the surface is being sized by the content and merely translated",
             )
         }
     }

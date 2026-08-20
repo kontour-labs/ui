@@ -417,25 +417,35 @@ private fun BoxScope.SheetSurface(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            // The surface reaches the bottom of the container, whatever detent
-            // the sheet is at.
+            // As tall as the container, always — and then translated down to
+            // where the detent wants it.
             //
-            // It used to be wrap-content and merely translated by
-            // `Modifier.offset`, which is placement-only and never changes a
-            // measured size. So with container H, content C and a detent whose
-            // visible height is V, the top landed at H - V and the bottom at
-            // H - V + C — leaving a gap of V - C below the sheet. `Expanded`
-            // sets V = C, so it was right by coincidence and every other detent
-            // was wrong; and because C is fixed while the offset moves with the
-            // finger, dragging a half-open sheet upward carried its bottom edge
-            // up the screen with it.
+            // The requirement is that the surface reaches the bottom of the
+            // container at every detent, so its colour runs to the bottom edge.
+            // It used to be wrap-content and merely translated, which left a gap
+            // of `visibleHeight - contentHeight` below the sheet at every detent
+            // except `Expanded`; and because the content height is fixed while
+            // the offset moves with the finger, dragging a half-open sheet
+            // upward carried its bottom edge up the screen with it.
             //
-            // Read in the layout phase rather than in composition: the offset
-            // changes every frame of a drag, and this has to follow it without
-            // recomposing the sheet's whole content to do it.
+            // The fix for that sized the surface to `containerHeight - offset`,
+            // which was correct and expensive: **the height changed on every
+            // frame the sheet moved**, and a node whose size changes cannot keep
+            // the drawing it recorded last frame. Measured, the sheet re-recorded
+            // itself 0.9 times per frame while sliding — which on a phone means
+            // re-rasterising its two blurred `dropShadow` layers sixty times a
+            // second. See `SheetFramePressureTest`.
+            //
+            // A constant height gets the same picture for nothing. The surface
+            // is `containerHeight` tall and starts at `offset`, so its bottom
+            // lands at `offset + containerHeight`, at or below the container's
+            // own bottom at every detent — the gap cannot open. What hangs below
+            // the screen is never seen. The content is measured unbounded either
+            // way and cropped to the surface, so the region actually on screen,
+            // `offset` to `containerHeight`, is identical to what it was.
             .layout { measurable, constraints ->
-                val target = (state.containerHeight - offsetOrHidden(state))
-                    .coerceIn(0f, state.containerHeight.coerceAtLeast(0f))
+                val target = state.containerHeight
+                    .coerceAtLeast(0f)
                     .roundToInt()
                     .coerceAtMost(constraints.maxHeight)
                 val placeable = measurable.measure(
