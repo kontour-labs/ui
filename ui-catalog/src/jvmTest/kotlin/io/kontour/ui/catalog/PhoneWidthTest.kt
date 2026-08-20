@@ -15,6 +15,8 @@ import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.kontourSizing
+import java.io.File
+import javax.imageio.ImageIO
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.fail
@@ -54,6 +56,31 @@ import kotlin.test.fail
  * process on any machine loads `Accessibility.android.kt` — but it is the same
  * arithmetic, which is what was actually missing.
  *
+ * ### Reviewed, not asserted — and that is not for want of trying
+ *
+ * There is no automatic check here that a page fits the width, and four
+ * mechanisms were tried before giving up on one:
+ *
+ * - The harness's own `checkFits` measures at infinite constraints, which a
+ *   vertically scrolling container refuses outright. It bails before the width.
+ * - A maximum intrinsic width throws: `WindowSizeClassProvider` is a
+ *   `BoxWithConstraints` and half these pages hold a lazy list, and intrinsics
+ *   are unsupported through either.
+ * - Counting ink against the right edge of the canvas finds shadows, which reach
+ *   seventy dp past whatever casts them, as reliably as it finds overflow.
+ * - Giving the page a phone-wide box inside a wider canvas and looking for what
+ *   spills — Compose does not clip to bounds unless asked — finds nothing,
+ *   because every showcase's root is a `Surface` and `Surface` clips.
+ * - Reading the recorded PNG back and looking for ink against its right-hand
+ *   column — the trick [bottomIsEmpty] uses successfully for height — reports
+ *   nothing on a golden known to be overflowing. What overflows is usually
+ *   inside a `horizontalScroll`, which clips at *its* bounds, and those sit a
+ *   page margin short of the canvas. The evidence never reaches the edge.
+ *
+ * So the goldens below are the check, and they are meant to be *looked at*. A
+ * test that cannot fail would be worse than none, which is the trap this file
+ * has already fallen into twice.
+ *
  * ### 360 × 800, at three
  *
  * A Pixel-class phone in portrait: 1080 × 2400 physical pixels at density 3,
@@ -87,6 +114,7 @@ class PhoneWidthTest {
     @AfterTest
     fun assertGoldensMatched() = Screenshot.assertAllMatched()
 
+
     /**
      * A picture of every page on a phone, so the *silent* half is visible too.
      *
@@ -102,8 +130,10 @@ class PhoneWidthTest {
      */
     @Test
     fun everyPageIsAPictureOfItselfOnAPhone() {
+        val cutOff = mutableListOf<String>()
+
         for (page in pages) {
-            Screenshot.render(
+            val golden = Screenshot.render(
                 name = "phone/${page.title.slug()}",
                 width = GoldenWidth,
                 height = GoldenHeight,
@@ -115,7 +145,57 @@ class PhoneWidthTest {
             ) {
                 PhoneTheme { page.content(Modifier.fillMaxWidth()) }
             }
+            if (!bottomIsEmpty(golden)) cutOff += page.title
         }
+
+        if (cutOff.isNotEmpty()) {
+            fail(
+                "${cutOff.size} phone golden(s) run off the bottom of the " +
+                    "canvas, so the end of each page is in no picture anywhere: " +
+                    cutOff.joinToString(", ") + ". Raise GoldenHeight past " +
+                    "$GoldenHeight and re-record.",
+            )
+        }
+    }
+
+    /**
+     * True when the last [TailBand] rows of [golden] are bare background.
+     *
+     * The check the width could not have. [PhoneWidthTest]'s KDoc lists four
+     * mechanisms that failed to catch a page too *wide* for a phone, all of them
+     * defeated by measuring the composition. Height is catchable because the
+     * evidence survives into the file: a page longer than the canvas is *cut*,
+     * and what is left on the final row is whatever was crossing it.
+     *
+     * That matters more than it sounds. At the 3000px this file shipped with,
+     * **nine of thirteen** pages ended mid-specimen — the selection page's
+     * steppers, the overlay page's whole second half — and the goldens were
+     * green throughout, because a golden only ever compares itself to itself. A
+     * picture that silently omits half its subject is the same trap as a test
+     * that cannot fail, and this file's own KDoc had just finished warning about
+     * that one.
+     *
+     * The background is taken as the image's most common colour rather than a
+     * corner pixel: a corner can land inside a specimen, and a clipped page can
+     * end on a run of solid colour that is uniform but is not the page.
+     */
+    private fun bottomIsEmpty(golden: File): Boolean {
+        val image = ImageIO.read(golden) ?: return true
+        val counts = HashMap<Int, Int>()
+        for (y in 0 until image.height step BackgroundStride) {
+            for (x in 0 until image.width step BackgroundStride) {
+                val rgb = image.getRGB(x, y) and 0xFFFFFF
+                counts[rgb] = (counts[rgb] ?: 0) + 1
+            }
+        }
+        val background = counts.maxByOrNull { it.value }?.key ?: return true
+
+        for (y in (image.height - TailBand).coerceAtLeast(0) until image.height) {
+            for (x in 0 until image.width) {
+                if ((image.getRGB(x, y) and 0xFFFFFF) != background) return false
+            }
+        }
+        return true
     }
 
     /**
@@ -184,9 +264,30 @@ class PhoneWidthTest {
         /** `platformMinTouchTarget` on Android, which the JVM would otherwise report as 24dp. */
         val AndroidTouchTarget = 48.dp
 
-        /** The same 360dp, at the density the rest of the goldens use. */
+        /**
+         * The same 360dp, at the density the rest of the goldens use.
+         *
+         * [GoldenHeight] is 4000dp of page, which is a great deal more than a
+         * phone and is the point: the tallest page here (overlays, with its
+         * scrim-backed specimens) runs to 3625dp, and at the 3000px this file
+         * shipped with, nine of the thirteen were cut off mid-specimen. The
+         * blank tail costs almost nothing — it is one run-length in the PNG —
+         * and `bottomIsEmpty` fails the run if a page ever outgrows it.
+         */
         const val GoldenWidth = 720
-        const val GoldenHeight = 3000
+        const val GoldenHeight = 8000
         const val GoldenDensity = 2f
+
+        /**
+         * Rows at the foot of the canvas that must be bare background.
+         *
+         * Deep enough that a page ending exactly on the boundary still shows,
+         * shallow enough to stay well clear of the last specimen on the longest
+         * page — which at 8000 has 750px of clearance.
+         */
+        const val TailBand = 64
+
+        /** Every 4th pixel each way is plenty to find the commonest colour. */
+        const val BackgroundStride = 4
     }
 }

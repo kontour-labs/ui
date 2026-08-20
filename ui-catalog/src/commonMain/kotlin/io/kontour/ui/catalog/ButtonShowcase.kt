@@ -2,6 +2,7 @@ package io.kontour.ui.catalog
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,13 +53,19 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
         ) {
             Section("Variants") {
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                ) {
                     Button(onClick = tap("Primary"), variant = ButtonVariant.Primary) { +"Primary" }
                     Button(onClick = tap("Secondary"), variant = ButtonVariant.Secondary) { +"Secondary" }
                     Button(onClick = tap("Tertiary"), variant = ButtonVariant.Tertiary) { +"Tertiary" }
                     Button(onClick = tap("Ghost"), variant = ButtonVariant.Ghost) { +"Ghost" }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                ) {
                     Button(onClick = tap("Accent"), variant = ButtonVariant.Accent) { +"Accent" }
                     Button(onClick = tap("Destructive"), variant = ButtonVariant.Destructive) { +"Destructive" }
                     Button(onClick = tap("Destructive ghost"), variant = ButtonVariant.DestructiveGhost) {
@@ -68,9 +75,9 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Sizes") {
-                Row(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 ) {
                     Button(onClick = tap("XSmall"), size = ButtonSize.XSmall) { +"XSmall" }
                     Button(onClick = tap("Small"), size = ButtonSize.Small) { +"Small" }
@@ -85,7 +92,10 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                 // and all four on purpose: a disabled button and a button
                 // mid-request are supposed to swallow the press. Everything else
                 // in the catalog is wired to something you can see.
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                ) {
                     Button(onClick = tap("Enabled")) { +"Enabled" }
                     Button(onClick = {}, enabled = false) { +"Disabled" }
                     Button(onClick = {}, loading = true) { +"Loading" }
@@ -104,9 +114,9 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Icon buttons") {
-                Row(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 ) {
                     IconButton(Tabler.Outline.X, "Close", tap("Close"))
                     IconButton(Tabler.Outline.X, "Close", tap("Close"), variant = ButtonVariant.Tertiary)
@@ -134,9 +144,9 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Floating actions") {
-                Row(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                 ) {
                     FloatingActionButton(Tabler.Outline.Plus, "Add", tap("Add"), size = FabSize.Small)
                     FloatingActionButton(Tabler.Outline.Plus, "Add", tap("Add"), size = FabSize.Medium)
@@ -174,9 +184,9 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                 val month = tap("Month")
                 val only = tap("Only")
 
-                Row(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                 ) {
                     ButtonGroup {
                         item(onClick = zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)

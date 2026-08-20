@@ -249,6 +249,18 @@ single control with a moving part.
 than a view. Tabs announce `Role.Tab`; segments announce `Role.RadioButton`, and
 a screen reader user acts on that difference.
 
+### When the labels do not fit
+
+A `TabBar` divides its width evenly between its tabs and lets each label
+ellipsise. It does not hand the width out in composition order, which starved the
+last tab: three tabs and an overflow button on a 360dp phone rendered "Alerts" as
+a single "A" with its badge shaved to a red sliver. A badge always keeps its full
+size — the label is what gives way.
+
+Set `scrollable = true` where the labels matter more than seeing them all at
+once. It is off by default because a scrolling row hides options past the edge
+and gives the user no way to know how many there are.
+
 ### Swiping between tabs
 
 `Modifier.tabSwipe` goes on the **content**, not on the bar — nobody swipes a tab
@@ -288,6 +300,12 @@ that page.
 `paginationSlots()` is pure and tested, because the failure mode is a control
 that is right in the middle of a range and wrong at both ends, and "page 1 of
 40" is the first thing anyone sees.
+
+**`window` is a ceiling, not a promise.** `« 1 … 19 20 21 … 40 »` needs about
+410dp once every button reserves Android's 48dp touch target, and a 360dp phone
+offers roughly 310 — so the window narrows to what there is room for, down to
+first-current-last, which always fits. Where there is room the `window` you ask
+for is the `window` you get.
 
 **Reach for [`LoadMore`](collections.md#loadmore) instead** in the app. Numbered
 pages are a web pattern; a phone list pages by scrolling.

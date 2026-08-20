@@ -81,6 +81,16 @@ internal fun Panel(
  * these keep their widths and scroll instead: on a wide window nothing moves,
  * and on a phone all three are still reachable rather than two of them being
  * off the edge for ever.
+ *
+ * ### Only for specimens whose width is the exhibit
+ *
+ * Scrolling horizontally means measuring children at **infinite** width, which
+ * silently turns [Panel]'s `widthIn(max =)` ceiling back into a fixed width —
+ * the one thing that modifier exists to prevent. Two pages had drifted into
+ * using this for ordinary panels, and on a phone the result was a 1,080dp strip
+ * with its own section headings cut off mid-word and half its specimens several
+ * screens to the right of where the page looked like it ended. Use [Panels], or
+ * a bare `FlowRow`, for anything whose width is merely a preference.
  */
 @Composable
 internal fun DeviceStrip(content: @Composable RowScope.() -> Unit) {

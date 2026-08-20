@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,7 +96,15 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            DeviceStrip {
+            // Decorative surfaces, not device exhibits — so `FlowRow` rather
+            // than `DeviceStrip`. A horizontal scroller measures its children at
+            // infinite width, which quietly disables `Panel`'s `widthIn(max =)`:
+            // these two stayed 600dp apiece on a 360dp phone and the page became
+            // a 1,224dp strip nobody would think to scroll.
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+            ) {
                 Panel(width = 600.dp, spacing = Theme.spacing.xs) {
                     Text(
                         text = "ATMOSPHERE AND GLASS",
@@ -169,9 +179,12 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                                 .clip(Theme.shapes.small)
                                 .shimmer()
                         )
+                        // A short line under a full-width one — as a fraction,
+                        // because 360dp was wider than the column it sits in the
+                        // moment that column stopped being measured at infinity.
                         Box(
                             Modifier
-                                .width(360.dp)
+                                .fillMaxWidth(0.62f)
                                 .height(16.dp)
                                 .clip(Theme.shapes.small)
                                 .shimmer()
@@ -181,7 +194,8 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                     AspectRatioBox(
                         ratio = 16f / 9f,
                         modifier = Modifier
-                            .width(280.dp)
+                            .widthIn(max = 280.dp)
+                            .fillMaxWidth()
                             .clip(Theme.shapes.medium)
                             .shimmer(),
                     ) {

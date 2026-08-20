@@ -300,7 +300,7 @@ object Screenshot {
 
     /**
      * Records a mismatch if [rendered] differs from [golden] by more than
-     * [TOLERATED_FRACTION]. [assertAllMatched] is what turns that into a failure.
+     * [tolerated]. [assertAllMatched] is what turns that into a failure.
      *
      * Pixels are compared with a small per-channel tolerance rather than by
      * bytes. Byte equality would be stricter but would also fail on a Skia point
@@ -339,10 +339,9 @@ object Screenshot {
         }
 
         val total = expected.width * expected.height
-        val fraction = differing.toDouble() / total
-        if (fraction > TOLERATED_FRACTION) {
+        if (differing > tolerated(expected.width, expected.height)) {
             writeEvidence(name, rendered, diff)
-            val percent = (fraction * 100).toString().take(5)
+            val percent = (differing.toDouble() / total * 100).toString().take(5)
             mismatches += "$name differs from its golden: $differing of $total pixels " +
                 "($percent%). See ${diffDir.absolutePath}/$name-{actual,diff}.png. " +
                 "If the change is intended, re-run with " +
@@ -353,9 +352,20 @@ object Screenshot {
     /**
      * Whether [rendered] is visually different from the golden on disk.
      *
-     * The same question [compare] asks, and deliberately the same tolerance:
-     * a render this returns `false` for is one that would have passed, so
-     * rewriting it would record a change that no run would ever have reported.
+     * A stricter question than [compare] asks, and it has to be. This used to
+     * share [compare]'s tolerance on the reasoning that rewriting a golden no
+     * run would have failed on is pure churn — which is true right up until the
+     * change you are trying to record is *smaller* than the tolerance. A whole
+     * tab bar was: three labels gained ellipses and a badge went from a 2px
+     * sliver to a full circle, on a 720×8000 phone canvas where a tenth of a
+     * percent is 5,760 pixels. The update pass declined to write, the file on
+     * disk went on showing the old defect, and the fix was reviewed as a
+     * failure and re-attempted three times.
+     *
+     * So the picture on disk is now always the picture the renderer produces.
+     * Any pixel differing by more than [CHANNEL_TOLERANCE] rewrites it — that
+     * threshold already absorbs the antialiasing wobble this guard was added
+     * for, and two identical renders differ by nothing at all.
      */
     private fun differs(golden: File, rendered: ByteArray): Boolean {
         val expected = ImageIO.read(golden) ?: return true
@@ -368,8 +378,16 @@ object Screenshot {
                 if (channelsDiffer(expected.getRGB(x, y), actual.getRGB(x, y))) differing++
             }
         }
-        return differing.toDouble() / (expected.width * expected.height) > TOLERATED_FRACTION
+        return differing > 0
     }
+
+    /**
+     * The differing-pixel budget for a canvas of [width] × [height].
+     *
+     * Only [compare] uses this. See [differs] for why the update pass does not.
+     */
+    private fun tolerated(width: Int, height: Int): Int =
+        minOf(TOLERATED_FRACTION * width * height, TOLERATED_PIXELS.toDouble()).toInt()
 
     /** True when any channel differs by more than [CHANNEL_TOLERANCE]. */
     private fun channelsDiffer(a: Int, b: Int): Boolean {
@@ -426,6 +444,26 @@ object Screenshot {
      * scattering of edge pixels, but far less than any glyph, icon or component.
      */
     private const val TOLERATED_FRACTION = 0.001
+
+    /**
+     * The most pixels [TOLERATED_FRACTION] may ever amount to.
+     *
+     * A fraction of the canvas means a golden's slack grows with its blank
+     * space, and the phone goldens are mostly blank space by design: they are
+     * 720×8000 so the foot of the longest page is inside the picture, and a
+     * tenth of a percent of that is **5,760** pixels. A whole tab bar changing —
+     * three labels gaining ellipses, a badge going from a 2px sliver to a full
+     * circle — came to fewer than that and would not have failed a run.
+     *
+     * Six hundred is roughly two glyphs, and it is a cap rather than a floor:
+     * a golden small enough that the fraction allows less still allows less.
+     * The fraction was never measured against anything — with
+     * [CHANNEL_TOLERANCE] absorbing per-pixel wobble, two renders of the same
+     * content on the same machine differ by *nothing*, which is what the update
+     * pass now relies on. A genuinely different rasteriser would move whole
+     * glyphs and blow through any of these numbers.
+     */
+    private const val TOLERATED_PIXELS = 600
 
     private const val DIFF_COLOUR = 0xFFFF00FF.toInt()
 

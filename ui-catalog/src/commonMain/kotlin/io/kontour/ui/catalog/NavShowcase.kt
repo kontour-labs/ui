@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -81,7 +82,10 @@ fun NavShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Bar — circles over the content, and nothing behind them") {
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                ) {
                     BarPanel("As it comes")
                     BarPanel("With a search field", search = true)
                     BarPanel("Named, for icons that are not obvious", showLabels = true)
@@ -96,7 +100,18 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            DeviceStrip {
+            // Not a `DeviceStrip`: these two hold ordinary specimens, and their
+            // 520dp is a preference rather than the exhibit. Inside a horizontal
+            // scroller a child is measured at infinite width, so `Panel`'s
+            // `widthIn(max =)` stopped shrinking on a phone — a 1,080dp strip
+            // with the section headings themselves cut off mid-word, and
+            // pagination four screens to the right of where it looks like it is.
+            // `FlowRow` gives back the ceiling: side by side at 520 on a desktop,
+            // stacked at 360 on a phone.
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+            ) {
                 Panel(width = 520.dp, spacing = Theme.spacing.md) {
                     Section("Top bars — a title, not destinations") {
                         Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {

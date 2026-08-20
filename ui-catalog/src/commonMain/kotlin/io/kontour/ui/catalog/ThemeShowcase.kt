@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -105,7 +106,10 @@ private fun ColourRamp() {
     val c = Theme.colors
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         SectionHeading("Colour")
-        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        ) {
             Swatch("primary", c.primary, c.onPrimary)
             Swatch("accent", c.accent.solid, c.accent.onSolid)
             Swatch("accent.container", c.accent.container, c.accent.onContainer)
@@ -115,7 +119,10 @@ private fun ColourRamp() {
             // "unset" rather than as a duplicate.
             Swatch("brand — unset", c.brand, c.accent.onSolid)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        ) {
             Swatch("surface", c.surface, c.content)
             Swatch("surfaceSunken", c.surfaceSunken, c.content)
             Swatch("surfaceRaised", c.surfaceRaised, c.content)
@@ -161,7 +168,13 @@ private fun SurfacesAndElevation() {
     val e = Theme.elevation
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         SectionHeading("Elevation")
-        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+        // Wraps, because four 120dp cards and their gaps need 528dp and a phone
+        // has 360. Unwrapped, the fourth was off the edge entirely and the third
+        // was a sliver with its label broken across two lines mid-word.
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+        ) {
             listOf("low" to e.low, "medium" to e.medium, "high" to e.high, "overlay" to e.overlay)
                 .forEach { (name, shadow) ->
                     Surface(
@@ -184,9 +197,10 @@ private fun ShapeScale() {
     val s = Theme.shapes
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         SectionHeading("Shape")
-        Row(
+        // Six 96dp swatches need 616dp. Same reason as the elevation strip above.
+        FlowRow(
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {
             listOf(
                 "xs" to s.extraSmall,

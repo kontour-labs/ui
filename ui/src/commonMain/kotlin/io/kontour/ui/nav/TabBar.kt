@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
@@ -123,8 +124,6 @@ fun TabBar(
     content: @Composable TabBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
-    val scope = remember { TabBarScope() }
-
     // Through `Surface` rather than a bare `Modifier.background`, which is what
     // `NavBar`, `NavRail`, `NavDrawer` and `Scaffold` all do with their own
     // container colour. The difference is `LocalContentColor`: a bar given a
@@ -171,7 +170,7 @@ fun TabBar(
                         },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        scope.content()
+                        TabBarScope(row = this, fixed = !scrollable).content()
                     }
                 }
             }
@@ -203,7 +202,23 @@ fun TabBar(
  */
 @LayoutScopeMarker
 @Stable
-class TabBarScope internal constructor()
+class TabBarScope internal constructor(
+    /** The row the tabs are laid out in, so a fixed bar can weight them. */
+    internal val row: RowScope,
+    /**
+     * Whether the bar divides its width between the tabs rather than scrolling.
+     *
+     * A fixed row lays its children out in composition order and gives each the
+     * width it asks for, so the last tab gets whatever is left — which on a
+     * phone was nothing: three tabs and an overflow button in 312dp left
+     * "Alerts" showing as a single "A" with its badge clipped away. Splitting
+     * the row evenly instead makes every tab the same width and lets the labels
+     * ellipsise, which is legible and, unlike starvation, symmetrical.
+     *
+     * A scrolling bar keeps intrinsic widths: there is no width to divide.
+     */
+    internal val fixed: Boolean,
+)
 
 /**
  * One tab.
@@ -240,6 +255,7 @@ fun TabBarScope.Tab(
 
     Row(
         modifier = modifier
+            .then(if (fixed) with(row) { Modifier.weight(1f) } else Modifier)
             .selectionIndicatorItem(key, selected)
             .minimumTouchTarget()
             .focusRing(interactions, Theme.shapes.small)
@@ -256,18 +272,51 @@ fun TabBarScope.Tab(
                 },
             )
             .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.xs),
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        // Centred, because a fixed tab is now as wide as its share of the bar
+        // rather than as wide as its label: laid out from the start edge, three
+        // tabs of one width each read as a row shoved to the left, with the
+        // indicator under a label that is no longer above it.
+        //
+        // `Arrangement.Center` with the gap moved onto the badge, and not
+        // `spacedBy(xs, CenterHorizontally)` which says the same thing more
+        // neatly. That form makes this row — itself a weighted child of the bar
+        // — never reach an idle frame: `ComponentContractTest` spins in
+        // `waitForIdle` until its one-minute deadline, on all six contracts at
+        // once. Swapping only the arrangement fixes it, so the cause is in
+        // there somewhere; it has not been chased further than that.
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ProvideTextStyle(Theme.typography.labelLarge) {
-            ProvideContentColor(contentColor) {
-                contentScope(maxLines = 1, content = content)
+        // The label yields to the badge rather than the other way round. A
+        // weighted row measures its unweighted children first, so the count
+        // keeps its full size and the label gets what is left — without this
+        // the badge was the child that ran out, and a tab reading "Alerts"
+        // with its 2 shaved down to a red sliver is worse than a shorter word.
+        Row(
+            modifier = Modifier.weight(1f, fill = false),
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ProvideTextStyle(Theme.typography.labelLarge) {
+                ProvideContentColor(contentColor) {
+                    // Ellipsis rather than the scope's default clip: a fixed
+                    // bar divides its width evenly, so a long label on a narrow
+                    // screen is *expected* to run out of room, and "Departures"
+                    // cut to "Depart" reads as a different word rather than a
+                    // shortened one.
+                    contentScope(
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        content = content,
+                    )
+                }
             }
         }
         // Beside the label, not over it. `BadgedBox` overlays its badge on the
         // top-right of what it wraps, which is right for an icon and lands on
         // the last two letters of a word.
-        if (badge != null) Badge(count = badge)
+        // The gap the row's arrangement would normally provide — see above.
+        if (badge != null) Badge(count = badge, modifier = Modifier.padding(start = Theme.spacing.xs))
     }
 }
 

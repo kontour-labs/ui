@@ -246,9 +246,9 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Rating") {
-                Row(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
                 ) {
                     // The score assigns straight back now that `onValueChange`
                     // emits the type `value` takes.
@@ -271,7 +271,10 @@ fun SelectionShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Stepper") {
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                ) {
                     val adults = seed(2)
                     val bags = seed(0)
 

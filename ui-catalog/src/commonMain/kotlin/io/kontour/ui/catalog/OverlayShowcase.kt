@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -84,7 +85,10 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
             val loading = seed(true)
             val edgeMenu = seed(true)
 
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+            ) {
                 Panel("Dropdown menu") {
                     Box(Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 12.dp)) {
                         IconButton(
@@ -178,7 +182,10 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+            ) {
                 Panel("Alert dialog") {
                     AlertDialog(
                         visible = alert.value,
@@ -234,7 +241,10 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+            ) {
                 Panel("Toast") {
                     val toasts = rememberToastHostState()
                     // `showClose`, because these are pinned: a toast that never

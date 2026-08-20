@@ -3,6 +3,7 @@ package io.kontour.ui.catalog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -87,9 +88,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                 }
 
                 Section("Tags and badges") {
-                    Row(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                     ) {
                         Tag(tone = TagTone.Success) { +"Live" }
                         Tag(tone = TagTone.Warning) { +"Delayed" }
@@ -97,9 +98,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                         Tag(tone = TagTone.Accent) { +"Beta" }
                         Tag() { +"Neutral" }
                     }
-                    Row(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                     ) {
                         // Colours a GTFS feed might hand us — the label colour
                         // is derived, not designed.
@@ -119,9 +120,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                 }
 
                 Section("Avatars") {
-                    Row(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                     ) {
                         Avatar(name = "Aaron", size = AvatarSize.Small)
                         Avatar(name = "Sunny", size = AvatarSize.Medium)
@@ -138,9 +139,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                     LinearProgress(progress = 0.6f, contentDescription = "Uploading")
                     LinearProgress(progress = null, contentDescription = "Loading")
                     StepProgress(current = 2, total = 4)
-                    Row(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                     ) {
                         ProgressRing(progress = 0.35f)
                         ProgressRing(progress = 0.8f, size = 28.dp)
@@ -297,7 +298,10 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                 }
 
                 Section("Stat") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xl)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xl),
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xl),
+                    ) {
                         Stat {
                             value("4 min")
                             +"Next departure"
