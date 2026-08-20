@@ -13,9 +13,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.theme.Theme
 
@@ -74,38 +77,52 @@ fun ButtonGroup(
 ) {
     val actions = buttonGroupActions(content)
 
-    Row(
-        modifier = modifier.semantics { isTraversalGroup = true },
-        // Hairline rather than zero. Flush buttons of the same fill become one
-        // undifferentiated slab, and the join is meant to read as a seam.
-        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.Seam),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        actions.forEachIndexed { index, action ->
-            val position = ButtonGroupPosition.of(index, actions.size)
-            val enabledHere = enabled && action.enabled
+    // The group is one control, so the group owns the touch target.
+    //
+    // Left to themselves each button reserves `minTouchTarget` and centres its
+    // visual inside it, and that reserved slack lands *between* the buttons: on
+    // Android a 40dp icon button becomes a 48dp box, so the 1dp seam draws at
+    // 9dp and the join stops reading as a join. Sizing the row instead keeps the
+    // seam a seam, and a full-height segment is still a target a finger can
+    // hit — it is the same guarantee, made by the thing that is actually one
+    // target. Invisible on desktop, where the minimum is 24dp and no button is
+    // smaller; see [LocalTouchTargetOwnedByParent].
+    CompositionLocalProvider(LocalTouchTargetOwnedByParent provides true) {
+        Row(
+            modifier = modifier
+                .semantics { isTraversalGroup = true }
+                .defaultMinSize(minHeight = Theme.sizing.minTouchTarget),
+            // Hairline rather than zero. Flush buttons of the same fill become one
+            // undifferentiated slab, and the join is meant to read as a seam.
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.Seam),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            actions.forEachIndexed { index, action ->
+                val position = ButtonGroupPosition.of(index, actions.size)
+                val enabledHere = enabled && action.enabled
 
-            if (action.icon != null && action.content == null) {
-                IconButton(
-                    icon = action.icon,
-                    contentDescription = action.contentDescription.orEmpty(),
-                    onClick = action.onClick,
-                    enabled = enabledHere,
-                    variant = variant,
-                    size = size,
-                    shape = position.shape(shape),
-                    interactionSource = action.interactionSource,
-                )
-            } else {
-                Button(
-                    onClick = action.onClick,
-                    enabled = enabledHere,
-                    variant = variant,
-                    size = size,
-                    shape = position.shape(shape),
-                    interactionSource = action.interactionSource,
-                    content = action.content ?: {},
-                )
+                if (action.icon != null && action.content == null) {
+                    IconButton(
+                        icon = action.icon,
+                        contentDescription = action.contentDescription.orEmpty(),
+                        onClick = action.onClick,
+                        enabled = enabledHere,
+                        variant = variant,
+                        size = size,
+                        shape = position.shape(shape),
+                        interactionSource = action.interactionSource,
+                    )
+                } else {
+                    Button(
+                        onClick = action.onClick,
+                        enabled = enabledHere,
+                        variant = variant,
+                        size = size,
+                        shape = position.shape(shape),
+                        interactionSource = action.interactionSource,
+                        content = action.content ?: {},
+                    )
+                }
             }
         }
     }

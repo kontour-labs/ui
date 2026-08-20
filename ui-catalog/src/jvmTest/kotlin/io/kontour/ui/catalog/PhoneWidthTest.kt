@@ -6,11 +6,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.kontourSizing
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.fail
@@ -29,6 +33,26 @@ import kotlin.test.fail
  * narrow throws in anybody's app that puts it in a tight row, and the showcase
  * is only how it was found. So the fix belongs in `:ui` unless the specimen is
  * asking for something no caller reasonably would.
+ *
+ * ### Android's touch target, not the JVM's
+ *
+ * `platformMinTouchTarget` is an `expect val`: **48dp on Android**, 44 on iOS
+ * and web, and **24 on the JVM**, where the pointer is the assumed input and
+ * WCAG's 24px floor is the right answer. Every value is correct for its
+ * platform, and every test in this project runs on the JVM.
+ *
+ * That would be harmless if `Modifier.minimumTouchTarget()` only widened a hit
+ * area. It does not — it is a `LayoutModifierNode` that expands the node's
+ * *measured size* and centres the visual inside it. So on a phone the
+ * twenty-odd components that call it each reserve 48dp, and here they reserved
+ * 24 — which, since nothing in the library is smaller than 24dp, made the
+ * modifier a no-op and the goldens blind to it. A `ButtonGroup`'s 1dp seam
+ * renders as 9dp on a phone for exactly this reason, and the picture below said
+ * it was fine.
+ *
+ * So these render with Android's number. It is still a simulation — no test
+ * process on any machine loads `Accessibility.android.kt` — but it is the same
+ * arithmetic, which is what was actually missing.
  *
  * ### 360 × 800, at three
  *
@@ -85,22 +109,11 @@ class PhoneWidthTest {
                 height = GoldenHeight,
                 density = GoldenDensity,
                 frames = Frames,
-                // These pages scroll; a page taller than the canvas is the norm
-                // here rather than a fault.
-                allowOverflow = true,
+                // Tall is fine — these pages scroll. Wide is not, and used to be
+                // waved through with it.
+                allowVerticalOverflow = true,
             ) {
-                KontourTheme(reduceMotion = true) {
-                    OverlayHost(Modifier.fillMaxSize()) {
-                        Box(
-                            Modifier
-                                .fillMaxSize()
-                                .background(Theme.colors.background)
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            page.content(Modifier.fillMaxWidth())
-                        }
-                    }
-                }
+                PhoneTheme { page.content(Modifier.fillMaxWidth()) }
             }
         }
     }
@@ -115,17 +128,38 @@ class PhoneWidthTest {
      */
     private fun render(page: Page) {
         Scene(width = PhoneWidth, height = PhoneHeight, density = PhoneDensity) {
-            OverlayHost(Modifier.fillMaxSize()) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.White)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    page.content(Modifier.fillMaxWidth())
+            PhoneTheme { page.content(Modifier.fillMaxWidth()) }
+        }.use { scene -> scene.frames(Frames) }
+    }
+
+    /**
+     * A phone's theme, host and scroller, in the shape the app uses.
+     *
+     * [WindowSizeClassProvider] is here because without it `LocalWindowSizeClass`
+     * falls back to a hardcoded 400 × 800dp — so a 360dp canvas reported itself
+     * as 400dp wide. Both are `Compact` and nothing in `:ui` reads the raw
+     * width yet, so it changed nothing today; it was still a lie, and this is
+     * what the real shell does at `Catalog.kt`'s root.
+     */
+    @Composable
+    private fun PhoneTheme(content: @Composable () -> Unit) {
+        KontourTheme(
+            reduceMotion = true,
+            sizing = kontourSizing(ContrastLevel.Standard).copy(minTouchTarget = AndroidTouchTarget),
+        ) {
+            WindowSizeClassProvider(Modifier.fillMaxSize()) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(Theme.colors.background)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        content()
+                    }
                 }
             }
-        }.use { scene -> scene.frames(Frames) }
+        }
     }
 
     /** `Date & time` → `date-time`, so the file names stay tidy. */
@@ -146,6 +180,9 @@ class PhoneWidthTest {
          * a marker arriving — and a crash a few frames later is still a crash.
          */
         const val Frames = 12
+
+        /** `platformMinTouchTarget` on Android, which the JVM would otherwise report as 24dp. */
+        val AndroidTouchTarget = 48.dp
 
         /** The same 360dp, at the density the rest of the goldens use. */
         const val GoldenWidth = 720

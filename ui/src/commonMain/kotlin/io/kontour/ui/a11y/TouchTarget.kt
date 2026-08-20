@@ -1,5 +1,6 @@
 package io.kontour.ui.a11y
 
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
@@ -55,6 +56,28 @@ fun Modifier.minimumTouchTarget(enabled: Boolean = true): Modifier =
 /** WCAG 2.2 SC 2.5.8 "Target Size (Minimum)": 24×24 CSS pixels. */
 val pointerMinTouchTarget: Dp = 24.dp
 
+/**
+ * Set by a parent that guarantees the touch target on its children's behalf.
+ *
+ * A `ButtonGroup`, a `SegmentedControl` or a `Toolbar` is **one control made of
+ * parts**, and the parts must sit flush. If each part reserves its own 48dp,
+ * the reserved slack becomes real space between them: a group of three 40dp
+ * icon buttons joined by a 1dp seam renders that seam at **9dp** on Android —
+ * 4dp of transparent padding either side — and the joined group falls apart
+ * into three loose buttons, which is the one thing it exists to prevent. On
+ * desktop it looked perfect, because the JVM's minimum is 24dp and nothing here
+ * is smaller than that, so the modifier did nothing at all.
+ *
+ * The parent takes on the duty instead: it sizes the whole row to at least
+ * `Theme.sizing.minTouchTarget` tall, and each segment is then a full-height
+ * strip that a fingertip can hit. The target is not lost, it is relocated to
+ * the thing that is actually one target.
+ *
+ * `staticCompositionLocalOf` because it changes only when a subtree is built,
+ * never while one is alive.
+ */
+internal val LocalTouchTargetOwnedByParent = staticCompositionLocalOf { false }
+
 private object MinimumTouchTargetElement : ModifierNodeElement<MinimumTouchTargetNode>() {
     override fun create() = MinimumTouchTargetNode()
     override fun update(node: MinimumTouchTargetNode) = Unit
@@ -75,6 +98,13 @@ private class MinimumTouchTargetNode :
         constraints: Constraints,
     ): MeasureResult {
         val placeable = measurable.measure(constraints)
+
+        // A parent that has taken the duty on gets no expansion here — see
+        // [LocalTouchTargetOwnedByParent]. Read in `measure` rather than in
+        // composition so a group can wrap children it did not compose itself.
+        if (currentValueOf(LocalTouchTargetOwnedByParent)) {
+            return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        }
 
         val modality = currentValueOf(LocalInputModality)
         val minimum = if (modality.needsLargeTargets) {

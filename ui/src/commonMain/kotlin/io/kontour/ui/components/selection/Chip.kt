@@ -83,6 +83,10 @@ fun Chip(
 
     ChipSurface(
         modifier = modifier
+            // Target first, then the visuals — the order every other component
+            // in the library uses, and the one `Modifier.minimumTouchTarget`'s
+            // own KDoc documents: reserve the space, draw the pill inside it.
+            .minimumTouchTarget()
             .focusRing(interactions, shape)
             .clip(shape)
             .background(if (enabled) colors.surfaceSunken else Color.Transparent, shape)
@@ -327,8 +331,20 @@ private fun ChipSurface(
     content: @Composable RowContentScope.() -> Unit
 ) {
     Row(
+        // No `minimumTouchTarget` here, and that is the fix rather than an
+        // omission.
+        //
+        // `modifier` arrives from the caller already carrying `clip`,
+        // `background` and `clickable`, so anything appended below them is
+        // *inside* the visuals — and `minimumTouchTarget` expands the node it is
+        // on. The pill was therefore drawn at the reserved target: 48dp on
+        // Android, 44 on iOS, beside 34dp filter and input chips built in the
+        // correct order. On the JVM `max(34, 24)` is 34, so every golden showed
+        // three identical chips and the suite stayed green.
+        //
+        // The target belongs at the top of the chain, which is where the caller
+        // puts it now — see [Chip].
         modifier = modifier
-            .minimumTouchTarget()
             .height(ChipHeight)
             .padding(horizontal = Theme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(6.dp),

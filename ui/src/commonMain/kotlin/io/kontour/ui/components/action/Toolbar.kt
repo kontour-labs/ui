@@ -4,9 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -16,6 +18,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.foundation.VerticalDivider
@@ -74,12 +77,26 @@ fun Toolbar(
         // contrast tiers. Same reasoning as an elevated `Card`.
         border = contrastEdge(),
     ) {
-        Row(
-            modifier = Modifier.padding(contentPadding),
-            horizontalArrangement = arrangement,
-            verticalAlignment = Alignment.CenterVertically,
-            content = content,
-        )
+        // The bar owns the touch target for the controls in it.
+        //
+        // Left to themselves each `IconButton` reserves `minTouchTarget` and
+        // centres a 40dp visual inside it, so on Android the 4dp arrangement gap
+        // draws at 12dp and the bar grows 8dp taller than the concentricity
+        // maths below assumes — the radius is derived from a child that is 40dp
+        // here and 48dp there, so the nesting stops being concentric on the one
+        // platform anybody looks at it on. Sizing the bar instead keeps the gaps
+        // the gaps they were authored as, and a full-height strip is still a
+        // target a finger can hit. See [LocalTouchTargetOwnedByParent].
+        CompositionLocalProvider(LocalTouchTargetOwnedByParent provides true) {
+            Row(
+                modifier = Modifier
+                    .padding(contentPadding)
+                    .defaultMinSize(minHeight = Theme.sizing.minTouchTarget),
+                horizontalArrangement = arrangement,
+                verticalAlignment = Alignment.CenterVertically,
+                content = content,
+            )
+        }
     }
 }
 

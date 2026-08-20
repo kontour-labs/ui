@@ -97,7 +97,15 @@ fun SegmentedControl(
     val outerShape = Theme.shapes.small
     val innerShape = Theme.shapes.extraSmall
     val feedback = Feedback
-    val height = Theme.sizing.controlHeightMedium
+    // At least a fingertip tall, whatever the control height token says.
+    //
+    // A segmented control is one control made of parts, so it owns the touch
+    // target for all of them — the same bargain `ButtonGroup` strikes. It used
+    // to pin `controlHeightMedium` and opt out of `minimumTouchTarget`
+    // altogether, which on Android left it 4dp shorter than any `Button` beside
+    // it and quietly broke the promise in `Sizing`'s KDoc that a row of mixed
+    // controls lines up. Invisible on desktop, where the minimum is 24dp.
+    val height = maxOf(Theme.sizing.controlHeightMedium, Theme.sizing.minTouchTarget)
     val indicator = rememberSelectionIndicatorState()
 
     SelectionIndicatorBox(

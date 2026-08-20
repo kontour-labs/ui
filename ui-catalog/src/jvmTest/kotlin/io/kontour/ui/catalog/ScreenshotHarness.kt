@@ -89,6 +89,18 @@ object Screenshot {
         density: Float = 2f,
         frames: Int = 6,
         allowOverflow: Boolean = false,
+        /**
+         * Tolerate content taller than the canvas, but still check its width.
+         *
+         * A scrolling page is *supposed* to be taller than the window, so
+         * `allowOverflow` is how those goldens are recorded — and it switched
+         * the width check off with it. That is the wrong trade: a page may be
+         * any height it likes and must never be wider than the screen, because
+         * anything past the right edge is simply not drawn, the golden does not
+         * move, and the run passes. Reported from a phone as "the screens don't
+         * display correctly", and invisible here for exactly that reason.
+         */
+        allowVerticalOverflow: Boolean = false,
         trim: Int? = null,
         content: @Composable () -> Unit,
     ): File {
@@ -103,7 +115,9 @@ object Screenshot {
                 image = scene.render(FRAME_NANOS * (frame + 1))
             }
 
-            if (!allowOverflow) checkFits(name, scene, width, height)
+            if (!allowOverflow) {
+                checkFits(name, scene, width, height, ignoreHeight = allowVerticalOverflow)
+            }
 
             val rendered = requireNotNull(image.encodeToData(EncodedImageFormat.PNG)) {
                 "Skia failed to encode $name to PNG"
@@ -236,7 +250,13 @@ object Screenshot {
      * meant to scroll.
      */
     @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
-    private fun checkFits(name: String, scene: ImageComposeScene, width: Int, height: Int) {
+    private fun checkFits(
+        name: String,
+        scene: ImageComposeScene,
+        width: Int,
+        height: Int,
+        ignoreHeight: Boolean = false,
+    ) {
         val content = try {
             scene.calculateContentSize()
         } catch (unmeasurable: IllegalStateException) {
@@ -251,11 +271,25 @@ object Screenshot {
         val tooWide = content.width > width
         // Only trust the height if the content actually wanted this much width.
         val heightIsMeaningful = content.width >= width * WIDTH_CONFIDENCE
-        val tooTall = heightIsMeaningful && content.height > height
+        val tooTall = !ignoreHeight && heightIsMeaningful && content.height > height
         if (!tooWide && !tooTall) return
 
         val needWidth = maxOf(content.width, width)
         val needHeight = if (tooTall) maxOf(content.height, height) else height
+
+        // A width-only failure on a page that is allowed to scroll is a
+        // different finding, and deserves different advice: growing the canvas
+        // is exactly the wrong move, because the canvas *is* the phone.
+        if (ignoreHeight && tooWide) {
+            mismatches += "$name is wider than the screen: content measures " +
+                "${content.width}px across a ${width}px canvas. This one is " +
+                "allowed to be as tall as it likes and is not allowed to be " +
+                "this wide — the ${content.width - width}px past the right edge " +
+                "is not drawn at all, so the golden would not move and the run " +
+                "would pass. Something inside needs to wrap, shrink or scroll."
+            return
+        }
+
         mismatches += "$name does not fit its canvas: content measures " +
             "${content.width}×${content.height}, canvas is ${width}×$height. " +
             "Anything past the edge is not drawn at all — the golden would not " +
