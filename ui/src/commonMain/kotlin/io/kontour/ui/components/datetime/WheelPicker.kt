@@ -22,16 +22,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
-import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 /**
  * A scrolling drum of values, snapping to the one in the middle.
@@ -116,9 +121,50 @@ fun <T> WheelPicker(
      */
     val scope = rememberCoroutineScope()
 
+    /**
+     * Keeps the drum's scrolling to the drum.
+     *
+     * A `LazyColumn` is a nested-scroll child by default: whatever its fling
+     * behaviour does not consume is handed up to the nearest scrollable
+     * ancestor. A wheel holds twelve or twenty-four rows with padding at both
+     * ends, so a flick reaches an end *routinely* rather than exceptionally —
+     * and the leftover velocity went straight into the page behind it, or into
+     * the sheet the picker was sitting in. Reported as "when I finish scrolling
+     * a wheel, the velocity continues into the lazy list".
+     *
+     * Nothing here moves the wheel. Both overrides claim what they are given and
+     * do nothing with it, which is the whole intent: a spinning drum is a
+     * self-contained gesture, and a page that scrolls because a drum ran out of
+     * numbers is a page nobody asked to scroll.
+     */
+    val containment = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset =
+                // Over-scroll at either end, from a finger or from the drum's
+                // own settling animation. Swallowed either way: the settle is
+                // the wheel putting *itself* straight, and a page that scrolls
+                // because a drum snapped to the nearest row is a page nobody
+                // asked to scroll. Filtering to `UserInput` here left thirty
+                // pixels of it escaping.
+                available
+
+            override suspend fun onPostFling(
+                consumed: Velocity,
+                available: Velocity,
+            ): Velocity = available
+        }
+    }
+
     Box(
         modifier
             .height(itemHeight * visibleItems)
+            // Above the drag and the list, so it sees what either of them
+            // declined and the page above sees neither.
+            .nestedScroll(containment)
             .draggable(
                 state = rememberDraggableState { delta -> listState.dispatchRawDelta(-delta) },
                 orientation = Orientation.Vertical,
