@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -77,6 +78,19 @@ fun NavShowcase(modifier: Modifier = Modifier) {
         ) {
             DeviceStrip {
                 DevicePanel("Compact — bar at the bottom", width = 360.dp, height = 620.dp)
+                // The same phone with a gesture bar under it. Every other golden
+                // in this project renders at zero insets — the JVM has no system
+                // bars to report — so the bar's `windowInsets` default has been
+                // correct and invisible since the day it was written, and "does
+                // it respect the safe zone" was not a question any picture here
+                // could answer. Passing the inset explicitly is the only way to
+                // ask it, and 48dp is the tallest thing Android puts there.
+                DevicePanel(
+                    "Compact — with a 48dp gesture bar",
+                    width = 360.dp,
+                    height = 620.dp,
+                    safeArea = 48.dp,
+                )
                 DevicePanel("Medium — rail on the leading edge", width = 700.dp, height = 620.dp)
                 DevicePanel("Expanded — drawer", width = 900.dp, height = 620.dp)
             }
@@ -346,7 +360,7 @@ private fun RailPanel(expanded: Boolean) {
 }
 
 @Composable
-private fun DevicePanel(title: String, width: Dp, height: Dp) {
+private fun DevicePanel(title: String, width: Dp, height: Dp, safeArea: Dp = 0.dp) {
     Column(
         modifier = Modifier.width(width),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
@@ -374,6 +388,11 @@ private fun DevicePanel(title: String, width: Dp, height: Dp) {
                 NavigationSuiteScaffold(
                     items = destinations(selected) { selected = it },
                     selectedIndex = selected,
+                    windowInsets = if (safeArea > 0.dp) {
+                        WindowInsets(bottom = safeArea)
+                    } else {
+                        WindowInsets(0)
+                    },
                     action = {
                         FloatingActionButton(
                             icon = Tabler.Outline.Search,
@@ -408,6 +427,21 @@ private fun DevicePanel(title: String, width: Dp, height: Dp) {
                         }
                     }
                 }
+            }
+
+            // Over the scaffold, not under it: `NavigationSuiteScaffold` opens
+            // with an opaque full-size `Surface`, which painted straight over
+            // the first attempt at this. Drawn where the system would put its
+            // gesture bar, so the safe area is something you can see the bar
+            // clearing rather than a number it claims to be clearing.
+            if (safeArea > 0.dp) {
+                Box(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(safeArea)
+                        .background(Theme.colors.accent.container.copy(alpha = 0.7f)),
+                )
             }
         }
     }

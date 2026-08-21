@@ -75,7 +75,16 @@ destinations; that is the whole of the chrome.
 
 Each circle carries its own elevation, which is enough to separate it from a
 map. Over a photo or a promotional banner it is not, and `backdrop` adds a
-vertical fade from transparent to the page colour behind the whole row.
+vertical fade from transparent to the page colour behind the whole row. The fade
+is *drawn*, not laid out — it reaches 128dp up the screen without the bar
+measuring a pixel taller, because the scaffold hands that measurement to your
+content as padding.
+
+**The bar is as tall as the target it reserves, and no taller.** A destination
+draws a 40dp circle inside the 48dp `Theme.sizing.minTouchTarget` reserves around
+it, so the air above and below the circles is the touch target's own rather than
+padding added on top of it. On a phone that is 48dp of bar, plus whatever the
+gesture bar underneath asks for.
 
 `showLabels` is off by default. A word under every icon is a row of words, and
 the destinations of an app this size are the four or five its user already

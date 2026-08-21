@@ -61,8 +61,17 @@ object NavItemDefaults {
      */
     val GlyphSize: DpSize = DpSize(IndicatorWidth, 28.dp)
 
-    /** A destination that is a circle rather than a row in a bar. */
-    val CircleSize: DpSize = DpSize(48.dp, 48.dp)
+    /**
+     * A destination that is a circle rather than a row in a bar.
+     *
+     * 40dp, not the touch target's 48. The circle is the *visible* destination
+     * and `minimumTouchTarget()` reserves the rest — so five filled, elevated
+     * 48dp discs became five 40dp ones with the same 48dp of layout around them,
+     * and the bar reads lighter without a single pixel of tappable area lost.
+     * The 4dp of transparent slack the touch target already provides is also
+     * what the row's own vertical padding used to add a second time.
+     */
+    val CircleSize: DpSize = DpSize(40.dp, 40.dp)
 
     /**
      * How much the current destination's icon grows.

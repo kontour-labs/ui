@@ -12,7 +12,9 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.captureToImage
@@ -24,7 +26,9 @@ import com.composables.icons.tabler.outline.Search
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavItem
+import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.kontourSizing
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -51,6 +55,9 @@ class NavBarGeometryTest {
     /** Darker than this is the glyph; everything else in a destination is not. */
     private val Ink = 0.4f
 
+    /** `platformMinTouchTarget` on Android, which the JVM reports as 24dp. */
+    private val AndroidTouchTarget = 48.dp
+
     private class Measured {
         var bar: Rect = Rect.Zero
         /** The union of the destinations — what the bar has to centre and fit. */
@@ -76,7 +83,18 @@ class NavBarGeometryTest {
         showLabels: Boolean = true,
         badgeOn: Int? = null,
         withAction: Boolean = false,
+        backdrop: Boolean = false,
         direction: LayoutDirection = LayoutDirection.Ltr,
+        /**
+         * The platform's minimum touch target, or `null` for the JVM's own.
+         *
+         * `platformMinTouchTarget` is 24dp here and 48 on Android, and the bar's
+         * height is now the larger of that and its circle — so a test about the
+         * bar's height on a phone has to say which platform it means. Everything
+         * else in this file predates the distinction and is unaffected by it,
+         * which is why this is opt-in rather than applied to all of them.
+         */
+        touchTarget: Dp? = null,
     ): Measured {
         val measured = Measured()
         runComposeUiTest {
@@ -85,7 +103,13 @@ class NavBarGeometryTest {
                     LocalDensity provides Density(pixelsPerDp, fontScale),
                     LocalLayoutDirection provides direction,
                 ) {
-                    KontourTheme(darkTheme = false, reduceMotion = true) {
+                    KontourTheme(
+                        darkTheme = false,
+                        reduceMotion = true,
+                        sizing = kontourSizing(ContrastLevel.Standard).let {
+                            if (touchTarget == null) it else it.copy(minTouchTarget = touchTarget)
+                        },
+                    ) {
                         Box(Modifier.fillMaxSize()) {
                             NavBar(
                                 items = destinations.mapIndexed { index, label ->
@@ -100,6 +124,7 @@ class NavBarGeometryTest {
                                 selectedIndex = 1,
                                 modifier = Modifier.testTag("bar"),
                                 showLabels = showLabels,
+                                backdrop = backdrop,
                                 action = if (withAction) {
                                     {
                                         FloatingActionButton(
@@ -134,6 +159,80 @@ class NavBarGeometryTest {
             }
         }
         return measured
+    }
+
+    /**
+     * The bar is exactly as tall as the target it reserves, and no taller.
+     *
+     * It used to be eight dp taller: a 48dp circle with `spacing.xxs` of padding
+     * above and below it. But a destination already calls `minimumTouchTarget()`,
+     * which expands its *measured* size to the platform minimum and centres the
+     * visual inside — so on a phone the air above and below the circle was there
+     * twice, and the bar cost 56dp of a screen before the gesture bar under it
+     * was counted. The circle is 40dp now and the slack around it is the touch
+     * target's own.
+     *
+     * Both halves matter. Dropping the padding without shrinking the circle
+     * would have made the bar 48dp of solid disc with no air at all — which is
+     * why the circle is checked too. Disabling the touch target is caught by the
+     * *first* assertion rather than the second, because the bar's height is now
+     * the target: it drops to the circle's 40dp and says so. The second is for
+     * the case the first cannot see, a bar padded back up to 48 around
+     * destinations that are smaller than that to hit.
+     */
+    @Test
+    fun theBarIsNoTallerThanTheTargetItReserves() {
+        val phone = measure(showLabels = false, touchTarget = AndroidTouchTarget)
+        val target = AndroidTouchTarget.value * pixelsPerDp
+
+        assertTrue(
+            abs(phone.bar.height - target) <= 1f,
+            "the bar is ${phone.bar.height / pixelsPerDp}dp tall for a " +
+                "${AndroidTouchTarget.value}dp touch target — it should be the " +
+                "target exactly, with nothing padded on top of it",
+        )
+
+        phone.each.forEachIndexed { index, item ->
+            assertTrue(
+                item.height >= target - 1f && item.width >= target - 1f,
+                "destination ${destinations[index]} is " +
+                    "${item.width / pixelsPerDp}×${item.height / pixelsPerDp}dp, " +
+                    "under the ${AndroidTouchTarget.value}dp it has to reserve",
+            )
+        }
+    }
+
+    /**
+     * The fade behind the bar changes nothing about the bar's size or place.
+     *
+     * It used to be a 128dp sibling box inside the component's own `Box`, so
+     * turning `backdrop` on made the whole thing 128dp tall — and because the
+     * destination row carried no alignment, it then sat at the *top* of that box
+     * instead of the bottom. [io.kontour.ui.nav.NavigationSuiteScaffold]
+     * measures this component and hands its height to the screen as padding, so
+     * a screen that asked for a backdrop inset its content by 128dp and lifted
+     * its destinations away from the edge they belong on.
+     *
+     * The gallery's own golden had shown it since the day the backdrop was
+     * added: one specimen's circles sitting fifty pixels above its neighbours',
+     * in a row of four panels meant to be identical but for their decoration.
+     */
+    @Test
+    fun theBackdropDoesNotChangeTheBarsSize() {
+        val plain = measure(showLabels = false)
+        val faded = measure(showLabels = false, backdrop = true)
+
+        assertTrue(
+            abs(plain.bar.height - faded.bar.height) <= 1f,
+            "the bar is ${plain.bar.height / pixelsPerDp}dp without a backdrop " +
+                "and ${faded.bar.height / pixelsPerDp}dp with one — the fade is " +
+                "decoration and must not be laid out",
+        )
+        assertTrue(
+            abs(plain.items.top - faded.items.top) <= 1f,
+            "the destinations sit at y=${plain.items.top / pixelsPerDp}dp without " +
+                "a backdrop and y=${faded.items.top / pixelsPerDp}dp with one",
+        )
     }
 
     @Test

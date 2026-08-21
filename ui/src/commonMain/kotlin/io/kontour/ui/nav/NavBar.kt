@@ -16,8 +16,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -33,15 +37,22 @@ object NavBarDefaults {
     val Inset: Dp = 16.dp
 
     /**
-     * The shortest the row can be — a destination's circle, and the air above
-     * and below it.
+     * The shortest the row can be — whichever is larger of a destination's
+     * circle and the touch target reserved around it.
+     *
+     * It used to be `CircleSize.height + 8.dp`, which described the row's old
+     * padding rather than what actually sets the floor. A destination calls
+     * `minimumTouchTarget()`, so on Android the row cannot measure under 48dp
+     * however small the circle is drawn — and deriving this from a decoration is
+     * how it went wrong the moment the decoration changed.
      *
      * A starting estimate only: [NavigationSuiteScaffold] measures the real
      * height, which grows with the user's type size and with a label under each
      * icon. It is here so the first frame of a screen does not lay its content
      * out under a bar of no height at all and then jump.
      */
-    val MinHeight: Dp = NavItemDefaults.CircleSize.height + 8.dp
+    val MinHeight: Dp
+        @Composable get() = maxOf(Theme.sizing.minTouchTarget, NavItemDefaults.CircleSize.height)
 
     /**
      * How tall the fade behind the bar is.
@@ -129,26 +140,49 @@ fun NavBar(
 ) {
     val indicator = rememberSelectionIndicatorState()
 
-    Box(modifier.fillMaxWidth()) {
-        if (backdrop) {
-            Box(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(NavBarDefaults.BackdropHeight)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, backdropColor),
-                        )
-                    )
-            )
-        }
+    // The fade is *drawn*, not laid out.
+    //
+    // It used to be a 128dp sibling `Box` inside this one, which made the whole
+    // component 128dp tall whenever `backdrop` was on — and since the `Row`
+    // carried no alignment it then sat at the top of that box rather than at the
+    // bottom. [NavigationSuiteScaffold] measures this component and hands its
+    // height to the screen as padding, so turning the backdrop on inset the
+    // content by 128dp and lifted the destinations away from the edge. Visible
+    // in the gallery's own golden, in the one panel that uses it.
+    //
+    // Reaching above the node's own bounds is the point: the fade has to start
+    // well over the row it stands behind, and nothing here clips.
+    val backdropHeight = with(LocalDensity.current) { NavBarDefaults.BackdropHeight.toPx() }
 
+    Box(modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(
+                    if (backdrop) {
+                        Modifier.drawBehind {
+                            val top = size.height - backdropHeight
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, backdropColor),
+                                    startY = top,
+                                    endY = size.height,
+                                ),
+                                topLeft = Offset(0f, top),
+                                size = Size(size.width, backdropHeight),
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
                 .windowInsetsPadding(windowInsets)
-                .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xxs),
+                // Horizontal only. Every destination reserves
+                // `Theme.sizing.minTouchTarget` and draws a smaller circle
+                // inside it, so the air above and below the circles is already
+                // there; 4dp on top of it was the same 4dp twice, and eight of
+                // the bar's fifty-six were paying for it.
+                .padding(horizontal = NavBarDefaults.Inset),
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {

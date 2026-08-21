@@ -101,7 +101,8 @@ fun NavigationSuiteScaffold(
                 // added the floating inset to a docked bar that has none, and the
                 // bar's height is now derived from its content, so it grows at
                 // large type and no arithmetic here could predict it.
-                var barHeight by remember { mutableStateOf(NavBarDefaults.MinHeight) }
+                val estimate = NavBarDefaults.MinHeight
+                var barHeight by remember { mutableStateOf(estimate) }
                 val density = LocalDensity.current
 
                 content(barHeight)
