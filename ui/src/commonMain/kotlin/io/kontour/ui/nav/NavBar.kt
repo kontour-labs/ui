@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -223,7 +224,7 @@ fun NavBar(
                 ) {
                     items.forEachIndexed { index, item ->
                         if (search != null && searchIndex == index) {
-                            Box(Modifier.weight(1f)) { search() }
+                            Box(Modifier.weight(1f)) { BarSlot(search) }
                         }
                         NavBarItem(
                             item = item,
@@ -248,7 +249,9 @@ fun NavBar(
             }
 
             // Only when it has not already been placed among the items.
-            if (search != null && searchIndex == null) Box(Modifier.weight(1f)) { search() }
+            if (search != null && searchIndex == null) {
+                Box(Modifier.weight(1f)) { BarSlot(search) }
+            }
 
             if (action != null) {
                 // Aligned to the *icons*, not to the row.
@@ -263,7 +266,7 @@ fun NavBar(
                     modifier = Modifier.align(Alignment.Top).height(indicatorSize.height),
                     contentAlignment = Alignment.Center,
                 ) {
-                    action()
+                    BarSlot(action)
                 }
             }
         }
@@ -304,5 +307,24 @@ fun NavBarItem(
         // job and a per-item shadow would be a second one.
         shadow = Theme.elevation.low,
         interactionSource = interactionSource,
+    )
+}
+
+/**
+ * A bar's slot, told how much room it has.
+ *
+ * A bar does not resize, so `progress` is 1 — but it is a *narrow* place, a
+ * hundred-odd dp between two pairs of destinations, and content that adapts to
+ * its surface needs to hear that. [LocalNavExpansion] defaults to expanded for
+ * anything outside a navigation surface, which is right there and wrong here:
+ * without this a [NavSearch] in a bar would decide it had room to be a live text
+ * field, and raise the keyboard inside the navigation bar.
+ */
+@Composable
+private fun BarSlot(content: @Composable () -> Unit) {
+    CompositionLocalProvider(
+        LocalNavExpansion provides
+            NavExpansion(expanded = false, progress = 1f, onSurface = false),
+        content = content,
     )
 }

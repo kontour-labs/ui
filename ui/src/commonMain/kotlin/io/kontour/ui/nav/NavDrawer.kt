@@ -25,6 +25,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -124,6 +125,13 @@ fun NavDrawer(
     windowInsets: WindowInsets = WindowInsets.leadingEdges,
     content: @Composable NavDrawerScope.() -> Unit,
 ) {
+    // A drawer is the wide end of the same spectrum a rail moves along, so its
+    // slots get the same answer a fully expanded rail's do — content written for
+    // one works in the other without knowing which it is in.
+    CompositionLocalProvider(
+        LocalNavExpansion provides
+            NavExpansion(expanded = true, progress = 1f, onSurface = true)
+    ) {
     Surface(
         modifier = modifier
             .width(width)
@@ -156,6 +164,7 @@ fun NavDrawer(
 
             footer?.invoke(this)
         }
+    }
     }
 }
 

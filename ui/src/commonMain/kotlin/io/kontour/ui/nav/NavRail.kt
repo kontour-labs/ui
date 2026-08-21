@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.WindowInsets
@@ -154,6 +155,23 @@ fun NavRail(
     // revealed *from* when it grows.
     val itemLabels = showLabels && roomForLabels
 
+    // Published to the slots, so a header, an action or anything else the caller
+    // puts in one can answer the same question the destinations do. Without it
+    // the only way for slot content to know how wide the rail currently is was
+    // for the caller to thread its own copy of `expanded` down by hand — and it
+    // would be the target flag rather than the animated width, which is the
+    // mistake this component spent a round unlearning.
+    val room = NavExpansion(
+        expanded = roomForLabels,
+        progress = if (expandedWidth == collapsedWidth) {
+            1f
+        } else {
+            ((width - collapsedWidth) / (expandedWidth - collapsedWidth)).coerceIn(0f, 1f)
+        },
+        onSurface = true,
+    )
+
+    CompositionLocalProvider(LocalNavExpansion provides room) {
     Surface(
         modifier = modifier.width(width).fillMaxHeight(),
         color = containerColor,
@@ -262,6 +280,7 @@ fun NavRail(
             Spacer(Modifier.weight(1f))
             Box(Modifier.padding(start = Theme.spacing.sm)) { action?.invoke(this@Column) }
         }
+    }
     }
 }
 

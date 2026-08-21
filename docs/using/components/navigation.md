@@ -124,10 +124,57 @@ asks for. So the pill stays put and the expanded field goes into the
 `OverlayHost`, which brings the scrim, back and escape, and trapped focus with
 it.
 
-`NavSearchPlacement` says where it lands. `AboveKeyboard` keeps the field near
+`NavExpandPlacement` says where it lands. `AboveKeyboard` keeps the field near
 the thumb that opened it and stacks results upward; `Top` puts it where a
 browser puts one and reads the results downward. Both are built because the
 answer is a question about your app rather than about the component.
+
+**The pill sits on `surface` with the destinations' own shadow**, not in the
+`surfaceSunken` well a text field uses. It is a raised thing on the page beside
+other raised things; a sunken control on a sunken page has no edge at all.
+`containerColor` and `contentColor` are there for an app that wants otherwise.
+
+### The same shape without a search in it
+
+`NavExpandingSlot` is the pill-and-panel underneath
+`NavSearch`, and it knows nothing about searching. A filter, an account
+switcher, a "where to?" prompt and a compose box are all the same thing: a small
+control in the bar that needs the whole screen once it is in use.
+
+```kotlin
+var open by remember { mutableStateOf(false) }
+
+NavExpandingSlot(
+    expanded = open,
+    onExpandedChange = { open = it },
+    expandedContent = { FilterList(onPick = { open = false }) },
+) {
+    +Tabler.Outline.Filter
+    +"Filters"
+}
+```
+
+### Slot content that knows how much room it has
+
+`LocalNavExpansion` tells whatever is in a `header`, `action`, `footer` or
+`search` slot how wide the surface around it currently is — `expanded` for
+whether there is room for a word, `progress` for interpolating across a rail's
+animation.
+
+```kotlin
+NavRail(items, selectedIndex = current, header = {
+    val room = LocalNavExpansion.current
+    Row { Avatar(user); if (room.expanded) Text(user.name) }
+})
+```
+
+This is what makes `NavSearch` a pill in a bar and a field in a drawer with no
+parameter at the call site, and it is deliberately not about search: a profile
+row that gains a name, a button that drops its label, a chip that becomes an
+icon are the same question. Before it, the only way to answer it was to thread
+your own copy of the rail's `expanded` flag down by hand — and that flag is the
+*target*, not the animated width, which is the mistake the rail itself spent a
+round unlearning.
 
 `NavigationSuiteScaffold` passes `search` and `searchIndex` through to the bar,
 and to the bar only — a rail and a drawer have a leading edge and room to spare,

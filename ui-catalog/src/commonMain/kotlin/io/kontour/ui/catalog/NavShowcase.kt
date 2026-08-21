@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,7 +37,6 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.FabSize
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
-import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
@@ -125,6 +123,13 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                 DeviceStrip {
                     RailPanel(expanded = false)
                     RailPanel(expanded = true)
+                }
+            }
+
+            Section("Rail — a search that grows with it") {
+                DeviceStrip {
+                    RailPanel(expanded = false, search = true)
+                    RailPanel(expanded = true, search = true)
                 }
             }
 
@@ -311,7 +316,15 @@ private fun BarPanel(
             // *this* box rather than the gallery page it is sitting on. Which is
             // also what makes the specimen honest: on a phone the box is the
             // window, and this is the shape of what the user would see.
+            //
+            // The inner `Box` is not decoration. `OverlayHost` lays its content
+            // out at the top of itself, so wrapping the bar in one silently
+            // undid the enclosing box's `BottomCenter` and left every bar
+            // specimen floating at the top of its panel — which is not where a
+            // navigation bar goes, and is the first thing anyone looking at
+            // these pictures noticed.
             OverlayHost(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
             NavBar(
                 items = if (centreSearch) {
                     fourDestinations(selected) { selected = it }
@@ -338,13 +351,13 @@ private fun BarPanel(
                     }
                 } else if (search) {
                     {
-                        SearchField(
-                            state = rememberTextFieldState(),
-                            placeholder = "Search",
-                            // A pill inside a pill. At `shapes.small` the field's
-                            // square-ish corners fight the bar's curve and clip
-                            // against its rounded end.
-                            shape = Theme.shapes.pill,
+                        // The same component, trailing the destinations rather
+                        // than between them. It used to be a bare `SearchField`
+                        // here, which is `surfaceSunken` on a `surfaceSunken`
+                        // panel — a specimen of a control you cannot see.
+                        NavSearch(
+                            state = navSearch,
+                            searchIcon = Tabler.Outline.Search,
                         )
                     }
                 } else {
@@ -368,13 +381,15 @@ private fun BarPanel(
                 },
             )
             }
+            }
         }
     }
 }
 
 @Composable
-private fun RailPanel(expanded: Boolean) {
+private fun RailPanel(expanded: Boolean, search: Boolean = false) {
     var selected by remember { mutableStateOf(1) }
+    val navSearch = rememberNavSearchState()
     // The pair of panels shows both widths at once, and each one can be expanded
     // and collapsed from its own chevron — which is the control the rail exists
     // to have.
@@ -390,11 +405,27 @@ private fun RailPanel(expanded: Boolean) {
             )
             .clip(Theme.shapes.medium)
     ) {
+        // Its own host, so a collapsed rail's search pill has somewhere to open
+        // into — a rail at 88dp cannot hold a field any more than a bar can.
+        OverlayHost(Modifier.fillMaxSize()) {
         NavRail(
             items = destinations(selected) { selected = it },
             selectedIndex = selected,
             expanded = wide,
             onExpandedChange = { wide = it },
+            // A pill at 88dp and a field at 280dp, decided by the rail rather
+            // than by this call site: `NavSearch` reads `LocalNavExpansion`, so
+            // the same line of code is both. Nothing here says which.
+            header = if (search) {
+                {
+                    NavSearch(
+                        state = navSearch,
+                        searchIcon = Tabler.Outline.Search,
+                    )
+                }
+            } else {
+                null
+            },
             action = {
                 FloatingActionButton(
                     icon = Tabler.Outline.Search,
@@ -403,6 +434,7 @@ private fun RailPanel(expanded: Boolean) {
                 )
             },
         )
+        }
     }
 }
 
