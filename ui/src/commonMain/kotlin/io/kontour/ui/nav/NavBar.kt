@@ -224,7 +224,17 @@ fun NavBar(
                 ) {
                     items.forEachIndexed { index, item ->
                         if (search != null && searchIndex == index) {
-                            Box(Modifier.weight(1f)) { BarSlot(search) }
+                            // `propagateMinConstraints`, so the slot's content is
+                            // *given* the width rather than merely offered it.
+                            // The `search` parameter has always promised to be
+                            // "sized to what is left"; without this the `Box` was
+                            // sized to what was left and the pill inside it wrapped
+                            // its own content and sat at the start, leaving 45dp of
+                            // nothing between the search and the destination after
+                            // it — against 8dp everywhere else in the row.
+                            Box(Modifier.weight(1f), propagateMinConstraints = true) {
+                                BarSlot(search)
+                            }
                         }
                         NavBarItem(
                             item = item,
@@ -250,7 +260,9 @@ fun NavBar(
 
             // Only when it has not already been placed among the items.
             if (search != null && searchIndex == null) {
-                Box(Modifier.weight(1f)) { BarSlot(search) }
+                Box(Modifier.weight(1f), propagateMinConstraints = true) {
+                    BarSlot(search)
+                }
             }
 
             if (action != null) {

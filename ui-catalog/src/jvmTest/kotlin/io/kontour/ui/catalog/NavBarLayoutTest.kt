@@ -14,6 +14,16 @@ import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavItem
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.runComposeUiTest
+import io.kontour.ui.nav.NavSearch
+import io.kontour.ui.nav.rememberNavSearchState
+import io.kontour.ui.theme.KontourTheme
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -29,7 +39,19 @@ import kotlin.test.assertTrue
  * `searchIndex` is the other half: a search slot that can sit between two
  * destinations rather than only after all of them.
  */
+@OptIn(ExperimentalTestApi::class)
 class NavBarLayoutTest {
+
+    private companion object {
+        /** Where the search slot is tagged, so it can be found among the icons. */
+        const val SearchTag = "search"
+
+        /** A phone, which is where five children in one row is under pressure. */
+        val PhoneWidth = 360.dp
+
+        /** Rounding on a `spacedBy`, and nothing more. */
+        const val Slack = 1f
+    }
 
     private val items = listOf(
         NavItem(label = "Nearby", icon = Tabler.Outline.MapPin, onClick = {}),
@@ -118,6 +140,92 @@ class NavBarLayoutTest {
             middle < last,
             "searchIndex = 2 put the search slot at ${middle}px and no index at " +
                 "${last}px — a middle search is not landing before the last item",
+        )
+    }
+
+    /**
+     * The gaps either side of a centre search match the gaps between destinations.
+     *
+     * `search` has always been documented as "its own shape in the row, sized to
+     * what is left", and the `Box` holding it *was* sized to what was left — but
+     * a `Box` offers its width rather than imposing it, so content that wraps
+     * (a pill around an icon and a word, which is what a collapsed
+     * [io.kontour.ui.nav.NavSearch] is) sat at the start of the slot and left the
+     * remainder as a hole. On a 360dp bar with two destinations either side that
+     * hole was **45dp**, against 8dp everywhere else in the row: four evenly
+     * spaced circles and one conspicuous gap.
+     *
+     * Measured as gaps rather than positions. Where each destination lands
+     * depends on how wide the search is, which depends on its placeholder — but
+     * the *spacing* is `Arrangement.spacedBy` and is the same number between
+     * every pair whatever is in them, which is the property that was broken.
+     */
+    @Test
+    fun aCentreSearchLeavesTheSameGapsAsEverythingElse() {
+        val bounds = childBounds(searchIndex = 2)
+        val gaps = bounds.zipWithNext { left, right -> right.left - left.right }
+
+        assertTrue(gaps.size == 4, "expected four gaps between five children, got ${gaps.size}")
+        assertTrue(
+            gaps.max() - gaps.min() <= Slack,
+            "the bar's children are spaced " + gaps.joinToString(", ") { "${it}dp" } +
+                " — a row arranged with one spacing should have one gap",
+        )
+    }
+
+    /**
+     * Every child of the bar in order, with a search at [searchIndex].
+     *
+     * The destinations are found by content description and the search by tag,
+     * because they are different kinds of thing; both report the node the row
+     * actually laid out, which is the point — a pill that draws narrower than the
+     * box it was given would still report the box if this measured the box.
+     */
+    private fun childBounds(searchIndex: Int): List<Rect> {
+        val order = listOf("Home", "Map", SearchTag, "Plan", "Profile")
+        var bounds: List<Rect> = emptyList()
+
+        runComposeUiTest {
+            setContent {
+                KontourTheme(darkTheme = false, reduceMotion = true) {
+                    Box(Modifier.fillMaxSize().background(Color.White)) {
+                        val search = rememberNavSearchState()
+                        NavBar(
+                            items = described,
+                            selectedIndex = 1,
+                            modifier = Modifier.width(PhoneWidth),
+                            searchIndex = searchIndex,
+                            search = {
+                                NavSearch(
+                                    state = search,
+                                    modifier = Modifier.testTag(SearchTag),
+                                    placeholder = "Search",
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+
+            bounds = order.map { name ->
+                if (name == SearchTag) {
+                    onNodeWithTag(name).fetchSemanticsNode().boundsInRoot
+                } else {
+                    onNodeWithContentDescription(name).fetchSemanticsNode().boundsInRoot
+                }
+            }
+        }
+
+        return bounds
+    }
+
+    /** Four destinations, named so they can be found without their labels shown. */
+    private val described = listOf("Home", "Map", "Plan", "Profile").map { name ->
+        NavItem(
+            label = name,
+            icon = Tabler.Outline.Star,
+            onClick = {},
+            contentDescription = name,
         )
     }
 
