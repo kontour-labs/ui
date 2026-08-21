@@ -1,6 +1,9 @@
 package io.kontour.ui.nav
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.indication
@@ -62,6 +65,16 @@ object NavItemDefaults {
     val GlyphSize: DpSize = DpSize(IndicatorWidth, 28.dp)
 
     /**
+     * The glyph's box in an inline item — a rail row, at any width.
+     *
+     * Square, and sized so an 88dp rail holds it without squeezing: 8dp of rail
+     * padding and 12dp of item padding either side leave exactly 48. A box that
+     * gets clamped is a box the icon is centred in differently at every width,
+     * which is most of what made the rail's icons move as it grew.
+     */
+    val InlineGlyphSize: DpSize = DpSize(48.dp, 48.dp)
+
+    /**
      * A destination that is a circle rather than a row in a bar.
      *
      * 40dp, not the touch target's 48. The circle is the *visible* destination
@@ -85,10 +98,10 @@ object NavItemDefaults {
 
 /** How a destination arranges its icon and its label. */
 enum class NavItemLayout {
-    /** Icon above label. A bar, and a collapsed rail. */
+    /** Icon above label. A bar. */
     Stacked,
 
-    /** Icon beside label. An expanded rail, a drawer row. */
+    /** Icon beside label. A rail at any width, and a drawer row. */
     Inline,
 }
 
@@ -278,8 +291,22 @@ internal fun NavDestinationItem(
         }
     }
 
+    // Faded rather than inserted. A rail turns its labels on partway through an
+    // expansion, once it is wide enough to hold them, and a word that simply
+    // exists on one frame having not existed on the previous one is a pop — the
+    // one piece of the rail's old jumpiness that survived making the icons hold
+    // still. Opacity only, no `expandHorizontally`: the label is the last thing
+    // in the row and the space is already there, so growing into it would move
+    // nothing and cost a re-measure a frame.
+    //
+    // A bar's `showLabels` does not change after composition, so this is inert
+    // there: `AnimatedVisibility` does not animate a state it started in.
     val label = @Composable {
-        if (showLabel) {
+        AnimatedVisibility(
+            visible = showLabel,
+            enter = fadeIn(motion.tweenDefault()),
+            exit = fadeOut(motion.tweenFast()),
+        ) {
             Text(
                 text = item.label,
                 style = Theme.typography.labelSmall,
@@ -313,7 +340,14 @@ internal fun NavDestinationItem(
                 horizontal = Theme.spacing.sm,
                 vertical = Theme.spacing.xxs,
             ),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+            // `lg`, and it is arithmetic rather than taste. A rail uses this
+            // layout at *every* width now, so a collapsed one has to end before
+            // its labels begin or it shows a sliver of each first letter. The
+            // label starts at `railPadding + itemPadding + glyph + gap`, and the
+            // rail's trailing edge is at `2×railPadding + 2×itemPadding + glyph`
+            // — so the gap has to clear one of each padding, which is 20dp, and
+            // 24 is the token above it. At `sm` the labels poked out.
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             glyph()

@@ -120,21 +120,39 @@ fun NavRail(
     )
 
     /**
-     * Whether the rail is *currently wide enough* to be the expanded one.
+     * Whether the rail is *currently wide enough* to show a label.
      *
      * Not `expanded`, which is where it is heading. The width animates over a
-     * few hundred milliseconds and the contents used to switch from stacked to
-     * inline on the frame the flag flipped — so the labels appeared beside icons
-     * in an 88dp rail and were clipped until it caught up, which is the jump.
-     * Reading the animated width instead means the contents change when there is
-     * room for them.
+     * few hundred milliseconds, and a label composed on the frame the flag flips
+     * appears in a rail with no room for it.
+     *
+     * This is now the *only* thing that changes across an expansion. It used to
+     * have company: the destinations switched from a stacked column to an inline
+     * row, and the rail's own `horizontalAlignment` switched from centred to
+     * leading. Both of those moved the icons — the swap on the first frame of
+     * the animation, and the alignment at the halfway mark, where it also
+     * teleported the chevron and the action from the middle of the rail to its
+     * edge. Worse in reverse: collapsing flipped the layout back to stacked
+     * while the rail was still 240dp wide, so every icon jumped to the centre of
+     * that and slid back. Measured at 121dp of travel, against the 4dp the two
+     * resting states differ by.
+     *
+     * So the destinations are inline at every width and leading-aligned at every
+     * width, the glyph box is the same box throughout, and the growing rail
+     * reveals the labels rather than inserting them. Pinned by
+     * `NavRailStillnessTest`.
      */
-    val grown = expandable && width > (collapsedWidth + expandedWidth) / 2
+    val roomForLabels = width > (collapsedWidth + expandedWidth) / 2
 
-    // Inline once there is room for a label beside the icon. A collapsed
-    // expandable rail shows no label at all; see the note on the function.
-    val layout = if (grown) NavItemLayout.Inline else NavItemLayout.Stacked
-    val itemLabels = showLabels && !(expandable && !grown)
+    // Labels when there is room for them, and not otherwise — whether or not
+    // this rail can be expanded at all. It used to be `expandable &&`, which
+    // meant a *fixed* 88dp rail still stacked a word under every icon; the
+    // destinations are inline at every width now, so that word would be a
+    // sliver of its first letter against the rail's edge. It also makes
+    // icons-only the ordinary rail rather than a mode: this is what
+    // [NavigationSuiteScaffold] renders at Medium, and what the labels are
+    // revealed *from* when it grows.
+    val itemLabels = showLabels && roomForLabels
 
     Surface(
         modifier = modifier.width(width).fillMaxHeight(),
@@ -153,25 +171,46 @@ fun NavRail(
                 // and without this that x is the rail's own rounded edge, which
                 // clips the marker in half.
                 .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.md),
-            // Leading-aligned once it has grown. Centred is right for an 88dp
-            // column of glyphs and wrong for a 280dp one: the destinations run
-            // full width and lay their contents out from the leading edge, so a
-            // centred header, toggle and action sat in the middle of the rail
-            // while everything else started at its edge. Nothing lined up with
-            // anything.
-            horizontalAlignment = if (grown) Alignment.Start else Alignment.CenterHorizontally,
+            // Leading-aligned at every width. The destinations run full width
+            // and lay their contents out from the leading edge, so anything
+            // centred beside them — the toggle, a header, an action — is only
+            // lined up with them by accident. It used to be centred while
+            // narrow and leading once grown, which lined nothing up at either
+            // end and moved everything at the halfway frame.
+            horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {
             if (onExpandedChange != null) {
-                RailToggle(
-                    expanded = expanded,
-                    onExpandedChange = onExpandedChange,
-                    expandLabel = expandLabel,
-                    collapseLabel = collapseLabel,
-                )
+                // Centred on the destinations' icons rather than merely
+                // leading-aligned with them. Everything in this column starts at
+                // the same x now, but the toggle and a destination's glyph are
+                // different widths, so "same start" is not "same centre" — and
+                // the chevron sitting eight dp inside the icons under it is the
+                // sort of thing you notice without being able to say why. The
+                // box is a destination's leading padding and its glyph.
+                Box(
+                    modifier = Modifier
+                        .padding(start = Theme.spacing.sm)
+                        .width(NavItemDefaults.InlineGlyphSize.width),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    RailToggle(
+                        expanded = expanded,
+                        onExpandedChange = onExpandedChange,
+                        expandLabel = expandLabel,
+                        collapseLabel = collapseLabel,
+                    )
+                }
             }
 
-            header?.invoke(this)
+            // Caller slots get the destinations' *content* edge, not the
+            // column's — a header starting 12dp left of every icon under it is
+            // the same untidiness the toggle had. Their width is still their
+            // own: a slot is not something the rail should be sizing, and an
+            // action wider or narrower than a glyph will not share the icons'
+            // centre. The rail owns its leading edge; a caller who wants a
+            // different one has `ColumnScope` to say so with.
+            Box(Modifier.padding(start = Theme.spacing.sm)) { header?.invoke(this@Column) }
 
             // Always emitted, so the destinations can be centred or pushed. The
             // old version only added a spacer when there was an action, which
@@ -209,7 +248,6 @@ fun NavRail(
                             item = item,
                             selected = index == selectedIndex,
                             showLabel = itemLabels,
-                            expanded = expandable && expanded,
                             // Full width whether stacked or inline, so the
                             // leading-edge marker sits at the same x for every
                             // destination. Sized to content instead, the bar
@@ -222,7 +260,7 @@ fun NavRail(
             }
 
             Spacer(Modifier.weight(1f))
-            action?.invoke(this)
+            Box(Modifier.padding(start = Theme.spacing.sm)) { action?.invoke(this@Column) }
         }
     }
 }
@@ -267,22 +305,29 @@ private fun RailToggle(
     )
 }
 
-/** One destination in a [NavRail]. */
+/**
+ * One destination in a [NavRail].
+ *
+ * Icon beside label at every width, in a glyph box that does not change size —
+ * so a rail growing from 88dp to 280dp reveals the label rather than rearranging
+ * around it, and the icon does not move. There is no `expanded` parameter for
+ * the same reason: there is nothing left for it to switch.
+ */
 @Composable
 fun NavRailItem(
     item: NavItem,
     selected: Boolean,
     modifier: Modifier = Modifier,
     showLabel: Boolean = true,
-    expanded: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
 ) {
     NavDestinationItem(
         item = item,
         selected = selected,
         modifier = modifier,
-        layout = if (expanded) NavItemLayout.Inline else NavItemLayout.Stacked,
+        layout = NavItemLayout.Inline,
         showLabel = showLabel,
+        indicatorSize = NavItemDefaults.InlineGlyphSize,
         interactionSource = interactionSource,
     )
 }

@@ -25,7 +25,7 @@ destinations once and never arranges them.
 | Window | Surface | Placement |
 |---|---|---|
 | Compact (< 600dp) | `NavBar` | **Bottom of the screen**, over the content |
-| Medium (< 840dp) | `NavRail` | **Leading edge**, beside the content |
+| Medium (< 840dp) | `NavRail` | **Leading edge**, icons only, beside the content |
 | Expanded and up | `NavDrawer` | **Leading edge**, labels always shown |
 
 **This is an app, not a website.** Destinations live at the bottom on a phone
@@ -122,14 +122,27 @@ NavRail(
 ```
 
 Pass `onExpandedChange` to get the toggle; leave it null for a rail fixed at
-whatever `expanded` says. Expanding grows the rail to `NavDrawerDefaults.Width`
-and moves the labels beside the icons — the two line up so the switch does not
-read as a jump.
+whatever `expanded` says. Expanding grows the rail to `NavDrawerDefaults.Width`.
 
-A collapsed *expandable* rail shows icons only. Stacking the label and then
-moving it beside the icon would pop mid-animation; keeping the icon still and
-sliding the label out from behind it is the same treatment
-[`ExtendedFloatingActionButton`](actions.md#extendedfloatingactionbutton) uses.
+**A rail shows icons only until it is wide enough for a word beside them**, and
+then fades the labels in. That is the whole of what changes: a destination is an
+icon beside a label at *every* width, in a glyph box that is always the same
+size, so the growing rail reveals the labels rather than rearranging around
+them and **the icons do not move at all**. The toggle, the header and any action
+share the destinations' leading edge, so the column lines up with itself at both
+widths.
+
+It used to be three changes at three different moments — the destinations
+swapped a stacked column for an inline row on the first frame, the rail's own
+alignment flipped from centred to leading at the halfway mark, and the labels
+appeared with it. Collapsing was worse: the layout flipped back while the rail
+was still 240dp wide, so every icon jumped to the centre of that and slid home.
+`NavRailStillnessTest` measures the selected icon's leading edge across the whole
+animation, in both directions, and fails if it moves by more than a pixel.
+
+A drawer puts its icons at the same x as the rail it replaces, so the swap the
+window size class makes at 840dp — which is not animated, and cannot be — has
+nothing to give away.
 
 ### How selection is shown
 

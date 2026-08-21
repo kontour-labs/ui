@@ -137,7 +137,13 @@ fun NavDrawer(
                 // Inside the surface, so the drawer's colour still reaches the
                 // edge of the window.
                 .windowInsetsPadding(windowInsets)
-                .padding(Theme.spacing.sm),
+                // `md`, not `sm`, so a drawer row's icon sits at the same x as a
+                // rail row's. A rail puts its icon at 8dp of rail padding plus
+                // 12dp of item padding plus half a 48dp glyph box — 44dp — and a
+                // drawer row adds 16dp of its own to whatever this is, so 12
+                // here left the two surfaces the window size class swaps between
+                // disagreeing by four.
+                .padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
         ) {
             header?.invoke(this)
@@ -198,7 +204,7 @@ fun ModalNavDrawer(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(Theme.spacing.sm),
+                .padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
         ) {
             header?.invoke(this)
