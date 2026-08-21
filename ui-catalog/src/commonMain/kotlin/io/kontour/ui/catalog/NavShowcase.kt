@@ -31,6 +31,7 @@ import com.composables.icons.tabler.outline.DotsVertical
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
 import com.composables.icons.tabler.outline.Search
+import com.composables.icons.tabler.outline.User
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
@@ -45,13 +46,25 @@ import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavRail
+import io.kontour.ui.nav.NavSearch
 import io.kontour.ui.nav.NavigationSuiteScaffold
 import io.kontour.ui.nav.Pagination
+import io.kontour.ui.nav.rememberNavSearchState
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
+import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
+
+/** Two either side of a search, which is where Anyways is going. */
+@Composable
+private fun fourDestinations(selected: Int, onSelectedChange: (Int) -> Unit) = listOf(
+    NavItem("Home", Tabler.Outline.Home, { onSelectedChange(0) }),
+    NavItem("Map", Tabler.Outline.Map, { onSelectedChange(1) }),
+    NavItem("Plan", Tabler.Outline.Calendar, { onSelectedChange(2) }, badge = 2),
+    NavItem("Profile", Tabler.Outline.User, { onSelectedChange(3) }),
+)
 
 @Composable
 private fun destinations(selected: Int, onSelectedChange: (Int) -> Unit) = listOf(
@@ -102,6 +115,7 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                 ) {
                     BarPanel("As it comes")
                     BarPanel("With a search field", search = true)
+                    BarPanel("Four destinations around a search", centreSearch = true)
                     BarPanel("Named, for icons that are not obvious", showLabels = true)
                     BarPanel("Backdrop, for content this busy", backdrop = true, busy = true)
                 }
@@ -252,10 +266,18 @@ private fun BarPanel(
     label: String,
     showLabels: Boolean = false,
     search: Boolean = false,
+    /**
+     * A [NavSearch] between two pairs of destinations — the arrangement Anyways
+     * is heading for, and the one `searchIndex` exists to make possible. Tapping
+     * the pill expands it over the keyboard; the panel hosts its own overlay so
+     * the expansion happens inside this box rather than over the gallery.
+     */
+    centreSearch: Boolean = false,
     backdrop: Boolean = false,
     busy: Boolean = false,
 ) {
     var selected by remember { mutableStateOf(1) }
+    val navSearch = rememberNavSearchState()
 
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         Text(
@@ -285,12 +307,36 @@ private fun BarPanel(
                 ),
             contentAlignment = Alignment.BottomCenter,
         ) {
+            // The panel is its own overlay host, so an expanding search fills
+            // *this* box rather than the gallery page it is sitting on. Which is
+            // also what makes the specimen honest: on a phone the box is the
+            // window, and this is the shape of what the user would see.
+            OverlayHost(Modifier.fillMaxSize()) {
             NavBar(
-                items = destinations(selected) { selected = it },
+                items = if (centreSearch) {
+                    fourDestinations(selected) { selected = it }
+                } else {
+                    destinations(selected) { selected = it }
+                },
                 selectedIndex = selected,
                 showLabels = showLabels,
                 backdrop = backdrop,
-                search = if (search) {
+                searchIndex = if (centreSearch) 2 else null,
+                search = if (centreSearch) {
+                    {
+                        NavSearch(
+                            state = navSearch,
+                            searchIcon = Tabler.Outline.Search,
+                            results = {
+                                Text(
+                                    "Results go here",
+                                    style = Theme.typography.bodyMedium,
+                                    color = Theme.colors.contentMuted,
+                                )
+                            },
+                        )
+                    }
+                } else if (search) {
                     {
                         SearchField(
                             state = rememberTextFieldState(),
@@ -308,7 +354,7 @@ private fun BarPanel(
                 // reference has no separate action button, because the search
                 // *is* the action. Keeping both is what made the first render of
                 // this panel run out of width at 360dp.
-                action = if (search) {
+                action = if (search || centreSearch) {
                     null
                 } else {
                     {
@@ -321,6 +367,7 @@ private fun BarPanel(
                     }
                 },
             )
+            }
         }
     }
 }

@@ -90,6 +90,49 @@ gesture bar underneath asks for.
 the destinations of an app this size are the four or five its user already
 knows. Turn it on for an app whose icons are not obvious.
 
+### A search field in the middle of it
+
+<!--sample:NavBarCentreSearch-->
+```kotlin
+var current by remember { mutableStateOf(0) }
+val search = rememberNavSearchState()
+
+val destinations = listOf(
+    NavItem(label = "Home", icon = Tabler.Outline.Home, onClick = { current = 0 }),
+    NavItem(label = "Map", icon = Tabler.Outline.Map, onClick = { current = 1 }),
+    NavItem(label = "Plan", icon = Tabler.Outline.Calendar, onClick = { current = 2 }),
+    NavItem(label = "Profile", icon = Tabler.Outline.User, onClick = { current = 3 }),
+)
+
+NavBar(
+    items = destinations,
+    selectedIndex = current,
+    search = { NavSearch(state = search) },
+    searchIndex = destinations.size / 2,
+)
+```
+
+`searchIndex` decides where among the destinations the `search` slot goes;
+`items.size / 2` is the middle, with two either side. `null` — the default —
+puts it after them all.
+
+**Tapping the pill expands it into an overlay, not into a taller bar.** A
+navigation bar clears `WindowInsets.bottomEdges`, whose own documentation says
+why: *"A navigation bar holds no text field and should stay where it is while
+the user types."* A bar riding up on the keyboard would contradict the inset it
+asks for. So the pill stays put and the expanded field goes into the
+`OverlayHost`, which brings the scrim, back and escape, and trapped focus with
+it.
+
+`NavSearchPlacement` says where it lands. `AboveKeyboard` keeps the field near
+the thumb that opened it and stacks results upward; `Top` puts it where a
+browser puts one and reads the results downward. Both are built because the
+answer is a question about your app rather than about the component.
+
+`NavigationSuiteScaffold` passes `search` and `searchIndex` through to the bar,
+and to the bar only — a rail and a drawer have a leading edge and room to spare,
+and how a wide window searches is a screen's decision.
+
 ![NavDrawerSection](../../../ui-catalog/screenshots/components/navdrawersection-light.png)
 ![NavDrawerGroup](../../../ui-catalog/screenshots/components/navdrawergroup-light.png)
 
