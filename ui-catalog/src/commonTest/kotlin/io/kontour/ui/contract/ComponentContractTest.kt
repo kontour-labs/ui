@@ -20,10 +20,13 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.kontourSizing
 import io.kontour.ui.theme.Theme
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -187,62 +190,150 @@ class ComponentContractTest {
         }
     }
 
+    /**
+     * The touch target meets the minimum **on every platform**, not on this one.
+     *
+     * `platformMinTouchTarget` is 48dp on Android, 44 on iOS and web, and **24dp
+     * on the JVM** — and every test in this repository runs on the JVM. So for as
+     * long as this asserted against `Theme.sizing.minTouchTarget` it was asking
+     * whether 29 components clear a bar that nothing in the library is under. It
+     * could not fail. It never had.
+     *
+     * That is not a hypothetical. Four defects in three rounds lived on exactly
+     * this axis and none of them were caught here: a `ButtonGroup` whose 1dp seam
+     * rendered at 9dp on Android, a `SegmentedControl` 4dp shorter than the
+     * buttons beside it, a `PasswordField` 20dp taller than the field above it,
+     * and a `Switch` that took the frame down when squeezed. Each was found on a
+     * phone, by hand.
+     *
+     * So the minimum is supplied rather than read. `KontourTheme` takes a
+     * `sizing`, which is the same lever `PhoneWidthTest` uses to render an honest
+     * phone.
+     *
+     * ### And it is measured from a wrapper, not from `touchBoundsInRoot`
+     *
+     * `touchBoundsInRoot` is not the component's reserved space. It is the
+     * semantics node's own bounds inflated to Compose's
+     * `ViewConfiguration.minimumTouchTargetSize` — a framework constant of 48dp
+     * that has nothing to do with this library. A `Checkbox` whose wrapper
+     * measures 96×96 still reports `touchBoundsInRoot` of 48×48, and a component
+     * that reserved *nothing* would report 48 as well. So the old assertion
+     * passed at 24dp and 44dp for free, passed at 48dp because 48 is the
+     * constant, and could not have failed either way.
+     *
+     * `minimumTouchTarget` promises to *reserve layout space* — "a 20dp checkbox
+     * stays a 20dp checkbox on screen; it just reserves 48dp of layout space and
+     * centres itself in it". A box wrapped round the component measures exactly
+     * that promise, which is why it is the thing measured.
+     *
+     * Ascending, so a component that fails at 24dp is reported as failing at
+     * 24dp: "under even the pointer minimum" and "under Android's" are different
+     * findings and the first is worse.
+     *
+     * ### The four opt-outs were surveyed rather than trusted
+     *
+     * `Stepper`, `TextField`, `SearchField` and `Select` carry
+     * `expectsMinimumTarget = false`, each for the same stated reason: the
+     * outermost node is a container and the controls are inside it. Measured
+     * anyway at 48dp they come out 144×48, 1024×76, 1024×52 and 1024×76 — all
+     * comfortably over. Turning the rule back on for them would therefore add
+     * four assertions that cannot fail and, worse, would look like coverage of
+     * the buttons inside a `Stepper` while measuring the row around them. The
+     * opt-outs stay, and the per-component tests keep the inside honest.
+     */
     @Test
-    fun theTouchTargetMeetsThePlatformMinimum() {
+    fun theTouchTargetMeetsEveryPlatformMinimum() {
         forEachComponent { spec ->
             if (!spec.expectsMinimumTarget) return@forEachComponent
-            runComposeUiTest {
-                var minimum = 0f
-                setContent {
-                    Harness {
-                        minimum = with(LocalDensity.current) {
-                            Theme.sizing.minTouchTarget.toPx()
-                        }
-                        spec.content(Modifier.testTag(tag), true) {}
-                    }
-                }
-
-                val size = onNodeWithTag(tag).fetchSemanticsNode().touchBoundsInRoot
-                // Half a pixel of slack: the target is rounded to whole pixels,
-                // and a 47.999 failure would be noise rather than a finding.
-                assertTrue(
-                    size.height >= minimum - 0.5f,
-                    "${spec.name} is ${size.height}px tall, under the " +
-                        "${minimum}px minimum — the visible control may be " +
-                        "smaller, the target may not",
-                )
-                assertTrue(
-                    size.width >= minimum - 0.5f,
-                    "${spec.name} is ${size.width}px wide, under the ${minimum}px minimum",
-                )
-            }
-        }
-    }
-
-    @Test
-    fun everyComponentSurvivesLargeTextAndRtl() {
-        forEachComponent { spec ->
-            runComposeUiTest {
-                setContent {
-                    // 200% type in a narrow, RTL window — the combination that
-                    // breaks a fixed-height row or a hard-coded start padding.
-                    CompositionLocalProvider(
-                        LocalDensity provides Density(density = 2f, fontScale = 2f),
-                        LocalLayoutDirection provides LayoutDirection.Rtl,
-                    ) {
-                        Harness {
-                            Box(Modifier.width(320.dp)) {
+            for ((platform, target) in Platforms) {
+                runComposeUiTest {
+                    var minimum = 0f
+                    setContent {
+                        Harness(target) {
+                            minimum = with(LocalDensity.current) { target.toPx() }
+                            // Wrapping, so what is measured is the space the
+                            // component reserved rather than the space it drew in.
+                            Box(Modifier.testTag(reserved)) {
                                 spec.content(Modifier.testTag(tag), true) {}
                             }
                         }
                     }
-                }
 
-                val bounds = onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
-                assertTrue(
-                    bounds.width > 0f && bounds.height > 0f,
-                    "${spec.name} collapsed at 200% type in RTL: ${bounds.width}×${bounds.height}",
-                )
+                    val size = onNodeWithTag(reserved).fetchSemanticsNode().size
+                    // Half a pixel of slack: the target is rounded to whole
+                    // pixels, and a 47.999 failure would be noise rather than a
+                    // finding.
+                    assertTrue(
+                        size.height >= minimum - 0.5f,
+                        "${spec.name} reserves ${size.height}px of height against " +
+                            "$platform's $target ($minimum px) — the visible " +
+                            "control may be smaller, the target may not",
+                    )
+                    assertTrue(
+                        size.width >= minimum - 0.5f,
+                        "${spec.name} reserves ${size.width}px of width against " +
+                            "$platform's $target ($minimum px)",
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * 200% type, RTL, a narrow window **and a phone's touch target**.
+     *
+     * The last of those is new and is the one that matters. 200% type on its own
+     * is a font problem; 200% type *next to a 48dp target* is what made a
+     * `PasswordField` stand 20dp taller than the field above it, because the
+     * frame grows to whatever is tallest inside it and both were competing to
+     * be that. The two axes are only interesting together.
+     *
+     * The assertion used to be `width > 0 && height > 0`, which catches a total
+     * collapse and nothing else — it would have passed a component twice the
+     * width of the window it was given. It now also checks the component stays
+     * inside its container, which is the only overflow a layout assertion can
+     * see: constraints stop a component measuring wider than its box, so
+     * exceeding one means `requiredWidth`, an `offset`, or unbounded wrap
+     * content. Ink spilling past the bounds needs pixels and belongs to
+     * `WidthSweepTest`.
+     */
+    @Test
+    fun everyComponentSurvivesLargeTextAndRtl() {
+        forEachComponent { spec ->
+            for ((platform, target) in Platforms) {
+                runComposeUiTest {
+                    var containerPx = 0f
+                    setContent {
+                        // 200% type in a narrow, RTL window — the combination
+                        // that breaks a fixed-height row or a hard-coded start
+                        // padding.
+                        CompositionLocalProvider(
+                            LocalDensity provides Density(density = 2f, fontScale = 2f),
+                            LocalLayoutDirection provides LayoutDirection.Rtl,
+                        ) {
+                            Harness(target) {
+                                containerPx = with(LocalDensity.current) { NarrowWindow.toPx() }
+                                Box(Modifier.width(NarrowWindow)) {
+                                    spec.content(Modifier.testTag(tag), true) {}
+                                }
+                            }
+                        }
+                    }
+
+                    val bounds = onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+                    assertTrue(
+                        bounds.width > 0f && bounds.height > 0f,
+                        "${spec.name} collapsed at 200% type in RTL on $platform: " +
+                            "${bounds.width}×${bounds.height}",
+                    )
+                    assertTrue(
+                        bounds.width <= containerPx + 0.5f,
+                        "${spec.name} is ${bounds.width}px wide in a ${containerPx}px " +
+                            "window at 200% type on $platform — it is laying out " +
+                            "past what it was given, so whatever is beside it is " +
+                            "being pushed off or drawn over",
+                    )
+                }
             }
         }
     }
@@ -256,6 +347,17 @@ class ComponentContractTest {
     @Composable
     private fun Harness(content: @Composable () -> Unit) {
         KontourTheme(reduceMotion = true) {
+            OverlayHost { content() }
+        }
+    }
+
+    /** The same, with a named platform's touch minimum in force. */
+    @Composable
+    private fun Harness(minTouchTarget: Dp, content: @Composable () -> Unit) {
+        KontourTheme(
+            reduceMotion = true,
+            sizing = kontourSizing(ContrastLevel.Standard).copy(minTouchTarget = minTouchTarget),
+        ) {
             OverlayHost { content() }
         }
     }
@@ -281,6 +383,24 @@ class ComponentContractTest {
      * A run that stops at the first failure turns a systematic mistake — one the
      * whole registry shares — into a dozen sequential fixes.
      */
+    /**
+     * Every touch minimum the library ships against, smallest first.
+     *
+     * These are `platformMinTouchTarget`'s three actual values. WCAG 2.2 SC 2.5.8
+     * is the 24; Apple's HIG is the 44; Android's guidance is the 48.
+     */
+    /** The wrapper round a component, for measuring what it reserved. */
+    private val reserved = "reserved"
+
+    /** A small phone in portrait, less its margins. */
+    private val NarrowWindow = 320.dp
+
+    private val Platforms = listOf(
+        "desktop" to 24.dp,
+        "iOS and web" to 44.dp,
+        "Android" to 48.dp,
+    )
+
     private fun forEachComponent(check: (ComponentSpec) -> Unit) {
         // Only the ones under contract. The registry also carries specimens that
         // exist to be *drawn* — a `Kbd`, a `Scrollbar` — and every assertion
