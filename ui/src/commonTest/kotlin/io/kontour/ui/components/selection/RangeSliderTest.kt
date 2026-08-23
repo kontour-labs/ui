@@ -96,15 +96,22 @@ class RangeSliderTest {
     }
 
     /**
-     * The start thumb stops at the end thumb rather than passing it.
+     * The start thumb pushes the end thumb rather than passing it, or stopping.
      *
-     * Without the clamp in `emit` the range inverts, and `0.8f..0.2f` is a range
-     * whose `endInclusive < start` — every consumer of it then draws a
-     * negative-width band, or throws. Reverting either `coerceAtMost` /
-     * `coerceAtLeast` fails this.
+     * This used to assert that the end thumb *did not move* — the rule was a
+     * clamp, and the docs stated it as a virtue. Blocking turned out to be the
+     * wrong half of the right idea: what must never happen is the range
+     * **inverting**, because `0.8f..0.2f` has a negative width and every
+     * consumer of it either draws a negative-width band or throws. Stopping the
+     * drag dead is one way to prevent that and pushing the neighbour along is
+     * another, and only one of them keeps the thumb under the finger.
+     *
+     * So the invariant is unchanged and still the load-bearing assertion here;
+     * what changed is the thing that enforces it. Reverting the arithmetic in
+     * `emit` fails this on the second assertion rather than the first.
      */
     @Test
-    fun aThumbNeverPassesTheOther() = runComposeUiTest {
+    fun aThumbPushesTheOtherRatherThanPassingIt() = runComposeUiTest {
         var range = 0.2f..0.4f
         setContent {
             KontourTheme {
@@ -128,11 +135,16 @@ class RangeSliderTest {
             range.start <= range.endInclusive,
             "the range inverted: $range",
         )
-        assertEquals(
-            0.4f,
-            range.endInclusive,
-            0.001f,
-            "the end thumb should have stayed where it was",
+        assertTrue(
+            range.endInclusive > 0.4f,
+            "the start thumb was hauled well past the end thumb and the end " +
+                "thumb stayed at ${range.endInclusive} — it should have been " +
+                "shoved along in front of it",
+        )
+        assertTrue(
+            range.endInclusive <= 1f,
+            "the end thumb was pushed past the end of its own track, to " +
+                "${range.endInclusive}",
         )
     }
 }

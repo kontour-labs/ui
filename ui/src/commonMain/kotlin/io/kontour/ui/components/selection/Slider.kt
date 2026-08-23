@@ -225,6 +225,23 @@ fun Slider(
         else -> fraction
     }
 
+    /**
+     * How far the thumb is from where it is being taken. See `sliderThumb`.
+     *
+     * The **finger** while there is one, and the animation's target otherwise.
+     * Not the target in both cases, which was the first attempt: `settled` is a
+     * spring converging on `thumbTarget`, so the gap between them decays to zero
+     * within a few frames and a drag *held* between two detents — the whole
+     * situation the strain is supposed to depict — would sit there perfectly
+     * round. Against the finger it holds for as long as the finger does, and
+     * lets go when the detent does.
+     *
+     * A continuous drag has the two coincident and stays round, which is right:
+     * a thumb pinned to the finger is not straining against anything.
+     */
+    val thumbReach =
+        if (dragFraction.isNaN()) thumbTarget - drawnFraction else dragFraction - drawnFraction
+
     fun emit(newFraction: Float) {
         val next = snap(newFraction)
         if (steps > 0) {
@@ -364,17 +381,17 @@ fun Slider(
                             }
                         }
 
-                        // A ring of the page colour behind the thumb keeps it
-                        // legible where it overlaps the filled track.
-                        drawCircle(
-                            color = colors.surface,
-                            radius = thumbRadiusPx * thumbScale,
-                            center = Offset(thumbX, centreY),
-                        )
-                        drawCircle(
-                            color = thumbColor,
-                            radius = (thumbRadiusPx - 2.dp.toPx()) * thumbScale,
-                            center = Offset(thumbX, centreY),
+                        sliderThumb(
+                            centreX = thumbX,
+                            centreY = centreY,
+                            radiusPx = thumbRadiusPx,
+                            scale = thumbScale,
+                            reachPx = thumbReach * size.width,
+                            // A ring of the page colour keeps the thumb legible
+                            // where it overlaps the filled track.
+                            ringColor = colors.surface,
+                            fillColor = thumbColor,
+                            ringPx = SliderThumbRing.toPx(),
                         )
                     }
                 }
@@ -393,7 +410,20 @@ object SliderDefaults {
      * detent than to the one it is on.
      */
     const val DetentPull: Float = 0.45f
+
+    /**
+     * The furthest a thumb stretches, as a fraction of its own radius.
+     *
+     * Bounded because the signal driving it is not: a tap on the far end of the
+     * track has a whole track's worth of travel still to go on its first frame,
+     * and a thumb allowed to answer that in full would be a worm. 0.6 puts the
+     * longest capsule at about one and a half thumbs, which reads as give.
+     */
+    const val MaxStretch: Float = 0.6f
 }
+
+/** The page-coloured ring around a thumb. Constant, not scaled — see `sliderThumb`. */
+internal val SliderThumbRing = 2.dp
 
 /** Kept so callers can reserve the same height when laying out around a slider. */
 val SliderVisualHeight = SliderHeight

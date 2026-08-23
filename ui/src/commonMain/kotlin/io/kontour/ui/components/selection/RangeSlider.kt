@@ -38,7 +38,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
@@ -65,11 +64,29 @@ import kotlin.math.roundToInt
  *
  * **The two thumbs are two separate things to a screen reader**, because one
  * node cannot express two values: a `ProgressBarRangeInfo` has one `current`.
- * Each thumb is its own adjustable node with its own bounded range — the start
- * thumb's range ends at the end thumb and vice versa — so "adjust" from
- * assistive tech cannot produce an inverted range.
+ * Each thumb is its own adjustable node with its own bounded range, so "adjust"
+ * from assistive tech cannot produce an inverted range — and those bounds follow
+ * [minDistance], so assistive tech is offered exactly the values a finger can
+ * reach.
+ *
+ * ### The thumbs push rather than block
+ *
+ * Dragging one thumb into the other used to stop it dead at its neighbour. It
+ * now shoves that neighbour along in front of it and keeps going, stopping only
+ * at the end of the track. Blocking makes the control feel jammed at exactly the
+ * moment the user is asking for the narrowest range there is; pushing keeps the
+ * finger and the thumb together, which is the whole contract of a drag. The
+ * pushed thumb lags a little as it goes and stretches while it lags, so being
+ * shoved looks like being shoved.
  *
  * @param value The current range. Clamped into [valueRange], and never inverted.
+ *   Not corrected against [minDistance] on arrival: a caller that starts a range
+ *   narrower than its own minimum keeps it until something moves, because
+ *   calling back with a different value than the one just passed in is how
+ *   controlled state gets into a loop.
+ * @param minDistance The narrowest the range may be, in the units of
+ *   [valueRange]. `0f` lets the thumbs meet. Clamped to the range's own span, so
+ *   a minimum wider than the track cannot invert the arithmetic.
  * @param steps Discrete stops *between* the ends. `0` is continuous.
  * @param stateDescription Turns the range into something a screen reader can
  *   say. Without it each thumb announces a bare percentage. Strongly
@@ -84,6 +101,7 @@ fun RangeSlider(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    minDistance: Float = 0f,
     steps: Int = 0,
     /** What the range is *of*. `null` when a label beside it already says. */
     contentDescription: String? = null,
@@ -111,6 +129,17 @@ fun RangeSlider(
     )
 
     val span = valueRange.endInclusive - valueRange.start
+
+    /**
+     * [minDistance], clamped to something the track can actually hold.
+     *
+     * A minimum wider than the range would put `valueRange.endInclusive - gap`
+     * below `valueRange.start`, and `coerceIn` **throws** on an inverted range —
+     * the same trap that took a frame down from inside `Switch`'s draw. A caller
+     * that asks for more separation than exists gets the whole track instead.
+     */
+    val gap = minDistance.coerceIn(0f, span.coerceAtLeast(0f))
+
     fun fractionOf(v: Float) = if (span == 0f) 0f else ((v - valueRange.start) / span).coerceIn(0f, 1f)
 
     val startFraction = fractionOf(value.start)
@@ -150,19 +179,29 @@ fun RangeSlider(
     }
 
     /**
-     * Moves one thumb, clamped by the other.
+     * Moves one thumb, pushing the other along ahead of it.
      *
-     * The clamp is what makes an inverted range unrepresentable rather than
-     * merely unlikely: dragging the start thumb past the end stops it at the
-     * end instead of swapping the two, because a range that swaps under the
-     * finger is a range the user has to drag twice to fix.
+     * An inverted range stays unrepresentable — that has not changed and is the
+     * point of doing the arithmetic here rather than trusting the gesture — but
+     * it is now the *track's* end that stops the drag, not the other thumb. The
+     * dragged thumb goes where the finger is; its neighbour is displaced to keep
+     * [gap] between them and clamped to the end; and if the neighbour runs out
+     * of track, the dragged one stops [gap] short of it rather than pretending to
+     * carry on.
      */
     fun emit(thumb: Thumb, rawFraction: Float) {
         val next = snap(rawFraction)
         tick(next)
         val updated = when (thumb) {
-            Thumb.Start -> next.coerceAtMost(value.endInclusive)..value.endInclusive
-            Thumb.End -> value.start..next.coerceAtLeast(value.start)
+            Thumb.Start -> {
+                val start = next.coerceIn(valueRange.start, valueRange.endInclusive - gap)
+                start..maxOf(value.endInclusive, start + gap)
+                    .coerceAtMost(valueRange.endInclusive)
+            }
+            Thumb.End -> {
+                val end = next.coerceIn(valueRange.start + gap, valueRange.endInclusive)
+                minOf(value.start, end - gap).coerceAtLeast(valueRange.start)..end
+            }
             Thumb.None -> return
         }
         currentOnValueChange(updated)
@@ -191,15 +230,31 @@ fun RangeSlider(
         label = "rangeEndDetent",
     )
 
-    /** See `Slider`'s `tapEased`: a tapped thumb travels, a dragged one tracks. */
+    /**
+     * See `Slider`'s `tapEased`: a tapped thumb travels, a dragged one tracks.
+     *
+     * Per thumb, not per gesture. Snapping the spec for the whole control while
+     * *any* drag was in progress meant the thumb being **pushed** snapped too —
+     * arriving at its new position with no travel, so nothing lagged and nothing
+     * could stretch. Only the thumb under the finger should track it exactly;
+     * the one being shoved is travelling like any other thumb that was moved by
+     * something other than a finger.
+     */
+    fun tapSpec(thumb: Thumb) =
+        if (activeThumb == thumb && !dragFraction.isNaN()) {
+            snapSpec()
+        } else {
+            motion.springOrTween<Float>(motion.springSnappy)
+        }
+
     val startTapEased by animateFloatAsState(
         targetValue = startFraction,
-        animationSpec = if (dragFraction.isNaN()) motion.springOrTween(motion.springSnappy) else snapSpec(),
+        animationSpec = tapSpec(Thumb.Start),
         label = "rangeStartTap",
     )
     val endTapEased by animateFloatAsState(
         targetValue = endFraction,
-        animationSpec = if (dragFraction.isNaN()) motion.springOrTween(motion.springSnappy) else snapSpec(),
+        animationSpec = tapSpec(Thumb.End),
         label = "rangeEndTap",
     )
 
@@ -211,8 +266,57 @@ fun RangeSlider(
         else -> tapEased.coerceIn(0f, 1f)
     }
 
-    val drawnStart = drawn(Thumb.Start, startFraction, startSettled, startTapEased)
-    val drawnEnd = drawn(Thumb.End, endFraction, endSettled, endTapEased)
+    val easedStart = drawn(Thumb.Start, startFraction, startSettled, startTapEased)
+    val easedEnd = drawn(Thumb.End, endFraction, endSettled, endTapEased)
+
+    /**
+     * The two, drawn in contact.
+     *
+     * A pushed thumb reaches its new value immediately and its *spring* does
+     * not, and against a fast drag that spring falls a long way behind — far
+     * enough that the thumb doing the pushing catches up with the drawn position
+     * of the one it is pushing and the two merge into a single blob halfway
+     * along the track. The reported range was correct the whole time and every
+     * assertion about it passed; it only showed up in a filmstrip.
+     *
+     * So the pushed thumb is drawn no closer than the separation it is entitled
+     * to, and keeps its lag as *stretch* instead — see [reach] below, which is
+     * measured against the spring rather than against this. It rides in contact
+     * and elongates in the direction it is being shoved, which is what being
+     * shoved looks like.
+     */
+    val gapFraction = if (span == 0f) 0f else gap / span
+    val drawnStart = if (activeThumb == Thumb.End) {
+        minOf(easedStart, easedEnd - gapFraction)
+    } else {
+        easedStart
+    }
+    val drawnEnd = if (activeThumb == Thumb.Start) {
+        maxOf(easedEnd, easedStart + gapFraction)
+    } else {
+        easedEnd
+    }
+
+    /**
+     * How far a thumb is from where it is being taken. See `sliderThumb`.
+     *
+     * The **finger** for the thumb under it — the detent strain, which holds for
+     * as long as the finger is held between two notches — and the animation's
+     * target for the other one, which is the distance it still has to travel
+     * while it is being pushed. Two sources, one quantity, and neither case has
+     * to know about the other.
+     */
+    fun reach(thumb: Thumb, base: Float, drawnAt: Float): Float = when {
+        activeThumb == thumb && !dragFraction.isNaN() -> dragFraction - drawnAt
+        detented -> targetFor(thumb, base) - drawnAt
+        else -> base - drawnAt
+    }
+
+    // Against the spring, not against the contact-clamped position above: the
+    // lag is exactly the signal, and clamping it away would leave nothing to
+    // stretch by at the moment there is most to stretch about.
+    val reachStart = reach(Thumb.Start, startFraction, easedStart)
+    val reachEnd = reach(Thumb.End, endFraction, easedEnd)
 
     Box(
         modifier = modifier
@@ -270,9 +374,9 @@ fun RangeSlider(
                                 // first one after touch slop is routinely
                                 // exactly zero. Treating it as "not negative"
                                 // silently picks the end thumb, which is right
-                                // half the time — a leftward drag then moves a
-                                // thumb the clamp immediately pins, and the
-                                // control looks dead rather than wrong.
+                                // half the time — and now that the thumbs push
+                                // rather than block, the wrong half opens the
+                                // range in the direction nobody asked for.
                                 if (signed == 0f) return@rememberDraggableState
                                 activeThumb = if (signed < 0f) Thumb.Start else Thumb.End
                                 dragFraction = if (activeThumb == Thumb.Start) startFraction else endFraction
@@ -359,16 +463,19 @@ fun RangeSlider(
                                 }
                             }
 
-                            for (x in listOf(startX, endX)) {
-                                drawCircle(
-                                    color = colors.surface,
-                                    radius = thumbRadiusPx * thumbScale,
-                                    center = Offset(x, centreY),
-                                )
-                                drawCircle(
-                                    color = activeColor,
-                                    radius = (thumbRadiusPx - 2.dp.toPx()) * thumbScale,
-                                    center = Offset(x, centreY),
+                            for ((x, reachPx) in listOf(
+                                startX to reachStart * size.width,
+                                endX to reachEnd * size.width,
+                            )) {
+                                sliderThumb(
+                                    centreX = x,
+                                    centreY = centreY,
+                                    radiusPx = thumbRadiusPx,
+                                    scale = thumbScale,
+                                    reachPx = reachPx,
+                                    ringColor = colors.surface,
+                                    fillColor = activeColor,
+                                    ringPx = SliderThumbRing.toPx(),
                                 )
                             }
                         }
@@ -382,7 +489,11 @@ fun RangeSlider(
             ThumbSemantics(
                 contentDescription = startContentDescription,
                 current = value.start,
-                bounds = valueRange.start..value.endInclusive,
+                // As far as a finger can take it, which is the end of the track
+                // less the gap it has to leave — not "as far as the other thumb",
+                // which is where it used to stop and no longer does.
+                bounds = valueRange.start..(valueRange.endInclusive - gap)
+                    .coerceAtLeast(valueRange.start),
                 steps = steps,
                 enabled = enabled,
                 announcement = stateDescription?.invoke(value),
@@ -391,7 +502,8 @@ fun RangeSlider(
             ThumbSemantics(
                 contentDescription = endContentDescription,
                 current = value.endInclusive,
-                bounds = value.start..valueRange.endInclusive,
+                bounds = (valueRange.start + gap)
+                    .coerceAtMost(valueRange.endInclusive)..valueRange.endInclusive,
                 steps = steps,
                 enabled = enabled,
                 announcement = stateDescription?.invoke(value),
@@ -404,10 +516,11 @@ fun RangeSlider(
 /**
  * One thumb's accessibility node.
  *
- * Its `bounds` are narrower than the slider's own range: the start thumb cannot
- * be set past the end thumb. That is the same clamp the drag applies, expressed
- * where assistive tech can see it, so "adjust to maximum" on the start thumb
- * lands on the end thumb rather than inverting the range.
+ * Its `bounds` are the same limits the drag has: the track's end, less whatever
+ * separation the two thumbs must keep. Expressed where assistive tech can see
+ * them, so "adjust to maximum" on the start thumb takes it as far as a finger
+ * could — pushing the end thumb ahead of it — rather than inverting the range or
+ * stopping somewhere a finger would not have stopped.
  */
 @Composable
 private fun ThumbSemantics(
