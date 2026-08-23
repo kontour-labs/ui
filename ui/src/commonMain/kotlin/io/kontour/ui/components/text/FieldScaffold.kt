@@ -130,6 +130,8 @@ internal fun FieldScaffold(
                 // not fill its own box, so an icon padded like text reads as
                 // further in than the text beside it — see
                 // `TextFieldMetrics.iconPadding` for the measurement.
+                //
+                // Horizontally only. See the inner row.
                 .padding(
                     start = if (leading != null || leadingIcon != null) {
                         metrics.iconPadding
@@ -141,24 +143,54 @@ internal fun FieldScaffold(
                     } else {
                         metrics.horizontalPadding
                     },
-                    top = metrics.verticalPadding,
-                    bottom = metrics.verticalPadding,
                 ),
             horizontalArrangement = Arrangement.spacedBy(metrics.gap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             leading?.invoke()
 
-            if (leadingIcon != null) {
-                Icon(
-                    imageVector = leadingIcon,
-                    contentDescription = null,
-                    tint = if (enabled) colors.label else colors.contentDisabled,
-                    size = Theme.sizing.iconMedium,
-                )
-            }
+            /**
+             * The vertical padding belongs to the **text**, not to the frame.
+             *
+             * `defaultMinSize` is a minimum and a `Row` grows to its tallest
+             * child, so padding the frame meant padding whatever a caller put in
+             * a slot — and a slot routinely holds an `IconButton`, which carries
+             * `minimumTouchTarget`: 48dp on Android, 44 on iOS, 24 on the JVM.
+             * 12 + 48 + 12 is 72, against the 52 of every field without one. So
+             * a `PasswordField` with a reveal toggle stood 20dp taller than the
+             * field above it, and a `SearchField` **grew by 20dp the moment you
+             * typed the first character**, because that is when its clear button
+             * appears. On desktop all of it clamped back to 52 and no golden or
+             * geometry test could see any of it.
+             *
+             * A 48dp target fits inside a 52dp field with room to spare. It only
+             * did not fit because the padding was applied outside it. Moved in
+             * here, the frame is `max(52dp, text + 24dp)` — which is 52dp for
+             * every single-line field on every platform — and the touch target
+             * is kept whole rather than relocated.
+             *
+             * `weight(1f)` so `content`'s own `weight(1f)` still means "the rest
+             * of the field", and the gap arrangement is repeated so a leading
+             * icon sits exactly where it did.
+             */
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = metrics.verticalPadding),
+                horizontalArrangement = Arrangement.spacedBy(metrics.gap),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (leadingIcon != null) {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = null,
+                        tint = if (enabled) colors.label else colors.contentDisabled,
+                        size = Theme.sizing.iconMedium,
+                    )
+                }
 
-            content()
+                content()
+            }
 
             trailing?.invoke()
         }
