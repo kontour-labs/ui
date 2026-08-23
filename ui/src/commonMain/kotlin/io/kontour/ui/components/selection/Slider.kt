@@ -283,9 +283,28 @@ fun Slider(
             .focusRing(interactions, Theme.shapes.small)
             .fillMaxWidth()
             .height(SliderHeight)
-            .padding(horizontal = SliderThumbRadius)
     ) {
-        val widthPx = with(density) { maxWidth.toPx() }
+        /**
+         * The thumb's radius, held back from each end so it is not clipped there.
+         *
+         * It used to be a `padding` modifier, and the gestures lived *inside* it.
+         * So the outer [SliderThumbRadius] at each end of the control was dead to
+         * touch — and that is exactly where the thumb sits at either end of the
+         * range, which meant **half the thumb could not be grabbed** when the
+         * value was at its minimum or its maximum. On a 120dp slider it is 18% of
+         * the control, and it includes the two places a finger goes most often.
+         *
+         * Nothing could see it: every slider test presses in the middle, and a
+         * still of a slider with a dead margin looks exactly like one without.
+         * `NarrowGestureTest` found it by pressing 5% of the way in — which is
+         * inside the margin below 220dp and outside it above.
+         *
+         * Arithmetic rather than layout now. The pointer handlers are on the
+         * full-width box and subtract the inset themselves; the drawing insets
+         * the track by the same amount, so nothing moved on screen.
+         */
+        val insetPx = with(density) { SliderThumbRadius.toPx() }
+        val widthPx = (with(density) { maxWidth.toPx() } - insetPx * 2f).coerceAtLeast(1f)
 
         BoxWithConstraints(
             Modifier
@@ -294,11 +313,8 @@ fun Slider(
                 .pointerInput(enabled, widthPx, valueRange, steps) {
                     if (!enabled) return@pointerInput
                     detectTapGestures { offset ->
-                        val f = if (layoutDirection == LayoutDirection.Rtl) {
-                            1f - offset.x / widthPx
-                        } else {
-                            offset.x / widthPx
-                        }
+                        val along = (offset.x - insetPx) / widthPx
+                        val f = if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
                         emit(f)
                         currentFinished?.invoke()
                     }
@@ -326,11 +342,8 @@ fun Slider(
                     // easing toward a finger that has already started moving
                     // arrives late to somewhere it no longer is.
                     onDragStarted = { start ->
-                        val at = if (layoutDirection == LayoutDirection.Rtl) {
-                            1f - start.x / widthPx
-                        } else {
-                            start.x / widthPx
-                        }
+                        val along = (start.x - insetPx) / widthPx
+                        val at = if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
                         dragFraction = at.coerceIn(0f, 1f)
                         emit(dragFraction)
                     },
@@ -354,25 +367,29 @@ fun Slider(
                     val thumbColor = if (enabled) colors.primary else colors.contentDisabled
 
                     onDrawBehind {
-                        val thumbX = size.width * drawnFraction
+                        // The track is inset by the thumb's radius at each end;
+                        // the box around it is not, because that is the hit area.
+                        val trackLeft = thumbRadiusPx
+                        val trackWidth = (size.width - thumbRadiusPx * 2f).coerceAtLeast(0f)
+                        val thumbX = trackLeft + trackWidth * drawnFraction
 
                         drawRoundRect(
                             color = inactiveColor,
-                            topLeft = Offset(0f, trackTop),
-                            size = Size(size.width, trackHeightPx),
+                            topLeft = Offset(trackLeft, trackTop),
+                            size = Size(trackWidth, trackHeightPx),
                             cornerRadius = CornerRadius(trackHeightPx / 2f),
                         )
                         drawRoundRect(
                             color = activeColor,
-                            topLeft = Offset(0f, trackTop),
-                            size = Size(thumbX, trackHeightPx),
+                            topLeft = Offset(trackLeft, trackTop),
+                            size = Size(thumbX - trackLeft, trackHeightPx),
                             cornerRadius = CornerRadius(trackHeightPx / 2f),
                         )
 
                         if (steps > 0) {
                             val stepCount = steps + 1
                             for (i in 0..stepCount) {
-                                val x = size.width * i / stepCount
+                                val x = trackLeft + trackWidth * i / stepCount
                                 drawCircle(
                                     color = if (x <= thumbX) colors.onPrimary else colors.contentSubtle,
                                     radius = trackHeightPx * 0.22f,
@@ -386,7 +403,7 @@ fun Slider(
                             centreY = centreY,
                             radiusPx = thumbRadiusPx,
                             scale = thumbScale,
-                            reachPx = thumbReach * size.width,
+                            reachPx = thumbReach * trackWidth,
                             // A ring of the page colour keeps the thumb legible
                             // where it overlaps the filled track.
                             ringColor = colors.surface,

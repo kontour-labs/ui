@@ -368,6 +368,14 @@ which is rarely what the number means.
 `onValueChangeFinished` fires once on release, for the expensive thing you do
 not want to run on every frame of a drag.
 
+**The whole control answers a press**, including the thumb's-radius strip at
+either end. The thumb is held back from the ends so it is not clipped there, and
+that hold-back used to be layout with the gesture handlers inside it — so the
+outer 11dp of every slider was dead to touch, which is precisely where the thumb
+sits when the value is at its minimum or maximum. Half the thumb could not be
+picked up at either end of the range, on a control that looked entirely
+normal.
+
 > A disabled slider still exposed `setProgress` to assistive tech, so it could
 > not be dragged but could still be moved. The contract suite found it, and now
 > checks that `enabled` is honoured on both paths.

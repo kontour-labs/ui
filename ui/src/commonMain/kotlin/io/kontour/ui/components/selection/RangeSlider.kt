@@ -335,13 +335,20 @@ fun RangeSlider(
             .focusRing(interactions, Theme.shapes.small)
             .fillMaxWidth()
             .height(SliderHeight)
-            .padding(horizontal = SliderThumbRadius)
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth().height(SliderHeight)) {
-            val widthPx = with(density) { maxWidth.toPx() }
+            // Held back from each end so a thumb is not clipped there — but
+            // arithmetically, not as a `padding` with the gestures inside it.
+            // See `Slider`, where that layout cost the outer 11dp of the control
+            // its ability to be touched at all, which is precisely where a thumb
+            // sits at either end of the range.
+            val insetPx = with(density) { SliderThumbRadius.toPx() }
+            val widthPx = (with(density) { maxWidth.toPx() } - insetPx * 2f).coerceAtLeast(1f)
 
-            fun toFraction(x: Float) =
-                if (layoutDirection == LayoutDirection.Rtl) 1f - x / widthPx else x / widthPx
+            fun toFraction(x: Float): Float {
+                val along = (x - insetPx) / widthPx
+                return if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
+            }
 
             Box(
                 Modifier
@@ -431,13 +438,15 @@ fun RangeSlider(
                         val inactiveColor = if (enabled) colors.outline else colors.surfaceSunken
 
                         onDrawBehind {
-                            val startX = size.width * drawnStart
-                            val endX = size.width * drawnEnd
+                            val trackLeft = thumbRadiusPx
+                            val trackWidth = (size.width - thumbRadiusPx * 2f).coerceAtLeast(0f)
+                            val startX = trackLeft + trackWidth * drawnStart
+                            val endX = trackLeft + trackWidth * drawnEnd
 
                             drawRoundRect(
                                 color = inactiveColor,
-                                topLeft = Offset(0f, trackTop),
-                                size = Size(size.width, trackHeightPx),
+                                topLeft = Offset(trackLeft, trackTop),
+                                size = Size(trackWidth, trackHeightPx),
                                 cornerRadius = CornerRadius(trackHeightPx / 2f),
                             )
                             // The band between the thumbs, which is the value —
@@ -453,7 +462,7 @@ fun RangeSlider(
                             if (steps > 0) {
                                 val stepCount = steps + 1
                                 for (i in 0..stepCount) {
-                                    val x = size.width * i / stepCount
+                                    val x = trackLeft + trackWidth * i / stepCount
                                     val inBand = x in startX..endX
                                     drawCircle(
                                         color = if (inBand) colors.onPrimary else colors.contentSubtle,
@@ -464,8 +473,8 @@ fun RangeSlider(
                             }
 
                             for ((x, reachPx) in listOf(
-                                startX to reachStart * size.width,
-                                endX to reachEnd * size.width,
+                                startX to reachStart * trackWidth,
+                                endX to reachEnd * trackWidth,
                             )) {
                                 sliderThumb(
                                     centreX = x,
