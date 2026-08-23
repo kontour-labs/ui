@@ -293,9 +293,14 @@ tabs switch which *view* of one screen you are looking at. Announced
 ---
 
 **Drag across the segments** and the thumb comes with you, ticking at each
-boundary. The gesture is on the track rather than on each segment: a drag from
-"Depart" to "Arrive" leaves the segment it began in, and a per-segment handler
-loses the pointer at the boundary. Taps still belong to the segment under them.
+boundary. It is *carried*, not chasing: between boundaries the thumb leans out of
+its segment toward where your finger is and stretches as it leans, on the same
+`SliderDefaults.DetentPull` the sliders use. It used to spring from one segment
+to the next once the value had already changed, which meant the only part of the
+gesture you could see was the part that was over. The gesture is on the track
+rather than on each segment: a drag from "Depart" to "Arrive" leaves the segment
+it began in, and a per-segment handler loses the pointer at the boundary. Taps
+still belong to the segment under them.
 
 ## `ColorSwatchPicker`
 

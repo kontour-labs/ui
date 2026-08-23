@@ -1,6 +1,7 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,6 +24,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -40,9 +43,11 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
 
 object SegmentedControlDefaults {
     /** The gap between the track's edge and the thumb inside it. */
@@ -60,6 +65,15 @@ object SegmentedControlDefaults {
      */
     val TrackPadding: Dp = 4.dp
 }
+
+/**
+ * The furthest the thumb elongates while straining toward the next segment.
+ *
+ * A fifth again its own width. The thumb is a whole segment wide rather than a
+ * 22dp circle, so it needs far less proportional stretch than a slider's does
+ * before it reads as give.
+ */
+private const val MaxSegmentStretch = 0.2f
 
 /**
  * A row of mutually exclusive options, presented as one control.
@@ -108,6 +122,47 @@ fun SegmentedControl(
     val height = maxOf(Theme.sizing.controlHeightMedium, Theme.sizing.minTouchTarget)
     val indicator = rememberSelectionIndicatorState()
 
+    var trackWidth by remember { mutableFloatStateOf(0f) }
+    val currentSelected by rememberUpdatedState(selected)
+    val currentChange by rememberUpdatedState(onSelectedChange)
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val ticker = rememberDetentTicker()
+
+    /** Where the finger is along the track, or `NaN` when there is none. */
+    var fingerX by remember { mutableFloatStateOf(Float.NaN) }
+
+    /**
+     * How far the thumb leans out of its segment toward the finger.
+     *
+     * The control was drag-*aware* already — a drag changed the selection as it
+     * crossed each boundary — but the thumb was not being carried by anything.
+     * It sprang after the finger from one segment to the next, which is a thumb
+     * *reacting* to a drag rather than a thumb being dragged, and it meant the
+     * only part of the gesture you could feel was the moment it ended.
+     *
+     * The same [SliderDefaults.DetentPull] the sliders use, for the same reason:
+     * far enough to read as the segment straining toward where you are going,
+     * never so far that the thumb is closer to the next segment than to its own.
+     * Clamped to the track, because at either end the wall is the answer.
+     */
+    val strain = run {
+        val segments = options.size
+        if (fingerX.isNaN() || trackWidth <= 0f || segments == 0) {
+            0f
+        } else {
+            val segment = trackWidth / segments
+            val drawnIndex = if (isRtl) segments - 1 - selected else selected
+            val centre = segment * (drawnIndex + 0.5f)
+            val pulled = (fingerX - centre) * SliderDefaults.DetentPull
+            pulled.coerceIn(-segment * drawnIndex, segment * (segments - 1 - drawnIndex))
+        }
+    }
+    val strainPx by animateFloatAsState(
+        targetValue = strain,
+        animationSpec = motion.springOrTween(motion.springSnappy),
+        label = "segmentStrain",
+    )
+
     SelectionIndicatorBox(
         state = indicator,
         // The thumb is exactly the segment it marks. Sized from the measured
@@ -125,7 +180,25 @@ fun SegmentedControl(
             .padding(SegmentedControlDefaults.TrackPadding),
         indicator = {
             Surface(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationX = strainPx
+                        // Anchored on the edge it is leaving, so the thumb
+                        // elongates toward the segment it is heading for rather
+                        // than swelling in place. The slider's thumb does the
+                        // same thing with the same signal.
+                        transformOrigin = TransformOrigin(
+                            pivotFractionX = if (strainPx >= 0f) 0f else 1f,
+                            pivotFractionY = 0.5f,
+                        )
+                        val reach = if (trackWidth <= 0f || options.isEmpty()) {
+                            0f
+                        } else {
+                            abs(strainPx) / (trackWidth / options.size)
+                        }
+                        scaleX = 1f + reach.coerceAtMost(MaxSegmentStretch)
+                    },
                 shape = innerShape,
                 color = if (enabled) colors.surface else colors.surfaceSunken,
                 border = contrastEdge(),
@@ -148,20 +221,17 @@ fun SegmentedControl(
          * per-segment, and `detectHorizontalDragGestures` waits for touch slop,
          * so a press that never travels is still a tap on the segment under it.
          */
-        var trackWidth by remember { mutableFloatStateOf(0f) }
-        val currentSelected by rememberUpdatedState(selected)
-        val currentChange by rememberUpdatedState(onSelectedChange)
-        val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-
         fun selectAt(x: Float) {
             if (trackWidth <= 0f) return
             val fraction = (x / trackWidth).coerceIn(0f, 1f)
             val raw = (fraction * options.size).toInt().coerceIn(options.indices)
             val index = if (isRtl) options.size - 1 - raw else raw
-            if (index == currentSelected) return
             // Once per segment crossed, the way a stepped slider ticks: a user
-            // dragging without looking can feel where the boundaries are.
-            feedback.perform(FeedbackIntent.Tick)
+            // dragging without looking can feel where the boundaries are. The
+            // ticker owns the guard now — it used to be "the index changed",
+            // which is the same thing said once per component rather than once.
+            ticker.at(index)
+            if (index == currentSelected) return
             currentChange(index)
         }
 
@@ -174,8 +244,23 @@ fun SegmentedControl(
                     if (enabled) {
                         Modifier.pointerInput(options.size, isRtl) {
                             detectHorizontalDragGestures(
-                                onDragStart = { offset -> selectAt(offset.x) },
-                                onHorizontalDrag = { change, _ -> selectAt(change.position.x) },
+                                onDragStart = { offset ->
+                                    fingerX = offset.x
+                                    selectAt(offset.x)
+                                },
+                                onHorizontalDrag = { change, _ ->
+                                    fingerX = change.position.x
+                                    selectAt(change.position.x)
+                                },
+                                onDragEnd = {
+                                    fingerX = Float.NaN
+                                    ticker.reset()
+                                    feedback.perform(FeedbackIntent.GestureEnd)
+                                },
+                                onDragCancel = {
+                                    fingerX = Float.NaN
+                                    ticker.reset()
+                                },
                             )
                         }
                     } else {

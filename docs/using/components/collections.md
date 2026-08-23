@@ -105,6 +105,14 @@ An action shows its label only where there is room for one. A single-line row is
 the label still reaches the screen reader through the row's custom action either
 way.
 
+**The drag has detents you can feel.** A tick each time another action is
+uncovered, one distinct `DragThreshold` at the full-swipe point — the moment past
+which letting go commits — and a settle when the row comes to rest. This row has
+the most pronounced detents of any gesture in the library and was, until Round
+13, the only draggable thing in it that was completely silent: the first feedback
+you got was the action firing, by which time it was too late to change your
+mind.
+
 `SwipeToDismiss` **needs an undo**. A dismissal with no way back is a data-loss
 bug wearing a gesture; pair it with a [`Toast`](../overlays.md) carrying the
 undo.

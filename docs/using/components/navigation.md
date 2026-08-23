@@ -390,7 +390,10 @@ Box(Modifier.tabSwipe(selected = tab, count = 2, onSelectedChange = { tab = it }
 
 It commits every quarter of the pane's width *while the finger is down*, so the
 indicator travels with the drag instead of appearing at the far end once it is
-over, and a long drag steps through several tabs.
+over, and a long drag steps through several tabs. Each of those steps is a
+**tick** — a detent crossed — and the **selection** fires once, when the finger
+lifts. It used to spend a selection on every step, which made a three-tab drag
+feel like three decisions rather than one.
 
 It also does not steal from what it wraps. Being an ancestor of the content is
 the whole mechanism: a child gets the main pointer pass first, so a carousel or a

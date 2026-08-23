@@ -55,6 +55,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
@@ -380,6 +381,7 @@ fun Modifier.tabSwipe(
     // would then commit the same step three times.
     var index by remember { mutableIntStateOf(selected) }
     var travelled by remember { mutableFloatStateOf(0f) }
+    val ticker = rememberDetentTicker()
 
     return this
         .onSizeChanged { width = it.width.toFloat() }
@@ -390,27 +392,47 @@ fun Modifier.tabSwipe(
                 val threshold = width * TabBarDefaults.SwipeThreshold
 
                 // Dragging left goes forward, the way a page does.
+                //
+                // `Tick` rather than `Selection` on each step. They are two
+                // different things and this was firing the wrong one: a tick is
+                // a detent crossed, which is what a step through a row of tabs
+                // is, and a selection is a value being chosen — which on this
+                // gesture happens once, when the finger lifts. Firing the heavier
+                // one per step made a three-tab drag feel like three decisions.
                 while (travelled <= -threshold && index < count - 1) {
                     travelled += threshold
                     index += 1
-                    feedback.perform(FeedbackIntent.Selection)
+                    ticker.at(index)
                     currentChange(index)
                 }
                 while (travelled >= threshold && index > 0) {
                     travelled -= threshold
                     index -= 1
-                    feedback.perform(FeedbackIntent.Selection)
+                    ticker.at(index)
                     currentChange(index)
                 }
                 // Pinned at the ends, so a drag past the last tab does not bank
                 // travel that then has to be undone before the first step back.
+                //
+                // Deliberately *not* rubber-banded, unlike the swipe row. A
+                // resistance curve needs something that moves to apply it to;
+                // `travelled` is an accumulator that draws nothing, so easing it
+                // would only bank the travel this line exists to throw away.
                 travelled = travelled.coerceIn(-threshold, threshold)
             },
             orientation = Orientation.Horizontal,
             onDragStarted = {
                 index = selected
                 travelled = 0f
+                ticker.reset()
+                ticker.at(index)
             },
-            onDragStopped = { travelled = 0f },
+            onDragStopped = {
+                travelled = 0f
+                ticker.reset()
+                // Once, at the end — the thing a `Selection` was being spent on
+                // per step now marks the gesture actually finishing.
+                feedback.perform(FeedbackIntent.Selection)
+            },
         )
 }
