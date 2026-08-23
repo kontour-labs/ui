@@ -1,7 +1,7 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.Orientation
@@ -13,10 +13,13 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -36,11 +39,15 @@ import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.LocalRowToggle
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
+import kotlinx.coroutines.launch
 
 private val TrackWidth = 48.dp
 private val TrackHeight = 28.dp
 private val ThumbSize = 22.dp
 private val ThumbPadding = 3.dp
+
+/** How much wider than round the thumb gets while it is moving. */
+private const val ThumbStretch = 1.25f
 
 /**
  * A switch.
@@ -77,6 +84,7 @@ fun Switch(
     val motion = Theme.motion
     val shape = Theme.shapes.pill
     val feedback = Feedback
+    val scope = rememberCoroutineScope()
 
     // A switch inside a `SelectionRow` has no callback of its own — the row owns
     // the tap — so its own source never sees a press and the thumb never
@@ -131,28 +139,58 @@ fun Switch(
     val dragTarget = onCheckedChange ?: LocalRowToggle.current
 
     /**
-     * Where the thumb has been dragged to, `0f` off and `1f` on. `NaN` at rest.
+     * Where the thumb is: `0f` off, `1f` on. **The only source of truth.**
+     *
+     * It used to be two — a drag fraction the finger wrote to, and an
+     * `animateDpAsState` keyed on [checked] — and they were never reconciled.
+     * The animation sat parked at the *pre-drag* end for the whole gesture, so
+     * the frame after the finger lifted drew the thumb back where it started:
+     * a committed drag jumped backwards by up to the full travel before setting
+     * off again, and a drag that did not carry far enough teleported home with
+     * no animation at all, because its target had never changed.
+     *
+     * One `Animatable` cannot do that. The drag snaps it; the release springs it
+     * *from wherever the finger left it* to wherever the value lands — including
+     * back, which is now a spring rather than a jump cut.
      *
      * Held as a fraction rather than as pixels so the release threshold is the
      * middle of the travel whatever the density, and so the drawn position needs
      * no second source of truth about how far the thumb can go.
      */
-    var dragFraction by remember { mutableFloatStateOf(Float.NaN) }
+    val fraction = remember { Animatable(if (checked) 1f else 0f) }
+
+    /** True between `onDragStarted` and `onDragStopped`. Suspends the spring. */
+    var dragging by remember { mutableStateOf(false) }
+
+    /**
+     * The gesture's running total, mirrored into [fraction] and never drawn from.
+     *
+     * `Animatable.snapTo` suspends, so a drag delta reaches it through a
+     * coroutine; accumulating here first means no delta can be lost to two
+     * updates reading the same stale value.
+     */
+    var dragAccumulator by remember { mutableFloatStateOf(0f) }
+
     val travel = TrackWidth - ThumbSize - ThumbPadding * 2
     val travelPx = with(LocalDensity.current) { travel.toPx() }
 
-    val thumbOffset by animateDpAsState(
-        targetValue = if (checked) TrackWidth - ThumbSize - ThumbPadding else ThumbPadding,
-        animationSpec = motion.springOrTween(motion.springSnappy),
-        label = "switchThumbOffset",
-    )
-    // Where it is actually drawn: the finger while there is one, the animation
-    // otherwise. The drag is not eased — a thumb that lags the finger it is
-    // being held by reads as friction, not as give.
-    val drawnOffset = if (dragFraction.isNaN()) thumbOffset else ThumbPadding + travel * dragFraction
-    // Squash-and-stretch: the thumb elongates while pressed or in transit.
+    // Springs to wherever `checked` now is, starting from wherever the thumb now
+    // is. Keyed on `dragging` as well as on `checked`, so it also runs when a
+    // drag ends without changing anything — a short drag, or a caller that
+    // declined the change — which is the case that used to teleport.
+    LaunchedEffect(checked, dragging) {
+        if (dragging) return@LaunchedEffect
+        val target = if (checked) 1f else 0f
+        if (fraction.value != target) {
+            fraction.animateTo(target, motion.springOrTween(motion.springSnappy))
+        }
+    }
+
+    // Squash-and-stretch: the thumb elongates while pressed or in transit —
+    // including during the release spring, which is most of the transit.
+    val moving = dragging || fraction.isRunning
     val thumbStretch by animateFloatAsState(
-        targetValue = if ((pressed || !dragFraction.isNaN()) && !motion.reduceMotion) 1.25f else 1f,
+        targetValue = if ((pressed || moving) && !motion.reduceMotion) ThumbStretch else 1f,
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "switchThumbStretch",
     )
@@ -197,24 +235,25 @@ fun Switch(
                 if (dragTarget != null && enabled) {
                     Modifier.draggable(
                         state = rememberDraggableState { delta ->
-                            val from = if (dragFraction.isNaN()) {
-                                if (checked) 1f else 0f
-                            } else {
-                                dragFraction
-                            }
-                            dragFraction = (from + delta / travelPx).coerceIn(0f, 1f)
+                            dragAccumulator = (dragAccumulator + delta / travelPx).coerceIn(0f, 1f)
+                            scope.launch { fraction.snapTo(dragAccumulator) }
                         },
                         orientation = Orientation.Horizontal,
                         interactionSource = interactions,
-                        onDragStarted = { dragFraction = if (checked) 1f else 0f },
+                        onDragStarted = {
+                            // From where it *is*, not from where `checked` says
+                            // it should be — grabbing a thumb still in flight
+                            // used to snap it to an end before it would move.
+                            dragAccumulator = fraction.value
+                            dragging = true
+                        },
                         onDragStopped = {
-                            // Whichever half it was let go in. Committed before
-                            // the drag is cleared, so the thumb springs from
-                            // where the finger left it to wherever the value
-                            // lands — including back, when the drag did not
-                            // carry far enough to change anything.
-                            val now = dragFraction >= 0.5f
-                            dragFraction = Float.NaN
+                            // Whichever half it was let go in. Clearing
+                            // `dragging` releases the spring above, which picks
+                            // the thumb up from here and carries it to whatever
+                            // the caller settles on.
+                            val now = fraction.value >= 0.5f
+                            dragging = false
                             if (now != checked) {
                                 feedback.perform(FeedbackIntent.Selection)
                                 dragTarget(now)
@@ -248,21 +287,33 @@ fun Switch(
         // on an inverted range: a switch measured narrower than its own thumb
         // took the frame down with it, from inside draw, where there is nothing
         // to catch it. A switch squeezed to nothing should look squeezed.
+        val paddingPx = ThumbPadding.toPx()
         val thumbPx = ThumbSize.toPx().coerceAtMost(size.width)
-        val stretchedWidth = (thumbPx * thumbStretch).coerceAtMost(size.width)
-        val travelRoom = (size.width - stretchedWidth).coerceAtLeast(0f)
-        // Stretch away from the direction of travel, so the leading edge holds
-        // its position and the trailing edge lags — which is what reads as give.
-        val left = if (checked) {
-            drawnOffset.toPx() - (stretchedWidth - thumbPx)
-        } else {
-            drawnOffset.toPx()
-        }
+        val interior = (size.width - paddingPx * 2f).coerceAtLeast(0f)
+        val room = (interior - thumbPx).coerceAtLeast(0f)
+        val f = fraction.value.coerceIn(0f, 1f)
+
+        // The stretch grows *into the padding it has room for*, split between
+        // the two sides in proportion to how much room each has.
+        //
+        // A 22dp thumb stretched to 27.5dp in a 48dp track cannot keep 3dp clear
+        // at both ends and stay centred on the finger, so the old code let the
+        // leading edge run into the track's wall and clamped it there: the gap
+        // it was supposed to hold went to **zero** for the last eighth of an
+        // off-to-on drag, and the thumb stopped tracking the finger while it did
+        // it. Splitting the growth by the room available instead keeps both gaps
+        // at exactly [ThumbPadding] wherever the thumb is, with no clamp, no
+        // discontinuity — and at either end, where all the spare room is behind
+        // it, all the growth goes behind it too. Which is the trailing stretch
+        // the give was always meant to be.
+        val stretchedWidth = (thumbPx * thumbStretch).coerceAtMost(maxOf(interior, thumbPx))
+        val grow = stretchedWidth - thumbPx
+        val left = paddingPx + room * f - grow * f
         val top = (size.height - thumbPx).coerceAtLeast(0f) / 2f
 
         drawRoundRect(
             color = thumbColor,
-            topLeft = Offset(left.coerceIn(0f, travelRoom), top),
+            topLeft = Offset(left.coerceIn(0f, (size.width - stretchedWidth).coerceAtLeast(0f)), top),
             size = Size(stretchedWidth, thumbPx),
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(thumbPx / 2f),
         )
