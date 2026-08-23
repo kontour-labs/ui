@@ -33,9 +33,13 @@ import sys
 from pathlib import Path
 
 COMPONENTS = Path("docs/using/components")
-REGISTRY = Path(
-    "ui-catalog/src/commonTest/kotlin/io/kontour/ui/contract/ComponentRegistry.kt"
-)
+
+# Found rather than named. The registry has already moved source set once — out
+# of `commonTest` and into `commonMain`, so the documentation site could read
+# the same list the contract suite does — and a hardcoded path turned this guard
+# into a stack trace rather than a finding. Where the file *is* is not the
+# subject of this check.
+REGISTRY_NAME = "ComponentRegistry.kt"
 
 # `ComponentSpec("Button ($variant)", Role.Button)` and `name = "FabMenu",`.
 SPEC_POSITIONAL = re.compile(r'ComponentSpec\(\s*"([^"]+)"')
@@ -76,9 +80,22 @@ INDEXES = {
 }
 
 
+def registry_path() -> Path:
+    found = [
+        p for p in Path("ui-catalog/src").rglob(REGISTRY_NAME)
+        if "build" not in p.parts
+    ]
+    if len(found) != 1:
+        raise SystemExit(
+            f"expected exactly one {REGISTRY_NAME} under ui-catalog/src, found "
+            f"{[p.as_posix() for p in found]}"
+        )
+    return found[0]
+
+
 def registry_components() -> list[str]:
     """Every spec name, reduced to the symbol it is a specimen of."""
-    text = REGISTRY.read_text()
+    text = registry_path().read_text()
     names = set(SPEC_POSITIONAL.findall(text)) | set(SPEC_NAMED.findall(text))
     reduced = set()
     for name in names:

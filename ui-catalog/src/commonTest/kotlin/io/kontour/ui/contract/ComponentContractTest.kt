@@ -11,6 +11,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -373,8 +376,25 @@ class ComponentContractTest {
      */
     private fun ComposeUiTest.control(spec: ComponentSpec): SemanticsNodeInteraction =
         spec.control
-            ?.let { onNode(hasAnyAncestor(hasTestTag(tag)) and it) }
+            ?.let { onNode(hasAnyAncestor(hasTestTag(tag)) and it.matcher()) }
             ?: onNodeWithTag(tag)
+
+    /**
+     * The locator, as something the test framework can look for.
+     *
+     * The registry names a *kind* of node rather than holding a matcher, so the
+     * list can live in `commonMain` and be read by the documentation site
+     * without dragging `compose.uiTest` into a browser bundle. This is the one
+     * place that translation happens.
+     */
+    private fun ControlLocator.matcher(): SemanticsMatcher = when (this) {
+        ControlLocator.Clickable -> hasClickAction()
+        ControlLocator.TextInput ->
+            SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)
+        ControlLocator.SelectedOption ->
+            SemanticsMatcher.expectValue(SemanticsProperties.Selected, true)
+        is ControlLocator.ClickableLabelled -> hasClickAction() and hasText(text)
+    }
 
     /**
      * Runs [check] for every registered component, reporting *all* the failures

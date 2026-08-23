@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kontour UI</title>
+    <meta name="description" content="A Compose Multiplatform design system.">
+    <link type="text/css" rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!--
+      Shown until the bundle boots and Compose paints over it.
+
+      A Compose/Wasm bundle is several megabytes and the first load is not
+      instant. One bundle serves every route, so it is paid once — but the first
+      few seconds are a blank page unless something stands in, and a blank page
+      is indistinguishable from a broken one.
+    -->
+    <div id="booting">
+        <h1>Kontour UI</h1>
+        <p>Loading the component library…</p>
+    </div>
+    <script type="application/javascript" src="ui-docs.js"></script>
+</body>
+</html>

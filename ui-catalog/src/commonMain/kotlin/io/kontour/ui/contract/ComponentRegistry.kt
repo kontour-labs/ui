@@ -18,11 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.state.ToggleableState
-import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.hasClickAction
-import androidx.compose.ui.test.hasText
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
@@ -163,7 +159,7 @@ class RenderState(
  *   whole disclosed body into the header's announcement. The role and disabled
  *   rules apply to the control; the modifier, target and layout rules still apply
  *   to the outside. `null` means the two are the same node, which is the case
- *   worth defaulting to.
+ *   worth defaulting to. See [ControlLocator].
  * @param accessibleName The text a screen reader must be able to read off this
  *   control, for a component rendered here **with a visible label**. This is the
  *   rule that catches a label sitting beside a control rather than naming it —
@@ -178,7 +174,7 @@ class ComponentSpec(
     val role: Role?,
     val expectsMinimumTarget: Boolean = true,
     val activatedByClick: Boolean = true,
-    val control: SemanticsMatcher? = null,
+    val control: ControlLocator? = null,
     val accessibleName: String? = null,
     /**
      * True for a control that cannot name itself and is designed not to.
@@ -258,25 +254,52 @@ class ComponentSpec(
 }
 
 /**
- * Matches a text input **in either state**.
+ * Where a component's operable node is, said without naming a test API.
  *
- * Deliberately not `hasSetTextAction()`: foundation withdraws the set-text action
- * when a field is disabled, so a matcher built on it finds nothing in precisely
- * the case the disabled rule exists to check — and an assertion that cannot find
- * its node reports as a failure that looks like the rule, not like the matcher.
+ * The registry used to hold a `SemanticsMatcher` here, which tied the whole list
+ * to `compose.uiTest` and so to a test source set. That was fine while the
+ * contract suite was the only reader; it is not fine now that the documentation
+ * site renders the same specimens, because it would ship a test framework in a
+ * bundle a browser has to download.
+ *
+ * So the spec says *what kind of node* and `ComponentContractTest` turns that
+ * into a matcher. Four kinds cover the library, and each is a decision worth
+ * writing down rather than a matcher expression to be read back later.
  */
-private val isTextInput = SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)
+sealed interface ControlLocator {
 
-/**
- * Matches the chosen one of a set of selectable children, **in either state**.
- *
- * Not `hasClickAction()`, for the same reason [isTextInput] is not
- * `hasSetTextAction()`: foundation withdraws the click action when a control is
- * disabled, so that matcher finds nothing in exactly the case the disabled rule
- * is about. `Selected` is set either way, and matching the selected one keeps it
- * to a single node where `hasClickAction()` would match every segment.
- */
-private val isSelectedOption = SemanticsMatcher.expectValue(SemanticsProperties.Selected, true)
+    /** The clickable node inside the specimen. An `Accordion`'s header. */
+    data object Clickable : ControlLocator
+
+    /**
+     * A text input, **in either state**.
+     *
+     * Deliberately not "has a set-text action": foundation withdraws that action
+     * when a field is disabled, so a matcher built on it finds nothing in
+     * precisely the case the disabled rule exists to check — and an assertion
+     * that cannot find its node reports as a failure that looks like the rule,
+     * not like the matcher.
+     */
+    data object TextInput : ControlLocator
+
+    /**
+     * The chosen one of a set of selectable children, **in either state**.
+     *
+     * Not the clickable one, for the same reason [TextInput] is not the
+     * set-text one. `Selected` is set either way, and matching the selected one
+     * keeps it to a single node where "clickable" would match every segment.
+     */
+    data object SelectedOption : ControlLocator
+
+    /**
+     * The clickable node carrying this text.
+     *
+     * For a component that is two controls: a `SplitButton` is a labelled half
+     * and a chevron half, and the rules about role and disabled belong to the
+     * half that carries the default action.
+     */
+    data class ClickableLabelled(val text: String) : ControlLocator
+}
 
 /**
  * Every component in the system, as a specimen.
@@ -807,7 +830,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             expectsMinimumTarget = false,
             activatedByClick = false,
-            control = isTextInput,
+            control = ControlLocator.TextInput,
             accessibleName = "Origin",
         ) { modifier, enabled, _ ->
             TextField(
@@ -825,7 +848,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             expectsMinimumTarget = false,
             activatedByClick = false,
-            control = isTextInput,
+            control = ControlLocator.TextInput,
         ) { modifier, enabled, _ ->
             SearchField(
                 state = rememberTextFieldState(),
@@ -841,7 +864,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "Select",
             role = Role.DropdownList,
             expectsMinimumTarget = false,
-            control = hasClickAction(),
+            control = ControlLocator.Clickable,
             accessibleName = "When",
         ) { modifier, enabled, onClick ->
             Select(
@@ -892,7 +915,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "Accordion",
             role = Role.Button,
-            control = hasClickAction(),
+            control = ControlLocator.Clickable,
             states = listOf(
                 // Collapsed, the panel is the half of this component that does
                 // not exist yet — so the resting render is a header row with a
@@ -929,7 +952,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // Two buttons in one control, so the outermost node is the pair and
             // the rules about role and disabled belong to the half that carries
             // the default action.
-            control = hasClickAction() and hasText("Save"),
+            control = ControlLocator.ClickableLabelled("Save"),
             accessibleName = "Save",
             states = listOf(
                 RenderState("expanded", height = 260) { modifier ->
@@ -955,7 +978,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "ExpandingListItem",
             role = Role.Button,
-            control = hasClickAction(),
+            control = ControlLocator.Clickable,
             states = listOf(
                 RenderState("expanded", height = 340) { modifier ->
                     ExpandingListItem(
@@ -1074,7 +1097,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "SegmentedControl",
             role = Role.RadioButton,
-            control = isSelectedOption,
+            control = ControlLocator.SelectedOption,
         ) { modifier, enabled, onClick ->
             SegmentedControl(
                 options = listOf("Bus", "Train"),
@@ -1156,7 +1179,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "RadioGroup",
             role = Role.RadioButton,
-            control = isSelectedOption,
+            control = ControlLocator.SelectedOption,
         ) { modifier, enabled, onClick ->
             RadioGroup(
                 options = listOf("Bus", "Train"),
