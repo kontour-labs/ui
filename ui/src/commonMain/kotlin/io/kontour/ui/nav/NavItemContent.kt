@@ -238,6 +238,9 @@ internal fun NavDestinationItem(
                         // A whole destination flinching is too much movement for
                         // something tapped this often; the travelling circle is
                         // the feedback, and this is the press under it.
+                        // No shrink here either, and for the tab bar's
+                        // reason: the selection pill travels to the destination
+                        // that was pressed.
                         .indication(interactions, kontourIndication(shape, pressScale = 1f))
                 ) {
                     Box(

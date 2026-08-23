@@ -296,13 +296,51 @@ object ButtonDefaults {
     }
 
     /**
-     * Whether a variant should shrink on press.
+     * How far a control shrinks on press.
      *
-     * Ghost buttons do not: with no visible container, a shrinking label reads
-     * as the text jumping rather than as a control responding.
+     * ### Ghost, and what the rule about it was actually about
+     *
+     * Ghost buttons did not shrink at all, for a stated reason that is right:
+     * with no visible container, a shrinking *label* reads as the text jumping
+     * rather than as a control responding. The trouble is that it is a rule
+     * about text, and it was being applied to glyphs. A default [IconButton] is
+     * Ghost and every `IconToggleButton` hard-codes Ghost, so the two most
+     * tapped controls in the library could not respond to a press at all — and a
+     * `Toolbar`'s own documented example puts a `ButtonGroup` that shrinks
+     * beside a bare `IconButton` that does not. A glyph is a shape, not a line of
+     * type, and shrinking one reads exactly as it should.
+     *
+     * So [iconOnly] splits it: ghost *text* keeps its 1f, ghost *icons* respond
+     * like everything else.
+     *
+     * ### And why one number was never going to work
+     *
+     * [io.kontour.ui.interaction.DefaultPressScale] is 3%, and 3% is what you
+     * pick when the same constant has to serve a 28dp icon button and a
+     * full-width XLarge one. It is invisible on the small control and it is the
+     * most the large one can take: shrink a wide button 7% and it reads as the
+     * layout collapsing. Scaling with the control instead gives the small ones
+     * the movement that makes the switch and the checkbox feel alive — they are
+     * small controls, which is most of why they can afford it — and leaves the
+     * large ones where they were.
      */
-    fun pressScale(variant: ButtonVariant): Float = when (variant) {
-        ButtonVariant.Ghost, ButtonVariant.DestructiveGhost -> 1f
-        else -> io.kontour.ui.interaction.DefaultPressScale
+    fun pressScale(
+        variant: ButtonVariant,
+        size: ButtonSize = ButtonSize.Medium,
+        iconOnly: Boolean = false,
+    ): Float {
+        val ghost = variant == ButtonVariant.Ghost || variant == ButtonVariant.DestructiveGhost
+        if (ghost && !iconOnly) return 1f
+        return when (size) {
+            ButtonSize.XSmall, ButtonSize.Small -> SmallPressScale
+            ButtonSize.Medium -> MediumPressScale
+            ButtonSize.Large, ButtonSize.XLarge -> io.kontour.ui.interaction.DefaultPressScale
+        }
     }
+
+    /** 28 and 36dp: small enough that 7% reads as a press rather than as a collapse. */
+    const val SmallPressScale: Float = 0.93f
+
+    /** 44dp. */
+    const val MediumPressScale: Float = 0.95f
 }

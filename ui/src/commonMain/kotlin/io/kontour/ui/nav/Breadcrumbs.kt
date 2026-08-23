@@ -116,7 +116,11 @@ private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
             .clip(shape)
             .clickable(
                 interactionSource = interactions,
-                indication = kontourIndication(shape, pressScale = 1f),
+                // A crumb is a link-sized button; nothing else here answers the tap.
+                indication = kontourIndication(
+                    shape,
+                    io.kontour.ui.components.action.ButtonDefaults.SmallPressScale,
+                ),
                 onClick = {
                     feedback.perform(FeedbackIntent.Selection)
                     onClick()

@@ -10,6 +10,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -116,6 +117,20 @@ fun Button(
             }
             .minimumTouchTarget()
             .focusRing(interactions, shape)
+            // Ahead of the container, not inside `clickable` below.
+            //
+            // `KontourIndication` scales `drawContent()`, and a draw modifier
+            // only draws what comes *after* it in the chain — so an indication
+            // handed to `clickable`, which sits past `.background()`, was
+            // scaling the label and nothing else. The button's own silhouette
+            // never moved: measured at 212px pressed and 212px at rest. Every
+            // filled control in the library has been "shrinking on press" by
+            // shrinking its text inside a container that stayed put, which is
+            // most of why 3% never read as anything.
+            .indication(
+                interactions,
+                kontourIndication(shape, ButtonDefaults.pressScale(variant, size)),
+            )
             .height(metrics.height)
             .clip(shape)
             .background(container, shape)
@@ -128,7 +143,7 @@ fun Button(
             )
             .clickable(
                 interactionSource = interactions,
-                indication = kontourIndication(shape, ButtonDefaults.pressScale(variant)),
+                indication = null,
                 enabled = interactive,
                 role = Role.Button,
                 onClick = {

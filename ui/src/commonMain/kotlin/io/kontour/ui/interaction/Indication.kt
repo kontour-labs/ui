@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.node.DelegatableNode
 import androidx.compose.ui.node.DrawModifierNode
@@ -170,21 +171,31 @@ private class KontourIndicationNode(
 
     override fun ContentDrawScope.draw() {
         val currentScale = scale.value
+        val alpha = overlayAlpha.value
+
+        // Both inside the same scale, so a pressed control and the wash on top
+        // of it are the same shape. Drawn unscaled, the wash painted the
+        // control's *original* footprint over a container that had just shrunk
+        // out from under it — a faint halo standing where the button used to be,
+        // which is the one thing guaranteed to make a shrink read as something
+        // else.
         if (currentScale == 1f) {
             drawContent()
+            if (alpha > 0f) drawWash(alpha)
         } else {
-            scale(currentScale) { this@draw.drawContent() }
+            scale(currentScale) {
+                this@draw.drawContent()
+                if (alpha > 0f) this@draw.drawWash(alpha)
+            }
         }
+    }
 
-        val alpha = overlayAlpha.value
-        if (alpha <= 0f) return
-
+    private fun DrawScope.drawWash(alpha: Float) {
         val wash = overlayColor.copy(alpha = alpha)
         if (shape === RectangleShape) {
             drawRect(color = wash)
         } else {
-            val outline = shape.createOutline(size, layoutDirection, this)
-            drawOutline(outline = outline, color = wash)
+            drawOutline(outline = shape.createOutline(size, layoutDirection, this), color = wash)
         }
     }
 }

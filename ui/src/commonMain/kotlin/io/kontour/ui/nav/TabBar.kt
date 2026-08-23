@@ -263,6 +263,11 @@ fun TabBarScope.Tab(
             .selectable(
                 selected = selected,
                 interactionSource = interactions,
+                // Deliberately no shrink, unlike the buttons: the indicator
+                // slides to the tab you pressed, and a tab that also flinched
+                // would be two answers to one tap. Same bargain
+                // `SegmentedControl` states — the moving thumb *is* the
+                // feedback.
                 indication = kontourIndication(Theme.shapes.small, pressScale = 1f),
                 enabled = enabled,
                 role = Role.Tab,

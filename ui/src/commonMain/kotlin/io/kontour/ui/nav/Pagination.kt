@@ -186,7 +186,11 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
             .selectable(
                 selected = selected,
                 interactionSource = interactions,
-                indication = kontourIndication(shape, pressScale = 1f),
+                // A page number is a small button and nothing else answers the tap.
+                indication = kontourIndication(
+                    shape,
+                    io.kontour.ui.components.action.ButtonDefaults.SmallPressScale,
+                ),
                 role = Role.Button,
                 onClick = {
                     feedback.perform(FeedbackIntent.Selection)

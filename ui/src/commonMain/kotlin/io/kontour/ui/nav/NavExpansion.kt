@@ -242,7 +242,10 @@ private fun CollapsedControl(
             .focusRing(interactions, shape, enabled = enabled)
             .clickable(
                 interactionSource = interactions,
-                indication = kontourIndication(shape, pressScale = 1f),
+                // Wide, so it shrinks by the amount a wide button does rather
+                // than the amount a glyph does — but it does shrink: it is a
+                // control that opens something, and nothing else here says so.
+                indication = kontourIndication(shape, io.kontour.ui.interaction.DefaultPressScale),
                 enabled = enabled,
                 role = Role.Button,
                 onClick = {

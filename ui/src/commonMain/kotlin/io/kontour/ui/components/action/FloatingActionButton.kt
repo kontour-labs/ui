@@ -85,7 +85,7 @@ fun FloatingActionButton(
             .height(size.container)
             .clickable(
                 interactionSource = interactions,
-                indication = kontourIndication(shape),
+                indication = kontourIndication(shape, FabDefaults.pressScale(size)),
                 enabled = enabled,
                 role = Role.Button,
                 onClick = {
@@ -161,7 +161,7 @@ fun ExtendedFloatingActionButton(
             .height(size.container)
             .clickable(
                 interactionSource = interactions,
-                indication = kontourIndication(shape),
+                indication = kontourIndication(shape, FabDefaults.pressScale(size)),
                 enabled = enabled,
                 role = Role.Button,
                 onClick = {
@@ -200,5 +200,22 @@ fun ExtendedFloatingActionButton(
                 }
             }
         }
+    }
+}
+
+/** Metrics for a [Fab] that are not on [FabSize] itself. */
+object FabDefaults {
+    /**
+     * How far a FAB shrinks on press.
+     *
+     * By its container, on the same reasoning as
+     * [io.kontour.ui.components.action.ButtonDefaults.pressScale]: a 40dp circle
+     * can take the movement that makes a small control feel alive, and a 72dp one
+     * cannot. A FAB is a single closed shape rather than a row of type, which is
+     * why even the large one is worth more than the 3% a wide button gets.
+     */
+    fun pressScale(size: FabSize): Float = when (size) {
+        FabSize.Small -> ButtonDefaults.SmallPressScale
+        FabSize.Medium, FabSize.Large -> ButtonDefaults.MediumPressScale
     }
 }
