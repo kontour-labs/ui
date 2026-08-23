@@ -207,6 +207,23 @@ class ComponentSpec(
      */
     val renderHeight: Int? = null,
     /**
+     * The narrowest this component can be drawn correctly, in dp.
+     *
+     * Null for almost everything: a component squeezed below what it asked for
+     * is expected to cope, and `WidthSweepTest` holds it to that. The exception
+     * is a component whose parts have *individually* irreducible sizes — a
+     * `Stepper` is two 48dp touch targets with a value between them, so at 48dp
+     * there is no arrangement of it that is right, only ones that are wrong in
+     * different ways: shrink the buttons and they stop being reachable, drop one
+     * and the control silently loses half of what it does.
+     *
+     * Declared here rather than exempted by name inside the sweep, because a
+     * list of names in a test is how a defect becomes a permanent exemption.
+     * This is a fact about the component; it belongs next to the component,
+     * where whoever widens a `Stepper`'s parts has to change it.
+     */
+    val minWidth: Int? = null,
+    /**
      * Extra renders beyond the resting one — see [RenderState].
      *
      * Empty for most components, because most of them look like themselves
@@ -544,6 +561,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             activatedByClick = false,
             expectsMinimumTarget = false,
+            // Two 48dp targets and a value cell between them. Measured at 144dp
+            // with the default `valueWidth`; below that something has to give
+            // and every candidate is worse than overflowing.
+            minWidth = 144,
         ) { modifier, enabled, _ ->
             Stepper(
                 value = 2,

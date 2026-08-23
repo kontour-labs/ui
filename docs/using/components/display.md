@@ -220,6 +220,13 @@ Using a setting row for facts gives a screen-reader user a list of buttons that
 do nothing, which is worse than the visual duplication it saves. If one row needs
 to become tappable, it is not one of these — move it out and leave the rest.
 
+**Narrow rows stack.** Below about 216dp — `labelWidth` plus a value column worth
+having — each pair becomes label above value instead of side by side. The label
+column had a floor and the value had no weight at all, so anything under about
+120dp gave the label the whole row and left the value drawing its first character
+outside the component, one glyph wide. The floor is capped now, so a long label
+pushes its column out but can never starve the value.
+
 **Each row announces as a pair**, "Platform, 2". Separate nodes make the reader
 hold the label while waiting for the value, and the pairing is the entire
 content. A row whose value is not text needs `announcement` — a tick icon in an

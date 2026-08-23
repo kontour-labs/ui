@@ -53,6 +53,17 @@ import io.kontour.ui.theme.Theme
  * control's `stateDescription`, so a screen reader says "Adults, 2" rather than
  * offering an unlabelled "2" between two buttons.
  *
+ * ### It has a floor, and it is wider than most controls'
+ *
+ * Two touch targets and a value cell between them, so a `Stepper` wants about
+ * [StepperDefaults.MinWidth] and cannot usefully be given less. Below that a
+ * `Row` hands the first button everything and the second one nothing, so the
+ * increment button stops being drawn at all — a control that has silently lost
+ * half of what it does, which is worse than one that is visibly too big for its
+ * space. Every alternative is worse again: shrinking the buttons puts them under
+ * the platform's touch minimum, and dropping the value leaves two unlabelled
+ * arrows. Give it the room, or use a [Select] of the plausible counts.
+ *
  * @param range The inclusive bounds. `value` outside it is clamped for display,
  *   which keeps a bad initial value visible rather than silently corrected.
  * @param step How much each press moves the value.
@@ -172,4 +183,15 @@ object StepperDefaults {
      * rather than a fixed size, so "12 bags" still fits.
      */
     val ValueWidth: Dp = 40.dp
+
+    /**
+     * The narrowest a stepper can be drawn correctly.
+     *
+     * Two 48dp touch targets, [ValueWidth] between them and the gaps either
+     * side. Not enforced — a component that refuses its own constraints is its
+     * own kind of problem — but stated, because below it the layout stops being
+     * wrong in a way anyone can see and starts being wrong by leaving a button
+     * out. `ComponentSpec.minWidth` carries the same number for the width sweep.
+     */
+    val MinWidth: Dp = 144.dp
 }
