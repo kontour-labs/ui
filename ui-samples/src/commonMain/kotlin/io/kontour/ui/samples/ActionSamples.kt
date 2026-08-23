@@ -29,6 +29,7 @@ import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.action.IconToggleButton
+import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
@@ -171,5 +172,23 @@ fun FabMenuFan() {
         item(Tabler.Outline.Bus, "Buses") { openLayers() }
         item(Tabler.Outline.Train, "Trains") { openLayers() }
         item(Tabler.Outline.Bike, "Bike paths") { openLayers() }
+    }
+}
+
+@Composable
+fun SplitButtonBasics() {
+    var open by remember { mutableStateOf(false) }
+
+    SplitButton(
+        onClick = { save() },
+        expanded = open,
+        onExpandedChange = { open = it },
+        menuContentDescription = "Other save options",
+        menu = {
+            item("Save and close", onClick = { saveAndClose() })
+            item("Save a copy", onClick = { saveCopy() })
+        },
+    ) {
+        +"Save"
     }
 }

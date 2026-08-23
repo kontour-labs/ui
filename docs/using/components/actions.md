@@ -9,6 +9,7 @@ Things the user presses to make something happen.
 | [`IconToggleButton`](#icontogglebutton) | An icon that is on or off — favourite, mute | A `Switch`, when the state deserves a label |
 | [`FloatingActionButton`](#floatingactionbutton) | The one action a whole screen exists for | A `Button`, for anything else |
 | [`FabMenu`](#fabmenu) | Several actions behind the one FAB | A `Toolbar`, when they belong on the chrome |
+| [`SplitButton`](#splitbutton) | One usual action, with variants a tap away | A `Button` + menu, when there is no *usual* one |
 | [`ButtonGroup`](#buttongroup) | Related actions that read as one control | `SegmentedControl`, when one is *selected* |
 | [`Toolbar`](#toolbar) | A floating surface of actions over other content | `TopBar`, when it is the screen's own chrome |
 | [`Spinner`](#spinner) | Work is happening, duration unknown | `LinearProgress`, when you know the fraction |
@@ -272,6 +273,50 @@ applies to every one of them rather than to the menu as a whole.
 > page held together by its shadow alone — legible over a map, and not much else.
 > It is the same hairline `OverlaySurface` puts round every menu and popover.
 > Pass `itemBorder = null` on a menu that only ever floats over photography.
+
+## `SplitButton`
+
+![SplitButton](../../../ui-catalog/screenshots/components/splitbutton-expanded-light.png)
+
+<!--sample:SplitButtonBasics-->
+```kotlin
+var open by remember { mutableStateOf(false) }
+
+SplitButton(
+    onClick = { save() },
+    expanded = open,
+    onExpandedChange = { open = it },
+    menuContentDescription = "Other save options",
+    menu = {
+        item("Save and close", onClick = { saveAndClose() })
+        item("Save a copy", onClick = { saveCopy() })
+    },
+) {
+    +"Save"
+}
+```
+
+The left half runs the **default** action immediately; the right half opens the
+rest. That division is the whole component, and it is what separates it from a
+`Button` that opens a menu: here the common case costs one tap and never shows a
+list.
+
+The two halves sit flush with a hairline between them and only the outside
+corners round — the same `ButtonGroupPosition.shape` a
+[`ButtonGroup`](#buttongroup) uses, because it is the same idea: separate targets
+that read as one control. The pair owns the touch target between them for the
+reason `ButtonGroup` does, so the reserved slack does not land in the seam and
+turn a 1dp join into a 9dp gap.
+
+**Reach for a plain `Button` and a `DropdownMenu`** when there is no default. A
+split button whose main half also opens the menu is a wide chevron. And reach for
+[`ButtonGroup`](#buttongroup) when the alternatives are *equal* — three ways of
+doing a thing, none of them the usual one — since a split button claims one of
+them is the answer.
+
+`menuContentDescription` is required and separate from the label: the chevron
+half has no text of its own, and a screen reader that reads "Save, Save" for the
+two halves has described neither.
 
 ---
 

@@ -69,7 +69,7 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "actions-"),
                 width = 1100,
-                height = 1980,
+                height = 2200,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
                     // `FabMenu` renders its items into the host, so it asks for
@@ -256,7 +256,7 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "display-"),
                 width = 2640,
-                height = 2780,
+                height = 3060,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
                     DisplayShowcase()

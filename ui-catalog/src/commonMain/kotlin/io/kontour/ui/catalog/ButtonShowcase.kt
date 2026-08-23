@@ -36,6 +36,7 @@ import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
@@ -171,6 +172,28 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                         expanded = collapsed.value,
                         onClick = { collapsed.value = !collapsed.value },
                     ) { +"Start trip" }
+                }
+            }
+
+            Section("Split button") {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                ) {
+                    for (variant in listOf(ButtonVariant.Primary, ButtonVariant.Secondary)) {
+                        val open = seed(false)
+                        SplitButton(
+                            onClick = tap("Save"),
+                            expanded = open.value,
+                            onExpandedChange = { open.value = it },
+                            menuContentDescription = "Other save options",
+                            variant = variant,
+                            menu = {
+                                item("Save and close", onClick = {})
+                                item("Save a copy", onClick = {})
+                            },
+                        ) { +"Save" }
+                    }
                 }
             }
 

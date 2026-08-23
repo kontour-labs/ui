@@ -28,6 +28,8 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.Accordion
+import io.kontour.ui.components.display.AnimatedCounter
+import io.kontour.ui.motion.marquee
 import io.kontour.ui.components.display.Avatar
 import io.kontour.ui.components.display.AvatarGroup
 import io.kontour.ui.components.display.AvatarSize
@@ -293,6 +295,45 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                                 style = Theme.typography.bodySmall,
                                 color = Theme.colors.contentMuted,
                             )
+                        }
+                    }
+                }
+
+                Section("Counting and scrolling") {
+                    Card(variant = CardVariant.Outlined) {
+                        Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+                            // Tap it and the digits roll. Seeded at a two-digit
+                            // value so the first tap crosses a column boundary,
+                            // which is the case worth watching.
+                            val minutes = seed(14)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                AnimatedCounter(
+                                    value = minutes.value,
+                                    format = { "$it min" },
+                                    style = Theme.typography.headlineSmall,
+                                )
+                                Button(
+                                    onClick = { minutes.value = (minutes.value + 12) % 60 },
+                                    variant = ButtonVariant.Secondary,
+                                    size = ButtonSize.Small,
+                                ) { +"Advance" }
+                            }
+
+                            // Deliberately too narrow for the label, which is
+                            // the only state in which the modifier does
+                            // anything. It is still under `reduceMotion` in the
+                            // goldens, where it truncates instead.
+                            Box(Modifier.width(180.dp)) {
+                                Text(
+                                    text = "Elizabeth Quay Bus Station, Stand E",
+                                    maxLines = 1,
+                                    style = Theme.typography.bodyMedium,
+                                    modifier = Modifier.marquee(),
+                                )
+                            }
                         }
                     }
                 }

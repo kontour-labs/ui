@@ -4,7 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Check
+import androidx.compose.ui.Modifier
 import io.kontour.ui.components.display.Accordion
+import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.PageIndicator
@@ -12,6 +14,7 @@ import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StatTrend
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.marquee
 import kotlinx.coroutines.launch
 
 @Composable
@@ -56,4 +59,18 @@ fun AccordionBasics(expanded: Boolean, onExpandedChange: (Boolean) -> Unit) {
     ) {
         Text("Step-free access at all platforms.")
     }
+}
+
+@Composable
+fun AnimatedCounterBasics(minutesAway: Int) {
+    AnimatedCounter(value = minutesAway, format = { "$it min" })
+}
+
+@Composable
+fun MarqueeBasics(stop: Stop) {
+    Text(
+        text = stop.name,
+        maxLines = 1,
+        modifier = Modifier.marquee(),
+    )
 }

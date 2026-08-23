@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.ArrowsSort
 import com.composables.icons.tabler.outline.Bookmark
+import com.composables.icons.tabler.outline.Route
 import com.composables.icons.tabler.outline.Clock
 import com.composables.icons.tabler.outline.Copy
 import com.composables.icons.tabler.outline.Dots
@@ -31,6 +32,7 @@ import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.Share
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.action.Button
+import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
@@ -54,6 +56,8 @@ import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastTone
 import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.overlay.coachMark
+import io.kontour.ui.overlay.coachmarkStep
+import io.kontour.ui.overlay.rememberCoachmarkTour
 import io.kontour.ui.overlay.rememberOverlayQueue
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.theme.Theme
@@ -237,6 +241,53 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                                 ),
                             )
                         }
+                    }
+                }
+
+                Panel("Coach mark tour") {
+                    // Not seeded running. A tour dims the whole window and cuts
+                    // one hole in it, so one left open here would black out every
+                    // other panel on the page in the golden — and "the rest of
+                    // the screen goes dark" is exactly what it is meant to do.
+                    val tour = rememberCoachmarkTour("plan", "saved")
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+                            IconButton(
+                                icon = Tabler.Outline.Route,
+                                contentDescription = "Plan a trip",
+                                onClick = tap("Plan a trip"),
+                                variant = ButtonVariant.Tertiary,
+                                modifier = Modifier.coachmarkStep(
+                                    tour = tour,
+                                    id = "plan",
+                                    title = "Plan a trip",
+                                    text = "Enter where you are going and we will " +
+                                        "work out the rest.",
+                                ),
+                            )
+                            IconButton(
+                                icon = Tabler.Outline.Bookmark,
+                                contentDescription = "Saved trips",
+                                onClick = tap("Saved trips"),
+                                variant = ButtonVariant.Tertiary,
+                                modifier = Modifier.coachmarkStep(
+                                    tour = tour,
+                                    id = "saved",
+                                    title = "Saved trips",
+                                    text = "The ones you keep show up here.",
+                                    side = OverlaySide.Top,
+                                ),
+                            )
+                        }
+                        Button(
+                            onClick = tour::start,
+                            variant = ButtonVariant.Secondary,
+                            size = ButtonSize.Small,
+                        ) { +"Show me around" }
                     }
                 }
             }

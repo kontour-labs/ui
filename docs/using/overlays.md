@@ -439,6 +439,60 @@ a point is a lot of movement for something the user opens dozens of times a day.
 
 ---
 
+## Coach marks, and tours
+
+Two things with similar names and opposite bargains.
+
+[`Modifier.coachMark`](#the-queue) is a single tip the *app* decides to show,
+through the queue, and it deliberately leaves the interface undimmed: the user is
+being shown a thing **in** the screen, so the screen has to stay legible around
+it.
+
+`CoachmarkTour` is the other bargain. The user asked for it, it takes over for a
+few seconds, and dimming everything but the current control is what makes "this
+one, here" unmistakable.
+
+```kotlin
+val tour = rememberCoachmarkTour("plan", "saved")
+
+IconButton(
+    icon = Tabler.Outline.Bookmark,
+    contentDescription = "Saved trips",
+    onClick = ::openSaved,
+    modifier = Modifier.coachmarkStep(
+        tour = tour,
+        id = "saved",
+        title = "Saved trips",
+        text = "The ones you keep show up here.",
+    ),
+)
+
+Button(onClick = tour::start) { +"Show me around" }
+```
+
+| | `Modifier.coachMark` | `CoachmarkTour` |
+|---|---|---|
+| Who starts it | the app, through a queue | the user |
+| How many | one | several, in order |
+| The rest of the screen | untouched | dimmed, with a hole |
+| Can be ignored | yes | it is modal |
+
+**The tour holds only the order.** Each step's words live at the control they
+describe, which is the only place they can be kept honest when that control
+changes — a list of steps somewhere else has to name every control again, and
+goes stale the first time one is renamed.
+
+The spotlight is one `drawPath` with two contours and an even-odd fill: the outer
+one is the window, the inner one is the control. The obvious alternative — draw
+the dim, then clear the hole with `BlendMode.Clear` — needs the whole thing in an
+offscreen buffer every frame, and a blend mode that every backend supports.
+
+Everything the scrim covers is blocked, including the lit control. A tap on the
+control being explained is the likeliest accident here, and letting it through
+would run an action the user was only being shown.
+
+---
+
 ## `CommandPalette`
 
 Search over *actions* rather than values.

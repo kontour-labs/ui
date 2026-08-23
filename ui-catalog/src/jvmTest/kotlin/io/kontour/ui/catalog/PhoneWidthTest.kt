@@ -267,15 +267,16 @@ class PhoneWidthTest {
         /**
          * The same 360dp, at the density the rest of the goldens use.
          *
-         * [GoldenHeight] is 4000dp of page, which is a great deal more than a
+         * [GoldenHeight] is 4500dp of page, which is a great deal more than a
          * phone and is the point: the tallest page here (overlays, with its
-         * scrim-backed specimens) runs to 3625dp, and at the 3000px this file
+         * scrim-backed specimens) runs past 4000dp, and at the 3000px this file
          * shipped with, nine of the thirteen were cut off mid-specimen. The
          * blank tail costs almost nothing — it is one run-length in the PNG —
-         * and `bottomIsEmpty` fails the run if a page ever outgrows it.
+         * and `bottomIsEmpty` fails the run if a page ever outgrows it, which
+         * is how each of the two rises since has been noticed.
          */
         const val GoldenWidth = 720
-        const val GoldenHeight = 8000
+        const val GoldenHeight = 9000
         const val GoldenDensity = 2f
 
         /**

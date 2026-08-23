@@ -22,8 +22,79 @@ Things that show rather than take input.
 | [`KeyValueList`](#keyvaluelist) | Label-and-value facts about one thing | `SettingRow`, only if the rows are tappable |
 | [`Carousel`](#carousel) | Pages one at a time, that snap | A scrolling `Row`, when they are not pages |
 | [`PageIndicator`](#pageindicator) | Which page of how many | — |
+| [`AnimatedCounter`](#animatedcounter) | A number that changes while you watch | A `Text`, when it changes off-screen |
+| [`Modifier.marquee`](#modifiermarquee) | A label that is occasionally too long | Truncation, when the tail does not matter |
 | [`Kbd`](#kbd) | A keyboard shortcut, rendered as a key | — |
 | [`RelativeTimeText`](date-time.md#relativetimetext) | A self-updating "in 4 min" | — |
+
+
+---
+
+## `AnimatedCounter`
+
+![AnimatedCounter](../../../ui-catalog/screenshots/components/animatedcounter-light.png)
+
+<!--sample:AnimatedCounterBasics-->
+```kotlin
+AnimatedCounter(value = minutesAway, format = { "$it min" })
+```
+
+For a figure that changes while the user is looking at it — minutes to the next
+bus, an unread count, a fare as options are added. A number that simply swaps is
+one the eye can miss entirely; one that rolls says *this changed* without a
+highlight or a flash that has to be undone a moment later.
+
+**Only the digits that changed move.** "14 min" to "13 min" rolls one column; the
+`1` does not move and neither does " min". That is the difference between this
+and a cross-fade of two strings: a cross-fade says the *value* changed, and this
+says which part of it did. Digits roll **up** when the number grows and **down**
+when it shrinks, so counting down to a departure looks like a departure board.
+
+**The row does not twitch.** Every digit cell is the width of the widest digit in
+the current font, measured once — the theme's face draws `1` at 23px and `0` at
+42px, so a counter laid out naturally would change width as it counts and drag
+whatever is beside it along. Non-digits keep their natural width, since they do
+not change.
+
+The cells are a dozen separate nodes, so the row carries the whole formatted
+string as its own description and the cells are cleared — otherwise a screen
+reader announces "one", "four", "space", "m", "i", "n".
+
+## `Modifier.marquee`
+
+![Marquee](../../../ui-catalog/screenshots/components/marquee-light.png)
+
+<!--sample:MarqueeBasics-->
+```kotlin
+Text(
+    text = stop.name,
+    maxLines = 1,
+    modifier = Modifier.marquee(),
+)
+```
+
+For the label that is *usually* short and occasionally is not — a stop name, a
+route headsign, a now-playing line. Safe to apply unconditionally: it measures
+first and animates only when the content is wider than the space, so the common
+case costs a comparison. Pair it with `maxLines = 1`; without that the text wraps
+instead of overflowing, there is nothing to scroll, and the modifier does nothing
+forever.
+
+**It is off under reduced motion, and that is not a degradation.** Everything
+else in this library softens — a spring becomes a tween, a slide becomes a fade.
+This one stops entirely, because it is the one animation here that never ends,
+and perpetual motion at the edge of vision is the specific thing that preference
+exists to stop. The text truncates instead, which is what it would have done
+without the modifier at all. The picture above is that state.
+
+`iterations` defaults to three passes. `Int.MAX_VALUE` gives a ticker that never
+stops — right for a live status line, wrong for a list, where a dozen rows all
+scrolling at once is a screen nobody can read.
+
+It wraps foundation's `basicMarquee` rather than replacing it. That already
+measures, already stops when the content fits, already handles right-to-left.
+What it does not have is this library's pace or any knowledge of `reduceMotion`,
+and those are the two things worth owning.
 
 ---
 

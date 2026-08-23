@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -21,6 +22,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
@@ -36,9 +38,11 @@ import io.kontour.ui.components.action.FabMenu
 import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.display.Accordion
+import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.AnimatedBanner
 import io.kontour.ui.components.display.BannerTone
 import io.kontour.ui.components.action.Toolbar
@@ -83,6 +87,7 @@ import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.marquee
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.nav.NavBarItem
 import io.kontour.ui.nav.NavDrawerGroup
@@ -850,6 +855,38 @@ val componentRegistry: List<ComponentSpec> = buildList {
         }
     )
 
+    add(
+        // Drawn at rest, which for a counter is a number. The roll is what it is
+        // *for* and a still cannot show it — `AnimatedCounterTest` is where that
+        // claim is checked, and a second render mid-roll would be a picture of
+        // one arbitrary frame.
+        ComponentSpec(
+            name = "AnimatedCounter",
+            role = null,
+            underContract = false,
+        ) { modifier, _, _ ->
+            AnimatedCounter(value = 14, modifier = modifier, format = { "$it min" })
+        }
+    )
+
+    add(
+        // Given less room than its text needs, because that is the only state in
+        // which the modifier does anything at all.
+        ComponentSpec(
+            name = "Marquee",
+            role = null,
+            underContract = false,
+        ) { modifier, _, _ ->
+            Box(modifier.width(140.dp)) {
+                Text(
+                    text = "Elizabeth Quay Bus Station",
+                    maxLines = 1,
+                    modifier = Modifier.marquee(),
+                )
+            }
+        }
+    )
+
     // --- Disclosure ------------------------------------------------------
     add(
         ComponentSpec(
@@ -882,6 +919,30 @@ val componentRegistry: List<ComponentSpec> = buildList {
             ) {
                 Text("Step-free access at all platforms.")
             }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "SplitButton",
+            role = Role.Button,
+            // Two buttons in one control, so the outermost node is the pair and
+            // the rules about role and disabled belong to the half that carries
+            // the default action.
+            control = hasClickAction() and hasText("Save"),
+            accessibleName = "Save",
+            states = listOf(
+                RenderState("expanded", height = 260) { modifier ->
+                    SplitButtonSpecimen(expanded = true, modifier = modifier)
+                },
+            ),
+        ) { modifier, enabled, onClick ->
+            SplitButtonSpecimen(
+                expanded = false,
+                modifier = modifier,
+                enabled = enabled,
+                onClick = onClick,
+            )
         }
     )
 
@@ -1327,5 +1388,35 @@ private fun FabMenuSpecimen(
         item(Tabler.Outline.Star, "Save stop") {}
         item(Tabler.Outline.CurrentLocation, "Nearby") {}
         item(Tabler.Outline.Stack, "Routes") {}
+    }
+}
+
+
+/**
+ * The `SplitButton` both of its specimens use.
+ *
+ * Same label and same menu in the resting and expanded renders, so the pair
+ * differs only in the thing being shown.
+ */
+@Composable
+private fun SplitButtonSpecimen(
+    expanded: Boolean,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClick: () -> Unit = {},
+) {
+    SplitButton(
+        onClick = onClick,
+        expanded = expanded,
+        onExpandedChange = {},
+        menuContentDescription = "Other save options",
+        modifier = modifier,
+        enabled = enabled,
+        menu = {
+            item("Save and close", onClick = {})
+            item("Save a copy", onClick = {})
+        },
+    ) {
+        +"Save"
     }
 }
