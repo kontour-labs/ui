@@ -257,7 +257,21 @@ private fun IconButtonSurface(
         label = "iconButtonRotation",
     )
     val borderColor = colors.border(enabled)
-    val boxSize = metrics.iconSize + metrics.iconOnlyPadding * 2
+    // The control height, not the icon plus a padding of its own.
+    //
+    // It used to be `iconSize + iconOnlyPadding * 2`, which is a second way of
+    // saying how tall a control is — and it disagreed with the first at three
+    // of the five sizes: an XSmall icon button was 24dp beside a 28dp button, a
+    // Small one 28dp beside 36dp, a Medium one 40dp beside 44dp. Large and
+    // XLarge happened to agree, which is why it survived.
+    //
+    // `Sizing` already promises that "a row of mixed controls lines up without
+    // per-call-site padding", and this was the one control not keeping it:
+    // every `ButtonGroup` mixing an icon action with a labelled one was ragged,
+    // and so was the trailing half of a `SplitButton`. The padding round the
+    // glyph is now whatever is left over, which is the only way the two can
+    // agree by construction rather than by being kept in step.
+    val boxSize = metrics.height
 
     Box(
         modifier = modifier

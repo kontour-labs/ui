@@ -87,8 +87,6 @@ data class ButtonColors(
 data class ButtonMetrics(
     val height: Dp,
     val horizontalPadding: Dp,
-    /** Padding when the button holds only an icon — square, not letterboxed. */
-    val iconOnlyPadding: Dp,
     val iconSize: Dp,
     val gap: Dp,
     val textStyle: TextStyle,
@@ -251,7 +249,6 @@ object ButtonDefaults {
             ButtonSize.XSmall -> ButtonMetrics(
                 height = s.controlHeightXSmall,
                 horizontalPadding = 10.dp,
-                iconOnlyPadding = 4.dp,
                 iconSize = s.iconSmall,
                 gap = 4.dp,
                 textStyle = t.labelSmall,
@@ -260,7 +257,6 @@ object ButtonDefaults {
             ButtonSize.Small -> ButtonMetrics(
                 height = s.controlHeightSmall,
                 horizontalPadding = 14.dp,
-                iconOnlyPadding = 6.dp,
                 iconSize = s.iconSmall,
                 gap = 6.dp,
                 textStyle = t.labelMedium,
@@ -269,7 +265,6 @@ object ButtonDefaults {
             ButtonSize.Medium -> ButtonMetrics(
                 height = s.controlHeightMedium,
                 horizontalPadding = 20.dp,
-                iconOnlyPadding = 10.dp,
                 iconSize = s.iconMedium,
                 gap = 8.dp,
                 textStyle = t.labelMedium,
@@ -278,7 +273,6 @@ object ButtonDefaults {
             ButtonSize.Large -> ButtonMetrics(
                 height = s.controlHeightLarge,
                 horizontalPadding = 24.dp,
-                iconOnlyPadding = 14.dp,
                 iconSize = s.iconLarge,
                 gap = 8.dp,
                 textStyle = t.labelLarge,
@@ -287,7 +281,6 @@ object ButtonDefaults {
             ButtonSize.XLarge -> ButtonMetrics(
                 height = s.controlHeightXLarge,
                 horizontalPadding = 32.dp,
-                iconOnlyPadding = 18.dp,
                 iconSize = s.iconLarge,
                 gap = 10.dp,
                 textStyle = t.labelLarge,
