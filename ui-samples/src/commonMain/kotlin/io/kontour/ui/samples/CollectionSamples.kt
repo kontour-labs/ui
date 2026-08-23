@@ -11,8 +11,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
+import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.ChevronRight
 import com.composables.icons.tabler.outline.Trash
+import io.kontour.ui.components.list.ExpandingListItem
+import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemPosition
 import io.kontour.ui.components.list.PullToRefresh
@@ -83,3 +86,25 @@ fun PullToRefreshBasics(refreshing: Boolean, stops: List<Stop>) {
 
 /** A row of the caller's own data, so the samples have something to list. */
 data class Stop(val name: String, val routes: Int)
+
+@Composable
+fun ExpandingListItemBasics() {
+    var open by remember { mutableStateOf(false) }
+
+    ListGroup {
+        item(label = "Elizabeth Quay", supporting = "3 routes")
+    }
+    ExpandingListItem(
+        expanded = open,
+        onExpandedChange = { open = it },
+        chevron = Tabler.Outline.ChevronDown,
+        header = {
+            leading { +Tabler.Outline.Bus }
+            +"Perth Underground"
+            supporting { +"4 platforms" }
+        },
+    ) {
+        item(label = "Platform 1", supporting = "Mandurah line")
+        item(label = "Platform 2", supporting = "Joondalup line")
+    }
+}

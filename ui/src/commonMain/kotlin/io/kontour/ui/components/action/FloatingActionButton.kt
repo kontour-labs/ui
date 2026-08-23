@@ -1,6 +1,7 @@
 package io.kontour.ui.components.action
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -22,6 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
@@ -60,6 +63,14 @@ enum class FabSize(internal val container: Dp, internal val icon: Dp) {
  *
  * If the action needs a label to be understood, use [ExtendedFloatingActionButton]
  * rather than hoping the icon carries it.
+ *
+ * @param border A hairline round the edge. Null for the default near-black FAB,
+ *   where there is nothing to tell apart. It exists for the *light* one: in the
+ *   light scheme `background`, `surface` and `surfaceRaised` are all white, so a
+ *   FAB in a surface colour is a white circle on a white page held together by
+ *   its shadow alone — which is legible over a map and not much else. This is the
+ *   same hairline `OverlaySurface` gives every menu and popover, for the same
+ *   reason, and [FabMenu] puts it on its items by default.
  */
 @Composable
 fun FloatingActionButton(
@@ -72,6 +83,7 @@ fun FloatingActionButton(
     shape: Shape = Theme.shapes.pill,
     containerColor: Color = Theme.colors.primary,
     contentColor: Color = Theme.colors.onPrimary,
+    border: BorderStroke? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -96,6 +108,7 @@ fun FloatingActionButton(
         shape = shape,
         color = containerColor,
         contentColor = contentColor,
+        border = border,
         shadow = Theme.elevation.medium,
         // `defaultMinSize` makes the surface larger than the icon inside it, so
         // without this the icon lands in the FAB's top-left corner rather than
@@ -104,6 +117,72 @@ fun FloatingActionButton(
     ) {
         Icon(icon, contentDescription = contentDescription, size = size.icon)
     }
+}
+
+/**
+ * A [FloatingActionButton] whose middle is yours.
+ *
+ * ```
+ * FloatingActionButton(onClick = ::open, contentDescription = "Open menu") {
+ *     Icon(SystemIcons.Plus, contentDescription = null, modifier = Modifier.rotate(turn))
+ * }
+ * ```
+ *
+ * The icon form covers what a FAB usually holds and should stay the first
+ * choice. This one is for the times the glyph has to be *treated* rather than
+ * just chosen — turned, cross-faded, badged — which an `ImageVector` parameter
+ * cannot express, because by the time the component has it there is nowhere left
+ * to put a modifier.
+ *
+ * [FabMenu] is the case that forced it: its anchor rotates a plus into a cross,
+ * and rotating the button instead only works while the button is round.
+ *
+ * @param contentDescription Announced by a screen reader, and set on the button
+ *   rather than on whatever is inside it — the slot's own content should pass
+ *   `null`, or the control is named twice.
+ */
+@Composable
+fun FloatingActionButton(
+    onClick: () -> Unit,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    size: FabSize = FabSize.Medium,
+    shape: Shape = Theme.shapes.pill,
+    containerColor: Color = Theme.colors.primary,
+    contentColor: Color = Theme.colors.onPrimary,
+    border: BorderStroke? = null,
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable () -> Unit,
+) {
+    val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    val feedback = Feedback
+
+    Surface(
+        modifier = modifier
+            .minimumTouchTarget()
+            .focusRing(interactions, shape)
+            .defaultMinSize(minWidth = size.container, minHeight = size.container)
+            .height(size.container)
+            .semantics { this.contentDescription = contentDescription }
+            .clickable(
+                interactionSource = interactions,
+                indication = kontourIndication(shape, FabDefaults.pressScale(size)),
+                enabled = enabled,
+                role = Role.Button,
+                onClick = {
+                    feedback.perform(FeedbackIntent.Confirm)
+                    onClick()
+                },
+            ),
+        shape = shape,
+        color = containerColor,
+        contentColor = contentColor,
+        border = border,
+        shadow = Theme.elevation.medium,
+        contentAlignment = Alignment.Center,
+        content = content,
+    )
 }
 
 /**
@@ -141,6 +220,7 @@ fun ExtendedFloatingActionButton(
     shape: Shape = Theme.shapes.pill,
     containerColor: Color = Theme.colors.primary,
     contentColor: Color = Theme.colors.onPrimary,
+    border: BorderStroke? = null,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit,
 ) {
@@ -172,6 +252,7 @@ fun ExtendedFloatingActionButton(
         shape = shape,
         color = containerColor,
         contentColor = contentColor,
+        border = border,
         shadow = Theme.elevation.medium,
     ) {
         Row(

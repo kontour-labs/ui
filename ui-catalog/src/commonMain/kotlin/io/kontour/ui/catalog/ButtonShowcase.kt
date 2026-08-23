@@ -24,6 +24,8 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.ExtendedFloatingActionButton
+import io.kontour.ui.components.action.FabMenu
+import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.components.action.FabSize
 import androidx.compose.foundation.layout.Row
 import com.composables.icons.tabler.outline.CurrentLocation
@@ -169,6 +171,33 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                         expanded = collapsed.value,
                         onClick = { collapsed.value = !collapsed.value },
                     ) { +"Start trip" }
+                }
+            }
+
+            Section("FAB menu") {
+                // Closed in the golden, on purpose. The items render into the
+                // overlay host, which covers the whole page — one seeded open
+                // here would draw a menu across every other panel in the
+                // screenshot. The three layouts each have their own
+                // per-component render; these are here to be tapped.
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xl),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                ) {
+                    for (layout in FabMenuLayout.entries) {
+                        val open = seed(false)
+                        FabMenu(
+                            expanded = open.value,
+                            onExpandedChange = { open.value = it },
+                            icon = Tabler.Outline.Plus,
+                            contentDescription = "Add",
+                            layout = layout,
+                        ) {
+                            item(Tabler.Outline.Star, "Save stop") {}
+                            item(Tabler.Outline.CurrentLocation, "Nearby") {}
+                            item(Tabler.Outline.Navigation, "Directions") {}
+                        }
+                    }
                 }
             }
 

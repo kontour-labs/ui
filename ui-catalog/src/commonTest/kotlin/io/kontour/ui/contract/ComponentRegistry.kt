@@ -3,6 +3,7 @@ package io.kontour.ui.contract
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -21,6 +22,7 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Plus
@@ -30,6 +32,8 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonGroup
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.ExtendedFloatingActionButton
+import io.kontour.ui.components.action.FabMenu
+import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.action.IconToggleButton
@@ -49,6 +53,7 @@ import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListItemPosition
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
@@ -364,6 +369,43 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 modifier = modifier,
                 enabled = enabled,
             ) { +"Add stop" }
+        }
+    )
+
+    add(
+        // Shut, this is a `FloatingActionButton` and nothing else — which is the
+        // point of the component and the wrong picture of it. The three extra
+        // renders are the three layouts, because "which arrangement do I want"
+        // is the only question a reader has about this one and no amount of
+        // prose answers it as fast as seeing them side by side.
+        ComponentSpec(
+            name = "FabMenu",
+            role = Role.Button,
+            accessibleName = "Add",
+            states = FabMenuLayout.entries.map { layout ->
+                // In the corner, because that is the only place the picture is
+                // true: the component picks which way to open from where it
+                // finds itself, so a specimen centred in its card opens
+                // downward into nothing and shows an arrangement no real screen
+                // would produce.
+                RenderState(layout.name.lowercase(), height = 300) { modifier ->
+                    Box(modifier.fillMaxSize()) {
+                        FabMenuSpecimen(
+                            expanded = true,
+                            layout = layout,
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                        )
+                    }
+                }
+            },
+        ) { modifier, enabled, onClick ->
+            FabMenuSpecimen(
+                expanded = false,
+                layout = FabMenuLayout.Vertical,
+                modifier = modifier,
+                enabled = enabled,
+                onExpandedChange = { onClick() },
+            )
         }
     )
 
@@ -843,6 +885,45 @@ val componentRegistry: List<ComponentSpec> = buildList {
         }
     )
 
+    add(
+        // The near-twin of `Accordion`, and the pair is why both are here: an
+        // accordion is a header over a *panel*, this is a row over more *rows*.
+        // Two renders of the same collapsed row would be the duplicate the
+        // `RenderState` KDoc warns about, so the state that earns its picture is
+        // the open one — where the seams are the whole difference.
+        ComponentSpec(
+            name = "ExpandingListItem",
+            role = Role.Button,
+            control = hasClickAction(),
+            states = listOf(
+                RenderState("expanded", height = 340) { modifier ->
+                    ExpandingListItem(
+                        expanded = true,
+                        onExpandedChange = {},
+                        header = { +"Perth Underground" },
+                        chevron = Tabler.Outline.ChevronDown,
+                        modifier = modifier,
+                    ) {
+                        item("Platform 1")
+                        item("Platform 2")
+                    }
+                },
+            ),
+        ) { modifier, enabled, onClick ->
+            ExpandingListItem(
+                expanded = false,
+                onExpandedChange = { onClick() },
+                header = { +"Perth Underground" },
+                chevron = Tabler.Outline.ChevronDown,
+                modifier = modifier,
+                enabled = enabled,
+            ) {
+                item("Platform 1")
+                item("Platform 2")
+            }
+        }
+    )
+
     // --- Navigation ------------------------------------------------------
     add(
         // Every navigation item rests unselected, and unselected is the state
@@ -1216,4 +1297,35 @@ val componentRegistry: List<ComponentSpec> = buildList {
             }
         }
     )
+}
+
+
+/**
+ * The `FabMenu` every one of its specimens uses.
+ *
+ * Four call sites want the same three actions — the resting one and one per
+ * layout — and a menu whose contents differed between them would make the three
+ * renders incomparable in exactly the dimension they exist to compare.
+ */
+@Composable
+private fun FabMenuSpecimen(
+    expanded: Boolean,
+    layout: FabMenuLayout,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onExpandedChange: (Boolean) -> Unit = {},
+) {
+    FabMenu(
+        expanded = expanded,
+        onExpandedChange = onExpandedChange,
+        icon = Tabler.Outline.Plus,
+        contentDescription = "Add",
+        modifier = modifier,
+        enabled = enabled,
+        layout = layout,
+    ) {
+        item(Tabler.Outline.Star, "Save stop") {}
+        item(Tabler.Outline.CurrentLocation, "Nearby") {}
+        item(Tabler.Outline.Stack, "Routes") {}
+    }
 }

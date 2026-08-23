@@ -69,10 +69,13 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "actions-"),
                 width = 1100,
-                height = 1760,
+                height = 1980,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
-                    ButtonShowcase()
+                    // `FabMenu` renders its items into the host, so it asks for
+                    // one at composition whether or not it is open — the same
+                    // as every other overlay-backed component on these pages.
+                    OverlayHost(Modifier.fillMaxSize()) { ButtonShowcase() }
                 }
             }
             assertTrue(file.length() > 0, "$name actions rendered an empty file")
@@ -202,7 +205,7 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "lists-"),
                 width = 2480,
-                height = 1080,
+                height = 1500,
                 frames = 20,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
