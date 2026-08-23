@@ -5,6 +5,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -132,8 +134,30 @@ fun Dialog(
                                     border = contrastEdge(),
                                     shadow = Theme.elevation.overlay,
                                 ) {
+                                    // Scrollable, because a dialog is centred in
+                                    // the window and has no other way out of
+                                    // being too tall for it.
+                                    //
+                                    // Without this the content is measured
+                                    // unbounded and placed in a box the window
+                                    // has clamped, so it does not merely spill —
+                                    // it **overlaps itself**. A `DatePicker` in a
+                                    // dialog on a landscape phone drew the last
+                                    // two weeks of the month on top of each
+                                    // other: "23" and "30" in the same cell, the
+                                    // rest cut through the middle of the digits.
+                                    // A date picker in a dialog is not an exotic
+                                    // arrangement, and 360dp of height is a
+                                    // phone turned sideways.
+                                    //
+                                    // A scroller wrapping content that fits costs
+                                    // nothing and changes nothing: it takes its
+                                    // content's height until there is not enough
+                                    // room, and only then starts scrolling.
                                     Column(
-                                        modifier = Modifier.padding(Theme.spacing.lg),
+                                        modifier = Modifier
+                                            .verticalScroll(rememberScrollState())
+                                            .padding(Theme.spacing.lg),
                                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                                         content = body,
                                     )

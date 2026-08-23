@@ -10,6 +10,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.contract.ComponentSpec
 import io.kontour.ui.contract.componentRegistry
@@ -74,14 +77,53 @@ class WidthSweepTest {
         }
     }
 
+    /**
+     * The same question at 150% and 200% type.
+     *
+     * A narrow window and large type are the pair that breaks a fixed height or
+     * a hard-coded padding, and the contract test's version of this asserted
+     * only that the component had not collapsed to zero — it would have passed
+     * something twice the width of its window. This asks the question the width
+     * sweep asks, with the type turned up.
+     *
+     * At 320dp, because that is where it bites: a phone with the accessibility
+     * type size on is the case, and a component that survives 200% at 600dp has
+     * not been asked anything.
+     */
+    @Test
+    fun everyComponentSurvivesLargeType() {
+        val failures = mutableListOf<String>()
+
+        for (spec in componentRegistry) {
+            for (scale in FontScales) {
+                val complaint = try {
+                    check(spec, NarrowWindow, scale)
+                } catch (error: Throwable) {
+                    "threw at ${scale}x type: ${error::class.simpleName}: " +
+                        error.message?.lineSequence()?.firstOrNull()
+                }
+                if (complaint != null) {
+                    failures += "${spec.name} at ${scale}x type — $complaint"
+                }
+            }
+        }
+
+        if (failures.isNotEmpty()) {
+            fail(
+                "${failures.size} failures at large type in a ${NarrowWindow}dp " +
+                    "window:\n" + failures.joinToString("\n") { "  · $it" }
+            )
+        }
+    }
+
     /** What is wrong with this component at this width, or `null`. */
-    private fun check(spec: ComponentSpec, width: Int): String? {
+    private fun check(spec: ComponentSpec, width: Int, fontScale: Float = 1f): String? {
         var box = Rect.Zero
         val margin = Margin * Density
         val sceneWidth = (width + Margin * 2) * Density
 
         Scene(width = sceneWidth, height = SceneHeight, density = Density.toFloat()) {
-            Harness {
+            Harness(fontScale) {
                 Box(
                     modifier = Modifier.fillMaxSize().background(Color.White),
                     contentAlignment = Alignment.TopCenter,
@@ -132,14 +174,18 @@ class WidthSweepTest {
         }
     }
 
-    /** The theme the app runs, with a phone's touch target in force. */
+    /** The theme the app runs, with a phone's touch target and a type size. */
     @Composable
-    private fun Harness(content: @Composable () -> Unit) {
-        KontourTheme(
-            reduceMotion = true,
-            sizing = kontourSizing(ContrastLevel.Standard).copy(minTouchTarget = 48.dp),
+    private fun Harness(fontScale: Float, content: @Composable () -> Unit) {
+        CompositionLocalProvider(
+            LocalDensity provides Density(Density.toFloat(), fontScale)
         ) {
-            OverlayHost(Modifier.fillMaxSize()) { content() }
+            KontourTheme(
+                reduceMotion = true,
+                sizing = kontourSizing(ContrastLevel.Standard).copy(minTouchTarget = 48.dp),
+            ) {
+                OverlayHost(Modifier.fillMaxSize()) { content() }
+            }
         }
     }
 
@@ -180,6 +226,17 @@ class WidthSweepTest {
          * `1200` where `WindowSizeClass` calls it Large.
          */
         val Widths = listOf(0, 48, 120, 200, 320, 360, 600, 1200)
+
+        /**
+         * 100%, and the two the accessibility settings actually offer.
+         *
+         * 200% is the ceiling WCAG asks for and the one Android's largest
+         * display-size step lands near.
+         */
+        val FontScales = listOf(1f, 1.5f, 2f)
+
+        /** A small phone in portrait, less its margins. */
+        const val NarrowWindow = 320
 
         const val Density = 2
 
