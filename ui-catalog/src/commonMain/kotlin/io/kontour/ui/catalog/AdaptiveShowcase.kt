@@ -27,6 +27,9 @@ import io.kontour.ui.adaptive.ListDetailPaneScaffold
 import io.kontour.ui.adaptive.PaneFocus
 import io.kontour.ui.adaptive.SupportingPaneScaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
+import io.kontour.ui.components.action.Button
+import io.kontour.ui.components.action.ButtonSize
+import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemPosition
@@ -34,6 +37,7 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.GlassSurface
+import io.kontour.ui.motion.PageTransition
 import io.kontour.ui.motion.atmosphere
 import io.kontour.ui.motion.edgeVignette
 import io.kontour.ui.motion.shimmer
@@ -105,6 +109,84 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
                 verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
             ) {
+                Panel(width = 600.dp, spacing = Theme.spacing.xs) {
+                    Text(
+                        text = "PAGE TRANSITION",
+                        style = Theme.typography.monoLabel,
+                        color = Theme.colors.accent.solid,
+                    )
+                    // Tap the card and it becomes the header of the page it
+                    // opens; tap Back and it returns. The whole of what
+                    // `PageTransition` adds is that the card and the header are
+                    // one element rather than two — which a still cannot show,
+                    // so this one is here to be pressed.
+                    val open = seed(false)
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .clip(Theme.shapes.large)
+                            .background(Theme.colors.surfaceSunken),
+                    ) {
+                        PageTransition(target = open.value, modifier = Modifier.fillMaxSize()) { detail ->
+                            if (detail) {
+                                Column(Modifier.fillMaxSize()) {
+                                    Card(
+                                        modifier = Modifier
+                                            .sharedBounds(HeroKey, clip = Theme.shapes.large)
+                                            .fillMaxWidth()
+                                            .height(120.dp),
+                                    ) {
+                                        Text(
+                                            "Perth Underground",
+                                            style = Theme.typography.titleMedium,
+                                        )
+                                        Text(
+                                            "4 platforms · Mandurah, Joondalup, Airport",
+                                            style = Theme.typography.bodySmall,
+                                            color = Theme.colors.contentMuted,
+                                        )
+                                    }
+                                    Box(
+                                        Modifier.fillMaxSize().padding(Theme.spacing.md),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Button(
+                                            onClick = { open.value = false },
+                                            variant = ButtonVariant.Secondary,
+                                            size = ButtonSize.Small,
+                                        ) { +"Back" }
+                                    }
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(Theme.spacing.md),
+                                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+                                ) {
+                                    Card(
+                                        modifier = Modifier
+                                            .sharedBounds(HeroKey, clip = Theme.shapes.large)
+                                            .fillMaxWidth(),
+                                        onClick = { open.value = true },
+                                    ) {
+                                        Text(
+                                            "Perth Underground",
+                                            style = Theme.typography.titleSmall,
+                                        )
+                                    }
+                                    Text(
+                                        "Tap the card — it becomes the header.",
+                                        style = Theme.typography.bodySmall,
+                                        color = Theme.colors.contentMuted,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Panel(width = 600.dp, spacing = Theme.spacing.xs) {
                     Text(
                         text = "ATMOSPHERE AND GLASS",
@@ -309,3 +391,7 @@ private fun Frame(title: String, width: Dp, height: Dp, content: @Composable () 
         }
     }
 }
+
+
+/** The card and the header it becomes are one element, so they share a key. */
+private const val HeroKey = "stop-hero"
