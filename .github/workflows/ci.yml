@@ -84,6 +84,12 @@ jobs:
       - name: Check the docs' links resolve
         run: python3 docs/check-links.py
 
+      # One page per component, and the registry is what says which components
+      # exist — so a component added without a page fails here rather than
+      # being noticed by whoever went looking for it.
+      - name: Check every component has a page
+        run: python3 docs/check-components.py
+
       # Without this a golden failure is a percentage in a log. With it you can
       # download the render and the highlighted diff and see what moved.
       - name: Upload screenshot diffs

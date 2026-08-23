@@ -1,0 +1,38 @@
+# `Checkbox`
+
+![Checkbox, unchecked](../../../ui-catalog/screenshots/components/checkbox-light.png)
+![Checkbox, checked](../../../ui-catalog/screenshots/components/checkbox-checked-light.png)
+
+<!--sample:CheckboxBasics-->
+```kotlin
+var notify by remember { mutableStateOf(false) }
+
+Checkbox(checked = notify, onCheckedChange = { notify = it })
+```
+
+The tick is drawn on a `Canvas` and *strokes itself on* along its path rather
+than fading in, with the box springing up to meet it. Two frames of personality
+on a control people tap dozens of times a session.
+
+`onCheckedChange` is nullable, and passing `null` makes the checkbox **inert but
+still stateful** — the enclosing row owns the click and the checkbox is there to
+show state. It is not the same as `enabled = false`, which says the choice is
+unavailable.
+
+Inert still means it announces `Role.Checkbox` and its tick. That matters inside
+a [`SettingRow`](setting-row.md), which is `clickable` rather than
+`toggleable` and so publishes no checked state of its own; without the control
+saying it, the row announces as a button with a name and no on or off.
+`InertControlPublishesStateTest` covers all three controls.
+
+**The box answers the press, not the release.** The tick starts being drawn under
+the finger and starts being rubbed out under a press on a ticked box — a third of
+the way, so a press-and-slide-off still comes back. `RadioButton` does the same
+with its dot. A switch's thumb has stretched like this since it was written; these
+two sat still until the value committed, so the same tap read as responsive on one
+control and dead on the others. Inside a `SelectionRow` they read the row's press,
+which is what `LocalRowInteractionSource` was always for.
+
+---
+
+← [Selection](selection.md) · [All components](../components.md)

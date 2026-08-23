@@ -873,7 +873,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         // Given less room than its text needs, because that is the only state in
         // which the modifier does anything at all.
         ComponentSpec(
-            name = "Marquee",
+            name = "Modifier.marquee",
             role = null,
             underContract = false,
         ) { modifier, _, _ ->

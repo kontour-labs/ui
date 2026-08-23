@@ -508,7 +508,7 @@ CommandPalette(
 )
 ```
 
-**Not a [`Combobox`](components/text-editing.md#combobox).** A combobox picks a
+**Not a [`Combobox`](components/combobox.md).** A combobox picks a
 *value* and leaves it in a field; a palette runs something and closes. Combobox's
 own documentation declines this case, and the difference shows at the call site:
 a palette has no value, no field to leave behind, and no meaning for "the
