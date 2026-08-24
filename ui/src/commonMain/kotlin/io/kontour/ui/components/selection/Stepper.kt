@@ -62,7 +62,8 @@ import io.kontour.ui.theme.Theme
  * half of what it does, which is worse than one that is visibly too big for its
  * space. Every alternative is worse again: shrinking the buttons puts them under
  * the platform's touch minimum, and dropping the value leaves two unlabelled
- * arrows. Give it the room, or use a [Select] of the plausible counts.
+ * arrows. Give it the room, or use a
+ * [Select][io.kontour.ui.components.text.Select] of the plausible counts.
  *
  * @param range The inclusive bounds. `value` outside it is clamped for display,
  *   which keeps a bad initial value visible rather than silently corrected.

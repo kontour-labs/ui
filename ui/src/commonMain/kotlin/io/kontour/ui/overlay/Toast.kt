@@ -201,7 +201,8 @@ fun rememberToastHostState(): ToastHostState = remember { ToastHostState() }
  * direction by casting the alignment to `BiasAlignment` and reading the vertical
  * bias, defaulting to "bottom" for anything else — so a custom `Alignment`
  * silently meant bottom, and `Alignment.Center` did too. Worse, the insets could
- * not follow: they were fixed at [WindowInsets.sheetEdges], which has no top
+ * not follow: they were fixed at
+ * [WindowInsets.sheetEdges][io.kontour.ui.adaptive.sheetEdges], which has no top
  * side at all, so a top-anchored toast drew underneath the status bar and the
  * display cutout.
  */

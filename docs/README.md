@@ -130,14 +130,16 @@ It knows every signature and no reasons; the pages carry the comparisons, the
 ```sh
 ./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
           :ui:checkKdocSamples :ui-catalog:jvmTest \
-          :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples
+          :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples \
+          :ui:dokkaGenerateHtml
 python3 docs/check-links.py
+python3 docs/check-components.py
 ```
 
 All on the JVM without an emulator or a simulator — the contract suite,
 `checkNoMaterial`, `checkApiConventions`, `EverythingRespondsTest`, the
-screenshot goldens, the documentation's compiled examples, and every link in the
-repository. What each one asks, and what each has caught, is in
+screenshot goldens, the documentation's compiled examples, every link in the
+repository, every cross-reference in the KDoc, and a page for every component. What each one asks, and what each has caught, is in
 [`building/testing.md`](building/testing.md).
 
 ## The catalog

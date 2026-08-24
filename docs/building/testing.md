@@ -6,8 +6,10 @@ reason `:ui` has a `jvm()` target it never ships to.
 ```sh
 ./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
           :ui:checkKdocSamples :ui-catalog:jvmTest \
-          :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples
+          :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples \
+          :ui:dokkaGenerateHtml
 python3 docs/check-links.py
+python3 docs/check-components.py
 ```
 
 | Gate | Asks |
@@ -21,6 +23,8 @@ python3 docs/check-links.py
 | [`checkDocSamples`](#the-examples-compile) | Is the copy on the page the code that was compiled? |
 | [`check-links.py`](#the-documentation-is-checked-too) | Does every link in the repository resolve? |
 | [`checkKdocSamples`](#the-examples-compile) | Does a KDoc snippet name a parameter that exists? |
+| [`dokkaGenerateHtml`](#the-api-reference-is-a-gate) | Does every `[Link]` in the KDoc resolve? |
+| [`check-components.py`](#every-component-has-a-page) | Does every component have a page of its own? |
 
 Per-target compilation runs only in CI
 ([`ci.yml`](../../.github/workflows/ci.yml)) because it is slow:
@@ -32,7 +36,7 @@ Per-target compilation runs only in CI
 
 A component that compiles on the JVM and not on Wasm is a component that ships
 broken, and `commonMain` will not tell you which. The
-[API reference](#the-kdoc-itself-is-generated) is generated in the same job, for
+[API reference](#the-api-reference-is-a-gate) is generated in the same job, for
 the same reason: it fails on KDoc nothing else reads.
 
 ---
@@ -279,7 +283,7 @@ cannot see. It parses rather than compiles, so it only catches a wrong or
 missing argument name — the weaker check, kept for the place the strong one
 cannot reach.
 
-### The KDoc itself is generated
+### The API reference is a gate
 
 ```sh
 ./gradlew :ui:dokkaGenerateHtml     # ui/build/dokka/html
@@ -297,3 +301,26 @@ write it up. The two do different jobs: Dokka knows every signature and no
 reasons; `docs/using/` carries the comparisons, the "reach for this instead" and
 the bug histories. `ui/Module.md` is the module and package overview, and it
 says so on the reference's own landing page.
+
+`failOnWarning` is on, so this is a **gate and not a report**. It is in the list
+at the top of this page for a reason: it used to run in CI only, and six broken
+`[Link]`s accumulated before anyone saw them — `[Fab]` for a component called
+`FloatingActionButton`, `[Select]` for a symbol in another package, and
+`[WindowInsets.sheetEdges]` for an extension that is actually on the companion.
+Every one of them was written by somebody who ran the whole local list and got a
+clean pass.
+
+A link to a symbol in another package needs the path, and the display form keeps
+the page readable: `[Select][io.kontour.ui.components.text.Select]`.
+
+### Every component has a page
+
+```sh
+python3 docs/check-components.py
+```
+
+Three rules: every component in `componentRegistry` has a page whose title names
+it, no symbol is the subject of two pages, and every component page is linked
+from a category index. The registry is the library's own list, so the first
+cannot drift from what exists — a component added without a page fails here
+rather than being noticed by whoever went looking for it.

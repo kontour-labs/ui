@@ -284,7 +284,7 @@ fun ExtendedFloatingActionButton(
     }
 }
 
-/** Metrics for a [Fab] that are not on [FabSize] itself. */
+/** Metrics for a [FloatingActionButton] that are not on [FabSize] itself. */
 object FabDefaults {
     /**
      * How far a FAB shrinks on press.
