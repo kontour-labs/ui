@@ -31,10 +31,22 @@ from pathlib import Path
 
 COMPONENTS = Path("docs/using/components")
 
-INDEXES = {
-    "actions", "adaptive", "collections", "date-time", "display",
-    "foundation", "navigation", "selection", "text-editing",
-}
+# A tuple, not a set, and the order is load-bearing.
+#
+# `family_of` below is first-index-wins, and a page can be linked from two of
+# them — `nav-surfaces.md` is linked from `navigation.md` and again from
+# `foundation.md`. Iterating a set of strings means iterating in an order that
+# Python's hash randomisation changes between runs, so that page landed in
+# Navigation or in Foundation depending on the process. `DocPages.kt` therefore
+# differed run to run, which defeats Gradle's up-to-date check on
+# `generateDocPages` and moved a page between sidebar groups at random.
+#
+# The order here is the order `components.md` presents the families in, so the
+# tie is broken by the same thing a reader would use.
+INDEXES = (
+    "actions", "selection", "text-editing", "date-time", "display",
+    "collections", "navigation", "adaptive", "foundation",
+)
 
 FAMILY = {
     "actions": "Actions",
@@ -56,6 +68,12 @@ def kotlin_string(text: str) -> str:
 
 INLINE = re.compile(
     r"(?P<code>`[^`]+`)"
+    # Before `link`, and matching an empty alt text, which `link` does not.
+    # A render inside a table cell — `![](../../…png)` — is neither at the
+    # start of a line, so the block-level image drop never saw it, nor a legal
+    # link, so it fell through to `Span.Plain` and the reader got the file path
+    # as literal text. `button.md`'s variant table showed seven of them.
+    r"|(?P<image>!\[[^\]]*\]\([^)]+\))"
     r"|(?P<link>\[[^\]]+\]\([^)]+\))"
     r"|(?P<strong>\*\*[^*]+\*\*)"
     r"|(?P<em>\*[^*]+\*)"
@@ -71,6 +89,10 @@ def spans(text: str) -> str:
             out.append(f"Span.Plain({kotlin_string(text[pos:m.start()])})")
         if m.group("code"):
             out.append(f"Span.Code({kotlin_string(m.group('code')[1:-1])})")
+        elif m.group("image"):
+            # Dropped, for the reason the block-level branch drops them: the
+            # live demo stands where the render would.
+            pass
         elif m.group("link"):
             label, target = re.match(r"\[([^\]]+)\]\(([^)]+)\)", m.group("link")).groups()
             out.append(f"Span.Link({kotlin_string(label)}, {kotlin_string(target)})")

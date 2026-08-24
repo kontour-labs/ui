@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -75,7 +73,10 @@ fun Site() {
                             if (wide) {
                                 Index(
                                     current = route.value,
-                                    modifier = Modifier.widthIn(max = IndexWidth).fillMaxHeight(),
+                                    modifier = Modifier
+                                        .widthIn(max = IndexWidth)
+                                        .fillMaxHeight()
+                                        .verticalScroll(rememberScrollState()),
                                 )
                                 HorizontalDivider(Modifier.fillMaxHeight().widthIn(max = 1.dp))
                             }
@@ -156,28 +157,39 @@ private fun Index(current: Route, modifier: Modifier = Modifier) {
             placeholder = "Find a component",
             onQuery = { query = it },
         )
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(top = Theme.spacing.md),
+        // A plain Column, not a LazyColumn.
+        //
+        // It was lazy, and on a phone the home page puts it inside a
+        // `verticalScroll` — which measures its children at infinite height, and
+        // a lazy list handed infinite height *throws*. So the landing page of
+        // this site raised `IllegalStateException` on every window narrower than
+        // 600dp, which is to say on every phone. Nothing caught it because
+        // `:ui-docs` was a wasmJs-only module: there was no test source set that
+        // could run here, so there was nowhere to put a test even if somebody
+        // had thought to write one.
+        //
+        // Laziness bought nothing. It is eighty-odd rows of text with no images
+        // and no measurement worth deferring, and being lazy is precisely what
+        // made it unable to live inside a scrolling parent. Whoever contains
+        // this owns the scrolling now.
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(top = Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             matching.forEach { (family, pages) ->
-                item(key = "family-$family") {
-                    Text(
-                        text = family.uppercase(),
-                        style = Theme.typography.monoLabel,
-                        color = Theme.colors.accent.solid,
-                        modifier = Modifier.padding(bottom = Theme.spacing.xs),
-                    )
-                }
-                item(key = "pages-$family") {
-                    ListGroup(spacing = 2.dp) {
-                        pages.forEach { page ->
-                            item(
-                                label = page.symbols.firstOrNull() ?: page.title,
-                                selected = current == Route.Component(page.slug),
-                                onClick = { navigate(Route.Component(page.slug)) },
-                            )
-                        }
+                Text(
+                    text = family.uppercase(),
+                    style = Theme.typography.monoLabel,
+                    color = Theme.colors.accent.solid,
+                    modifier = Modifier.padding(bottom = Theme.spacing.xs),
+                )
+                ListGroup(spacing = 2.dp) {
+                    pages.forEach { page ->
+                        item(
+                            label = page.symbols.firstOrNull() ?: page.title,
+                            selected = current == Route.Component(page.slug),
+                            onClick = { navigate(Route.Component(page.slug)) },
+                        )
                     }
                 }
             }
@@ -259,7 +271,19 @@ private fun ComponentPage(slug: String) {
         }
 
         Specimens(page)
-        Prose(page.blocks, Modifier.fillMaxWidth().widthIn(max = ProseWidth))
+        // `widthIn` outside `fillMaxWidth`, and the order is the whole fix.
+        //
+        // It was written the other way round. `fillMaxWidth` fixes the
+        // constraints at [W, W] first, and `widthIn(max = 760)` then coerces
+        // [0, 760] against a minimum of W — so on any window wider than 760dp
+        // the cap was discarded and the line ran the full width. On a 1600px
+        // display that is a 1600px measure, which is exactly what the comment
+        // on `ProseWidth` says it prevents. Written outside, the ceiling is in
+        // place before anything fills to it.
+        //
+        // The sidebar two hundred lines up has always had it in this order,
+        // which is why that one worked.
+        Prose(page.blocks, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
     }
 }
 

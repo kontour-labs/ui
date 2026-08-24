@@ -19,8 +19,18 @@ kotlin {
         binaries.executable()
     }
 
+    // Not a target anybody ships. It is the one that can be *rendered in a
+    // test*: the shell, the index and the prose are ordinary Compose in
+    // `commonMain`, and this is what lets `jvmTest` walk all 84 pages at four
+    // widths without a browser.
+    //
+    // Its absence is why the site went out with a landing page that threw on
+    // any window under 600dp. `wasmJs` alone has no test source set that runs
+    // here, so there was nowhere to put a test even if someone had wanted one.
+    jvm()
+
     sourceSets {
-        wasmJsMain.dependencies {
+        commonMain.dependencies {
             implementation(project(":ui"))
             // For `componentRegistry` — the same list the contract suite runs
             // over and the renders are drawn from. A site with its own list of
@@ -32,6 +42,13 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.bundles.icons)
+        }
+
+        jvmTest.dependencies {
+            implementation(libs.kotlin.test)
+            // Skiko, so the render sweep has a real canvas to draw into.
+            implementation(compose.desktop.currentOs)
+            implementation(libs.compose.uiTest)
         }
     }
 }
@@ -57,7 +74,7 @@ val generateDocPages = tasks.register<Exec>("generateDocPages") {
     commandLine("python3", script.asFile.path, generatedDocs.get().asFile.path)
 }
 
-kotlin.sourceSets.named("wasmJsMain") {
+kotlin.sourceSets.named("commonMain") {
     kotlin.srcDir(generatedDocs)
 }
 
