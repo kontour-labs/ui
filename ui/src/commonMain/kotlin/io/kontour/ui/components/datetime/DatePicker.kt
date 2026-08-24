@@ -85,6 +85,16 @@ fun rememberCalendarNavigationState(initial: LocalDate): CalendarNavigationState
  * than leaving a screen-reader user to work out that the grid changed. Months
  * slide in the direction of travel — forward from the right, back from the left
  * — which is the cheapest way to make paging legible without a label.
+ *
+ * ### It needs its whole month
+ *
+ * A month grid is up to six rows of dates plus a header, and it has nowhere to
+ * put the sixth row if the window is shorter than that — about 400dp of height
+ * at the default type size, and a phone turned sideways is 360. **Put it
+ * somewhere that scrolls.** `Dialog` does, and so does a page that scrolls; a
+ * fixed-height box does not, and the weeks past the fold are then not reachable
+ * at all. The same kind of fact as `StepperDefaults.MinWidth`: the parts are
+ * irreducible, so the room has to come from outside.
  */
 @Composable
 fun DatePicker(

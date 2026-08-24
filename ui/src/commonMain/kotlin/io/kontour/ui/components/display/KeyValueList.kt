@@ -1,6 +1,7 @@
 package io.kontour.ui.components.display
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -70,35 +71,83 @@ fun KeyValueList(
     content: KeyValueScope.() -> Unit,
 ) {
     val rows = keyValueRows(content)
+    val gap = Theme.spacing.sm
 
-    Column(modifier.fillMaxWidth()) {
-        rows.forEachIndexed { index, row ->
-            if (dividers && index > 0) HorizontalDivider()
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val available = maxWidth
+        /**
+         * Two columns, or one above the other.
+         *
+         * The label column used to be `widthIn(min = labelWidth)` beside a value
+         * that had no weight at all, and the arithmetic of that is unkind:
+         * `labelWidth` is 108dp, so anything narrower than about 120dp gave the
+         * label the entire row and the value whatever was left, which was
+         * nothing. A `Text` measured at nothing still draws its first character,
+         * so the value came out as a single column of letters standing **outside
+         * the component**, one glyph wide — "T" over "r" over "a" over "n". At
+         * 320dp it looks right, which is why it went unnoticed: the gallery
+         * renders at 600.
+         *
+         * Below the point where a value column would be worth having, the pair
+         * stacks instead. That is what a key and a value do on a narrow screen,
+         * and it is the only arrangement where both are readable.
+         */
+        val stacked = available < labelWidth + gap + KeyValueListDefaults.MinValueWidth
 
-            Row(
-                modifier = Modifier
+        Column(Modifier.fillMaxWidth()) {
+            rows.forEachIndexed { index, row ->
+                if (dividers && index > 0) HorizontalDivider()
+
+                val rowModifier = Modifier
                     .fillMaxWidth()
                     .semantics(mergeDescendants = true) {
                         row.spoken?.let { contentDescription = it }
                     }
-                    .padding(vertical = Theme.spacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-                verticalAlignment = Alignment.Top,
-            ) {
-                ProvideContentColor(Theme.colors.contentMuted) {
-                    ProvideTextStyle(Theme.typography.bodyMedium) {
-                        Row(Modifier.widthIn(min = labelWidth)) {
-                            ContentSlot(maxLines = 2, content = row.label)
+                    .padding(vertical = Theme.spacing.xs)
+
+                val label: @Composable (Modifier) -> Unit = { slot ->
+                    ProvideContentColor(Theme.colors.contentMuted) {
+                        ProvideTextStyle(Theme.typography.bodyMedium) {
+                            Row(slot) { ContentSlot(maxLines = 2, content = row.label) }
                         }
                     }
                 }
-                ProvideTextStyle(Theme.typography.bodyMedium) {
-                    Row(Modifier.fillMaxWidth()) {
-                        ContentSlot(
-                            iconSize = Theme.sizing.iconSmall,
-                            maxLines = 4,
-                            content = row.value,
-                        )
+                val value: @Composable (Modifier) -> Unit = { slot ->
+                    ProvideTextStyle(Theme.typography.bodyMedium) {
+                        Row(slot) {
+                            ContentSlot(
+                                iconSize = Theme.sizing.iconSmall,
+                                maxLines = 4,
+                                content = row.value,
+                            )
+                        }
+                    }
+                }
+
+                if (stacked) {
+                    Column(
+                        modifier = rowModifier,
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+                    ) {
+                        label(Modifier.fillMaxWidth())
+                        value(Modifier.fillMaxWidth())
+                    }
+                } else {
+                    Row(
+                        modifier = rowModifier,
+                        horizontalArrangement = Arrangement.spacedBy(gap),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        // Still a floor rather than a fixed width, so a long
+                        // label pushes the column out instead of wrapping while
+                        // the rest of the row sits empty — but a *capped* floor,
+                        // so it can never push so far that the value is starved.
+                        // `stacked` above guarantees the cap is the wider of the
+                        // two, so the range cannot invert.
+                        val widest = (available - gap - KeyValueListDefaults.MinValueWidth)
+                            .coerceAtLeast(labelWidth)
+                        label(Modifier.widthIn(min = labelWidth, max = widest))
+                        value(Modifier.weight(1f))
                     }
                 }
             }
@@ -182,4 +231,13 @@ object KeyValueListDefaults {
      * lines while the rest of the row sits empty.
      */
     val LabelWidth: Dp = 108.dp
+
+    /**
+     * The narrowest a value column is worth having.
+     *
+     * Below this the row stacks — label above value — rather than squeezing the
+     * value into a strip. Roughly "Transperth" at the body size: enough for a
+     * short answer on one line, which is what most of these are.
+     */
+    val MinValueWidth: Dp = 96.dp
 }

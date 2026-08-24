@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
@@ -25,6 +28,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
@@ -66,6 +76,27 @@ class CarouselState internal constructor(
             .minByOrNull { kotlin.math.abs((it.offset + it.size / 2) - viewportCentre) }
             ?.index
             ?: listState.firstVisibleItemIndex
+    }
+
+    /**
+     * Where the carousel is between pages, as a page number with a fraction.
+     *
+     * `2.5` is halfway from the third page to the fourth. [currentPage] is this
+     * rounded to whatever is nearest the middle of the viewport, and that is the
+     * right answer for anything that has to name a page; this is for anything
+     * that has to *draw* the space between two — the worm indicator, and nothing
+     * else so far.
+     *
+     * The pitch is measured from two real items rather than assumed, because a
+     * carousel's `pageSpacing` is part of the distance between pages and the
+     * state does not know what the caller asked for.
+     */
+    val pagePosition: Float by derivedStateOf {
+        val visible = listState.layoutInfo.visibleItemsInfo
+        val first = visible.firstOrNull() ?: return@derivedStateOf 0f
+        val pitch = visible.getOrNull(1)?.let { (it.offset - first.offset).toFloat() }
+            ?: first.size.toFloat()
+        if (pitch <= 0f) first.index.toFloat() else first.index + (-first.offset) / pitch
     }
 
     val count: Int get() = pageCount()
@@ -129,6 +160,33 @@ fun Carousel(
     LazyRow(
         modifier = modifier
             .fillMaxWidth()
+            // Draggable with a pointer, not only scrollable with a finger.
+            //
+            // A `LazyRow` answers touch and the wheel, and on desktop that is
+            // all — dragging a list with the mouse is not a thing desktops do.
+            // A carousel is the exception: it is a stack of cards, and grabbing
+            // one and pulling it aside is the only gesture anybody tries.
+            //
+            // Outside the list in the modifier chain, so it is the list's
+            // ancestor: a child gets the main pointer pass first, which leaves
+            // every touch drag to the list's own scrolling and this seeing only
+            // what it declined.
+            .then(
+                if (enabled) {
+                    Modifier.draggable(
+                        state = rememberDraggableState { delta ->
+                            state.listState.dispatchRawDelta(-delta)
+                        },
+                        orientation = Orientation.Horizontal,
+                        // `currentPage` is the page nearest the viewport centre,
+                        // so this settles on whichever one the drag left showing
+                        // — the same answer the fling behaviour would give.
+                        onDragStopped = { scope.launch { state.scrollToPage(state.currentPage) } },
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .semantics {
                 isTraversalGroup = true
                 this.contentDescription = contentDescription
@@ -193,16 +251,61 @@ fun PageIndicator(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onPageSelect: ((Int) -> Unit)? = null,
+    style: PageIndicatorStyle = PageIndicatorStyle.Dots,
     activeColor: Color = Theme.colors.primary,
     inactiveColor: Color = Theme.colors.outlineStrong,
     label: (Int, Int) -> String = Theme.strings.pageOfCount,
 ) {
     val count = state.count
     val current = state.currentPage
+    val worm = style == PageIndicatorStyle.Worm
+
+    // Where each dot ended up, so the worm can be drawn between two of them.
+    //
+    // Measured rather than derived from the dot size and the gap, because those
+    // are not the pitch: with `onPageSelect` every dot is wrapped in a 48dp
+    // touch target and sits three times further from its neighbour than it looks.
+    val dotCentre = remember(count) { FloatArray(count) }
+    val dotRadius = with(LocalDensity.current) { PageIndicatorDefaults.DotSize.toPx() / 2f }
+    val position = if (worm) state.pagePosition else 0f
 
     Row(
         modifier = modifier
             .then(if (onPageSelect != null) Modifier.selectableGroup() else Modifier)
+            .then(
+                if (worm && count > 0) {
+                    Modifier.drawWithContent {
+                        drawContent()
+                        val at = position.coerceIn(0f, (count - 1).toFloat())
+                        val from = at.toInt().coerceIn(0, count - 1)
+                        val to = (from + 1).coerceAtMost(count - 1)
+                        val fraction = at - from
+                        val a = dotCentre[from]
+                        val b = dotCentre[to]
+                        // The leading edge goes first and the trailing edge
+                        // catches up, so the pill is at its longest halfway
+                        // between the two dots. Both ends arriving together
+                        // would just be a dot sliding.
+                        val lead = a + (b - a) * (fraction * 2f).coerceAtMost(1f)
+                        val trail = a + (b - a) * (fraction * 2f - 1f).coerceAtLeast(0f)
+                        if (a == 0f && b == 0f) return@drawWithContent
+                        drawRoundRect(
+                            color = activeColor,
+                            topLeft = Offset(
+                                minOf(lead, trail) - dotRadius,
+                                (size.height - dotRadius * 2f) / 2f,
+                            ),
+                            size = Size(
+                                kotlin.math.abs(lead - trail) + dotRadius * 2f,
+                                dotRadius * 2f,
+                            ),
+                            cornerRadius = CornerRadius(dotRadius),
+                        )
+                    }
+                } else {
+                    Modifier
+                }
+            )
             .semantics {
                 if (onPageSelect == null) {
                     // Decorative. The carousel above already says "3 of 5"; five
@@ -215,7 +318,7 @@ fun PageIndicator(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         repeat(count) { page ->
-            val active = page == current
+            val active = page == current && !worm
             val width by animateDpAsState(
                 targetValue = if (active) {
                     PageIndicatorDefaults.ActiveWidth
@@ -233,16 +336,19 @@ fun PageIndicator(
                         .height(PageIndicatorDefaults.DotSize)
                         .clip(CircleShape),
                     shape = CircleShape,
+                    // Under a worm every dot is a track, and the pill on top is
+                    // the only thing that says which page this is.
                     color = if (active) activeColor else inactiveColor,
                     content = {},
                 )
             }
 
             if (onPageSelect == null) {
-                dot()
+                Box(Modifier.reportCentre(dotCentre, page)) { dot() }
             } else {
                 Box(
                     modifier = Modifier
+                        .reportCentre(dotCentre, page)
                         .minimumTouchTarget()
                         .selectable(
                             selected = active,
@@ -262,6 +368,29 @@ fun PageIndicator(
     }
 }
 
+/** How a [PageIndicator] shows which page is current. */
+enum class PageIndicatorStyle {
+    /**
+     * The current dot widens into a pill and the others stay round.
+     *
+     * The default, and the right one when the indicator is also the control —
+     * every dot keeps its own footprint, so every dot keeps its own target.
+     */
+    Dots,
+
+    /**
+     * One pill stretches from the dot it is leaving to the dot it is arriving
+     * at, then contracts.
+     *
+     * It reads as a single thing travelling rather than as one dot going out
+     * and another coming on, and it is the one indicator style that shows the
+     * *middle* of a swipe rather than only its ends: the pill is at its longest
+     * exactly halfway between two pages. That needs a fractional page position,
+     * which is why [CarouselState.pagePosition] exists.
+     */
+    Worm,
+}
+
 object PageIndicatorDefaults {
     val DotSize: Dp = 8.dp
 
@@ -276,3 +405,8 @@ object PageIndicatorDefaults {
 
     val Gap: Dp = 6.dp
 }
+
+
+/** Records this dot's centre, relative to the indicator row, for the worm. */
+private fun Modifier.reportCentre(into: FloatArray, index: Int): Modifier =
+    onGloballyPositioned { into[index] = it.positionInParent().x + it.size.width / 2f }

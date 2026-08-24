@@ -69,10 +69,13 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "actions-"),
                 width = 1100,
-                height = 1760,
+                height = 2200,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
-                    ButtonShowcase()
+                    // `FabMenu` renders its items into the host, so it asks for
+                    // one at composition whether or not it is open — the same
+                    // as every other overlay-backed component on these pages.
+                    OverlayHost(Modifier.fillMaxSize()) { ButtonShowcase() }
                 }
             }
             assertTrue(file.length() > 0, "$name actions rendered an empty file")
@@ -140,8 +143,11 @@ class ThemeShowcaseScreenshotTest {
                 // Four panels per row. The panels flow, and a width that
                 // leaves slack for a fifth to start without room to finish
                 // draws it as a column of single letters.
+                // Taller since the command palette's panel grew: the palette is
+                // the one overlay in here that wants a window rather than a
+                // card, and a 300dp stand-in clipped it.
                 width = 3120,
-                height = 2160,
+                height = 2440,
                 // Overlays need more than the usual handful. Each one has to be
                 // laid out before its anchor is known, pushed into the host on
                 // the recomposition after that, and then animated in — three
@@ -199,7 +205,7 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "lists-"),
                 width = 2480,
-                height = 1080,
+                height = 1500,
                 frames = 20,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
@@ -250,7 +256,7 @@ class ThemeShowcaseScreenshotTest {
             val file = Screenshot.render(
                 name = name.replace("theme-", "display-"),
                 width = 2640,
-                height = 2780,
+                height = 3060,
             ) {
                 KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
                     DisplayShowcase()

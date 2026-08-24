@@ -1,26 +1,28 @@
 # Components
 
-The map. Every component in `io.kontour.ui`, what family it is in, and where its
-page is.
+The map. Every component in `io.kontour.ui`, and what family it is in.
 
-Each family page says what each component is for, **what to reach for instead
-and when**, its API, its states, and the accessibility notes specific to it —
-with a render of the component on its own, light and dark, taken from the same
-registry the [contract suite](../building/testing.md#the-contract-suite) runs
-over.
+**Each component has a page of its own.** It says what the component is for,
+**what to reach for instead and when**, its API, its states, and the
+accessibility notes specific to it — with a render of it alone, light and dark,
+taken from the same registry the
+[contract suite](../building/testing.md#the-contract-suite) runs over.
+
+A family page is the index of its components: the "which one" table, and the
+prose that is about the family rather than any one of them.
 
 | Family | | |
 |---|---|---|
-| [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `IconToggleButton` `FloatingActionButton` `ButtonGroup` `Toolbar` `Spinner` |
+| [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `IconToggleButton` `FloatingActionButton` `FabMenu` `SplitButton` `ButtonGroup` `Toolbar` `Spinner` |
 | [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `Slider` `RangeSlider` `Stepper` `Rating` |
 | [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `NumberField` `PhoneField` `EmailField` `Select` `MultiSelect` `Combobox` |
 | [**Date and time**](components/date-time.md) | Calendars and clocks | `CalendarMonth` `DatePicker` `DateRangePicker` `TimePicker` `TimeField` `WheelPicker` `RelativeTimeText` |
-| [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Skeleton` `EmptyState` `Banner` `Callout` `Timeline` `Accordion` `Stat` `KeyValueList` `Carousel` `Kbd` |
-| [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `SettingRow` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` |
+| [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Skeleton` `EmptyState` `Banner` `Callout` `Timeline` `Accordion` `AnimatedCounter` `Modifier.marquee` `Stat` `KeyValueList` `Carousel` `Kbd` |
+| [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `ExpandingListItem` `SettingRow` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` |
 | [**Navigation**](components/navigation.md) | Getting between screens | `NavigationSuiteScaffold` `NavItem` `NavBar` `NavRail` `NavDrawer` `TopBar` `TabBar` `Breadcrumbs` `Pagination` |
 | [**Overlays**](overlays.md) | Things drawn over everything | `Dialog` `AlertDialog` `DropdownMenu` `SubMenu` `ContextMenuArea` `Popover` `Tooltip` `Toast` `LoadingOverlay` `CommandPalette` |
 | [**Sheets**](sheets.md) | Bottom and side panels | `BottomSheet` `ModalBottomSheet` `SideSheet` `SheetHeader` `DragHandle` |
-| [**Adaptive**](components/adaptive.md) | Layout and motion by window | `Scaffold` `ListDetailPaneScaffold` `WindowSizeClass` `GlassSurface` `Motion.*` |
+| [**Adaptive**](components/adaptive.md) | Layout and motion by window | `Scaffold` `ListDetailPaneScaffold` `WindowSizeClass` `GlassSurface` `PageTransition` `Motion.*` |
 | [**Foundation**](components/foundation.md) | What the rest is built from | `Text` `Icon` `Surface` `Divider` `Scrim` |
 
 Cross-cutting reading:
@@ -37,18 +39,18 @@ The comparisons that get made wrongly, and where each is argued:
 
 | | |
 |---|---|
-| `ListItem` vs `SettingRow` vs `SelectionRow` | [collections](components/collections.md#settingrow) |
-| `Select` vs `Combobox` vs `MultiSelect` vs `RadioGroup` | [text editing](components/text-editing.md#select) |
-| `SegmentedControl` vs `TabBar` vs `ButtonGroup` | [actions](components/actions.md#not-a-segmentedcontrol) |
-| `Toolbar` vs `TopBar` | [actions](components/actions.md#toolbar) |
-| `Banner` vs `Toast` | [display](components/display.md#banner--animatedbanner) |
+| `ListItem` vs `SettingRow` vs `SelectionRow` | [`SettingRow`](components/setting-row.md) |
+| `Select` vs `Combobox` vs `MultiSelect` vs `RadioGroup` | [`Select`](components/select.md) |
+| `SegmentedControl` vs `TabBar` vs `ButtonGroup` | [`ButtonGroup`](components/button-group.md#not-a-segmentedcontrol) |
+| `Toolbar` vs `TopBar` | [`Toolbar`](components/toolbar.md) |
+| `Banner` vs `Toast` | [`Banner`](components/banner.md) |
 | `Dialog` vs `ModalBottomSheet` | [overlays](overlays.md) |
-| `Chip` vs `Tag` | [display](components/display.md#tag) |
-| `Skeleton` vs `Spinner` | [display](components/display.md#skeletons) |
+| `Chip` vs `Tag` | [`Tag`](components/tag.md) |
+| `Skeleton` vs `Spinner` | [`Skeleton`](components/skeleton.md) |
 | `CommandPalette` vs `Combobox` | [overlays](overlays.md#commandpalette) |
-| `Stat` vs `KeyValueList` vs `SettingRow` | [display](components/display.md#keyvaluelist) |
-| `EmptyState` vs `ErrorState` | [display](components/display.md#emptystate--errorstate) |
-| `Pagination` vs `LoadMore` | [navigation](components/navigation.md#pagination) |
+| `Stat` vs `KeyValueList` vs `SettingRow` | [`KeyValueList`](components/key-value-list.md) |
+| `EmptyState` vs `ErrorState` | [`EmptyState`](components/empty-state.md) |
+| `Pagination` vs `LoadMore` | [navigation](components/pagination.md) |
 | The five sheet entry points | [sheets](sheets.md) |
 
 ---

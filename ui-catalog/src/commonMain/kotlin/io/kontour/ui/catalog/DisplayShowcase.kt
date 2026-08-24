@@ -1,13 +1,17 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -15,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.Bus
+import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.User
@@ -23,6 +28,8 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.Accordion
+import io.kontour.ui.components.display.AnimatedCounter
+import io.kontour.ui.motion.marquee
 import io.kontour.ui.components.display.Avatar
 import io.kontour.ui.components.display.AvatarGroup
 import io.kontour.ui.components.display.AvatarSize
@@ -33,47 +40,38 @@ import io.kontour.ui.components.display.BannerTone
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
+import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.EmptyState
 import io.kontour.ui.components.display.ErrorState
+import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.LinearProgress
+import io.kontour.ui.components.display.PageIndicator
 import io.kontour.ui.components.display.ProgressRing
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.SkeletonListItem
 import io.kontour.ui.components.display.SkeletonText
 import io.kontour.ui.components.display.Spinner
-import io.kontour.ui.components.display.StepProgress
-import io.kontour.ui.components.display.Tag
-import com.composables.icons.tabler.outline.Check
-import androidx.compose.foundation.layout.Box
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import io.kontour.ui.components.display.Carousel
-import io.kontour.ui.components.display.KeyValueList
-import io.kontour.ui.components.display.PageIndicator
-import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StatTrend
+import io.kontour.ui.components.display.StepProgress
+import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
+import kotlinx.coroutines.launch
 
 /** Every display component. Source for the display goldens. */
 @Composable
 fun DisplayShowcase(modifier: Modifier = Modifier) {
     Surface(modifier = modifier, color = Theme.colors.background) {
-        Row(
-            modifier = Modifier.padding(Theme.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
-        ) {
-            Column(
-                Modifier.width(420.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+        Panels {
+            Panel(width = 420.dp, spacing = Theme.spacing.md) {
                 Section("Cards") {
                     Card {
                         Text("Perth Station", style = Theme.typography.titleMedium)
@@ -92,9 +90,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                 }
 
                 Section("Tags and badges") {
-                    Row(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                     ) {
                         Tag(tone = TagTone.Success) { +"Live" }
                         Tag(tone = TagTone.Warning) { +"Delayed" }
@@ -102,9 +100,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                         Tag(tone = TagTone.Accent) { +"Beta" }
                         Tag() { +"Neutral" }
                     }
-                    Row(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                     ) {
                         // Colours a GTFS feed might hand us — the label colour
                         // is derived, not designed.
@@ -124,9 +122,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                 }
 
                 Section("Avatars") {
-                    Row(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                     ) {
                         Avatar(name = "Aaron", size = AvatarSize.Small)
                         Avatar(name = "Sunny", size = AvatarSize.Medium)
@@ -143,9 +141,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                     LinearProgress(progress = 0.6f, contentDescription = "Uploading")
                     LinearProgress(progress = null, contentDescription = "Loading")
                     StepProgress(current = 2, total = 4)
-                    Row(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                     ) {
                         ProgressRing(progress = 0.35f)
                         ProgressRing(progress = 0.8f, size = 28.dp)
@@ -155,10 +153,7 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Column(
-                Modifier.width(420.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+            Panel(width = 420.dp, spacing = Theme.spacing.md) {
                 Section("Banners") {
                     val delays = seed(true)
                     if (delays.value) {
@@ -242,10 +237,7 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Column(
-                Modifier.width(380.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+            Panel(width = 380.dp, spacing = Theme.spacing.md) {
                 Section("States") {
                     Card(variant = CardVariant.Outlined) {
                         EmptyState() {
@@ -307,8 +299,50 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                     }
                 }
 
+                Section("Counting and scrolling") {
+                    Card(variant = CardVariant.Outlined) {
+                        Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+                            // Tap it and the digits roll. Seeded at a two-digit
+                            // value so the first tap crosses a column boundary,
+                            // which is the case worth watching.
+                            val minutes = seed(14)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                AnimatedCounter(
+                                    value = minutes.value,
+                                    format = { "$it min" },
+                                    style = Theme.typography.headlineSmall,
+                                )
+                                Button(
+                                    onClick = { minutes.value = (minutes.value + 12) % 60 },
+                                    variant = ButtonVariant.Secondary,
+                                    size = ButtonSize.Small,
+                                ) { +"Advance" }
+                            }
+
+                            // Deliberately too narrow for the label, which is
+                            // the only state in which the modifier does
+                            // anything. It is still under `reduceMotion` in the
+                            // goldens, where it truncates instead.
+                            Box(Modifier.width(180.dp)) {
+                                Text(
+                                    text = "Elizabeth Quay Bus Station, Stand E",
+                                    maxLines = 1,
+                                    style = Theme.typography.bodyMedium,
+                                    modifier = Modifier.marquee(),
+                                )
+                            }
+                        }
+                    }
+                }
+
                 Section("Stat") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xl)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xl),
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xl),
+                    ) {
                         Stat {
                             value("4 min")
                             +"Next departure"
@@ -338,7 +372,7 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                     val carousel = rememberCarouselState { 4 }
                     val scope = rememberCoroutineScope()
                     Column(
-                        Modifier.width(320.dp),
+                        Modifier.widthIn(max = 320.dp),
                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
@@ -364,10 +398,7 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                 }
 
                 Section("KeyValueList") {
-                    Column(
-                        Modifier.width(320.dp),
-                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
-                    ) {
+                    Panel(width = 320.dp, spacing = Theme.spacing.lg) {
                         KeyValueList {
                             item("Operator", "Transperth")
                             item("Platform", "2")

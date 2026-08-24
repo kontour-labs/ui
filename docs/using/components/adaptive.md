@@ -9,6 +9,7 @@
 | `SupportingPaneScaffold` | Content with a helper pane, or a sheet when narrow |
 | `AspectRatioBox` | Reserves a media slot before its content loads |
 | `Motion.fadeThrough` / `sharedAxis` / `containerTransform` | Transition presets |
+| [`PageTransition`](page-transition.md) | Whole-page changes, carrying shared elements across |
 | `Modifier.revealOnScroll` | Fades content in the first time it appears |
 | `Modifier.parallax` | Scroll-linked drift |
 | `Modifier.shimmer` | The travelling highlight behind a skeleton |
@@ -19,7 +20,6 @@
 ---
 
 ## Layout
-
 **`WindowAdaptiveInfo` bundles size with input modality** because the decisions
 are rarely about one alone. A 900dp touchscreen held in the hands is not a 900dp
 desktop window, and a resize handle is a very different proposition in each.
@@ -41,7 +41,6 @@ there is nothing to go back from and it does not appear.
 ---
 
 ## Motion presets
-
 The choice between them says what the *relationship* between two states is:
 
 | | For | Says |
@@ -62,7 +61,6 @@ exists to remove. The full list of what reduced motion changes is with the
 ---
 
 ## There is no portable backdrop blur
-
 Compose's `Modifier.blur` blurs a layer's *own* content, not what is behind it,
 and there is no common equivalent of CSS's `backdrop-filter` or iOS's
 `UIVisualEffectView`. So `GlassSurface` draws a translucent tint and a hairline

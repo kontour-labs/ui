@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,10 +19,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.ArrowsSort
 import com.composables.icons.tabler.outline.Bookmark
+import com.composables.icons.tabler.outline.Route
 import com.composables.icons.tabler.outline.Clock
 import com.composables.icons.tabler.outline.Copy
 import com.composables.icons.tabler.outline.Dots
@@ -29,6 +32,7 @@ import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.Share
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.action.Button
+import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
@@ -52,6 +56,8 @@ import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastTone
 import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.overlay.coachMark
+import io.kontour.ui.overlay.coachmarkStep
+import io.kontour.ui.overlay.rememberCoachmarkTour
 import io.kontour.ui.overlay.rememberOverlayQueue
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.theme.Theme
@@ -83,7 +89,10 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
             val loading = seed(true)
             val edgeMenu = seed(true)
 
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+            ) {
                 Panel("Dropdown menu") {
                     Box(Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 12.dp)) {
                         IconButton(
@@ -177,7 +186,10 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+            ) {
                 Panel("Alert dialog") {
                     AlertDialog(
                         visible = alert.value,
@@ -231,16 +243,72 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                         }
                     }
                 }
+
+                Panel("Coach mark tour") {
+                    // Not seeded running. A tour dims the whole window and cuts
+                    // one hole in it, so one left open here would black out every
+                    // other panel on the page in the golden — and "the rest of
+                    // the screen goes dark" is exactly what it is meant to do.
+                    val tour = rememberCoachmarkTour("plan", "saved")
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+                            IconButton(
+                                icon = Tabler.Outline.Route,
+                                contentDescription = "Plan a trip",
+                                onClick = tap("Plan a trip"),
+                                variant = ButtonVariant.Tertiary,
+                                modifier = Modifier.coachmarkStep(
+                                    tour = tour,
+                                    id = "plan",
+                                    title = "Plan a trip",
+                                    text = "Enter where you are going and we will " +
+                                        "work out the rest.",
+                                ),
+                            )
+                            IconButton(
+                                icon = Tabler.Outline.Bookmark,
+                                contentDescription = "Saved trips",
+                                onClick = tap("Saved trips"),
+                                variant = ButtonVariant.Tertiary,
+                                modifier = Modifier.coachmarkStep(
+                                    tour = tour,
+                                    id = "saved",
+                                    title = "Saved trips",
+                                    text = "The ones you keep show up here.",
+                                    side = OverlaySide.Top,
+                                ),
+                            )
+                        }
+                        Button(
+                            onClick = tour::start,
+                            variant = ButtonVariant.Secondary,
+                            size = ButtonSize.Small,
+                        ) { +"Show me around" }
+                    }
+                }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+            ) {
                 Panel("Toast") {
                     val toasts = rememberToastHostState()
-                    ToastHost(toasts)
+                    // `showClose`, because these are pinned: a toast that never
+                    // expires and cannot be closed is a sticker.
+                    ToastHost(toasts, showClose = true)
                     // Hoisted out of the effect: `tap` reads a composition local,
                     // and a coroutine is not a composition.
                     val retry = tap("Retry")
                     LaunchedEffect(Unit) {
+                        // Two, so the render shows the stack rather than one
+                        // toast that happens to be alone. The older one peeks
+                        // out behind and above the newer.
+                        toasts.show("Saved for offline", durationMillis = 0)
                         toasts.show(
                             "Couldn't reach the timetable service",
                             tone = ToastTone.Danger,
@@ -261,15 +329,20 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                     LoadingOverlay(visible = loading.value, label = "Planning your trip")
                 }
 
-                Panel("Command palette") {
+                Panel("Command palette", height = 440.dp) {
                     // Seeded open so the golden shows the palette, and a
                     // *toggle* rather than a setter — pressing "open" while it
                     // is already open does nothing, which is exactly what
                     // `EverythingRespondsTest` exists to catch. It caught this.
                     val open = seed(true)
+                    // Aligned, like every other trigger in here. Left where it
+                    // fell, it landed on top of the panel's own stand-in text
+                    // and the two drew over each other — which is most of what
+                    // made this panel look broken.
                     Button(
                         onClick = { open.value = !open.value },
                         variant = ButtonVariant.Secondary,
+                        modifier = Modifier.align(Alignment.BottomStart).padding(16.dp),
                     ) { +"Open palette" }
                     CommandPalette(
                         visible = open.value,
@@ -282,9 +355,16 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                                 Command("offline", "Download for offline", onRun = {}, enabled = false),
                             )
                         },
-                        // Narrower than the default, which is sized for a real
-                        // window rather than for a 400dp panel in a gallery.
+                        // All three of these, not just the width. The defaults
+                        // are sized for a real window: 96dp of top inset and
+                        // 360dp of results do not fit a 300dp panel, so the
+                        // palette ran off the bottom and the gallery showed a
+                        // component that looked like it could not lay itself
+                        // out. It lays out fine; it was being given a window a
+                        // fifth the size of the one it was drawn for.
                         width = 320.dp,
+                        topInset = 32.dp,
+                        maxHeight = 240.dp,
                     )
                 }
 
@@ -315,16 +395,21 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
     }
 }
 
-/** A fixed-size screen stand-in with its own overlay host. */
+/**
+ * A fixed-size screen stand-in with its own overlay host.
+ *
+ * @param height Taller for the command palette, which is the one component in
+ *   here that wants a window rather than a card. Squeezed into 300dp it ran off
+ *   the bottom, and a gallery that clips the thing it is showing is worse than
+ *   no gallery.
+ */
 @Composable
 private fun Panel(
     title: String,
+    height: Dp = 300.dp,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    Column(
-        modifier = Modifier.width(360.dp),
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-    ) {
+    Panel(width = 360.dp, spacing = Theme.spacing.xs) {
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
@@ -333,7 +418,7 @@ private fun Panel(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(300.dp)
+                .height(height)
                 .border(
                     width = Theme.sizing.borderWidth,
                     color = Theme.colors.outline,

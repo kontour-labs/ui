@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -52,8 +53,10 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** One action revealed by swiping a row. */
@@ -273,6 +276,51 @@ fun SwipeActions(
         }
     }
 
+    /**
+     * What the row felt like while it was being dragged, which was nothing.
+     *
+     * Every other draggable control in the library clicks as it passes a detent
+     * — the sliders, the pickers, the segmented control, the tab bar — and this
+     * one, which has the most pronounced detents of any of them, was silent from
+     * the first pixel to the commit. A row with two actions has three positions
+     * it can rest in and a point of no return past all of them, and the only
+     * feedback was the action firing after it was too late to change your mind.
+     *
+     * - A **tick** each time the drag uncovers another action, counted in whole
+     *   `actionWidth`s so it is once per button revealed rather than once per
+     *   anchor object.
+     * - A **`DragThreshold`** at the full-swipe point, once and distinctly. That
+     *   is the one moment in this gesture with a consequence, and it is the
+     *   moment the user most needs to be told about without looking.
+     * - A **`GestureEnd`** when the row settles.
+     */
+    val ticker = rememberDetentTicker()
+    LaunchedEffect(state, actionWidthPx, width) {
+        var pastThreshold = false
+        var settled = true
+        snapshotFlow { state.anchoredState.offset }.collect { offset ->
+            if (offset.isNaN() || actionWidthPx <= 0f) return@collect
+            val travel = abs(offset)
+
+            ticker.at((travel / actionWidthPx).toInt())
+
+            val commitAt = width * SwipeActionsDefaults.FullSwipeThreshold
+            val past = width > 0f && travel >= commitAt
+            if (past && !pastThreshold) feedback.perform(FeedbackIntent.DragThreshold)
+            pastThreshold = past
+
+            // "Back at rest" is the end of the gesture, and the only edge worth
+            // reporting: `offset` emits on every frame of the settle animation
+            // too, and a click per frame of a spring is a buzz.
+            val atRest = travel < 1f
+            if (atRest && !settled) {
+                feedback.perform(FeedbackIntent.GestureEnd)
+                ticker.reset()
+            }
+            settled = atRest
+        }
+    }
+
     val fling = AnchoredDraggableDefaults.flingBehavior(
         state = state.anchoredState,
         positionalThreshold = { distance -> distance * 0.4f },
@@ -372,8 +420,14 @@ private fun RowScope.SwipeActionButton(
         contentAlignment = Alignment.Center,
     ) {
         BoxWithConstraints(
+            // `fillMaxSize`, not `fillMaxHeight`. Without the width this box
+            // wrapped the icon and its label — about 40dp of it — and sat
+            // centred in an 88dp panel that was coloured, obviously tappable and
+            // dead down both sides. A press near the edge of a revealed action
+            // did nothing, which reads as the swipe having failed rather than as
+            // the target being narrower than the paint.
             modifier = Modifier
-                .fillMaxHeight()
+                .fillMaxSize()
                 .clickableAction(onClick, action.label)
                 .padding(Theme.spacing.xs),
             contentAlignment = Alignment.Center,

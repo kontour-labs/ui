@@ -1,6 +1,8 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -15,12 +17,21 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorSizing
@@ -32,9 +43,11 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
 
 object SegmentedControlDefaults {
     /** The gap between the track's edge and the thumb inside it. */
@@ -52,6 +65,15 @@ object SegmentedControlDefaults {
      */
     val TrackPadding: Dp = 4.dp
 }
+
+/**
+ * The furthest the thumb elongates while straining toward the next segment.
+ *
+ * A fifth again its own width. The thumb is a whole segment wide rather than a
+ * 22dp circle, so it needs far less proportional stretch than a slider's does
+ * before it reads as give.
+ */
+private const val MaxSegmentStretch = 0.2f
 
 /**
  * A row of mutually exclusive options, presented as one control.
@@ -89,8 +111,57 @@ fun SegmentedControl(
     val outerShape = Theme.shapes.small
     val innerShape = Theme.shapes.extraSmall
     val feedback = Feedback
-    val height = Theme.sizing.controlHeightMedium
+    // At least a fingertip tall, whatever the control height token says.
+    //
+    // A segmented control is one control made of parts, so it owns the touch
+    // target for all of them — the same bargain `ButtonGroup` strikes. It used
+    // to pin `controlHeightMedium` and opt out of `minimumTouchTarget`
+    // altogether, which on Android left it 4dp shorter than any `Button` beside
+    // it and quietly broke the promise in `Sizing`'s KDoc that a row of mixed
+    // controls lines up. Invisible on desktop, where the minimum is 24dp.
+    val height = maxOf(Theme.sizing.controlHeightMedium, Theme.sizing.minTouchTarget)
     val indicator = rememberSelectionIndicatorState()
+
+    var trackWidth by remember { mutableFloatStateOf(0f) }
+    val currentSelected by rememberUpdatedState(selected)
+    val currentChange by rememberUpdatedState(onSelectedChange)
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val ticker = rememberDetentTicker()
+
+    /** Where the finger is along the track, or `NaN` when there is none. */
+    var fingerX by remember { mutableFloatStateOf(Float.NaN) }
+
+    /**
+     * How far the thumb leans out of its segment toward the finger.
+     *
+     * The control was drag-*aware* already — a drag changed the selection as it
+     * crossed each boundary — but the thumb was not being carried by anything.
+     * It sprang after the finger from one segment to the next, which is a thumb
+     * *reacting* to a drag rather than a thumb being dragged, and it meant the
+     * only part of the gesture you could feel was the moment it ended.
+     *
+     * The same [SliderDefaults.DetentPull] the sliders use, for the same reason:
+     * far enough to read as the segment straining toward where you are going,
+     * never so far that the thumb is closer to the next segment than to its own.
+     * Clamped to the track, because at either end the wall is the answer.
+     */
+    val strain = run {
+        val segments = options.size
+        if (fingerX.isNaN() || trackWidth <= 0f || segments == 0) {
+            0f
+        } else {
+            val segment = trackWidth / segments
+            val drawnIndex = if (isRtl) segments - 1 - selected else selected
+            val centre = segment * (drawnIndex + 0.5f)
+            val pulled = (fingerX - centre) * SliderDefaults.DetentPull
+            pulled.coerceIn(-segment * drawnIndex, segment * (segments - 1 - drawnIndex))
+        }
+    }
+    val strainPx by animateFloatAsState(
+        targetValue = strain,
+        animationSpec = motion.springOrTween(motion.springSnappy),
+        label = "segmentStrain",
+    )
 
     SelectionIndicatorBox(
         state = indicator,
@@ -109,7 +180,25 @@ fun SegmentedControl(
             .padding(SegmentedControlDefaults.TrackPadding),
         indicator = {
             Surface(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationX = strainPx
+                        // Anchored on the edge it is leaving, so the thumb
+                        // elongates toward the segment it is heading for rather
+                        // than swelling in place. The slider's thumb does the
+                        // same thing with the same signal.
+                        transformOrigin = TransformOrigin(
+                            pivotFractionX = if (strainPx >= 0f) 0f else 1f,
+                            pivotFractionY = 0.5f,
+                        )
+                        val reach = if (trackWidth <= 0f || options.isEmpty()) {
+                            0f
+                        } else {
+                            abs(strainPx) / (trackWidth / options.size)
+                        }
+                        scaleX = 1f + reach.coerceAtMost(MaxSegmentStretch)
+                    },
                 shape = innerShape,
                 color = if (enabled) colors.surface else colors.surfaceSunken,
                 border = contrastEdge(),
@@ -118,7 +207,67 @@ fun SegmentedControl(
             )
         },
     ) {
-        Row(Modifier.fillMaxWidth().fillMaxHeight()) {
+        /**
+         * Drag across the segments and the thumb comes with you.
+         *
+         * The thumb slides, so a finger put on it and moved sideways should
+         * carry it — and until now the whole control could only be tapped, which
+         * is the one gesture that does not use the thing that makes it a
+         * segmented control rather than three buttons.
+         *
+         * On the track rather than on each segment: a drag that starts on
+         * "Depart" and ends on "Arrive" leaves the segment it began in, and a
+         * per-segment gesture loses the pointer at the boundary. The taps stay
+         * per-segment, and `detectHorizontalDragGestures` waits for touch slop,
+         * so a press that never travels is still a tap on the segment under it.
+         */
+        fun selectAt(x: Float) {
+            if (trackWidth <= 0f) return
+            val fraction = (x / trackWidth).coerceIn(0f, 1f)
+            val raw = (fraction * options.size).toInt().coerceIn(options.indices)
+            val index = if (isRtl) options.size - 1 - raw else raw
+            // Once per segment crossed, the way a stepped slider ticks: a user
+            // dragging without looking can feel where the boundaries are. The
+            // ticker owns the guard now — it used to be "the index changed",
+            // which is the same thing said once per component rather than once.
+            ticker.at(index)
+            if (index == currentSelected) return
+            currentChange(index)
+        }
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .onSizeChanged { trackWidth = it.width.toFloat() }
+                .then(
+                    if (enabled) {
+                        Modifier.pointerInput(options.size, isRtl) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    fingerX = offset.x
+                                    selectAt(offset.x)
+                                },
+                                onHorizontalDrag = { change, _ ->
+                                    fingerX = change.position.x
+                                    selectAt(change.position.x)
+                                },
+                                onDragEnd = {
+                                    fingerX = Float.NaN
+                                    ticker.reset()
+                                    feedback.perform(FeedbackIntent.GestureEnd)
+                                },
+                                onDragCancel = {
+                                    fingerX = Float.NaN
+                                    ticker.reset()
+                                },
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
+        ) {
             options.forEachIndexed { index, option ->
                 val selected = index == selected
                 val interactions = remember { MutableInteractionSource() }

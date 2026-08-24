@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Bike
+import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
 import com.composables.icons.tabler.outline.Minus
@@ -14,6 +16,7 @@ import com.composables.icons.tabler.outline.Navigation
 import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Stack
 import com.composables.icons.tabler.outline.Star
+import com.composables.icons.tabler.outline.Train
 import com.composables.icons.tabler.outline.Trash
 import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
@@ -21,12 +24,16 @@ import io.kontour.ui.components.action.ButtonGroup
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.ExtendedFloatingActionButton
+import io.kontour.ui.components.action.FabMenu
+import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.action.IconToggleButton
+import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
+import io.kontour.ui.overlay.ScrimStyle
 
 @Composable
 fun ButtonBasics() {
@@ -131,4 +138,57 @@ fun ToolbarBasics() {
 @Composable
 fun SpinnerBasics() {
     Spinner(contentDescription = "Loading departures")
+}
+
+@Composable
+fun FabMenuBasics() {
+    var open by remember { mutableStateOf(false) }
+
+    FabMenu(
+        expanded = open,
+        onExpandedChange = { open = it },
+        icon = Tabler.Outline.Plus,
+        contentDescription = "Add",
+    ) {
+        item(Tabler.Outline.Star, "Save stop") { save(); open = false }
+        item(Tabler.Outline.CurrentLocation, "Nearby") { nearby(); open = false }
+        item(Tabler.Outline.Navigation, "Directions") { start(); open = false }
+    }
+}
+
+@Composable
+fun FabMenuFan() {
+    var open by remember { mutableStateOf(false) }
+
+    FabMenu(
+        expanded = open,
+        onExpandedChange = { open = it },
+        icon = Tabler.Outline.Stack,
+        contentDescription = "Map layers",
+        layout = FabMenuLayout.Fan,
+        expandedIcon = Tabler.Outline.X,
+        scrim = ScrimStyle.Dimmed,
+    ) {
+        item(Tabler.Outline.Bus, "Buses") { openLayers() }
+        item(Tabler.Outline.Train, "Trains") { openLayers() }
+        item(Tabler.Outline.Bike, "Bike paths") { openLayers() }
+    }
+}
+
+@Composable
+fun SplitButtonBasics() {
+    var open by remember { mutableStateOf(false) }
+
+    SplitButton(
+        onClick = { save() },
+        expanded = open,
+        onExpandedChange = { open = it },
+        menuContentDescription = "Other save options",
+        menu = {
+            item("Save and close", onClick = { saveAndClose() })
+            item("Save a copy", onClick = { saveCopy() })
+        },
+    ) {
+        +"Save"
+    }
 }

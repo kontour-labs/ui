@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.invisible
 
 /**
  * How a text field is drawn.
@@ -62,6 +63,21 @@ data class TextFieldColors(
 data class TextFieldMetrics(
     val minHeight: Dp,
     val horizontalPadding: Dp,
+    /**
+     * The padding on a side that holds an icon rather than text.
+     *
+     * Smaller than [horizontalPadding], and it has to be: a glyph does not fill
+     * its own box. `iconMedium` is 20dp holding 12dp of chevron, so 4dp of clear
+     * space comes free on each side — pad an icon like text and its *ink* lands
+     * 4dp further in than the text's does. A `Select` measured 13dp of clear
+     * space to the left of its value and 16dp to the right of its chevron, which
+     * is what "the padding is asymmetric" looks like from the outside.
+     *
+     * Taking the 4dp off the padding instead of nudging the icon keeps it a
+     * layout fact rather than a drawing trick, and it is the same 4dp every
+     * icon set leaves, because they are all drawn on a grid with a margin.
+     */
+    val iconPadding: Dp,
     val verticalPadding: Dp,
     val gap: Dp,
 )
@@ -74,7 +90,16 @@ object TextFieldDefaults {
     fun colors(variant: TextFieldVariant = TextFieldVariant.Outlined): TextFieldColors {
         val c = Theme.colors
         return TextFieldColors(
-            container = if (variant == TextFieldVariant.Filled) c.surfaceSunken else Color.Transparent,
+            // `invisible()`, not `Color.Transparent`. `FieldScaffold` animates
+            // this to `containerFocused` and back, and `Color.Transparent` is
+            // black — so an outlined field faded *through* a half-opaque
+            // near-black in both directions. That was the grey flash on focus
+            // and the grey flash on blur, and it was two frames long.
+            container = if (variant == TextFieldVariant.Filled) {
+                c.surfaceSunken
+            } else {
+                c.accent.container.invisible()
+            },
             // Focus tints the *ground*, not only the border. A 2dp accent edge
             // is the whole of "you are typing here" today, and on a form of six
             // fields that is a thin line the eye has to go looking for. The tint
@@ -99,7 +124,9 @@ object TextFieldDefaults {
             // with no border there is nothing on screen saying where the input
             // starts.
             border = if (variant == TextFieldVariant.Filled) {
-                if (highContrast()) c.outline else Color.Transparent
+                // Invisible rather than transparent for the same reason as
+                // `container` above: this animates to `borderFocused`.
+                if (highContrast()) c.outline else c.outline.invisible()
             } else {
                 c.outlineStrong
             },
@@ -118,6 +145,9 @@ object TextFieldDefaults {
     fun metrics(): TextFieldMetrics = TextFieldMetrics(
         minHeight = Theme.sizing.controlHeightLarge,
         horizontalPadding = Theme.spacing.sm,
+        // One step down the scale, which is the 4dp of clear space an icon's own
+        // box already gives it. See `TextFieldMetrics.iconPadding`.
+        iconPadding = Theme.spacing.xs,
         verticalPadding = Theme.spacing.sm,
         gap = Theme.spacing.xs,
     )

@@ -106,9 +106,10 @@ private fun Install() {
         }
         Text(
             "It is published privately through GitHub Packages, so the repository " +
-                "needs credentials — a personal access token with read:packages, or " +
-                "the Actions token in CI. Versions are tags: v0.2.0 publishes 0.2.0, " +
-                "and anything untagged is a snapshot.",
+                "needs a classic personal access token with read:packages — in CI " +
+                "too, because a workflow's own token cannot read another " +
+                "repository's Maven packages. Versions are tags: v0.2.0 publishes " +
+                "0.2.0, and anything untagged is a snapshot.",
             style = Theme.typography.bodyMedium,
             color = Theme.colors.contentMuted,
         )
@@ -153,6 +154,7 @@ private fun Reading() {
         // three of its five targets, and a link that does nothing on iOS is
         // worse than a path someone can find in the repository.
         KeyValueList {
+            item("Installing", "docs/using/installing.md")
             item("Components", "docs/using/components.md")
             item("Tokens", "docs/using/tokens.md")
             item("Theming", "docs/using/theming.md")

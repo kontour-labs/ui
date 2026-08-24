@@ -223,7 +223,13 @@ private fun TwoPane(
             ResizeHandle(
                 onDelta = { delta ->
                     if (totalWidth <= 0f) return@ResizeHandle
-                    val minWeight = minWidthPx / totalWidth
+                    // Half at most, so the clamp cannot invert. Two panes each
+                    // wanting a 360dp minimum in a 700dp window ask for more
+                    // than there is, and `coerceIn` *throws* on an inverted
+                    // range — mid-drag, which is the worst moment to find out.
+                    // Pinned to the middle is the honest answer: neither pane
+                    // can have its minimum, so neither gets preference.
+                    val minWeight = (minWidthPx / totalWidth).coerceAtMost(0.5f)
                     weight = (weight + delta / totalWidth)
                         .coerceIn(minWeight, 1f - minWeight)
                 },

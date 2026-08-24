@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +45,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.invisible
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
@@ -145,8 +147,6 @@ fun CalendarMonth(
         val cells = leadingBlanks + daysInMonth
         val rows = (cells + 6) / 7
 
-        var dragFrom by remember { mutableStateOf<LocalDate?>(null) }
-
         WeekGrid(
             rows = rows,
             leadingBlanks = leadingBlanks,
@@ -154,8 +154,6 @@ fun CalendarMonth(
             month = month,
             isDateSelectable = isDateSelectable,
             onDragSelect = onDragSelect,
-            dragFrom = dragFrom,
-            setDragFrom = { dragFrom = it },
         ) {
         for (row in 0 until rows) {
             Row(Modifier.fillMaxWidth()) {
@@ -206,41 +204,61 @@ private fun WeekGrid(
     month: LocalDate,
     isDateSelectable: (LocalDate) -> Boolean,
     onDragSelect: ((LocalDate, LocalDate) -> Unit)?,
-    dragFrom: LocalDate?,
-    setDragFrom: (LocalDate?) -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val currentSelect by rememberUpdatedState(onDragSelect)
+    val currentSelectable by rememberUpdatedState(isDateSelectable)
+
     Column(
         Modifier
             .fillMaxWidth()
-            .pointerInput(onDragSelect, leadingBlanks, daysInMonth, rows) {
-                if (onDragSelect == null) return@pointerInput
+            .then(
+                if (onDragSelect == null) {
+                    Modifier
+                } else {
+                    // `month` is a key because `dateAt` builds dates out of it;
+                    // without it a block launched in August goes on reporting
+                    // August dates after the calendar has paged to September.
+                    Modifier.pointerInput(leadingBlanks, daysInMonth, rows, month) {
+                        /**
+                         * Where the finger went down.
+                         *
+                         * A plain local, and it has to be. This was hoisted into
+                         * the composition and read back inside the gesture, where
+                         * it is a value *captured when the block was launched* —
+                         * which is before the drag started, so it was `null` on
+                         * every move and the range never grew past the day it
+                         * began on. The gesture's own anchor is not state anybody
+                         * else reads, so nobody else should be holding it.
+                         */
+                        var anchor: LocalDate? = null
 
-                fun dateAt(offset: Offset): LocalDate? {
-                    if (size.width <= 0 || rows == 0) return null
-                    val cell = size.width / 7f
-                    val column = (offset.x / cell).toInt()
-                    val row = (offset.y / cell).toInt()
-                    if (column !in 0..6 || row !in 0 until rows) return null
-                    val day = row * 7 + column - leadingBlanks + 1
-                    if (day < 1 || day > daysInMonth) return null
-                    val date = LocalDate(month.year, month.month, day)
-                    return if (isDateSelectable(date)) date else null
-                }
+                        fun dateAt(offset: Offset): LocalDate? {
+                            if (size.width <= 0 || rows == 0) return null
+                            val cell = size.width / 7f
+                            val column = (offset.x / cell).toInt()
+                            val row = (offset.y / cell).toInt()
+                            if (column !in 0..6 || row !in 0 until rows) return null
+                            val day = row * 7 + column - leadingBlanks + 1
+                            if (day < 1 || day > daysInMonth) return null
+                            val date = LocalDate(month.year, month.month, day)
+                            return if (currentSelectable(date)) date else null
+                        }
 
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        val start = dateAt(offset)
-                        setDragFrom(start)
-                        start?.let { onDragSelect(it, it) }
-                    },
-                    onDragEnd = { setDragFrom(null) },
-                    onDragCancel = { setDragFrom(null) },
-                ) { change, _ ->
-                    val from = dragFrom ?: return@detectDragGestures
-                    dateAt(change.position)?.let { onDragSelect(from, it) }
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                anchor = dateAt(offset)
+                                anchor?.let { currentSelect?.invoke(it, it) }
+                            },
+                            onDragEnd = { anchor = null },
+                            onDragCancel = { anchor = null },
+                        ) { change, _ ->
+                            val from = anchor ?: return@detectDragGestures
+                            dateAt(change.position)?.let { currentSelect?.invoke(from, it) }
+                        }
+                    }
                 }
-            },
+            ),
         content = content,
     )
 }
@@ -291,25 +309,56 @@ private fun DayCell(
         else -> Theme.shapes.pill
     }
 
-    val container by animateColorAsState(
-        targetValue = when {
-            filled -> colors.primary
-            inRange -> colors.accent.container
-            else -> Color.Transparent
-        },
+    /**
+     * A day arrives, but it does not leave.
+     *
+     * Tapping a date should feel like laying down a stone, so a cell joining the
+     * selection eases in. Letting it ease *out* again is a different thing
+     * entirely, and it only shows when a whole range is replaced: every day of
+     * the old one animated away at once, so choosing new dates dragged a trail of
+     * grey circles behind it for a fifth of a second — a near-black cap on its
+     * way to nothing is grey for most of the tween, and there was one on every
+     * day the range used to cover. Nothing about a range you have just replaced
+     * is worth watching leave.
+     *
+     * So the drawn colour is the animated one on the way in and the *target* on
+     * the way out. Not `snap()` as the spec, which is a zero-length animation and
+     * still costs the frame it takes to start — one frame of the old range at
+     * full strength, which is exactly the flash.
+     */
+    val arriving = filled || inRange
+
+    val containerTarget = when {
+        filled -> colors.primary
+        inRange -> colors.accent.container
+        // `invisible()`, not `Color.Transparent`, which is black. This is where
+        // a cell animates *from* when it joins a range, and a lerp moves the
+        // channels as well as the alpha — so the tint used to arrive out of the
+        // dark rather than fading up.
+        else -> colors.accent.container.invisible()
+    }
+    val animatedContainer by animateColorAsState(
+        targetValue = containerTarget,
         animationSpec = motion.tweenFast(),
         label = "dayContainer",
     )
-    val label by animateColorAsState(
-        targetValue = when {
-            !enabled -> colors.contentDisabled
-            filled -> colors.onPrimary
-            inRange -> colors.accent.onContainer
-            else -> colors.content
-        },
+    val container = if (arriving) animatedContainer else containerTarget
+
+    val labelTarget = when {
+        !enabled -> colors.contentDisabled
+        filled -> colors.onPrimary
+        inRange -> colors.accent.onContainer
+        else -> colors.content
+    }
+    val animatedLabel by animateColorAsState(
+        targetValue = labelTarget,
         animationSpec = motion.tweenFast(),
         label = "dayLabel",
     )
+    // Taken away with the fill it is drawn on. Easing the digit back to
+    // `content` over a container that has already gone leaves white text on a
+    // white ground for the length of the tween.
+    val label = if (arriving) animatedLabel else labelTarget
     // The fill springs in rather than fading, so tapping through a range feels
     // like laying down stones rather than watching cells tint.
     val fillScale by animateFloatAsState(

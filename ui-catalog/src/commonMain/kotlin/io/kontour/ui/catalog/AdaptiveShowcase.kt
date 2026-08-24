@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +27,9 @@ import io.kontour.ui.adaptive.ListDetailPaneScaffold
 import io.kontour.ui.adaptive.PaneFocus
 import io.kontour.ui.adaptive.SupportingPaneScaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
+import io.kontour.ui.components.action.Button
+import io.kontour.ui.components.action.ButtonSize
+import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemPosition
@@ -32,6 +37,7 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.GlassSurface
+import io.kontour.ui.motion.PageTransition
 import io.kontour.ui.motion.atmosphere
 import io.kontour.ui.motion.edgeVignette
 import io.kontour.ui.motion.shimmer
@@ -46,7 +52,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+            DeviceStrip {
                 Frame("List–detail, one pane", width = 380.dp, height = 460.dp) {
                     // The whole point of the one-pane arrangement is that
                     // picking a stop *replaces* the list and back brings it
@@ -94,11 +100,94 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
-                Column(
-                    modifier = Modifier.width(600.dp),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                ) {
+            // Decorative surfaces, not device exhibits — so `FlowRow` rather
+            // than `DeviceStrip`. A horizontal scroller measures its children at
+            // infinite width, which quietly disables `Panel`'s `widthIn(max =)`:
+            // these two stayed 600dp apiece on a 360dp phone and the page became
+            // a 1,224dp strip nobody would think to scroll.
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+            ) {
+                Panel(width = 600.dp, spacing = Theme.spacing.xs) {
+                    Text(
+                        text = "PAGE TRANSITION",
+                        style = Theme.typography.monoLabel,
+                        color = Theme.colors.accent.solid,
+                    )
+                    // Tap the card and it becomes the header of the page it
+                    // opens; tap Back and it returns. The whole of what
+                    // `PageTransition` adds is that the card and the header are
+                    // one element rather than two — which a still cannot show,
+                    // so this one is here to be pressed.
+                    val open = seed(false)
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .clip(Theme.shapes.large)
+                            .background(Theme.colors.surfaceSunken),
+                    ) {
+                        PageTransition(target = open.value, modifier = Modifier.fillMaxSize()) { detail ->
+                            if (detail) {
+                                Column(Modifier.fillMaxSize()) {
+                                    Card(
+                                        modifier = Modifier
+                                            .sharedBounds(HeroKey, clip = Theme.shapes.large)
+                                            .fillMaxWidth()
+                                            .height(120.dp),
+                                    ) {
+                                        Text(
+                                            "Perth Underground",
+                                            style = Theme.typography.titleMedium,
+                                        )
+                                        Text(
+                                            "4 platforms · Mandurah, Joondalup, Airport",
+                                            style = Theme.typography.bodySmall,
+                                            color = Theme.colors.contentMuted,
+                                        )
+                                    }
+                                    Box(
+                                        Modifier.fillMaxSize().padding(Theme.spacing.md),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Button(
+                                            onClick = { open.value = false },
+                                            variant = ButtonVariant.Secondary,
+                                            size = ButtonSize.Small,
+                                        ) { +"Back" }
+                                    }
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(Theme.spacing.md),
+                                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+                                ) {
+                                    Card(
+                                        modifier = Modifier
+                                            .sharedBounds(HeroKey, clip = Theme.shapes.large)
+                                            .fillMaxWidth(),
+                                        onClick = { open.value = true },
+                                    ) {
+                                        Text(
+                                            "Perth Underground",
+                                            style = Theme.typography.titleSmall,
+                                        )
+                                    }
+                                    Text(
+                                        "Tap the card — it becomes the header.",
+                                        style = Theme.typography.bodySmall,
+                                        color = Theme.colors.contentMuted,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Panel(width = 600.dp, spacing = Theme.spacing.xs) {
                     Text(
                         text = "ATMOSPHERE AND GLASS",
                         style = Theme.typography.monoLabel,
@@ -142,10 +231,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                     }
                 }
 
-                Column(
-                    modifier = Modifier.width(600.dp),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                ) {
+                Panel(width = 600.dp, spacing = Theme.spacing.xs) {
                     Text(
                         text = "EDGE VIGNETTE AND SHIMMER",
                         style = Theme.typography.monoLabel,
@@ -175,9 +261,12 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                                 .clip(Theme.shapes.small)
                                 .shimmer()
                         )
+                        // A short line under a full-width one — as a fraction,
+                        // because 360dp was wider than the column it sits in the
+                        // moment that column stopped being measured at infinity.
                         Box(
                             Modifier
-                                .width(360.dp)
+                                .fillMaxWidth(0.62f)
                                 .height(16.dp)
                                 .clip(Theme.shapes.small)
                                 .shimmer()
@@ -187,7 +276,8 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                     AspectRatioBox(
                         ratio = 16f / 9f,
                         modifier = Modifier
-                            .width(280.dp)
+                            .widthIn(max = 280.dp)
+                            .fillMaxWidth()
                             .clip(Theme.shapes.medium)
                             .shimmer(),
                     ) {
@@ -301,3 +391,7 @@ private fun Frame(title: String, width: Dp, height: Dp, content: @Composable () 
         }
     }
 }
+
+
+/** The card and the header it becomes are one element, so they share a key. */
+private const val HeroKey = "stop-hero"

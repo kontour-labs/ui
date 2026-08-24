@@ -54,8 +54,19 @@ sealed interface IndicatorSizing {
     /** Exactly the item's bounds. A segmented control, a drawer row. */
     data object Fill : IndicatorSizing
 
-    /** The item's bounds, inset on every side. */
-    data class Inset(val by: Dp) : IndicatorSizing
+    /**
+     * The item's bounds, inset per axis.
+     *
+     * Two values rather than one because the nav rail and drawer want a pill
+     * that is narrower than the row and exactly as tall as it. Inset on both
+     * axes, the marker behind a 48dp destination came out 40dp high with the
+     * label sitting hard against its edge — no vertical padding at all, which
+     * reads as a pill that is too small for what it is marking rather than as
+     * one that is snug.
+     */
+    data class Inset(val horizontal: Dp, val vertical: Dp) : IndicatorSizing {
+        constructor(by: Dp) : this(by, by)
+    }
 
     /**
      * A fixed size, placed against the item's box. The nav bar's pill behind an
@@ -103,11 +114,10 @@ internal fun resolveIndicatorBounds(
         IndicatorSizing.Fill -> item
 
         is IndicatorSizing.Inset -> {
-            val by = sizing.by.toPx()
             // Never inset past nothing: a 4dp inset on a 6dp item would otherwise
             // produce a negative rect, which draws as a flicker or not at all.
-            val horizontal = by.coerceAtMost(item.width / 2f)
-            val vertical = by.coerceAtMost(item.height / 2f)
+            val horizontal = sizing.horizontal.toPx().coerceAtMost(item.width / 2f)
+            val vertical = sizing.vertical.toPx().coerceAtMost(item.height / 2f)
             Rect(
                 left = item.left + horizontal,
                 top = item.top + vertical,

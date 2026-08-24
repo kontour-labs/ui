@@ -479,3 +479,26 @@ fun kontourColorScheme(dark: Boolean, contrast: ContrastLevel): ColorScheme = wh
     contrast == ContrastLevel.High -> highContrastLightColorScheme()
     else -> lightColorScheme()
 }
+
+/**
+ * This colour, invisible — the target to *animate* to rather than
+ * [Color.Transparent].
+ *
+ * `Color.Transparent` is **black** with an alpha of zero, and colour
+ * interpolation moves the channels as well as the alpha. So a tint animating out
+ * to `Color.Transparent` does not fade: it darkens on its way to nothing, and
+ * comes back out of the dark on its way in. On a light tint against a light
+ * ground that is a grey flash, and it was visible in two places at once — a text
+ * field greyed for two frames every time it took or lost focus, and a date range
+ * picker left a grey ghost on every day it had just released.
+ *
+ * ```kotlin
+ * animateColorAsState(if (selected) colors.accent.container else colors.accent.container.invisible())
+ * ```
+ *
+ * Painted, this is identical to [Color.Transparent] — nothing is drawn either
+ * way. It only differs *between* two values, which is exactly where it matters.
+ * `Color.Transparent` is still the right thing to write for a colour that is
+ * never animated.
+ */
+fun Color.invisible(): Color = copy(alpha = 0f)

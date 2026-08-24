@@ -84,6 +84,20 @@ fun NavigationSuiteScaffold(
      */
     showLabels: Boolean? = null,
     containerColor: Color = Theme.colors.background,
+    /**
+     * A search field in the bar, usually a [NavSearch].
+     *
+     * The bar only. A rail and a drawer have a leading edge to put one on and no
+     * shortage of room, and how a wide window searches is a screen's decision
+     * rather than the navigation surface's — whereas on a phone the bar is the
+     * only furniture there is, which is why it takes one at all.
+     */
+    search: (@Composable () -> Unit)? = null,
+    /**
+     * Where [search] sits among the destinations. `null` puts it after them all;
+     * `items.size / 2` puts it in the middle, with two either side.
+     */
+    searchIndex: Int? = null,
     action: (@Composable () -> Unit)? = null,
     drawerHeader: (@Composable ColumnScope.() -> Unit)? = null,
     /**
@@ -101,7 +115,8 @@ fun NavigationSuiteScaffold(
                 // added the floating inset to a docked bar that has none, and the
                 // bar's height is now derived from its content, so it grows at
                 // large type and no arithmetic here could predict it.
-                var barHeight by remember { mutableStateOf(NavBarDefaults.MinHeight) }
+                val estimate = NavBarDefaults.MinHeight
+                var barHeight by remember { mutableStateOf(estimate) }
                 val density = LocalDensity.current
 
                 content(barHeight)
@@ -118,6 +133,8 @@ fun NavigationSuiteScaffold(
                             barHeight = with(density) { it.height.toDp() }
                         },
                     showLabels = showLabels ?: false,
+                    search = search,
+                    searchIndex = searchIndex,
                     action = action,
                     windowInsets = windowInsets ?: WindowInsets.bottomEdges,
                 )

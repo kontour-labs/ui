@@ -3,23 +3,24 @@ package io.kontour.ui.contract
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.state.ToggleableState
-import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.hasClickAction
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Plus
@@ -29,22 +30,30 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonGroup
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.ExtendedFloatingActionButton
+import io.kontour.ui.components.action.FabMenu
+import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.display.Accordion
+import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.AnimatedBanner
 import io.kontour.ui.components.display.BannerTone
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.Kbd
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import io.kontour.ui.components.display.PageIndicator
+import io.kontour.ui.components.display.PageIndicatorStyle
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListItemPosition
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
@@ -74,6 +83,7 @@ import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.marquee
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.nav.NavBarItem
 import io.kontour.ui.nav.NavDrawerGroup
@@ -149,7 +159,7 @@ class RenderState(
  *   whole disclosed body into the header's announcement. The role and disabled
  *   rules apply to the control; the modifier, target and layout rules still apply
  *   to the outside. `null` means the two are the same node, which is the case
- *   worth defaulting to.
+ *   worth defaulting to. See [ControlLocator].
  * @param accessibleName The text a screen reader must be able to read off this
  *   control, for a component rendered here **with a visible label**. This is the
  *   rule that catches a label sitting beside a control rather than naming it —
@@ -164,7 +174,7 @@ class ComponentSpec(
     val role: Role?,
     val expectsMinimumTarget: Boolean = true,
     val activatedByClick: Boolean = true,
-    val control: SemanticsMatcher? = null,
+    val control: ControlLocator? = null,
     val accessibleName: String? = null,
     /**
      * True for a control that cannot name itself and is designed not to.
@@ -203,6 +213,23 @@ class ComponentSpec(
      */
     val renderHeight: Int? = null,
     /**
+     * The narrowest this component can be drawn correctly, in dp.
+     *
+     * Null for almost everything: a component squeezed below what it asked for
+     * is expected to cope, and `WidthSweepTest` holds it to that. The exception
+     * is a component whose parts have *individually* irreducible sizes — a
+     * `Stepper` is two 48dp touch targets with a value between them, so at 48dp
+     * there is no arrangement of it that is right, only ones that are wrong in
+     * different ways: shrink the buttons and they stop being reachable, drop one
+     * and the control silently loses half of what it does.
+     *
+     * Declared here rather than exempted by name inside the sweep, because a
+     * list of names in a test is how a defect becomes a permanent exemption.
+     * This is a fact about the component; it belongs next to the component,
+     * where whoever widens a `Stepper`'s parts has to change it.
+     */
+    val minWidth: Int? = null,
+    /**
      * Extra renders beyond the resting one — see [RenderState].
      *
      * Empty for most components, because most of them look like themselves
@@ -227,25 +254,52 @@ class ComponentSpec(
 }
 
 /**
- * Matches a text input **in either state**.
+ * Where a component's operable node is, said without naming a test API.
  *
- * Deliberately not `hasSetTextAction()`: foundation withdraws the set-text action
- * when a field is disabled, so a matcher built on it finds nothing in precisely
- * the case the disabled rule exists to check — and an assertion that cannot find
- * its node reports as a failure that looks like the rule, not like the matcher.
+ * The registry used to hold a `SemanticsMatcher` here, which tied the whole list
+ * to `compose.uiTest` and so to a test source set. That was fine while the
+ * contract suite was the only reader; it is not fine now that the documentation
+ * site renders the same specimens, because it would ship a test framework in a
+ * bundle a browser has to download.
+ *
+ * So the spec says *what kind of node* and `ComponentContractTest` turns that
+ * into a matcher. Four kinds cover the library, and each is a decision worth
+ * writing down rather than a matcher expression to be read back later.
  */
-private val isTextInput = SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)
+sealed interface ControlLocator {
 
-/**
- * Matches the chosen one of a set of selectable children, **in either state**.
- *
- * Not `hasClickAction()`, for the same reason [isTextInput] is not
- * `hasSetTextAction()`: foundation withdraws the click action when a control is
- * disabled, so that matcher finds nothing in exactly the case the disabled rule
- * is about. `Selected` is set either way, and matching the selected one keeps it
- * to a single node where `hasClickAction()` would match every segment.
- */
-private val isSelectedOption = SemanticsMatcher.expectValue(SemanticsProperties.Selected, true)
+    /** The clickable node inside the specimen. An `Accordion`'s header. */
+    data object Clickable : ControlLocator
+
+    /**
+     * A text input, **in either state**.
+     *
+     * Deliberately not "has a set-text action": foundation withdraws that action
+     * when a field is disabled, so a matcher built on it finds nothing in
+     * precisely the case the disabled rule exists to check — and an assertion
+     * that cannot find its node reports as a failure that looks like the rule,
+     * not like the matcher.
+     */
+    data object TextInput : ControlLocator
+
+    /**
+     * The chosen one of a set of selectable children, **in either state**.
+     *
+     * Not the clickable one, for the same reason [TextInput] is not the
+     * set-text one. `Selected` is set either way, and matching the selected one
+     * keeps it to a single node where "clickable" would match every segment.
+     */
+    data object SelectedOption : ControlLocator
+
+    /**
+     * The clickable node carrying this text.
+     *
+     * For a component that is two controls: a `SplitButton` is a labelled half
+     * and a chevron half, and the rules about role and disabled belong to the
+     * half that carries the default action.
+     */
+    data class ClickableLabelled(val text: String) : ControlLocator
+}
 
 /**
  * Every component in the system, as a specimen.
@@ -343,6 +397,43 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 modifier = modifier,
                 enabled = enabled,
             ) { +"Add stop" }
+        }
+    )
+
+    add(
+        // Shut, this is a `FloatingActionButton` and nothing else — which is the
+        // point of the component and the wrong picture of it. The three extra
+        // renders are the three layouts, because "which arrangement do I want"
+        // is the only question a reader has about this one and no amount of
+        // prose answers it as fast as seeing them side by side.
+        ComponentSpec(
+            name = "FabMenu",
+            role = Role.Button,
+            accessibleName = "Add",
+            states = FabMenuLayout.entries.map { layout ->
+                // In the corner, because that is the only place the picture is
+                // true: the component picks which way to open from where it
+                // finds itself, so a specimen centred in its card opens
+                // downward into nothing and shows an arrangement no real screen
+                // would produce.
+                RenderState(layout.name.lowercase(), height = 300) { modifier ->
+                    Box(modifier.fillMaxSize()) {
+                        FabMenuSpecimen(
+                            expanded = true,
+                            layout = layout,
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                        )
+                    }
+                }
+            },
+        ) { modifier, enabled, onClick ->
+            FabMenuSpecimen(
+                expanded = false,
+                layout = FabMenuLayout.Vertical,
+                modifier = modifier,
+                enabled = enabled,
+                onExpandedChange = { onClick() },
+            )
         }
     )
 
@@ -540,6 +631,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             activatedByClick = false,
             expectsMinimumTarget = false,
+            // Two 48dp targets and a value cell between them. Measured at 144dp
+            // with the default `valueWidth`; below that something has to give
+            // and every candidate is worse than overflowing.
+            minWidth = 144,
         ) { modifier, enabled, _ ->
             Stepper(
                 value = 2,
@@ -669,6 +764,36 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             underContract = false,
             renderHeight = 160,
+            states = listOf(
+                // The worm, which the default render cannot show: the dots
+                // style and the worm style draw the same thing on page one and
+                // differ only in what happens between two pages.
+                // Caught halfway between two pages, because that is the only
+                // position where a worm looks like anything: at rest it is a
+                // dot, and the stretch is the whole of what it adds.
+                RenderState("worm", height = 60) { modifier ->
+                    val carousel = rememberCarouselState { 4 }
+                    LaunchedEffect(Unit) {
+                        val pitch = snapshotFlow {
+                            carousel.listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size
+                        }.filterNotNull().first()
+                        carousel.listState.scrollToItem(0, pitch / 2)
+                    }
+                    Column(modifier.fillMaxWidth()) {
+                        // Off the bottom of the frame: the pages exist so the
+                        // list has something to be halfway through, and the
+                        // render is cropped to its ink anyway.
+                        Carousel(
+                            state = carousel,
+                            contentDescription = "Pages",
+                            modifier = Modifier.fillMaxWidth().height(1.dp),
+                        ) { Box(Modifier.fillMaxWidth().height(1.dp)) }
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            PageIndicator(carousel, style = PageIndicatorStyle.Worm)
+                        }
+                    }
+                },
+            ),
         ) { modifier, enabled, _ ->
             val carousel = rememberCarouselState { 3 }
             Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -705,7 +830,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             expectsMinimumTarget = false,
             activatedByClick = false,
-            control = isTextInput,
+            control = ControlLocator.TextInput,
             accessibleName = "Origin",
         ) { modifier, enabled, _ ->
             TextField(
@@ -723,7 +848,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             expectsMinimumTarget = false,
             activatedByClick = false,
-            control = isTextInput,
+            control = ControlLocator.TextInput,
         ) { modifier, enabled, _ ->
             SearchField(
                 state = rememberTextFieldState(),
@@ -739,7 +864,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "Select",
             role = Role.DropdownList,
             expectsMinimumTarget = false,
-            control = hasClickAction(),
+            control = ControlLocator.Clickable,
             accessibleName = "When",
         ) { modifier, enabled, onClick ->
             Select(
@@ -753,12 +878,44 @@ val componentRegistry: List<ComponentSpec> = buildList {
         }
     )
 
+    add(
+        // Drawn at rest, which for a counter is a number. The roll is what it is
+        // *for* and a still cannot show it — `AnimatedCounterTest` is where that
+        // claim is checked, and a second render mid-roll would be a picture of
+        // one arbitrary frame.
+        ComponentSpec(
+            name = "AnimatedCounter",
+            role = null,
+            underContract = false,
+        ) { modifier, _, _ ->
+            AnimatedCounter(value = 14, modifier = modifier, format = { "$it min" })
+        }
+    )
+
+    add(
+        // Given less room than its text needs, because that is the only state in
+        // which the modifier does anything at all.
+        ComponentSpec(
+            name = "Modifier.marquee",
+            role = null,
+            underContract = false,
+        ) { modifier, _, _ ->
+            Box(modifier.width(140.dp)) {
+                Text(
+                    text = "Elizabeth Quay Bus Station",
+                    maxLines = 1,
+                    modifier = Modifier.marquee(),
+                )
+            }
+        }
+    )
+
     // --- Disclosure ------------------------------------------------------
     add(
         ComponentSpec(
             name = "Accordion",
             role = Role.Button,
-            control = hasClickAction(),
+            control = ControlLocator.Clickable,
             states = listOf(
                 // Collapsed, the panel is the half of this component that does
                 // not exist yet — so the resting render is a header row with a
@@ -784,6 +941,69 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 enabled = enabled,
             ) {
                 Text("Step-free access at all platforms.")
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "SplitButton",
+            role = Role.Button,
+            // Two buttons in one control, so the outermost node is the pair and
+            // the rules about role and disabled belong to the half that carries
+            // the default action.
+            control = ControlLocator.ClickableLabelled("Save"),
+            accessibleName = "Save",
+            states = listOf(
+                RenderState("expanded", height = 260) { modifier ->
+                    SplitButtonSpecimen(expanded = true, modifier = modifier)
+                },
+            ),
+        ) { modifier, enabled, onClick ->
+            SplitButtonSpecimen(
+                expanded = false,
+                modifier = modifier,
+                enabled = enabled,
+                onClick = onClick,
+            )
+        }
+    )
+
+    add(
+        // The near-twin of `Accordion`, and the pair is why both are here: an
+        // accordion is a header over a *panel*, this is a row over more *rows*.
+        // Two renders of the same collapsed row would be the duplicate the
+        // `RenderState` KDoc warns about, so the state that earns its picture is
+        // the open one — where the seams are the whole difference.
+        ComponentSpec(
+            name = "ExpandingListItem",
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            states = listOf(
+                RenderState("expanded", height = 340) { modifier ->
+                    ExpandingListItem(
+                        expanded = true,
+                        onExpandedChange = {},
+                        header = { +"Perth Underground" },
+                        chevron = Tabler.Outline.ChevronDown,
+                        modifier = modifier,
+                    ) {
+                        item("Platform 1")
+                        item("Platform 2")
+                    }
+                },
+            ),
+        ) { modifier, enabled, onClick ->
+            ExpandingListItem(
+                expanded = false,
+                onExpandedChange = { onClick() },
+                header = { +"Perth Underground" },
+                chevron = Tabler.Outline.ChevronDown,
+                modifier = modifier,
+                enabled = enabled,
+            ) {
+                item("Platform 1")
+                item("Platform 2")
             }
         }
     )
@@ -877,7 +1097,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "SegmentedControl",
             role = Role.RadioButton,
-            control = isSelectedOption,
+            control = ControlLocator.SelectedOption,
         ) { modifier, enabled, onClick ->
             SegmentedControl(
                 options = listOf("Bus", "Train"),
@@ -959,7 +1179,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "RadioGroup",
             role = Role.RadioButton,
-            control = isSelectedOption,
+            control = ControlLocator.SelectedOption,
         ) { modifier, enabled, onClick ->
             RadioGroup(
                 options = listOf("Bus", "Train"),
@@ -1161,4 +1381,65 @@ val componentRegistry: List<ComponentSpec> = buildList {
             }
         }
     )
+}
+
+
+/**
+ * The `FabMenu` every one of its specimens uses.
+ *
+ * Four call sites want the same three actions — the resting one and one per
+ * layout — and a menu whose contents differed between them would make the three
+ * renders incomparable in exactly the dimension they exist to compare.
+ */
+@Composable
+private fun FabMenuSpecimen(
+    expanded: Boolean,
+    layout: FabMenuLayout,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onExpandedChange: (Boolean) -> Unit = {},
+) {
+    FabMenu(
+        expanded = expanded,
+        onExpandedChange = onExpandedChange,
+        icon = Tabler.Outline.Plus,
+        contentDescription = "Add",
+        modifier = modifier,
+        enabled = enabled,
+        layout = layout,
+    ) {
+        item(Tabler.Outline.Star, "Save stop") {}
+        item(Tabler.Outline.CurrentLocation, "Nearby") {}
+        item(Tabler.Outline.Stack, "Routes") {}
+    }
+}
+
+
+/**
+ * The `SplitButton` both of its specimens use.
+ *
+ * Same label and same menu in the resting and expanded renders, so the pair
+ * differs only in the thing being shown.
+ */
+@Composable
+private fun SplitButtonSpecimen(
+    expanded: Boolean,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClick: () -> Unit = {},
+) {
+    SplitButton(
+        onClick = onClick,
+        expanded = expanded,
+        onExpandedChange = {},
+        menuContentDescription = "Other save options",
+        modifier = modifier,
+        enabled = enabled,
+        menu = {
+            item("Save and close", onClick = {})
+            item("Save a copy", onClick = {})
+        },
+    ) {
+        +"Save"
+    }
 }

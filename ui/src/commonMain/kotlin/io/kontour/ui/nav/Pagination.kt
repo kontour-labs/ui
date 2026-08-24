@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
@@ -17,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.action.IconButton
@@ -45,7 +47,23 @@ import io.kontour.ui.theme.Theme
  * with its own announcement, and the current one reports as selected rather than
  * relying on colour — colour alone would fail WCAG 1.4.1.
  *
- * @param window How many pages to show either side of the current one.
+ * ### [window] is a ceiling, not a promise
+ *
+ * A collapsed range still has a width, and on a phone it is bigger than it
+ * looks: every button reserves `Theme.sizing.minTouchTarget`, which is 48dp on
+ * Android against the 24 a desktop asks for. `« 1 … 19 20 21 … 40 »` needs
+ * about 410dp on that arithmetic and a 360dp phone offers roughly 310 — so it
+ * ran off the right-hand edge, where the numbers are neither visible nor
+ * reachable, and it did so in a golden that had been looked at, because the JVM
+ * renders those same buttons at 24dp and everything fit.
+ *
+ * So the window narrows to what there is room for, down to nothing: first,
+ * current and last, which is three buttons and always fits. Where there is
+ * room — a desktop, a tablet, a horizontally scrolling parent that measures
+ * this unbounded — [window] is honoured exactly as asked.
+ *
+ * @param window How many pages to show either side of the current one, if they
+ *   fit. Fewer are shown when they do not.
  */
 @Composable
 fun Pagination(
@@ -59,46 +77,90 @@ fun Pagination(
 ) {
     if (pageCount <= 1) return
 
-    Row(
-        modifier = modifier.selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(
-            icon = SystemIcons.ChevronBack,
-            contentDescription = previousLabel,
-            onClick = { onValueChange(value - 1) },
-            enabled = value > 0,
+    BoxWithConstraints(modifier) {
+        val fitted = widestWindowThatFits(
+            available = maxWidth,
+            requested = window,
+            value = value,
+            pageCount = pageCount,
+            button = maxOf(PageButtonSize, Theme.sizing.minTouchTarget),
+            gap = Theme.spacing.xxs,
         )
 
-        for (slot in paginationSlots(value, pageCount, window)) {
-            when (slot) {
-                is PaginationSlot.Page -> PageButton(
-                    number = slot.index,
-                    selected = slot.index == value,
-                    onClick = { onValueChange(slot.index) },
-                )
+        Row(
+            modifier = Modifier.selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                icon = SystemIcons.ChevronBack,
+                contentDescription = previousLabel,
+                onClick = { onValueChange(value - 1) },
+                enabled = value > 0,
+            )
 
-                PaginationSlot.Gap -> Text(
-                    text = "…",
-                    modifier = Modifier
-                        .padding(horizontal = Theme.spacing.xxs)
-                        // Announcing "ellipsis" between two page numbers tells a
-                        // screen-reader user nothing they can act on.
-                        .semantics { contentDescription = "" },
-                    style = Theme.typography.bodyMedium,
-                    color = Theme.colors.contentSubtle,
-                )
+            for (slot in paginationSlots(value, pageCount, fitted)) {
+                when (slot) {
+                    is PaginationSlot.Page -> PageButton(
+                        number = slot.index,
+                        selected = slot.index == value,
+                        onClick = { onValueChange(slot.index) },
+                    )
+
+                    PaginationSlot.Gap -> Text(
+                        text = "…",
+                        modifier = Modifier
+                            .padding(horizontal = Theme.spacing.xxs)
+                            // Announcing "ellipsis" between two page numbers tells a
+                            // screen-reader user nothing they can act on.
+                            .semantics { contentDescription = "" },
+                        style = Theme.typography.bodyMedium,
+                        color = Theme.colors.contentSubtle,
+                    )
+                }
             }
-        }
 
-        IconButton(
-            icon = SystemIcons.ChevronForward,
-            contentDescription = nextLabel,
-            onClick = { onValueChange(value + 1) },
-            enabled = value < pageCount - 1,
-        )
+            IconButton(
+                icon = SystemIcons.ChevronForward,
+                contentDescription = nextLabel,
+                onClick = { onValueChange(value + 1) },
+                enabled = value < pageCount - 1,
+            )
+        }
     }
+}
+
+/**
+ * The largest window from [requested] down to zero whose row fits [available].
+ *
+ * Arithmetic rather than a measure pass, because the row's width is a sum of
+ * known parts: every page and arrow is a [button] square, every gap is an
+ * ellipsis with [GapWidth] to itself, and there is a [gap] between each pair.
+ * The estimate is deliberately a little generous — erring towards a narrower
+ * window costs one page number, while erring the other way puts the last page
+ * off the edge of the screen, which is the failure this exists to stop.
+ *
+ * [available] is `Dp.Infinity` inside a horizontally scrolling parent, which is
+ * the right answer there: nothing is being clipped, so nothing needs dropping.
+ */
+private fun widestWindowThatFits(
+    available: Dp,
+    requested: Int,
+    value: Int,
+    pageCount: Int,
+    button: Dp,
+    gap: Dp,
+): Int {
+    for (window in requested downTo 1) {
+        val slots = paginationSlots(value, pageCount, window)
+        val gaps = slots.count { it == PaginationSlot.Gap }
+        // The two arrows are buttons the slot list does not know about.
+        val buttons = slots.size - gaps + 2
+        val width =
+            button * buttons + GapWidth * gaps + gap * (buttons + gaps - 1)
+        if (width <= available) return window
+    }
+    return 0
 }
 
 @Composable
@@ -115,7 +177,7 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
             }
             .minimumTouchTarget()
             .focusRing(interactions, shape)
-            .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
+            .sizeIn(minWidth = PageButtonSize, minHeight = PageButtonSize)
             .clip(shape)
             .background(
                 if (selected) colors.accent.container else androidx.compose.ui.graphics.Color.Transparent,
@@ -124,7 +186,11 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
             .selectable(
                 selected = selected,
                 interactionSource = interactions,
-                indication = kontourIndication(shape, pressScale = 1f),
+                // A page number is a small button and nothing else answers the tap.
+                indication = kontourIndication(
+                    shape,
+                    io.kontour.ui.components.action.ButtonDefaults.SmallPressScale,
+                ),
                 role = Role.Button,
                 onClick = {
                     feedback.perform(FeedbackIntent.Selection)
@@ -140,6 +206,12 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
         )
     }
 }
+
+/** The visible square of a page number, before any touch target around it. */
+private val PageButtonSize = 36.dp
+
+/** About what an ellipsis and its side padding come to at `bodyMedium`. */
+private val GapWidth = 24.dp
 
 /** What goes in one position of a [Pagination] row. */
 sealed interface PaginationSlot {

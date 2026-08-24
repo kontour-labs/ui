@@ -44,6 +44,11 @@ include(":ui-catalog")
 // rather than being found by whoever pastes it into their app.
 include(":ui-samples")
 
+// The documentation site: a page per component, deployed to GitHub Pages. It
+// reads the prose from `docs/` and the specimens from `:ui-catalog`, so there
+// is no third copy of either.
+include(":ui-docs")
+
 // Hosts that put the gallery on a screen. None of them ships; they exist so the
 // library can be run and poked at on each platform it claims to support.
 include(":showcase:desktop")

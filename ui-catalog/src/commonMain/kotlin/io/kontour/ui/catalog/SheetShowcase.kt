@@ -43,10 +43,7 @@ import io.kontour.ui.theme.Theme
 @Composable
 fun SheetShowcase(modifier: Modifier = Modifier) {
     Surface(modifier = modifier, color = Theme.colors.background) {
-        Row(
-            modifier = Modifier.padding(Theme.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
-        ) {
+        Panels {
             SheetPanel("Peeking over a map") {
                 val sheet = rememberSheetState(
                     detents = listOf(
@@ -223,10 +220,7 @@ private fun MapStandIn() {
 
 @Composable
 private fun SheetPanel(title: String, content: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier.width(340.dp),
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-    ) {
+    Panel(width = 340.dp, spacing = Theme.spacing.xs) {
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,

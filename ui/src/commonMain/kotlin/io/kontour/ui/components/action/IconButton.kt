@@ -6,6 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -96,9 +97,13 @@ fun IconButton(
         colors = colors,
         metrics = metrics,
         interactions = interactions,
+        indication = kontourIndication(
+            shape,
+            ButtonDefaults.pressScale(variant, size, iconOnly = true),
+        ),
         behaviour = Modifier.clickable(
             interactionSource = interactions,
-            indication = kontourIndication(shape, ButtonDefaults.pressScale(variant)),
+            indication = null,
             enabled = enabled,
             role = Role.Button,
             onClick = {
@@ -177,6 +182,12 @@ fun IconToggleButton(
         colors = if (checked) accentColors else uncheckedColors,
         metrics = ButtonDefaults.metrics(size),
         interactions = interactions,
+        // An inert toggle still gets an indication node; it simply never sees a
+        // press, because nothing is feeding its interaction source.
+        indication = kontourIndication(
+            shape,
+            ButtonDefaults.pressScale(ButtonVariant.Ghost, size, iconOnly = true),
+        ),
         // `null` is inert but still announces as a checkbox in its current
         // state, the same as [Checkbox] and [Switch]. A toggle wired to nothing
         // that also says nothing is a decoration.
@@ -189,7 +200,7 @@ fun IconToggleButton(
             Modifier.toggleable(
                 value = checked,
                 interactionSource = interactions,
-                indication = kontourIndication(shape, ButtonDefaults.pressScale(ButtonVariant.Ghost)),
+                indication = null,
                 enabled = enabled,
                 role = Role.Checkbox,
                 onValueChange = {
@@ -223,6 +234,8 @@ private fun IconButtonSurface(
     metrics: ButtonMetrics,
     interactions: MutableInteractionSource,
     behaviour: Modifier,
+    /** Applied ahead of the container so the whole button scales, not the glyph. */
+    indication: androidx.compose.foundation.Indication?,
 ) {
     val motion = Theme.motion
 
@@ -244,12 +257,30 @@ private fun IconButtonSurface(
         label = "iconButtonRotation",
     )
     val borderColor = colors.border(enabled)
-    val boxSize = metrics.iconSize + metrics.iconOnlyPadding * 2
+    // The control height, not the icon plus a padding of its own.
+    //
+    // It used to be `iconSize + iconOnlyPadding * 2`, which is a second way of
+    // saying how tall a control is — and it disagreed with the first at three
+    // of the five sizes: an XSmall icon button was 24dp beside a 28dp button, a
+    // Small one 28dp beside 36dp, a Medium one 40dp beside 44dp. Large and
+    // XLarge happened to agree, which is why it survived.
+    //
+    // `Sizing` already promises that "a row of mixed controls lines up without
+    // per-call-site padding", and this was the one control not keeping it:
+    // every `ButtonGroup` mixing an icon action with a labelled one was ragged,
+    // and so was the trailing half of a `SplitButton`. The padding round the
+    // glyph is now whatever is left over, which is the only way the two can
+    // agree by construction rather than by being kept in step.
+    val boxSize = metrics.height
 
     Box(
         modifier = modifier
             .minimumTouchTarget()
             .focusRing(interactions, shape)
+            // Ahead of the container — see `Button` for why. The `behaviour`
+            // modifier below sits past `.background()`, so an indication handed
+            // to it scaled the glyph inside a circle that never moved.
+            .indication(interactions, indication)
             .size(boxSize)
             .clip(shape)
             .background(container, shape)

@@ -32,6 +32,14 @@ internal fun zoomIn() = Unit
 internal fun zoomOut() = Unit
 internal fun recentre() = Unit
 internal fun openLayers() = Unit
+internal fun save() = Unit
+internal fun nearby() = Unit
+internal fun saveAndClose() = Unit
+internal fun saveCopy() = Unit
+internal fun showTour() = Unit
+
+/** A handful of them, where a sample needs a list to iterate. */
+internal val stops = listOf(Stop("Perth Underground", 4), Stop("Elizabeth Quay", 3))
 internal fun refresh() = Unit
 internal fun openStop(name: String) = Unit
 internal fun remove(name: String) = Unit

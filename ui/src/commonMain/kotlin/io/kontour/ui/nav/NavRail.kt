@@ -1,6 +1,7 @@
 package io.kontour.ui.nav
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.WindowInsets
@@ -118,11 +120,58 @@ fun NavRail(
         label = "navRailWidth",
     )
 
-    // Inline once there is room for a label beside the icon. A collapsed
-    // expandable rail shows no label at all; see the note on the function.
-    val layout = if (expandable && expanded) NavItemLayout.Inline else NavItemLayout.Stacked
-    val itemLabels = showLabels && !(expandable && !expanded)
+    /**
+     * Whether the rail is *currently wide enough* to show a label.
+     *
+     * Not `expanded`, which is where it is heading. The width animates over a
+     * few hundred milliseconds, and a label composed on the frame the flag flips
+     * appears in a rail with no room for it.
+     *
+     * This is now the *only* thing that changes across an expansion. It used to
+     * have company: the destinations switched from a stacked column to an inline
+     * row, and the rail's own `horizontalAlignment` switched from centred to
+     * leading. Both of those moved the icons — the swap on the first frame of
+     * the animation, and the alignment at the halfway mark, where it also
+     * teleported the chevron and the action from the middle of the rail to its
+     * edge. Worse in reverse: collapsing flipped the layout back to stacked
+     * while the rail was still 240dp wide, so every icon jumped to the centre of
+     * that and slid back. Measured at 121dp of travel, against the 4dp the two
+     * resting states differ by.
+     *
+     * So the destinations are inline at every width and leading-aligned at every
+     * width, the glyph box is the same box throughout, and the growing rail
+     * reveals the labels rather than inserting them. Pinned by
+     * `NavRailStillnessTest`.
+     */
+    val roomForLabels = width > (collapsedWidth + expandedWidth) / 2
 
+    // Labels when there is room for them, and not otherwise — whether or not
+    // this rail can be expanded at all. It used to be `expandable &&`, which
+    // meant a *fixed* 88dp rail still stacked a word under every icon; the
+    // destinations are inline at every width now, so that word would be a
+    // sliver of its first letter against the rail's edge. It also makes
+    // icons-only the ordinary rail rather than a mode: this is what
+    // [NavigationSuiteScaffold] renders at Medium, and what the labels are
+    // revealed *from* when it grows.
+    val itemLabels = showLabels && roomForLabels
+
+    // Published to the slots, so a header, an action or anything else the caller
+    // puts in one can answer the same question the destinations do. Without it
+    // the only way for slot content to know how wide the rail currently is was
+    // for the caller to thread its own copy of `expanded` down by hand — and it
+    // would be the target flag rather than the animated width, which is the
+    // mistake this component spent a round unlearning.
+    val room = NavExpansion(
+        expanded = roomForLabels,
+        progress = if (expandedWidth == collapsedWidth) {
+            1f
+        } else {
+            ((width - collapsedWidth) / (expandedWidth - collapsedWidth)).coerceIn(0f, 1f)
+        },
+        onSurface = true,
+    )
+
+    CompositionLocalProvider(LocalNavExpansion provides room) {
     Surface(
         modifier = modifier.width(width).fillMaxHeight(),
         color = containerColor,
@@ -140,19 +189,46 @@ fun NavRail(
                 // and without this that x is the rail's own rounded edge, which
                 // clips the marker in half.
                 .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.md),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            // Leading-aligned at every width. The destinations run full width
+            // and lay their contents out from the leading edge, so anything
+            // centred beside them — the toggle, a header, an action — is only
+            // lined up with them by accident. It used to be centred while
+            // narrow and leading once grown, which lined nothing up at either
+            // end and moved everything at the halfway frame.
+            horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {
             if (onExpandedChange != null) {
-                RailToggle(
-                    expanded = expanded,
-                    onExpandedChange = onExpandedChange,
-                    expandLabel = expandLabel,
-                    collapseLabel = collapseLabel,
-                )
+                // Centred on the destinations' icons rather than merely
+                // leading-aligned with them. Everything in this column starts at
+                // the same x now, but the toggle and a destination's glyph are
+                // different widths, so "same start" is not "same centre" — and
+                // the chevron sitting eight dp inside the icons under it is the
+                // sort of thing you notice without being able to say why. The
+                // box is a destination's leading padding and its glyph.
+                Box(
+                    modifier = Modifier
+                        .padding(start = Theme.spacing.sm)
+                        .width(NavItemDefaults.InlineGlyphSize.width),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    RailToggle(
+                        expanded = expanded,
+                        onExpandedChange = onExpandedChange,
+                        expandLabel = expandLabel,
+                        collapseLabel = collapseLabel,
+                    )
+                }
             }
 
-            header?.invoke(this)
+            // Caller slots get the destinations' *content* edge, not the
+            // column's — a header starting 12dp left of every icon under it is
+            // the same untidiness the toggle had. Their width is still their
+            // own: a slot is not something the rail should be sizing, and an
+            // action wider or narrower than a glyph will not share the icons'
+            // centre. The rail owns its leading edge; a caller who wants a
+            // different one has `ColumnScope` to say so with.
+            Box(Modifier.padding(start = Theme.spacing.sm)) { header?.invoke(this@Column) }
 
             // Always emitted, so the destinations can be centred or pushed. The
             // old version only added a spacer when there was an action, which
@@ -164,7 +240,13 @@ fun NavRail(
                 // A pill around the whole row, travelling between destinations.
                 // The bar's pill is sized to its icon; a rail row is wider than
                 // that, so the marker follows the row instead.
-                sizing = IndicatorSizing.Inset(Theme.spacing.xxs),
+                // Narrower than the row, and exactly as tall. Inset on both
+                // axes the pill lost 8dp of its height and the label sat hard
+                // against its edge.
+                sizing = IndicatorSizing.Inset(
+                    horizontal = Theme.spacing.xxs,
+                    vertical = 0.dp,
+                ),
                 indicator = {
                     Box(
                         Modifier
@@ -184,7 +266,6 @@ fun NavRail(
                             item = item,
                             selected = index == selectedIndex,
                             showLabel = itemLabels,
-                            expanded = expandable && expanded,
                             // Full width whether stacked or inline, so the
                             // leading-edge marker sits at the same x for every
                             // destination. Sized to content instead, the bar
@@ -197,8 +278,9 @@ fun NavRail(
             }
 
             Spacer(Modifier.weight(1f))
-            action?.invoke(this)
+            Box(Modifier.padding(start = Theme.spacing.sm)) { action?.invoke(this@Column) }
         }
+    }
     }
 }
 
@@ -218,39 +300,53 @@ private fun RailToggle(
     collapseLabel: String,
 ) {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val icon = when {
-        expanded && rtl -> SystemIcons.ChevronRight
-        expanded -> SystemIcons.ChevronLeft
-        rtl -> SystemIcons.ChevronLeft
-        else -> SystemIcons.ChevronRight
-    }
+
+    // One chevron, turned round — not two swapped for each other.
+    //
+    // Swapping the glyph made the control *change* rather than *move*, and a
+    // control that changes has nothing to say about what it just did. The select
+    // chevron has always rotated; this now does the same, and the button itself
+    // stays where it is while the rail grows past it.
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = Theme.motion.springOrTween(Theme.motion.springDefault),
+        label = "railToggle",
+    )
 
     IconButton(
-        icon = icon,
+        icon = if (rtl) SystemIcons.ChevronLeft else SystemIcons.ChevronRight,
         contentDescription = if (expanded) collapseLabel else expandLabel,
         onClick = { onExpandedChange(!expanded) },
+        rotation = rotation,
         modifier = Modifier.semantics {
             stateDescription = if (expanded) "Expanded" else "Collapsed"
         },
     )
 }
 
-/** One destination in a [NavRail]. */
+/**
+ * One destination in a [NavRail].
+ *
+ * Icon beside label at every width, in a glyph box that does not change size —
+ * so a rail growing from 88dp to 280dp reveals the label rather than rearranging
+ * around it, and the icon does not move. There is no `expanded` parameter for
+ * the same reason: there is nothing left for it to switch.
+ */
 @Composable
 fun NavRailItem(
     item: NavItem,
     selected: Boolean,
     modifier: Modifier = Modifier,
     showLabel: Boolean = true,
-    expanded: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
 ) {
     NavDestinationItem(
         item = item,
         selected = selected,
         modifier = modifier,
-        layout = if (expanded) NavItemLayout.Inline else NavItemLayout.Stacked,
+        layout = NavItemLayout.Inline,
         showLabel = showLabel,
+        indicatorSize = NavItemDefaults.InlineGlyphSize,
         interactionSource = interactionSource,
     )
 }

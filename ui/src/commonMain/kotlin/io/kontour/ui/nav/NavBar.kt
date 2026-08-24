@@ -13,11 +13,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -33,15 +38,22 @@ object NavBarDefaults {
     val Inset: Dp = 16.dp
 
     /**
-     * The shortest the row can be — a destination's circle, and the air above
-     * and below it.
+     * The shortest the row can be — whichever is larger of a destination's
+     * circle and the touch target reserved around it.
+     *
+     * It used to be `CircleSize.height + 8.dp`, which described the row's old
+     * padding rather than what actually sets the floor. A destination calls
+     * `minimumTouchTarget()`, so on Android the row cannot measure under 48dp
+     * however small the circle is drawn — and deriving this from a decoration is
+     * how it went wrong the moment the decoration changed.
      *
      * A starting estimate only: [NavigationSuiteScaffold] measures the real
      * height, which grows with the user's type size and with a label under each
      * icon. It is here so the first frame of a screen does not lay its content
      * out under a bar of no height at all and then jump.
      */
-    val MinHeight: Dp = NavItemDefaults.CircleSize.height + 8.dp
+    val MinHeight: Dp
+        @Composable get() = maxOf(Theme.sizing.minTouchTarget, NavItemDefaults.CircleSize.height)
 
     /**
      * How tall the fade behind the bar is.
@@ -100,6 +112,22 @@ fun NavBar(
     indicatorSize: DpSize = NavItemDefaults.CircleSize,
     labelGap: Dp = Theme.spacing.xxs,
     search: (@Composable () -> Unit)? = null,
+    /**
+     * Where [search] sits among the items.
+     *
+     * `null` — the default — puts it after all of them, which is where it has
+     * always been. An index puts it *between* two: `items.size / 2` is the
+     * middle, which is the arrangement a map app wants, with destinations either
+     * side of the thing people actually came to do.
+     *
+     * An index rather than a builder because [NavigationSuiteScaffold] hands the
+     * bar, the rail and the drawer one `List<NavItem>` and expects all three to
+     * show the same list. A `NavBarScope` with `item()` and `search()` would be
+     * more flexible and would match `NavDrawerScope`; it would also mean the
+     * suite could no longer drive them from one list. Worth revisiting if the
+     * index proves too blunt.
+     */
+    searchIndex: Int? = null,
     action: (@Composable () -> Unit)? = null,
     /**
      * What the row keeps clear of. The gesture bar and the display cutout by
@@ -113,26 +141,49 @@ fun NavBar(
 ) {
     val indicator = rememberSelectionIndicatorState()
 
-    Box(modifier.fillMaxWidth()) {
-        if (backdrop) {
-            Box(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(NavBarDefaults.BackdropHeight)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, backdropColor),
-                        )
-                    )
-            )
-        }
+    // The fade is *drawn*, not laid out.
+    //
+    // It used to be a 128dp sibling `Box` inside this one, which made the whole
+    // component 128dp tall whenever `backdrop` was on — and since the `Row`
+    // carried no alignment it then sat at the top of that box rather than at the
+    // bottom. [NavigationSuiteScaffold] measures this component and hands its
+    // height to the screen as padding, so turning the backdrop on inset the
+    // content by 128dp and lifted the destinations away from the edge. Visible
+    // in the gallery's own golden, in the one panel that uses it.
+    //
+    // Reaching above the node's own bounds is the point: the fade has to start
+    // well over the row it stands behind, and nothing here clips.
+    val backdropHeight = with(LocalDensity.current) { NavBarDefaults.BackdropHeight.toPx() }
 
+    Box(modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(
+                    if (backdrop) {
+                        Modifier.drawBehind {
+                            val top = size.height - backdropHeight
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, backdropColor),
+                                    startY = top,
+                                    endY = size.height,
+                                ),
+                                topLeft = Offset(0f, top),
+                                size = Size(size.width, backdropHeight),
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
                 .windowInsetsPadding(windowInsets)
-                .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xxs),
+                // Horizontal only. Every destination reserves
+                // `Theme.sizing.minTouchTarget` and draws a smaller circle
+                // inside it, so the air above and below the circles is already
+                // there; 4dp on top of it was the same 4dp twice, and eight of
+                // the bar's fifty-six were paying for it.
+                .padding(horizontal = NavBarDefaults.Inset),
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -172,6 +223,19 @@ fun NavBar(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     items.forEachIndexed { index, item ->
+                        if (search != null && searchIndex == index) {
+                            // `propagateMinConstraints`, so the slot's content is
+                            // *given* the width rather than merely offered it.
+                            // The `search` parameter has always promised to be
+                            // "sized to what is left"; without this the `Box` was
+                            // sized to what was left and the pill inside it wrapped
+                            // its own content and sat at the start, leaving 45dp of
+                            // nothing between the search and the destination after
+                            // it — against 8dp everywhere else in the row.
+                            Box(Modifier.weight(1f), propagateMinConstraints = true) {
+                                BarSlot(search)
+                            }
+                        }
                         NavBarItem(
                             item = item,
                             selected = index == selectedIndex,
@@ -194,8 +258,29 @@ fun NavBar(
                 }
             }
 
-            if (search != null) Box(Modifier.weight(1f)) { search() }
-            action?.invoke()
+            // Only when it has not already been placed among the items.
+            if (search != null && searchIndex == null) {
+                Box(Modifier.weight(1f), propagateMinConstraints = true) {
+                    BarSlot(search)
+                }
+            }
+
+            if (action != null) {
+                // Aligned to the *icons*, not to the row.
+                //
+                // With `showLabels` the items grow a word taller, so centring
+                // the action in the row dropped it half a label below the icons
+                // it is meant to sit beside — a trailing FAB visibly lower than
+                // everything else on the bar. Top-aligned and given the
+                // indicator's height, its centre is the icons' centre whatever
+                // is underneath them.
+                Box(
+                    modifier = Modifier.align(Alignment.Top).height(indicatorSize.height),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BarSlot(action)
+                }
+            }
         }
     }
 }
@@ -234,5 +319,24 @@ fun NavBarItem(
         // job and a per-item shadow would be a second one.
         shadow = Theme.elevation.low,
         interactionSource = interactionSource,
+    )
+}
+
+/**
+ * A bar's slot, told how much room it has.
+ *
+ * A bar does not resize, so `progress` is 1 — but it is a *narrow* place, a
+ * hundred-odd dp between two pairs of destinations, and content that adapts to
+ * its surface needs to hear that. [LocalNavExpansion] defaults to expanded for
+ * anything outside a navigation surface, which is right there and wrong here:
+ * without this a [NavSearch] in a bar would decide it had room to be a live text
+ * field, and raise the keyboard inside the navigation bar.
+ */
+@Composable
+private fun BarSlot(content: @Composable () -> Unit) {
+    CompositionLocalProvider(
+        LocalNavExpansion provides
+            NavExpansion(expanded = false, progress = 1f, onSurface = false),
+        content = content,
     )
 }

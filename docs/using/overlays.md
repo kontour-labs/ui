@@ -274,6 +274,15 @@ a panel with a torn corner. Arrow-bearing panels lean on the shadow instead.
 | A list of actions, on secondary click or long press | `ContextMenuArea` |
 | Arbitrary content attached to a control | `Popover` |
 | A decision that must be made before anything else | `Dialog` / `AlertDialog` |
+
+**A dialog scrolls its own content.** It is centred in the window with nowhere
+else to go, so content taller than the window has no other way out. Without the
+scroller it did not merely spill: the content was measured unbounded and placed
+in a box the window had clamped, so it **overlapped itself** — a `DatePicker` in
+a dialog on a landscape phone drew the last two weeks of the month in the same
+cells, "23" over "30", the rest cut through the middle of the digits. A scroller
+around content that fits costs nothing and changes nothing; it only begins to
+scroll once there is not enough room.
 | A decision, awaited from a coroutine | `ConfirmationController.confirm()` |
 | The name of a control the user is pointing at | `Modifier.tooltip` |
 | A feature the user has not discovered | `Modifier.coachMark` |
@@ -290,11 +299,12 @@ looked away.
 
 **Never put the only copy of something important in a toast**, and never put a
 control in one that is not also available elsewhere. An action that vanishes
-after four seconds is unusable for anyone who reads slowly.
+after a few seconds is unusable for anyone who reads slowly.
 
-**Toasts show one at a time.** A stack of them covers the interface they are
-reporting on, and by the third nobody is reading. Queueing means each is actually
-seen.
+**At most three toasts at once.** Past that the stack is taller than the thing
+it is reporting on and the ones at the back are a stripe of colour rather than a
+message — so `ToastDefaults.MaxVisible` caps it and the rest wait their turn
+while their own timers run.
 
 **A popover is not a small dialog.** It points at the thing it is about and
 leaves the rest of the screen alone. If the content is a decision that must be
@@ -313,6 +323,75 @@ a filing system, and by then a flat list with section headers is easier to scan.
 needs a visible path too.
 
 ---
+
+## Alert dialogs with three answers
+
+Three equal thirds put three labels in a third of a dialog each, which is where a
+button starts ellipsising its own verb. So one of them takes a line of its own —
+and it is **cancel**, because cancel is not one of the answers.
+
+"Save" and "Don't save" are the question; "Cancel" is declining to answer it.
+Putting it beside them made the dialog read as a three-way choice rather than a
+two-way one with a way out.
+
+![A three-action alert dialog](../../ui-catalog/screenshots/overlays-light.png)
+
+## Toasts
+
+```kotlin
+val toasts = rememberToastHostState()
+ToastHost(toasts)
+
+toasts.show("Added to favourites")
+toasts.show("Couldn't save", tone = ToastTone.Danger, actionLabel = "Retry", onAction = ::retry)
+```
+
+### They stack, and each one runs its own clock
+
+`ToastHostState` used to hold a *queue* and show its head. A toast pinned for an
+answer stopped every later one from being seen at all, and four rapid
+confirmations took sixteen seconds to get through — each waiting for the one in
+front to expire before its own timer even started.
+
+Up to `ToastDefaults.MaxVisible` are on screen at once now, newest in front,
+older ones scaled and offset behind, each carrying its own timer.
+
+`show` returns an id, so a specific toast can be `dismiss`ed by name.
+`dismissCurrent()` still exists and now means the one in *front* — the newest,
+which is the only reading of "current" that means anything in a stack.
+
+`showClose = true` puts a close control on the front toast. Off by default: one
+that dismisses itself in two and a half seconds does not need it. Turn it on
+where toasts are pinned. Either way a toast can be swiped away toward whichever
+edge the stack is anchored to — and the swipe target is the whole card *plus*
+the 16dp of padding around it, because a toast is a small thing to aim at.
+
+### How long they stay
+
+`ToastDefaults.Duration` is 2.5 seconds, and `DurationWithAction` is 5 — an
+action has to be read, decided on and reached, and a control that vanishes as
+the finger arrives is worse than one that lingers. Pass `durationMillis` to
+override either, or `0` to pin a toast until something dismisses it.
+
+### Top or bottom
+
+```kotlin
+ToastHost(toasts, position = ToastPosition.Top)
+```
+
+`Bottom` by default. `Top` is what a screen wants when the bottom is spoken for
+— a navigation bar, a sheet, a persistent player — or simply when the thumb
+rests there and a toast underneath it is a toast nobody reads.
+
+The position carries the window insets with it, which is why it is an enum
+rather than an `Alignment`: a top-anchored stack needs the status bar and the
+display cutout, and the bottom-anchored default has no top side at all. It also
+decides which way the stack recedes, which way each toast slides in, and which
+way it is swiped away — one decision, not four.
+
+**Deliberately not done**: expanding the stack on hover, the way sonner does. It
+is a pointer-only affordance on a component whose whole point is that it is
+transient, and it wants a hover state the rest of this library does not have.
 
 ## Input modality
 
@@ -353,10 +432,64 @@ Every overlay animates in, and every animation respects `reduceMotion`.
 | Popover | Scales from 0.94 |
 | Tooltip | Scales from 0.8 on a bouncy spring — one of the few places a flourish costs nothing, since it is transient and nobody is waiting on it |
 | Coach mark | Scales from 0.85, same spring |
-| Toast | Slides up half its height and fades |
+| Toast | Slides half its height in from whichever edge it is anchored to, and fades |
 
 Menus scale from 0.9 rather than from nothing on purpose: a menu springing out of
 a point is a lot of movement for something the user opens dozens of times a day.
+
+---
+
+## Coach marks, and tours
+
+Two things with similar names and opposite bargains.
+
+[`Modifier.coachMark`](#the-queue) is a single tip the *app* decides to show,
+through the queue, and it deliberately leaves the interface undimmed: the user is
+being shown a thing **in** the screen, so the screen has to stay legible around
+it.
+
+`CoachmarkTour` is the other bargain. The user asked for it, it takes over for a
+few seconds, and dimming everything but the current control is what makes "this
+one, here" unmistakable.
+
+```kotlin
+val tour = rememberCoachmarkTour("plan", "saved")
+
+IconButton(
+    icon = Tabler.Outline.Bookmark,
+    contentDescription = "Saved trips",
+    onClick = ::openSaved,
+    modifier = Modifier.coachmarkStep(
+        tour = tour,
+        id = "saved",
+        title = "Saved trips",
+        text = "The ones you keep show up here.",
+    ),
+)
+
+Button(onClick = tour::start) { +"Show me around" }
+```
+
+| | `Modifier.coachMark` | `CoachmarkTour` |
+|---|---|---|
+| Who starts it | the app, through a queue | the user |
+| How many | one | several, in order |
+| The rest of the screen | untouched | dimmed, with a hole |
+| Can be ignored | yes | it is modal |
+
+**The tour holds only the order.** Each step's words live at the control they
+describe, which is the only place they can be kept honest when that control
+changes — a list of steps somewhere else has to name every control again, and
+goes stale the first time one is renamed.
+
+The spotlight is one `drawPath` with two contours and an even-odd fill: the outer
+one is the window, the inner one is the control. The obvious alternative — draw
+the dim, then clear the hole with `BlendMode.Clear` — needs the whole thing in an
+offscreen buffer every frame, and a blend mode that every backend supports.
+
+Everything the scrim covers is blocked, including the lit control. A tap on the
+control being explained is the likeliest accident here, and letting it through
+would run an action the user was only being shown.
 
 ---
 
@@ -375,7 +508,7 @@ CommandPalette(
 )
 ```
 
-**Not a [`Combobox`](components/text-editing.md#combobox).** A combobox picks a
+**Not a [`Combobox`](components/combobox.md).** A combobox picks a
 *value* and leaves it in a field; a palette runs something and closes. Combobox's
 own documentation declines this case, and the difference shows at the call site:
 a palette has no value, no field to leave behind, and no meaning for "the
@@ -408,3 +541,8 @@ grows downward as the user types and a centred palette jumps up the screen on
 every keystroke. Its search field has no debounce: the list is already in
 memory, and a quarter-second lag between the key and the result is the whole
 difference between instant and broken.
+
+`width`, `maxHeight` and `topInset` are sized for a window — 560dp wide, 360dp
+of results, 96dp down from the top. In a host that is not a window they go
+together: the catalog's panel sets all three, and the version that set only the
+width spent a third of its height on the inset and ran off the bottom.

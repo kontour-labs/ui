@@ -2,6 +2,7 @@ package io.kontour.ui.catalog
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,8 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.ExtendedFloatingActionButton
+import io.kontour.ui.components.action.FabMenu
+import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.components.action.FabSize
 import androidx.compose.foundation.layout.Row
 import com.composables.icons.tabler.outline.CurrentLocation
@@ -33,6 +36,7 @@ import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
@@ -52,13 +56,19 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
         ) {
             Section("Variants") {
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                ) {
                     Button(onClick = tap("Primary"), variant = ButtonVariant.Primary) { +"Primary" }
                     Button(onClick = tap("Secondary"), variant = ButtonVariant.Secondary) { +"Secondary" }
                     Button(onClick = tap("Tertiary"), variant = ButtonVariant.Tertiary) { +"Tertiary" }
                     Button(onClick = tap("Ghost"), variant = ButtonVariant.Ghost) { +"Ghost" }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                ) {
                     Button(onClick = tap("Accent"), variant = ButtonVariant.Accent) { +"Accent" }
                     Button(onClick = tap("Destructive"), variant = ButtonVariant.Destructive) { +"Destructive" }
                     Button(onClick = tap("Destructive ghost"), variant = ButtonVariant.DestructiveGhost) {
@@ -68,9 +78,9 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Sizes") {
-                Row(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 ) {
                     Button(onClick = tap("XSmall"), size = ButtonSize.XSmall) { +"XSmall" }
                     Button(onClick = tap("Small"), size = ButtonSize.Small) { +"Small" }
@@ -85,7 +95,10 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                 // and all four on purpose: a disabled button and a button
                 // mid-request are supposed to swallow the press. Everything else
                 // in the catalog is wired to something you can see.
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                ) {
                     Button(onClick = tap("Enabled")) { +"Enabled" }
                     Button(onClick = {}, enabled = false) { +"Disabled" }
                     Button(onClick = {}, loading = true) { +"Loading" }
@@ -104,9 +117,9 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Icon buttons") {
-                Row(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 ) {
                     IconButton(Tabler.Outline.X, "Close", tap("Close"))
                     IconButton(Tabler.Outline.X, "Close", tap("Close"), variant = ButtonVariant.Tertiary)
@@ -134,9 +147,9 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
             }
 
             Section("Floating actions") {
-                Row(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                 ) {
                     FloatingActionButton(Tabler.Outline.Plus, "Add", tap("Add"), size = FabSize.Small)
                     FloatingActionButton(Tabler.Outline.Plus, "Add", tap("Add"), size = FabSize.Medium)
@@ -162,6 +175,55 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
+            Section("Split button") {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                ) {
+                    for (variant in listOf(ButtonVariant.Primary, ButtonVariant.Secondary)) {
+                        val open = seed(false)
+                        SplitButton(
+                            onClick = tap("Save"),
+                            expanded = open.value,
+                            onExpandedChange = { open.value = it },
+                            menuContentDescription = "Other save options",
+                            variant = variant,
+                            menu = {
+                                item("Save and close", onClick = {})
+                                item("Save a copy", onClick = {})
+                            },
+                        ) { +"Save" }
+                    }
+                }
+            }
+
+            Section("FAB menu") {
+                // Closed in the golden, on purpose. The items render into the
+                // overlay host, which covers the whole page — one seeded open
+                // here would draw a menu across every other panel in the
+                // screenshot. The three layouts each have their own
+                // per-component render; these are here to be tapped.
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xl),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                ) {
+                    for (layout in FabMenuLayout.entries) {
+                        val open = seed(false)
+                        FabMenu(
+                            expanded = open.value,
+                            onExpandedChange = { open.value = it },
+                            icon = Tabler.Outline.Plus,
+                            contentDescription = "Add",
+                            layout = layout,
+                        ) {
+                            item(Tabler.Outline.Star, "Save stop") {}
+                            item(Tabler.Outline.CurrentLocation, "Nearby") {}
+                            item(Tabler.Outline.Navigation, "Directions") {}
+                        }
+                    }
+                }
+            }
+
             Section("Button group") {
                 // The builder collects rather than composes, so a `@Composable`
                 // helper like `tap` cannot be called inside it. Hoisted, which
@@ -174,9 +236,9 @@ fun ButtonShowcase(modifier: Modifier = Modifier) {
                 val month = tap("Month")
                 val only = tap("Only")
 
-                Row(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                 ) {
                     ButtonGroup {
                         item(onClick = zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
@@ -237,16 +299,4 @@ internal fun ToggleableState.next(): ToggleableState = when (this) {
     ToggleableState.Off -> ToggleableState.On
     ToggleableState.On -> ToggleableState.Indeterminate
     ToggleableState.Indeterminate -> ToggleableState.Off
-}
-
-@Composable
-internal fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-        Text(
-            text = title.uppercase(),
-            style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
-        )
-        content()
-    }
 }

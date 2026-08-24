@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
@@ -63,8 +64,16 @@ fun RadioButton(
         animationSpec = motion.tweenFast(),
         label = "radioRing",
     )
+    // The dot grows a third of the way under the finger, before the press is
+    // released and the value commits — and shrinks a third of the way if the
+    // press is on the one already chosen. Same idea as the switch's thumb
+    // stretching, and the same borrowed interactions when this button is a
+    // passenger in a row. See `SelectionPressPreview`.
+    val pressed by pressSourceFor(interactions, interactionSource, onClick != null)
+        .collectIsPressedAsState()
+    val press = if (pressed && enabled) SelectionPressPreview else 0f
     val dotScale by animateFloatAsState(
-        targetValue = if (selected) 1f else 0f,
+        targetValue = if (selected) 1f - press else press,
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "radioDot",
     )

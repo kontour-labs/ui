@@ -29,6 +29,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalRowInteractionSource
+import io.kontour.ui.interaction.LocalRowToggle
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 
@@ -132,7 +133,22 @@ fun SelectionRow(
     // Published so a control inside the row can *show* the row's press — a
     // switch stretches its thumb while held, and it reads that from an
     // interaction source it would otherwise own alone and nobody would push to.
-    CompositionLocalProvider(LocalRowInteractionSource provides interactions) {
+    //
+    // The toggle goes with it so a switch in the row can be dragged as well as
+    // shown. Only for a genuinely toggleable row: a radio row can only ever set
+    // true, and a drag has nothing to express there.
+    val rowToggle: ((Boolean) -> Unit)? = when {
+        onSelectedChange == null || role == Role.RadioButton -> null
+        else -> { now ->
+            feedback.perform(FeedbackIntent.Selection)
+            onSelectedChange(now)
+        }
+    }
+
+    CompositionLocalProvider(
+        LocalRowInteractionSource provides interactions,
+        LocalRowToggle provides rowToggle,
+    ) {
         Row(
             modifier = modifier
                 .fillMaxWidth()

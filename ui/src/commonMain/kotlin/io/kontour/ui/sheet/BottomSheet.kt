@@ -1,5 +1,6 @@
 package io.kontour.ui.sheet
 
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.layout.Arrangement
@@ -128,6 +129,18 @@ fun BottomSheet(
     containerColor: Color = Theme.colors.surfaceRaised,
     contentColor: Color = Theme.colors.content,
     paneTitle: String? = null,
+    /**
+     * Whether the sheet answers a drag.
+     *
+     * `false` removes the gesture **and** the drag handle, because a handle that
+     * does nothing is a lie about what the sheet will do — and a handle is the
+     * only thing on a sheet that says "pull me". A sheet that cannot be dragged
+     * is moved by [SheetState.animateTo] and by whatever the content offers.
+     *
+     * The scrim follows the sheet's visible height, so a sheet that cannot be
+     * dragged also cannot fade its scrim halfway: there is no halfway to be at.
+     */
+    draggable: Boolean = true,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /**
      * What the sheet's *content* keeps clear of. The gesture bar, the cutout and
@@ -154,13 +167,35 @@ fun BottomSheet(
     val motion = Theme.motion
     val actionsGap = SheetDefaults.ActionsGap
 
+    // Critically damped. A sheet that bounces on arrival looks unweighted, and
+    // unlike a button it is carrying content the user is reading.
+    //
+    // Named, because the nested-scroll connection settles with it too — a fling
+    // that starts in the sheet's list has to finish the way one that started on
+    // the handle does.
+    val settleSpec: FiniteAnimationSpec<Float> = motion.springOrTween(motion.springGentle)
+
     val fling = AnchoredDraggableDefaults.flingBehavior(
         state = state.anchoredState,
         positionalThreshold = SheetDefaults.PositionalThreshold,
-        // Critically damped. A sheet that bounces on arrival looks unweighted,
-        // and unlike a button it is carrying content the user is reading.
-        animationSpec = motion.springOrTween(motion.springGentle),
+        animationSpec = settleSpec,
     )
+
+    // A detent asked for before the sheet had been measured, delivered once it
+    // has. `updateAnchors` deliberately does not apply it: doing so snapped, and
+    // the first open is always the one with no anchors yet.
+    //
+    // A `snapshotFlow` rather than a composition read, and the difference is
+    // not style: `hasPendingDelivery` is `pendingDetent != null && hasAnchors`,
+    // which short-circuits. Read during composition while no detent is pending,
+    // it never subscribes to the anchors at all — so the anchors arrive, nothing
+    // recomposes, and the sheet stays shut. `snapshotFlow` re-evaluates the whole
+    // expression on every snapshot commit and does not have that hole.
+    LaunchedEffect(state) {
+        snapshotFlow { state.hasPendingDelivery }
+            .filter { it }
+            .collect { state.deliverPending() }
+    }
 
     Box(
         modifier = Modifier
@@ -180,11 +215,23 @@ fun BottomSheet(
                 .fillMaxWidth()
                 .widthIn(max = SheetDefaults.MaxWidth)
                 .offset { IntOffset(0, offsetOrHidden(state)) }
-                .nestedScroll(state.nestedScrollConnection())
-                .anchoredDraggable(
-                    state = state.anchoredState,
-                    orientation = SheetOrientation,
-                    flingBehavior = fling,
+                .then(
+                    if (draggable) {
+                        Modifier
+                            .nestedScroll(state.nestedScrollConnection(settleSpec))
+                            .anchoredDraggable(
+                                state = state.anchoredState,
+                                orientation = SheetOrientation,
+                                flingBehavior = fling,
+                            )
+                    } else {
+                        // The nested-scroll connection goes with the drag. Its
+                        // whole job is handing a list's overscroll to the sheet,
+                        // and a sheet that does not move should not be receiving
+                        // it — a flick at the top of the list would otherwise
+                        // still close the sheet.
+                        Modifier
+                    }
                 )
                 .semantics {
                     isTraversalGroup = true
@@ -197,7 +244,8 @@ fun BottomSheet(
                 windowInsets = windowInsets,
                 containerColor = containerColor,
                 contentColor = contentColor,
-                dragHandle = dragHandle,
+                // A handle on a sheet that cannot be dragged is a lie.
+                dragHandle = dragHandle.takeIf { draggable },
                 density = density,
                 content = content,
             )
@@ -265,6 +313,8 @@ fun ModalBottomSheet(
     dismissOnOutside: Boolean = true,
     dismissLabel: String = Theme.strings.close,
     paneTitle: String? = null,
+    /** See [BottomSheet]. `false` removes the gesture and the handle with it. */
+    draggable: Boolean = true,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /**
      * What the sheet's *content* keeps clear of. The gesture bar, the cutout and
@@ -291,6 +341,7 @@ fun ModalBottomSheet(
     val latestContentColor by rememberUpdatedState(contentColor)
     val latestPaneTitle by rememberUpdatedState(paneTitle)
     val latestDragHandle by rememberUpdatedState(dragHandle)
+    val latestDraggable by rememberUpdatedState(draggable)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
@@ -334,6 +385,7 @@ fun ModalBottomSheet(
                             containerColor = latestContainerColor,
                             contentColor = latestContentColor,
                             paneTitle = latestPaneTitle,
+                            draggable = latestDraggable,
                             dragHandle = latestDragHandle,
                             content = body,
                         )
@@ -365,25 +417,35 @@ private fun BoxScope.SheetSurface(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            // The surface reaches the bottom of the container, whatever detent
-            // the sheet is at.
+            // As tall as the container, always — and then translated down to
+            // where the detent wants it.
             //
-            // It used to be wrap-content and merely translated by
-            // `Modifier.offset`, which is placement-only and never changes a
-            // measured size. So with container H, content C and a detent whose
-            // visible height is V, the top landed at H - V and the bottom at
-            // H - V + C — leaving a gap of V - C below the sheet. `Expanded`
-            // sets V = C, so it was right by coincidence and every other detent
-            // was wrong; and because C is fixed while the offset moves with the
-            // finger, dragging a half-open sheet upward carried its bottom edge
-            // up the screen with it.
+            // The requirement is that the surface reaches the bottom of the
+            // container at every detent, so its colour runs to the bottom edge.
+            // It used to be wrap-content and merely translated, which left a gap
+            // of `visibleHeight - contentHeight` below the sheet at every detent
+            // except `Expanded`; and because the content height is fixed while
+            // the offset moves with the finger, dragging a half-open sheet
+            // upward carried its bottom edge up the screen with it.
             //
-            // Read in the layout phase rather than in composition: the offset
-            // changes every frame of a drag, and this has to follow it without
-            // recomposing the sheet's whole content to do it.
+            // The fix for that sized the surface to `containerHeight - offset`,
+            // which was correct and expensive: **the height changed on every
+            // frame the sheet moved**, and a node whose size changes cannot keep
+            // the drawing it recorded last frame. Measured, the sheet re-recorded
+            // itself 0.9 times per frame while sliding — which on a phone means
+            // re-rasterising its two blurred `dropShadow` layers sixty times a
+            // second. See `SheetFramePressureTest`.
+            //
+            // A constant height gets the same picture for nothing. The surface
+            // is `containerHeight` tall and starts at `offset`, so its bottom
+            // lands at `offset + containerHeight`, at or below the container's
+            // own bottom at every detent — the gap cannot open. What hangs below
+            // the screen is never seen. The content is measured unbounded either
+            // way and cropped to the surface, so the region actually on screen,
+            // `offset` to `containerHeight`, is identical to what it was.
             .layout { measurable, constraints ->
-                val target = (state.containerHeight - offsetOrHidden(state))
-                    .coerceIn(0f, state.containerHeight.coerceAtLeast(0f))
+                val target = state.containerHeight
+                    .coerceAtLeast(0f)
                     .roundToInt()
                     .coerceAtMost(constraints.maxHeight)
                 val placeable = measurable.measure(

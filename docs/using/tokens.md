@@ -241,8 +241,25 @@ and `springBouncy` — deliberately under-damped, the system's one bit of play.
 springing back after a press, a chevron settling after a flip, a chip popping
 in. Never on the way *down* into a press. Overshoot on the outbound leg reads as
 mushy and slow; overshoot on the way back reads as alive. That asymmetry is the
-whole trick, and `KontourIndication` already applies it — so every pressable
-component in the system gets the bounce without asking for it.
+whole trick, and `KontourIndication` applies it.
+
+**Two things about that were untrue for a long time, so they are worth stating
+plainly.** The indication has to sit *ahead of* the container in the modifier
+chain — a draw modifier only draws what comes after it, so an indication handed
+to `clickable`, which is past `.background()`, scaled the label inside a button
+whose silhouette never moved. And ghost variants opted out of the scale
+altogether, which is right for a ghost *text* button (a shrinking label reads as
+the text jumping) and wrong for the icon buttons that make up most of the
+library. Both are fixed; `PressScaleTest` measures the ink rather than trusting
+the claim.
+
+**How far it moves** now follows the control's size, because one constant
+serving a 28dp icon button and a full-width one is invisible on the first and a
+collapse on the second: 7% at XSmall and Small, 5% at Medium, 3% at Large and
+XLarge. `ButtonDefaults.pressScale` owns it. A control with a moving indicator —
+a tab, a nav destination, a segment — deliberately keeps `pressScale = 1f`,
+because the indicator travelling to what you pressed is already the answer and a
+second one fights it.
 
 It is suppressed entirely under reduced motion. An unrequested overshoot is
 exactly the kind of movement that preference exists to stop.

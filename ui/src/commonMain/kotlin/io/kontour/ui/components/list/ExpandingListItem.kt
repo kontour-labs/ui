@@ -1,0 +1,180 @@
+package io.kontour.ui.components.list
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
+import io.kontour.ui.foundation.Icon
+import io.kontour.ui.theme.Theme
+
+/**
+ * A row that unfolds more rows beneath it.
+ *
+ * ```kotlin
+ * ExpandingListItem(
+ *     expanded = open,
+ *     onExpandedChange = { open = it },
+ *     chevron = Tabler.Outline.ChevronDown,
+ *     header = {
+ *         +"Perth Underground"
+ *         supporting { +"4 platforms" }
+ *     },
+ * ) {
+ *     item("Platform 1", supporting = "Mandurah line")
+ *     item("Platform 2", supporting = "Joondalup line")
+ * }
+ * ```
+ *
+ * **Not an [io.kontour.ui.components.display.Accordion].** The two are close
+ * enough that the difference is worth stating, because picking the wrong one
+ * looks fine until there is a list around it:
+ *
+ * | | `ExpandingListItem` | `Accordion` |
+ * |---|---|---|
+ * | The header is | a [ListItem] | a header of its own |
+ * | What opens | more rows | arbitrary content |
+ * | In a [ListGroup] | continues the group's seam | sits in it as a foreign object |
+ *
+ * An accordion draws its own frame, so its body is a block *under* a row. This
+ * one hands its children to the same [ListGroupScope] a `ListGroup` uses, so
+ * they are rows in the same run: the header rounds as
+ * [ListItemPosition.First] while it is open and [ListItemPosition.Only] while it
+ * is shut, the children take `Middle`, and the last of them closes the group.
+ * The whole thing reads as one object opening rather than as a card appearing.
+ *
+ * ### It owns its children's positions, and that is why they come from a scope
+ *
+ * A caller emitting bare `ListItem`s would have to work out the seams itself —
+ * which row is last, what the row *after* the group needs, what changes when the
+ * group is shut. That arithmetic is the single thing this component exists to
+ * do, so the children are declared rather than composed, exactly as
+ * [ListGroup]'s are and for the reason argued at length on [ListGroupScope].
+ *
+ * @param position Where the **whole group** sits in a longer list. The header
+ *   and the last child derive theirs from it; nothing else needs to know.
+ * @param header The always-visible row, in a [ListItem]'s own shape. `+` fills
+ *   its title. A `trailing` set here is replaced by the chevron.
+ */
+@Composable
+fun ExpandingListItem(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    header: ListItemScope.() -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    position: ListItemPosition = ListItemPosition.Only,
+    chevron: ImageVector? = null,
+    spacing: Dp = ListItemDefaults.Spacing,
+    expandedLabel: String = Theme.strings.expanded,
+    collapsedLabel: String = Theme.strings.collapsed,
+    interactionSource: MutableInteractionSource? = null,
+    content: ListGroupScope.() -> Unit,
+) {
+    val motion = Theme.motion
+    val children = ListGroupScope().apply(content).rows
+
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = motion.springOrTween(motion.springBouncy),
+        label = "expandingListChevron",
+    )
+
+    // Nothing to unfold is not an error, and it is not a disclosure either — a
+    // chevron on a row that opens onto nothing is a promise the row cannot keep.
+    val opens = children.isNotEmpty()
+    val open = expanded && opens
+
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing)) {
+        ListItem(
+            enabled = enabled,
+            onClick = if (opens) {
+                { onExpandedChange(!expanded) }
+            } else {
+                null
+            },
+            position = position.opening(open),
+            interactionSource = interactionSource,
+            modifier = Modifier.semantics {
+                if (opens) stateDescription = if (open) expandedLabel else collapsedLabel
+            },
+            role = Role.Button,
+        ) {
+            header()
+            if (chevron != null && opens) {
+                trailing {
+                    Icon(
+                        imageVector = chevron,
+                        contentDescription = null,
+                        modifier = Modifier.rotate(rotation),
+                        tint = if (enabled) {
+                            Theme.colors.contentMuted
+                        } else {
+                            Theme.colors.contentDisabled
+                        },
+                    )
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = open,
+            enter = expandVertically(motion.tweenDefault()) + fadeIn(motion.tweenFast()),
+            exit = shrinkVertically(motion.tweenDefault()) + fadeOut(motion.tweenFast()),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing)) {
+                children.forEachIndexed { index, row ->
+                    row(position.closing(index, children.size))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * What the header's own corners do once the group is open.
+ *
+ * An open group has rows after its header, so a header that was the only row in
+ * its run becomes the first of one, and a header that was the last becomes a
+ * middle. Shut, it is exactly what the caller said it was.
+ */
+private fun ListItemPosition.opening(expanded: Boolean): ListItemPosition =
+    if (!expanded) {
+        this
+    } else {
+        when (this) {
+            ListItemPosition.Only, ListItemPosition.First -> ListItemPosition.First
+            ListItemPosition.Middle, ListItemPosition.Last -> ListItemPosition.Middle
+        }
+    }
+
+/**
+ * What a child's corners do.
+ *
+ * Every child but the last is a middle. The last one inherits the *group's*
+ * ending: a group that was the only thing in its list closes it, and one with
+ * more rows below carries on.
+ */
+private fun ListItemPosition.closing(index: Int, count: Int): ListItemPosition =
+    if (index < count - 1) {
+        ListItemPosition.Middle
+    } else {
+        when (this) {
+            ListItemPosition.Only, ListItemPosition.Last -> ListItemPosition.Last
+            ListItemPosition.First, ListItemPosition.Middle -> ListItemPosition.Middle
+        }
+    }

@@ -1,5 +1,8 @@
 package io.kontour.ui.components.datetime
 
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,21 +15,28 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 /**
  * A scrolling drum of values, snapping to the one in the middle.
@@ -94,7 +104,76 @@ fun <T> WheelPicker(
         }
     }
 
-    Box(modifier.height(itemHeight * visibleItems), contentAlignment = Alignment.Center) {
+    /**
+     * A drum you can grab with a mouse.
+     *
+     * A `LazyColumn` scrolls to a wheel and to a finger, and on desktop that is
+     * the whole of it — dragging a list with the mouse is not a thing desktops
+     * do, and Compose is right not to. A *drum* is the exception: nobody has
+     * ever set a time by scrolling a picker with a wheel, they take hold of it
+     * and turn it.
+     *
+     * Wrapped around the list rather than replacing its scrolling, which is what
+     * makes this safe: a child gets the main pointer pass before its parent, so
+     * the list still claims every touch drag itself and this only ever sees the
+     * ones it declined. `dispatchRawDelta` rather than a coroutine per event —
+     * there is one of these per pointer move, and `scrollBy` suspends.
+     */
+    val scope = rememberCoroutineScope()
+
+    /**
+     * Keeps the drum's scrolling to the drum.
+     *
+     * A `LazyColumn` is a nested-scroll child by default: whatever its fling
+     * behaviour does not consume is handed up to the nearest scrollable
+     * ancestor. A wheel holds twelve or twenty-four rows with padding at both
+     * ends, so a flick reaches an end *routinely* rather than exceptionally —
+     * and the leftover velocity went straight into the page behind it, or into
+     * the sheet the picker was sitting in. Reported as "when I finish scrolling
+     * a wheel, the velocity continues into the lazy list".
+     *
+     * Nothing here moves the wheel. Both overrides claim what they are given and
+     * do nothing with it, which is the whole intent: a spinning drum is a
+     * self-contained gesture, and a page that scrolls because a drum ran out of
+     * numbers is a page nobody asked to scroll.
+     */
+    val containment = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset =
+                // Over-scroll at either end, from a finger or from the drum's
+                // own settling animation. Swallowed either way: the settle is
+                // the wheel putting *itself* straight, and a page that scrolls
+                // because a drum snapped to the nearest row is a page nobody
+                // asked to scroll. Filtering to `UserInput` here left thirty
+                // pixels of it escaping.
+                available
+
+            override suspend fun onPostFling(
+                consumed: Velocity,
+                available: Velocity,
+            ): Velocity = available
+        }
+    }
+
+    Box(
+        modifier
+            .height(itemHeight * visibleItems)
+            // Above the drag and the list, so it sees what either of them
+            // declined and the page above sees neither.
+            .nestedScroll(containment)
+            .draggable(
+                state = rememberDraggableState { delta -> listState.dispatchRawDelta(-delta) },
+                orientation = Orientation.Vertical,
+                // The list's own fling snaps; a raw drag has to be given back
+                // to the nearest row itself, or the drum is left between two.
+                onDragStopped = { scope.launch { listState.animateScrollToItem(centredIndex) } },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
         LazyColumn(
             state = listState,
             flingBehavior = flingBehavior,

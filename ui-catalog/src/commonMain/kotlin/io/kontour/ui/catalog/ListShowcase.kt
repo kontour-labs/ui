@@ -22,12 +22,14 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.Bus
+import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.Moon
 import com.composables.icons.tabler.outline.Palette
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.display.TagTone
+import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemPosition
@@ -63,14 +65,8 @@ private val accents = listOf("Anyways", "Transperth", "Monochrome")
 @Composable
 fun ListShowcase(modifier: Modifier = Modifier) {
     Surface(modifier = modifier, color = Theme.colors.background) {
-        Row(
-            modifier = Modifier.padding(Theme.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
-        ) {
-            Column(
-                modifier = Modifier.width(380.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+        Panels {
+            Panel(width = 380.dp, spacing = Theme.spacing.md) {
                 Section("Grouped rows") {
                     // Written with the DSL, and the golden for this panel did not
                     // move — which is the claim the shorthands make: the same
@@ -93,6 +89,28 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                     }
                 }
 
+                Section("A row that unfolds") {
+                    // Seeded open, because the closed state is a `ListItem` with
+                    // a chevron and the whole of what this component adds is
+                    // what happens to the seams below it.
+                    val platforms = seed(true)
+                    ExpandingListItem(
+                        expanded = platforms.value,
+                        onExpandedChange = { platforms.value = it },
+                        spacing = 2.dp,
+                        chevron = Tabler.Outline.ChevronDown,
+                        header = {
+                            +"Perth Underground"
+                            supporting { +"4 platforms" }
+                            leading { +Tabler.Outline.Bus }
+                        },
+                    ) {
+                        item(label = "Platform 1", supporting = "Mandurah line")
+                        item(label = "Platform 2", supporting = "Joondalup line")
+                        item(label = "Platform 3", supporting = "Airport line")
+                    }
+                }
+
                 Section("A single row") {
                     // The case a three-item example never exercises: all four
                     // corners round, not just the outside ones.
@@ -106,10 +124,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Column(
-                modifier = Modifier.width(380.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+            Panel(width = 380.dp, spacing = Theme.spacing.md) {
                 Section("Sections and settings") {
                     ListSection(
                         title = { +"Appearance" },
@@ -178,10 +193,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                 }
             }
 
-            Column(
-                modifier = Modifier.width(380.dp),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            ) {
+            Panel(width = 380.dp, spacing = Theme.spacing.md) {
                 Section("Swipe actions, revealed") {
                     val swipe = rememberSwipeActionsState()
                     // Held open so the golden shows them; in use a drag reveals

@@ -707,15 +707,49 @@ val checkApiConventions = tasks.register("checkApiConventions") {
             // and true of all of them (no scope has public mutable state). It
             // claims nothing false and it means the pair can be one rule rather
             // than two with exceptions.
+            //
+            // ### Except where the marker would break the scope
+            //
+            // A `@DslMarker` makes only the *innermost* receiver carrying it
+            // reachable without qualification. That is the whole point for a
+            // builder — and it is fatal for a scope whose members are meant to
+            // be reached from arbitrarily deep inside layout code.
+            // `PageTransitionScope.sharedElement` is a `Modifier` extension
+            // called on a card three `Column`s down, and `ColumnScope` carries
+            // the marker too, so with the marker on both the call does not
+            // compile at all. Compose's own `SharedTransitionScope` is
+            // unmarked for exactly this reason.
+            //
+            // The line between the two kinds is not a judgement: a builder's
+            // members *emit*, and a capability scope's members return a
+            // `Modifier`. So a scope whose every public function extends
+            // `Modifier` is exempt from the marker — and still owes `@Stable`,
+            // which is about something else entirely.
+            val declarationsHere = KotlinSignatures.declarations(text)
             KotlinSignatures.types(text)
                 .filter { it.isPublic && it.name.endsWith("Scope") }
                 .forEach { type ->
-                    listOf("@LayoutScopeMarker", "@Stable")
+                    val members = declarationsHere.filter {
+                        it.enclosing == type.name && it.kind == KotlinSignatures.Kind.Function
+                    }
+                    val emitsContent = members.isEmpty() ||
+                        members.any { it.receiver?.trim() != "Modifier" }
+                    val required = if (emitsContent) {
+                        listOf("@LayoutScopeMarker", "@Stable")
+                    } else {
+                        listOf("@Stable")
+                    }
+                    required
                         .filterNot { it in type.annotations }
                         .forEach { missing ->
                             problems += "$rel:${type.line} :: ${type.name}: a scope must " +
                                 "carry `$missing`"
                         }
+                    if (!emitsContent && "@LayoutScopeMarker" in type.annotations) {
+                        problems += "$rel:${type.line} :: ${type.name}: every member is a " +
+                            "`Modifier` extension, so `@LayoutScopeMarker` makes them " +
+                            "unreachable from inside a `Column` or a `Box` — drop it"
+                    }
                 }
 
             // Every public declaration, at any indent, one line or many.

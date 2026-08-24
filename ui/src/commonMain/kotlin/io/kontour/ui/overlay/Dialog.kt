@@ -5,6 +5,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -132,8 +134,30 @@ fun Dialog(
                                     border = contrastEdge(),
                                     shadow = Theme.elevation.overlay,
                                 ) {
+                                    // Scrollable, because a dialog is centred in
+                                    // the window and has no other way out of
+                                    // being too tall for it.
+                                    //
+                                    // Without this the content is measured
+                                    // unbounded and placed in a box the window
+                                    // has clamped, so it does not merely spill —
+                                    // it **overlaps itself**. A `DatePicker` in a
+                                    // dialog on a landscape phone drew the last
+                                    // two weeks of the month on top of each
+                                    // other: "23" and "30" in the same cell, the
+                                    // rest cut through the middle of the digits.
+                                    // A date picker in a dialog is not an exotic
+                                    // arrangement, and 360dp of height is a
+                                    // phone turned sideways.
+                                    //
+                                    // A scroller wrapping content that fits costs
+                                    // nothing and changes nothing: it takes its
+                                    // content's height until there is not enough
+                                    // room, and only then starts scrolling.
                                     Column(
-                                        modifier = Modifier.padding(Theme.spacing.lg),
+                                        modifier = Modifier
+                                            .verticalScroll(rememberScrollState())
+                                            .padding(Theme.spacing.lg),
                                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                                         content = body,
                                     )
@@ -150,7 +174,7 @@ fun Dialog(
 }
 
 /**
- * A dialog with a title, a message and up to two actions.
+ * A dialog with a title, a message and up to three actions.
  *
  * ```
  * AlertDialog(
@@ -166,10 +190,11 @@ fun Dialog(
  * ```
  *
  * The confirm button is on the trailing edge and the cancel on its leading side,
- * which is the arrangement both platforms have converged on. Actions wrap onto
- * separate lines when the labels are long rather than truncating — a truncated
- * "Delete permanently" reading as "Delete perman…" is how people confirm things
- * they did not mean to.
+ * which is the arrangement both platforms have converged on. One or two actions
+ * share a row as equal halves. A third breaks it: the two *answers* stay
+ * together and cancel takes a full line beneath them, because three labels in a
+ * third of a dialog each is where a button starts truncating its own verb — and
+ * "Delete perman…" is how people confirm things they did not mean to.
  *
  * @param destructive Renders the confirm action in the danger tone. Set it for
  *   anything the user cannot undo.
@@ -227,63 +252,64 @@ fun AlertDialog(
         // both crowded into the trailing corner and neither near a thumb. Equal
         // halves make the choice read as a choice.
         //
-        // Three is the case that has to break the row. Three equal thirds put
-        // three labels in a third of a dialog each, which is where a button
-        // starts ellipsising its own verb — so the two secondary answers share a
-        // row and the confirm takes a full line of its own beneath them.
-        val secondary = buildList<@Composable RowScope.() -> Unit> {
-            if (neutralLabel != null && onNeutral != null) {
-                add {
-                    Button(
-                        onClick = onNeutral,
-                        modifier = Modifier.weight(1f),
-                        variant = ButtonVariant.Ghost,
-                    ) { +neutralLabel }
-                }
-            }
-            if (cancelLabel != null) {
-                add {
-                    Button(
-                        onClick = onDismissRequest,
-                        modifier = Modifier.weight(1f),
-                        variant = ButtonVariant.Ghost,
-                    ) { +cancelLabel }
-                }
-            }
-        }
-        val confirm: (@Composable (Modifier) -> Unit)? =
-            if (confirmLabel != null && onConfirm != null) {
-                { buttonModifier ->
-                    Button(
-                        onClick = onConfirm,
-                        modifier = buttonModifier,
-                        variant = if (destructive) {
-                            ButtonVariant.Destructive
-                        } else {
-                            ButtonVariant.Primary
-                        },
-                    ) { +confirmLabel }
-                }
-            } else {
-                null
-            }
+        // ### Three answers break the row, and the break goes under *cancel*
+        //
+        // Three equal thirds put three labels in a third of a dialog each, which
+        // is where a button starts ellipsising its own verb. So one of them
+        // takes a line of its own — and it is cancel, because cancel is not one
+        // of the answers. "Save" and "Don't save" are the question; "Cancel" is
+        // declining to answer it, and putting it beside them made the dialog
+        // read as a three-way choice rather than a two-way one with a way out.
+        //
+        // This used to break the other way, with the two ghosts sharing a row
+        // and the confirm below them.
+        val hasNeutral = neutralLabel != null && onNeutral != null
+        val hasConfirm = confirmLabel != null && onConfirm != null
+        val hasCancel = cancelLabel != null
+        val threeWay = hasNeutral && hasConfirm && hasCancel
 
-        val ownLine = secondary.size >= 2
+        val neutral: @Composable (Modifier) -> Unit = { buttonModifier ->
+            Button(
+                onClick = onNeutral ?: {},
+                modifier = buttonModifier,
+                variant = ButtonVariant.Secondary,
+            ) { +(neutralLabel ?: "") }
+        }
+        val cancel: @Composable (Modifier) -> Unit = { buttonModifier ->
+            Button(
+                onClick = onDismissRequest,
+                modifier = buttonModifier,
+                variant = ButtonVariant.Ghost,
+            ) { +(cancelLabel ?: "") }
+        }
+        val confirm: @Composable (Modifier) -> Unit = { buttonModifier ->
+            Button(
+                onClick = onConfirm ?: {},
+                modifier = buttonModifier,
+                variant = if (destructive) ButtonVariant.Destructive else ButtonVariant.Primary,
+            ) { +(confirmLabel ?: "") }
+        }
 
         Column(
             modifier = Modifier.padding(top = Theme.spacing.sm),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {
-            if (secondary.isNotEmpty() || confirm != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                ) {
-                    secondary.forEach { it() }
-                    if (!ownLine) confirm?.invoke(Modifier.weight(1f))
+            if (hasNeutral || hasCancel || hasConfirm) Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            ) {
+                if (threeWay) {
+                    // The two answers, together.
+                    neutral(Modifier.weight(1f))
+                    confirm(Modifier.weight(1f))
+                } else {
+                    if (hasNeutral) neutral(Modifier.weight(1f))
+                    if (hasCancel) cancel(Modifier.weight(1f))
+                    if (hasConfirm) confirm(Modifier.weight(1f))
                 }
             }
-            if (ownLine) confirm?.invoke(Modifier.fillMaxWidth())
+            // The way out, on its own.
+            if (threeWay) cancel(Modifier.fillMaxWidth())
         }
     }
 }
