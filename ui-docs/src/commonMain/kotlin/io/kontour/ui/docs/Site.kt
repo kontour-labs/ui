@@ -271,7 +271,19 @@ private fun ComponentPage(slug: String) {
         }
 
         Specimens(page)
-        Prose(page.blocks, Modifier.fillMaxWidth().widthIn(max = ProseWidth))
+        // `widthIn` outside `fillMaxWidth`, and the order is the whole fix.
+        //
+        // It was written the other way round. `fillMaxWidth` fixes the
+        // constraints at [W, W] first, and `widthIn(max = 760)` then coerces
+        // [0, 760] against a minimum of W — so on any window wider than 760dp
+        // the cap was discarded and the line ran the full width. On a 1600px
+        // display that is a 1600px measure, which is exactly what the comment
+        // on `ProseWidth` says it prevents. Written outside, the ceiling is in
+        // place before anything fills to it.
+        //
+        // The sidebar two hundred lines up has always had it in this order,
+        // which is why that one worked.
+        Prose(page.blocks, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
     }
 }
 
