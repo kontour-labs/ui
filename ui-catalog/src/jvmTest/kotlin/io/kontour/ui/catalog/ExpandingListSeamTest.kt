@@ -111,7 +111,7 @@ class ExpandingListSeamTest {
             }
         }.use { scene ->
             frame = scene.frames(24)
-            page = frame!!.getRGB(4, 4)
+            page = frame.getRGB(4, 4)
         }
 
         val image = requireNotNull(frame)
