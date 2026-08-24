@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
-import kotlinx.browser.window
 
 /** The blocks of one page, drawn. */
 @Composable
@@ -212,7 +211,7 @@ private fun annotate(spans: List<Span>, heading: Boolean = false): AnnotatedStri
                                 if (route != null) {
                                     navigate(route)
                                 } else {
-                                    window.open(externalUrl(target), "_blank")
+                                    openExternal(externalUrl(target))
                                 }
                             },
                         )
