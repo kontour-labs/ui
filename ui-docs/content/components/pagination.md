@@ -29,4 +29,20 @@ pages are a web pattern; a phone list pages by scrolling.
 
 ---
 
+## Accessibility
+
+Each page number is a button with its own name, and previous/next carry
+`previousLabel` and `nextLabel` — they are icons and have no other source of one.
+
+The run of numbers collapses at each end so the control never changes width. That
+is a layout property with an accessibility consequence worth knowing: the number
+of nodes changes as the user pages, so a screen reader's position in the row is
+not stable. Give the surrounding page a heading or a live region that says which
+page is now shown.
+
+For a feed with no known end, [`LoadMore`](load-more.md) is the component —
+pagination implies a countable set.
+
+---
+
 ← [Navigation](navigation.md) · [All components](../components.md)

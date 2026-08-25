@@ -29,4 +29,17 @@ A command palette — a search field over *actions* rather than values — is
 
 ---
 
+## Accessibility
+
+Everything on [`Select`](select.md), plus a field the user types into.
+
+`matches` decides what filtering does, and what it does is change the list under
+the user's fingers. Keep it predictable: a fuzzy match that reorders results as
+each character arrives is very hard to follow without sight.
+
+`emptyLabel` is what the menu says when nothing matches. It is announced, so make
+it say what to do next rather than "No matches".
+
+---
+
 ← [Text editing](text-editing.md) · [All components](../components.md)

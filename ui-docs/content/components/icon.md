@@ -31,4 +31,20 @@ glyph is the only label there is.
 
 ---
 
+## Accessibility
+
+`contentDescription` is **required rather than nullable-by-default**, and the
+choice between a string and `null` is the whole of what this component asks.
+
+Pass `null` when the icon sits beside a label that already says the same thing —
+otherwise a screen reader announces it twice. Pass a description when the icon
+carries the meaning on its own, which for an icon-only button means the
+description is the button's name.
+
+`tint` defaults to `LocalContentColor`, so an icon inside a `Surface` is legible
+against whatever that surface painted without anyone choosing a colour. Overriding
+it with a literal is how an icon ends up invisible in the high-contrast scheme.
+
+---
+
 ← [Foundation](foundation.md) · [All components](../components.md)

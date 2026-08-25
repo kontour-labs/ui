@@ -47,4 +47,18 @@ portable backdrop blur.
 
 ---
 
+## Accessibility
+
+An `isTraversalGroup`, and `minTouchTarget` reserved on the row rather than per
+button — the same arrangement as [`ButtonGroup`](button-group.md), for the same
+reason.
+
+Every item is an icon button and needs its own `contentDescription`.
+`ToolbarDivider` is presentational and carries none.
+
+A floating toolbar sits over content. Where it is over something scrollable, that
+content needs padding to match, or the rows underneath it can never be read.
+
+---
+
 ← [Actions](actions.md) · [All components](../components.md)

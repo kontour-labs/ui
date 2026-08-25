@@ -49,4 +49,21 @@ phone, is in [the overlay guide](../overlays.md#toasts).
 
 ---
 
+## Accessibility
+
+A toast announces itself. The live region is **`Assertive` for
+`ToastTone.Danger`** and `Polite` for everything else — a failure interrupts,
+a confirmation waits for a gap.
+
+It never takes focus, which is deliberate: a toast that stole focus would move
+the reader away from what they were doing to tell them the thing they did
+worked. The consequence is the rule that governs the component — **an action in
+a toast must not be the only way to do it.** Four seconds is not a decision
+window for someone reading at their own pace.
+
+`showClose` adds a close button with `closeLabel` on it, which is worth turning
+on wherever a toast can carry an action.
+
+---
+
 ← [Overlays](overlays.md) · [All components](../components.md)

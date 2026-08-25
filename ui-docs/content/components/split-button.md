@@ -44,4 +44,19 @@ two halves has described neither.
 
 ---
 
+## Accessibility
+
+The two halves are two separate buttons inside one `isTraversalGroup`, so they
+are reached in order and announced separately — which is what they are. The main
+half takes its name from its content; the menu half takes
+`menuContentDescription`, and it needs one because it is an icon.
+
+The group reserves `Theme.sizing.minTouchTarget` in height, so the menu half is a
+full-size target however narrow it looks.
+
+Where the menu holds the *only* copy of an action, that action is unreachable for
+anyone who does not open menus. Keep the main action in the main half.
+
+---
+
 ← [Actions](actions.md) · [All components](../components.md)

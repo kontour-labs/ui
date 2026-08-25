@@ -32,4 +32,21 @@ glyph is the whole affordance.
 
 ---
 
+## Accessibility
+
+`Role.Checkbox` with a `stateDescription`, so what is announced is "Favourite,
+on" rather than a button giving no clue which way it is set. That is the whole
+difference from [`IconButton`](icon-button.md), which is `Role.Button` and has no
+state.
+
+`stateDescription` is overridable for the cases where on and off are the wrong
+words — "muted" and "unmuted" read better, and "playing" and "paused" better
+still.
+
+`contentDescription` names the control and must not change with the state: a
+button called "Mute" that becomes "Unmute" is two controls to anyone navigating
+by name.
+
+---
+
 ← [Actions](actions.md) · [All components](../components.md)

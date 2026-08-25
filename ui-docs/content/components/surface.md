@@ -30,4 +30,18 @@ work instead.
 
 ---
 
+## Accessibility
+
+A surface sets `LocalContentColor` from the ground it paints, which is the
+mechanism that keeps contrast correct without any call site asking for it: text
+and icons inside resolve against the background they are actually on.
+
+That is why `color` and `contentColor` travel together, and why passing a literal
+`color` without its matching `contentColor` is the way to produce unreadable text
+in one theme and not the other. The token pairs are asserted for contrast by a
+test over every combination — see
+[accessibility](../accessibility.md).
+
+---
+
 ← [Foundation](foundation.md) · [All components](../components.md)

@@ -132,7 +132,7 @@ class Knobs internal constructor(
 
 @Composable
 fun rememberKnobs(knobs: List<Knob<*>>): Knobs = remember(knobs) {
-    Knobs(knobs.associateWith { mutableStateOf(it.initial as Any?) })
+    Knobs(knobs.associateWith { mutableStateOf<Any?>(it.initial) })
 }
 
 /**

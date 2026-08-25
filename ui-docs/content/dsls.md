@@ -129,7 +129,7 @@ same shape as Compose's own `LazyListScope`.
 **A bare `+` fills the component's primary text** — the region a one-line call
 means. A row's label, a banner's message, a state screen's title, a stat's label.
 Those are four different *names* because they are four different things, and the
-[word table](../building/contributing.md#the-words) keeps them apart: a `label`
+[word table](../../docs/building/contributing.md#the-words) keeps them apart: a `label`
 names a control, a `title` heads a region, a `message` is prose. What is uniform
 is which one `+` reaches, not what it is called.
 
@@ -340,4 +340,4 @@ contract assertion that every component declaring a role must announce a
 non-empty name.
 
 The trade, and how the DSLs are tested, are in
-[`building/testing.md`](../building/testing.md#what-the-slot-conversion-cost-and-what-pays-for-it).
+[`building/testing.md`](../../docs/building/testing.md#what-the-slot-conversion-cost-and-what-pays-for-it).

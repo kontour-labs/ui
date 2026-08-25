@@ -31,4 +31,20 @@ scroll.
 
 ---
 
+## Accessibility
+
+Owning the selection at the group rather than at each button is what lets it
+apply `selectableGroup()`, which is what makes a screen reader announce the
+position within the set — "2 of 5". It also makes the invalid states, two
+selected or none, unrepresentable.
+
+Each row is a [`SelectionRow`](selection-row.md) with `role = Role.RadioButton`
+and the button inside taking `onClick = null`, so the whole row is the target and
+there is exactly one of them.
+
+`supporting` is part of the option's announcement. Put the consequence of the
+choice there rather than in a footnote below the group.
+
+---
+
 ← [Selection](selection.md) · [All components](../components.md)

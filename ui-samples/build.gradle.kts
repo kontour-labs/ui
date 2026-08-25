@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
-// The examples in `docs/using/`, as source the compiler reads.
+// The examples in `ui-docs/content/`, as source the compiler reads.
 //
 // A documentation example that does not compile is worse than none: it is a
 // confident wrong answer, and this project kept shipping them. Round 6 added a
@@ -45,7 +45,7 @@ kotlin {
     }
 }
 
-// Keeps `docs/using/` and this module's source in step.
+// Keeps `ui-docs/content/` and this module's source in step.
 //
 // The samples are the source of truth; the fenced blocks in the markdown are
 // copies of them, marked with `<!--sample:Name-->`. This fails when a copy has
@@ -58,11 +58,11 @@ kotlin {
 // own expectations checks nothing.
 val checkDocSamples = tasks.register<Exec>("checkDocSamples") {
     group = "verification"
-    description = "Fails if a fenced sample in docs/using/ has drifted from its source in :ui-samples."
+    description = "Fails if a fenced sample in ui-docs/content/ has drifted from its source in :ui-samples."
 
     val root = rootProject.layout.projectDirectory
     inputs.dir(layout.projectDirectory.dir("src/commonMain/kotlin")).withPropertyName("samples")
-    inputs.dir(root.dir("docs/using")).withPropertyName("pages")
+    inputs.dir(root.dir("ui-docs/content")).withPropertyName("pages")
     inputs.file(root.file("docs/sync-samples.py")).withPropertyName("script")
     outputs.file(layout.buildDirectory.file("reports/doc-samples.txt"))
 

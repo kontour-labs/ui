@@ -33,4 +33,19 @@ having none.
 
 ---
 
+## Accessibility
+
+The whole block merges into one `contentDescription`, in the order a person would
+say it: label, value, change. Three separate nodes would be three facts a screen
+reader user has to reassemble, and the change — "+12%" — means nothing on its
+own.
+
+Where the value's written form does not read aloud, give the spoken form: "8m"
+announced as "8 minutes".
+
+A stat is not a control. If it opens something, it needs a role — put it in a
+[`Card`](card.md) with `onClick`.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

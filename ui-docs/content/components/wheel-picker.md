@@ -26,4 +26,18 @@ it; a select is right when they are choosing from a list.
 
 ---
 
+## Accessibility
+
+The wheel reports the centred item as its `stateDescription`, so a screen reader
+announces the value the picker has settled on rather than the scroll position.
+
+`label` is what gets announced, so return something speakable: `"08"` reads as
+"zero eight" and is what a clock wants visually — where the two disagree, the
+component drawing the wheel should give it a spoken form.
+
+A wheel is a scroll gesture with a lot of stops. Where the set is long, a
+[`Select`](select.md) is reachable in one gesture and a wheel is not.
+
+---
+
 ← [Date and time](date-time.md) · [All components](../components.md)

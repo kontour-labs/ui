@@ -7,7 +7,7 @@ plugins {
 }
 
 // The documentation site. One Wasm bundle, hash routing, a page per component —
-// the prose from `docs/using/components/`, the live component from
+// the prose from `content/`, the live component from
 // `componentRegistry`, and a link into the Dokka reference.
 //
 // Web only. There is no reason to build a website for iOS, and a second target
@@ -62,9 +62,9 @@ val generatedDocs = layout.buildDirectory.dir("generated/docPages")
 
 val generateDocPages = tasks.register<Exec>("generateDocPages") {
     group = "documentation"
-    description = "Turns docs/using/components/*.md into DocPages.kt"
+    description = "Turns ui-docs/content/**/*.md into DocPages.kt"
 
-    val pages = rootProject.layout.projectDirectory.dir("docs/using/components")
+    val pages = layout.projectDirectory.dir("content")
     val script = rootProject.layout.projectDirectory.file("docs/generate-doc-pages.py")
     inputs.dir(pages).withPropertyName("pages")
     inputs.file(script).withPropertyName("script")

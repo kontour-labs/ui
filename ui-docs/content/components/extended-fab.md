@@ -25,4 +25,19 @@ Station" for a screen reader.
 
 ---
 
+## Accessibility
+
+The label is the accessible name while the button is expanded;
+`contentDescription` takes over once it has collapsed to an icon. Write the two
+to say the same thing, or the control is called one name at the top of a list and
+another after the user has scrolled.
+
+Collapsing is driven by the caller (`expanded`), so it can be tied to something
+other than scroll — but whatever drives it, the name has to stay stable.
+
+It floats over content. Anything scrolling underneath needs bottom padding to
+match, or the last row can never be read.
+
+---
+
 ← [Actions](actions.md) · [All components](../components.md)

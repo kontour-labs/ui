@@ -33,4 +33,18 @@ bar and a display cutout are already accounted for.
 
 ---
 
+## Accessibility
+
+`contentWindowInsets` defaults to `safeDrawing`, and the padding is **handed to
+the content rather than applied to it**. That is what lets a list scroll under a
+translucent bar while still ending above the home indicator — apply it to the
+scrolling container and the last row is unreachable behind the gesture area,
+which is a real defect and not a cosmetic one.
+
+The bars are ordinary composables and carry their own semantics; `TopBar` marks
+its title as a heading. Nothing here traps or reorders focus, so traversal
+follows the layout: bar, content, bottom bar.
+
+---
+
 ← [Adaptive](adaptive.md) · [All components](../components.md)

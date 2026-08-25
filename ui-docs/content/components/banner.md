@@ -32,4 +32,20 @@ interrupting for a routine notice trains people to ignore the interruption.
 
 ---
 
+## Accessibility
+
+A banner is a **live region** — `Assertive` for `BannerTone.Danger`, `Polite`
+otherwise. It announces itself when it appears, because it is about the state of
+the screen the user is on and they need to know before they act on it.
+
+That is the whole difference from a [`Toast`](toast.md), which is about something
+just done, and from a [`Callout`](callout.md), which is prose and announces
+nothing.
+
+The dismiss button carries `dismissLabel`. A banner with an action should keep
+that action available elsewhere too — a banner the user dismissed by accident
+should not take a capability with it.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

@@ -36,4 +36,21 @@ and those are the two things worth owning.
 
 ---
 
+## Accessibility
+
+**Off entirely under reduced motion**, and that is not a degradation. Everything
+else in the library softens — a spring becomes a tween, a slide becomes a fade —
+and this one stops, because it is the only animation here that never ends.
+Perpetual motion at the edge of vision is the specific thing the preference
+exists to stop, and there is no gentler version of "forever". The text truncates
+instead, which is what it would have done without the modifier.
+
+Scrolling changes nothing about what is announced: the full text is in the node
+either way, so a screen reader gets all of it without waiting.
+
+`iterations = Int.MAX_VALUE` is for a single live status line. A dozen rows all
+scrolling at once is a screen nobody can read, with or without a preference set.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

@@ -30,4 +30,21 @@ Options whose `swatchColor` is `null` render as an outlined swatch with
 
 ---
 
+## Accessibility
+
+Every swatch carries `swatchLabel` as its content description and reports
+`Role.RadioButton` inside a `selectableGroup()`. **A colour with no name is
+unusable** to anyone who cannot see it — and to anyone who can, describing a
+screenshot over the phone.
+
+The tick is drawn in whatever colour is legible on the swatch, resolved through
+`contentColorFor()`. A fixed white tick vanishes on pale yellow and a fixed black
+one on navy, and a picker whose selection is invisible on two of its own options
+has a bug in it.
+
+`swatchColor` returning `null` renders the "match the system" entry as an
+outlined swatch with an icon — still named, still one of the group.
+
+---
+
 ← [Selection](selection.md) · [All components](../components.md)

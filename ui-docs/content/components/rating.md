@@ -20,7 +20,7 @@ control at all** — no role, no touch target, no click action, one node saying
 That is the case that gets built wrong. Most ratings on any screen are
 *averages*, and shipping those as five silent radio buttons gives a
 screen-reader user five things to activate that do nothing —
-[`EverythingRespondsTest`](../../building/testing.md#everythingrespondstest)
+[`EverythingRespondsTest`](../../../docs/building/testing.md#everythingrespondstest)
 exists to catch exactly that.
 
 Interactive, it is a `selectableGroup` of `Role.RadioButton` marks, because
@@ -40,6 +40,21 @@ set without looking, and the taps still work. `allowHalf = true` lets a drag sto
 on a half mark — the left half of a mark is `.5`, the right half is whole. Off by
 default, because a rating that starts emitting `3.5` to callers who expected `4`
 is a change of contract rather than a nicety.
+
+---
+
+## Accessibility
+
+Interactive, it is a `selectableGroup()` of `Role.RadioButton` marks — a rating
+is one of five, and that is what a screen reader should hear.
+
+Read-only, it is one node with a `stateDescription`: "4.3 out of 5". A read-only
+rating rendered as five separate stars would be five nodes announcing nothing
+each.
+
+`contentDescription` names the control and it matters here more than usual —
+"Your rating" and "Average rating" are the same five stars and completely
+different facts.
 
 ---
 

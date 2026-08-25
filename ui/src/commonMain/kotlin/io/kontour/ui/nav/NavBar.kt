@@ -80,7 +80,7 @@ object NavBarDefaults {
  * ```
  *
  * Why there is no bar, and how the travelling marker works, are on the
- * navigation page: `docs/using/components/navigation.md`.
+ * navigation page: `ui-docs/content/components/navigation.md`.
  *
  * This used to be three container styles and two item styles — nine
  * combinations, of which the product wanted one. It is one now, and that is

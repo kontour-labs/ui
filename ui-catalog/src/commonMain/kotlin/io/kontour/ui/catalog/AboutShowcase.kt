@@ -154,14 +154,21 @@ private fun Reading() {
         // three of its five targets, and a link that does nothing on iOS is
         // worse than a path someone can find in the repository.
         KeyValueList {
-            item("Installing", "docs/using/installing.md")
-            item("Components", "docs/using/components.md")
-            item("Tokens", "docs/using/tokens.md")
-            item("Theming", "docs/using/theming.md")
-            item("Accessibility", "docs/using/accessibility.md")
-            item("Slots and +", "docs/using/dsls.md")
+            item("The site", "kontour-labs.github.io/ui")
+            item("Installing", "ui-docs/content/installing.md")
+            item("Components", "ui-docs/content/components.md")
+            item("Tokens", "ui-docs/content/tokens.md")
+            item("Theming", "ui-docs/content/theming.md")
+            item("Accessibility", "ui-docs/content/accessibility.md")
+            item("Slots and +", "ui-docs/content/dsls.md")
             item("Adding one", "docs/building/contributing.md")
         }
+        Text(
+            "The site is the same content with the components running in it, " +
+                "which is the half a path in a repository cannot give you.",
+            style = Theme.typography.bodyMedium,
+            color = Theme.colors.contentMuted,
+        )
         Text(
             "Every example on those pages is compiled — they live in ui-samples " +
                 "and the pages hold checked copies, so an example that no longer " +

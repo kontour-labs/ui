@@ -26,7 +26,7 @@ import io.kontour.ui.foundation.HorizontalDivider
  * ```
  *
  * `NavDrawerScope` extends `ColumnScope`, so [NavDrawerItem] and the rest still
- * work inside it — see `docs/using/dsls.md`.
+ * work inside it — see `ui-docs/content/dsls.md`.
  *
  * **The nesting is the point.** A destination inside a [group] inside a
  * [section] is still a destination: it keeps its full touch target, and it

@@ -58,31 +58,27 @@ KontourTheme {
 
 Once, at the root. It follows the operating system's dark mode, contrast tier
 and reduced-motion settings, and components outside it throw rather than falling
-back to a default palette — [`using/theming.md`](using/theming.md#installing-the-theme)
+back to a default palette — [`theming.md`](../ui-docs/content/theming.md#installing-the-theme)
 says why, and how to override any of it.
 
-## Two ways in
+## Where the documentation is
 
-The documentation is split by who is reading it.
+Two halves, split by who is reading.
 
 ### Using it — you are building a screen
 
-| | |
-|---|---|
-| [`using/installing.md`](using/installing.md) | Getting the artifact to resolve — the token, CI, and what each failure means |
-| [`using/components.md`](using/components.md) | **Start here.** Every component, what it is for, and what to reach for instead |
-| [`using/tokens.md`](using/tokens.md) | Colour, type, spacing, shape, elevation, motion, sizing — the full reference |
-| [`using/theming.md`](using/theming.md) | Installing the theme, overriding one group, authoring a whole scheme |
-| [`using/accessibility.md`](using/accessibility.md) | What a caller must honour, and what the system honours for you |
-| [`using/dsls.md`](using/dsls.md) | Slots and the `+` vocabulary — the shorthands, and when to leave them |
-| [`using/overlays.md`](using/overlays.md) | Dialogs, menus, tooltips and toasts — the stack, the queue, and which to reach for |
-| [`using/sheets.md`](using/sheets.md) | Bottom and side sheets, and the detent model the map screens need |
+**[kontour-labs.github.io/ui](https://kontour-labs.github.io/ui/)** — every
+component with a demo you can operate, a compiled example, a generated parameter
+table, and the guides: installing, tokens, theming, accessibility, the `+`
+vocabulary, overlays and sheets.
 
-Every example on those pages is compiled — they live in [`ui-samples/`](../ui-samples)
-and the pages hold checked copies, so one that no longer works fails the build.
+The source is [`ui-docs/content/`](../ui-docs/content), and it is markdown that
+reads on GitHub too. It lives inside `:ui-docs` rather than here because that is
+what it is for — the site is built from it on every push, and a published page
+belongs with the thing publishing it.
 
 The **API reference** is generated from the KDoc and lists every public symbol,
-which is the half the pages above do not attempt:
+which is the half those pages do not attempt:
 
 ```sh
 ./gradlew :ui:dokkaGenerateHtml     # ui/build/dokka/html
@@ -93,10 +89,21 @@ It knows every signature and no reasons; the pages carry the comparisons, the
 
 ### Building it — you are adding to the system
 
+That is what the rest of this directory is.
+
 | | |
 |---|---|
 | [`building/contributing.md`](building/contributing.md) | The shape of a component, the naming rules, the checklist |
 | [`building/testing.md`](building/testing.md) | Every gate, what each one asks, and what they have caught |
+| [`check-links.py`](check-links.py) | Every link in the repository resolves |
+| [`check-components.py`](check-components.py) | Eight rules over the pages: a page per component, an example, a demo, an index entry |
+| [`sync-samples.py`](sync-samples.py) | The examples on the pages are the code `:ui-samples` compiles |
+| [`generate-doc-pages.py`](generate-doc-pages.py) | The content, turned into the Kotlin the site renders |
+| [`doctree.py`](doctree.py) | Where the pages live and what families there are — imported by the three above |
+
+Every example on a documentation page is compiled: they live in
+[`ui-samples/`](../ui-samples) and the pages hold checked copies, so one that no
+longer works fails the build.
 
 ## Status
 
@@ -123,13 +130,13 @@ It knows every signature and no reasons; the pages carry the comparisons, the
 | 18 | Per-component renders, documentation split by audience | done |
 | 19 | API consistency, the move to its own repository, neutral defaults | done |
 | 20 | Render states, compiled examples, the API reference | in progress |
-| 21 | New components — see [`using/components.md`](using/components.md#not-yet-built) | not started |
+| 21 | New components — see [`components.md`](../ui-docs/content/components.md#not-yet-built) | not started |
 
 ## Verifying
 
 ```sh
 ./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
-          :ui:checkKdocSamples :ui-catalog:jvmTest \
+          :ui:checkKdocSamples :ui-catalog:jvmTest :ui-docs:jvmTest \
           :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples \
           :ui:dokkaGenerateHtml
 python3 docs/check-links.py
@@ -138,9 +145,14 @@ python3 docs/check-components.py
 
 All on the JVM without an emulator or a simulator — the contract suite,
 `checkNoMaterial`, `checkApiConventions`, `EverythingRespondsTest`, the
-screenshot goldens, the documentation's compiled examples, every link in the
-repository, every cross-reference in the KDoc, and a page for every component. What each one asks, and what each has caught, is in
-[`building/testing.md`](building/testing.md).
+screenshot goldens, the documentation's compiled examples, every page of the
+site drawn at four window widths, every link in the repository, every
+cross-reference in the KDoc, and a page for every component. What each one asks,
+and what each has caught, is in [`building/testing.md`](building/testing.md).
+
+`:ui-docs:jvmTest` writes a contact sheet per width class to
+`ui-docs/build/site-shots/`, and looking through it is the review step no
+assertion replaces.
 
 ## The catalog
 

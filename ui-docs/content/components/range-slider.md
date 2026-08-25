@@ -68,4 +68,20 @@ cannot enforce that between them.
 
 ---
 
+## Accessibility
+
+Two thumbs, two nodes, each with its own `contentDescription` —
+`startContentDescription` and `endContentDescription`. Without them a screen
+reader announces two identical sliders and the user cannot tell which end they
+are moving.
+
+`stateDescription` turns the range into something speakable: "9:00 to 17:00"
+rather than "0.375, 0.708". It takes the whole range, so it can describe the pair
+as one idea.
+
+Both thumbs are adjustable from a screen reader's increment and decrement
+actions, so the range is reachable without a drag.
+
+---
+
 ← [Selection](selection.md) · [All components](../components.md)

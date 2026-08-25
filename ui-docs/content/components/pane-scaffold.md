@@ -45,4 +45,21 @@ tucks the supporting pane away.
 
 ---
 
+## Accessibility
+
+The resize handle is a control, not a decoration. It reports
+`contentDescription = "Resize panes"` and a `ProgressBarRangeInfo` over
+`0.2..0.8`, with `setProgress` wired to the split — so the panes can be resized
+from a screen reader without the drag gesture.
+
+On a compact window there is one pane, and `onBack` is what returns from the
+detail to the list. Wire it to the platform back handler as well as to any
+visible button: a phone user who opened a detail and cannot get back to the list
+is stuck, and the back gesture is the thing they will try first.
+
+Give each pane a heading at its top. Two panes side by side with no headings are
+one long run of content to anyone navigating by structure.
+
+---
+
 ← [Adaptive](adaptive.md) · [All components](../components.md)

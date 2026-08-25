@@ -69,7 +69,8 @@ jobs:
             :ui:checkNoMaterial \
             :ui:checkApiConventions \
             :ui:checkKdocSamples \
-            :ui-catalog:jvmTest
+            :ui-catalog:jvmTest \
+            :ui-docs:jvmTest
 
       # The examples on the documentation pages, compiled. `compileKotlinJvm`
       # answers "does this still work against the real API"; `checkDocSamples`
@@ -89,6 +90,19 @@ jobs:
       # being noticed by whoever went looking for it.
       - name: Check every component has a page
         run: python3 docs/check-components.py
+
+      # Every page of the site at four window widths, with a contact sheet per
+      # width. Uploaded on success as well as on failure, because the point of
+      # these is that somebody looks at them: `SiteRenderTest` asserts a page
+      # renders and drew something, and no assertion it could carry would say
+      # "this page reads badly on a phone" — which is what the complaint that
+      # started Round 16 actually was.
+      - name: Upload the site renders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-shots
+          path: ui-docs/build/site-shots/
 
       # Without this a golden failure is a percentage in a log. With it you can
       # download the render and the highlighted diff and see what moved.

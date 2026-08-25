@@ -33,4 +33,19 @@ The full modality table is in
 
 ---
 
+## Accessibility
+
+The scrollbar **clears its own semantics** entirely. It is a read-out of a
+position that the scrolling container already reports, and a second node
+announcing the same thing is noise.
+
+Scrolling itself is reachable through the container. The scrollbar is a pointer
+affordance, and it hides unless the input can hover, which is why it costs a
+touch user nothing.
+
+`alwaysVisible` makes it permanent. That is a visual decision — it does not make
+anything reachable that was not.
+
+---
+
 ← [Collections](collections.md) · [All components](../components.md)

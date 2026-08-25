@@ -34,4 +34,17 @@ about how selection looks — see
 
 ---
 
+## Accessibility
+
+The travelling pill is drawn by the bar, not by the tab, and it carries no
+semantics of its own — which is right. Selection is reported by each tab through
+its `selected` state, so a screen reader hears "selected" on the tab rather than
+being told about an indicator that has no meaning to it.
+
+That separation is also why the animation is safe: with reduced motion the pill
+stops travelling and appears in place, and nothing about what is announced
+changes.
+
+---
+
 ← [Foundation](foundation.md) · [All components](../components.md)

@@ -45,4 +45,20 @@ SwipeToDismiss(
 
 ---
 
+## Accessibility
+
+Every action is exposed as a `CustomAccessibilityAction` on the row, so a swipe
+is never the only way to reach one. That is the rule the component was built
+around, and it is the one most often broken by rolling your own.
+
+`label` is what that action announces, and it is also the visible label — one
+string, so the two cannot disagree. That matters more than it sounds: split into
+an icon plus a separate description, a caller can write a background that says
+*Delete* and announces *Archive*.
+
+The background icons are decorative and cleared; the row's own content is
+unchanged by the swipe.
+
+---
+
 ← [Collections](collections.md) · [All components](../components.md)

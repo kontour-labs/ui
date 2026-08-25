@@ -83,4 +83,19 @@ applies to every one of them rather than to the menu as a whole.
 
 ---
 
+## Accessibility
+
+The trigger's `contentDescription` **changes when the menu opens** —
+`expandedContentDescription` — so a screen reader is told the control now closes
+rather than opens. That is the pattern for any button whose meaning flips.
+
+Each item announces its own `label`; the icon inside it is cleared, so the label
+is heard once.
+
+The menu is a set of buttons that appear on demand, so the same rule as a context
+menu applies: an action that lives only here is unreachable for anyone who does
+not find the trigger.
+
+---
+
 ← [Actions](actions.md) · [All components](../components.md)

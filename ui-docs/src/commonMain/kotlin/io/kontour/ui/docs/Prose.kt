@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
@@ -30,6 +31,23 @@ import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.theme.Theme
+
+/**
+ * Which page is being drawn, for the links in it.
+ *
+ * A relative link means nothing without the page that wrote it: `../tokens.md`
+ * is `tokens` from `components/button` and nothing at all from `tokens`. The
+ * resolution happens inside `buildAnnotatedString`, five composables below the
+ * one that knows the answer, and the same pattern the library uses for
+ * `LocalWindowSizeClass` is the right one here for the same reason — the
+ * alternative is a parameter threaded through five functions with no other use
+ * for it.
+ *
+ * No default worth having, so it throws: a link resolved against the wrong page
+ * fails quietly and sends the reader somewhere plausible and wrong, which is
+ * worse than a stack trace in a test.
+ */
+val LocalDocPath = compositionLocalOf<String> { error("No LocalDocPath — a page must provide its own path") }
 
 /** The blocks of one page, drawn. */
 @Composable
@@ -203,10 +221,11 @@ private fun DocTableRows(
  * layer instead of by this code, and it is what gets a link keyboard focus and
  * a pointer cursor for free.
  *
- * Where it goes is decided at render time by `routeForLink`: a sibling page is
- * a route within the site, and anything else is the file in the repository.
- * These pages are read here *and* on GitHub, so the markdown stores a relative
- * path and neither reading is the stored one.
+ * Where it goes is decided at render time by `routeForLink`, against
+ * [LocalDocPath]: anything under `ui-docs/content/` is a route within the site,
+ * and anything else — a contributor page, a source file — is the file on GitHub.
+ * These pages are read here *and* there, so the markdown stores a relative path
+ * and neither reading is the stored one.
  */
 @Composable
 private fun Linkable(
@@ -218,8 +237,9 @@ private fun Linkable(
 }
 
 @Composable
-private fun annotate(spans: List<Span>, heading: Boolean = false): AnnotatedString =
-    buildAnnotatedString {
+private fun annotate(spans: List<Span>, heading: Boolean = false): AnnotatedString {
+    val from = LocalDocPath.current
+    return buildAnnotatedString {
         val code = SpanStyle(
             fontFamily = FontFamily.Monospace,
             background = if (heading) {
@@ -250,11 +270,11 @@ private fun annotate(spans: List<Span>, heading: Boolean = false): AnnotatedStri
                                 )
                             ),
                             linkInteractionListener = {
-                                val route = routeForLink(target)
+                                val route = routeForLink(target, from)
                                 if (route != null) {
                                     navigate(route)
                                 } else {
-                                    openExternal(externalUrl(target))
+                                    openExternal(externalUrl(target, from))
                                 }
                             },
                         )
@@ -263,6 +283,7 @@ private fun annotate(spans: List<Span>, heading: Boolean = false): AnnotatedStri
             }
         }
     }
+}
 
 /** `withStyle` under a name that does not collide with the builder's own. */
 private inline fun androidx.compose.ui.text.AnnotatedString.Builder.withStyleOf(

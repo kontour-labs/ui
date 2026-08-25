@@ -48,4 +48,19 @@ same one they pressed.
 
 ---
 
+## Accessibility
+
+`ModalNavDrawer` sets `paneTitle` (`Theme.strings.navigation` by default), so a
+screen reader says what the region that just appeared is. The scrim carries a
+labelled dismiss action and the platform back gesture closes it.
+
+Items are `Role.Tab` inside a `selectableGroup()`, so the drawer announces
+position as well as name. `group` is a disclosure — its own state is announced,
+and the items inside it are not reachable while it is collapsed, which is why a
+collapsed group should never hold the only route to something.
+
+`section` is a label for a run of items, not a control. It does not take focus.
+
+---
+
 ← [Navigation](navigation.md) · [All components](../components.md)

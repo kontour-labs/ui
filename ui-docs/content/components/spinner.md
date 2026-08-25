@@ -21,4 +21,21 @@ longer when they can see the end. Both are in
 
 ---
 
+## Accessibility
+
+`Spinner` carries `ProgressBarRangeInfo` and takes a `contentDescription` — an
+indeterminate indicator with no description is an announced "progress bar" with
+no subject.
+
+Give it what is happening, not that something is: "Finding routes", not
+"Loading". Where the spinner is inside a [`Button`](button.md) with
+`loading = true`, leave it to the button — that clears the spinner's semantics
+and puts the state on the button instead, so nothing is announced twice.
+
+Under reduced motion the arc stops breathing and holds a constant length. It
+still turns — an indicator that stopped moving is an indicator that looks stuck,
+which is a worse answer than a calmer one.
+
+---
+
 ← [Actions](actions.md) · [All components](../components.md)

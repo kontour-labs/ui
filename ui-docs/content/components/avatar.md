@@ -21,4 +21,19 @@ iOS than on Android.
 
 ---
 
+## Accessibility
+
+The announcement is `contentDescription` where you pass one and `name` otherwise,
+set on the avatar itself with the initials inside cleared — so it is heard once,
+as a person, rather than as two letters.
+
+`name` is not a label drawn on screen; it is where the initials and the stable
+colour come from. That is why it doubles as the announcement: an avatar with a
+name has one whether or not anybody remembered `contentDescription`.
+
+`AvatarGroup`'s overflow count is part of its description rather than a separate
+node — "+3" read on its own tells a screen-reader user nothing.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

@@ -12,7 +12,7 @@ missing: a section that lands in two files, a component whose page was never
 made, a page nothing links to. So the arrangement is checked rather than
 trusted.
 
-Eight rules:
+Ten rules:
 
   1. Every component in `componentRegistry` has a page whose title names it.
      The registry is the library's own list, so this cannot drift from what
@@ -29,6 +29,8 @@ Eight rules:
   6. Every page shows an example that compiles.
   7. Every page says what is particular about its accessibility.
   8. Every page title names a declaration that exists in `:ui`.
+  9. The README's component count is the tree's component count.
+ 10. Every name an accessibility section mentions exists in `:ui`.
 
 Rules 4, 6 and 7 are **ratchets**: a ceiling that only goes down, rather than a
 list of exempted names. You cannot exempt *your* page, only make the total
@@ -44,7 +46,8 @@ import re
 import sys
 from pathlib import Path
 
-COMPONENTS = Path("docs/using/components")
+sys.path.insert(0, str(Path(__file__).parent))
+from doctree import COMPONENTS, CONTENT, INDEXES  # noqa: E402
 
 # Found rather than named. The registry has already moved source set once — out
 # of `commonTest` and into `commonMain`, so the documentation site could read
@@ -78,19 +81,6 @@ SYMBOL = re.compile(r"`([^`]+)`")
 # it mentions.
 ALSO = re.compile(r"^\*Also on this page:\s*(.+?)\*$", re.MULTILINE)
 
-# The pages that are *about* a category rather than a component.
-INDEXES = {
-    "actions",
-    "adaptive",
-    "collections",
-    "date-time",
-    "display",
-    "foundation",
-    "navigation",
-    "selection",
-    "text-editing",
-    "overlays", "sheets",
-}
 
 
 def registry_path() -> Path:
@@ -181,13 +171,13 @@ def public_composables() -> dict[str, Path]:
 def claimed_symbols() -> set[str]:
     """Every symbol any documentation page says it is about.
 
-    Across all of `docs/using`, not only `components/`, because a handful of
+    Across all of `ui-docs/content`, not only `components/`, because a handful of
     things are genuinely explained by a guide rather than by a component page —
     `KontourTheme` is a theme, not a component, and `theming.md` is where anyone
     looking for it would look.
     """
     found: set[str] = set()
-    for path in Path("docs/using").rglob("*.md"):
+    for path in CONTENT.rglob("*.md"):
         text = path.read_text()
         title = TITLE.search(text)
         if title:
@@ -208,15 +198,17 @@ MAX_WITHOUT_SAMPLE = 0
 
 # Only goes down. See rule 7.
 #
-# 102 of 103, which looks like a gate that does nothing and is not. A *new* page
-# lands at 103 and fails, so from here on every component page arrives with
-# accessibility notes — and the existing debt is written down in a number that
-# can only be paid off rather than in a list of names to inherit.
+# **Zero.** It arrived at 102 of 103 in the same round it was paid off: the debt
+# was written down as a ceiling first, and then the 102 sections were written
+# from what the source actually does, which is the only way to write them. Two
+# real defects turned up while reading — `TimeField`'s label was not its
+# accessible name, and `MultiSelect` announced its options as radio buttons when
+# any number of them can be on.
 #
 # Not every page owes the same thing. `accessibility.md` carries the rules that
-# apply to all of them; what belongs here is what is specific — which role a
-# component takes, what it announces, what its live region does.
-MAX_WITHOUT_ACCESSIBILITY = 102
+# apply to all of them; what belongs on a page is what is specific to it — which
+# role the component takes, what it announces, what its live region does.
+MAX_WITHOUT_ACCESSIBILITY = 0
 
 ACCESSIBILITY = re.compile(r"^#+\s*Accessibility", re.MULTILINE | re.IGNORECASE)
 SAMPLE = re.compile(r"^<!--\s*sample:\s*\w+\s*-->$", re.MULTILINE)
@@ -249,6 +241,30 @@ def public_declarations() -> set[str]:
                 if receiver:
                     found.add(f"{receiver}.{name}")
     return found
+
+
+# The README's claim about how big the library is, between markers so this can
+# read it without a regex over prose.
+#
+# It said "138 components" for four rounds and matched nothing measurable —
+# not the registry (49), not the pages (103), not the public composables (138 as
+# it happens, but by coincidence rather than because anybody counted). A number
+# in a README is read as a fact, and the only kind worth writing is one that
+# fails the build when it stops being true.
+README = Path("README.md")
+COUNTS = re.compile(r"<!--counts-->(.*?)<!--/counts-->", re.DOTALL)
+
+
+ACCESSIBILITY_BODY = re.compile(
+    r"^#+\s*Accessibility\s*\n(.*?)(?=\n---\n|\Z)", re.MULTILINE | re.DOTALL | re.IGNORECASE
+)
+MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\([^)]*\)")
+BACKTICKED = re.compile(r"`([A-Za-z_][\w.]*)`")
+
+# Words that read as identifiers and are not ones — callback names used
+# generically, and Compose's own vocabulary.
+PROSE = {"onCheckedChange", "onClick", "onValueChange", "onDismissRequest",
+         "onSelectedChange", "null", "true", "false", "labelledBy"}
 
 
 def main() -> int:
@@ -385,6 +401,50 @@ def main() -> int:
                 f"that — either the page is about a component that has been "
                 f"renamed, or the title has a typo"
             )
+
+    # Rule 9 — the README says how big the library is, and is right.
+    claimed = COUNTS.search(README.read_text()) if README.exists() else None
+    if claimed:
+        expected = (
+            f"{len(public_composables())} public components across "
+            f"{len(component_pages)} pages"
+        )
+        if claimed.group(1).strip() != expected:
+            problems.append(
+                f"README.md claims “{claimed.group(1).strip()}” and the tree has "
+                f"“{expected}” — update the text between the <!--counts--> markers"
+            )
+
+    # Rule 10 — an accessibility section names things that exist.
+    #
+    # Deliberately a whole-library check rather than a per-page one. Per page it
+    # would be sharper and it would also be wrong three times in a hundred:
+    # `date-picker.md` is right to say each day reports `Role.Button` even though
+    # that line lives in `CalendarMonth.kt`, and `segmented-control.md` is right
+    # to mention `Role.Tab` while explaining what it is not.
+    #
+    # What this catches is the drift that actually happens — a parameter renamed
+    # in `:ui` while the prose describing it stays as it was. These sections are
+    # dense with parameter names by design, which is what makes them worth
+    # checking and what would otherwise make them rot fastest.
+    library = "".join(
+        path.read_text() for path in Path("ui/src/commonMain/kotlin").rglob("*.kt")
+    )
+    for page in component_pages:
+        section = ACCESSIBILITY_BODY.search(page.read_text())
+        if not section:
+            continue
+        body = MARKDOWN_LINK.sub("", section.group(1))
+        for token in BACKTICKED.findall(body):
+            name = token.split(".")[-1]
+            if name in PROSE or len(name) < 4:
+                continue
+            if not re.search(rf"\b{re.escape(name)}\b", library):
+                problems.append(
+                    f"{page.name}'s accessibility section names `{token}` and "
+                    f"nothing in :ui is called that — it has been renamed, or the "
+                    f"prose describing it was written from memory"
+                )
 
     # Rule 3 — every page is reachable from its index.
     linked = set()

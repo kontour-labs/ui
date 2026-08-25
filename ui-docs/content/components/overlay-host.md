@@ -33,4 +33,22 @@ The stack, the queue, back handling and focus order are in
 
 ---
 
+## Accessibility
+
+The host is what makes an overlay reachable rather than merely visible.
+
+Each entry is an `isTraversalGroup` with `traversalIndex = index + 1`, and the
+screen underneath is `traversalIndex = 0`. Traversal order therefore follows the
+stack: a screen reader reaches the newest overlay first and the page last,
+however the composables happen to be nested. Without that, an overlay drawn last
+in a `Box` is read *after* the content it covers.
+
+The scrim is not decoration. Where an overlay is dismissible it carries an
+`onClick` action with a real label — `Theme.strings.dismiss`, or whatever the
+overlay passes — so "tap outside to close" exists for someone who cannot tap
+outside. Where it is not, the scrim still consumes input, so taps cannot reach
+content the user can no longer see.
+
+---
+
 ← [Overlays](overlays.md) · [All components](../components.md)

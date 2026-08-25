@@ -22,4 +22,19 @@ The message should say how to *leave* the empty state, not restate the title.
 
 ---
 
+## Accessibility
+
+Both states are **live regions** — `EmptyState` polite, `ErrorState` assertive —
+and merge their content, so the whole block is announced as one thing when it
+appears rather than as an icon, a heading and a button in sequence.
+
+That is why the `action` slot matters more here than anywhere else: an empty
+screen that only says it is empty leaves a screen-reader user exactly where they
+were, with nothing to move to. Give it somewhere to go.
+
+The `leading` icon is decorative and cleared. Whatever it depicts should be in
+the words.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

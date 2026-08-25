@@ -78,9 +78,13 @@ class SiteRenderTest {
         val failures = mutableListOf<String>()
 
         // Home and Gallery are routes too, and Home is where the crash was.
+        //
+        // Named by path with the separator flattened, because there are now two
+        // pages called `overlays` — the guide to the mechanism and the family
+        // index — and one file per shot cannot hold both.
         val routes: List<Pair<String, Route>> =
             listOf("home" to Route.Home) +
-                docPages.map { it.slug to Route.Component(it.slug) }
+                docPages.map { it.path.replace('/', '-') to Route.Doc(it.path) }
 
         for ((widthName, width) in widths) {
             val dir = File(root, widthName).apply { mkdirs() }

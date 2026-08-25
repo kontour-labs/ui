@@ -29,4 +29,18 @@ computes it from a `LazyListState`, and there is a raw
 
 ---
 
+## Accessibility
+
+The title is marked `heading()`, so a screen reader can jump straight to it —
+which is how a user finds out what screen they are on after navigating.
+
+The back button carries `backLabel`. Action icons need their own
+`contentDescription`; the bar cannot invent one.
+
+`windowInsets` defaults to the top edge, so the bar is not under the status bar
+on an iOS PWA. `collapseProgress` animates the title and changes nothing about
+what is announced.
+
+---
+
 ← [Navigation](navigation.md) · [All components](../components.md)

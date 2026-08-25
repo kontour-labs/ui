@@ -126,7 +126,7 @@ publishing {
 // appears, whether or not anybody remembered to write it up.
 //
 // The two do different jobs and neither replaces the other. Dokka knows every
-// signature and no reasons; `docs/using/` carries the comparisons, the "reach
+// signature and no reasons; `ui-docs/content/` carries the comparisons, the "reach
 // for this instead", and the bug histories — the things that are true of a
 // component but not visible in it.
 //

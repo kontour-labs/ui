@@ -10,7 +10,7 @@ something else, and the defects that shaped a decision — those are in the
 hand-written pages, and a component page there is worth reading before its entry
 here:
 
-- **Using it** — `docs/using/`: components by category, tokens, theming,
+- **Using it** — `ui-docs/content/`: components by category, tokens, theming,
   accessibility, the `+` vocabulary, overlays and sheets.
 - **Building it** — `docs/building/`: how to add a component, and what the
   guards check.

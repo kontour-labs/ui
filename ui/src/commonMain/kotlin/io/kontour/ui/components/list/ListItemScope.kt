@@ -31,7 +31,7 @@ import io.kontour.ui.foundation.ContentScope
  *
  * No slot takes a `modifier`; a region that needs one has outgrown the
  * shorthand, and the slot takes a composable. Both rules, and the two kinds of
- * scope behind them, are in `docs/using/dsls.md`.
+ * scope behind them, are in `ui-docs/content/dsls.md`.
  */
 @LayoutScopeMarker
 @Stable

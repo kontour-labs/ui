@@ -253,7 +253,7 @@ internal val LocalSelectionIndicator = staticCompositionLocalOf<SelectionIndicat
  * ```
  *
  * Why one travelling marker rather than each item drawing its own is on the
- * navigation page: `docs/using/components/navigation.md`.
+ * navigation page: `ui-docs/content/components/navigation.md`.
  *
  * ### Put it inside the scroll container, not around it
  *

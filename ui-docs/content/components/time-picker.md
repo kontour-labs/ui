@@ -17,4 +17,17 @@ AM/PM appears as a third wheel on a 12-hour clock, which is a
 
 ---
 
+## Accessibility
+
+The three wheels are named — "Hour", "Minute", "AM or PM" — because a wheel with
+no name announces a number and nothing about what the number is.
+
+Each wheel reports its centred value as its state, so moving it says the new
+value rather than only that something scrolled.
+
+`minuteStep` is worth setting. At the default of 1 the minute wheel has sixty
+stops, which is sixty announcements to cross by swipe.
+
+---
+
 ← [Date and time](date-time.md) · [All components](../components.md)

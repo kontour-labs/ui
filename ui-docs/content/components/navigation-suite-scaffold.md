@@ -40,4 +40,20 @@ padding to inset by, the same way a map insets its controls by a sheet's
 
 ---
 
+## Accessibility
+
+The surface changes with the window and the destinations do not, so what is
+announced is the same on a phone, a tablet and a desktop. That is the property
+worth protecting: a user who has learned the order of their destinations should
+not have to relearn it because they rotated the device.
+
+Each surface applies `selectableGroup()` to its items, so a screen reader
+announces "2 of 4" rather than four unrelated buttons.
+
+`search` and `action` sit **outside** that group deliberately. Inside it, a
+search field would be counted as a destination — "1 of 5" for four destinations —
+which is the bug the separation exists to prevent.
+
+---
+
 ← [Navigation](navigation.md) · [All components](../components.md)

@@ -47,4 +47,18 @@ an intrinsic width re-rags it every time the content changes.
 
 ---
 
+## Accessibility
+
+Each row merges into one `contentDescription` — `"$label, $value"` — so a screen
+reader hears "Platform, 2" as one fact rather than two nodes it has to associate.
+
+`announcement` overrides the spoken form for a value whose written form does not
+read aloud: "8m" announced as "8 minutes", "PLT 2" as "Platform 2".
+
+A row is **not** a control. It has no role, no touch target and no press — that
+is [`SettingRow`](setting-row.md), and the distinction is why a key-value list
+does not appear as a list of buttons a user has to try.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

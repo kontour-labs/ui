@@ -34,4 +34,22 @@ shape makes visible: the chain is the reading order, written down.
 
 ---
 
+## Accessibility
+
+This is the accessibility fix, not a convenience. Without a chain a soft
+keyboard's action key does nothing, so filling a three-field form means
+dismissing the keyboard and tapping the next field between every entry — with
+the keyboard covering the field being tapped.
+
+Every field but the last shows **Next** and moves focus; the last shows **Done**
+and runs `onSubmit`. The order lives in one place, at the `rememberImeChain`
+call, rather than being implied by three separate `imeAction` arguments that go
+wrong the first time somebody reorders the form.
+
+A chain overrides both `imeAction` and a specialised field's own default:
+`PasswordField` defaults to Done, which is wrong for a password halfway down a
+form.
+
+---
+
 ← [Text editing](text-editing.md) · [All components](../components.md)

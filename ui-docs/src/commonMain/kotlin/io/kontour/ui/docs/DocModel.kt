@@ -2,6 +2,18 @@ package io.kontour.ui.docs
 
 import androidx.compose.runtime.Immutable
 
+/** What a page is, which decides what the site puts around it. */
+enum class DocKind {
+    /** Prose about the library: tokens, theming, accessibility, the DSLs. */
+    Guide,
+
+    /** The index of one family — its "which one" table and the family's own prose. */
+    Family,
+
+    /** One component: a live demo, the prose, and a generated parameter table. */
+    Component,
+}
+
 /**
  * One documentation page, as blocks rather than as markdown.
  *
@@ -10,19 +22,27 @@ import androidx.compose.runtime.Immutable
  * content, and a page that stops parsing fails the build rather than the
  * browser.
  *
- * @param slug The route — `#/components/<slug>` — and the file it came from.
+ * @param path The route — `#/<path>` — and the file it came from, relative to
+ *   `ui-docs/content/` and without the suffix. A file *stem* was what this used
+ *   to be, and stems are not unique across the tree: `overlays.md` is both the
+ *   guide to the overlay mechanism and the family index.
  * @param symbols What the page is about, from its title. Used for the search
  *   and for the link into the API reference.
- * @param family Which category index links to it.
+ * @param family Which index links to it, or `Guides` for a page that is not
+ *   about a component at all.
  */
 @Immutable
 class DocPage(
-    val slug: String,
+    val path: String,
     val title: String,
     val symbols: List<String>,
     val family: String,
+    val kind: DocKind,
     val blocks: List<Block>,
-)
+) {
+    /** The file stem, which is what a demo is keyed by. */
+    val slug: String get() = path.substringAfterLast('/')
+}
 
 /** A run of prose with one kind of formatting on it. */
 @Immutable
@@ -55,8 +75,8 @@ sealed interface Block {
     data object Rule : Block
 }
 
-/** Every page, by slug. */
-val docPagesBySlug: Map<String, DocPage> = docPages.associateBy { it.slug }
+/** Every page, by route. */
+val docPagesByPath: Map<String, DocPage> = docPages.associateBy { it.path }
 
 /**
  * The families, in the order the documentation's own index puts them.
@@ -65,6 +85,7 @@ val docPagesBySlug: Map<String, DocPage> = docPages.associateBy { it.slug }
  * sorted by a fact about spelling. This is the order a reader is led through.
  */
 val familyOrder: List<String> = listOf(
+    "Guides",
     "Actions",
     "Selection",
     "Text editing",
@@ -79,9 +100,21 @@ val familyOrder: List<String> = listOf(
     "Other",
 )
 
-/** Pages grouped by family, families in [familyOrder], pages by title within. */
-val docPagesByFamily: List<Pair<String, List<DocPage>>> =
+/**
+ * The index: families in [familyOrder], and within each the pages by title.
+ *
+ * A family's own page is excluded from its list and carried beside it instead —
+ * a section headed "Overlays" whose first entry is also "Overlays" reads as a
+ * duplicate rather than as the way in.
+ */
+val docPagesByFamily: List<DocFamily> =
     familyOrder.mapNotNull { family ->
-        val pages = docPages.filter { it.family == family }.sortedBy { it.title }
-        if (pages.isEmpty()) null else family to pages
+        val pages = docPages.filter { it.family == family }
+        val index = pages.firstOrNull { it.kind == DocKind.Family }
+        val rest = pages.filter { it.kind != DocKind.Family }.sortedBy { it.title }
+        if (rest.isEmpty()) null else DocFamily(family, index, rest)
     }
+
+/** One group in the site index. */
+@Immutable
+class DocFamily(val name: String, val index: DocPage?, val pages: List<DocPage>)

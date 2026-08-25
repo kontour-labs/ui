@@ -31,4 +31,19 @@ assembled rather than built.
 
 ---
 
+## Accessibility
+
+The timeline is a `Column` and its items are read top to bottom, which is the
+order they mean. Nothing here adds a role: a journey is a sequence of content,
+not a control.
+
+The connectors and nodes are drawn, not announced, so the *text* has to carry the
+sequence. "08:14 Perth Underground" then "08:21 Elizabeth Quay" reads as an
+itinerary; two rows saying only the platform do not.
+
+Where a step is complete or pending and that matters, put it in the words rather
+than in `filled` — the node's fill is colour and shape, and neither is announced.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

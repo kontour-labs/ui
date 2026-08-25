@@ -27,4 +27,20 @@ of the options.
 
 ---
 
+## Accessibility
+
+The clear button carries `clearLabel`, which it needs — it is an icon inside a
+field and has no other name.
+
+`onQuery` is debounced and `onSearch` is not, and that split matters more than it
+looks: filtering a list on every keystroke re-announces the results under a
+screen reader as fast as the user can type. Debounce is what makes the
+announcement settle.
+
+Where the field filters a list, the list's own count should be announced when it
+settles — the field cannot do it, because it does not know what is being
+filtered.
+
+---
+
 ← [Text editing](text-editing.md) · [All components](../components.md)

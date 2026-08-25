@@ -24,4 +24,21 @@ the screen going grey first.
 
 ---
 
+## Accessibility
+
+`dismissLabel` is required whenever `onDismissRequest` is set, and the KDoc says
+so: the scrim carries a real `onClick` action, and "button" is not a useful thing
+to hear when a dialog opens.
+
+With `onDismissRequest = null` the scrim still consumes pointer input, so taps
+cannot reach content the user can no longer see, and it exposes no action —
+correct for a confirmation that must be answered.
+
+`fraction` is a lambda read in the draw phase. That is a performance decision
+rather than an accessibility one, but it has an accessibility consequence worth
+knowing: the scrim does not recompose as it dims, so nothing is re-announced
+while a sheet is dragged.
+
+---
+
 ← [Foundation](foundation.md) · [All components](../components.md)

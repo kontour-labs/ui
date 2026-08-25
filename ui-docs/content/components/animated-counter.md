@@ -30,4 +30,20 @@ reader announces "one", "four", "space", "m", "i", "n".
 
 ---
 
+## Accessibility
+
+The announced value is `contentDescription`, defaulting to the text, set on the
+whole control with every animating digit cleared. Without that a screen reader
+would read a column of digits mid-flight, which is neither the old value nor the
+new one.
+
+Pass `contentDescription` where the digits are not the sentence — "4 minutes"
+rather than "4".
+
+It is not a live region: it does not announce itself when it changes. Where the
+change is the point — a departure time counting down — that is
+[`RelativeTimeText`](relative-time-text.md), which is.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

@@ -47,4 +47,19 @@ still belong to the segment under them.
 
 ---
 
+## Accessibility
+
+A `selectableGroup()` of `Role.RadioButton` segments, so it announces "2 of 3"
+and "selected" — which is what it is, and what a row of buttons would not be.
+
+That is the difference from [`ButtonGroup`](button-group.md), whose items are
+actions, and from [`TabBar`](tab-bar.md), whose items are `Role.Tab` and change
+what is on screen below them.
+
+Beyond four or five options the segments become unreadable slivers before they
+become inaccessible — but they become both. A [`Select`](select.md) is the answer
+for a long set.
+
+---
+
 ← [Selection](selection.md) · [All components](../components.md)

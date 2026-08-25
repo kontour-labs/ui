@@ -6,7 +6,7 @@ The map. Every component in `io.kontour.ui`, and what family it is in.
 **what to reach for instead and when**, its API, its states, and the
 accessibility notes specific to it — with a render of it alone, light and dark,
 taken from the same registry the
-[contract suite](../building/testing.md#the-contract-suite) runs over.
+[contract suite](../../docs/building/testing.md#the-contract-suite) runs over.
 
 A family page is the index of its components: the "which one" table, and the
 prose that is about the family rather than any one of them.
@@ -57,7 +57,7 @@ The comparisons that get made wrongly, and where each is argued:
 
 ## Status
 
-Per phase — see [README](../README.md#status). Everything above is built.
+Per phase — see [README](../../docs/README.md#status). Everything above is built.
 
 ## Not yet built
 

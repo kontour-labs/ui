@@ -14,4 +14,21 @@ TimeField(value = departAt, onClick = { start() }, label = "Leave at")
 
 ---
 
+## Accessibility
+
+The label is the field's **accessible name**, set on the control with
+`contentDescription` while the visible label is drawn with
+`clearAndSetSemantics {}` — the same arrangement `FieldScaffold` uses for every
+text field, and for the same reason: Compose has no `labelledBy`, so a label
+drawn above a control is an unrelated node however close it is on screen.
+
+The formatted time is the field's `stateDescription`, so what is announced is
+"Leave at, 08:15, button" rather than a control whose name is its own value.
+
+It is a button, not an editable field, and deliberately: typing a time into a
+text field is how you get 25:61. Pressing it opens a
+[`TimePicker`](time-picker.md).
+
+---
+
 ← [Date and time](date-time.md) · [All components](../components.md)

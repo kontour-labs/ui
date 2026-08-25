@@ -38,4 +38,22 @@ without every child being told where it is.
 
 ---
 
+## Accessibility
+
+`Text` is the accessible content of nearly everything above it, so most of what
+matters here is what it is *inside*: a component that draws its label with
+`Text` and puts the name on the control is the pattern, and drawing a label
+beside an unnamed control is the bug — Compose has no `labelledBy`, so a label
+near a field is an unrelated node however close it is on screen.
+
+Links inside an `AnnotatedString` use `LinkAnnotation`, so the platform gets real
+link semantics — focusable, announced as a link, activated by the keyboard —
+rather than a tap handler that works out which range was hit.
+
+Never size type in `sp` computed from a `Dp`. `Theme.typography` scales with the
+user's text setting; a literal does not, and 200% is the setting the
+[accessibility page](../accessibility.md) promises to survive.
+
+---
+
 ← [Foundation](foundation.md) · [All components](../components.md)

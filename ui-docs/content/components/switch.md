@@ -33,4 +33,19 @@ the row publishes its own toggle for the switch to drag against.
 
 ---
 
+## Accessibility
+
+`Role.Switch` with a `toggleableState`, which is what makes a screen reader say
+"on" and "off" rather than "checked" and "unchecked". The difference is not
+pedantry: a switch takes effect immediately, and a checkbox is a value that is
+submitted later.
+
+Put it in a [`SelectionRow`](selection-row.md) with `onCheckedChange = null` so
+the row is the target — a bare switch has no name.
+
+The thumb stretches while it moves and does not under reduced motion. Nothing
+about the announcement changes.
+
+---
+
 ← [Selection](selection.md) · [All components](../components.md)

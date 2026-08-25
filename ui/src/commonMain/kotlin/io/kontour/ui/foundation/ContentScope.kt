@@ -43,7 +43,7 @@ import io.kontour.ui.theme.Theme
  * its own, use [icon].
  *
  * Why the slot decides the style, and the rest of the vocabulary, are in
- * `docs/using/dsls.md`.
+ * `ui-docs/content/dsls.md`.
  */
 @LayoutScopeMarker
 @Stable
@@ -82,7 +82,7 @@ interface ContentScope {
  * `Modifier.align` still mean what they always did.
  *
  * Extending the scope the lambda already had is the rule every shorthand in the
- * library follows — see `docs/using/dsls.md`. It is why adopting one
+ * library follows — see `ui-docs/content/dsls.md`. It is why adopting one
  * has never broken a call site: a button body written against `RowScope` is a
  * button body written against this.
  */

@@ -77,4 +77,20 @@ nothing inside wanted.
 
 ---
 
+## Accessibility
+
+Tabs are `Role.Tab` inside a `selectableGroup()`, so a screen reader announces
+"2 of 3" and which one is selected. The travelling pill is drawn by the bar and
+carries no semantics — selection is reported by the tab.
+
+The overflow menu button sits **outside** the group deliberately: inside it, it
+would be counted as a tab, and the bar would announce four tabs when it has
+three.
+
+A tab bar changes what is below it. Where that content is a separate scrolling
+region, give it a heading so a user who has switched tabs can find where they
+have arrived.
+
+---
+
 ← [Navigation](navigation.md) · [All components](../components.md)

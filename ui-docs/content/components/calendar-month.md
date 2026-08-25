@@ -29,4 +29,21 @@ as continuous rather than as a row of separate pills.
 
 ---
 
+## Accessibility
+
+Each day is a `selectable` node with `Role.Button` and a full-date
+`stateDescription`, set on the node that receives the press rather than on the
+decorative fill behind it.
+
+The grid on its own has **no month header**, which is the point of the component
+— and it means a screen has to supply one. Without it a reader arrives at "18"
+with no way to tell which month they are in.
+
+`onDragSelect` is a gesture with no keyboard equivalent, so a range that can only
+be chosen by dragging cannot be chosen at all by some users. Provide the two
+end dates as taps as well, which is what
+[`DateRangePicker`](date-range-picker.md) does.
+
+---
+
 ← [Date and time](date-time.md) · [All components](../components.md)

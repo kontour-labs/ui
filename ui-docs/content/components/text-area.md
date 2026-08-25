@@ -21,4 +21,19 @@ TextArea(
 
 ---
 
+## Accessibility
+
+Everything on [`TextField`](text-field.md) applies — the label as the accessible
+name, `errorMessage` as `error` semantics, `enabled = false` as a disabled node.
+
+`minLines`/`maxLines` is the accessibility-relevant pair: the field grows between
+them and then scrolls, so it neither starts enormous nor moves the rest of the
+form a line at a time as the user types. Content that moves under a magnifier is
+content that has to be found again.
+
+Put it last in an [`ImeChain`](ime-chain.md), or don't put it in one: a
+multi-line field needs its return key for returns.
+
+---
+
 ← [Text editing](text-editing.md) · [All components](../components.md)

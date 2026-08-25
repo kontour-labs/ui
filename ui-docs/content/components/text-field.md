@@ -41,4 +41,28 @@ surface is otherwise two tones with no boundary.
 
 ---
 
+## Accessibility
+
+Three things happen on the control's own node, and all three exist because
+something was wrong before them.
+
+**`label` becomes the field's `contentDescription`.** The visible label is a
+sibling `Text` in the scaffold, drawn with `clearAndSetSemantics {}`, because
+Compose has no `labelledBy` and nothing otherwise associates the two. Without it
+a user hears "Origin", moves to the next node, and is in an unnamed edit box.
+
+**`errorMessage` sets `error` semantics**, not just a red border. Colour alone
+fails WCAG 1.4.1, so the message is how a screen-reader user learns there is a
+problem — and error outranks focus visually, because an accent ring would hide
+the thing being fixed.
+
+**`enabled = false` marks the node disabled.** Foundation greys the field and
+stops accepting input without marking it, so a screen reader went on offering
+"double tap to edit" on a field that would not take a character.
+
+Helper and error share one slot and animate in place, so a form does not jump a
+line height every time validation flips.
+
+---
+
 ← [Text editing](text-editing.md) · [All components](../components.md)

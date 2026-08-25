@@ -30,4 +30,18 @@ two-line title peeks taller than a one-line one without anybody computing it.
 
 ---
 
+## Accessibility
+
+The title is marked `heading()`, so a screen reader can jump to it — which is
+what makes a long sheet navigable rather than a single run of text.
+
+The close button carries `closeLabel`, and `onClose` defaults to closing the
+enclosing sheet, so the affordance is there without the caller wiring it. Set it
+to `null` only for a sheet that genuinely cannot be closed from inside.
+
+Actions in the `actions` slot are ordinary buttons and need their own
+`contentDescription` when they are icons.
+
+---
+
 ← [Sheets](sheets.md) · [All components](../components.md)

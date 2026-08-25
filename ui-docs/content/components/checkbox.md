@@ -35,4 +35,18 @@ which is what `LocalRowInteractionSource` was always for.
 
 ---
 
+## Accessibility
+
+`Role.Checkbox` with a `toggleableState`, so a screen reader announces checked,
+unchecked or — for [`TriStateCheckbox`](tri-state-checkbox.md) — indeterminate.
+
+A bare checkbox has no name. Put it in a [`SelectionRow`](selection-row.md) with
+`onCheckedChange = null`, so the row carries the click, the role and the label
+and there is one target rather than two.
+
+The touch target is the minimum regardless of the box's drawn size, which is why
+a checkbox in a dense list still meets it.
+
+---
+
 ← [Selection](selection.md) · [All components](../components.md)

@@ -33,4 +33,20 @@ LazyColumn(state = listState) {
 
 ---
 
+## Accessibility
+
+Reordering is exposed as `CustomAccessibilityAction`s — move up and move down —
+on each row, wired to the same state the drag uses. A list that could only be
+reordered by dragging could not be reordered at all by a screen-reader user, and
+this is what the actions exist for.
+
+`moveUpLabel` and `moveDownLabel` are what those actions announce. The defaults
+are generic; where the rows are ordered stops or ranked preferences, saying so
+reads better.
+
+Long-press-to-drag is a gesture and stays one. The actions are the equivalent,
+not a fallback.
+
+---
+
 ← [Collections](collections.md) · [All components](../components.md)

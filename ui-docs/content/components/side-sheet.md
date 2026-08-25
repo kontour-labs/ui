@@ -36,4 +36,20 @@ component.
 
 ---
 
+## Accessibility
+
+Pass **`paneTitle`** — the same reasoning as [`BottomSheet`](bottom-sheet.md),
+and the same default of none.
+
+`onBack` adds a labelled back button (`backLabel`) rather than relying on the
+platform gesture, which is what makes a sheet that is a second *level* legible
+as one: filters open, and going back returns to the list rather than closing
+everything.
+
+`side` is `SheetSide.Start` / `End`, not left and right, so the sheet follows the
+layout direction. A sheet pinned to the left is a sheet that slides in from the
+wrong edge in Arabic.
+
+---
+
 ← [Sheets](sheets.md) · [All components](../components.md)

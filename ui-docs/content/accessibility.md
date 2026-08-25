@@ -211,4 +211,4 @@ name, a disabled state that is announced as well as enforced, a touch target,
 and survival at 200% type in RTL.
 
 It is written up, with the four real bugs it found on its first run, in
-[`building/testing.md`](../building/testing.md#the-contract-suite).
+[`building/testing.md`](../../docs/building/testing.md#the-contract-suite).

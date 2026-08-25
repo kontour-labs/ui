@@ -40,4 +40,21 @@ and sheets, and what back does.
 
 ---
 
+## Accessibility
+
+The panel is marked `dialog()`, which is what tells a screen reader that the
+thing that just appeared is modal and that the content behind it is no longer
+the subject.
+
+Dismissal has three routes and they are meant to stay three: the scrim's
+labelled `onClick` action, the platform back gesture, and whatever button the
+content provides. `dismissOnOutside = false` removes the first — correct for a
+confirmation that must be answered, and a reason to make sure the content offers
+its own way out.
+
+`dismissLabel` is what the scrim announces. The default is `Theme.strings.dismiss`;
+override it when "dismiss" is ambiguous about what is being dismissed.
+
+---
+
 ← [Overlays](overlays.md) · [All components](../components.md)

@@ -36,4 +36,27 @@ which this one was for most of the project's life.
 
 ---
 
+## Accessibility
+
+Each of the four sets the platform **autofill content type**, which is the part
+callers forget and the part that matters most: `PasswordField` sets
+`ContentType.Password`, or `NewPassword` with `isNewPassword = true` so the
+platform offers to generate and save one rather than to fill an existing one.
+
+`PasswordField` masks with an `OutputTransformation` — one bullet per character,
+so every cursor offset still means what it says.
+`KeyboardType.Password` is an IME *hint* and substitutes no glyphs; a field
+relying on it alone is plaintext, which this one was for most of the project's
+life.
+
+`NumberField` and `PhoneField` reject characters at the keystroke through an
+`InputTransformation`, so the field never flickers through an invalid value and
+no error has to be announced. The best error message is the one that never
+appears.
+
+All four take an `imeChain`, and a chain overrides their defaults —
+`PasswordField` defaults to Done, which is wrong halfway down a form.
+
+---
+
 ← [Text editing](text-editing.md) · [All components](../components.md)

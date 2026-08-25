@@ -50,4 +50,22 @@ explains why that matters and what `peek` measures.
 
 ---
 
+## Accessibility
+
+Pass **`paneTitle`**. The sheet sets it as pane semantics, which is how a screen
+reader says what the region that just appeared *is* — without it the user is told
+a new area exists and not what it holds. It is optional in the signature because
+a sheet whose first child is a titled [`SheetHeader`](sheet-header.md) already
+says so; it is not optional in any other case.
+
+A non-modal sheet leaves the content behind it reachable, which is the whole
+reason to choose one — so nothing here traps focus, and the reader can move
+between the map and the sheet freely.
+
+The detents are reachable without the gesture: [`DragHandle`](drag-handle.md)
+exposes `expand` and `collapse` as semantic actions, so the sheet can be resized
+from a screen reader's rotor rather than only by dragging.
+
+---
+
 ← [Sheets](sheets.md) · [All components](../components.md)

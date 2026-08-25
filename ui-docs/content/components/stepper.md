@@ -37,4 +37,20 @@ by one or two; nobody taps `+` thirty times.
 
 ---
 
+## Accessibility
+
+`contentDescription` names the whole control and is required, because `+` and `−`
+say nothing about what they are adjusting. The current value is the control's
+`stateDescription`, so a screen reader says "Adults, 2" rather than reading a
+number floating between two buttons.
+
+The **value** is cleared from the tree, not the buttons: the row already
+announces it as its state, and a bare "2" read out between two controls is a node
+with no meaning of its own. The `−` and `+` remain real, separately reachable
+buttons carrying `decrementLabel` and `incrementLabel`.
+
+`format` is what gets announced as well as drawn — use it to say the unit.
+
+---
+
 ← [Selection](selection.md) · [All components](../components.md)

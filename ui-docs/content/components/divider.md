@@ -26,4 +26,16 @@ between the halves of a toolbar, under a bar that must read as attached.
 
 ---
 
+## Accessibility
+
+Both dividers carry `Modifier.semantics { }`, which clears them from the
+accessibility tree entirely. A rule is presentational, and a screen reader
+stopping on one is noise.
+
+If a divider is doing something a reader needs to know about — separating two
+*groups* rather than two rows — the grouping is what should be expressed, with a
+heading or a `ListSection`, and the rule is still just a rule.
+
+---
+
 ← [Foundation](foundation.md) · [All components](../components.md)

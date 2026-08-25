@@ -21,4 +21,21 @@ interrupting whatever is being read.
 
 ---
 
+## Accessibility
+
+Marked as a **polite live region**, so "4 min" becoming "3 min" is announced when
+there is a gap rather than interrupting. That is what makes a departure board
+usable without sight and what makes it maddening if fifteen of them are on screen
+at once.
+
+`announce = false` turns it off. Use it for every row but the one the user is
+following — a list of live times all announcing themselves is a list nobody can
+listen to.
+
+`until` is a `Duration`, so the caller owns the clock: what is announced is
+derived from a value under test rather than from a time source inside the
+component.
+
+---
+
 ← [Date and time](date-time.md) · [All components](../components.md)

@@ -39,4 +39,20 @@ popover is wide enough that the arrow points at nothing in particular.
 
 ---
 
+## Accessibility
+
+Escape closes it, handled with `onPreviewKeyEvent` so it fires before the
+content sees the key.
+
+A popover is *not* announced when it opens: it is content attached to a control,
+not an alert, and the reader reaches it through traversal like anything else in
+the overlay stack. If what you have is urgent enough to interrupt, that is a
+[`Toast`](toast.md) with a live region, or a [`Dialog`](dialog.md).
+
+The scrim defaults to `ScrimStyle.Transparent`, which blocks input without
+dimming — and still carries the labelled dismiss action, so tapping away has an
+equivalent for someone who cannot.
+
+---
+
 ← [Overlays](overlays.md) · [All components](../components.md)

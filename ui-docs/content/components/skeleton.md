@@ -23,4 +23,20 @@ it arrives.
 
 ---
 
+## Accessibility
+
+Every skeleton clears its own semantics. A screen reader is told nothing about
+them at all, which is correct — they stand in for content that does not exist
+yet, and announcing "loading, loading, loading" seven times is not information.
+
+The consequence is that a skeleton alone is silent. Where the wait is long
+enough to notice, put a live region beside it, or use a
+[`Spinner`](spinner.md) with a description.
+
+Being shaped like the content is the accessibility feature: nothing moves when
+the real thing arrives, so a magnified or slowly-read page does not shift under
+the reader.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

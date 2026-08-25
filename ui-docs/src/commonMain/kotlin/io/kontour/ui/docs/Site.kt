@@ -42,6 +42,7 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
+import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.contract.componentRegistry
 import io.kontour.ui.demo.DemoCard
@@ -218,7 +219,7 @@ private fun Content(route: Route) {
         // documentation sidebar beside the gallery's own nav rail, and the
         // masthead's dark switch had no effect on anything inside it.
         Route.Gallery -> Catalog()
-        is Route.Component -> ComponentPage(route.slug)
+        is Route.Doc -> DocPageView(route.path)
     }
 }
 
@@ -250,33 +251,47 @@ private fun NavDrawerScope.indexItems(current: Route) {
         if (indexQuery.isBlank()) {
             docPagesByFamily
         } else {
-            docPagesByFamily.mapNotNull { (family, pages) ->
-                val hits = pages.filter { page ->
-                    page.symbols.any { it.contains(indexQuery, ignoreCase = true) } ||
-                        page.title.contains(indexQuery, ignoreCase = true)
-                }
-                if (hits.isEmpty()) null else family to hits
+            docPagesByFamily.mapNotNull { family ->
+                val hits = family.pages.filter { it.matches(indexQuery) }
+                if (hits.isEmpty()) null else DocFamily(family.name, family.index, hits)
             }
         }
     }
 
-    matching.forEach { (family, pages) ->
-        section(family) {
-            pages.forEach { page ->
-                // `label` is the drawer's selection-indicator key, so two
-                // entries sharing one would collide. Page symbols are unique
-                // across the tree and `check-components.py` rule 2 keeps them
-                // that way.
-                item(
-                    label = page.symbols.firstOrNull() ?: page.title,
-                    selected = current == Route.Component(page.slug),
-                ) {
-                    navigate(Route.Component(page.slug))
-                }
-            }
+    matching.forEach { family ->
+        section(family.name) {
+            // The family's own page first, where it has one — the "which one"
+            // table and the prose that is about the family rather than any
+            // component in it. Round 16 gave those pages routes; before that
+            // they were the only part of the tree the site could not show.
+            family.index?.let { index -> indexItem(index, current, "Overview") }
+            family.pages.forEach { page -> indexItem(page, current) }
         }
     }
 }
+
+/**
+ * One destination.
+ *
+ * `label` is the drawer's selection-indicator key, so two entries sharing one
+ * would collide. A page's first symbol is unique across the tree —
+ * `check-components.py` rule 2 keeps it that way — and a guide has no symbols,
+ * so it falls back to its title, which is also unique.
+ */
+@Composable
+private fun NavDrawerScope.indexItem(page: DocPage, current: Route, label: String? = null) {
+    item(
+        label = label ?: page.indexLabel,
+        selected = current == Route.Doc(page.path),
+    ) {
+        navigate(Route.Doc(page.path))
+    }
+}
+
+/** Whether a page answers what was typed into the index's search field. */
+private fun DocPage.matches(query: String): Boolean =
+    symbols.any { it.contains(query, ignoreCase = true) } ||
+        title.contains(query, ignoreCase = true)
 
 /** The display switches, over the content, dismissed by pressing anywhere else. */
 @Composable
@@ -309,6 +324,13 @@ private fun SettingsCard(
 
 @Composable
 private fun Home() {
+    // Counted, not claimed. This said `docPages.size` and meant "components",
+    // which was wrong the moment the guides got routes of their own — and the
+    // README has carried a hand-written "138 components" for four rounds that
+    // matched nothing measurable.
+    val components = remember { docPages.count { it.kind == DocKind.Component } }
+    val guides = remember { docPages.filter { it.kind == DocKind.Guide }.sortedBy { it.title } }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -318,22 +340,99 @@ private fun Home() {
     ) {
         Text("Kontour UI", style = Theme.typography.displaySmall)
         Text(
-            text = "A Compose Multiplatform design system. ${docPages.size} components, " +
-                "each documented on its own page with the component itself running " +
-                "beside the words — and running, not pictured: press it.",
+            text = "A Compose Multiplatform design system built on Compose Foundation, " +
+                "with no Material. $components components, each on its own page with the " +
+                "component itself running beside the words — running, not pictured: press it.",
             style = Theme.typography.bodyLarge,
             color = Theme.colors.contentMuted,
             modifier = Modifier.widthIn(max = ProseWidth),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-            Button(onClick = { navigate(Route.Gallery) }) { +"Open the gallery" }
+            Button(onClick = { navigate(Route.Doc("components")) }) { +"All components" }
             Button(
-                onClick = { openExternal("$Repository/tree/main/docs") },
+                onClick = { navigate(Route.Gallery) },
                 variant = ButtonVariant.Secondary,
-            ) { +"Read the docs on GitHub" }
+            ) { +"Open the gallery" }
+        }
+
+        Text(
+            text = "Guides",
+            style = Theme.typography.titleMedium,
+            modifier = Modifier.padding(top = Theme.spacing.lg),
+        )
+        ListGroup(modifier = Modifier.widthIn(max = ProseWidth).fillMaxWidth()) {
+            guides.forEach { page ->
+                item(
+                    label = page.heading,
+                    supporting = page.summary,
+                    onClick = { navigate(Route.Doc(page.path)) },
+                )
+            }
         }
     }
 }
+
+/**
+ * The page's opening line, for the index.
+ *
+ * Its first paragraph rather than a field somebody has to remember to fill in:
+ * a summary written twice is a summary that disagrees with itself, and every one
+ * of these pages already opens by saying what it is.
+ *
+ * The exception is the `*Also on this page: …*` line, which several pages put
+ * first and which is a list of symbols rather than a description — `theming.md`
+ * summarised itself as "Also on this page: `KontourTheme`" until this skipped it.
+ */
+private val DocPage.summary: String
+    get() {
+        val opening = blocks.asSequence()
+            .filterIsInstance<Block.Paragraph>()
+            .map { paragraph -> paragraph.spans.joinToString("") { it.text } }
+            .firstOrNull { !it.startsWith("Also on this page") }
+            .orEmpty()
+        return if (opening.length <= SummaryLength) {
+            opening
+        } else {
+            opening.take(SummaryLength).substringBeforeLast(' ') + "…"
+        }
+    }
+
+/** Two lines of supporting text at the narrowest width the index is drawn at. */
+private const val SummaryLength = 130
+
+/**
+ * What to put at the top of the page, and in the index.
+ *
+ * A component page is named by what it documents — "NavBar / NavRail /
+ * NavDrawer" is better than "Nav surfaces". A guide is named by its title, with
+ * the markdown taken out: `dsls.md` is called "Slots, and the `+` that keeps
+ * them short", whose only backticked run is `+`, so reading symbols off it gave
+ * a page headed "+" with an *API reference* button that searched Dokka for a
+ * plus sign.
+ */
+private val DocPage.heading: String
+    get() = when (kind) {
+        DocKind.Component -> symbols.joinToString(" / ").ifEmpty { plainTitle }
+        else -> plainTitle
+    }
+
+/**
+ * The name in the sidebar.
+ *
+ * The *first* symbol rather than all of them: `nav-surfaces` documents three,
+ * and "NavBar / NavRail / NavDrawer" wraps to three lines in a 280dp drawer.
+ * It is also the drawer's selection-indicator key, so it has to be unique —
+ * `check-components.py` rule 2 is what keeps it so.
+ */
+private val DocPage.indexLabel: String
+    get() = if (kind == DocKind.Component) symbols.firstOrNull() ?: plainTitle else plainTitle
+
+/** The symbol the API reference button looks up, where there is one. */
+private val DocPage.referenceSymbol: String?
+    get() = if (kind == DocKind.Component) symbols.firstOrNull() else null
+
+/** The title with its markdown removed, for the places that draw it as text. */
+private val DocPage.plainTitle: String get() = title.replace("`", "")
 
 /**
  * A page's padding, which is not the same on a phone as on a desktop.
@@ -345,14 +444,20 @@ private fun Home() {
 private fun PagePadding(): PaddingValues =
     PaddingValues(if (windowSizeClass.width.hasRoomBeside) Theme.spacing.xl else Theme.spacing.md)
 
-/** One component: the prose, and the component. */
+/**
+ * One page: the prose, and — for a component — the thing it is about.
+ *
+ * Every page in `ui-docs/content/` comes through here, which it did not before:
+ * this took a component slug, so the guides had no route and a link to one
+ * ejected the reader to GitHub.
+ */
 @Composable
-private fun ComponentPage(slug: String) {
-    val page = docPagesBySlug[slug]
+private fun DocPageView(path: String) {
+    val page = docPagesByPath[path]
     if (page == null) {
         Box(Modifier.fillMaxSize(), Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("No page called “$slug”.", style = Theme.typography.titleMedium)
+                Text("No page called “$path”.", style = Theme.typography.titleMedium)
                 Button(onClick = { navigate(Route.Home) }, variant = ButtonVariant.Ghost) {
                     +"Back to the index"
                 }
@@ -361,47 +466,50 @@ private fun ComponentPage(slug: String) {
         return
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(PagePadding()),
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-    ) {
-        Text(
-            text = page.symbols.joinToString(" / ").ifEmpty { page.title },
-            style = Theme.typography.displaySmall,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-            page.symbols.firstOrNull()?.let { symbol ->
+    // Every relative link on this page is relative to *this* page, and nothing
+    // below knows which page it is drawing. `Prose` is several layers down and
+    // resolves links inside `buildAnnotatedString`, so a parameter would have to
+    // be threaded through five composables that have no other use for it.
+    CompositionLocalProvider(LocalDocPath provides page.path) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(PagePadding()),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+        ) {
+            Text(text = page.heading, style = Theme.typography.displaySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+                page.referenceSymbol?.let { symbol ->
+                    Button(
+                        onClick = { openExternal(apiUrl(symbol)) },
+                        variant = ButtonVariant.Secondary,
+                        size = ButtonSize.Small,
+                    ) { +"API reference" }
+                }
                 Button(
-                    onClick = { openExternal(apiUrl(symbol)) },
-                    variant = ButtonVariant.Secondary,
+                    onClick = { openExternal("$Repository/blob/main/$ContentRoot/${page.path}.md") },
+                    variant = ButtonVariant.Ghost,
                     size = ButtonSize.Small,
-                ) { +"API reference" }
+                ) { +"Edit this page" }
             }
-            Button(
-                onClick = { openExternal("$Repository/blob/main/docs/using/components/$slug.md") },
-                variant = ButtonVariant.Ghost,
-                size = ButtonSize.Small,
-            ) { +"Edit this page" }
-        }
 
-        Specimens(page)
-        // `widthIn` outside `fillMaxWidth`, and the order is the whole fix.
-        //
-        // It was written the other way round. `fillMaxWidth` fixes the
-        // constraints at [W, W] first, and `widthIn(max = 760)` then coerces
-        // [0, 760] against a minimum of W — so on any window wider than 760dp
-        // the cap was discarded and the line ran the full width. On a 1600px
-        // display that is a 1600px measure, which is exactly what the comment
-        // on `ProseWidth` says it prevents. Written outside, the ceiling is in
-        // place before anything fills to it.
-        //
-        // The sidebar two hundred lines up has always had it in this order,
-        // which is why that one worked.
-        Prose(page.blocks, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
-        ApiSection(page, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+            Specimens(page)
+            // `widthIn` outside `fillMaxWidth`, and the order is the whole fix.
+            //
+            // It was written the other way round. `fillMaxWidth` fixes the
+            // constraints at [W, W] first, and `widthIn(max = 760)` then coerces
+            // [0, 760] against a minimum of W — so on any window wider than
+            // 760dp the cap was discarded and the line ran the full width. On a
+            // 1600px display that is a 1600px measure, which is exactly what the
+            // comment on `ProseWidth` says it prevents. Written outside, the
+            // ceiling is in place before anything fills to it.
+            //
+            // The sidebar two hundred lines up has always had it in this order,
+            // which is why that one worked.
+            Prose(page.blocks, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+            ApiSection(page, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+        }
     }
 }
 

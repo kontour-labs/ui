@@ -57,7 +57,7 @@ enum class NavigationSuiteType {
  * declaration.
  *
  * Which surface goes where, and why it is not configurable, are on the
- * navigation page: `docs/using/components/navigation.md`.
+ * navigation page: `ui-docs/content/components/navigation.md`.
  *
  * The surface **overlays** the content rather than sitting below it, so read
  * the padding handed to [content] and inset your own scrolling content by it — the same way a

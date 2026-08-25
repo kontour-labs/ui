@@ -51,4 +51,26 @@ actions, [`Popover`](popover.md).
 
 ---
 
+## Accessibility
+
+The menu takes focus when it opens. Arrow keys move between items, typing jumps
+to a matching one, and Escape closes — all through `onPreviewKeyEvent`, so the
+page underneath never sees them.
+
+It does **not** return focus to the anchor on close, which is worth knowing:
+after dismissing a menu from the keyboard, focus is wherever the composition left
+it. Where the anchor matters — a toolbar the user was working through — hold a
+`FocusRequester` on it and request focus in the `onDismissRequest`.
+
+`item(selected = true)` reports **`Role.RadioButton`**, not a checked button:
+"one of these" is the thing a sort order is, and a menu of buttons all reporting
+"button" tells a screen reader user nothing about which one is in force. An
+unselected item is `Role.Button`.
+
+Items are collected by a builder rather than composed as children, which is why
+the menu can own the roles and the keyboard traversal instead of each caller
+rebuilding them.
+
+---
+
 ← [Overlays](overlays.md) · [All components](../components.md)

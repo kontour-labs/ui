@@ -64,4 +64,20 @@ target.
 
 ---
 
+## Accessibility
+
+`contentDescription` is required, and it names the **set** — "Stop photos" —
+because a carousel is one control containing several pages rather than several
+controls.
+
+The current page is the carousel's `stateDescription`, and it exposes previous
+and next as `CustomAccessibilityAction`s, so paging does not depend on a swipe.
+That is the whole reason a carousel can be used without a pointer.
+
+A carousel hides content by default. Anything essential inside one is essential
+content behind a gesture, so give it a [`PageIndicator`](page-indicator.md) with
+`onPageSelect` — or reconsider the carousel.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

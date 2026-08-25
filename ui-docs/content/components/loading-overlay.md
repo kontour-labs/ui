@@ -23,4 +23,17 @@ explanation is indistinguishable from a frozen one.
 
 ---
 
+## Accessibility
+
+Blocking the whole screen is the accessibility cost, not the visual one: while
+it is up, nothing behind it can be reached by any input, including a screen
+reader's. `label` is therefore required rather than optional — a blocked screen
+with nothing announced is a screen that has stopped responding.
+
+This is the reason the component should be rare. A [`Skeleton`](skeleton.md) or
+an inline [`Spinner`](spinner.md) leaves the rest of the page navigable while one
+part of it loads.
+
+---
+
 ← [Overlays](overlays.md) · [All components](../components.md)

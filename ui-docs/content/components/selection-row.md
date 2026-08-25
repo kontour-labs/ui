@@ -34,4 +34,19 @@ control you nested in it.
 
 ---
 
+## Accessibility
+
+This is the component that makes the "one target, not two" rule easy to follow:
+the **row** carries `selectable` or `toggleable` with the role, and the control
+inside takes `onCheckedChange = null` or `onClick = null`.
+
+`role` decides what is announced and how selection behaves. Under
+`Role.Checkbox` and `Role.Switch` it reports a `toggleableState` and pressing
+flips it; under `Role.RadioButton` selection is one-way, because a radio is
+turned on by pressing it and off by pressing another.
+
+The label in the row is the accessible name. A row with only an icon has none.
+
+---
+
 ← [Selection](selection.md) · [All components](../components.md)

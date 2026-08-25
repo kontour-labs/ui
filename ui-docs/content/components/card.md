@@ -21,4 +21,20 @@ boundary.
 
 ---
 
+## Accessibility
+
+A card with `onClick` reports `Role.Button` and merges its content, so it is one
+target announcing everything inside it. A card without one is a container and
+announces nothing of its own.
+
+The consequence is the rule: **do not put buttons inside a clickable card.** A
+target inside a target is ambiguous to touch and unreachable to a screen reader
+that has merged the two. Either the card is the action, or the card is a
+container with its own buttons — not both.
+
+Elevation and border are `CardVariant`, which is visual. Nothing about the
+variant changes what is announced.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

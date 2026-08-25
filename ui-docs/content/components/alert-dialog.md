@@ -37,4 +37,21 @@ Awaiting an answer from a coroutine rather than hoisting a `visible` flag is wha
 
 ---
 
+## Accessibility
+
+Everything on [`Dialog`](dialog.md) applies, and the buttons are the addition.
+
+The order is fixed by the component rather than by the caller — cancel, neutral,
+confirm — so every alert in the app reads the same way, and a user who has
+learned that the last button is the one that acts does not have to relearn it per
+screen. `destructive = true` colours the confirm button and does not change the
+order: a destructive action that moved position would be a destructive action
+pressed by muscle memory.
+
+The `StateScope` content is the accessible description. Give it a message that
+says what will happen, not "Are you sure?" — which is the sentence a screen
+reader user hears with no title on screen to give it a subject.
+
+---
+
 ← [Overlays](overlays.md) · [All components](../components.md)

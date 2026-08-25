@@ -25,4 +25,16 @@ pairs with a [`Skeleton`](skeleton.md) while the content loads.
 
 ---
 
+## Accessibility
+
+Reserving the space is an accessibility feature and not only a visual one:
+content that arrives and pushes everything down moves the thing a user was
+reading, or was about to press, out from under them. That is worst for someone
+with a motor impairment and worst again for anyone using a screen magnifier.
+
+The box itself adds no semantics. Whatever goes inside it — an image, a map —
+carries its own `contentDescription`.
+
+---
+
 ← [Adaptive](adaptive.md) · [All components](../components.md)

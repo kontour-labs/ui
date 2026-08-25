@@ -60,4 +60,19 @@ scrolling row hides options off the edge of the screen.
 
 ---
 
+## Accessibility
+
+Three components with three roles, and the role is the difference: `Chip` is
+`Role.Button`, `FilterChip` is `Role.Checkbox` — because a filter is on or off —
+and `InputChip`'s remove affordance is a separate button carrying `removeLabel`
+as both its `onClickLabel` and its icon description.
+
+That last one matters: an input chip with no remove label is a chip a user can
+add and never take off.
+
+The selected tick is decorative and cleared; the state is announced by the role,
+not by the icon.
+
+---
+
 ← [Selection](selection.md) · [All components](../components.md)

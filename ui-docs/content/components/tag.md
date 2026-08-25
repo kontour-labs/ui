@@ -25,4 +25,20 @@ thing is pressable. A tag is a label; a chip is a control.
 
 ---
 
+## Accessibility
+
+A tag is not interactive and carries no role. Its text is announced in reading
+order like any other text.
+
+`contentDescription` overrides that, and is for a tag whose visible text is an
+abbreviation — "PLT 2" announced as "Platform 2". Where the visible text already
+reads correctly, leave it null: a description that repeats the label is heard
+twice.
+
+`tone` is colour and nothing else. A status carried only by tone is a status some
+users cannot read, so the word has to say it too — which is why these have words
+in them.
+
+---
+
 ← [Display and content](display.md) · [All components](../components.md)

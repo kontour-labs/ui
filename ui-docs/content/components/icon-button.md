@@ -40,4 +40,20 @@ short of the half beside it. `ControlHeightTest` holds the two together now.
 
 ---
 
+## Accessibility
+
+`contentDescription` is the button's **name**, not a tooltip, and there is no
+default — an icon button with nothing else in it has no other source of one.
+
+`IconToggleButton` reports `Role.Checkbox` and a `stateDescription`, so what is
+announced is "Favourite, on" rather than a button that gives no clue which way it
+is set. `stateDescription` is overridable for the cases where on/off is the wrong
+vocabulary — "muted"/"unmuted" reads better than "on"/"off".
+
+The touch target is `Theme.sizing.minTouchTarget` regardless of the icon size, so
+a small icon button is still a full-size target. That is enforced by a modifier
+rather than by remembering, and asserted by the contract suite.
+
+---
+
 ← [Actions](actions.md) · [All components](../components.md)

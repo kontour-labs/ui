@@ -199,7 +199,7 @@ detent lands, and where the sheet is actually drawn. They can disagree, and when
 they do the state is the half that looks right — both bugs found while building
 sheets were of exactly that kind.
 
-See [`building/testing.md`](../building/testing.md#how-sheets-are-tested).
+See [`building/testing.md`](../../docs/building/testing.md#how-sheets-are-tested).
 
 ## Not draggable
 

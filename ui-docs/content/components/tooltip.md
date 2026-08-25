@@ -42,4 +42,20 @@ people who can see the icon and cannot name it.
 
 ---
 
+## Accessibility
+
+**A tooltip is not an accessible name.** A screen reader reads the control's own
+`contentDescription`, so an icon button still needs one — the tooltip is for
+people who can see the icon and cannot name it.
+
+`Modifier.tooltip` tracks hover and keyboard focus, and honours the tracked input
+modality, so it never appears from a touch that was really a tap. That is also
+what makes it appear on keyboard focus, which a hover-only tooltip does not.
+
+The coach-mark form merges its title and body into one description
+(`"$title. $text"`) so it is announced as a sentence rather than as two
+unrelated nodes, and its dismiss button carries a real label.
+
+---
+
 ← [Overlays](overlays.md) · [All components](../components.md)

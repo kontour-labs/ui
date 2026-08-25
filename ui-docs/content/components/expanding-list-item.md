@@ -50,4 +50,18 @@ control that opens onto nothing is a promise the row cannot keep.
 
 ---
 
+## Accessibility
+
+`Role.Button` with a `stateDescription` of `expandedLabel` / `collapsedLabel`
+whenever the row can open, so the row announces whether it is expanded rather
+than looking identical to one that cannot open at all.
+
+A row that does not open reports no state, which is what distinguishes the two —
+so do not give every row the parameter "for consistency".
+
+Collapsed content is not composed and is not in the tree. The same rule as
+[`Accordion`](accordion.md): nothing essential inside one.
+
+---
+
 ← [Collections](collections.md) · [All components](../components.md)

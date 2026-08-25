@@ -25,4 +25,19 @@ localised the rest of `Theme.strings` localises this too.
 
 ---
 
+## Accessibility
+
+Install it unconditionally at the root, and it does the right thing per platform.
+
+On desktop and web it replaces Compose's selection popup, which is otherwise a
+bare unstyled row, with one drawn in the design system — real focus rings, real
+touch targets, labels from `Theme.strings`.
+
+On Android and iOS it is a **deliberate no-op**. The platform toolbar there is a
+system surface carrying "Look Up", "Translate", "Share", the user's keyboard
+extensions and their configured text replacements, none of which four buttons of
+our own can reproduce. Replacing it would be taking capability away.
+
+---
+
 ← [Text editing](text-editing.md) · [All components](../components.md)

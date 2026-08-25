@@ -247,4 +247,20 @@ beside. It is aligned to the icons now.
 
 ---
 
+## Accessibility
+
+All three apply `selectableGroup()` to their destinations, so a screen reader
+announces "2 of 4" rather than four unrelated buttons — and `NavBar`'s search
+field and action sit *outside* that group, because inside it a search field is
+counted as a destination.
+
+Items are `Role.Tab`. `NavRail`'s expand control carries its own
+`contentDescription` and a `stateDescription` of "Expanded" / "Collapsed", so the
+rail's width is a state and not a mystery.
+
+`NavDrawer` sets `paneTitle`. All three take `NavItem`s, so a description written
+once is right on every surface.
+
+---
+
 ← [Navigation](navigation.md) · [All components](../components.md)

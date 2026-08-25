@@ -48,4 +48,22 @@ button, a radio option or a plain block of text depending on what it is for.
 
 ---
 
+## Accessibility
+
+`role` is the parameter that decides what this announces, and it is worth
+choosing rather than accepting: `Role.Button` for a row that navigates,
+`Role.RadioButton` for one of a set, `Role.Checkbox` for one that toggles.
+
+The row carries the click and the role, and any control inside it takes
+`onClick = null` — otherwise there are two targets for one thing, and the smaller
+one is the control. That is the rule that runs through
+[`SelectionRow`](selection-row.md), [`SettingRow`](setting-row.md) and
+[`RadioGroup`](radio-group.md).
+
+`label`, `supporting` and `overline` merge into one announcement in reading
+order. `leading` and `trailing` icons take `null` unless they carry meaning the
+text does not.
+
+---
+
 ← [Collections](collections.md) · [All components](../components.md)

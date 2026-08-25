@@ -52,4 +52,19 @@ use it is worse than one with a greyed button in it.
 
 ---
 
+## Accessibility
+
+The group is an `isTraversalGroup`, so its buttons are read together rather than
+being interleaved with whatever is beside them on screen.
+
+Every `item` needs a `contentDescription`, because a group of icon buttons is a
+row of controls with no text in it. "Zoom out", "Recentre", "Zoom in" — not
+"minus", "target", "plus", which describe the glyph rather than the action.
+
+The group reserves `minTouchTarget` in height once, rather than each button
+reserving it and centring inside — which is what keeps the buttons flush against
+each other without any of them shrinking below the minimum.
+
+---
+
 ← [Actions](actions.md) · [All components](../components.md)

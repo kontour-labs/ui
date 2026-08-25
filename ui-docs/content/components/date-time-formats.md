@@ -24,4 +24,20 @@ Provided once at the root through `LocalDateTimeFormats`.
 
 ---
 
+## Accessibility
+
+This decides what is *announced*, not only what is drawn. `is24Hour`, `dayFirst`
+and `firstDayOfWeek` feed the full-date `stateDescription` every day cell carries
+and the value every time control reports.
+
+Provide it once near the root. A screen that sets it locally gets a calendar
+announcing dates in one order and a field announcing them in another, which is
+worse than either.
+
+It is not a locale. Wire it from the platform's own settings where you have them
+— guessing 24-hour from a language tag is how a user who prefers one clock gets
+the other.
+
+---
+
 ← [Date and time](date-time.md) · [All components](../components.md)

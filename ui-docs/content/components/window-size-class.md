@@ -35,4 +35,17 @@ by side and gets three different navigation surfaces.
 
 ---
 
+## Accessibility
+
+Nothing here is announced, and that is the point worth stating: the size class
+decides *layout*, and layout must not change what is reachable. A control that
+exists on a desktop and vanishes on a phone is a control some users can never
+reach, whatever the reason for hiding it.
+
+The class describes the **container**, not the device. A pane 380dp wide inside a
+1400dp window is `Compact`, and a layout that asked the window would put a
+two-column grid into it — which at 200% text is a column of single words.
+
+---
+
 ← [Adaptive](adaptive.md) · [All components](../components.md)

@@ -40,4 +40,20 @@ is still the point.
 
 ---
 
+## Accessibility
+
+Everything on [`BottomSheet`](bottom-sheet.md) applies, and modality is the
+difference.
+
+`paneTitle` matters more here, because the content behind is blocked and the
+sheet is the whole of what the user can now reach. The scrim carries a labelled
+dismiss action (`dismissLabel`, `Theme.strings.close` by default), so tapping
+away has an equivalent for someone who cannot tap away, and the platform back
+gesture closes it.
+
+`dismissOnOutside = false` removes the scrim route. Where you use it, the content
+must offer its own way out.
+
+---
+
 ← [Sheets](sheets.md) · [All components](../components.md)

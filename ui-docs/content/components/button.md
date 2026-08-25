@@ -69,6 +69,15 @@ icon has no name — that is what `IconButton` is for, and why its
 component that announces nothing, which is what replaced the guarantee the old
 `label: String` parameter gave.
 
+`loading = true` sets `stateDescription = loadingLabel` on the button and clears
+the semantics of the spinner inside it, so a screen reader hears "Save this trip,
+saving" rather than the label followed by an unnamed progress indicator. The
+button reports itself disabled while it runs rather than merely ignoring the
+press.
+
+`ButtonVariant.Destructive` changes the colour and nothing that is announced.
+Where the consequence matters, put it in the label: "Delete trip", not "Delete".
+
 ---
 
 ← [Actions](actions.md) · [All components](../components.md)

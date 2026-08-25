@@ -26,4 +26,17 @@ with the arrow keys and runs on Enter, without the pointer being touched — see
 
 ---
 
+## Accessibility
+
+The field takes focus when the palette opens, so a keyboard user types straight
+into it. Up and down move the selection, Enter runs it, Escape closes — through
+`onPreviewKeyEvent`, before the field's own editing handlers.
+
+Being keyboard-first is the point of the component, which makes the same warning
+as the context menu load-bearing: **a command reachable only from the palette is
+unreachable on a phone**, where there is no keyboard shortcut to open it. The
+palette is an accelerator over actions that already exist.
+
+---
+
 ← [Overlays](overlays.md) · [All components](../components.md)

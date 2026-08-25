@@ -22,4 +22,19 @@ Column(
 
 ---
 
+## Accessibility
+
+Purely visual. The fade says there is more content in that direction, and it
+appears only on the side that has any — which is information a sighted user gets
+and nobody else does.
+
+So it is not a substitute for the scroll container's own semantics, and it must
+not be the only signal that a list continues. Where the fact matters, the list
+should say how many items it has.
+
+It draws with a blend mode over the content, and it adds no node to the
+accessibility tree at all.
+
+---
+
 ← [Collections](collections.md) · [All components](../components.md)

@@ -57,4 +57,19 @@ because a thumb that eases toward the finger holding it reads as lag.
 
 ---
 
+## Accessibility
+
+`stateDescription` is the parameter to pass. Without it a slider announces a
+fraction — "0.62" — and with it, "62 kilometres per hour". The raw value is
+almost never what the user is choosing.
+
+`contentDescription` names the control, and it is separate for the reason the two
+always are: "Speed" is what it is, "62 km/h" is what it says.
+
+Increment and decrement come from `ProgressBarRangeInfo` and `setProgress`, so
+the slider is adjustable without a drag. `steps` makes those increments
+meaningful — a continuous slider moves by an arbitrary fraction.
+
+---
+
 ← [Selection](selection.md) · [All components](../components.md)
