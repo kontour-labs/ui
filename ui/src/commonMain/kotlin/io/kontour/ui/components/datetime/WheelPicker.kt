@@ -1,5 +1,6 @@
 package io.kontour.ui.components.datetime
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -19,6 +20,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
@@ -174,6 +176,18 @@ fun <T> WheelPicker(
             ),
         contentAlignment = Alignment.Center,
     ) {
+        // Drawn before the rows, which is the whole point: the centred value sits
+        // *on* the band at full contrast rather than under a wash of it. This
+        // used to be an empty `Box` emitted after the list — a comment saying it
+        // sat behind the text, over a component that drew nothing at all.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(itemHeight)
+                .clip(Theme.shapes.medium)
+                .background(Theme.colors.surfaceSunken)
+        )
+
         LazyColumn(
             state = listState,
             flingBehavior = flingBehavior,
@@ -209,12 +223,11 @@ fun <T> WheelPicker(
             }
         }
 
-        // The selection band sits behind the text rather than over it, so the
-        // centred value keeps full contrast.
+        // Carries the drum's value for a screen reader, and nothing else. The
+        // band itself is drawn above, behind the rows.
         Box(
             Modifier
-                .fillMaxWidth()
-                .height(itemHeight)
+                .matchParentSize()
                 .semantics {
                     stateDescription = label(items[centredIndex])
                 }

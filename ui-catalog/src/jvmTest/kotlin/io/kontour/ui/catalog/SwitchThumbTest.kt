@@ -149,12 +149,12 @@ class SwitchReleaseTest {
 /**
  * The thumb keeps its clearance on both sides, wherever it is.
  *
- * The thumb is 22dp in a 48dp track with 3dp of padding, which leaves 20dp of
- * travel — and stretching it 25% makes it 27.5dp, which does not fit that
+ * The thumb is 24dp in a 48dp track with 2dp of padding, which leaves 20dp of
+ * travel — and stretching it 25% makes it 30dp, which does not fit that
  * arithmetic. The old code let the leading edge run into the track's wall and
  * clamped it there: for the last eighth of an off-to-on drag the gap it was
  * supposed to hold went to **zero**, the thumb overlapped its own border, and it
- * stopped tracking the finger while it did it. The other side kept its 3dp, so
+ * stopped tracking the finger while it did it. The other side kept its clearance, so
  * the control visibly lost its symmetry under the thumb — which is what "the
  * spacing on the sides isn't consistent as you drag it" looks like from outside.
  */
@@ -191,7 +191,7 @@ class SwitchGeometryTest {
             minOf(tightest.first, tightest.second) >= PaddingPx - Antialiasing,
             "the thumb came within ${minOf(tightest.first, tightest.second)}px of " +
                 "the track's edge during a drag (${tightest.first}px one side, " +
-                "${tightest.second}px the other). It is padded 3dp — ${PaddingPx}px " +
+                "${tightest.second}px the other). It is padded 2dp — ${PaddingPx}px " +
                 "at this density — and that has to hold at both ends and " +
                 "everywhere between, or the gap is something the user watches " +
                 "change as they drag.",
@@ -256,14 +256,20 @@ private fun differs(a: Int, b: Int): Boolean =
 /**
  * How far into the track the fill is sampled.
  *
- * The border is 2dp and the thumb starts 3dp in, so at this density there are
- * two rows of pure fill between them at the top and two at the bottom. This is
- * the middle of that band.
+ * It has to land in the gap the thumb leaves at the top and bottom of the track
+ * — 2dp, so four pixels at this density — because what is sampled here is the
+ * *track's* colour, and the run of everything that is not that colour is how the
+ * thumb is found. Sample inside the thumb and the two swap places: the "fill"
+ * becomes the thumb, the widest run of not-fill becomes the track, and the
+ * gaps come back as nonsense.
+ *
+ * It was 5, which sat in the band between the old 2dp border and a thumb that
+ * started 3dp in. There is no border now and the thumb is 2dp in.
  */
-private const val BandInset = 5
+private const val BandInset = 2
 
 /** `ThumbPadding` at the scene's density. */
-private const val PaddingPx = 6
+private const val PaddingPx = 4
 
 /** One antialiased edge pixel each side, and nothing more. */
 private const val Antialiasing = 2

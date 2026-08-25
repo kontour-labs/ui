@@ -103,6 +103,19 @@ fun RangeSlider(
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     minDistance: Float = 0f,
     steps: Int = 0,
+    /**
+     * Whether to draw a dot on the track at each detent.
+     *
+     * Off by default, which is a change: [steps] used to imply them. A row of
+     * dots turns a slider into a diagram of its own implementation, and on a
+     * short track with many steps they merge into a dashed line that reads as
+     * texture rather than as information. The detent is still there — the thumb
+     * still resists and still ticks — it is just no longer drawn.
+     *
+     * Turn them on where the count is small and *is* the point: five ratings,
+     * four zoom levels.
+     */
+    showTicks: Boolean = false,
     /** What the range is *of*. `null` when a label beside it already says. */
     contentDescription: String? = null,
     startContentDescription: String = Theme.strings.rangeStart,
@@ -459,7 +472,7 @@ fun RangeSlider(
                                 cornerRadius = CornerRadius(trackHeightPx / 2f),
                             )
 
-                            if (steps > 0) {
+                            if (showTicks && steps > 0) {
                                 val stepCount = steps + 1
                                 for (i in 0..stepCount) {
                                     val x = trackLeft + trackWidth * i / stepCount

@@ -90,6 +90,16 @@ val Feedback: FeedbackDispatcher
 @Composable
 internal fun rememberDefaultFeedbackDispatcher(): FeedbackDispatcher {
     val haptics: HapticFeedback = LocalHapticFeedback.current
+    // No `expect`/`actual` here, deliberately, and it is worth writing down
+    // because the shape of the code invites one. `HapticFeedbackType` is a
+    // *common* Compose type, and each platform's `LocalHapticFeedback` already
+    // resolves it natively: on iOS `CupertinoHapticFeedback` routes these onto
+    // `UIImpactFeedbackGenerator`, `UISelectionFeedbackGenerator.selectionChanged`
+    // and `UINotificationFeedbackGenerator` with Success and Error types. The
+    // names below read as Android's `HapticFeedbackConstants` because that is
+    // where the vocabulary came from, not because that is where it goes. A
+    // platform seam added here would duplicate the toolkit's, and would be worse
+    // than it.
     return remember(haptics) {
         FeedbackDispatcher { intent ->
             haptics.performHapticFeedback(

@@ -68,6 +68,14 @@ data class Elevation(
  * shadow is invisible, so the alphas roughly double and the blur tightens.
  * Passing [dark] rather than shipping one scale is what stops dark mode from
  * looking flat.
+ *
+ * The top two tiers are lighter than they were. [overlay] used to be a 20dp
+ * offset with a 50dp blur at 22%, which bled about 70dp past a dialog's edge and
+ * was doing the whole job of separating it from the page. That job is now shared
+ * — what is behind a modal is blurred as well as dimmed, see
+ * [io.kontour.ui.overlay.BackdropStyle] — and two mechanisms both pushed to
+ * their limit read as one heavy-handed one. Shrinking it also stops every dialog
+ * and sheet re-rasterising a 150-pixel-radius shadow on a 3× phone.
  */
 fun kontourElevation(dark: Boolean): Elevation {
     val ink = Color.Black
@@ -85,20 +93,20 @@ fun kontourElevation(dark: Boolean): Elevation {
         ),
         medium = Shadow(
             listOf(
-                spec(1, 3, 0.06f * boost),
-                spec(8, 24, 0.10f * boost),
+                spec(1, 3, 0.05f * boost),
+                spec(6, 18, 0.08f * boost),
             )
         ),
         high = Shadow(
             listOf(
-                spec(2, 4, 0.08f * boost),
-                spec(12, 32, 0.14f * boost),
+                spec(1, 3, 0.06f * boost),
+                spec(8, 20, 0.10f * boost),
             )
         ),
         overlay = Shadow(
             listOf(
-                spec(4, 8, 0.10f * boost),
-                spec(20, 50, 0.22f * boost),
+                spec(2, 6, 0.08f * boost),
+                spec(10, 28, 0.14f * boost),
             )
         ),
     )

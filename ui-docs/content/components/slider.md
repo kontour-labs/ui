@@ -11,6 +11,7 @@ Slider(
     onValueChange = { walkSpeed = it },
     valueRange = 2f..7f,
     steps = 4,
+    showTicks = true,
     // Without this the announcement is a bare percentage, which is not the
     // number the user is choosing.
     stateDescription = { "${it.roundToInt()} km/h" },
@@ -25,6 +26,13 @@ it round throughout, because a thumb pinned to the finger is not straining
 against anything. Each step crossed on a stepped slider fires a tick haptic, so a
 user changing a value without looking can feel the detents — which is most of the
 point of having steps.
+
+**The dots are opt-in.** `steps` no longer draws them; `showTicks` does. A row of
+dots turns a slider into a diagram of its own implementation, and on a short
+track with many steps they merge into a dashed line that reads as texture rather
+than as information. The detent is still there either way — the thumb still
+resists and still ticks. Turn them on where the count is small and *is* the
+point: five ratings, four zoom levels.
 
 **Pass `stateDescription`.** Without it the announcement is a bare percentage,
 which is rarely what the number means.

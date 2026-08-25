@@ -16,11 +16,20 @@ switch expects the thing to have happened; a user who ticks a box expects to
 press Save.
 
 The thumb stretches as it travels — wider mid-flight, round at rest — and keeps
-its 3dp of clearance on both sides the whole way, growing into whichever side has
+its 2dp of clearance on both sides the whole way, growing into whichever side has
 the room. At either end that is all behind it, so the stretch trails the way give
-should. The off track is bordered and unfilled rather than grey-filled: a grey
-track sits too close in tone to the surfaces it is toggled on top of to read as a
-distinct control.
+should.
+
+**The track is filled in both states and the thumb never changes colour.** Only
+the track behind it does, because a switch has one moving part and one thing that
+changes behind it; recolouring the thumb as well makes the flip read as two
+events. The off track used to be an unfilled, stroked capsule, on the reasoning
+that a grey track sits too close in tone to the surfaces it is toggled on top of
+to read as a distinct control. The reasoning was right and the conclusion was
+not — the answer is not *no* fill but a fill dark enough. It is
+`outlineStrong`, the token that exists to bound an interactive control at the 3:1
+WCAG asks for, and `ColorSchemeContrastTest` holds it there against every ground
+a switch can land on.
 
 ---
 

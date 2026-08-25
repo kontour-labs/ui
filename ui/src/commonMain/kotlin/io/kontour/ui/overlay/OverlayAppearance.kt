@@ -8,7 +8,10 @@ import androidx.compose.ui.graphics.graphicsLayer
  * The scale-and-fade every overlay appears with.
  *
  * @param progress 0 when the overlay has just been pushed, 1 once it has arrived.
- * @param fromScale How small it starts. Menus barely scale; a tooltip can afford
+ * @param fromScale What scale it starts at. Below 1 it grows into place, which
+ *   is right for something anchored to a control it came out of; above 1 it
+ *   settles down onto the screen, which is right for a dialog that arrives from
+ *   in front of it. Menus barely scale; a tooltip can afford
  *   more, because it is small and the movement is what draws the eye to it.
  * @param origin What it grows out of. Anchored overlays point this at their
  *   anchor, so a menu unfolds from the control it belongs to.

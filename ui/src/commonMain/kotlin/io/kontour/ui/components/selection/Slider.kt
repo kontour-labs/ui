@@ -46,8 +46,8 @@ import kotlin.math.roundToInt
 
 // Shared with `RangeSlider`, which is the same track with a second thumb on it.
 // Two copies of these would be two sliders that drift apart by a pixel.
-internal val SliderTrackHeight = 6.dp
-internal val SliderThumbRadius = 11.dp
+internal val SliderTrackHeight = 4.dp
+internal val SliderThumbRadius = 12.dp
 internal val SliderHeight = 44.dp
 
 /**
@@ -83,6 +83,19 @@ fun Slider(
     enabled: Boolean = true,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     steps: Int = 0,
+    /**
+     * Whether to draw a dot on the track at each detent.
+     *
+     * Off by default, which is a change: [steps] used to imply them. A row of
+     * dots turns a slider into a diagram of its own implementation, and on a
+     * short track with many steps they merge into a dashed line that reads as
+     * texture rather than as information. The detent is still there — the thumb
+     * still resists and still ticks — it is just no longer drawn.
+     *
+     * Turn them on where the count is small and *is* the point: five ratings,
+     * four zoom levels.
+     */
+    showTicks: Boolean = false,
     /**
      * What the slider is *of*, when nothing beside it says.
      *
@@ -386,7 +399,7 @@ fun Slider(
                             cornerRadius = CornerRadius(trackHeightPx / 2f),
                         )
 
-                        if (steps > 0) {
+                        if (showTicks && steps > 0) {
                             val stepCount = steps + 1
                             for (i in 0..stepCount) {
                                 val x = trackLeft + trackWidth * i / stepCount

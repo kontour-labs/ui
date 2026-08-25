@@ -111,7 +111,7 @@ fun TabBar(
     modifier: Modifier = Modifier,
     scrollable: Boolean = false,
     containerColor: Color = Color.Transparent,
-    indicatorColor: Color = Theme.colors.accent.solid,
+    indicatorColor: Color = Theme.colors.accent.container,
     showDivider: Boolean = true,
     /**
      * Controls at the trailing edge — an overflow menu, a filter.
@@ -146,10 +146,14 @@ fun TabBar(
             ) {
                 SelectionIndicatorBox(
                     state = indicator,
-                    sizing = IndicatorSizing.Edge(
-                        edge = IndicatorEdge.Bottom,
-                        thickness = Theme.sizing.selectionIndicator,
-                    ),
+                    // A pill behind the tab rather than a bar under it. The
+                    // sliding underline plus a full-width rule beneath was the
+                    // most Material thing in the library and had no counterpart
+                    // on any other platform; a travelling pill is the same
+                    // mechanism — the shared indicator box, the same anchor
+                    // arithmetic — saying the same thing in the library's own
+                    // vocabulary, which is already full of pills.
+                    sizing = IndicatorSizing.Inset(horizontal = 2.dp, vertical = 6.dp),
                     indicator = {
                         Box(
                             Modifier
@@ -247,7 +251,9 @@ fun TabBarScope.Tab(
     val contentColor by animateColorAsState(
         targetValue = when {
             !enabled -> colors.contentDisabled
-            selected -> colors.accent.solid
+            // On the indicator pill rather than over a bare bar, so the tone's
+            // own on-container colour rather than its solid one.
+            selected -> colors.accent.onContainer
             else -> colors.contentMuted
         },
         animationSpec = motion.tweenFast(),

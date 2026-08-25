@@ -149,7 +149,7 @@ fun CommandPalette(
                                 .fillMaxSize()
                                 .overlayAppearance(
                                     LocalOverlayProgress.current,
-                                    fromScale = 0.96f,
+                                    fromScale = 1.03f,
                                 )
                                 .windowInsetsPadding(WindowInsets.allEdges),
                             // Near the top rather than centred: the list grows

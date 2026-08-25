@@ -126,6 +126,48 @@ class ColorSchemeContrastTest {
         }
     }
 
+    @Test
+    fun aFilledSwitchTrackSeparatesFromEveryGroundItSitsOn() {
+        // `Switch` fills its off track with `outlineStrong` rather than leaving it
+        // outlined and empty. The old note against filling it was that "a grey
+        // track sits too close in tone to the surfaces it is toggled on top of",
+        // which is true of the surface ramp — `surfaceSunken` is a hair off
+        // `surface` in light mode — and is exactly why the fill is the token that
+        // exists to bound an interactive control instead.
+        //
+        // The thumb rides on that track and has to separate from it too.
+        val failures = mutableListOf<Failure>()
+
+        for ((name, c, tier) in schemes) {
+            val required = when (tier) {
+                ContrastLevel.Standard -> ContrastThreshold.NON_TEXT
+                ContrastLevel.High -> ContrastThreshold.LARGE_TEXT_ENHANCED
+            }
+
+            for ((groundName, ground) in c.grounds()) {
+                val ratio = contrastRatio(c.outlineStrong, ground)
+                if (ratio < required) {
+                    failures += Failure(name, "switch track on $groundName", ratio, required)
+                }
+            }
+
+            for ((trackName, track) in listOf("off" to c.outlineStrong, "on" to c.primary)) {
+                val ratio = contrastRatio(c.onPrimary, track)
+                if (ratio < required) {
+                    failures += Failure(name, "switch thumb on the $trackName track", ratio, required)
+                }
+            }
+        }
+
+        if (failures.isNotEmpty()) {
+            fail(
+                failures.joinToString(prefix = "the switch does not separate from what it sits on:\n") {
+                    "  [${it.scheme}] ${it.pair}: ${format(it.actual)}:1, needs ${format(it.required)}:1"
+                }
+            )
+        }
+    }
+
     private fun format(value: Float): String {
         val scaled = (value * 100).toInt()
         return "${scaled / 100}.${(scaled % 100).toString().padStart(2, '0')}"
