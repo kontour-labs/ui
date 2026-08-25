@@ -24,7 +24,8 @@ python3 docs/check-components.py
 | [`check-links.py`](#the-documentation-is-checked-too) | Does every link in the repository resolve? |
 | [`checkKdocSamples`](#the-examples-compile) | Does a KDoc snippet name a parameter that exists? |
 | [`dokkaGenerateHtml`](#the-api-reference-is-a-gate) | Does every `[Link]` in the KDoc resolve? |
-| [`check-components.py`](#every-component-has-a-page) | Does every component have a page of its own? |
+| [`check-components.py`](#every-component-has-a-page) | Does every public component have a page, an index entry, a demo and an example? |
+| [`SiteRenderTest`](#the-site-is-drawn-and-looked-at) | Does every page of the site draw, at every window width? |
 
 Per-target compilation runs only in CI
 ([`ci.yml`](../../.github/workflows/ci.yml)) because it is slow:
@@ -35,9 +36,65 @@ Per-target compilation runs only in CI
 ```
 
 A component that compiles on the JVM and not on Wasm is a component that ships
-broken, and `commonMain` will not tell you which. The
-[API reference](#the-api-reference-is-a-gate) is generated in the same job, for
-the same reason: it fails on KDoc nothing else reads.
+broken, and `commonMain` will not tell you which.
+
+### What CI actually runs, and what it does not run twice
+
+One workflow, six jobs. It was two workflows, which is how the API reference
+came to be generated twice on every commit: `ci.yml` built it in `targets` and
+uploaded it as an artifact, and `pages.yml` built it again because a workflow
+cannot reach another workflow's artifacts. Dokka lives in the `site` job now —
+the one that publishes it under `/api/`.
+
+| Job | Runs on | For |
+|---|---|---|
+| `guard` | every event | Decides whether main has to re-prove what a pull request already did |
+| `test` | unless `guard` settles it | The suite above, plus the Python checks |
+| `targets` | unless `guard` settles it | Every target compiled |
+| `site` | every event | The Wasm bundle and the API reference — the slowest thing here |
+| `deploy` | not on a pull request | GitHub Pages |
+| `publish` | a `v*` tag, or a manual version | GitHub Packages |
+
+`deploy` needs only `site`, deliberately: a library regression should not take
+the documentation offline, and a broken page should not block a release.
+
+#### The guard
+
+Merging a pull request produces a commit whose **tree** is byte-for-byte the
+branch head's, whenever main has not moved underneath it — and that holds for a
+merge commit, a squash and a rebase alike. So the work `test` and `targets`
+would do on main is work already done, on the same bytes, minutes earlier.
+`guard` compares the two tree SHAs through the API and asks whether that head
+has a successful CI run; if both hold, main builds the site and deploys and does
+nothing else.
+
+This is what a merge queue gives you, arrived at from the other direction:
+rather than testing the merge result before it lands, notice afterwards that the
+result is identical to something already tested.
+
+Every path out of it that cannot *prove* the trees match settles on "run
+everything" — a direct push, a conflicted merge, main having moved, a missing
+run, a failed API call, and the guard job itself failing. That last one is why
+the two gated jobs read `!cancelled() && …` rather than a bare condition: a
+failed dependency skips its dependants by default, which is the one direction
+this must never fail in.
+
+#### What is cached
+
+| | Key | Why |
+|---|---|---|
+| `~/.konan` | the version catalogue | A compiler and a platform klib set per target, hundreds of megabytes, in no Gradle cache |
+| `~/.gradle/{nodejs,yarn,binaryen}` | the version catalogue | Node is 210 MB and binaryen is 322 MB, fetched from outside GitHub; the measured restore rate for a cache entry in this repository is 360 MB/s |
+
+Keyed on `gradle/libs.versions.toml` rather than on a lockfile because there is
+no lockfile — `kotlin-js-store` is not committed, and which Node, which yarn and
+which binaryen get fetched is decided by the Kotlin and Compose versions pinned
+there.
+
+`build/js/node_modules` is deliberately not cached. Gradle regenerates the
+`package.json` files under `build/js` on every run, and a restored `node_modules`
+disagreeing with a freshly generated manifest is a confusing failure in exchange
+for a much smaller saving than the two above.
 
 ---
 
@@ -136,7 +193,7 @@ changed pixel in magenta to `ui-catalog/build/screenshot-diffs/`.
   at once.
 - **Per-component renders**, under `screenshots/components/`, are one specimen
   on its own, light and dark, driven from the registry. These are what the
-  [component pages](../using/components.md) show.
+  [component pages](../../ui-docs/content/components.md) show.
 
 A component whose defining state is not its resting one also declares a
 `RenderState`, which adds `<slug>-<state>-{light,dark}.png` beside the resting
@@ -172,6 +229,44 @@ component that draws nothing produces a clean card, and the golden would then
 *defend* the blank.
 
 ---
+
+## Two clocks, and which one a test is on
+
+`Scene` in `Gestures.kt` drives `ImageComposeScene` by hand: every call to
+`frame()` advances a counter by 16ms and renders. Animations, gestures and
+anything reading `withFrameNanos` run on **that** clock, and a frame count is
+exactly the right unit for them.
+
+`delay` does not. It resolves against the wall clock, and nothing ties the two
+together — a frame costs about 45ms of real time on a throttled container and
+rather less on a CI runner. So "render 95 frames" is 3.6 seconds on one machine
+and under 1.5 on another, and a test that waits for a `delay(1500)` by rendering
+95 frames is a test whose result depends on how fast PNG encoding is.
+
+It has caught two things out.
+
+`OverlayMotionScreenshotTest` hit it first and could fix it at the source: its
+own scaffolding did the waiting, so the `delay` became
+`repeat(n) { withFrameNanos { } }` and the golden went back on the frame clock.
+Its KDoc has said so since.
+
+`ToastStackTest.eachToastKeepsItsOwnClock` could not. The `delay(durationMillis)`
+is inside `Toast` — it is what the test is *about* — so there was nothing to
+convert. It rendered 95 frames and called it two seconds, which was true on the
+machine it was written on and false on GitHub's runners, where it began failing
+the day `:ui-catalog` grew enough other tests to change what it shared a runner
+with. It had been wrong since it was written and passed by luck.
+
+The answer for that shape is `Scene.renderUntil`: render frames until a
+predicate holds, bounded by a deadline in **real** milliseconds. Wait for the
+event, on a deadline measured in the units the component actually uses. And
+where a test measures something *before* the wait, guard it — that test now
+compares the two-toast stack against a pinned-toast-only stack first, so a
+machine slow enough to lose the short toast during setup fails saying the test
+proved nothing rather than passing on a coincidence.
+
+**The rule:** frames for anything animated, `renderUntil` for anything that
+times itself out.
 
 ## What the slot conversion cost, and what pays for it
 
@@ -249,7 +344,7 @@ outside the repository at that. Nothing failed, because nothing looked.
 ./gradlew :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples
 ```
 
-The examples on the pages under `docs/using/` are not written in the
+The examples on the pages under `ui-docs/content/` are not written in the
 documentation. They live in `ui-samples/`, which depends on `:ui` the way an app
 would — so an example that reaches for something `internal`, names a parameter
 that has been renamed, or calls a function that no longer exists fails the build
@@ -298,7 +393,7 @@ uploads the site as a build artifact.
 It earns its place by being **complete** in the one way the hand-written pages
 are not — every public symbol appears, whether or not anybody remembered to
 write it up. The two do different jobs: Dokka knows every signature and no
-reasons; `docs/using/` carries the comparisons, the "reach for this instead" and
+reasons; `ui-docs/content/` carries the comparisons, the "reach for this instead" and
 the bug histories. `ui/Module.md` is the module and package overview, and it
 says so on the reference's own landing page.
 
@@ -313,14 +408,138 @@ clean pass.
 A link to a symbol in another package needs the path, and the display form keeps
 the page readable: `[Select][io.kontour.ui.components.text.Select]`.
 
+### The site is drawn, and looked at
+
+```sh
+./gradlew :ui-docs:jvmTest        # ui-docs/build/site-shots/<class>/index.html
+```
+
+Every page of the documentation site, at 390, 700, 1024 and 1440 — one width
+inside each `WindowWidthClass` bucket — with a contact sheet per width.
+
+`:ui-docs` was a `wasmJs`-only module until Round 16, which is not a small
+detail: it had no test source set that could run on a laptop, so there was
+nowhere to put a test even if somebody had wanted one. The site shipped with a
+landing page that threw on any window narrower than 600dp, a `ProseWidth` that
+had never once applied, and half its pages showing nothing at all — and every
+gate in this file was green throughout.
+
+Two things are asserted, and they are the two that are never intentional:
+
+- **it renders** — an exception from any page at any width fails, which is the
+  class of defect that shipped;
+- **it drew something** — a page whose content area is one flat colour is a page
+  with no content. The check starts below the top bar and to the right of the
+  index, because chrome draws on every page and satisfied the naive version.
+
+**Not goldens.** A component's appearance should not change quietly; a
+documentation page changes every time somebody improves a sentence, and 122
+pages times four widths of churning PNGs is a review tax paid in rubber stamps
+within a fortnight.
+
+The contact sheets are the point, and going through them is a person's job. The
+complaint that started Round 16 was "most components don't have live previews,
+and the ones that do aren't interactive" — which is true, was true, and is not
+a sentence any assertion in that file could have written. CI uploads them as an
+artifact on every run for the same reason.
+
 ### Every component has a page
 
 ```sh
 python3 docs/check-components.py
 ```
 
-Three rules: every component in `componentRegistry` has a page whose title names
-it, no symbol is the subject of two pages, and every component page is linked
-from a category index. The registry is the library's own list, so the first
-cannot drift from what exists — a component added without a page fails here
-rather than being noticed by whoever went looking for it.
+Ten rules.
+
+1. Every component in `componentRegistry` has a page whose title names it.
+2. No symbol is the subject of two pages.
+3. Every component page is linked from a category index.
+4. Every page has an interactive demo, and every demo has a page.
+5. **Every public `@Composable` in `:ui` is claimed by some page.**
+6. Every page shows an example that compiles.
+7. Every page says what is particular about its accessibility.
+8. Every page title names a declaration that exists in `:ui`.
+9. The README's component count is the tree's component count.
+10. Every name an accessibility section mentions exists in `:ui`.
+
+The fifth is the one that matters, and it exists because the first four were all
+green while a fifth of the library was undocumented. Rules 1–4 chain
+`registry → pages → indexes → demos`, and every link in that chain is a *list* —
+so nineteen overlays and sheets, five foundation primitives and six adaptive
+components, none of which anybody had added to the registry, were invisible to
+every gate in the repository at once. Round 16 found them by hand.
+
+Rule 5 is anchored to the compiled surface instead. The public composables in
+`:ui` are the source of truth and the pages have to cover them, so adding a
+component and forgetting to document it now fails the build. A symbol is
+"claimed" by being in a page's title or in its `*Also on this page: …*` line, and
+the search runs over all of `ui-docs/content` rather than only `components/` —
+`KontourTheme` is a theme rather than a component, and `theming.md` is where
+anyone would look for it.
+
+The three ways to satisfy it are the three honest answers: give the component a
+page, name it on the page of the thing it accompanies, or make it `internal`
+because callers were never meant to reach it.
+
+Rules 4, 6 and 7 are **ratchets**. Not every page had a demo the day rule 4
+arrived, and a list of exempted names is how a defect becomes permanent — so
+what is recorded is a ceiling that only ever goes down. You cannot exempt your
+own page, only make the total worse.
+
+The three ceilings say quite different things, and the numbers are the point:
+
+| | Ceiling | Reads as |
+|---|---|---|
+| `MAX_WITHOUT_DEMO` | 1 | `DateTimeFormats` is a set of patterns; there is nothing to press |
+| `MAX_WITHOUT_SAMPLE` | 0 | reached — every page shows compiled code |
+| `MAX_WITHOUT_ACCESSIBILITY` | 0 | reached, in the round the ceiling arrived at 102 |
+
+The accessibility ceiling is worth a note, because it is the one that moved
+furthest. Writing it down as 102 was not an excuse to leave it there: the
+sections were then written from what each component's source actually does —
+which role it reports, what it announces, what its live region says — and doing
+it that way is what turned up two real defects. `TimeField` drew its label as a
+sibling `Text`, so the control's announced name was its own value; and
+`MultiSelect` reported `Role.RadioButton` per option, telling every screen-reader
+user that choosing a second mode of transport would clear the first.
+
+Rules 6 and 7 are what "every page is the same shape" is enforced by, and the
+shape is only half enforced — the other half is generated. `:ui-docs` renders a
+`## API` section on every page from
+[`generateApiTables`](#the-parameter-tables-are-generated), so a page that never
+grows another paragraph still carries a working demo, a compiled example and a
+complete parameter table.
+
+Rules 9 and 10 are the anti-fiction pair. The README said "138 components" for
+four rounds and matched nothing measurable — not the registry (49), not the pages
+(103) — so the number now lives between `<!--counts-->` markers and fails the
+build when it stops being true. Rule 10 does the same job for the accessibility
+sections, which are dense with parameter names by design: a name renamed in
+`:ui` while the prose describing it stayed put is exactly how those pages would
+rot fastest.
+
+Rule 8 is the cheapest of the ten and the only one pointing this direction.
+Rules 1-4 ask whether everything in the library has a page; this asks whether the
+page is about anything, which catches a component renamed in `:ui` whose page
+kept the old spelling. Nothing here could detect that before.
+
+### The parameter tables are generated
+
+```sh
+./gradlew :ui-docs:generateApiTables
+```
+
+Every component page on the site carries a full parameter table — name, type and
+default — and none of them is written by hand. `KotlinSignatures` reads `:ui`'s
+own source and emits `ApiTables.kt` into the site's generated sources.
+
+That parser lives in `buildSrc` rather than in a build script because three tasks
+in two modules use it: `checkApiConventions` and `checkKdocSamples` in `:ui`, and
+this. One reader means the table on the page cannot disagree with the rules the
+conventions check enforces, and a renamed parameter changes the page on the next
+build rather than on the day somebody notices.
+
+Before this the tree contained no parameter table at all — not one, on any page.
+That is not an oversight anybody made: 103 hand-written tables are 103 things to
+keep in step with a library that changes every round, and the first stale one
+makes all of them suspect.

@@ -379,7 +379,7 @@ val LocalOverlayHost = staticCompositionLocalOf<OverlayHostState> {
  * **Overlays are clipped to this composable's bounds**, so it belongs at the
  * root. Why the stack renders in-composition rather than in platform windows,
  * and how focus and reading order are handled, are in
- * `docs/using/overlays.md`.
+ * `ui-docs/content/overlays.md`.
  */
 @Composable
 fun OverlayHost(

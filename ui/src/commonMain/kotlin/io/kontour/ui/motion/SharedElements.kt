@@ -125,7 +125,7 @@ class PageTransitionScope internal constructor(
  * for "is the detail open". That is deliberate, and it is why `:ui` still has no
  * navigation dependency: this works with Navigation 3, with an app's own
  * navigator, or with `var route by remember { mutableStateOf(…) }`, and it never
- * has to know which. `docs/using/components/adaptive.md` carries the
+ * has to know which. `ui-docs/content/components/adaptive.md` carries the
  * Navigation 3 recipe, where it can name Nav3 without the library doing so.
  *
  * ### What it is hiding

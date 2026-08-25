@@ -39,7 +39,7 @@ include(":ui")
 // the library's tests live.
 include(":ui-catalog")
 
-// The examples in `docs/using/`, as source. The docs hold copies; this is what
+// The examples in `ui-docs/content/`, as source. The docs hold copies; this is what
 // the compiler reads, so an example that no longer compiles fails the build
 // rather than being found by whoever pastes it into their app.
 include(":ui-samples")

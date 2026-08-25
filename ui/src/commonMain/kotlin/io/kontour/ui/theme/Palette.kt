@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.Color
  *
  * Kontour's own purple used to live here and does not any more. It is in
  * `anyways`, as `KontourBrandTheme` — which is the shape every product using
- * this library should copy, and is documented in `docs/using/theming.md`.
+ * this library should copy, and is documented in `ui-docs/content/theming.md`.
  *
  * What remains comes from two places:
  *

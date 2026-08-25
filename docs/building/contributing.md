@@ -153,7 +153,7 @@ with the slot it most resembles.
 ### If it gets a shorthand
 
 Some components also carry a scope of small builder functions — see
-[`dsls.md`](../using/dsls.md). Three rules, and they are what stops a shorthand turning
+[`dsls.md`](../../ui-docs/content/dsls.md). Three rules, and they are what stops a shorthand turning
 into a second, worse copy of the component:
 
 1. **The scope extends the receiver the content lambda already had.** `MenuScope`
@@ -341,7 +341,7 @@ was recorded.
 
 - **KDoc on every public declaration**, with a usage snippet on the component
   itself. Say when to use it rather than restating the signature.
-- **A row in the relevant page** under `docs/using/`.
+- **A row in the relevant page** under `ui-docs/content/`.
 - **A worked example in `ui-samples/`**, marked into the page with
   `<!--sample:Name-->` above its fenced block. It is a public top-level function
   there — visibility is what separates an example from its scaffolding — and it
@@ -368,7 +368,7 @@ was recorded.
 [ ] screenshot golden reviewed, not just accepted
 [ ] a RenderState, where the resting picture is not the telling one
 [ ] KDoc with a usage snippet and a "when to use this" paragraph
-[ ] documented in docs/using/
+[ ] documented in ui-docs/content/
 [ ] a compiled example in ui-samples/, marked into the page
 [ ] checked at 200% font scale and in RTL
 ```

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keep the examples in `docs/using/` identical to compiled source.
+"""Keep the examples in `ui-docs/content/` identical to compiled source.
 
 An example that does not compile is worse than no example: it reads as a
 confident answer and is wrong, and the reader finds out by pasting it into their
@@ -43,12 +43,15 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from doctree import CONTENT  # noqa: E402
+
 MARKER = re.compile(r"^<!--\s*sample:\s*([A-Za-z_][A-Za-z0-9_]*)\s*-->\s*$")
 FENCE_OPEN = re.compile(r"^```kotlin\s*$")
 FENCE_CLOSE = re.compile(r"^```\s*$")
 
 SAMPLES = Path("ui-samples/src/commonMain/kotlin")
-PAGES = Path("docs/using")
+PAGES = CONTENT
 
 
 def bodies() -> dict[str, str]:

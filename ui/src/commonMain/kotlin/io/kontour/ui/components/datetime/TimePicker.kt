@@ -14,8 +14,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.foundation.Surface
@@ -162,11 +164,24 @@ fun TimeField(
                 text = label,
                 style = Theme.typography.labelMedium,
                 color = if (enabled) Theme.colors.contentMuted else Theme.colors.contentDisabled,
+                // Cleared, because the name goes on the control below instead.
+                //
+                // Compose has no `labelledBy`: a label drawn above a field is an
+                // unrelated node however close it is on screen. Left as it was,
+                // a screen reader read "Leave at" and then, separately, "08:15,
+                // button" — a control whose name is its own value. `FieldScaffold`
+                // has done it this way for every text field since the contract
+                // suite arrived; this field was written later and did not.
+                modifier = Modifier.clearAndSetSemantics {},
             )
         }
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .semantics {
+                    if (label != null) contentDescription = label
+                    stateDescription = formats.time(value)
+                }
                 .clickable(
                     interactionSource = interactions,
                     // The same press wash every other tappable surface in the

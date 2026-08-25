@@ -25,7 +25,7 @@ import io.kontour.ui.components.display.Kbd
  * `MenuScope` extends `ColumnScope`, so [MenuItem] and anything else still work
  * inside it — reach past the shorthand the moment you need a `modifier`, which
  * no shorthand takes. That rule, and the rest of the vocabulary, are in
- * `docs/using/dsls.md`.
+ * `ui-docs/content/dsls.md`.
  *
  * **What it is actually for is not brevity.** [item] closes the menu after
  * running its action, which the component cannot do for you — `MenuItem` has

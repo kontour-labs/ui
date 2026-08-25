@@ -54,3 +54,11 @@ internal fun LazyListScope.stopRows() {
 /** The screen behind an overlay, where a sample needs one to sit over. */
 @Composable
 internal fun Screen() = Unit
+
+/** The two things a rider reports about a stop, where a menu needs entries. */
+internal fun report() = Unit
+internal fun suggest() = Unit
+
+/** The body of a sheet, where the sheet rather than its contents is the subject. */
+@Composable
+internal fun Departures() = Unit

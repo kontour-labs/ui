@@ -2,9 +2,9 @@
 
 A Compose Multiplatform design system, built on **Foundation** — no Material.
 
-Android, iOS, desktop and web from one source set. 138 components, a contract
-suite every one of them passes, and screenshot goldens that compare rather than
-overwrite.
+Android, iOS, desktop and web from one source set.
+<!--counts-->138 public components across 103 pages<!--/counts-->, every one with
+a demo you can operate, a compiled example and a generated parameter table.
 
 ```kotlin
 KontourTheme {
@@ -17,66 +17,52 @@ KontourTheme {
 }
 ```
 
-**[Documentation](docs/README.md)** · [components](docs/using/components.md) ·
-[theming](docs/using/theming.md) · [the `+` vocabulary](docs/using/dsls.md) ·
-[contributing](docs/building/contributing.md)
+### **[kontour-labs.github.io/ui](https://kontour-labs.github.io/ui/)**
+
+The documentation site: every component running, not pictured. Its source is
+[`ui-docs/content/`](ui-docs/content), which reads on GitHub too —
+[components](ui-docs/content/components.md) ·
+[installing](ui-docs/content/installing.md) ·
+[tokens](ui-docs/content/tokens.md) ·
+[theming](ui-docs/content/theming.md) ·
+[accessibility](ui-docs/content/accessibility.md) ·
+[the `+` vocabulary](ui-docs/content/dsls.md)
+
+Adding to the library instead? [`docs/`](docs/README.md) is the other half:
+[contributing](docs/building/contributing.md) ·
+[testing](docs/building/testing.md)
 
 ---
 
 ## Installing
 
-Published privately to GitHub Packages, so it needs a **classic** personal access
-token with `read:packages` — the fine-grained kind cannot read packages at the
-time of writing.
+Published privately to GitHub Packages, so it needs a **classic** personal
+access token with `read:packages` — the fine-grained kind cannot read packages
+at the time of writing.
 
 ```kotlin
 // settings.gradle.kts
-dependencyResolutionManagement {
-    repositories {
-        mavenCentral()
-        maven("https://maven.pkg.github.com/kontour-labs/ui") {
-            credentials {
-                username = providers.gradleProperty("gpr.user")
-                    .orElse(providers.environmentVariable("KONTOUR_PACKAGES_ACTOR")).orNull
-                password = providers.gradleProperty("gpr.key")
-                    .orElse(providers.environmentVariable("KONTOUR_PACKAGES_TOKEN")).orNull
-            }
-            // Not tidiness. GitHub Packages authenticates *every* request,
-            // including the ones that come back 404, so an unscoped repository
-            // sends a credentialed request for every dependency in your build
-            // and anyone without a token watches all of them fail before Gradle
-            // reaches Maven Central.
-            content { includeGroup("io.kontour") }
-        }
-    }
+maven("https://maven.pkg.github.com/kontour-labs/ui") {
+    credentials { /* gpr.user / gpr.key */ }
+    content { includeGroup("io.kontour") }
 }
-```
 
-```kotlin
 // build.gradle.kts
 implementation("io.kontour:ui:0.1.0")
 ```
 
-`gpr.user` and `gpr.key` go in `~/.gradle/gradle.properties`, not in the
-repository.
+[`installing.md`](ui-docs/content/installing.md) has the whole of it: why
+`content { includeGroup }` is not tidiness but the difference between a working
+build and every dependency failing first, why a workflow in another repository
+cannot use its own `GITHUB_TOKEN` at any permission level, where the token goes,
+and what each failure mode looks like.
 
-**A workflow in another repository cannot use its own `GITHUB_TOKEN` for this**,
-at any permission level, and the per-package grant that would fix it exists only
-for container packages. [`docs/using/installing.md`](docs/using/installing.md)
-covers that, storing the token in CI, and what each failure mode looks like.
-
-### A note on the Compose version
-
-This publishes against **Compose Multiplatform 1.12.0-rc01**, a release
-candidate, and that is deliberate rather than an oversight:
-`ImageComposeScene.calculateContentSize()` lands there, and the screenshot
-harness the whole test suite rests on uses it.
-
-A consumer on a stable 1.11 will hit binary incompatibility. Until 1.12 is
-final, pin to the same RC or stay on a version of this library published before
-the bump.
-
----
+**One thing worth knowing before you start.** This publishes against Compose
+Multiplatform **1.12.0-rc01**, a release candidate, deliberately:
+`ImageComposeScene.calculateContentSize()` lands there and the screenshot
+harness the whole test suite rests on uses it. A consumer on a stable 1.11 will
+hit binary incompatibility — pin to the same RC, or stay on a version published
+before the bump.
 
 ## Why no Material
 
@@ -108,21 +94,16 @@ images in the docs.
 
 ```sh
 ./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
-          :ui:checkKdocSamples :ui-catalog:jvmTest
+          :ui:checkKdocSamples :ui-catalog:jvmTest :ui-docs:jvmTest \
+          :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples \
+          :ui:dokkaGenerateHtml
 python3 docs/check-links.py
+python3 docs/check-components.py
 ```
 
-Four guards run alongside the tests, and each exists because something drifted
-past a review:
-
-| | |
-|---|---|
-| `checkNoMaterial` | Material anywhere in the resolved graph |
-| `checkApiConventions` | nine rules over every public declaration |
-| `checkKdocSamples` | a sample naming a parameter that does not exist, or omitting a required one |
-| Screenshot goldens | a render that moved |
-
-[`docs/building/`](docs/building/) has the rest.
+Twelve gates, all on the JVM, no emulator and no simulator. Each exists because
+something drifted past a review — what each asks and what each has caught is in
+[`docs/building/testing.md`](docs/building/testing.md).
 
 ## Releasing
 
@@ -144,6 +125,6 @@ version is `0.1.0-SNAPSHOT` and the publish job does not run.
 ./gradlew :ui:coordinate    # what this checkout would publish as
 ```
 
-It publishes from Linux. Kotlin cross-compiles the Apple **klibs**, which is what
-a consumer resolves; what needs Xcode is linking a *framework*, and that happens
-in the consuming app.
+It publishes from Linux. Kotlin cross-compiles the Apple **klibs**, which is
+what a consumer resolves; what needs Xcode is linking a *framework*, and that
+happens in the consuming app.

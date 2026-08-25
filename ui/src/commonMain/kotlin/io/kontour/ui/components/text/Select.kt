@@ -226,6 +226,11 @@ fun <T> MultiSelect(
                 },
                 enabled = optionEnabled(option),
                 selected = option in value,
+                // Any number of these can be on, so they are checkboxes.
+                // Announced as radio buttons — which is what they were — a
+                // screen reader told the user that choosing a second mode of
+                // transport would clear the first.
+                multiple = true,
             ) {
                 +optionLabel(option)
                 optionIcon?.invoke(option)?.let { icon -> leading { +icon } }

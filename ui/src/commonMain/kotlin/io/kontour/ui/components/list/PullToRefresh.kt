@@ -295,6 +295,17 @@ fun LoadMore(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            // Polite, and for the state changes rather than for the spinner.
+            //
+            // This is the foot of an infinite list: the user scrolls, something
+            // loads, and either more rows arrive or it fails. Without a live
+            // region none of that is announced — the failure in particular, which
+            // is the state a user on a train actually meets and the one where the
+            // retry button they need has appeared silently below them.
+            //
+            // `PullToRefresh` above has had one since it was written; this half
+            // of the same file did not.
+            .semantics { liveRegion = LiveRegionMode.Polite }
             .padding(Theme.spacing.md),
         contentAlignment = Alignment.Center,
     ) {

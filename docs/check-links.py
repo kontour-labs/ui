@@ -8,7 +8,7 @@ resolves every relative link against the file that carries it, and checks that
 any `#anchor` names a heading that actually exists in the file it points at.
 
     python3 docs/check-links.py            # every markdown file in the repository
-    python3 docs/check-links.py docs/using # one subtree
+    python3 docs/check-links.py ui-docs/content # one subtree
 
 Exits non-zero and prints `file:line` for each failure.
 

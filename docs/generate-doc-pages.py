@@ -8,8 +8,9 @@ than a parser and a pile of strings.
 
 Usage:  python3 docs/generate-doc-pages.py <output-directory>
 
-Emits one file, `DocPages.kt`, holding every page under
-`docs/using/components/` as a list of blocks.
+Emits one file, `DocPages.kt`, holding every page under `ui-docs/content/` as a
+list of blocks — the component pages, the family indexes and the guides, all of
+which get a route on the site.
 
 ### What it understands
 
@@ -29,36 +30,8 @@ import re
 import sys
 from pathlib import Path
 
-COMPONENTS = Path("docs/using/components")
-
-# A tuple, not a set, and the order is load-bearing.
-#
-# `family_of` below is first-index-wins, and a page can be linked from two of
-# them — `nav-surfaces.md` is linked from `navigation.md` and again from
-# `foundation.md`. Iterating a set of strings means iterating in an order that
-# Python's hash randomisation changes between runs, so that page landed in
-# Navigation or in Foundation depending on the process. `DocPages.kt` therefore
-# differed run to run, which defeats Gradle's up-to-date check on
-# `generateDocPages` and moved a page between sidebar groups at random.
-#
-# The order here is the order `components.md` presents the families in, so the
-# tie is broken by the same thing a reader would use.
-INDEXES = (
-    "actions", "selection", "text-editing", "date-time", "display",
-    "collections", "navigation", "adaptive", "foundation",
-)
-
-FAMILY = {
-    "actions": "Actions",
-    "selection": "Selection",
-    "text-editing": "Text editing",
-    "date-time": "Date and time",
-    "display": "Display",
-    "collections": "Collections",
-    "navigation": "Navigation",
-    "adaptive": "Adaptive",
-    "foundation": "Foundation",
-}
+sys.path.insert(0, str(Path(__file__).parent))
+from doctree import COMPONENTS, FAMILY, INDEXES, content_pages, page_path  # noqa: E402
 
 
 def kotlin_string(text: str) -> str:
@@ -66,8 +39,20 @@ def kotlin_string(text: str) -> str:
     return '"' + out.replace("\n", "\\n") + '"'
 
 
+# `strong` and `em` come first, and their bodies are re-scanned by `spans`.
+#
+# Before that they came last, so `**Reach for a [`Chip`](chip.md) instead**` was
+# matched by `code` on its first backtick and the surrounding `**…**` never
+# matched at all — the reader got the literal markdown, brackets and filename
+# included. Twelve pages, and every one of them was a "reach for this instead"
+# line, which is the single most useful link on the page.
+#
+# `[^*]` in both bodies is what keeps them from swallowing the rest of the
+# paragraph, and is also why `**a *b* c**` is not supported. Nobody writes that.
 INLINE = re.compile(
-    r"(?P<code>`[^`]+`)"
+    r"(?P<strong>\*\*[^*]+\*\*)"
+    r"|(?P<em>\*[^*]+\*)"
+    r"|(?P<code>`[^`]+`)"
     # Before `link`, and matching an empty alt text, which `link` does not.
     # A render inside a table cell — `![](../../…png)` — is neither at the
     # start of a line, so the block-level image drop never saw it, nor a legal
@@ -75,8 +60,6 @@ INLINE = re.compile(
     # as literal text. `button.md`'s variant table showed seven of them.
     r"|(?P<image>!\[[^\]]*\]\([^)]+\))"
     r"|(?P<link>\[[^\]]+\]\([^)]+\))"
-    r"|(?P<strong>\*\*[^*]+\*\*)"
-    r"|(?P<em>\*[^*]+\*)"
 )
 
 
@@ -95,11 +78,14 @@ def spans(text: str) -> str:
             pass
         elif m.group("link"):
             label, target = re.match(r"\[([^\]]+)\]\(([^)]+)\)", m.group("link")).groups()
-            out.append(f"Span.Link({kotlin_string(label)}, {kotlin_string(target)})")
+            # The label is scanned too: `[`Chip`](chip.md)` is how a cross
+            # reference is written here, 259 times, and a flat string put the
+            # backticks on the page.
+            out.append(f"Span.Link({spans(label)}, {kotlin_string(target)})")
         elif m.group("strong"):
-            out.append(f"Span.Strong({kotlin_string(m.group('strong')[2:-2])})")
+            out.append(f"Span.Strong({spans(m.group('strong')[2:-2])})")
         else:
-            out.append(f"Span.Emphasis({kotlin_string(m.group('em')[1:-1])})")
+            out.append(f"Span.Emphasis({spans(m.group('em')[1:-1])})")
         pos = m.end()
     if pos < len(text):
         out.append(f"Span.Plain({kotlin_string(text[pos:])})")
@@ -184,6 +170,11 @@ def blocks(lines: list[str], where: str) -> list[str]:
     return out
 
 
+# Small enough that no page's chunk can approach the JVM's 64 KB method limit,
+# large enough that a page is not hundreds of functions.
+BLOCKS_PER_FUNCTION = 30
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__, file=sys.stderr)
@@ -201,42 +192,74 @@ def main() -> int:
             family_of.setdefault(Path(target).stem, stem)
 
     pages = []
-    for path in sorted(COMPONENTS.glob("*.md")):
-        if path.stem in INDEXES:
-            continue
+    bodies = []
+    for path in content_pages():
         text = path.read_text()
         title = re.search(r"^#\s+(.+)$", text, re.M)
         if not title:
             raise SystemExit(f"{path}: no title")
         # The footer is navigation the site provides itself.
-        body = re.sub(r"\n---\n\n←.*$", "\n", text, flags=re.S)
+        body = re.sub(r"\n---\n\n\u2190.*$", "\n", text, flags=re.S)
         lines = body.split("\n")
         # Drop the title line; the site draws it from `title`.
         lines = lines[lines.index(title.group(0)) + 1:]
         symbols = re.findall(r"`([^`]+)`", title.group(1))
-        pages.append(
-            "    DocPage(\n"
-            f"        slug = {kotlin_string(path.stem)},\n"
-            f"        title = {kotlin_string(title.group(1))},\n"
-            f"        symbols = listOf({', '.join(kotlin_string(s) for s in symbols)}),\n"
-            f"        family = {kotlin_string(FAMILY.get(family_of.get(path.stem, ''), 'Other'))},\n"
-            "        blocks = listOf(\n"
-            + "".join(f"            {b},\n" for b in blocks(lines, str(path)))
-            + "        ),\n"
-            "    ),"
+
+        # Three kinds, and the site treats each differently: a component page
+        # carries a live demo and a parameter table, a family page is the index
+        # of its components, and a guide is prose about the library.
+        in_components = path.parent == COMPONENTS
+        if in_components and path.stem in INDEXES:
+            kind, family = "DocKind.Family", FAMILY[path.stem]
+        elif in_components:
+            kind, family = "DocKind.Component", FAMILY.get(family_of.get(path.stem, ""), "Other")
+        else:
+            kind, family = "DocKind.Guide", "Guides"
+
+        page_blocks = blocks(lines, str(path))
+        # One function per page, and one per 30 blocks inside it.
+        #
+        # Not tidiness. A top-level `val` initialises in `<clinit>`, and the JVM
+        # caps a method at 64 KB of bytecode — which 122 pages of prose in a
+        # single `listOf` exceeds, with an error that names a generated file and
+        # explains nothing. Splitting it means every method stays small however
+        # much documentation is written, which is the property worth having:
+        # the next long page should not be the one that discovers this again.
+        chunks = [page_blocks[at:at + BLOCKS_PER_FUNCTION]
+                  for at in range(0, len(page_blocks), BLOCKS_PER_FUNCTION)] or [[]]
+        name = f"p{len(pages)}"
+        for index, chunk in enumerate(chunks):
+            bodies.append(
+                f"private fun {name}b{index}(): List<Block> = listOf(\n"
+                + "".join(f"    {b},\n" for b in chunk)
+                + ")\n"
+            )
+        bodies.append(
+            f"private fun {name}(): DocPage = DocPage(\n"
+            f"    path = {kotlin_string(page_path(path))},\n"
+            f"    title = {kotlin_string(title.group(1))},\n"
+            f"    symbols = listOf({', '.join(kotlin_string(s) for s in symbols)}),\n"
+            f"    family = {kotlin_string(family)},\n"
+            f"    kind = {kind},\n"
+            "    blocks = " + " + ".join(f"{name}b{i}()" for i in range(len(chunks))) + ",\n"
+            ")\n"
         )
+        pages.append(f"    {name}(),")
 
     header = '''// Generated by docs/generate-doc-pages.py — do not edit.
 //
-// One entry per page under `docs/using/components/`, as structured blocks. The
-// site ships no markdown parser: a malformed page fails the build here rather
-// than in a reader's browser.
+// One entry per page under `ui-docs/content/` — the component pages, the family
+// indexes and the guides — as structured blocks. The site ships no markdown
+// parser: a malformed page fails the build here rather than in a reader's
+// browser.
 
 package io.kontour.ui.docs
 
 val docPages: List<DocPage> = listOf(
 '''
-    (out_dir / "DocPages.kt").write_text(header + "\n".join(pages) + "\n)\n")
+    (out_dir / "DocPages.kt").write_text(
+        header + "\n".join(pages) + "\n)\n\n" + "\n".join(bodies)
+    )
     print(f"generated {len(pages)} pages into {out_dir}/DocPages.kt")
     return 0
 
