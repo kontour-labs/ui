@@ -309,9 +309,17 @@ private fun MenuPanel(
  * A keyboard shortcut is not a parameter here — it belongs to the DSL, as
  * [MenuScope.item]'s `shortcut`, and renders as a [io.kontour.ui.components.display.Kbd].
  *
- * @param selected Marks the current choice in a menu that picks one of several.
- *   Draws a check and reports `Role.RadioButton` to assistive tech, because "one
- *   of these is on" is the thing being conveyed.
+ * @param selected Marks a chosen item. Draws a check, and reports a role that
+ *   depends on [multiple].
+ * @param multiple Whether more than one item in this menu can be selected at
+ *   once. It decides the announced role and nothing visual: `Role.Checkbox`
+ *   where several can be on, `Role.RadioButton` where exactly one can.
+ *
+ *   The distinction is the whole difference between the two components built on
+ *   this. [Select][io.kontour.ui.components.text.Select] picks one;
+ *   [MultiSelect][io.kontour.ui.components.text.MultiSelect] picks any number,
+ *   and announced as radio buttons it was telling every screen-reader user that
+ *   choosing a second mode of transport would clear the first.
  * @param destructive Renders in the danger tone. For anything the user cannot
  *   undo.
  */
@@ -321,6 +329,7 @@ fun MenuItem(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     selected: Boolean = false,
+    multiple: Boolean = false,
     destructive: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
     content: ListItemScope.() -> Unit,
@@ -340,7 +349,11 @@ fun MenuItem(
         modifier = modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {
-                role = if (selected) Role.RadioButton else Role.Button
+                role = when {
+                    multiple -> Role.Checkbox
+                    selected -> Role.RadioButton
+                    else -> Role.Button
+                }
                 if (selected) this.selected = true
             }
             .minimumTouchTarget()
