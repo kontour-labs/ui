@@ -1,5 +1,7 @@
 # `Toolbar`
 
+*Also on this page: `ToolbarDivider`.*
+
 ![Toolbar](../../../ui-catalog/screenshots/components/toolbar-light.png)
 
 <!--sample:ToolbarBasics-->

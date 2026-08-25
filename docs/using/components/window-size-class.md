@@ -2,7 +2,7 @@
 
 What size of window the content is in, in buckets rather than pixels.
 
-*Also on this page: `WindowWidthClass`, `WindowHeightClass`.*
+*Also on this page: `WindowWidthClass`, `WindowHeightClass`, `WindowSizeClassProvider`.*
 
 `WindowWidthClass` is `Compact` under 600dp, `Medium` under 840, `Expanded`
 under 1200 and `Large` above it. Reading `windowSizeClass.width >= Medium` at a

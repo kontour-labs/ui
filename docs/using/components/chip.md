@@ -1,5 +1,7 @@
 # `Chip`, `FilterChip`, `InputChip`
 
+*Also on this page: `ChipGroup`.*
+
 ![Chip](../../../ui-catalog/screenshots/components/chip-light.png)
 ![FilterChip, unselected](../../../ui-catalog/screenshots/components/filterchip-light.png)
 ![FilterChip, selected](../../../ui-catalog/screenshots/components/filterchip-selected-light.png)

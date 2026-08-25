@@ -24,7 +24,7 @@ python3 docs/check-components.py
 | [`check-links.py`](#the-documentation-is-checked-too) | Does every link in the repository resolve? |
 | [`checkKdocSamples`](#the-examples-compile) | Does a KDoc snippet name a parameter that exists? |
 | [`dokkaGenerateHtml`](#the-api-reference-is-a-gate) | Does every `[Link]` in the KDoc resolve? |
-| [`check-components.py`](#every-component-has-a-page) | Does every component have a page of its own? |
+| [`check-components.py`](#every-component-has-a-page) | Does every public component have a page, an index entry and a demo? |
 
 Per-target compilation runs only in CI
 ([`ci.yml`](../../.github/workflows/ci.yml)) because it is slow:
@@ -319,8 +319,34 @@ the page readable: `[Select][io.kontour.ui.components.text.Select]`.
 python3 docs/check-components.py
 ```
 
-Three rules: every component in `componentRegistry` has a page whose title names
-it, no symbol is the subject of two pages, and every component page is linked
-from a category index. The registry is the library's own list, so the first
-cannot drift from what exists — a component added without a page fails here
-rather than being noticed by whoever went looking for it.
+Five rules.
+
+1. Every component in `componentRegistry` has a page whose title names it.
+2. No symbol is the subject of two pages.
+3. Every component page is linked from a category index.
+4. Every page has an interactive demo, and every demo has a page.
+5. **Every public `@Composable` in `:ui` is claimed by some page.**
+
+The fifth is the one that matters, and it exists because the first four were all
+green while a fifth of the library was undocumented. Rules 1–4 chain
+`registry → pages → indexes → demos`, and every link in that chain is a *list* —
+so nineteen overlays and sheets, five foundation primitives and six adaptive
+components, none of which anybody had added to the registry, were invisible to
+every gate in the repository at once. Round 16 found them by hand.
+
+Rule 5 is anchored to the compiled surface instead. The public composables in
+`:ui` are the source of truth and the pages have to cover them, so adding a
+component and forgetting to document it now fails the build. A symbol is
+"claimed" by being in a page's title or in its `*Also on this page: …*` line, and
+the search runs over all of `docs/using` rather than only `components/` —
+`KontourTheme` is a theme rather than a component, and `theming.md` is where
+anyone would look for it.
+
+The three ways to satisfy it are the three honest answers: give the component a
+page, name it on the page of the thing it accompanies, or make it `internal`
+because callers were never meant to reach it.
+
+Rule 4 is a **ratchet**. Not every page had a demo the day the rule arrived, and
+a list of exempted names is how a defect becomes permanent — so what is recorded
+is a ceiling that only ever goes down. You cannot exempt your own page, only make
+the total worse.

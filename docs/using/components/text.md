@@ -1,5 +1,7 @@
 # `Text`
 
+*Also on this page: `ProvideTextStyle`.*
+
 The typographic primitive. Resolves its style and its colour from the theme
 rather than taking them, so a paragraph inside a `Card` on a dark scheme needs
 no arguments at all.

@@ -145,6 +145,46 @@ def demo_slugs() -> set[str]:
     return found
 
 
+def public_composables() -> dict[str, Path]:
+    """Every public `@Composable` in `:ui`, by name.
+
+    TitleCase only: a composable is a component, and the lowercase ones are
+    modifiers and `remember*` factories, which are documented on the page of
+    whatever they attach to rather than on pages of their own.
+    """
+    found: dict[str, Path] = {}
+    pattern = re.compile(
+        r"@Composable[^\n]*\n(?:@[^\n]*\n)*"
+        r"((?:internal |private |public )?)fun (?:<[^>]*> )?(?:(\w+)\.)?(\w+)\s*\("
+    )
+    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+        for match in pattern.finditer(path.read_text()):
+            visibility, receiver, name = match.group(1).strip(), match.group(2), match.group(3)
+            if visibility in ("internal", "private") or not name[0].isupper():
+                continue
+            found[f"{receiver}.{name}" if receiver else name] = path
+    return found
+
+
+def claimed_symbols() -> set[str]:
+    """Every symbol any documentation page says it is about.
+
+    Across all of `docs/using`, not only `components/`, because a handful of
+    things are genuinely explained by a guide rather than by a component page —
+    `KontourTheme` is a theme, not a component, and `theming.md` is where anyone
+    looking for it would look.
+    """
+    found: set[str] = set()
+    for path in Path("docs/using").rglob("*.md"):
+        text = path.read_text()
+        title = TITLE.search(text)
+        if title:
+            found |= set(SYMBOL.findall(title.group(1)))
+        for also in ALSO.findall(text):
+            found |= set(SYMBOL.findall(also))
+    return found
+
+
 def main() -> int:
     if not COMPONENTS.is_dir():
         print(f"{COMPONENTS} is not a directory", file=sys.stderr)
@@ -208,6 +248,30 @@ def main() -> int:
             f"is going backwards. Without: {', '.join(without)}"
         )
 
+    # Rule 5 — every public component in the library is documented somewhere.
+    #
+    # This is the one that would have caught the whole of Round 16. Rules 1-4
+    # chain `registry → pages → indexes → demos`, and every link in that chain
+    # is a *list* — so a component nobody put in the registry was invisible to
+    # all of them. Nineteen overlays and sheets, five foundation primitives and
+    # six adaptive components had no page, and every gate in the repository was
+    # green.
+    #
+    # Anchored to the compiled surface instead: the public composables in `:ui`
+    # are the source, and the pages have to cover them. Adding a component and
+    # not documenting it now fails the build, which is the only version of this
+    # rule that does anything.
+    documented_symbols = claimed_symbols()
+    bare_symbols = {symbol.split(".")[-1] for symbol in documented_symbols}
+    for symbol, path in sorted(public_composables().items()):
+        if symbol in documented_symbols or symbol.split(".")[-1] in bare_symbols:
+            continue
+        problems.append(
+            f"`{symbol}` is public in {path.name} and no page claims it — either "
+            f"give it a page, name it in an *Also on this page* line, or make it "
+            f"internal if callers were never meant to reach it"
+        )
+
     # Rule 3 — every page is reachable from its index.
     linked = set()
     for index in index_pages:
@@ -227,6 +291,7 @@ def main() -> int:
         return 1
 
     print(
+        f"{len(public_composables())} public composables, "
         f"{len(component_pages)} component pages, "
         f"{len(registry_components())} registered components, "
         f"{len(demos)} demos ({len(without)} pages still without one), "

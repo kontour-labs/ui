@@ -1,5 +1,7 @@
 # `ListItem`
 
+*Also on this page: `ListGroup`.*
+
 ![ListItem](../../../ui-catalog/screenshots/components/listitem-light.png)
 
 <!--sample:ListItemBasics-->

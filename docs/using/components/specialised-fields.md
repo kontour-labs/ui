@@ -1,5 +1,7 @@
 # `PasswordField` and the rest
 
+*Also on this page: `NumberField`, `PhoneField`, `EmailField`.*
+
 | | |
 |---|---|
 | `PasswordField` | Reveal toggle, autofill content type |

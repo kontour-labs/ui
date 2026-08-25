@@ -1,5 +1,7 @@
 # `Surface`
 
+*Also on this page: `ProvideContentColor`.*
+
 Background, shape, border and shadow in one — and the thing that sets
 `LocalContentColor` for everything inside it.
 

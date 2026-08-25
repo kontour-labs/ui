@@ -1,5 +1,7 @@
 # `AlertDialog`
 
+*Also on this page: `ConfirmHost`.*
+
 A [`Dialog`](dialog.md) with the buttons already arranged: a confirm, a dismiss,
 and optionally a third answer.
 

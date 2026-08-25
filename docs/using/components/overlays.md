@@ -16,6 +16,7 @@ mechanism, and the pages below are the components themselves.
 | [`Toast`](toast.md) | Confirmation of something just done | A `Banner`, which is about the screen |
 | [`LoadingOverlay`](loading-overlay.md) | Whole-screen, must-not-interrupt work | A `Skeleton` or an inline `Spinner`, nearly always |
 | [`CommandPalette`](command-palette.md) | Every action, by name, from the keyboard | A menu bar |
+| [`OverlayHost`](overlay-host.md) | Installing the layer all of the above render into | Nothing — a screen without one throws |
 
 The rules that are easy to get wrong — a toast is not a banner, a popover is not
 a small dialog, `LoadingOverlay` should be rare — are set out in

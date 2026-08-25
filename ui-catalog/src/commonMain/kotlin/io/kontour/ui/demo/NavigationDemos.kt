@@ -31,11 +31,13 @@ import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.FabSize
 import io.kontour.ui.components.action.FloatingActionButton
+import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.ModalNavDrawer
 import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavRail
 import io.kontour.ui.nav.NavigationSuiteScaffold
@@ -236,6 +238,31 @@ internal val PaginationDemo = ComponentDemo(slug = "pagination") {
     }
 }
 
+internal val ModalNavDrawerDemo = ComponentDemo(slug = "nav-drawer") {
+    var open by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf(1) }
+    val pages = listOf("Home", "Map", "Plan", "Profile")
+    Frame(height = 300.dp) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Button(onClick = { open = true }, variant = ButtonVariant.Secondary) {
+                +"Open the drawer"
+            }
+        }
+        ModalNavDrawer(visible = open, onDismissRequest = { open = false }) {
+            section("Travel") {
+                pages.take(3).forEachIndexed { index, page ->
+                    item(page, selected = index == selected) {
+                        selected = index
+                        open = false
+                    }
+                }
+            }
+            divider()
+            item("Profile", selected = selected == 3) { selected = 3; open = false }
+        }
+    }
+}
+
 internal val navigationDemos = listOf(
     NavSurfacesDemo,
     NavItemDemo,
@@ -244,4 +271,5 @@ internal val navigationDemos = listOf(
     TabBarDemo,
     BreadcrumbsDemo,
     PaginationDemo,
+    ModalNavDrawerDemo,
 )

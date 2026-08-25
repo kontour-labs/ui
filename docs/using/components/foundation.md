@@ -9,6 +9,7 @@ The five primitives every other component is built from.
 | [`Surface`](surface.md) | Background, shape, border, shadow — and sets `LocalContentColor` |
 | [`HorizontalDivider` / `VerticalDivider`](divider.md) | Decorative rules |
 | [`Scrim`](scrim.md) | Dims and blocks input behind a modal |
+| [`SelectionIndicatorBox`](selection-indicator.md) | The travelling pill behind a selected destination |
 
 `Surface` setting `LocalContentColor` is what makes `Text` and `Icon` need no
 colour argument in the common case: a surface says what it is, and its content

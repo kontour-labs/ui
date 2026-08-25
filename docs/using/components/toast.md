@@ -1,5 +1,7 @@
 # `Toast`
 
+*Also on this page: `ToastHost`.*
+
 Confirmation of something the user just did. Raised through a
 `ToastHostState`, drawn by a `ToastHost`.
 

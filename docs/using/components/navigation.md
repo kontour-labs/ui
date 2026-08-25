@@ -7,6 +7,7 @@
 | [`NavBar`](nav-surfaces.md) | Compact windows — bottom of the screen | — |
 | [`NavRail`](nav-surfaces.md) | Medium windows — leading edge | — |
 | [`NavDrawer`](nav-surfaces.md) | Expanded windows, and nested groups | `NavRail`, for a flat set |
+| [`ModalNavDrawer`](nav-drawer.md) | The same drawer over the content, on a narrow window | `NavBar`, when there are only three or four |
 | [`TopBar`](top-bar.md) | A title and its actions | Anything holding destinations |
 | [`TabBar`](tab-bar.md) | Views of *one* screen | `SegmentedControl`, when switching a value |
 | [`Breadcrumbs`](breadcrumbs.md) | Where you are in a hierarchy | — |

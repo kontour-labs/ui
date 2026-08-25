@@ -45,6 +45,8 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastTone
+import io.kontour.ui.nav.Tab
+import io.kontour.ui.nav.TabBar
 import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.overlay.tooltip
@@ -340,6 +342,62 @@ internal val CommandPaletteDemo = ComponentDemo(slug = "command-palette") {
     }
 }
 
+private val hostScrim = Knob.Choice("Scrim", listOf("Dimmed", "Transparent"))
+
+internal val OverlayHostDemo = ComponentDemo(slug = "overlay-host", knobs = listOf(hostScrim)) {
+    var open by remember { mutableStateOf(false) }
+    val dimmed = this[hostScrim] == "Dimmed"
+    // Two stages side by side would be the honest picture, but the point is
+    // simpler than that: this card has its own host, so the dialog stays inside
+    // the border. Without one it would find the site's host and cover the page.
+    Stage {
+        Button(
+            onClick = { open = true },
+            variant = ButtonVariant.Secondary,
+            modifier = Modifier.align(Alignment.Center),
+        ) { +"Open something" }
+
+        if (dimmed) {
+            Dialog(visible = open, onDismissRequest = { open = false }) {
+                Text("Contained", style = Theme.typography.titleSmall)
+                Text(
+                    "The scrim stops at this card's edge, because the nearest " +
+                        "host is the one inside it.",
+                    style = Theme.typography.bodySmall,
+                    color = Theme.colors.contentMuted,
+                )
+            }
+        } else {
+            Popover(visible = open, onDismissRequest = { open = false }) {
+                Text(
+                    "Transparent: blocked, but not dimmed — what a menu wants.",
+                    style = Theme.typography.bodySmall,
+                )
+            }
+        }
+    }
+}
+
+internal val SelectionIndicatorDemo = ComponentDemo(slug = "selection-indicator") {
+    var selected by remember { mutableStateOf(0) }
+    val tabs = listOf("Departures", "Route map", "Alerts")
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        TabBar(modifier = Modifier.fillMaxWidth()) {
+            tabs.forEachIndexed { index, label ->
+                Tab(selected = selected == index, onClick = { selected = index }, key = index) {
+                    +label
+                }
+            }
+        }
+        Text(
+            "The pill travels between tabs rather than appearing on one — one " +
+                "indicator owned by the bar, not three owned by the tabs.",
+            style = Theme.typography.bodySmall,
+            color = Theme.colors.contentMuted,
+        )
+    }
+}
+
 internal val overlayDemos = listOf(
     DialogDemo,
     AlertDialogDemo,
@@ -350,4 +408,6 @@ internal val overlayDemos = listOf(
     ToastDemo,
     LoadingOverlayDemo,
     CommandPaletteDemo,
+    OverlayHostDemo,
+    SelectionIndicatorDemo,
 )

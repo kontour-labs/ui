@@ -1,5 +1,7 @@
 # `Timeline`
 
+*Also on this page: `TimelineItem`.*
+
 `Timeline` and `TimelineItem` — a vertical sequence, which in this app is the
 journey itinerary.
 

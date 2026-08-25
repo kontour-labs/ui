@@ -1,5 +1,7 @@
 # Theming
 
+*Also on this page: `KontourTheme`.*
+
 How to change what the system looks like without touching a component.
 
 ## The default has no product in it
