@@ -5,6 +5,33 @@
 Confirmation of something the user just did. Raised through a
 `ToastHostState`, drawn by a `ToastHost`.
 
+<!--sample:ToastBasics-->
+```kotlin
+val toasts = rememberToastHostState()
+val scope = rememberCoroutineScope()
+
+// One host, high in the tree, beside the content it floats over.
+Box(Modifier.fillMaxSize()) {
+    Screen()
+    ToastHost(toasts)
+}
+
+Button(onClick = { scope.launch { toasts.show("Saved for offline") } }) { +"Save" }
+
+Button(
+    onClick = {
+        scope.launch {
+            toasts.show(
+                "Couldn't reach the timetable service",
+                tone = ToastTone.Danger,
+                actionLabel = "Retry",
+                onAction = { refresh() },
+            )
+        }
+    },
+) { +"Refresh" }
+```
+
 **A toast is for feedback on an action; a [`Banner`](banner.md) is about the
 screen.** A banner that appears in response to a tap is easy to miss, because the
 user is looking at their finger. A toast that carries important information is

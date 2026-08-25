@@ -2,6 +2,20 @@
 
 The reusable grid, with no opinion about how selection works.
 
+<!--sample:CalendarMonthBasics-->
+```kotlin
+var selected by remember { mutableStateOf(LocalDate(2026, 6, 18)) }
+
+// The grid on its own, with no header and no paging — for a screen that
+// shows three months at once, or supplies its own navigation.
+CalendarMonth(
+    month = LocalDate(2026, 6, 1),
+    isSelected = { it == selected },
+    onSelectedChange = { selected = it },
+    today = LocalDate(2026, 6, 12),
+)
+```
+
 **It expresses selection as *predicates* rather than a value**, because that is
 the only shape that serves single, range and multi-select without the grid
 knowing which mode it is in.

@@ -12,7 +12,7 @@ missing: a section that lands in two files, a component whose page was never
 made, a page nothing links to. So the arrangement is checked rather than
 trusted.
 
-Three rules:
+Eight rules:
 
   1. Every component in `componentRegistry` has a page whose title names it.
      The registry is the library's own list, so this cannot drift from what
@@ -22,6 +22,18 @@ Three rules:
   3. Every component page is linked from its category index. A page nothing
      points at is a page nobody reads, and the split is the moment to create
      one by accident.
+  4. Every page has an interactive demo, and every demo has a page.
+  5. Every public `@Composable` in `:ui` is claimed by some page — the one rule
+     anchored to the library rather than to a list, and so the only one that
+     could have caught a component nobody remembered to register.
+  6. Every page shows an example that compiles.
+  7. Every page says what is particular about its accessibility.
+  8. Every page title names a declaration that exists in `:ui`.
+
+Rules 4, 6 and 7 are **ratchets**: a ceiling that only goes down, rather than a
+list of exempted names. You cannot exempt *your* page, only make the total
+worse, and that is the difference that matters — a list of names in a test is
+how a defect becomes a permanent exemption.
 
 Run:  python3 docs/check-components.py
 """
@@ -185,6 +197,60 @@ def claimed_symbols() -> set[str]:
     return found
 
 
+# Only goes down. See rule 6.
+#
+# **Zero**, and that is a fact rather than an aspiration: every one of the 103
+# component pages carries a compiled example as of this round. It stays a
+# ratchet rather than a flat `if any` because the number is the honest way to
+# say what a regression costs, and because the accessibility ceiling below it
+# is nowhere near zero and reads the same way.
+MAX_WITHOUT_SAMPLE = 0
+
+# Only goes down. See rule 7.
+#
+# 102 of 103, which looks like a gate that does nothing and is not. A *new* page
+# lands at 103 and fails, so from here on every component page arrives with
+# accessibility notes — and the existing debt is written down in a number that
+# can only be paid off rather than in a list of names to inherit.
+#
+# Not every page owes the same thing. `accessibility.md` carries the rules that
+# apply to all of them; what belongs here is what is specific — which role a
+# component takes, what it announces, what its live region does.
+MAX_WITHOUT_ACCESSIBILITY = 102
+
+ACCESSIBILITY = re.compile(r"^#+\s*Accessibility", re.MULTILINE | re.IGNORECASE)
+SAMPLE = re.compile(r"^<!--\s*sample:\s*\w+\s*-->$", re.MULTILINE)
+
+
+def public_declarations() -> set[str]:
+    """Every public top-level name in `:ui`, bare and qualified.
+
+    Coarser than `public_composables` on purpose: rule 8 asks whether a page's
+    title names *something real*, and `WindowSizeClass` is a class,
+    `Modifier.marquee` a modifier and `DateTimeFormats` a data class. All three
+    are legitimate page subjects and none is a composable.
+    """
+    found: set[str] = set()
+    patterns = [
+        re.compile(r"^[ \t]*(?:(?:public|internal|private)\s+)?"
+                   r"(?:(?:override|suspend|inline|operator|infix|expect|actual|tailrec)\s+)*"
+                   r"fun\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?(\w+)\s*\(", re.MULTILINE),
+        re.compile(r"^[ \t]*(?:(?:public|internal|private|abstract|open|sealed|data|value|inner"
+                   r"|expect|actual|enum|annotation)\s+)*"
+                   r"(?:class|interface|object)\s+()(\w+)", re.MULTILINE),
+        re.compile(r"^[ \t]*(?:(?:public|internal|private)\s+)?"
+                   r"va[lr]\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?(\w+)", re.MULTILINE),
+    ]
+    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+        text = path.read_text()
+        for pattern in patterns:
+            for receiver, name in pattern.findall(text):
+                found.add(name)
+                if receiver:
+                    found.add(f"{receiver}.{name}")
+    return found
+
+
 def main() -> int:
     if not COMPONENTS.is_dir():
         print(f"{COMPONENTS} is not a directory", file=sys.stderr)
@@ -272,6 +338,54 @@ def main() -> int:
             f"internal if callers were never meant to reach it"
         )
 
+    # Rule 6 — every page shows an example that compiles.
+    #
+    # A page that describes a component without showing one being called is a
+    # page a reader leaves to go and guess. The example is not written in the
+    # page: it lives in `:ui-samples`, where the compiler reads it against the
+    # real public API, and `sync-samples.py` keeps the copy identical. An
+    # example that does not compile is worse than none, because it reads as a
+    # confident answer and is wrong.
+    without_sample = sorted(page.stem for page in component_pages if not SAMPLE.search(page.read_text()))
+    if len(without_sample) > MAX_WITHOUT_SAMPLE:
+        problems.append(
+            f"{len(without_sample)} pages show no compiled example, and the "
+            f"ceiling is {MAX_WITHOUT_SAMPLE}. Add one to `ui-samples/`, mark it "
+            f"with `<!--sample:Name-->` and run `python3 docs/sync-samples.py "
+            f"--write`. Without: {', '.join(without_sample)}"
+        )
+
+    # Rule 7 — a page says what is specific about using it without sight,
+    # without a mouse, or with the type at 200%.
+    without_a11y = sorted(
+        page.stem for page in component_pages if not ACCESSIBILITY.search(page.read_text())
+    )
+    if len(without_a11y) > MAX_WITHOUT_ACCESSIBILITY:
+        problems.append(
+            f"{len(without_a11y)} pages have no Accessibility section, and the "
+            f"ceiling is {MAX_WITHOUT_ACCESSIBILITY}. The general rules live in "
+            f"`using/accessibility.md`; what goes on a component page is what is "
+            f"particular to it. Without: {', '.join(without_a11y)}"
+        )
+
+    # Rule 8 — a page's title names something that exists.
+    #
+    # The cheapest of the eight and the only one pointing this direction. Rules
+    # 1-4 ask "does everything in the library have a page"; this asks whether the
+    # page is about anything, which catches a component renamed in `:ui` whose
+    # page kept the old spelling. Nothing here could detect that before: the
+    # chain ran registry → page and never page → library.
+    declared = public_declarations()
+    for page in component_pages:
+        for symbol in page_symbols(page):
+            if symbol in declared or symbol.split(".")[-1] in declared:
+                continue
+            problems.append(
+                f"{page.name} is titled `{symbol}` and nothing in :ui is called "
+                f"that — either the page is about a component that has been "
+                f"renamed, or the title has a typo"
+            )
+
     # Rule 3 — every page is reachable from its index.
     linked = set()
     for index in index_pages:
@@ -295,6 +409,8 @@ def main() -> int:
         f"{len(component_pages)} component pages, "
         f"{len(registry_components())} registered components, "
         f"{len(demos)} demos ({len(without)} pages still without one), "
+        f"{len(component_pages) - len(without_sample)} compiled examples, "
+        f"{len(component_pages) - len(without_a11y)} accessibility sections, "
         f"all accounted for."
     )
     return 0

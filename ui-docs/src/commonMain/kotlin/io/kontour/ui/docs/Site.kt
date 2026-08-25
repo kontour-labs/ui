@@ -401,6 +401,7 @@ private fun ComponentPage(slug: String) {
         // The sidebar two hundred lines up has always had it in this order,
         // which is why that one worked.
         Prose(page.blocks, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+        ApiSection(page, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
     }
 }
 

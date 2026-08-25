@@ -8,6 +8,19 @@ helper and error slot — because in a form it *is* one of the fields, and a
 select styled as a button in a column of text inputs reads as a different kind
 of thing.
 
+<!--sample:SelectBasics-->
+```kotlin
+val modes = remember { listOf("Any", "Train", "Bus", "Ferry") }
+var mode by remember { mutableStateOf<String?>("Any") }
+
+Select(
+    value = mode,
+    options = modes,
+    onValueChange = { mode = it },
+    label = "Mode",
+)
+```
+
 Its menu anchors to the field frame, using `Modifier.anchorBounds` and
 `AnchoredDropdownMenu` rather than the parent-anchoring `DropdownMenu`: "the
 parent layout" is the wrong node when the menu is declared in one slot of a row

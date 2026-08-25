@@ -5,6 +5,15 @@ in full is listed in full — "1 2 … 5" is exactly as wide as "1 2 3 4 5" and
 shows two fewer pages — and a gap standing in for a single page is replaced by
 that page.
 
+<!--sample:PaginationBasics-->
+```kotlin
+var page by remember { mutableStateOf(0) }
+
+// `window` is how many numbers sit either side of the current one; the run
+// collapses differently at each end so the control never changes width.
+Pagination(value = page, pageCount = 40, onValueChange = { page = it })
+```
+
 `paginationSlots()` is pure and tested, because the failure mode is a control
 that is right in the middle of a range and wrong at both ends, and "page 1 of
 40" is the first thing anyone sees.

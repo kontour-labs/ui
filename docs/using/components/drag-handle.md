@@ -4,6 +4,22 @@
 
 The grab bar at the top of a sheet.
 
+<!--sample:DragHandleBasics-->
+```kotlin
+val sheet = rememberSheetState(
+    detents = listOf(SheetDetent.peek(140.dp), SheetDetent.Expanded),
+    initialDetent = SheetDetent.peek(140.dp),
+)
+
+// Every sheet draws one already. Pass `dragHandle` only to replace it, or
+// `null` to take it away — a sheet with `draggable = false` should not
+// advertise a gesture it does not have.
+BottomSheet(state = sheet, dragHandle = { DragHandle(state = sheet) }) {
+    SheetHeader(modifier = Modifier.sheetPeekAnchor()) { +"Perth Underground" }
+    Departures()
+}
+```
+
 **It is drawn, not draggable.** The whole sheet is already draggable, and a
 handle that is the *only* draggable part makes a 4dp-tall target the user has to
 hit.

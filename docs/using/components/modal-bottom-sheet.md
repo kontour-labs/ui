@@ -3,6 +3,32 @@
 A task that owns the screen until it is finished. Scrim behind, dismissed by a
 tap outside, by back, or by dragging it down.
 
+<!--sample:ModalBottomSheetBasics-->
+```kotlin
+var open by remember { mutableStateOf(false) }
+
+Button(onClick = { open = true }) { +"Rename favourite" }
+
+ModalBottomSheet(visible = open, onDismissRequest = { open = false }) {
+    SheetHeader {
+        +"Rename favourite"
+        supporting { +"Perth Underground" }
+    }
+    Column(
+        modifier = Modifier.padding(
+            start = Theme.spacing.md,
+            end = Theme.spacing.md,
+            bottom = Theme.spacing.lg,
+        ),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+    ) {
+        Button(onClick = { save(); open = false }, modifier = Modifier.fillMaxWidth()) {
+            +"Save"
+        }
+    }
+}
+```
+
 On a phone this is usually the right answer where a desktop would use a
 [`Dialog`](dialog.md): the controls arrive under the thumb rather than in the
 middle of the screen, and the dismissal gesture is the one people already use.

@@ -5,6 +5,18 @@
 Purely an indicator, and hidden from the accessibility tree since it conveys
 nothing the list does not already.
 
+<!--sample:ScrollbarBasics-->
+```kotlin
+val scroll = rememberScrollState()
+
+Box {
+    Column(Modifier.fillMaxWidth().verticalScroll(scroll)) { Screen() }
+    // It hides itself unless the pointer can hover, so it costs a touch user
+    // nothing. `alwaysVisible` is for a pane where the scroll is the point.
+    Scrollbar(state = scroll, modifier = Modifier.align(Alignment.CenterEnd))
+}
+```
+
 **Its visibility follows input modality, not platform.** Under an input that can
 hover it is drawn; under touch it is **not drawn at all**, and the component
 returns before laying anything out. A permanent scrollbar on a touchscreen is

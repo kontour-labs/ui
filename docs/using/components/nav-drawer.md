@@ -1,9 +1,38 @@
 # `ModalNavDrawer`
 
+*Also on this page: `NavSearch`, `NavExpandingSlot`.*
+
 The navigation drawer as a modal: over the content, behind a scrim, dismissed by
 back or by a tap outside.
 
-*Also on this page: `NavSearch`, `NavExpandingSlot`.*
+<!--sample:NavDrawerBasics-->
+```kotlin
+var open by remember { mutableStateOf(false) }
+var selected by remember { mutableStateOf("Home") }
+var routesOpen by remember { mutableStateOf(true) }
+
+// The same `NavDrawerScope` content the permanent `NavDrawer` takes, over
+// the screen instead of beside it — a tree rather than a flat list, because
+// a drawer is where destinations stop being three of them.
+ModalNavDrawer(visible = open, onDismissRequest = { open = false }) {
+    item("Home", icon = Tabler.Outline.Home, selected = selected == "Home") {
+        selected = "Home"
+        open = false
+    }
+    section("Saved") {
+        item("Stops", selected = selected == "Stops") { selected = "Stops"; open = false }
+        group("Routes", expanded = routesOpen, onExpandedChange = { routesOpen = it }) {
+            item("950", selected = selected == "950") { selected = "950"; open = false }
+            item("998", selected = selected == "998") { selected = "998"; open = false }
+        }
+    }
+    divider()
+    item("Alerts", icon = Tabler.Outline.Bell, badge = 3, selected = selected == "Alerts") {
+        selected = "Alerts"
+        open = false
+    }
+}
+```
 
 The permanent `NavDrawer` is on [nav surfaces](nav-surfaces.md) with the bar and
 the rail; this is the same `NavDrawerScope` content shown a different way, for a

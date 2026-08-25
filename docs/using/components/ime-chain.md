@@ -1,9 +1,21 @@
 # `rememberImeChain`
 
+*Also on this page: `ImeChain`.*
+
 Wires a form's fields together so the keyboard's action key moves to the next
 one and submits on the last.
 
-*Also on this page: `ImeChain`.*
+<!--sample:ImeChainBasics-->
+```kotlin
+val from = rememberTextFieldState()
+val to = rememberTextFieldState()
+// Declared in order, once. The first field's action key says Next and moves
+// focus; the last one says Done and runs `onSubmit`.
+val chain = rememberImeChain("from", "to", onSubmit = { plan() })
+
+TextField(state = from, label = "From", imeChain = chain["from"])
+TextField(state = to, label = "To", imeChain = chain["to"])
+```
 
 ```
 val chain = rememberImeChain("from", "to")

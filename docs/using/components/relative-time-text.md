@@ -6,6 +6,13 @@
 minute, every twenty above — rather than on a fixed timer that is either
 wasteful or stale.
 
+<!--sample:RelativeTimeTextBasics-->
+```kotlin
+// A duration, not an instant: the caller owns the clock, so this is
+// testable without freezing time and does not need a time source of its own.
+RelativeTimeText(until = 4.minutes)
+```
+
 **It rounds down.** Telling someone their bus is 2 minutes away when it is 90
 seconds away is the error that makes them miss it.
 

@@ -24,6 +24,7 @@ import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.selection.TriStateCheckbox
 import kotlin.math.roundToInt
+import io.kontour.ui.components.selection.RadioButton
 
 @Composable
 fun CheckboxBasics() {
@@ -192,4 +193,21 @@ internal enum class RouteColor(val displayName: String, val color: Color) {
     Red("Red", Color(0xFFDC2626)),
     Blue("Blue", Color(0xFF2563EB)),
     Green("Green", Color(0xFF16A34A)),
+}
+
+@Composable
+fun RadioButtonBasics() {
+    var mode by remember { mutableStateOf("Train") }
+
+    // The row carries the click and the role; the button is passed `null` so it
+    // is not a second target announcing the same thing. A bare `RadioButton` is
+    // for a table cell or a custom row — everywhere else, use `RadioGroup`.
+    SelectionRow(
+        selected = mode == "Train",
+        onSelectedChange = { mode = "Train" },
+        role = Role.RadioButton,
+    ) {
+        +"Train"
+        leading { RadioButton(selected = mode == "Train", onClick = null) }
+    }
 }

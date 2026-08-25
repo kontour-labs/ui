@@ -3,6 +3,16 @@
 A glyph, tinted to the surrounding content colour and sized from the theme.
 Takes an `ImageVector` or a `Painter`.
 
+<!--sample:IconBasics-->
+```kotlin
+// A decorative icon beside a label that already says the same thing takes
+// `null`, so a screen reader announces the label once rather than twice.
+Icon(Tabler.Outline.Star, contentDescription = null)
+
+// One that carries the meaning on its own describes itself.
+Icon(Tabler.Outline.Star, contentDescription = "Favourite", size = Theme.sizing.iconLarge)
+```
+
 **Components take icons from the caller.** A button's leading icon, a menu
 item's icon, an empty state's illustration — all parameters, so the choice of
 icon library stays an application decision. The exception is `SystemIcons`: the

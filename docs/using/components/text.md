@@ -6,6 +6,28 @@ The typographic primitive. Resolves its style and its colour from the theme
 rather than taking them, so a paragraph inside a `Card` on a dark scheme needs
 no arguments at all.
 
+<!--sample:TextBasics-->
+```kotlin
+Text("Perth Underground", style = Theme.typography.titleMedium)
+
+Text(
+    "Platform 2 · Joondalup line",
+    style = Theme.typography.bodySmall,
+    color = Theme.colors.contentMuted,
+)
+
+// The `AnnotatedString` overload is why there are two: a route number in
+// the accent colour inside a sentence, without a second component and
+// without breaking the line box.
+Text(
+    buildAnnotatedString {
+        append("The ")
+        withStyle(SpanStyle(color = Theme.colors.accent.solid)) { append("950") }
+        append(" leaves in 4 minutes.")
+    },
+)
+```
+
 Two overloads, `String` and `AnnotatedString`. The second is what carries spans —
 a route number in the accent colour inside a sentence — without a second
 component or a second style.

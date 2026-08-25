@@ -24,7 +24,7 @@ python3 docs/check-components.py
 | [`check-links.py`](#the-documentation-is-checked-too) | Does every link in the repository resolve? |
 | [`checkKdocSamples`](#the-examples-compile) | Does a KDoc snippet name a parameter that exists? |
 | [`dokkaGenerateHtml`](#the-api-reference-is-a-gate) | Does every `[Link]` in the KDoc resolve? |
-| [`check-components.py`](#every-component-has-a-page) | Does every public component have a page, an index entry and a demo? |
+| [`check-components.py`](#every-component-has-a-page) | Does every public component have a page, an index entry, a demo and an example? |
 
 Per-target compilation runs only in CI
 ([`ci.yml`](../../.github/workflows/ci.yml)) because it is slow:
@@ -319,13 +319,16 @@ the page readable: `[Select][io.kontour.ui.components.text.Select]`.
 python3 docs/check-components.py
 ```
 
-Five rules.
+Eight rules.
 
 1. Every component in `componentRegistry` has a page whose title names it.
 2. No symbol is the subject of two pages.
 3. Every component page is linked from a category index.
 4. Every page has an interactive demo, and every demo has a page.
 5. **Every public `@Composable` in `:ui` is claimed by some page.**
+6. Every page shows an example that compiles.
+7. Every page says what is particular about its accessibility.
+8. Every page title names a declaration that exists in `:ui`.
 
 The fifth is the one that matters, and it exists because the first four were all
 green while a fifth of the library was undocumented. Rules 1–4 chain
@@ -346,7 +349,48 @@ The three ways to satisfy it are the three honest answers: give the component a
 page, name it on the page of the thing it accompanies, or make it `internal`
 because callers were never meant to reach it.
 
-Rule 4 is a **ratchet**. Not every page had a demo the day the rule arrived, and
-a list of exempted names is how a defect becomes permanent — so what is recorded
-is a ceiling that only ever goes down. You cannot exempt your own page, only make
-the total worse.
+Rules 4, 6 and 7 are **ratchets**. Not every page had a demo the day rule 4
+arrived, and a list of exempted names is how a defect becomes permanent — so
+what is recorded is a ceiling that only ever goes down. You cannot exempt your
+own page, only make the total worse.
+
+The three ceilings say quite different things, and the numbers are the point:
+
+| | Ceiling | Reads as |
+|---|---|---|
+| `MAX_WITHOUT_DEMO` | 1 | `DateTimeFormats` is a set of patterns; there is nothing to press |
+| `MAX_WITHOUT_SAMPLE` | 0 | reached — every page shows compiled code |
+| `MAX_WITHOUT_ACCESSIBILITY` | 102 | a debt, written down: from here every *new* page must carry notes |
+
+Rules 6 and 7 are what "every page is the same shape" is enforced by, and the
+shape is only half enforced — the other half is generated. `:ui-docs` renders a
+`## API` section on every page from
+[`generateApiTables`](#the-parameter-tables-are-generated), so a page that never
+grows another paragraph still carries a working demo, a compiled example and a
+complete parameter table.
+
+Rule 8 is the cheapest of the eight and the only one pointing this direction.
+Rules 1–4 ask whether everything in the library has a page; this asks whether the
+page is about anything, which catches a component renamed in `:ui` whose page
+kept the old spelling. Nothing here could detect that before.
+
+### The parameter tables are generated
+
+```sh
+./gradlew :ui-docs:generateApiTables
+```
+
+Every component page on the site carries a full parameter table — name, type and
+default — and none of them is written by hand. `KotlinSignatures` reads `:ui`'s
+own source and emits `ApiTables.kt` into the site's generated sources.
+
+That parser lives in `buildSrc` rather than in a build script because three tasks
+in two modules use it: `checkApiConventions` and `checkKdocSamples` in `:ui`, and
+this. One reader means the table on the page cannot disagree with the rules the
+conventions check enforces, and a renamed parameter changes the page on the next
+build rather than on the day somebody notices.
+
+Before this the tree contained no parameter table at all — not one, on any page.
+That is not an oversight anybody made: 103 hand-written tables are 103 things to
+keep in step with a library that changes every round, and the first stale one
+makes all of them suspect.

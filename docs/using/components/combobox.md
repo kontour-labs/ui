@@ -3,6 +3,21 @@
 A select the user can type into to narrow a long list. Above roughly a dozen
 options, this rather than `Select`.
 
+<!--sample:ComboboxBasics-->
+```kotlin
+var stop by remember { mutableStateOf<String?>(null) }
+val names = remember { stops.map { it.name } }
+
+// A `Select` you can type into, for a list too long to scroll. `matches` is
+// where a fuzzier rule goes — matching on a stop code as well as its name.
+Combobox(
+    value = stop,
+    options = names,
+    onValueChange = { stop = it },
+    label = "From",
+)
+```
+
 **A combobox is a select with search, not an autocomplete.** The value is always
 one of the options, and typing something unmatched leaves the previous value
 alone. For free text with suggestions, use a [`SearchField`](search-field.md) and

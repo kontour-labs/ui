@@ -3,6 +3,24 @@
 Picks the surface from the window size and places it, so a screen declares its
 destinations once and never arranges them.
 
+<!--sample:NavigationSuiteScaffoldBasics-->
+```kotlin
+var selected by remember { mutableStateOf(0) }
+val items = remember {
+    listOf(
+        NavItem("Home", Tabler.Outline.Home, onClick = { selected = 0 }),
+        NavItem("Saved", Tabler.Outline.Star, onClick = { selected = 1 }),
+        NavItem("Alerts", Tabler.Outline.Bell, badge = 3, onClick = { selected = 2 }),
+    )
+}
+
+// A bar on a phone, a rail on a tablet, a drawer on a desktop — chosen from
+// the window size class, so the screen below says nothing about which.
+NavigationSuiteScaffold(items = items, selectedIndex = selected) { contentPadding ->
+    Screen()
+}
+```
+
 | Window | Surface | Placement |
 |---|---|---|
 | Compact (< 600dp) | `NavBar` | **Bottom of the screen**, over the content |

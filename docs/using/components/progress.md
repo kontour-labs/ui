@@ -1,5 +1,19 @@
 # `LinearProgress` / `ProgressRing` / `StepProgress`
 
+<!--sample:ProgressBasics-->
+```kotlin
+// Determinate where the total is known.
+LinearProgress(progress = 0.4f, contentDescription = "Downloading timetables")
+
+// `null` is indeterminate — for work whose length nobody can predict, which
+// is honest rather than a bar that sits at 90% for a minute.
+LinearProgress(progress = null, contentDescription = "Finding routes")
+
+ProgressRing(progress = 0.4f, contentDescription = "Downloading timetables")
+
+// For a wizard, where the count is the story.
+StepProgress(current = 2, total = 4, contentDescription = "Step 2 of 4")
+```
 | | |
 |---|---|
 | `LinearProgress` | Determinate or indeterminate |

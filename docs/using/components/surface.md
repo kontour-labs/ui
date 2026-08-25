@@ -5,6 +5,18 @@
 Background, shape, border and shadow in one — and the thing that sets
 `LocalContentColor` for everything inside it.
 
+<!--sample:SurfaceBasics-->
+```kotlin
+// No colour argument on either child: the surface set `LocalContentColor`
+// from its own background, and both resolve against it.
+Surface(color = Theme.colors.primary, shape = Theme.shapes.medium, shadow = Theme.elevation.low) {
+    Column(Modifier.padding(Theme.spacing.md)) {
+        Text("Perth Underground")
+        Icon(Tabler.Outline.Star, contentDescription = null)
+    }
+}
+```
+
 That last part is the point. A surface says what it is, and
 [`Text`](text.md) and [`Icon`](icon.md) resolve against it, so a component
 dropped onto a dark card is legible without any of its children being told where

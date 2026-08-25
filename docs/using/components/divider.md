@@ -3,6 +3,21 @@
 Decorative rules. Both are `clearAndSetSemantics {}`, because a line is not
 something a screen reader should announce.
 
+<!--sample:DividerBasics-->
+```kotlin
+Column {
+    Text("Departures")
+    HorizontalDivider()
+    Text("Alerts")
+}
+
+Row(Modifier.height(24.dp), verticalAlignment = Alignment.CenterVertically) {
+    Text("Platform 2")
+    VerticalDivider(Modifier.height(16.dp))
+    Text("Joondalup line")
+}
+```
+
 A divider is the weakest way to group things and usually the wrong one. Space
 separates without drawing anything, and a [`ListSection`](list-section.md) or a
 [`Card`](card.md) says *these belong together* rather than *these are apart*.

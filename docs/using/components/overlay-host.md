@@ -1,9 +1,18 @@
 # `OverlayHost`
 
+*Also on this page: `ScrimStyle`.*
+
 Where everything that draws over the screen actually renders. Installed once, at
 the root, inside the theme.
 
-*Also on this page: `ScrimStyle`.*
+<!--sample:OverlayHostBasics-->
+```kotlin
+// One host at the root of the window. Every dialog, menu, popover and
+// tooltip below it draws into this, above everything and clipped by nothing.
+OverlayHost(Modifier.fillMaxSize()) {
+    Screen()
+}
+```
 
 Every dialog, menu, popover, tooltip, toast and sheet finds the **nearest** host
 through `LocalOverlayHost` and renders into it — which is why a screen with no

@@ -2,6 +2,20 @@
 
 Every action in the app, by name, from the keyboard.
 
+<!--sample:CommandPaletteBasics-->
+```kotlin
+var open by remember { mutableStateOf(false) }
+val commands = remember {
+    listOf(
+        Command("plan", "Plan a trip", onRun = { plan() }, shortcut = "P"),
+        Command("saved", "Saved trips", onRun = { nearby() }, keywords = listOf("favourites")),
+        Command("offline", "Download for offline", onRun = { save() }, enabled = false),
+    )
+}
+
+CommandPalette(visible = open, onDismissRequest = { open = false }, commands = commands)
+```
+
 Commands carry `keywords` as well as a label, so "prefs" finds Settings, and a
 `shortcut` string that is shown rather than bound — the binding lives with the
 action, and a palette that claimed to own it would be a second source of truth.

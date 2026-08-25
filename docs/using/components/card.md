@@ -1,5 +1,16 @@
 # `Card`
 
+<!--sample:CardBasics-->
+```kotlin
+Card(variant = CardVariant.Outlined, onClick = { openStop("Perth Underground") }) {
+    Text("Perth Underground", style = Theme.typography.titleSmall)
+    Text(
+        "Platform 2 · Joondalup line",
+        style = Theme.typography.bodySmall,
+        color = Theme.colors.contentMuted,
+    )
+}
+```
 `Elevated`, `Outlined` or `Filled`, optionally clickable as a whole.
 
 `Elevated` and `Filled` take a `contrastEdge()` at the high-contrast tier. An

@@ -1,9 +1,25 @@
 # `SelectionIndicatorBox`
 
+*Also on this page: `Modifier.selectionIndicatorItem`.*
+
 The travelling pill behind a selected destination — the thing that slides from
 one nav item to the next rather than appearing on it.
 
-*Also on this page: `Modifier.selectionIndicatorItem`.*
+<!--sample:SelectionIndicatorBasics-->
+```kotlin
+var selected by remember { mutableStateOf(0) }
+val tabs = listOf("Departures", "Route map", "Alerts")
+
+// The pill is the bar's, not the tab's: `key` is what it animates between,
+// so it travels rather than appearing on one and vanishing from another.
+TabBar(modifier = Modifier.fillMaxWidth()) {
+    tabs.forEachIndexed { index, label ->
+        Tab(selected = selected == index, onClick = { selected = index }, key = index) {
+            +label
+        }
+    }
+}
+```
 
 One indicator, drawn by the container, moved between children. That is the whole
 design: an indicator drawn *by each item* cannot animate between two of them,

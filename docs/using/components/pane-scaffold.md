@@ -1,8 +1,32 @@
 # `ListDetailPaneScaffold` / `SupportingPaneScaffold`
 
+*Also on this page: `PaneFocus`.*
+
 Two panes where there is room for two, and one at a time where there is not.
 
-*Also on this page: `PaneFocus`.*
+<!--sample:PaneScaffoldBasics-->
+```kotlin
+var focus by remember { mutableStateOf(PaneFocus.List) }
+var selected by remember { mutableStateOf<String?>(null) }
+
+// One pane on a phone and two on a tablet, from the same call. `onBack` is
+// what closes the detail on a phone, where there is nowhere else to go.
+ListDetailPaneScaffold(
+    focus = focus,
+    onBack = { focus = PaneFocus.List },
+    list = {
+        Column {
+            stops.forEach { stop ->
+                Text(
+                    stop.name,
+                    modifier = Modifier.fillMaxWidth().padding(Theme.spacing.md),
+                )
+            }
+        }
+    },
+    detail = { Text(selected ?: "Pick a stop") },
+)
+```
 
 `ListDetailPaneScaffold` takes a `PaneFocus` rather than a boolean, and `onBack`
 rather than owning the back stack — so it composes with whatever the app already

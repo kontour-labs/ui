@@ -1,8 +1,25 @@
 # `WindowSizeClass`
 
+*Also on this page: `WindowWidthClass`, `WindowHeightClass`, `WindowSizeClassProvider`.*
+
 What size of window the content is in, in buckets rather than pixels.
 
-*Also on this page: `WindowWidthClass`, `WindowHeightClass`, `WindowSizeClassProvider`.*
+<!--sample:WindowSizeClassBasics-->
+```kotlin
+// The class of the *container*, not of the device: a pane 380dp wide inside
+// a 1400dp window is Compact, and a layout that asked the window would put
+// a two-column grid in it.
+if (windowSizeClass.width.hasRoomBeside) {
+    Row { Screen() }
+} else {
+    Column { Screen() }
+}
+
+// Provide a fresh one wherever a subtree gets its own width.
+WindowSizeClassProvider {
+    if (windowSizeClass.width == WindowWidthClass.Compact) Screen() else Screen()
+}
+```
 
 `WindowWidthClass` is `Compact` under 600dp, `Medium` under 840, `Expanded`
 under 1200 and `Large` above it. Reading `windowSizeClass.width >= Medium` at a

@@ -3,6 +3,23 @@
 A decision that must be made before anything else can happen. Centred, over a
 dimmed scrim, and it takes the focus with it.
 
+<!--sample:DialogBasics-->
+```kotlin
+var open by remember { mutableStateOf(false) }
+
+Button(onClick = { open = true }) { +"Rename favourite" }
+
+Dialog(visible = open, onDismissRequest = { open = false }) {
+    Text("Rename favourite", style = Theme.typography.titleMedium)
+    Text(
+        "Give it a name you will recognise on the home screen.",
+        style = Theme.typography.bodySmall,
+        color = Theme.colors.contentMuted,
+    )
+    Button(onClick = { open = false }, modifier = Modifier.fillMaxWidth()) { +"Save" }
+}
+```
+
 Reach for a [`Popover`](popover.md) when the rest of the screen is still usable —
 a dialog says *stop*, and saying it about something optional is how people learn
 to dismiss dialogs without reading them. For the ordinary confirm-or-cancel

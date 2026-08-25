@@ -2,6 +2,18 @@
 
 Wraps content so a secondary click or a long press opens a menu at the pointer.
 
+<!--sample:ContextMenuAreaBasics-->
+```kotlin
+ContextMenuArea(
+    menu = {
+        MenuItem(onClick = { report() }) { +"Report a problem" }
+        MenuItem(onClick = { suggest() }) { +"Suggest a correction" }
+    },
+) {
+    Text("Perth Underground")
+}
+```
+
 **A context menu must never be the only route to an action.** Anything in one
 needs a visible path too — a toolbar button, an item in a
 [`DropdownMenu`](dropdown-menu.md), a swipe action. A context menu is a shortcut

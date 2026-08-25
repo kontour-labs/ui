@@ -1,13 +1,34 @@
 # `Tooltip`
 
+*Also on this page: `Modifier.tooltip`.*
+
 The name of a control the user is pointing at.
+
+<!--sample:TooltipBasics-->
+```kotlin
+// The modifier is what a caller nearly always wants: it tracks hover and
+// focus itself and honours the input modality, so it never appears from a
+// touch that was really a tap.
+IconButton(
+    icon = Tabler.Outline.Bookmark,
+    contentDescription = "Save this trip",
+    onClick = { save() },
+    modifier = Modifier.tooltip("Save this trip"),
+)
+
+// The component, for a tooltip whose visibility you own — a coach mark on
+// first run, or one shown from a keyboard shortcut.
+var open by remember { mutableStateOf(false) }
+Box {
+    Button(onClick = { open = !open }, variant = ButtonVariant.Secondary) { +"Recentre" }
+    Tooltip(visible = open) { +"Bring the map back to you" }
+}
+```
 
 Most callers want [`Modifier.tooltip`](#modifiertooltip) rather than the
 component — it attaches to the control, tracks hover and focus, and honours the
 tracked [input modality](../overlays.md#input-modality) so a tooltip never
 appears from a touch that was really a tap.
-
-*Also on this page: `Modifier.tooltip`.*
 
 ## `Modifier.tooltip`
 
