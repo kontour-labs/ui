@@ -51,16 +51,32 @@ sealed interface Span {
 
     data class Plain(override val text: String) : Span
     data class Code(override val text: String) : Span
-    data class Strong(override val text: String) : Span
-    data class Emphasis(override val text: String) : Span
 
     /**
+     * Emphasis nests, because a link inside bold is the commonest thing on
+     * these pages: every "**Reach for [`Chip`](chip.md) instead**" is one, and
+     * a flat `String` here is why twelve of them rendered as literal markdown.
+     */
+    data class Strong(val spans: List<Span>) : Span {
+        override val text: String get() = spans.joinToString("") { it.text }
+    }
+
+    data class Emphasis(val spans: List<Span>) : Span {
+        override val text: String get() = spans.joinToString("") { it.text }
+    }
+
+    /**
+     * @param spans The label, which is itself formatted: 259 of the links in
+     *   this tree are `[`Chip`](chip.md)`, and a flat string rendered the
+     *   backticks.
      * @param target As written in the markdown — `button.md`, `../tokens.md`,
      *   `https://…`. Resolved to a route or an external link at render time,
      *   because the same page is read on GitHub *and* here and neither form can
      *   be the one stored.
      */
-    data class Link(override val text: String, val target: String) : Span
+    data class Link(val spans: List<Span>, val target: String) : Span {
+        override val text: String get() = spans.joinToString("") { it.text }
+    }
 }
 
 /** One block of a page. */

@@ -39,8 +39,20 @@ def kotlin_string(text: str) -> str:
     return '"' + out.replace("\n", "\\n") + '"'
 
 
+# `strong` and `em` come first, and their bodies are re-scanned by `spans`.
+#
+# Before that they came last, so `**Reach for a [`Chip`](chip.md) instead**` was
+# matched by `code` on its first backtick and the surrounding `**…**` never
+# matched at all — the reader got the literal markdown, brackets and filename
+# included. Twelve pages, and every one of them was a "reach for this instead"
+# line, which is the single most useful link on the page.
+#
+# `[^*]` in both bodies is what keeps them from swallowing the rest of the
+# paragraph, and is also why `**a *b* c**` is not supported. Nobody writes that.
 INLINE = re.compile(
-    r"(?P<code>`[^`]+`)"
+    r"(?P<strong>\*\*[^*]+\*\*)"
+    r"|(?P<em>\*[^*]+\*)"
+    r"|(?P<code>`[^`]+`)"
     # Before `link`, and matching an empty alt text, which `link` does not.
     # A render inside a table cell — `![](../../…png)` — is neither at the
     # start of a line, so the block-level image drop never saw it, nor a legal
@@ -48,8 +60,6 @@ INLINE = re.compile(
     # as literal text. `button.md`'s variant table showed seven of them.
     r"|(?P<image>!\[[^\]]*\]\([^)]+\))"
     r"|(?P<link>\[[^\]]+\]\([^)]+\))"
-    r"|(?P<strong>\*\*[^*]+\*\*)"
-    r"|(?P<em>\*[^*]+\*)"
 )
 
 
@@ -68,11 +78,14 @@ def spans(text: str) -> str:
             pass
         elif m.group("link"):
             label, target = re.match(r"\[([^\]]+)\]\(([^)]+)\)", m.group("link")).groups()
-            out.append(f"Span.Link({kotlin_string(label)}, {kotlin_string(target)})")
+            # The label is scanned too: `[`Chip`](chip.md)` is how a cross
+            # reference is written here, 259 times, and a flat string put the
+            # backticks on the page.
+            out.append(f"Span.Link({spans(label)}, {kotlin_string(target)})")
         elif m.group("strong"):
-            out.append(f"Span.Strong({kotlin_string(m.group('strong')[2:-2])})")
+            out.append(f"Span.Strong({spans(m.group('strong')[2:-2])})")
         else:
-            out.append(f"Span.Emphasis({kotlin_string(m.group('em')[1:-1])})")
+            out.append(f"Span.Emphasis({spans(m.group('em')[1:-1])})")
         pos = m.end()
     if pos < len(text):
         out.append(f"Span.Plain({kotlin_string(text[pos:])})")

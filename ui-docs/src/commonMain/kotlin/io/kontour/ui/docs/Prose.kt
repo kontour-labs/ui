@@ -239,47 +239,63 @@ private fun Linkable(
 @Composable
 private fun annotate(spans: List<Span>, heading: Boolean = false): AnnotatedString {
     val from = LocalDocPath.current
-    return buildAnnotatedString {
-        val code = SpanStyle(
-            fontFamily = FontFamily.Monospace,
-            background = if (heading) {
-                androidx.compose.ui.graphics.Color.Transparent
-            } else {
-                Theme.colors.surfaceSunken
-            },
+    val code = SpanStyle(
+        fontFamily = FontFamily.Monospace,
+        background = if (heading) {
+            androidx.compose.ui.graphics.Color.Transparent
+        } else {
+            Theme.colors.surfaceSunken
+        },
+    )
+    val link = TextLinkStyles(
+        style = SpanStyle(
+            color = Theme.colors.accent.solid,
+            textDecoration = TextDecoration.Underline,
         )
-        spans.forEach { span ->
-            when (span) {
-                is Span.Plain -> append(span.text)
-                is Span.Code -> withStyleOf(code) { append(span.text) }
-                is Span.Strong -> withStyleOf(SpanStyle(fontWeight = FontWeight.SemiBold)) {
-                    append(span.text)
-                }
-                is Span.Emphasis -> withStyleOf(SpanStyle(fontStyle = FontStyle.Italic)) {
-                    append(span.text)
-                }
-                is Span.Link -> {
-                    val target = span.target
-                    withLink(
-                        LinkAnnotation.Clickable(
-                            tag = target,
-                            styles = TextLinkStyles(
-                                style = SpanStyle(
-                                    color = Theme.colors.accent.solid,
-                                    textDecoration = TextDecoration.Underline,
-                                )
-                            ),
-                            linkInteractionListener = {
-                                val route = routeForLink(target, from)
-                                if (route != null) {
-                                    navigate(route)
-                                } else {
-                                    openExternal(externalUrl(target, from))
-                                }
-                            },
-                        )
-                    ) { append(span.text) }
-                }
+    )
+    return buildAnnotatedString { emit(spans, code, link, from) }
+}
+
+/**
+ * The spans, appended — recursing through emphasis.
+ *
+ * Bold and italic hold spans rather than a string, because "**Reach for
+ * [`Chip`](chip.md) instead**" is the commonest sentence on these pages and a
+ * flat string is why twelve of them rendered with the brackets and the filename
+ * showing.
+ */
+private fun AnnotatedString.Builder.emit(
+    spans: List<Span>,
+    code: SpanStyle,
+    link: TextLinkStyles,
+    from: String,
+) {
+    spans.forEach { span ->
+        when (span) {
+            is Span.Plain -> append(span.text)
+            is Span.Code -> withStyleOf(code) { append(span.text) }
+            is Span.Strong -> withStyleOf(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                emit(span.spans, code, link, from)
+            }
+            is Span.Emphasis -> withStyleOf(SpanStyle(fontStyle = FontStyle.Italic)) {
+                emit(span.spans, code, link, from)
+            }
+            is Span.Link -> {
+                val target = span.target
+                withLink(
+                    LinkAnnotation.Clickable(
+                        tag = target,
+                        styles = link,
+                        linkInteractionListener = {
+                            val route = routeForLink(target, from)
+                            if (route != null) {
+                                navigate(route)
+                            } else {
+                                openExternal(externalUrl(target, from))
+                            }
+                        },
+                    )
+                ) { emit(span.spans, code, link, from) }
             }
         }
     }
