@@ -27,8 +27,8 @@ hoisting round-tripped through a recomposition.
 | [`Select`](select.md) | One of a fixed set | `RadioGroup`, at three or four options |
 | [`MultiSelect`](multi-select.md) | Any number of a fixed set | `ChipGroup` of `FilterChip`, when they fit on screen |
 | [`Combobox`](combobox.md) | One of a *long* fixed set | `SearchField`, for free text |
-| [`rememberImeChain`](#keyboard-action-chaining) | Wiring a form's Next and Done | — |
-| [`KontourTextToolbar`](#text-selection-toolbar) | The selection popup on desktop and web | — |
+| [`rememberImeChain`](ime-chain.md) | Wiring a form's Next and Done | — |
+| [`KontourTextToolbar`](text-toolbar.md) | The selection popup on desktop and web | — |
 
 ---
 

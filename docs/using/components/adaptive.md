@@ -2,18 +2,18 @@
 
 | | |
 |---|---|
-| `WindowSizeClass` / `WindowSizeClassProvider` | Compact / medium / expanded / large, from a measured window |
+| [`WindowSizeClass` / `WindowSizeClassProvider`](window-size-class.md) | Compact / medium / expanded / large, from a measured window |
 | `WindowAdaptiveInfo` | Size class *and* input modality, together |
-| `Scaffold` | Top bar, bottom bar, FAB, and the padding for the content |
-| `ListDetailPaneScaffold` | Two panes when there is room, one at a time when there is not |
-| `SupportingPaneScaffold` | Content with a helper pane, or a sheet when narrow |
-| `AspectRatioBox` | Reserves a media slot before its content loads |
+| [`Scaffold`](scaffold.md) | Top bar, bottom bar, FAB, and the padding for the content |
+| [`ListDetailPaneScaffold`](pane-scaffold.md) | Two panes when there is room, one at a time when there is not |
+| [`SupportingPaneScaffold`](pane-scaffold.md) | Content with a helper pane, or a sheet when narrow |
+| [`AspectRatioBox`](aspect-ratio-box.md) | Reserves a media slot before its content loads |
 | `Motion.fadeThrough` / `sharedAxis` / `containerTransform` | Transition presets |
 | [`PageTransition`](page-transition.md) | Whole-page changes, carrying shared elements across |
 | `Modifier.revealOnScroll` | Fades content in the first time it appears |
 | `Modifier.parallax` | Scroll-linked drift |
 | `Modifier.shimmer` | The travelling highlight behind a skeleton |
-| `GlassSurface` | Translucent panel for a bar over content |
+| [`GlassSurface`](glass-surface.md) | Translucent panel for a bar over content |
 | `Modifier.atmosphere` | The radial glow both websites use behind a hero |
 | `Modifier.edgeVignette` | Soft falloff at the edges of a scrolling page |
 

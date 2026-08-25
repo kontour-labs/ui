@@ -4,11 +4,11 @@ The five primitives every other component is built from.
 
 | | |
 |---|---|
-| `Text` | Resolves style and colour from the theme. `String` and `AnnotatedString` overloads |
-| `Icon` | Tinted to the surrounding content colour. Takes an `ImageVector` or `Painter` |
-| `Surface` | Background, shape, border, shadow — and sets `LocalContentColor` |
-| `HorizontalDivider` / `VerticalDivider` | Decorative rules |
-| `Scrim` | Dims and blocks input behind a modal |
+| [`Text`](text.md) | Resolves style and colour from the theme. `String` and `AnnotatedString` overloads |
+| [`Icon`](icon.md) | Tinted to the surrounding content colour. Takes an `ImageVector` or `Painter` |
+| [`Surface`](surface.md) | Background, shape, border, shadow — and sets `LocalContentColor` |
+| [`HorizontalDivider` / `VerticalDivider`](divider.md) | Decorative rules |
+| [`Scrim`](scrim.md) | Dims and blocks input behind a modal |
 
 `Surface` setting `LocalContentColor` is what makes `Text` and `Icon` need no
 colour argument in the common case: a surface says what it is, and its content
