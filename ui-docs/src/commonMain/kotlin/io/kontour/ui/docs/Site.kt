@@ -25,6 +25,8 @@ import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.catalog.Catalog
 import io.kontour.ui.contract.componentRegistry
+import io.kontour.ui.demo.DemoCard
+import io.kontour.ui.demo.componentDemos
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
@@ -300,6 +302,34 @@ private fun ComponentPage(slug: String) {
  */
 @Composable
 private fun Specimens(page: DocPage) {
+    // A hand-written demo where there is one — real state, and controls for the
+    // parameters that are the story.
+    componentDemos[page.slug]?.let { demo ->
+        Column(
+            // The same measure as the prose, and for a sharper reason than
+            // tidiness: a component that fills the width it is given gets drawn
+            // at whatever the card is, and on a wide display an unbounded card
+            // made `DatePicker` a 1,090px calendar with date circles the size of
+            // a thumbnail. Nothing on a real screen is that wide. One measure
+            // for the page also means the demo and the paragraph explaining it
+            // line up, which is most of why a page reads as one thing.
+            modifier = Modifier.widthIn(max = ProseWidth).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        ) {
+            Text(
+                text = "LIVE",
+                style = Theme.typography.monoLabel,
+                color = Theme.colors.accent.solid,
+            )
+            DemoCard(demo)
+        }
+        return
+    }
+
+    // Otherwise the registry specimen, which is better than nothing and worse
+    // than a demo: it is stateless by design, so it can be pressed and will not
+    // change. Every page that reaches this branch is a page still owed a demo,
+    // and `check-components.py` counts them down.
     val specimens = remember(page.slug) {
         componentRegistry.filter { spec ->
             page.symbols.any { symbol ->

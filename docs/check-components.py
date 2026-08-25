@@ -117,6 +117,33 @@ def page_symbols(path: Path) -> list[str]:
     return symbols
 
 
+# Only goes down. See rule 4.
+#
+# One, and it is `date-time-formats` — `DateTimeFormats` is a data class holding
+# a set of patterns, so there is nothing to press. That exemption wants deriving
+# rather than counting, from "this page's symbols include no public @Composable",
+# and it will be once the signature parser moves somewhere both this and the
+# build can read it. Until then a ceiling of one is honest and a list of one name
+# would be the start of a list.
+MAX_WITHOUT_DEMO = 1
+
+
+def demo_slugs() -> set[str]:
+    """Every `ComponentDemo(slug = ...)` in `:ui-catalog`.
+
+    Found by walking rather than by a hardcoded path, for the reason
+    `registry_components` does: the registry file has already moved once, and a
+    hardcoded path turns this guard into a stack trace the day it moves again.
+    """
+    found: set[str] = set()
+    for path in Path("ui-catalog/src").rglob("*Demos.kt"):
+        if "build" in path.parts:
+            continue
+        found |= set(re.findall(r'ComponentDemo\(\s*slug\s*=\s*"([^"]+)"', path.read_text()))
+        found |= set(re.findall(r'ComponentDemo\(\s*"([^"]+)"', path.read_text()))
+    return found
+
+
 def main() -> int:
     if not COMPONENTS.is_dir():
         print(f"{COMPONENTS} is not a directory", file=sys.stderr)
@@ -154,6 +181,32 @@ def main() -> int:
                 f"and does not explain"
             )
 
+    # Rule 4 — a page has an interactive demo, and a demo has a page.
+    #
+    # The demos are what a reader presses. They live beside `componentRegistry`
+    # in `:ui-catalog` and are hand-written, one per page, because the registry's
+    # specimens are stateless by design and cannot respond to anything.
+    #
+    # The page half is a **ratchet** rather than a list of exemptions. Not every
+    # page has one yet — writing eighty demos is the round this rule arrived in —
+    # and a list of names would freeze whichever ones happened to be unfinished
+    # on the day. The number below only goes down. You cannot exempt *your* page,
+    # only make the total worse, which is the difference that matters.
+    demos = demo_slugs()
+    for slug in sorted(demos):
+        if slug not in {page.stem for page in component_pages}:
+            problems.append(
+                f"there is a demo for `{slug}` and no page of that name — a demo "
+                f"nobody can reach is a demo nobody maintains"
+            )
+    without = sorted(page.stem for page in component_pages if page.stem not in demos)
+    if len(without) > MAX_WITHOUT_DEMO:
+        problems.append(
+            f"{len(without)} pages have no demo, and the ceiling is "
+            f"{MAX_WITHOUT_DEMO}. Lower the ceiling when you add one; raising it "
+            f"is going backwards. Without: {', '.join(without)}"
+        )
+
     # Rule 3 — every page is reachable from its index.
     linked = set()
     for index in index_pages:
@@ -174,7 +227,9 @@ def main() -> int:
 
     print(
         f"{len(component_pages)} component pages, "
-        f"{len(registry_components())} registered components, all accounted for."
+        f"{len(registry_components())} registered components, "
+        f"{len(demos)} demos ({len(without)} pages still without one), "
+        f"all accounted for."
     )
     return 0
 
