@@ -23,6 +23,7 @@ import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.text.Select
+import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 
@@ -149,6 +150,13 @@ fun DemoCard(demo: ComponentDemo, modifier: Modifier = Modifier) {
     Card(variant = CardVariant.Outlined, modifier = modifier.fillMaxWidth()) {
         if (demo.knobs.isNotEmpty()) {
             KnobRow(demo.knobs, knobs)
+            // A rule between the controls and the thing they control.
+            //
+            // Without it `Switch`'s card is an "Enabled" switch above a "Show
+            // live vehicles" switch and the two read as one list of settings —
+            // which is the one reading that makes the demo unintelligible,
+            // since half of it is the demo and half is the apparatus.
+            HorizontalDivider(Modifier.padding(top = Theme.spacing.md))
         }
         Column(Modifier.fillMaxWidth().padding(top = Theme.spacing.md)) {
             demo.content(scope)

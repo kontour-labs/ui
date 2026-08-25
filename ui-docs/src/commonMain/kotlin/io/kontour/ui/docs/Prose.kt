@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +28,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
+import androidx.compose.ui.unit.Dp
 import io.kontour.ui.theme.Theme
 
 /** The blocks of one page, drawn. */
@@ -116,13 +118,52 @@ private fun CodeBlock(block: Block.Code) {
     }
 }
 
-/** The first row is the header, when it has any words in it. */
+/**
+ * The first row is the header, when it has any words in it.
+ *
+ * ### Weighted where the columns fit, scrolling where they do not
+ *
+ * Every column used to take `weight(1f)` with no floor, so on a 390dp phone a
+ * three-column table became three 100dp columns of wrapped single words —
+ * `button.md`'s variant table ran its first cell to six lines. Below the point
+ * where the columns can hold a phrase, the table scrolls sideways instead.
+ *
+ * **Not always-scrolling**, which would be simpler and wrong: `horizontalScroll`
+ * measures its children at *infinite* width, which silently turns every ceiling
+ * above it into a fixed width. That is the trap `DeviceStrip`'s KDoc in
+ * `ShowcaseLayout` documents at length, and it is why this asks
+ * `BoxWithConstraints` first rather than reaching for the scroller by default.
+ */
 @Composable
 private fun DocTable(block: Block.Table) {
     val columns = block.rows.maxOfOrNull { it.size } ?: return
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val fits = maxWidth >= MinColumnWidth * columns
+        DocTableRows(
+            block = block,
+            columns = columns,
+            modifier = if (fits) {
+                Modifier.fillMaxWidth()
+            } else {
+                Modifier.horizontalScroll(rememberScrollState())
+            },
+            columnWidth = if (fits) null else MinColumnWidth,
+        )
+    }
+}
+
+/** Narrower than this and a cell holds one word per line rather than a phrase. */
+private val MinColumnWidth = 148.dp
+
+@Composable
+private fun DocTableRows(
+    block: Block.Table,
+    columns: Int,
+    modifier: Modifier,
+    columnWidth: Dp?,
+) {
     Column(
-        Modifier
-            .fillMaxWidth()
+        modifier
             .background(Theme.colors.surfaceSunken, Theme.shapes.small)
             .padding(Theme.spacing.sm),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
@@ -130,12 +171,14 @@ private fun DocTable(block: Block.Table) {
         block.rows.forEachIndexed { index, row ->
             if (index > 0) HorizontalDivider()
             Row(
-                Modifier.fillMaxWidth().padding(vertical = Theme.spacing.xxs),
+                Modifier.padding(vertical = Theme.spacing.xxs),
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                 verticalAlignment = Alignment.Top,
             ) {
                 repeat(columns) { column ->
-                    Box(Modifier.weight(1f)) {
+                    Box(
+                        if (columnWidth == null) Modifier.weight(1f) else Modifier.width(columnWidth),
+                    ) {
                         Linkable(
                             spans = row.getOrNull(column).orEmpty(),
                             style = Theme.typography.bodySmall,

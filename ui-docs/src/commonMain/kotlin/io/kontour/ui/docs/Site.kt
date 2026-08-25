@@ -1,9 +1,9 @@
 package io.kontour.ui.docs
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,86 +11,103 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.AdjustmentsHorizontal
+import com.composables.icons.tabler.outline.Home
+import com.composables.icons.tabler.outline.LayoutGrid
+import com.composables.icons.tabler.outline.Menu2
+import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
-import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.catalog.Catalog
-import io.kontour.ui.contract.componentRegistry
-import io.kontour.ui.demo.DemoCard
-import io.kontour.ui.demo.componentDemos
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
+import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
-import io.kontour.ui.components.list.ListGroup
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import io.kontour.ui.components.text.SearchField
-import io.kontour.ui.foundation.HorizontalDivider
+import io.kontour.ui.contract.componentRegistry
+import io.kontour.ui.demo.DemoCard
+import io.kontour.ui.demo.componentDemos
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.VerticalDivider
+import io.kontour.ui.nav.ModalNavDrawer
+import io.kontour.ui.nav.NavDrawer
+import io.kontour.ui.nav.NavDrawerScope
+import io.kontour.ui.nav.TopBar
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
+import androidx.compose.foundation.isSystemInDarkTheme
 
 /**
  * The documentation site.
  *
- * A page per component: the prose from `docs/using/components/`, the component
- * itself running beside it, and a link into the API reference. One bundle
- * serves every route, so the download is paid once and every page after the
- * first is instant.
+ * A page per component: the prose, the component itself running above it, and a
+ * link into the API reference. One bundle serves every route, so the download is
+ * paid once and every page after the first is instant.
+ *
+ * ### Built out of the library it documents
+ *
+ * `Scaffold`, `TopBar`, `NavDrawer`, `ModalNavDrawer` — not a hand-rolled `Row`
+ * with a hardcoded breakpoint, which is what this was. Dogfooding is the honest
+ * reason and there is a practical one too: the site is the largest real
+ * application of these components anybody has written, so a component that is
+ * awkward here is a component that is awkward.
+ *
+ * **Not `NavigationSuiteScaffold`**, though it looks like the obvious fit. That
+ * takes a flat `List<NavItem>` of three to five icon destinations with a
+ * travelling indicator, and this index is a hundred pages in eleven families.
+ * Using it would mean either inventing four fake top-level destinations — giving
+ * a drawer of four beside a drawer of a hundred — or flattening a tree into a
+ * list, which its own KDoc argues against. `NavDrawerScope` is a tree, which is
+ * what this is.
  */
 @Composable
 fun Site() {
-    var dark by remember { mutableStateOf(false) }
+    val settings = rememberDisplaySettings()
+    val systemDark = isSystemInDarkTheme()
     val route = rememberRoute()
 
-    KontourTheme(darkTheme = dark) {
-        WindowSizeClassProvider {
-            OverlayHost(Modifier.fillMaxSize()) {
-                Surface(Modifier.fillMaxSize(), color = Theme.colors.background) {
-                    val wide = windowSizeClass.width >= WindowWidthClass.Medium
-                    Column(Modifier.fillMaxSize()) {
-                        Masthead(
-                            dark = dark,
-                            onDarkChange = { dark = it },
-                            route = route.value,
-                        )
-                        HorizontalDivider()
-                        Row(Modifier.fillMaxSize()) {
-                            // The index is a column beside the content when
-                            // there is room, and the home page when there is
-                            // not — a 240dp sidebar on a phone leaves 120dp for
-                            // the thing the reader came for.
-                            if (wide) {
-                                Index(
-                                    current = route.value,
-                                    modifier = Modifier
-                                        .widthIn(max = IndexWidth)
-                                        .fillMaxHeight()
-                                        .verticalScroll(rememberScrollState()),
-                                )
-                                HorizontalDivider(Modifier.fillMaxHeight().widthIn(max = 1.dp))
-                            }
-                            Box(Modifier.weight(1f).fillMaxHeight()) {
-                                when (val here = route.value) {
-                                    Route.Home -> Home(showIndex = !wide)
-                                    Route.Gallery -> Catalog()
-                                    is Route.Component -> ComponentPage(here.slug)
-                                }
-                            }
-                        }
-                    }
+    // Outside the theme, exactly as `Catalog` does it: font scale is a platform
+    // setting and the type ramp is in sp, so this is what makes sp mean
+    // something different. Scaling the ramp instead would look similar and
+    // prove nothing. Layout direction is not a theme parameter either.
+    CompositionLocalProvider(
+        LocalDensity provides Density(
+            LocalDensity.current.density,
+            settings.textScale,
+        ),
+        LocalLayoutDirection provides
+            if (settings.rightToLeft) LayoutDirection.Rtl else LayoutDirection.Ltr,
+    ) {
+        KontourTheme(
+            darkTheme = settings.dark ?: systemDark,
+            contrast = if (settings.highContrast) ContrastLevel.High else ContrastLevel.Standard,
+            reduceMotion = settings.reduceMotion,
+        ) {
+            WindowSizeClassProvider {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Shell(settings, systemDark, route.value)
                 }
             }
         }
@@ -98,123 +115,215 @@ fun Site() {
 }
 
 @Composable
-private fun Masthead(dark: Boolean, onDarkChange: (Boolean) -> Unit, route: Route) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Theme.colors.surface)
-            .padding(horizontal = Theme.spacing.lg, vertical = Theme.spacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Button(
-            onClick = { navigate(Route.Home) },
-            variant = ButtonVariant.Ghost,
-            size = ButtonSize.Small,
-        ) { +"Kontour UI" }
+private fun Shell(settings: DisplaySettings, systemDark: Boolean, route: Route) {
+    // The library's own answer to "is there room beside the content", rather
+    // than a `>= Medium` comparison written out at the call site. A threshold
+    // spelled as a comparison is a threshold that drifts when somebody moves it.
+    val besideContent = windowSizeClass.width.hasRoomBeside
+    var indexOpen by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
 
-        Box(Modifier.weight(1f))
+    // A drawer still open over the page you just chose is a drawer you have to
+    // dismiss before you can read anything.
+    LaunchedEffect(route) { indexOpen = false }
 
-        Button(
-            onClick = { navigate(Route.Gallery) },
-            variant = if (route == Route.Gallery) {
-                ButtonVariant.Tertiary
-            } else {
-                ButtonVariant.Ghost
-            },
-            size = ButtonSize.Small,
-        ) { +"Gallery" }
+    Scaffold(
+        topBar = {
+            TopBar(
+                navigation = if (besideContent) {
+                    null
+                } else {
+                    {
+                        IconButton(
+                            icon = Tabler.Outline.Menu2,
+                            contentDescription = "Components",
+                            onClick = { indexOpen = true },
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(
+                        icon = Tabler.Outline.Home,
+                        contentDescription = "Home",
+                        onClick = { navigate(Route.Home) },
+                        variant = if (route == Route.Home) {
+                            ButtonVariant.Tertiary
+                        } else {
+                            ButtonVariant.Ghost
+                        },
+                    )
+                    IconButton(
+                        icon = Tabler.Outline.LayoutGrid,
+                        contentDescription = "Gallery",
+                        onClick = { navigate(Route.Gallery) },
+                        variant = if (route == Route.Gallery) {
+                            ButtonVariant.Tertiary
+                        } else {
+                            ButtonVariant.Ghost
+                        },
+                    )
+                    IconButton(
+                        icon = Tabler.Outline.AdjustmentsHorizontal,
+                        contentDescription = "Display settings",
+                        onClick = { settingsOpen = !settingsOpen },
+                    )
+                },
+                showDivider = true,
+            ) {
+                +"Kontour UI"
+            }
+        },
+    ) { padding ->
+        Row(Modifier.fillMaxSize().padding(padding)) {
+            if (besideContent) {
+                NavDrawer(
+                    width = IndexWidth,
+                    header = { IndexSearchHeader() },
+                    modifier = Modifier.fillMaxHeight(),
+                ) {
+                    indexItems(route)
+                }
+                VerticalDivider(Modifier.fillMaxHeight())
+            }
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+                Content(route)
+                if (settingsOpen) {
+                    SettingsCard(settings, systemDark) { settingsOpen = false }
+                }
+            }
+        }
+    }
 
-        Button(
-            onClick = { onDarkChange(!dark) },
-            variant = ButtonVariant.Ghost,
-            size = ButtonSize.Small,
-        ) { +(if (dark) "Light" else "Dark") }
+    // Below Medium the index is a modal drawer behind the menu button. It used
+    // to be nothing at all: the sidebar simply was not rendered under 600dp and
+    // no menu replaced it, so a reader who arrived on a component page from a
+    // search engine had no route to any other page in the site.
+    if (!besideContent) {
+        ModalNavDrawer(
+            visible = indexOpen,
+            onDismissRequest = { indexOpen = false },
+            header = { IndexSearchHeader() },
+        ) {
+            indexItems(route)
+        }
     }
 }
 
+@Composable
+private fun Content(route: Route) {
+    when (route) {
+        Route.Home -> Home()
+        // The gallery brings its own theme, size-class provider and overlay host,
+        // so it is not nested inside this one — on a wide window that produced a
+        // documentation sidebar beside the gallery's own nav rail, and the
+        // masthead's dark switch had no effect on anything inside it.
+        Route.Gallery -> Catalog()
+        is Route.Component -> ComponentPage(route.slug)
+    }
+}
+
+/** The search field the drawer keeps above its destinations. */
+@Composable
+private fun IndexSearchHeader() {
+    val search = rememberTextFieldState()
+    SearchField(
+        state = search,
+        modifier = Modifier.fillMaxWidth().padding(Theme.spacing.sm),
+        placeholder = "Find a component",
+        onQuery = { indexQuery = it },
+    )
+}
+
+/**
+ * The filter, hoisted out of the drawer.
+ *
+ * There are two drawers — permanent and modal — and only ever one on screen, so
+ * holding the query in either would lose it at the breakpoint. It is small and
+ * it is genuinely site-wide state.
+ */
+private var indexQuery by mutableStateOf("")
+
 /** Every page, by family, filtered as you type. */
 @Composable
-private fun Index(current: Route, modifier: Modifier = Modifier) {
-    var query by remember { mutableStateOf("") }
-    val matching = remember(query) {
-        if (query.isBlank()) {
+private fun NavDrawerScope.indexItems(current: Route) {
+    val matching = remember(indexQuery) {
+        if (indexQuery.isBlank()) {
             docPagesByFamily
         } else {
             docPagesByFamily.mapNotNull { (family, pages) ->
                 val hits = pages.filter { page ->
-                    page.symbols.any { it.contains(query, ignoreCase = true) } ||
-                        page.title.contains(query, ignoreCase = true)
+                    page.symbols.any { it.contains(indexQuery, ignoreCase = true) } ||
+                        page.title.contains(indexQuery, ignoreCase = true)
                 }
                 if (hits.isEmpty()) null else family to hits
             }
         }
     }
 
-    Column(modifier.padding(Theme.spacing.md)) {
-        val search = rememberTextFieldState()
-        SearchField(
-            state = search,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = "Find a component",
-            onQuery = { query = it },
-        )
-        // A plain Column, not a LazyColumn.
-        //
-        // It was lazy, and on a phone the home page puts it inside a
-        // `verticalScroll` — which measures its children at infinite height, and
-        // a lazy list handed infinite height *throws*. So the landing page of
-        // this site raised `IllegalStateException` on every window narrower than
-        // 600dp, which is to say on every phone. Nothing caught it because
-        // `:ui-docs` was a wasmJs-only module: there was no test source set that
-        // could run here, so there was nowhere to put a test even if somebody
-        // had thought to write one.
-        //
-        // Laziness bought nothing. It is eighty-odd rows of text with no images
-        // and no measurement worth deferring, and being lazy is precisely what
-        // made it unable to live inside a scrolling parent. Whoever contains
-        // this owns the scrolling now.
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(top = Theme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-        ) {
-            matching.forEach { (family, pages) ->
-                Text(
-                    text = family.uppercase(),
-                    style = Theme.typography.monoLabel,
-                    color = Theme.colors.accent.solid,
-                    modifier = Modifier.padding(bottom = Theme.spacing.xs),
-                )
-                ListGroup(spacing = 2.dp) {
-                    pages.forEach { page ->
-                        item(
-                            label = page.symbols.firstOrNull() ?: page.title,
-                            selected = current == Route.Component(page.slug),
-                            onClick = { navigate(Route.Component(page.slug)) },
-                        )
-                    }
+    matching.forEach { (family, pages) ->
+        section(family) {
+            pages.forEach { page ->
+                // `label` is the drawer's selection-indicator key, so two
+                // entries sharing one would collide. Page symbols are unique
+                // across the tree and `check-components.py` rule 2 keeps them
+                // that way.
+                item(
+                    label = page.symbols.firstOrNull() ?: page.title,
+                    selected = current == Route.Component(page.slug),
+                ) {
+                    navigate(Route.Component(page.slug))
                 }
             }
         }
     }
 }
 
+/** The display switches, over the content, dismissed by pressing anywhere else. */
 @Composable
-private fun Home(showIndex: Boolean) {
+private fun SettingsCard(
+    settings: DisplaySettings,
+    systemDark: Boolean,
+    onDismissRequest: () -> Unit,
+) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
+        Card(
+            variant = CardVariant.Elevated,
+            modifier = Modifier.padding(Theme.spacing.md).widthIn(max = 320.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Display", style = Theme.typography.titleSmall)
+                Button(
+                    onClick = onDismissRequest,
+                    variant = ButtonVariant.Ghost,
+                    size = ButtonSize.Small,
+                ) { +"Done" }
+            }
+            SettingsPanel(settings, systemDark)
+        }
+    }
+}
+
+@Composable
+private fun Home() {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(Theme.spacing.xl),
+            .padding(PagePadding()),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
         Text("Kontour UI", style = Theme.typography.displaySmall)
         Text(
             text = "A Compose Multiplatform design system. ${docPages.size} components, " +
                 "each documented on its own page with the component itself running " +
-                "beside the words.",
+                "beside the words — and running, not pictured: press it.",
             style = Theme.typography.bodyLarge,
             color = Theme.colors.contentMuted,
+            modifier = Modifier.widthIn(max = ProseWidth),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
             Button(onClick = { navigate(Route.Gallery) }) { +"Open the gallery" }
@@ -223,12 +332,18 @@ private fun Home(showIndex: Boolean) {
                 variant = ButtonVariant.Secondary,
             ) { +"Read the docs on GitHub" }
         }
-        if (showIndex) {
-            HorizontalDivider(Modifier.padding(vertical = Theme.spacing.md))
-            Index(current = Route.Home, modifier = Modifier.fillMaxWidth())
-        }
     }
 }
+
+/**
+ * A page's padding, which is not the same on a phone as on a desktop.
+ *
+ * 32dp on each edge of a 390dp window leaves 326dp for the thing the reader came
+ * for, and a component demo inside a card inside that has under 300.
+ */
+@Composable
+private fun PagePadding(): PaddingValues =
+    PaddingValues(if (windowSizeClass.width.hasRoomBeside) Theme.spacing.xl else Theme.spacing.md)
 
 /** One component: the prose, and the component. */
 @Composable
@@ -250,7 +365,7 @@ private fun ComponentPage(slug: String) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(Theme.spacing.xl),
+            .padding(PagePadding()),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
         Text(

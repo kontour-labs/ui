@@ -111,19 +111,33 @@ class SiteRenderTest {
                 "Skia failed to encode ${file.name}"
             }.bytes
             file.writeBytes(bytes)
-            return isUniform(file)
+            return isUniform(file, width)
         }
     }
 
-    private fun isUniform(file: File): Boolean {
+    /**
+     * Whether the **content area** is one flat colour.
+     *
+     * Not the whole image, which is what this checked first and which is a
+     * weaker question than it looks: the top bar and the index draw on every
+     * page, so `date-picker` — a title, one sentence, and 1,200px of white —
+     * passed while being exactly the emptiness this round exists to remove.
+     *
+     * So it starts below the bar and to the right of the index, and the ink it
+     * is looking for is the page's own.
+     */
+    private fun isUniform(file: File, width: Int): Boolean {
         val image = ImageIO.read(file) ?: return true
-        val first = image.getRGB(0, 0)
+        val top = ChromeHeight
+        val left = if (width >= 600) IndexWidth else 0
+        if (top >= image.height || left >= image.width) return true
+        val first = image.getRGB(left, top)
         // Every 7th pixel on both axes. A page with content fails this within a
         // few rows; a blank one has to be walked to be sure, and at 1440×1400
-        // that is two million calls per image times 336 images.
-        var x = 0
+        // that is two million calls per image times hundreds of images.
+        var x = left
         while (x < image.width) {
-            var y = 0
+            var y = top
             while (y < image.height) {
                 if (image.getRGB(x, y) != first) return false
                 y += 7
@@ -132,6 +146,10 @@ class SiteRenderTest {
         }
         return true
     }
+
+    /** Below the top bar, and past the index where one is drawn. */
+    private val ChromeHeight = 72
+    private val IndexWidth = 300
 
     /** An HTML page tiling every shot, because scrolling a directory of PNGs is not review. */
     private fun contactSheet(dir: File, widthName: String) {
