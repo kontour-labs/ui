@@ -66,6 +66,34 @@ class Scene(
     }
 
     /**
+     * Renders until [until] holds, or until [timeoutMillis] of **real** time has
+     * passed. Returns the frame that satisfied it, or null if none did.
+     *
+     * For the one thing a frame count cannot express: a component that times
+     * itself out with `delay`. This scene's clock is [FrameNanos] per rendered
+     * frame and `delay` runs on the wall clock, and the two have no fixed
+     * relationship — a frame here costs about 45ms of real time on a throttled
+     * container and rather less on a CI runner, so "render 95 frames" means
+     * 3.6 seconds on one machine and under 1.5 on another.
+     *
+     * `ToastStackTest` was written believing 95 frames was two seconds, waiting
+     * for a toast whose `durationMillis` is 1,500. It passed on the machine it
+     * was written on and began failing on CI the day `:ui-catalog` grew enough
+     * other tests to change what it was sharing a runner with.
+     *
+     * So: wait for the event, on a deadline measured in the same units the
+     * component uses.
+     */
+    fun renderUntil(timeoutMillis: Long = 15_000, until: (BufferedImage) -> Boolean): BufferedImage? {
+        val deadline = System.nanoTime() + timeoutMillis * 1_000_000
+        while (System.nanoTime() < deadline) {
+            val image = frame()
+            if (until(image)) return image
+        }
+        return null
+    }
+
+    /**
      * Presses at [from], travels to [to] over [steps] moves, and releases.
      *
      * A frame is rendered after every move, so anything watching the drag —

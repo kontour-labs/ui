@@ -230,6 +230,44 @@ component that draws nothing produces a clean card, and the golden would then
 
 ---
 
+## Two clocks, and which one a test is on
+
+`Scene` in `Gestures.kt` drives `ImageComposeScene` by hand: every call to
+`frame()` advances a counter by 16ms and renders. Animations, gestures and
+anything reading `withFrameNanos` run on **that** clock, and a frame count is
+exactly the right unit for them.
+
+`delay` does not. It resolves against the wall clock, and nothing ties the two
+together — a frame costs about 45ms of real time on a throttled container and
+rather less on a CI runner. So "render 95 frames" is 3.6 seconds on one machine
+and under 1.5 on another, and a test that waits for a `delay(1500)` by rendering
+95 frames is a test whose result depends on how fast PNG encoding is.
+
+It has caught two things out.
+
+`OverlayMotionScreenshotTest` hit it first and could fix it at the source: its
+own scaffolding did the waiting, so the `delay` became
+`repeat(n) { withFrameNanos { } }` and the golden went back on the frame clock.
+Its KDoc has said so since.
+
+`ToastStackTest.eachToastKeepsItsOwnClock` could not. The `delay(durationMillis)`
+is inside `Toast` — it is what the test is *about* — so there was nothing to
+convert. It rendered 95 frames and called it two seconds, which was true on the
+machine it was written on and false on GitHub's runners, where it began failing
+the day `:ui-catalog` grew enough other tests to change what it shared a runner
+with. It had been wrong since it was written and passed by luck.
+
+The answer for that shape is `Scene.renderUntil`: render frames until a
+predicate holds, bounded by a deadline in **real** milliseconds. Wait for the
+event, on a deadline measured in the units the component actually uses. And
+where a test measures something *before* the wait, guard it — that test now
+compares the two-toast stack against a pinned-toast-only stack first, so a
+machine slow enough to lose the short toast during setup fails saying the test
+proved nothing rather than passing on a coincidence.
+
+**The rule:** frames for anything animated, `renderUntil` for anything that
+times itself out.
+
 ## What the slot conversion cost, and what pays for it
 
 `ListItem(label = "…")` could not produce a row without an accessible name.

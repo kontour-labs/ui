@@ -15,6 +15,7 @@ import io.kontour.ui.overlay.ToastPosition
 import io.kontour.ui.overlay.ToastTone
 import java.awt.image.BufferedImage
 import kotlin.test.Test
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -75,10 +76,32 @@ class ToastStackTest {
 
     @Test
     fun eachToastKeepsItsOwnClock() {
-        // A short one shown after a long one expires first, which under a queue
-        // is impossible: it would not have started counting.
+        // A short one shown after a pinned one expires first, which under a
+        // queue is impossible: it would not have started counting.
+        //
+        // ### Why this waits rather than counting frames
+        //
+        // A toast expires through `delay`, which is the wall clock, and `Scene`
+        // advances 16ms of *frame* time per rendered frame. Nothing ties the
+        // two together: a frame costs about 45ms of real time on a throttled
+        // container and rather less on a CI runner.
+        //
+        // This test used to render 95 frames and call it two seconds. It was
+        // 3.6 seconds on the machine it was written on — so it passed — and
+        // under 1.5 on GitHub's runners, where the short toast had not expired
+        // yet and the assertion below failed. It began failing the day
+        // `:ui-catalog` grew enough other tests to change what it shared a
+        // runner with, having been wrong since it was written.
+        //
+        // Three seconds rather than 1,500ms for the short one, so that settling
+        // the entry animation cannot eat the whole duration on a slow machine —
+        // and `pinnedAlone` below is what catches it if it ever does.
+        val pinnedAlone = heightAfter { toasts ->
+            toasts.show("Couldn't reach the timetable", durationMillis = 0)
+        }
+
         var withBoth = 0
-        var afterTheShortOneWent = 0
+        var afterTheShortOneWent: BufferedImage? = null
 
         Scene(width = 600, height = 400) {
             val toasts = remember { ToastHostState() }
@@ -87,25 +110,33 @@ class ToastStackTest {
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
                     toasts.show("Couldn't reach the timetable", durationMillis = 0)
-                    toasts.show("Saved", durationMillis = 1_500)
+                    toasts.show("Saved", durationMillis = 3_000)
                 }
             }
         }.use { scene ->
-            // Half a second in: both settled, and nothing near the short one's
-            // second and a half.
-            withBoth = scene.frames(30).stackHeight()
-            // Two seconds in: the short one has gone and the pinned one has not,
-            // which under a queue is impossible — it would not have started
-            // counting until the pinned one expired, and it never does.
-            afterTheShortOneWent = scene.frames(95).stackHeight()
+            // The entry is animated on the frame clock, so a frame count is the
+            // right unit here — the same 24 every other test in this file uses.
+            withBoth = scene.frames(24).stackHeight()
+            afterTheShortOneWent = scene.renderUntil { it.stackHeight() < withBoth - 10 }
         }
 
         assertTrue(withBoth > 0, "nothing was drawn at all")
         assertTrue(
-            afterTheShortOneWent < withBoth - 10,
-            "the stack was ${withBoth}px tall with both toasts and " +
-                "${afterTheShortOneWent}px a second later — the short one never " +
-                "expired, so it was waiting on the pinned one's clock",
+            withBoth > pinnedAlone + 10,
+            "the stack was only ${withBoth}px with both toasts against " +
+                "${pinnedAlone}px for the pinned one alone — the short one was " +
+                "already gone before this measured, so the test proves nothing",
+        )
+        val settled = afterTheShortOneWent
+        assertNotNull(
+            settled,
+            "the stack was ${withBoth}px tall and never shrank — the short one " +
+                "never expired, so it was waiting on the pinned one's clock",
+        )
+        assertTrue(
+            settled.stackHeight() > 0,
+            "the stack emptied entirely — the pinned toast went too, and a " +
+                "`durationMillis = 0` toast is supposed to stay until dismissed",
         )
     }
 
