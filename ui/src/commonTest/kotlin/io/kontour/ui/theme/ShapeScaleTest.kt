@@ -54,6 +54,53 @@ class ShapeScaleTest {
     }
 
     @Test
+    fun theSemanticTokensClimbInTheRightOrder() {
+        val size = Size(400f, 400f)
+        val field = shapes.field.topStart.toPx(size, density)
+        val container = shapes.container.topStart.toPx(size, density)
+        val panel = shapes.panel.topStart.toPx(size, density)
+
+        assertTrue(
+            field < container && container < panel,
+            "a control has to look like it is inside its container and the " +
+                "container inside the panel, but the radii went $field, " +
+                "$container, $panel",
+        )
+    }
+
+    @Test
+    fun aControlIsACapsuleAtEveryHeight() {
+        // The reason buttons are not a fixed radius. At 14dp an XSmall button was
+        // nearly a pill already and an XLarge was nearly square, so one component
+        // disagreed with itself across its own size scale. A capsule cannot.
+        for (height in listOf(28f, 36f, 44f, 56f, 72f)) {
+            val radius = shapes.control.topStart.toPx(Size(200f, height), density)
+            assertEquals(
+                height / 2f,
+                radius,
+                "a control $height tall should have a radius of ${height / 2f}",
+            )
+        }
+    }
+
+    @Test
+    fun theSemanticTokensAreASeamRatherThanAnAlias() {
+        // The point of naming them at all. An app that wants square buttons
+        // overrides `control`; overriding `pill` instead would square off the
+        // avatars and the scrollbar with them.
+        val squared = Shapes(control = RoundedCornerShape(4.dp))
+        val size = Size(200f, 40f)
+
+        assertEquals(4f, squared.control.topStart.toPx(size, density))
+        assertEquals(20f, squared.pill.topStart.toPx(size, density))
+        assertEquals(
+            shapes.field.topStart.toPx(size, density),
+            squared.field.topStart.toPx(size, density),
+            "moving one family must not move another",
+        )
+    }
+
+    @Test
     fun sheetsAreExtraLargeWithTwoCornersOff() {
         val size = Size(1000f, 1000f)
         val hero = shapes.extraLarge.topStart.toPx(size, density)

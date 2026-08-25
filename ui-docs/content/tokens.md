@@ -199,6 +199,39 @@ Do not step through the scale by eye. `Theme.shapes.small.inset(6.dp)` gives the
 radius something 6dp inside a `small` container should use, floors at zero, and
 keeps the kind of corner it was called on.
 
+### Ask for what a thing *is*
+
+Components do not pick a rung. They ask for one of four names, and that is why
+two buttons cannot disagree — there is one place that says what a button's corner
+is, and every button reads it.
+
+| Token | Resolves to | For |
+|---|---|---|
+| `control` | `pill` | `Button`, `IconButton`, `SplitButton`, `ButtonGroup`, `FloatingActionButton`, `FabMenu`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
+| `field` | `small` | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
+| `container` | `medium` | `Card`, `ListItem`, `SelectionRow`, `Accordion`, `SwipeActions`, `DropdownMenu`, `Popover`, `Tooltip`, `NavDrawer` |
+| `panel` | `large` | `Dialog`, `CommandPalette`, `NavSearch` |
+
+**A control is a capsule at every height**, which is the thing a fixed radius
+cannot do: at 14dp an `XSmall` button was nearly a pill already and an `XLarge`
+was nearly square, so one component disagreed with itself across its own size
+scale. And a `Button` sat at 14dp next to a circular `IconButton` in the same
+toolbar. Now every action is the same shape whatever size it happens to be.
+
+**A field is not a capsule**, deliberately. A field is a box with content in it,
+and a capsule reads as something to press rather than something to fill in — a
+multi-line text area shaped like a lozenge makes that obvious.
+
+Reaching past these four to a rung of the size scale is for genuine one-offs — an
+avatar, a scrollbar, a skeleton line, a drag handle — where the shape belongs to
+that one thing rather than to a family. A component that reaches for `small`
+because it is the right number today stops tracking the family it belongs to, and
+that is exactly how a design system drifts.
+
+They are also the seam a consumer wants. Overriding `pill` to square off buttons
+would square off the avatars and the scrollbar too; overriding `control` moves
+the buttons and nothing else.
+
 ### Two kinds of corner
 
 From `medium` up the corners are **squircles** — curvature eased in and out

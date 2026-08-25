@@ -122,36 +122,31 @@ object ToolbarDefaults {
     /**
      * The ring of space between the surface's edge and its first control.
      *
-     * One rung of the shape scale, which is what lets [Shape] be the token
-     * directly above the children's without any arithmetic at the call site.
+     * One rung of the shape scale. With capsules on both sides of it the exact
+     * value no longer decides whether the nesting is concentric — see [Shape] —
+     * but it is still what sets how much of the bar is ring rather than button.
      */
     val ContentPadding: Dp = 6.dp
 
     /**
-     * One step up the shape scale from the controls inside, which is what
-     * concentric means at this padding.
+     * The same shape as the controls it holds.
      *
-     * Two rounded shapes nested inside one another look right when the outer
-     * radius is the inner radius *plus* the gap between them, and wrong
-     * otherwise — the corners stop being parallel and the gap pinches. This used
-     * to be [io.kontour.ui.theme.Shapes.pill], which is as far from a `small`
-     * [ButtonGroup] as a radius can get: the group's top corner fell *outside*
-     * the pill's curve at 4dp of padding and was clipped flat against it, which
-     * is what the toolbar's own render showed and nobody read.
+     * Which is what concentric means here, and it is now true by construction
+     * rather than by arithmetic. Both are capsules, so the outer radius is half
+     * the toolbar's height and the inner is half a child's — and a child inset
+     * by [ContentPadding] top and bottom is shorter by exactly twice it, so the
+     * two radii differ by exactly [ContentPadding]. That is the rule, and it
+     * holds whatever the padding, the height or the buttons turn out to be,
+     * because nothing here is a number.
      *
-     * The scale climbs in even 6dp steps and [ContentPadding] is 6dp, so the
-     * rung above the children's `small` is exactly `small + ContentPadding`.
-     * That coincidence is not one — the ladder is built to nest. Change
-     * [ContentPadding] and this stops being concentric, so derive the shape with
-     * [io.kontour.ui.theme.inset] rather than picking a token.
-     *
-     * **A pill is right for a toolbar of nothing but circular
-     * [IconButton]s** — there the children's radius is half their height, the
-     * outer radius is half the toolbar's, and those already differ by the
-     * padding. Pass `Theme.shapes.pill` for that one.
+     * It got here the long way. It was a pill; then a `ButtonGroup`'s 8dp
+     * corners were found poking *through* the pill's curve and being sheared
+     * flat against it, so it became one rung up the size scale instead; and now
+     * the children are capsules too, so the original answer is right again —
+     * for a reason this time rather than by luck.
      */
     val Shape: CornerBasedShape
-        @Composable get() = Theme.shapes.medium
+        @Composable get() = Theme.shapes.control
 
     /**
      * Shorter than the toolbar, so the rule floats rather than butting into the

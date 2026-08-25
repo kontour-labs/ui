@@ -134,7 +134,7 @@ fun Dialog(
                                         .padding(Theme.spacing.lg)
                                         .widthIn(max = 400.dp)
                                         .semantics { dialog() },
-                                    shape = Theme.shapes.large,
+                                    shape = Theme.shapes.panel,
                                     color = Theme.colors.surfaceRaised,
                                     border = contrastEdge(),
                                     shadow = Theme.elevation.overlay,

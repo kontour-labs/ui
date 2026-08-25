@@ -57,7 +57,7 @@ object CoachmarkDefaults {
      * smoothing, which a `CornerRadius` on a `RoundRect` cannot carry.
      */
     val SpotlightShape: CornerBasedShape
-        @Composable get() = Theme.shapes.medium
+        @Composable get() = Theme.shapes.container
 }
 
 /**
@@ -361,7 +361,7 @@ private fun CoachmarkBubble(
             .semantics(mergeDescendants = true) {
                 contentDescription = "$title. $text"
             },
-        shape = Theme.shapes.medium,
+        shape = Theme.shapes.container,
         color = colors.accent.solid,
         contentColor = colors.accent.onSolid,
         shadow = Theme.elevation.overlay,

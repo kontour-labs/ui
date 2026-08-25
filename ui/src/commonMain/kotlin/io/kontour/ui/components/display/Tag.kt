@@ -66,7 +66,7 @@ fun Tag(
     modifier: Modifier = Modifier,
     tone: TagTone = TagTone.Neutral,
     color: Color = Color.Unspecified,
-    shape: Shape = Theme.shapes.extraSmall,
+    shape: Shape = Theme.shapes.control,
     /**
      * Overrides what the tag announces.
      *

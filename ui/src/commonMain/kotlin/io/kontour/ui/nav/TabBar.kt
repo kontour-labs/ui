@@ -265,8 +265,8 @@ fun TabBarScope.Tab(
             .then(if (fixed) with(row) { Modifier.weight(1f) } else Modifier)
             .selectionIndicatorItem(key, selected)
             .minimumTouchTarget()
-            .focusRing(interactions, Theme.shapes.small)
-            .clip(Theme.shapes.small)
+            .focusRing(interactions, Theme.shapes.control)
+            .clip(Theme.shapes.control)
             .selectable(
                 selected = selected,
                 interactionSource = interactions,
@@ -275,7 +275,7 @@ fun TabBarScope.Tab(
                 // would be two answers to one tap. Same bargain
                 // `SegmentedControl` states — the moving thumb *is* the
                 // feedback.
-                indication = kontourIndication(Theme.shapes.small, pressScale = 1f),
+                indication = kontourIndication(Theme.shapes.control, pressScale = 1f),
                 enabled = enabled,
                 role = Role.Tab,
                 onClick = {

@@ -499,7 +499,7 @@ private fun arrowPath(
 @Composable
 internal fun OverlaySurface(
     modifier: Modifier = Modifier,
-    shape: Shape = Theme.shapes.medium,
+    shape: Shape = Theme.shapes.container,
     color: Color = Theme.colors.surfaceRaised,
     contentColor: Color = Theme.colors.content,
     border: Boolean = true,

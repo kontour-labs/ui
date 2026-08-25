@@ -259,7 +259,7 @@ private fun PaletteBody(
                     else -> false
                 }
             },
-        shape = Theme.shapes.medium,
+        shape = Theme.shapes.panel,
         color = Theme.colors.surface,
         shadow = Theme.elevation.overlay,
     ) {

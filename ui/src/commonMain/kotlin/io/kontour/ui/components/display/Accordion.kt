@@ -89,7 +89,7 @@ fun Accordion(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val motion = Theme.motion
     val feedback = Feedback
-    val shape = Theme.shapes.small
+    val shape = Theme.shapes.container
 
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,

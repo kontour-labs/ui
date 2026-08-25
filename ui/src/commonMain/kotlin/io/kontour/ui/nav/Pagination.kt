@@ -168,7 +168,7 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
     val colors = Theme.colors
     val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
-    val shape = Theme.shapes.small
+    val shape = Theme.shapes.control
 
     Box(
         modifier = Modifier

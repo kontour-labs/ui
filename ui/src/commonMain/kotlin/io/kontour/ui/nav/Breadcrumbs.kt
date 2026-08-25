@@ -93,7 +93,7 @@ private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
     val colors = Theme.colors
     val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
-    val shape = Theme.shapes.small
+    val shape = Theme.shapes.control
     val onClick = crumb.onClick
 
     if (isCurrent || onClick == null) {

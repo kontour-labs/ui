@@ -41,6 +41,14 @@ row of mixed buttons, inputs and selects lines up without per-call-site padding.
 `Medium` is the default; `Large`/`XLarge` are for a screen's single main call to
 action.
 
+**A button is a capsule**, at every one of those sizes. It reads
+`Theme.shapes.control`, the shape every pressable thing in the library shares —
+so a `Button` beside an `IconButton` beside a `Chip` is one row of one corner.
+A fixed radius could not manage that: at the old 14dp an `XSmall` was nearly a
+pill already and an `XLarge` was nearly square, so the component disagreed with
+itself across its own size scale. Override `Theme.shapes.control` to change every
+action at once; pass `shape` to change one.
+
 ### States
 
 **Loading** swaps the label for a spinner *without changing the button's width*,

@@ -182,7 +182,7 @@ fun Callout(
     container: Color = Theme.colors.accent.container,
     content: @Composable () -> Unit,
 ) {
-    val shape = Theme.shapes.extraSmall
+    val shape = Theme.shapes.small
 
     Row(
         modifier = modifier

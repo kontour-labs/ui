@@ -46,6 +46,22 @@ import androidx.compose.ui.unit.dp
  * place — which is also why it is the most-used token here and should stay that
  * way.
  *
+ * ### Ask for what a thing *is*
+ *
+ * [control], [field], [container] and [panel] are the four names components
+ * actually use. They are the reason two buttons cannot disagree: there is one
+ * place that says what a button's corner is, and every button reads it.
+ *
+ * Reaching past them to a rung of the size scale is for genuine one-offs — an
+ * avatar, a scrollbar, a skeleton line — where the shape is a property of that
+ * one thing rather than of a family. When a component reaches for `small`
+ * because it happens to be the right number today, it stops tracking the family
+ * it belongs to, and that is exactly how a design system drifts.
+ *
+ * They are also the seam a consumer wants. Overriding `pill` to square off
+ * buttons would square off avatars and scrollbars too; overriding [control]
+ * moves the buttons and nothing else.
+ *
  * ### One number for sheets
  *
  * [sheet] and [sideSheet] are [extraLarge] with two corners zeroed, derived
@@ -62,6 +78,46 @@ data class Shapes(
     val large: CornerBasedShape = SquircleShape(26.dp),
     val extraLarge: CornerBasedShape = SquircleShape(32.dp),
     val pill: CornerBasedShape = RoundedCornerShape(percent = 50),
+
+    /**
+     * Anything you press, and anything that labels a thing you could press.
+     *
+     * Buttons, icon buttons, split buttons, button groups, chips, tags, floating
+     * actions, and the toolbar that holds them. A capsule, so a row of mixed
+     * actions has one corner regardless of what each one's height happens to be
+     * — which is the thing a fixed radius cannot do: at 14dp an `XSmall` button
+     * was nearly a pill already and an `XLarge` was nearly square, so one
+     * component disagreed with itself across its own size scale.
+     */
+    val control: CornerBasedShape = pill,
+
+    /**
+     * Anything that holds a value the user typed or chose.
+     *
+     * Text fields, selects, the segmented control's track, a time field. Not a
+     * capsule: a field is a box with content in it, and a capsule reads as
+     * something to press rather than something to fill in. A multi-line field
+     * makes that obvious — a text area shaped like a lozenge is nobody's idea of
+     * a text area.
+     */
+    val field: CornerBasedShape = small,
+
+    /**
+     * Anything that holds other components.
+     *
+     * Cards, list rows, accordions, menus, popovers, the rich tooltip, a
+     * coachmark's bubble. One rung above [field] so a control inside a container
+     * is visibly inside it.
+     */
+    val container: CornerBasedShape = medium,
+
+    /**
+     * A modal panel that owns the screen's attention.
+     *
+     * Dialogs, the command palette, the expanded search. Above [container]
+     * because it is not sitting in the page, it is in front of it.
+     */
+    val panel: CornerBasedShape = large,
 
     /**
      * Bottom sheets. Rounded at the top only — the bottom edge sits against the

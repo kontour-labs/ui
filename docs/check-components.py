@@ -497,6 +497,35 @@ def main() -> int:
                         f"Shapes.kt builds it at {radius}dp and {kind}"
                     )
 
+    # Rule 12 — every component in the shape-families table really asks for
+    # that family.
+    #
+    # The families are the answer to "why do these two things have different
+    # corners": components name what they *are* — a control, a field, a
+    # container, a panel — and the theme decides the radius once. That only holds
+    # while the table and the source agree, and a table of component names is
+    # precisely the kind of prose that rots the first time somebody adds a
+    # component and forgets the row.
+    #
+    # Not the other way round. A component may legitimately be absent from the
+    # table — an avatar is a circle because it is an avatar, not because it
+    # belongs to a family — so this checks the claims made, not the omissions.
+    families = re.compile(r"\|\s*`(control|field|container|panel)`\s*\|[^|]*\|([^|]*)\|")
+    composables = public_composables()
+    for family, members in families.findall((CONTENT / "tokens.md").read_text()):
+        for name in BACKTICKED.findall(members):
+            path = composables.get(name)
+            if path is None:
+                problems.append(
+                    f"tokens.md lists `{name}` under the `{family}` shape family, "
+                    f"but there is no such public composable in :ui"
+                )
+            elif f"Theme.shapes.{family}" not in path.read_text():
+                problems.append(
+                    f"tokens.md says `{name}` uses the `{family}` shape, but "
+                    f"{path.name} never asks for `Theme.shapes.{family}`"
+                )
+
     if problems:
         print(f"{len(problems)} problem(s):", file=sys.stderr)
         for problem in sorted(problems):

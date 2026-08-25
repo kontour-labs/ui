@@ -105,7 +105,7 @@ fun SegmentedControl(
 
     val colors = Theme.colors
     val motion = Theme.motion
-    val outerShape = Theme.shapes.small
+    val outerShape = Theme.shapes.field
     // Concentric by construction rather than by picking the token one rung down
     // and trusting the padding to match the step.
     val innerShape = outerShape.inset(SegmentedControlDefaults.TrackPadding)

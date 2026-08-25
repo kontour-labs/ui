@@ -471,7 +471,7 @@ private fun CoachMarkBubble(
         modifier = Modifier
             .widthIn(max = 320.dp)
             .semantics(mergeDescendants = true) { contentDescription = "$title. $text" },
-        shape = Theme.shapes.medium,
+        shape = Theme.shapes.container,
         color = colors.accent.solid,
         contentColor = colors.accent.onSolid,
         shadow = Theme.elevation.overlay,

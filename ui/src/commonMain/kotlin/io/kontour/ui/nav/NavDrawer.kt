@@ -309,7 +309,7 @@ fun NavDrawerItem(
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val shape = Theme.shapes.medium
+    val shape = Theme.shapes.container
     // Inside a group the travelling marker carries selection; on its own the row
     // still needs to say which one it is.
     val grouped = LocalSelectionIndicator.current != null
@@ -414,7 +414,7 @@ fun NavDrawerGroup(
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
-    val shape = Theme.shapes.medium
+    val shape = Theme.shapes.container
 
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
