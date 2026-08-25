@@ -44,7 +44,7 @@ content that is not its own, which is why it has a shadow and rounded corners
 and a top bar has neither. If it is the screen's chrome, it is a top bar.
 
 For a translucent one over a live map, use `GlassSurface` and read the note in
-[adaptive](adaptive.md#there-is-no-portable-backdrop-blur) — there is no
+[adaptive](adaptive.md#there-is-no-portable-backdrop-blur--for-a-floating-bar) — there is no
 portable backdrop blur.
 
 ---

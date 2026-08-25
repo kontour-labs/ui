@@ -117,7 +117,7 @@ fields, matching how the web properties already use them:
 
 | Token | For |
 |---|---|
-| `scrim` | Dims content behind a modal |
+| `scrim` | Dims content behind a modal, which also [blurs it](overlays.md#the-backdrop) |
 | `overlayHover` / `overlayPressed` / `overlayDragged` | The tonal washes `KontourIndication` composites over a control |
 
 ---

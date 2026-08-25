@@ -95,12 +95,19 @@ object Theme {
  * @param darkTheme Whether to use the dark scheme. Follows the system by default.
  * @param contrast Which contrast tier to render at. Follows the system by default.
  * @param reduceMotion Whether to damp animation. Follows the system by default.
+ * @param backdropBlur Whether a modal blurs the content behind it as well as
+ *   dimming it. On by default. Turning it off costs the app a texture and
+ *   nothing else — the shapes, the scrim, the motion and the layout are the same
+ *   either way — so it is a performance dial rather than a design choice. Worth
+ *   reaching for over a live map, where the whole screen is redrawing anyway,
+ *   and worth measuring before you do.
  */
 @Composable
 fun KontourTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     contrast: ContrastLevel = if (platformPrefersHighContrast()) ContrastLevel.High else ContrastLevel.Standard,
     reduceMotion: Boolean = platformPrefersReducedMotion(),
+    backdropBlur: Boolean = true,
     colors: ColorScheme = remember(darkTheme, contrast) { kontourColorScheme(darkTheme, contrast) },
     typography: Typography = kontourTypography(outfitFontFamily()),
     shapes: Shapes = remember { Shapes() },
@@ -128,6 +135,7 @@ fun KontourTheme(
         LocalSizing provides sizing,
         LocalStrings provides strings,
         LocalContrastLevel provides contrast,
+        LocalBackdropBlur provides backdropBlur,
         LocalContentColor provides colors.content,
         LocalTextStyle provides typography.bodyMedium,
         LocalFeedback provides feedback,
@@ -173,3 +181,11 @@ internal val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THE
  * legitimately want to know.
  */
 val LocalContrastLevel = staticCompositionLocalOf { ContrastLevel.Standard }
+
+/**
+ * Whether a modal blurs the content behind it.
+ *
+ * Defaults to true outside a theme so an overlay rendered on its own — as the
+ * contract suite does — behaves the way it does in an app.
+ */
+internal val LocalBackdropBlur = staticCompositionLocalOf { true }

@@ -55,6 +55,7 @@ import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.overlay.LocalOverlayHost
+import io.kontour.ui.overlay.BackdropStyle
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
@@ -359,6 +360,11 @@ fun ModalBottomSheet(
                     key = key,
                     layer = OverlayLayer.Sheet,
                     scrim = ScrimStyle.Dimmed,
+                    // A sheet covers part of the screen rather than floating in
+                    // the middle of it, so the presenting content recedes as
+                    // well as blurring. That is what says "on top of this
+                    // screen" rather than "a new screen".
+                    backdrop = BackdropStyle.BlurAndScale,
                     dismissOnOutside = dismissOnOutside,
                     dismissLabel = dismissLabel,
                     // The sheet slides itself down and hides the entry when it

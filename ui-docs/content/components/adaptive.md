@@ -60,7 +60,7 @@ exists to remove. The full list of what reduced motion changes is with the
 
 ---
 
-## There is no portable backdrop blur
+## There is no portable backdrop blur — for a floating bar
 Compose's `Modifier.blur` blurs a layer's *own* content, not what is behind it,
 and there is no common equivalent of CSS's `backdrop-filter` or iOS's
 `UIVisualEffectView`. So `GlassSurface` draws a translucent tint and a hairline
@@ -68,6 +68,20 @@ edge — most of what reads as glass — and offers real frosting only via a
 `backdrop` slot that composes the background **twice**. Fine for a static image;
 not for the live map a floating bar actually sits over, which is why it is not
 the default.
+
+**A modal is not the same problem, and does blur properly.** The wall above is
+about a bar that is a sibling *above* live content: there is no single node that
+holds "everything behind the bar". Behind a modal there is — `OverlayHost`
+composes the whole app as one full-size sibling of the overlay stack, in the same
+render tree. Blurring a node's own content is exactly what `Modifier.blur` does,
+so every dimmed overlay softens the screen behind it with nothing composed twice
+and nothing handed in by the caller. See [overlays](../overlays.md#the-backdrop).
+
+The one platform that cannot is Android below API 31, where `RenderEffect` does
+not exist and Compose drops it silently. That is a texture missing from one
+design, not a second design: the shapes, the scrim, the motion and the layout are
+the same everywhere, which is why the scrim still has to carry the separation on
+its own.
 
 `Modifier.atmosphere` is opt-in and deliberately not baked into `Surface`. It is
 a treatment for a hero or an onboarding screen; a gradient behind every list is

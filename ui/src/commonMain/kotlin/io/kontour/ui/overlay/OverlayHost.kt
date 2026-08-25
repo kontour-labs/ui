@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
@@ -92,6 +93,15 @@ class OverlayEntry(
     val key: Any,
     val layer: OverlayLayer,
     val scrim: ScrimStyle = ScrimStyle.Dimmed,
+    /**
+     * What this entry does to the content behind it, beyond dimming it.
+     *
+     * Defaults to following the scrim: anything that dims also blurs, and
+     * anything that does not, does not. A dropdown sits over content the user is
+     * still reading and has no business softening it. See [BackdropStyle].
+     */
+    val backdrop: BackdropStyle =
+        if (scrim == ScrimStyle.Dimmed) BackdropStyle.Blur else BackdropStyle.None,
     val dismissOnOutside: Boolean = true,
     val dismissOnBack: Boolean = true,
     val trapFocus: Boolean = true,
@@ -159,6 +169,21 @@ class OverlayHostState {
      * which is the common case and the recommended one.
      */
     internal var originInRoot: Offset by mutableStateOf(Offset.Zero)
+
+    /**
+     * How far the entry that owns the backdrop is in, or null when none does.
+     *
+     * A lambda rather than a value, and for the same reason [Scrim] takes one:
+     * this changes every frame, and the thing reading it is a `graphicsLayer`
+     * wrapped around the *whole application*. Reading a float here in
+     * composition would recompose every screen in the app once per frame of
+     * every dialog opening.
+     *
+     * Published by the entry rather than owned here, because the progress
+     * animatable lives in `EntryHost` and a sheet supplies its own
+     * [OverlayEntry.visibility] instead. Cleared by whoever set it.
+     */
+    internal var backdropFraction: (() -> Float)? by mutableStateOf(null)
 
     /** The stack, bottom to top. Sorted by layer, then by push order within a layer. */
     val visible: List<OverlayEntry>
@@ -287,6 +312,21 @@ private fun EntryHost(
         if (leaving) state.finishHiding(entry.key)
     }
 
+    // One lambda for the scrim and the backdrop, remembered rather than built
+    // inline: `EntryHost` recomposes on every frame an overlay is animating, and
+    // a fresh lambda each time would re-key everything downstream of it.
+    val fraction: () -> Float = remember(entry) { entry.visibility ?: { progress.value } }
+
+    DisposableEffect(state, dimmed, fraction) {
+        if (dimmed) state.backdropFraction = fraction
+        onDispose {
+            // Only if it is still ours. A second dialog opening over this one
+            // takes the backdrop over, and this entry's disposal must not then
+            // clear the newer entry's fraction and un-blur the screen.
+            if (state.backdropFraction === fraction) state.backdropFraction = null
+        }
+    }
+
     if (entry.scrim != ScrimStyle.None) {
         // Remembered, because `Scrim` uses it as its `pointerInput` key.
         //
@@ -309,7 +349,7 @@ private fun EntryHost(
         Scrim(
             // The same number the panel is drawn with, so the dimming and the
             // thing it dims are one movement — see `Scrim`.
-            fraction = entry.visibility ?: { progress.value },
+            fraction = fraction,
             onDismissRequest = dismiss,
             dismissLabel = entry.dismissLabel,
             color = if (dimmed) Theme.colors.scrim else Color.Transparent,
@@ -392,11 +432,17 @@ fun OverlayHost(
     // hand focus back before it finishes, not after.
     val trapping = state.visible.any { it.trapFocus }
 
+    // Computed here rather than beside the loop below, because the content
+    // sibling needs it too — it is the node the backdrop is applied to.
+    val dimming = topDimmedEntry(stack)
+    val backdrop = dimming?.backdrop ?: BackdropStyle.None
+
     CompositionLocalProvider(LocalOverlayHost provides state) {
-        Box(modifier.fillMaxSize().trackHostOrigin(state)) {
+        Box(modifier.fillMaxSize().trackHostOrigin(state).backdropGround(state, backdrop)) {
             Box(
                 Modifier
                     .fillMaxSize()
+                    .overlayBackdrop(state, backdrop)
                     .semantics {
                         isTraversalGroup = true
                         traversalIndex = 0f
@@ -410,8 +456,6 @@ fun OverlayHost(
             // Each scrim-requesting entry gets its own scrim directly beneath
             // it, so an outside tap always dismisses the thing it is under.
             // Only the topmost dimming one draws colour — see [topDimmedEntry].
-            val dimming = topDimmedEntry(stack)
-
             stack.forEachIndexed { index, entry ->
                 // Keyed by identity, not by slot. Without this, removing an
                 // entry that is not the top one shifts every entry above it

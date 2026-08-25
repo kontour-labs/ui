@@ -88,6 +88,49 @@ sheet dismisses the *sheet* when tapped outside. Dimming every scrim would mean 
 dialog over a sheet darkens the background twice, and a third overlay would sit
 on near-black.
 
+### The backdrop
+
+A modal also **blurs** what is behind it, and that is why the scrim is lighter
+than it looks like it should be. Dimming alone says "ignore that"; taking the
+detail out of it says "you cannot read that anyway", which is the truer statement
+and separates better than either does alone at twice the strength. Under a 54%
+dim a blur is invisible, so the scrim had to come down for the blur to be worth
+anything.
+
+```kotlin
+enum class BackdropStyle {
+    None,          // nothing — tooltips, toasts, menus, coach marks
+    Blur,          // the content behind softens — dialogs, the command palette
+    BlurAndScale,  // blurred and pushed back, the way a card slides under — sheets
+}
+```
+
+**It follows the scrim.** The default is `Blur` for anything that dims and `None`
+for anything that does not, so a dropdown does not soften the page it is sitting
+over — if it was not worth dimming, it is not worth blurring. Sheets override to
+`BlurAndScale`, because a sheet takes an edge of the screen rather than floating
+in the middle of it, and the presenting content receding is what says *on top of
+this screen* rather than *a new screen*.
+
+This is a real backdrop filter, not the two-pass trick `GlassSurface` documents.
+The difference is that behind a modal there is exactly one node — the host
+composes the whole app as a single full-size sibling of the overlay stack — and
+blurring a node's own content is what `Modifier.blur` already does. Nothing is
+composed twice.
+
+The fraction driving it is the same one the scrim uses, read in the layer phase
+rather than in composition. That is not a detail: the layer in question is
+wrapped around the entire application, and reading an animating value during
+composition would recompose every screen in the app once per frame of every
+dialog opening.
+
+**Turning it off.** `KontourTheme(backdropBlur = false)` costs the app a texture
+and nothing else — same shapes, same scrim, same motion, same layout — so it is a
+performance dial rather than a design choice. Worth reaching for over a live map,
+and worth measuring before you do. Android below API 31 has no `RenderEffect` and
+drops the effect silently, so the library skips building the layer there; the
+scrim still has to carry the separation on its own, and does.
+
 ### Back and dismissal
 
 ```kotlin

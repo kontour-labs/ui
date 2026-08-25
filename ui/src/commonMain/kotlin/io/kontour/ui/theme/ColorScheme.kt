@@ -131,7 +131,25 @@ data class ColorScheme(
     val info: StatusColors,
 
     // --- Overlays ---
-    /** Dims content behind a modal. */
+    /**
+     * Dims content behind a modal.
+     *
+     * Lighter than it was, because it is no longer working alone: a modal also
+     * blurs what is behind it, and the two together separate better than either
+     * did at twice the strength. Under a 54% dim a blur is invisible, so the
+     * blur was worth nothing until this came down.
+     *
+     * It still has to carry the separation **on its own**, and that is not a
+     * hedge — Android below API 31 has no `RenderEffect` and this library's
+     * `minSdk` is 29, so on Android 10 and 11 the dim is all there is. Check any
+     * change to it against `contrastRatio` with the blur discounted, not by
+     * looking at a render that has one.
+     *
+     * The high-contrast tiers are deliberately left where they were. High
+     * contrast exists to maximise separation, and it is a per-user setting
+     * rather than a platform, so nothing about it is a cross-platform
+     * difference.
+     */
     val scrim: Color,
     /** Tonal wash applied on hover, composited over whatever is underneath. */
     val overlayHover: Color,
@@ -205,7 +223,7 @@ fun lightColorScheme(
         onContainer = Palette.SkyDeep,
         border = Palette.SkyBorderLight,
     ),
-    scrim: Color = Color(0x8A121212),
+    scrim: Color = Color(0x70121212),
     overlayHover: Color = Color(0x0F121212),
     overlayPressed: Color = Color(0x1F121212),
     overlayDragged: Color = Color(0x29121212),
@@ -293,7 +311,7 @@ fun darkColorScheme(
         onContainer = Palette.SkyPale,
         border = Palette.SkyBorderDark,
     ),
-    scrim: Color = Color(0x99000000),
+    scrim: Color = Color(0x80000000),
     overlayHover: Color = Color(0x14FFFFFF),
     overlayPressed: Color = Color(0x29FFFFFF),
     overlayDragged: Color = Color(0x33FFFFFF),

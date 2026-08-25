@@ -55,6 +55,17 @@ import io.kontour.ui.theme.Theme
  * The marketing site's header uses `backdrop-filter: blur(14px)`; on the web
  * that is free and here it is not. The translucent form is the honest
  * equivalent.
+ *
+ * ### A modal is not this problem
+ *
+ * All of the above is about a panel that is a sibling *above* live content:
+ * there is no single node holding "everything behind the bar", so there is
+ * nothing to blur. Behind a modal there is one —
+ * [io.kontour.ui.overlay.OverlayHost] composes the whole application as a single
+ * full-size sibling of the overlay stack — so every dimmed overlay does blur
+ * what is behind it, properly, with nothing composed twice. See
+ * [io.kontour.ui.overlay.BackdropStyle]. This is the hard case; that one is
+ * not.
  */
 @Composable
 fun GlassSurface(
