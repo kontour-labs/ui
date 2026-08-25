@@ -77,6 +77,7 @@ INDEXES = {
     "navigation",
     "selection",
     "text-editing",
+    "overlays", "sheets",
 }
 
 
@@ -125,7 +126,7 @@ def page_symbols(path: Path) -> list[str]:
 # and it will be once the signature parser moves somewhere both this and the
 # build can read it. Until then a ceiling of one is honest and a list of one name
 # would be the start of a list.
-MAX_WITHOUT_DEMO = 1
+MAX_WITHOUT_DEMO = 1  # unchanged: the overlay and sheet pages arrived with theirs
 
 
 def demo_slugs() -> set[str]:

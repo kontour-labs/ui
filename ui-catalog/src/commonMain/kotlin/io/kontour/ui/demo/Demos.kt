@@ -15,13 +15,13 @@ package io.kontour.ui.demo
  * build.
  */
 val componentDemos: Map<String, ComponentDemo> =
-    (actionDemos + selectionDemos + textEditingDemos + dateTimeDemos + displayDemos + collectionDemos + navigationDemos + adaptiveDemos)
+    (actionDemos + selectionDemos + textEditingDemos + dateTimeDemos + displayDemos + collectionDemos + navigationDemos + adaptiveDemos + overlayDemos + sheetDemos)
         .associateBy { it.slug }
         .also { demos ->
             // A duplicate slug would silently drop one of the two, and the
             // count check in `check-components.py` would then be satisfied by
             // the wrong number. Cheaper to notice here.
-            val all = actionDemos + selectionDemos + textEditingDemos + dateTimeDemos + displayDemos + collectionDemos + navigationDemos + adaptiveDemos
+            val all = actionDemos + selectionDemos + textEditingDemos + dateTimeDemos + displayDemos + collectionDemos + navigationDemos + adaptiveDemos + overlayDemos + sheetDemos
             require(all.size == demos.size) {
                 val duplicates = all.groupBy { it.slug }.filterValues { it.size > 1 }.keys
                 "two demos share a slug: ${duplicates.joinToString()}"

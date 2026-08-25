@@ -274,6 +274,14 @@ a panel with a torn corner. Arrow-bearing panels lean on the shadow instead.
 | A list of actions, on secondary click or long press | `ContextMenuArea` |
 | Arbitrary content attached to a control | `Popover` |
 | A decision that must be made before anything else | `Dialog` / `AlertDialog` |
+| A decision, awaited from a coroutine | `ConfirmationController.confirm()` |
+| The name of a control the user is pointing at | `Modifier.tooltip` |
+| A feature the user has not discovered | `Modifier.coachMark` |
+| Confirmation of something the user just did | `Toast` |
+| Something about the screen the user is on | `Banner` — not a toast |
+| Whole-screen, must-not-interrupt work | `LoadingOverlay` |
+
+A few of these are worth stating as rules rather than a table row.
 
 **A dialog scrolls its own content.** It is centred in the window with nowhere
 else to go, so content taller than the window has no other way out. Without the
@@ -283,14 +291,6 @@ a dialog on a landscape phone drew the last two weeks of the month in the same
 cells, "23" over "30", the rest cut through the middle of the digits. A scroller
 around content that fits costs nothing and changes nothing; it only begins to
 scroll once there is not enough room.
-| A decision, awaited from a coroutine | `ConfirmationController.confirm()` |
-| The name of a control the user is pointing at | `Modifier.tooltip` |
-| A feature the user has not discovered | `Modifier.coachMark` |
-| Confirmation of something the user just did | `Toast` |
-| Something about the screen the user is on | `Banner` — not a toast |
-| Whole-screen, must-not-interrupt work | `LoadingOverlay` |
-
-A few of these are worth stating as rules rather than a table row.
 
 **A toast is for feedback on an action, a banner is about the screen.** A banner
 that appears in response to a tap is easy to miss, because the user is looking at

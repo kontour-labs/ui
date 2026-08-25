@@ -46,6 +46,7 @@ COMPONENTS = Path("docs/using/components")
 INDEXES = (
     "actions", "selection", "text-editing", "date-time", "display",
     "collections", "navigation", "adaptive", "foundation",
+    "overlays", "sheets",
 )
 
 FAMILY = {
@@ -55,6 +56,8 @@ FAMILY = {
     "date-time": "Date and time",
     "display": "Display",
     "collections": "Collections",
+    "overlays": "Overlays",
+    "sheets": "Sheets",
     "navigation": "Navigation",
     "adaptive": "Adaptive",
     "foundation": "Foundation",
