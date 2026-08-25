@@ -176,18 +176,47 @@ same `of(n)` is a sign that value wants a name.
 
 ## Shape
 
-| Token | Radius | Used by |
-|---|---|---|
-| `extraSmall` | 4dp | Badges, tags, inline code |
-| `small` | 8dp | Buttons, inputs, checkboxes |
-| `medium` | 12dp | Cards, list groups, menus |
-| `large` | 16dp | Dialogs, large cards |
-| `extraLarge` | 24dp | Bottom sheets, hero panels |
-| `pill` | 50% | Nav bars, chips, avatars, FABs |
+| Token | Radius | Corner | Used by |
+|---|---|---|---|
+| `extraSmall` | 8dp | circular | Badges, tags, inline code |
+| `small` | 14dp | circular | Buttons, inputs, checkboxes |
+| `medium` | 20dp | squircle | Cards, list groups, menus |
+| `large` | 26dp | squircle | Dialogs, large cards |
+| `extraLarge` | 32dp | squircle | Sheets, hero panels |
+| `pill` | 50% | capsule | Nav bars, chips, avatars, FABs |
+| `sheet` | 32dp top only | squircle | Bottom sheets |
+| `sideSheet` | 32dp leading only | squircle | Side sheets |
 
-Tighter than the marketing site on purpose. Controls stay near-square so they
-read as mechanical; roundness is spent on navigation and sheets, where it does
-work.
+**One step, all the way up.** Every rung is 6dp above the one below it, and that
+regularity is the point rather than tidiness. Two rounded shapes nested inside
+one another look right when the inner radius is the outer radius minus the gap
+between them, and wrong otherwise — the corners stop being parallel and the gap
+pinches. That only works if the scale steps evenly, and the old `4 / 4 / 4 / 8`
+ladder broke at the top, so a control nested in a dialog was concentric and the
+same control nested in a sheet was not.
+
+Do not step through the scale by eye. `Theme.shapes.small.inset(6.dp)` gives the
+radius something 6dp inside a `small` container should use, floors at zero, and
+keeps the kind of corner it was called on.
+
+### Two kinds of corner
+
+From `medium` up the corners are **squircles** — curvature eased in and out
+rather than a quarter circle bolted between two straight edges. Both corners
+share the same arc, so at forty-five degrees they are the same point; what
+differs is that a squircle starts bending at `1.6 × radius` from the corner and
+arrives gradually, where an arc holds the straight edge until `radius` and then
+turns all at once. That earlier, gentler departure is the whole of the effect,
+and it is why a large surface reads as drawn rather than clipped.
+
+It is not free: a squircle is a generic path to clip, to border and to shadow.
+Below about 12dp the smoothing is invisible, so `extraSmall` and `small` stay
+circular and pay nothing. `pill` is a true capsule, where the corner is a
+semicircle and there is no curvature discontinuity to remove in the first place.
+
+`sheet` and `sideSheet` are `extraLarge` with two corners squared off, derived
+rather than restated — a panel against the edge of the window should be square
+where it meets that edge, and the same radius as a hero panel everywhere else.
 
 ---
 

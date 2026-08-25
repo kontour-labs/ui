@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -334,8 +333,8 @@ fun PageIndicator(
                     modifier = Modifier
                         .width(width)
                         .height(PageIndicatorDefaults.DotSize)
-                        .clip(CircleShape),
-                    shape = CircleShape,
+                        .clip(Theme.shapes.pill),
+                    shape = Theme.shapes.pill,
                     // Under a worm every dot is a track, and the pill on top is
                     // the only thing that says which page this is.
                     color = if (active) activeColor else inactiveColor,

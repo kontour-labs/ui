@@ -29,9 +29,11 @@ traversal semantics in one place so a second toolbar does not grow a second set
 of numbers.
 
 **Its corners are concentric with what it holds.** `ToolbarDefaults.Shape` is
-one step up the shape scale from the controls inside — the scale climbs in 4dp
-steps and the content padding is 4dp, so `medium` around `small` puts the two
-curves exactly parallel. It was a pill until a `ButtonGroup`'s corners were
+one rung up the shape scale from the controls inside — the scale climbs in even
+6dp steps and the content padding is 6dp, so `medium` around `small` puts the two
+curves exactly parallel. Where a gap is not a whole rung,
+[`inset`](../tokens.md#shape) derives the inner shape rather than leaving you to
+pick a token and hope. It was a pill until a `ButtonGroup`'s corners were
 found poking through it and being sheared flat. If your toolbar holds nothing
 but circular `IconButton`s, `Theme.shapes.pill` is the concentric choice there
 and worth passing.

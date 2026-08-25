@@ -117,8 +117,13 @@ fun ToolbarDivider(modifier: Modifier = Modifier) {
 }
 
 object ToolbarDefaults {
-    /** The ring of space between the surface's edge and its first control. */
-    val ContentPadding: Dp = 4.dp
+    /**
+     * The ring of space between the surface's edge and its first control.
+     *
+     * One rung of the shape scale, which is what lets [Shape] be the token
+     * directly above the children's without any arithmetic at the call site.
+     */
+    val ContentPadding: Dp = 6.dp
 
     /**
      * One step up the shape scale from the controls inside, which is what
@@ -127,16 +132,16 @@ object ToolbarDefaults {
      * Two rounded shapes nested inside one another look right when the outer
      * radius is the inner radius *plus* the gap between them, and wrong
      * otherwise — the corners stop being parallel and the gap pinches. This used
-     * to be [io.kontour.ui.theme.Shapes.pill], which is as far from an 8dp
+     * to be [io.kontour.ui.theme.Shapes.pill], which is as far from a `small`
      * [ButtonGroup] as a radius can get: the group's top corner fell *outside*
      * the pill's curve at 4dp of padding and was clipped flat against it, which
      * is what the toolbar's own render showed and nobody read.
      *
-     * The scale climbs in 4dp steps and [ContentPadding] is 4dp, so the step
-     * above the children's `small` is exactly `small + ContentPadding`. That
-     * coincidence is not one — the ladder is built to nest. Change
-     * [ContentPadding] and this stops being concentric, so change the shape with
-     * it.
+     * The scale climbs in even 6dp steps and [ContentPadding] is 6dp, so the
+     * rung above the children's `small` is exactly `small + ContentPadding`.
+     * That coincidence is not one — the ladder is built to nest. Change
+     * [ContentPadding] and this stops being concentric, so derive the shape with
+     * [io.kontour.ui.theme.inset] rather than picking a token.
      *
      * **A pill is right for a toolbar of nothing but circular
      * [IconButton]s** — there the children's radius is half their height, the

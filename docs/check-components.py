@@ -458,6 +458,45 @@ def main() -> int:
                 f"points at is a page nobody reads"
             )
 
+    # Rule 11 — the radius scale is written down three times and executes once.
+    #
+    # `Shapes.kt`'s defaults are the only copy the build runs. Its own KDoc table
+    # and the one in `tokens.md` are prose, and prose drifts: for most of this
+    # library's life both of them said `extraLarge` was what bottom sheets used,
+    # which was never true — sheets have always had their own token. Checking the
+    # two tables against the code is cheap and it is the only thing that would
+    # have caught that.
+    shapes_source = Path("ui/src/commonMain/kotlin/io/kontour/ui/theme/Shapes.kt")
+    if shapes_source.exists():
+        source = shapes_source.read_text()
+        actual = {
+            name: (radius, "squircle" if kind == "SquircleShape" else "circular")
+            for name, kind, radius in re.findall(
+                r"val (\w+): CornerBasedShape = (RoundedCornerShape|SquircleShape)\((\d+)\.dp\)",
+                source,
+            )
+        }
+        tables = {
+            "Shapes.kt": (source, re.compile(r"\|\s*\[(\w+)\]\s*\|\s*(\d+)dp\s*\|\s*(\w+)\s*\|")),
+            "tokens.md": (
+                (CONTENT / "tokens.md").read_text(),
+                re.compile(r"\|\s*`(\w+)`\s*\|\s*(\d+)dp\s*\|\s*(\w+)\s*\|"),
+            ),
+        }
+        for where, (text, pattern) in tables.items():
+            documented = {
+                name: (radius, kind) for name, radius, kind in pattern.findall(text)
+            }
+            for name, (radius, kind) in actual.items():
+                if name not in documented:
+                    problems.append(f"{where} has no row for the `{name}` radius token")
+                elif documented[name] != (radius, kind):
+                    was = documented[name]
+                    problems.append(
+                        f"{where} says `{name}` is {was[0]}dp and {was[1]}, but "
+                        f"Shapes.kt builds it at {radius}dp and {kind}"
+                    )
+
     if problems:
         print(f"{len(problems)} problem(s):", file=sys.stderr)
         for problem in sorted(problems):

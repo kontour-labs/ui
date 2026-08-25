@@ -82,8 +82,13 @@ fun Modifier.focusRing(
         // percentage corner comes out right too: `pill` on a 40px box resolves
         // to 20, plus 3 is 23 — exactly half of the 46px ring. Which is why
         // `pill` never looked wrong and everything else did.
+        //
+        // Grown through `copy` rather than rebuilt as a RoundedCornerShape, so a
+        // ring around a squircle is a squircle. Rebuilding it silently returned
+        // every smoothed corner in the library to a circular arc at the one
+        // moment it is under a spotlight.
         val ringShape = (shape as? CornerBasedShape)?.let { corners ->
-            RoundedCornerShape(
+            corners.copy(
                 topStart = CornerSize(corners.topStart.toPx(size, this) + grow),
                 topEnd = CornerSize(corners.topEnd.toPx(size, this) + grow),
                 bottomEnd = CornerSize(corners.bottomEnd.toPx(size, this) + grow),
