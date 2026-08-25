@@ -36,9 +36,65 @@ Per-target compilation runs only in CI
 ```
 
 A component that compiles on the JVM and not on Wasm is a component that ships
-broken, and `commonMain` will not tell you which. The
-[API reference](#the-api-reference-is-a-gate) is generated in the same job, for
-the same reason: it fails on KDoc nothing else reads.
+broken, and `commonMain` will not tell you which.
+
+### What CI actually runs, and what it does not run twice
+
+One workflow, six jobs. It was two workflows, which is how the API reference
+came to be generated twice on every commit: `ci.yml` built it in `targets` and
+uploaded it as an artifact, and `pages.yml` built it again because a workflow
+cannot reach another workflow's artifacts. Dokka lives in the `site` job now —
+the one that publishes it under `/api/`.
+
+| Job | Runs on | For |
+|---|---|---|
+| `guard` | every event | Decides whether main has to re-prove what a pull request already did |
+| `test` | unless `guard` settles it | The suite above, plus the Python checks |
+| `targets` | unless `guard` settles it | Every target compiled |
+| `site` | every event | The Wasm bundle and the API reference — the slowest thing here |
+| `deploy` | not on a pull request | GitHub Pages |
+| `publish` | a `v*` tag, or a manual version | GitHub Packages |
+
+`deploy` needs only `site`, deliberately: a library regression should not take
+the documentation offline, and a broken page should not block a release.
+
+#### The guard
+
+Merging a pull request produces a commit whose **tree** is byte-for-byte the
+branch head's, whenever main has not moved underneath it — and that holds for a
+merge commit, a squash and a rebase alike. So the work `test` and `targets`
+would do on main is work already done, on the same bytes, minutes earlier.
+`guard` compares the two tree SHAs through the API and asks whether that head
+has a successful CI run; if both hold, main builds the site and deploys and does
+nothing else.
+
+This is what a merge queue gives you, arrived at from the other direction:
+rather than testing the merge result before it lands, notice afterwards that the
+result is identical to something already tested.
+
+Every path out of it that cannot *prove* the trees match settles on "run
+everything" — a direct push, a conflicted merge, main having moved, a missing
+run, a failed API call, and the guard job itself failing. That last one is why
+the two gated jobs read `!cancelled() && …` rather than a bare condition: a
+failed dependency skips its dependants by default, which is the one direction
+this must never fail in.
+
+#### What is cached
+
+| | Key | Why |
+|---|---|---|
+| `~/.konan` | the version catalogue | A compiler and a platform klib set per target, hundreds of megabytes, in no Gradle cache |
+| `~/.gradle/{nodejs,yarn,binaryen}` | the version catalogue | Node is 210 MB and binaryen is 322 MB, fetched from outside GitHub; the measured restore rate for a cache entry in this repository is 360 MB/s |
+
+Keyed on `gradle/libs.versions.toml` rather than on a lockfile because there is
+no lockfile — `kotlin-js-store` is not committed, and which Node, which yarn and
+which binaryen get fetched is decided by the Kotlin and Compose versions pinned
+there.
+
+`build/js/node_modules` is deliberately not cached. Gradle regenerates the
+`package.json` files under `build/js` on every run, and a restored `node_modules`
+disagreeing with a freshly generated manifest is a confusing failure in exchange
+for a much smaller saving than the two above.
 
 ---
 

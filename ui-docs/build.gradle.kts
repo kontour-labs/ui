@@ -207,6 +207,6 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 }
 
 // `wasmJsBrowserDistribution` writes to `build/dist/wasmJs/productionExecutable`,
-// which is what `.github/workflows/pages.yml` copies. That path is a convention
-// of the Kotlin plugin rather than a promise, so the workflow asserts the files
-// it expects are there rather than trusting the copy to have found them.
+// which is what the `site` job in `.github/workflows/ci.yml` copies. That path
+// is a convention of the Kotlin plugin rather than a promise, so the workflow
+// asserts the files it expects are there rather than trusting the copy.
