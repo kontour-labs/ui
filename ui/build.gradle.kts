@@ -176,6 +176,34 @@ dokka {
 }
 
 kotlin {
+    // ---------------------------------------------------------------------
+    // Warnings are errors, in the library's own code
+    // ---------------------------------------------------------------------
+    //
+    // Nothing here failed on a compiler warning until now, which is how a
+    // deprecated `AnchoredDraggableState` constructor, two redundant `else`
+    // branches and a safe call on a non-null receiver all sat in the published
+    // library at once. Dokka has always failed on *its* warnings, and the KDoc
+    // has stayed correct as a direct result; this is the same bargain for the
+    // code.
+    //
+    // **Main compilations only.** Test sources stay permissive deliberately, and
+    // this round is the argument: bumping Compose deprecated `runComposeUiTest`
+    // at ninety-odd call sites, and a build that refuses to compile until every
+    // one of them is migrated is a build that makes upgrading the dependency the
+    // most expensive thing you can do. A deprecation in *shipped* code is a
+    // defect; a deprecation in a test is a migration waiting for a quiet
+    // afternoon.
+    targets.configureEach {
+        compilations.configureEach {
+            if (name == "main") {
+                compileTaskProvider.configure {
+                    compilerOptions.allWarningsAsErrors.set(true)
+                }
+            }
+        }
+    }
+
     // The JVM target is not a shipping platform. It exists so the component
     // library can be compiled, unit-tested and screenshot-tested without an
     // emulator or a simulator in the loop.

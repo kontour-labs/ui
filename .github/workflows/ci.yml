@@ -339,12 +339,50 @@ jobs:
           test -f site/index.html
           test -f site/api/index.html
 
-          # Every preload has to name a file that is really there. A preload
-          # pointing at nothing is silent: the browser fetches it, gets a 404,
-          # and the page still works — just without the head start it was the
-          # whole point of. The bundle's filenames are a convention of the
-          # Kotlin plugin rather than a promise, so they are checked rather
-          # than trusted.
+          # What the bundle actually contains. Printed because the filenames are
+          # a convention of the Kotlin plugin rather than a promise, and this is
+          # the only place anybody gets to see what it chose.
+          echo "::group::Distribution contents"
+          find site -maxdepth 1 -type f -printf '%10s  %P\n' | sort -k2
+          echo "::endgroup::"
+
+          # Preload the wasm binaries, named from the build rather than guessed.
+          #
+          # These are ~5 MB gzipped between them and nothing can start fetching
+          # either one until the browser has downloaded, parsed and run
+          # `ui-docs.js` — one round trip and a parse serialised in front of the
+          # biggest thing on the page, which is most of a first load on a phone.
+          #
+          # They used to be two hardcoded tags in `index.html`, and one of them
+          # named a file that only exists in an intermediate build directory. A
+          # preload that misses is invisible — the browser fetches it, gets a
+          # 404, and the page still works, just slowly — so it is generated from
+          # the directory listing above and can only name something real.
+          #
+          # `crossorigin` is required even same-origin: without it the preload is
+          # fetched in a different mode from the one the module loader uses, and
+          # the browser downloads the file twice.
+          preloads=$(cd site && find . -maxdepth 1 -name '*.wasm' -printf '%P\n' | sort | while read -r w; do
+            printf '    <link rel="preload" href="%s" as="fetch" type="application/wasm" crossorigin>\n' "$w"
+          done)
+          if [ -z "$preloads" ]; then
+            echo "no .wasm in the distribution — the bundle layout changed" >&2
+            exit 1
+          fi
+          printf '%s\n' "$preloads"
+          grep -q '</head>' site/index.html || {
+            echo "index.html has no </head> to inject the preloads before" >&2
+            exit 1
+          }
+          awk -v pre="$preloads" '
+            /<\/head>/ && !done { print pre; done = 1 }
+            { print }
+          ' site/index.html > site/index.html.new
+          mv site/index.html.new site/index.html
+
+          # Every preload has to name a file that is really there. The generated
+          # ones pass by construction; this is here for the hand-written ones,
+          # the two font weights that draw the first screen.
           grep -o 'rel="preload" href="[^"]*"' site/index.html \
             | sed 's/.*href="//; s/"$//' \
             | while read -r asset; do
