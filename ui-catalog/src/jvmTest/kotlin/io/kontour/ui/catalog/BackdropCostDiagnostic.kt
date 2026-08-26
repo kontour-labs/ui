@@ -62,7 +62,7 @@ class BackdropCostDiagnostic {
 
     private fun millisPerFrame(blur: Boolean): Double {
         var open by mutableStateOf(false)
-        return Scene(width = 420, height = 900, density = 3f) {
+        return Scene(width = PhoneWidthPx, height = PhoneHeightPx, density = 3f) {
             KontourTheme(backdropBlur = blur) {
                 OverlayHost(Modifier.fillMaxSize()) {
                     Box(Modifier.fillMaxSize().background(Color.White)) {
@@ -92,6 +92,20 @@ class BackdropCostDiagnostic {
     }
 
     private companion object {
-        const val Samples = 60
+        /**
+         * A real phone, in the physical pixels `Scene` actually takes.
+         *
+         * This said `420, 900`, which is not a phone — `ImageComposeScene`'s
+         * width and height are **device pixels**, so at density 3 that was
+         * 140×300dp, about a ninth of the surface it claimed to be measuring.
+         * Blur cost scales with area, so the ratio it produced was measured over
+         * a ninth of a screen and the figure that went into a commit message
+         * with it was wrong. 1170×2532 is an iPhone 14: 390×844dp at 3×.
+         */
+        const val PhoneWidthPx = 1170
+        const val PhoneHeightPx = 2532
+
+        /** Fewer than before, because each frame is now nine times the pixels. */
+        const val Samples = 30
     }
 }
