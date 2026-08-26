@@ -9,10 +9,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.down
 import androidx.compose.ui.test.up
+import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test

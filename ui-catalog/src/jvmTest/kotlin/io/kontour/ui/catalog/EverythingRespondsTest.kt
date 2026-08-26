@@ -15,7 +15,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.isEnabled
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.test.runDesktopComposeUiTest
+import androidx.compose.ui.test.v2.runDesktopComposeUiTest
 import androidx.compose.ui.unit.Density
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme

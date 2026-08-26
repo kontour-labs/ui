@@ -7,7 +7,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
