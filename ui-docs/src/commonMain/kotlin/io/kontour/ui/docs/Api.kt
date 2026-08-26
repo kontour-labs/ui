@@ -60,3 +60,17 @@ class ApiEntry(
 /** An enum and its entries, for the values note under a table. */
 @Immutable
 class ApiEnum(val name: String, val values: List<String>)
+
+/**
+ * The API entries for one symbol, built on first ask and kept.
+ *
+ * `apiBySymbol` holds a builder per symbol rather than the entries themselves.
+ * Built eagerly it was 491 `ApiEntry` and 1,925 `ApiParameter` objects
+ * constructed before the first frame, for 422 symbols, to draw the table of the
+ * one component the reader opened. A non-capturing lambda compiles to a
+ * singleton, so what stays eager is 422 references to nothing.
+ */
+internal fun apiFor(symbol: String): List<ApiEntry> =
+    apiCache.getOrPut(symbol) { apiBySymbol[symbol]?.invoke() ?: emptyList() }
+
+private val apiCache = HashMap<String, List<ApiEntry>>()

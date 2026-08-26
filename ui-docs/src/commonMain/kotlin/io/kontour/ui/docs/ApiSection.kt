@@ -35,7 +35,7 @@ import io.kontour.ui.theme.Theme
 fun ApiSection(page: DocPage, modifier: Modifier = Modifier) {
     val entries = remember(page.slug) {
         page.symbols
-            .flatMap { apiBySymbol[it].orEmpty() }
+            .flatMap { apiFor(it) }
             // Two symbols on one page can name the same declaration —
             // `Modifier.fadingEdges` is reachable as itself and as a member of
             // nothing else — and an overload must survive, so identity is the
