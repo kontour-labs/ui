@@ -89,7 +89,7 @@ fun SelectionRow(
     val slots = listItemSlots(content)
     val colors = Theme.colors
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val shape = Theme.shapes.small
+    val shape = Theme.shapes.container
     val feedback = Feedback
 
     val selectionModifier = when {

@@ -78,7 +78,7 @@ fun Chip(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colors = Theme.colors
-    val shape = Theme.shapes.pill
+    val shape = Theme.shapes.control
     val feedback = Feedback
 
     ChipSurface(
@@ -134,7 +134,7 @@ fun FilterChip(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colors = Theme.colors
     val motion = Theme.motion
-    val shape = Theme.shapes.pill
+    val shape = Theme.shapes.control
     val feedback = Feedback
 
     val container by animateColorAsState(
@@ -240,7 +240,7 @@ fun InputChip(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colors = Theme.colors
-    val shape = Theme.shapes.pill
+    val shape = Theme.shapes.control
     val feedback = Feedback
 
     Row(
@@ -280,13 +280,13 @@ fun InputChip(
             if (removeIcon != null) {
                 Row(
                     Modifier
-                        .clip(Theme.shapes.pill)
+                        .clip(Theme.shapes.control)
                         .clickable(
                             enabled = enabled,
                             role = Role.Button,
                             onClickLabel = removeLabel,
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = kontourIndication(Theme.shapes.pill),
+                            indication = kontourIndication(Theme.shapes.control),
                             onClick = {
                                 feedback.perform(FeedbackIntent.Selection)
                                 onRemove()

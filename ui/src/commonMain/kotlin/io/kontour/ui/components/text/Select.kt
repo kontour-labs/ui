@@ -427,7 +427,7 @@ private fun SelectFrame(
         focused = focused || expanded,
         colors = colors,
         metrics = metrics,
-        shape = Theme.shapes.small,
+        shape = Theme.shapes.field,
         label = label,
         supporting = supporting,
         errorMessage = errorMessage,
@@ -456,7 +456,7 @@ private fun SelectFrame(
                 interactionSource = interactions,
                 // A whole field flinching is too much movement for a control
                 // this large — see `kontourIndication`.
-                indication = kontourIndication(Theme.shapes.small, pressScale = 1f),
+                indication = kontourIndication(Theme.shapes.field, pressScale = 1f),
                 enabled = enabled,
                 onClick = {
                     feedback.perform(FeedbackIntent.Selection)

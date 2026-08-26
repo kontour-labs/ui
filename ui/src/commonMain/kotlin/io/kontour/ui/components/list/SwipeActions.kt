@@ -213,7 +213,7 @@ fun SwipeActions(
     start: List<SwipeAction> = emptyList(),
     end: List<SwipeAction> = emptyList(),
     state: SwipeActionsState = rememberSwipeActionsState(),
-    shape: Shape = Theme.shapes.medium,
+    shape: Shape = Theme.shapes.container,
     actionWidth: Dp = SwipeActionsDefaults.ActionWidth,
     content: @Composable () -> Unit,
 ) {
@@ -516,7 +516,7 @@ fun SwipeToDismiss(
     enabled: Boolean = true,
     background: Color = Theme.colors.danger.solid,
     state: SwipeActionsState = rememberSwipeActionsState(),
-    shape: Shape = Theme.shapes.medium,
+    shape: Shape = Theme.shapes.container,
     content: @Composable () -> Unit,
 ) {
     SwipeActions(

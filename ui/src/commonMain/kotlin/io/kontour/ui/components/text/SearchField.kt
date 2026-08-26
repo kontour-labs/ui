@@ -66,7 +66,7 @@ fun SearchField(
     onQuery: ((String) -> Unit)? = null,
     onSearch: ((String) -> Unit)? = null,
     variant: TextFieldVariant = TextFieldVariant.Filled,
-    shape: Shape = Theme.shapes.small,
+    shape: Shape = Theme.shapes.field,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val currentOnQuery by rememberUpdatedState(onQuery)

@@ -876,3 +876,50 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
 tasks.named("check") {
     dependsOn(checkApiConventions, checkKdocSamples)
 }
+
+// ---------------------------------------------------------------------------
+// The web test tasks, and the check that exists to say they do not work
+// ---------------------------------------------------------------------------
+//
+// The Compose plugin registers a `checkComposeUiTestConfiguration<Target>` task
+// for each web target of any project depending on `compose.uiTest`, and fails it
+// unless that target declares `binaries.executable()` — the webpack bundling a
+// browser test runner needs in order to load Skiko. `:ui-catalog` and `:ui-docs`
+// both declare one, because both genuinely ship a web bundle, and both pass.
+// This module is a library and does not, so `check` and `build` have never run
+// to completion here; CI names its test tasks one by one to route around it.
+//
+// **The check is right.** `commonTest` asks for `compose.uiTest`, so js and
+// wasmJs test compilations exist, and running them would fail to load Skiko.
+// There are two coherent answers and no third: make those tests run, or stop
+// declaring them.
+//
+// Making them run means `binaries.executable()`, and the price is on the wrong
+// task. `:ui:assemble` — which builds what gets published — completes in about
+// four seconds with no network at all; adding the executable pulls
+// `kotlinNpmInstall` and `kotlinWasmToolingSetup` into it, so building the
+// library would first fetch the npm registry and karma from GitHub. A hard
+// dependency on two external hosts, on the publish path, for a bundle nothing
+// consumes.
+//
+// So the web test tasks are switched off and the check goes with them, which
+// makes the existing arrangement deliberate rather than accidental: **this suite
+// runs on the JVM.** `runComposeUiTest` renders through Skiko, and Skiko is also
+// what iOS and desktop draw with, so a JVM run exercises the same rasteriser two
+// of the four platforms ship. The web targets are covered by compiling every one
+// of them in the `targets` job, and by `:ui-docs` building and deploying a real
+// wasm bundle of this library on every commit — which puts more of it through a
+// browser than a unit test would.
+//
+// One thing this does *not* buy: `check` still triggers `kotlinNpmInstall`,
+// because declaring `browser()` puts the browser test environment in the task
+// graph whether or not anything runs in it, and a disabled task does not prune
+// its own dependencies. That is unavoidable short of dropping the browser
+// target, and costs nothing on a machine that can reach the npm registry.
+//
+// To reverse this: add `binaries.executable()`, drop the two lines below, run
+// `:ui:jsTest` and `:ui:wasmJsTest` in CI, and accept npm on `assemble`.
+tasks.matching {
+    it.name.startsWith("checkComposeUiTestConfiguration") ||
+        it.name in setOf("jsTest", "jsBrowserTest", "wasmJsTest", "wasmJsBrowserTest")
+}.configureEach { enabled = false }

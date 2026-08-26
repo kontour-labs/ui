@@ -191,7 +191,7 @@ fun AnchoredDropdownMenu(
     val dismiss by rememberUpdatedState(onDismissRequest)
     val body by rememberUpdatedState(content)
 
-    val shape = Theme.shapes.medium
+    val shape = Theme.shapes.container
     val anchorWidth = anchor?.let { with(density) { it.width.toDp() } } ?: Dp.Unspecified
 
     // Read live by the overlay's measure pass rather than captured when the

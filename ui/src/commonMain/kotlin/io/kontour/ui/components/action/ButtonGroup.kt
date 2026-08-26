@@ -72,7 +72,7 @@ fun ButtonGroup(
     enabled: Boolean = true,
     size: ButtonSize = ButtonSize.Medium,
     variant: ButtonVariant = ButtonVariant.Tertiary,
-    shape: CornerBasedShape = Theme.shapes.small,
+    shape: CornerBasedShape = Theme.shapes.control,
     content: ButtonGroupScope.() -> Unit,
 ) {
     val actions = buttonGroupActions(content)

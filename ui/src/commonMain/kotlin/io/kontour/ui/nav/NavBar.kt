@@ -17,7 +17,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -161,17 +161,25 @@ fun NavBar(
                 .fillMaxWidth()
                 .then(
                     if (backdrop) {
-                        Modifier.drawBehind {
+                        // `drawWithCache`, not `drawBehind`: a `Brush` built
+                        // inside the draw block is rebuilt on every frame the
+                        // bar is redrawn, and a vertical gradient carries a
+                        // shader that has to be recreated with it. Nothing here
+                        // depends on anything but the size and the colour, so
+                        // both live in the cache block and the draw block only
+                        // draws.
+                        Modifier.drawWithCache {
                             val top = size.height - backdropHeight
-                            drawRect(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, backdropColor),
-                                    startY = top,
-                                    endY = size.height,
-                                ),
-                                topLeft = Offset(0f, top),
-                                size = Size(size.width, backdropHeight),
+                            val brush = Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, backdropColor),
+                                startY = top,
+                                endY = size.height,
                             )
+                            val topLeft = Offset(0f, top)
+                            val fade = Size(size.width, backdropHeight)
+                            onDrawBehind {
+                                drawRect(brush = brush, topLeft = topLeft, size = fade)
+                            }
                         }
                     } else {
                         Modifier

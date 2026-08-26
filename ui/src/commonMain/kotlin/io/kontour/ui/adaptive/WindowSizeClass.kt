@@ -82,16 +82,56 @@ enum class WindowHeightClass {
     }
 }
 
-/** The window's size, in classes and in the measurements they came from. */
+/**
+ * The window's size, in classes and in the measurements they came from.
+ *
+ * ### Two of these four are deliberately outside `equals`
+ *
+ * [widthDp] and [heightDp] are the raw measurement. They are here because a
+ * component occasionally wants the real number, and they are **not** part of
+ * equality because this value is provided through a
+ * [staticCompositionLocalOf][LocalWindowSizeClass], and a static local does not
+ * track which composable read what: when its value changes it invalidates the
+ * entire content beneath it. With the raw pixels in `equals`, that is the whole
+ * application.
+ *
+ * On a desktop, where a window sits still, nothing notices. On a phone browser
+ * it is a catastrophe hiding in plain sight: the URL bar collapses and expands
+ * *while the reader scrolls*, resizing the viewport by tens of pixels, so every
+ * scroll recomposed every screen in the app. It was the largest single cost in
+ * the documentation site and it was costing every consuming app too.
+ *
+ * What is left in `equals` is what a layout can actually act on — the two
+ * buckets and [isLandscape]. Those change when the window genuinely becomes a
+ * different shape, which is exactly when a layout should be reconsidered.
+ */
 @Immutable
-data class WindowSizeClass(
+class WindowSizeClass(
     val width: WindowWidthClass,
     val height: WindowHeightClass,
     val widthDp: Dp,
     val heightDp: Dp,
 ) {
     /** True for a window that is much wider than it is tall. */
-    val isLandscape: Boolean get() = widthDp > heightDp
+    val isLandscape: Boolean = widthDp > heightDp
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is WindowSizeClass) return false
+        return width == other.width &&
+            height == other.height &&
+            isLandscape == other.isLandscape
+    }
+
+    override fun hashCode(): Int {
+        var result = width.hashCode()
+        result = 31 * result + height.hashCode()
+        result = 31 * result + isLandscape.hashCode()
+        return result
+    }
+
+    override fun toString(): String =
+        "WindowSizeClass(width=$width, height=$height, ${widthDp.value}x${heightDp.value}dp)"
 
     companion object {
         fun of(width: Dp, height: Dp): WindowSizeClass = WindowSizeClass(

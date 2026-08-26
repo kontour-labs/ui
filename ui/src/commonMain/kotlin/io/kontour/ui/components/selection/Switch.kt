@@ -43,8 +43,8 @@ import kotlinx.coroutines.launch
 
 private val TrackWidth = 48.dp
 private val TrackHeight = 28.dp
-private val ThumbSize = 22.dp
-private val ThumbPadding = 3.dp
+private val ThumbSize = 24.dp
+private val ThumbPadding = 2.dp
 
 /** How much wider than round the thumb gets while it is moving. */
 private const val ThumbStretch = 1.25f
@@ -66,10 +66,20 @@ private const val ThumbStretch = 1.25f
  * and it is what stops the control feeling like a rectangle sliding in a slot.
  * Under reduced motion the thumb simply moves.
  *
- * The track colour uses [io.kontour.ui.theme.ColorScheme.primary] when on and
- * a bordered, unfilled track when off, rather than a light grey fill. The
- * marketing site's own notes call this out: a grey track sits too close in tone
- * to the surfaces it is toggled on top of to read as a distinct control.
+ * The track is [io.kontour.ui.theme.ColorScheme.primary] when on and
+ * [io.kontour.ui.theme.ColorScheme.outlineStrong] when off — **filled** in both
+ * states, and the thumb is the same colour throughout, so the only thing that
+ * changes is the track behind it. That is a switch: one moving part.
+ *
+ * It used to be an unfilled, stroked capsule when off, on the reasoning that a
+ * grey track sits too close in tone to the surfaces it is toggled on top of to
+ * read as a distinct control. The reasoning was right and the conclusion was
+ * not — the answer is not *no* fill, it is a fill dark enough. `outlineStrong`
+ * is the token that exists for exactly this: the boundary of anything
+ * interactive, held at the 3:1 WCAG 1.4.11 asks for. It clears that against
+ * `surface` and `surfaceRaised` in both schemes, which the surface ramp itself
+ * cannot — `surfaceSunken` is 1.03:1 against `surface` in light mode, and that
+ * is the grey the old note was really about.
  */
 @Composable
 fun Switch(
@@ -96,34 +106,20 @@ fun Switch(
         if (onCheckedChange == null && interactionSource == null && row != null) row else interactions
     val pressed by pressSource.collectIsPressedAsState()
 
-    val stroke = selectionStroke(enabled)
-
     val trackColor by animateColorAsState(
         targetValue = when {
-            !enabled && checked -> colors.contentDisabled
-            !enabled -> colors.primary.invisible()
+            !enabled -> colors.contentDisabled
             checked -> colors.primary
-            else -> colors.primary.invisible()
+            else -> colors.outlineStrong
         },
         animationSpec = motion.tweenFast(),
         label = "switchTrack",
     )
-    val trackBorder by animateColorAsState(
-        targetValue = when {
-            !enabled -> colors.contentDisabled
-            checked -> colors.primary
-            else -> colors.outlineStrong
-        },
-        animationSpec = motion.tweenFast(),
-        label = "switchTrackBorder",
-    )
+    // The thumb does not change colour, in either direction. A switch has one
+    // moving part and one thing that changes behind it; recolouring the thumb as
+    // well makes the flip read as two events.
     val thumbColor by animateColorAsState(
-        targetValue = when {
-            !enabled && checked -> contentColorFor(colors.contentDisabled)
-            !enabled -> colors.contentDisabled
-            checked -> colors.onPrimary
-            else -> colors.outlineStrong
-        },
+        targetValue = if (enabled) colors.onPrimary else contentColorFor(colors.contentDisabled),
         animationSpec = motion.tweenFast(),
         label = "switchThumb",
     )
@@ -266,17 +262,14 @@ fun Switch(
             )
             .size(width = TrackWidth, height = TrackHeight)
     ) {
-        val strokeWidth = stroke.toPx()
         val trackRadius = size.height / 2f
 
+        // One filled capsule, no outline over it. An outline on a filled track
+        // would have to be a third colour to be visible at all, and a switch
+        // does not need a third colour.
         drawRoundRect(
             color = trackColor,
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackRadius),
-        )
-        drawRoundRect(
-            color = trackBorder,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackRadius),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
         )
 
         // Drawn to the box it was *given*, not the box it asked for.

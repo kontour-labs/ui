@@ -323,6 +323,68 @@ is a bit generous".
 
 ---
 
+## How performance is measured
+
+**Counted, not timed.** A stopwatch here measures this container: a software
+rasteriser, no GPU, and a harness that PNG-encodes and re-decodes every frame.
+A count of measures, layouts, draws or recompositions is CPU-bound Kotlin running
+the identical code on a JVM and on a phone — the number taken here is the number
+a phone sees. So counts are the gates, and the two timing instruments that exist
+are diagnostics that print a number without failing a build.
+
+| Instrument | Where | Counts |
+|---|---|---|
+| `PhaseCounts` + `Modifier.countPhases` | `ui/src/commonTest/…/PhaseCounts.kt` | measures, placements, draws |
+| the `Counted` pattern | `OverlayRecompositionTest` | recompositions |
+| `SheetState.anchorRebuilds` | `:ui`, production code | anchor rebuilds per frame |
+| `BackdropCostDiagnostic` | `:ui-catalog` | *times* frames — diagnostic only |
+| `FrameReadout` | `:ui-catalog`, on screen | real frames, on a real device |
+
+`countPhases` has to be applied through a component's **real public content
+slot**. A replica assembled by the test is the easiest way to write a performance
+test that passes while the component it is named after stays slow.
+
+Two counters have a control assertion in front of them, and should keep one: the
+first draft of `SheetFramePressureTest` passed with every counter at zero on a
+sheet that never moved.
+
+### What the compiler already knew
+
+```sh
+./gradlew :ui:compileKotlinJvm -Pkontour.compose.reports
+build/compose-reports/ui/*-composables.txt   # what is skippable, and why not
+build/compose-reports/ui/*-classes.txt       # what is stable
+```
+
+Behind a property because it slows every Compose compilation. The first run of it
+found 23 unstable parameters — 12 `kotlinx.datetime` and one `IntRange`, all of
+them immutable types the compiler simply had no way to know about, because they
+do not depend on Compose and so carry no annotation. `compose-stability.conf` at
+the repository root names them and takes those 13 to zero.
+
+That mattered more than it looks. Strong skipping is on, so an unstable parameter
+is not *skipped never* — it is compared by **instance identity**. A caller
+writing `LocalDate(year, month, 1)` inline hands a fresh instance every
+recomposition and the whole calendar re-runs for the same day. Compared by
+`equals`, it skips.
+
+The ten that remain are all `key: Any`, and they are right as they are: a key
+*should* be compared by identity.
+
+### On a device
+
+The frame readout is the only instrument that sees a GPU, and only Android can
+run it — there is no iOS runner in this repository, only the framework an Xcode
+project would link.
+
+```sh
+./gradlew :showcase:android:installRelease   # release, not debug
+```
+
+Judging performance from a debug build is judging the wrong thing.
+
+---
+
 ## The documentation is checked too
 
 ```sh

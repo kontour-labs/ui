@@ -86,7 +86,7 @@ fun Button(
     size: ButtonSize = ButtonSize.Medium,
     loading: Boolean = false,
     loadingLabel: String = Theme.strings.loading,
-    shape: Shape = Theme.shapes.small,
+    shape: Shape = Theme.shapes.control,
     colors: ButtonColors = ButtonDefaults.colors(variant),
     metrics: ButtonMetrics = ButtonDefaults.metrics(size),
     interactionSource: MutableInteractionSource? = null,

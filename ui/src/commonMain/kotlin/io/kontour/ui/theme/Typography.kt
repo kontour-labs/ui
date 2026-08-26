@@ -110,6 +110,23 @@ private fun scaleStyle(
 )
 
 /**
+ * The default type scale, built once.
+ *
+ * [kontourTypography] resolves nineteen [androidx.compose.ui.text.TextStyle]s
+ * from a family, and it was the one default in [KontourTheme]'s parameter list
+ * not wrapped in a `remember` — so all nineteen were rebuilt on every
+ * recomposition of the theme, to feed a **static** composition local whose value
+ * changing invalidates the whole application. [outfitFontFamily] already
+ * remembers its side, so the key here is stable and this settles after the fonts
+ * land.
+ */
+@Composable
+internal fun rememberDefaultTypography(): Typography {
+    val family = outfitFontFamily()
+    return remember(family) { kontourTypography(family) }
+}
+
+/**
  * The default type scale, in Outfit.
  *
  * Pass a different [family] to reskin the whole system's typography in one line:

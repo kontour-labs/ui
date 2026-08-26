@@ -225,7 +225,7 @@ private fun ColumnScope.ResultsPanel(results: (@Composable ColumnScope.() -> Uni
     if (results == null) return
     Surface(
         modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
-        shape = Theme.shapes.large,
+        shape = Theme.shapes.panel,
         color = Theme.colors.surface,
     ) {
         Column(

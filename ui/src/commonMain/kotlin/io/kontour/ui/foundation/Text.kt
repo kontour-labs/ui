@@ -2,6 +2,7 @@ package io.kontour.ui.foundation
 
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
@@ -14,6 +15,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.isUnspecified
 import io.kontour.ui.theme.Theme
 
 /**
@@ -161,17 +163,53 @@ private fun resolveTextStyle(
         else -> themeContent
     }
 
-    return style.merge(
-        color = resolvedColor,
-        fontSize = fontSize,
-        fontWeight = fontWeight,
-        fontStyle = fontStyle,
-        fontFamily = fontFamily,
-        letterSpacing = letterSpacing,
-        textDecoration = textDecoration,
-        textAlign = textAlign ?: TextAlign.Unspecified,
-        lineHeight = lineHeight,
-    )
+    // `TextStyle.merge` has no fast path of its own: given nine overrides it
+    // builds a `SpanStyle` and a `ParagraphStyle` from them, resolves some
+    // thirty fields one at a time and allocates a `TextStyle` for the answer —
+    // whether or not any of the nine was actually set. This runs once per `Text`
+    // per composition, and a documentation page holds several hundred of them.
+    //
+    // Nothing it depends on is hidden, so all of it can be remembered. The
+    // overwhelmingly common call is `Text("…")` with every override left at its
+    // default and only the colour to resolve, and that case gets the two-key
+    // `remember`, which compares two values and allocates nothing.
+    return if (
+        fontSize.isUnspecified &&
+        fontWeight == null &&
+        fontStyle == null &&
+        fontFamily == null &&
+        letterSpacing.isUnspecified &&
+        textDecoration == null &&
+        textAlign == null &&
+        lineHeight.isUnspecified
+    ) {
+        remember(style, resolvedColor) { style.copy(color = resolvedColor) }
+    } else {
+        remember(
+            style,
+            resolvedColor,
+            fontSize,
+            fontWeight,
+            fontStyle,
+            fontFamily,
+            letterSpacing,
+            textDecoration,
+            textAlign,
+            lineHeight,
+        ) {
+            style.merge(
+                color = resolvedColor,
+                fontSize = fontSize,
+                fontWeight = fontWeight,
+                fontStyle = fontStyle,
+                fontFamily = fontFamily,
+                letterSpacing = letterSpacing,
+                textDecoration = textDecoration,
+                textAlign = textAlign ?: TextAlign.Unspecified,
+                lineHeight = lineHeight,
+            )
+        }
+    }
 }
 
 private val Color.isSpecified: Boolean get() = this != Color.Unspecified

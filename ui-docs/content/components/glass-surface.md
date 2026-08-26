@@ -21,7 +21,7 @@ Multiplatform: Android has `RenderEffect` from API 31, Skia can do it on desktop
 and the web target has neither in a way that survives a canvas. A component that
 blurred on two platforms and did nothing on the third would be a component whose
 appearance is a per-platform surprise, so this one is honest everywhere —
-see [the adaptive page](adaptive.md#there-is-no-portable-backdrop-blur).
+see [the adaptive page](adaptive.md#there-is-no-portable-backdrop-blur--for-a-floating-bar).
 
 ---
 
@@ -40,7 +40,9 @@ carefully, or any control they have to find, wants an opaque
 worst pixel of the backdrop still leaves the text legible, not the average one.
 
 `backdrop` composes the content twice — once blurred, once not — because Compose
-has no portable backdrop filter. That is a cost worth knowing before reaching for
+has no portable backdrop filter — for *this* case. A modal is different and
+does blur what is behind it, because there the backdrop is a single node; see
+[overlays](../overlays.md#the-backdrop). That is a cost worth knowing before reaching for
 it on a scrolling surface.
 
 ---

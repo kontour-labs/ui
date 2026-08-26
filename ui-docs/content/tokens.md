@@ -117,7 +117,7 @@ fields, matching how the web properties already use them:
 
 | Token | For |
 |---|---|
-| `scrim` | Dims content behind a modal |
+| `scrim` | Dims content behind a modal, which also [blurs it](overlays.md#the-backdrop) |
 | `overlayHover` / `overlayPressed` / `overlayDragged` | The tonal washes `KontourIndication` composites over a control |
 
 ---
@@ -176,18 +176,80 @@ same `of(n)` is a sign that value wants a name.
 
 ## Shape
 
-| Token | Radius | Used by |
-|---|---|---|
-| `extraSmall` | 4dp | Badges, tags, inline code |
-| `small` | 8dp | Buttons, inputs, checkboxes |
-| `medium` | 12dp | Cards, list groups, menus |
-| `large` | 16dp | Dialogs, large cards |
-| `extraLarge` | 24dp | Bottom sheets, hero panels |
-| `pill` | 50% | Nav bars, chips, avatars, FABs |
+| Token | Radius | Corner | Used by |
+|---|---|---|---|
+| `extraSmall` | 8dp | circular | Badges, tags, inline code |
+| `small` | 14dp | circular | Buttons, inputs, checkboxes |
+| `medium` | 20dp | squircle | Cards, list groups, menus |
+| `large` | 26dp | squircle | Dialogs, large cards |
+| `extraLarge` | 32dp | squircle | Sheets, hero panels |
+| `pill` | 50% | capsule | Nav bars, chips, avatars, FABs |
+| `sheet` | 32dp top only | squircle | Bottom sheets |
+| `sideSheet` | 32dp leading only | squircle | Side sheets |
 
-Tighter than the marketing site on purpose. Controls stay near-square so they
-read as mechanical; roundness is spent on navigation and sheets, where it does
-work.
+**One step, all the way up.** Every rung is 6dp above the one below it, and that
+regularity is the point rather than tidiness. Two rounded shapes nested inside
+one another look right when the inner radius is the outer radius minus the gap
+between them, and wrong otherwise — the corners stop being parallel and the gap
+pinches. That only works if the scale steps evenly, and the old `4 / 4 / 4 / 8`
+ladder broke at the top, so a control nested in a dialog was concentric and the
+same control nested in a sheet was not.
+
+Do not step through the scale by eye. `Theme.shapes.small.inset(6.dp)` gives the
+radius something 6dp inside a `small` container should use, floors at zero, and
+keeps the kind of corner it was called on.
+
+### Ask for what a thing *is*
+
+Components do not pick a rung. They ask for one of four names, and that is why
+two buttons cannot disagree — there is one place that says what a button's corner
+is, and every button reads it.
+
+| Token | Resolves to | For |
+|---|---|---|
+| `control` | `pill` | `Button`, `IconButton`, `SplitButton`, `ButtonGroup`, `FloatingActionButton`, `FabMenu`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
+| `field` | `small` | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
+| `container` | `medium` | `Card`, `ListItem`, `SelectionRow`, `Accordion`, `SwipeActions`, `DropdownMenu`, `Popover`, `Tooltip`, `NavDrawer` |
+| `panel` | `large` | `Dialog`, `CommandPalette`, `NavSearch` |
+
+**A control is a capsule at every height**, which is the thing a fixed radius
+cannot do: at 14dp an `XSmall` button was nearly a pill already and an `XLarge`
+was nearly square, so one component disagreed with itself across its own size
+scale. And a `Button` sat at 14dp next to a circular `IconButton` in the same
+toolbar. Now every action is the same shape whatever size it happens to be.
+
+**A field is not a capsule**, deliberately. A field is a box with content in it,
+and a capsule reads as something to press rather than something to fill in — a
+multi-line text area shaped like a lozenge makes that obvious.
+
+Reaching past these four to a rung of the size scale is for genuine one-offs — an
+avatar, a scrollbar, a skeleton line, a drag handle — where the shape belongs to
+that one thing rather than to a family. A component that reaches for `small`
+because it is the right number today stops tracking the family it belongs to, and
+that is exactly how a design system drifts.
+
+They are also the seam a consumer wants. Overriding `pill` to square off buttons
+would square off the avatars and the scrollbar too; overriding `control` moves
+the buttons and nothing else.
+
+### Two kinds of corner
+
+From `medium` up the corners are **squircles** — curvature eased in and out
+rather than a quarter circle bolted between two straight edges. Both corners
+share the same arc, so at forty-five degrees they are the same point; what
+differs is that a squircle starts bending at `1.6 × radius` from the corner and
+arrives gradually, where an arc holds the straight edge until `radius` and then
+turns all at once. That earlier, gentler departure is the whole of the effect,
+and it is why a large surface reads as drawn rather than clipped.
+
+It is not free: a squircle is a generic path to clip, to border and to shadow.
+Below about 12dp the smoothing is invisible, so `extraSmall` and `small` stay
+circular and pay nothing. `pill` is a true capsule, where the corner is a
+semicircle and there is no curvature discontinuity to remove in the first place.
+
+`sheet` and `sideSheet` are `extraLarge` with two corners squared off, derived
+rather than restated — a panel against the edge of the window should be square
+where it meets that edge, and the same radius as a hero panel everywhere else.
 
 ---
 
@@ -213,6 +275,12 @@ edge or a vague smudge, never both.
 
 Alphas roughly double in dark mode. A soft black shadow on a near-black ground is
 invisible, which is why dark themes so often look flat.
+
+The top two tiers are lighter than they were. `overlay` used to be a 20dp offset
+with a 50dp blur at 22%, which bled about 70dp past a dialog's edge and was doing
+the whole job of separating it from the page. That job is now shared — what is
+behind a modal is [blurred as well as dimmed](overlays.md#the-backdrop) — and two
+mechanisms both pushed to their limit read as one heavy-handed one.
 
 Elevation is a **rank**, not a decoration: pick the level that matches where the
 element sits in the overlay stack.

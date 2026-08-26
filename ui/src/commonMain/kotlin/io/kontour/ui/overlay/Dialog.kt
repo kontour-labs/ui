@@ -111,9 +111,14 @@ fun Dialog(
                                 // wide enough to hold the dialog's shadow, which
                                 // bleeds ~70dp past its edge. See
                                 // `Modifier.overlayAppearance`.
+                                // Settles *down* into place rather than growing
+                                // into it. A dialog that scales up reads as
+                                // something being created; one that scales down
+                                // reads as something arriving from in front of
+                                // the screen, which is where it is.
                                 .overlayAppearance(
                                     LocalOverlayProgress.current,
-                                    fromScale = 0.92f,
+                                    fromScale = 1.06f,
                                 )
                                 .windowInsetsPadding(latestInsets),
                             contentAlignment = Alignment.Center,
@@ -129,7 +134,7 @@ fun Dialog(
                                         .padding(Theme.spacing.lg)
                                         .widthIn(max = 400.dp)
                                         .semantics { dialog() },
-                                    shape = Theme.shapes.large,
+                                    shape = Theme.shapes.panel,
                                     color = Theme.colors.surfaceRaised,
                                     border = contrastEdge(),
                                     shadow = Theme.elevation.overlay,

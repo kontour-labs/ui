@@ -43,6 +43,7 @@ import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.LocalOverlayProgress
+import io.kontour.ui.overlay.BackdropStyle
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
@@ -149,6 +150,13 @@ fun SideSheet(
                 key = key,
                 layer = OverlayLayer.Sheet,
                 scrim = scrim,
+                // Same reason as a bottom sheet: it takes an edge of the screen
+                // rather than floating over the middle of it.
+                backdrop = if (scrim == ScrimStyle.Dimmed) {
+                    BackdropStyle.BlurAndScale
+                } else {
+                    BackdropStyle.None
+                },
                 dismissOnOutside = dismissOnOutside,
                 dismissLabel = dismissLabel,
                 onDismiss = { dismiss() },

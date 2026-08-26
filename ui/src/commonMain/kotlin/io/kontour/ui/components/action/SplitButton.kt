@@ -96,7 +96,7 @@ fun SplitButton(
     variant: ButtonVariant = ButtonVariant.Primary,
     size: ButtonSize = ButtonSize.Medium,
     chevron: ImageVector = SystemIcons.ChevronDown,
-    shape: CornerBasedShape = Theme.shapes.small,
+    shape: CornerBasedShape = Theme.shapes.control,
     interactionSource: MutableInteractionSource? = null,
     menu: @Composable MenuScope.() -> Unit,
     content: @Composable RowContentScope.() -> Unit,

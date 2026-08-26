@@ -224,7 +224,7 @@ fun LoadingOverlay(
                                     liveRegion = LiveRegionMode.Assertive
                                     contentDescription = label
                                 },
-                            shape = Theme.shapes.large,
+                            shape = Theme.shapes.container,
                             color = Theme.colors.surfaceRaised,
                             shadow = Theme.elevation.overlay,
                         ) {

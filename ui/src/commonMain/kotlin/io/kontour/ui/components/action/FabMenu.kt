@@ -234,7 +234,7 @@ fun FabMenu(
     showLabels: Boolean = layout == FabMenuLayout.Vertical,
     expandedIcon: ImageVector? = null,
     expandedContentDescription: String = Theme.strings.close,
-    shape: Shape = Theme.shapes.pill,
+    shape: Shape = Theme.shapes.control,
     containerColor: Color = Theme.colors.primary,
     contentColor: Color = Theme.colors.onPrimary,
     itemContainerColor: Color = Theme.colors.surfaceRaised,
@@ -432,7 +432,7 @@ private fun FabMenuItems(
                             // fault the contract suite exists to catch.
                             .clearAndSetSemantics { }
                             .graphicsLayer { alpha = fractions[index].value },
-                        shape = Theme.shapes.small,
+                        shape = Theme.shapes.control,
                         color = Theme.colors.surfaceRaised,
                         contentColor = Theme.colors.content,
                         // A label is a light chip on a light page too, and it

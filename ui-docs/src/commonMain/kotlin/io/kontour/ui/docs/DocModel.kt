@@ -30,6 +30,8 @@ enum class DocKind {
  *   and for the link into the API reference.
  * @param family Which index links to it, or `Guides` for a page that is not
  *   about a component at all.
+ * @param content Builds this page's blocks, and is not called until something
+ *   asks for them. See [blocks].
  */
 @Immutable
 class DocPage(
@@ -38,8 +40,40 @@ class DocPage(
     val symbols: List<String>,
     val family: String,
     val kind: DocKind,
-    val blocks: List<Block>,
+    private val content: () -> List<Block>,
 ) {
+    /**
+     * The page's blocks, built on first read and kept.
+     *
+     * A thunk rather than a value, and it is the difference between a site that
+     * starts and one that hangs. `docPages` is a top-level `val`, so the first
+     * `remember` in the first composition forces it — and with the blocks built
+     * eagerly that meant constructing **every heading, paragraph, span, code
+     * block and table of all 122 pages**, 8,806 objects and 3,909 lists, on the
+     * main thread, before a single pixel was drawn, to display one page whose
+     * mean size is thirteen blocks.
+     *
+     * The index needs a page's title, family and kind, and none of those need
+     * its prose. So the list of pages stays eager and cheap, and the prose
+     * arrives when a reader actually opens something.
+     *
+     * Not thread-safe on purpose: composition is single-threaded, and the worst
+     * a race could do here is build the same immutable list twice.
+     */
+    private val lazyBlocks = lazy(LazyThreadSafetyMode.NONE) { content() }
+
+    val blocks: List<Block> get() = lazyBlocks.value
+
+    /**
+     * Whether this page's blocks have been built yet.
+     *
+     * A field so a test can ask, the way `SheetState.anchorRebuilds` exists so a
+     * test can ask how often a sheet rebuilds its anchors. "The whole corpus is
+     * constructed before the first frame" was invisible until something counted
+     * it, and it will be invisible again the moment nothing does.
+     */
+    internal val blocksBuilt: Boolean get() = lazyBlocks.isInitialized()
+
     /** The file stem, which is what a demo is keyed by. */
     val slug: String get() = path.substringAfterLast('/')
 }

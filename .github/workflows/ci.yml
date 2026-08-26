@@ -140,9 +140,12 @@ jobs:
       # of the site at four widths. The goldens *compare* — a rendering change
       # fails here rather than turning up as an untracked file nobody looks at.
       #
-      # Named explicitly rather than via `check`: the Compose plugin registers a
-      # JS UI-test configuration check that fails for a library target, so
-      # `check` does not run to completion on `:ui`.
+      # Still named explicitly rather than run via `check`, but no longer because
+      # `check` is broken — `:ui`'s buildscript now disables the web test tasks
+      # and the Compose configuration check that existed to say they would not
+      # work, and explains why. `check` would reach `kotlinNpmInstall` and set up
+      # a browser test environment for tests this suite does not run, which is a
+      # minute of runner time for nothing. This list is the same work without it.
       - name: Test
         run: |
           ./gradlew --no-daemon \
@@ -323,6 +326,10 @@ jobs:
         run: |
           mkdir -p site
           cp -r ui-docs/build/dist/wasmJs/productionExecutable/. site/
+          # The Wasm compiler emits a source map beside the binary whatever
+          # webpack is told, and `cp -r .` takes everything. 281 KB of it,
+          # fetched by nobody.
+          find site -name '*.map' -delete
           mkdir -p site/api
           cp -r ui/build/dokka/html/. site/api/
           # Pages runs the whole tree through Jekyll unless told not to, and
@@ -331,6 +338,21 @@ jobs:
           touch site/.nojekyll
           test -f site/index.html
           test -f site/api/index.html
+
+          # Every preload has to name a file that is really there. A preload
+          # pointing at nothing is silent: the browser fetches it, gets a 404,
+          # and the page still works — just without the head start it was the
+          # whole point of. The bundle's filenames are a convention of the
+          # Kotlin plugin rather than a promise, so they are checked rather
+          # than trusted.
+          grep -o 'rel="preload" href="[^"]*"' site/index.html \
+            | sed 's/.*href="//; s/"$//' \
+            | while read -r asset; do
+                test -f "site/$asset" || {
+                  echo "index.html preloads $asset, which the build did not produce" >&2
+                  exit 1
+                }
+              done
 
       - uses: actions/upload-pages-artifact@v3
         with:

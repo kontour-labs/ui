@@ -28,9 +28,16 @@ TabBar {
 are looking at, seen three ways. A tab bar used for destinations leaves the user
 with no back stack and no sense of where they are.
 
-Its indicator is one bar that *slides*, for the same reason
-[`SegmentedControl`](segmented-control.md)'s does: the row reads as a
-single control with a moving part.
+Its indicator is one **pill** that *slides*, for the same reason
+[`SegmentedControl`](segmented-control.md)'s thumb does: the row reads as a
+single control with a moving part. It used to be a bar sliding along the bottom
+edge with a full-width rule under it, which was the most Material thing in the
+library and had no counterpart on any other platform. The mechanism is unchanged
+— the same shared indicator box, the same anchor arithmetic — it just says the
+same thing in the library's own vocabulary, which is already full of pills. The
+hairline rule under the bar stays: it was never the Android tell, and a bar
+squeezed narrow enough to clip its labels draws *nothing at all* without it —
+which `WidthSweepTest` says out loud.
 
 **Reach for `SegmentedControl` instead** when you are switching a *value* rather
 than a view. Tabs announce `Role.Tab`; segments announce `Role.RadioButton`, and

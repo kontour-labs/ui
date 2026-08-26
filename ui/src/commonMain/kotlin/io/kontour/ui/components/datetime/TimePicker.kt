@@ -156,7 +156,7 @@ fun TimeField(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = LocalFeedback.current
-    val shape = Theme.shapes.small
+    val shape = Theme.shapes.field
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (label != null) {

@@ -78,7 +78,7 @@ fun IconButton(
     enabled: Boolean = true,
     variant: ButtonVariant = ButtonVariant.Ghost,
     size: ButtonSize = ButtonSize.Medium,
-    shape: Shape = Theme.shapes.pill,
+    shape: Shape = Theme.shapes.control,
     rotation: Float = 0f,
     colors: ButtonColors = ButtonDefaults.colors(variant),
     metrics: ButtonMetrics = ButtonDefaults.metrics(size),
@@ -149,7 +149,7 @@ fun IconToggleButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     size: ButtonSize = ButtonSize.Medium,
-    shape: Shape = Theme.shapes.pill,
+    shape: Shape = Theme.shapes.control,
     stateDescription: String? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {

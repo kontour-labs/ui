@@ -1,6 +1,7 @@
 package io.kontour.ui.overlay
 
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.draw.drawBehind
@@ -47,8 +49,15 @@ object CoachmarkDefaults {
     /** How far the lit area reaches past the control it is lighting. */
     val SpotlightPadding: Dp = 8.dp
 
-    /** The lit area's corner radius, beyond the control's own. */
-    val SpotlightCorner: Dp = 12.dp
+    /**
+     * The lit area's shape.
+     *
+     * `medium` rather than a radius of its own, so the hole around a control is
+     * cut with the same corner the rest of the library draws — including the
+     * smoothing, which a `CornerRadius` on a `RoundRect` cannot carry.
+     */
+    val SpotlightShape: CornerBasedShape
+        @Composable get() = Theme.shapes.container
 }
 
 /**
@@ -185,7 +194,7 @@ fun Modifier.coachmarkStep(
     side: OverlaySide = OverlaySide.Bottom,
     alignment: OverlayAlignment = OverlayAlignment.Center,
     padding: Dp = CoachmarkDefaults.SpotlightPadding,
-    corner: Dp = CoachmarkDefaults.SpotlightCorner,
+    shape: CornerBasedShape = CoachmarkDefaults.SpotlightShape,
     enabled: Boolean = true,
 ): Modifier {
     var bounds by remember { mutableStateOf<Rect?>(null) }
@@ -199,7 +208,7 @@ fun Modifier.coachmarkStep(
         side = side,
         alignment = alignment,
         padding = padding,
-        corner = corner,
+        shape = shape,
         tour = tour,
     )
 
@@ -223,7 +232,7 @@ private fun CoachmarkSpotlight(
     side: OverlaySide,
     alignment: OverlayAlignment,
     padding: Dp,
-    corner: Dp,
+    shape: CornerBasedShape,
     tour: CoachmarkTour,
 ) {
     val host = LocalOverlayHost.current
@@ -258,7 +267,7 @@ private fun CoachmarkSpotlight(
                     Spotlight(
                         anchorInRoot = { latestAnchor },
                         padding = padding,
-                        corner = corner,
+                        shape = shape,
                         onDismissRequest = { latestTour.finish() },
                     )
                     AnchoredOverlayLayout(
@@ -303,7 +312,7 @@ private fun CoachmarkSpotlight(
 private fun Spotlight(
     anchorInRoot: () -> Rect?,
     padding: Dp,
-    corner: Dp,
+    shape: CornerBasedShape,
     onDismissRequest: () -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -320,15 +329,16 @@ private fun Spotlight(
             .pointerInput(onDismissRequest) { detectTapGestures { onDismissRequest() } }
             .drawBehind {
                 val hole = anchorInRoot()?.translate(-host.originInRoot) ?: return@drawBehind
-                val padPx = padding.toPx()
-                val radius = corner.toPx()
+                val lit = hole.inflate(padding.toPx())
 
                 path.reset()
                 path.fillType = PathFillType.EvenOdd
                 path.addRect(Rect(Offset.Zero, size))
-                path.addRoundRect(
-                    RoundRect(rect = hole.inflate(padPx), cornerRadius = CornerRadius(radius))
-                )
+                when (val outline = shape.createOutline(lit.size, layoutDirection, this)) {
+                    is Outline.Rounded -> path.addRoundRect(outline.roundRect.shiftedBy(lit.topLeft))
+                    is Outline.Generic -> path.addPath(outline.path, lit.topLeft)
+                    is Outline.Rectangle -> path.addRect(outline.rect.translate(lit.topLeft))
+                }
                 drawPath(path, scrim.copy(alpha = scrim.alpha * fraction.coerceIn(0f, 1f)))
             }
     )
@@ -351,7 +361,7 @@ private fun CoachmarkBubble(
             .semantics(mergeDescendants = true) {
                 contentDescription = "$title. $text"
             },
-        shape = Theme.shapes.medium,
+        shape = Theme.shapes.container,
         color = colors.accent.solid,
         contentColor = colors.accent.onSolid,
         shadow = Theme.elevation.overlay,
@@ -409,3 +419,20 @@ private val BubbleMaxWidth: Dp = 320.dp
 
 /** Present, not shouting: the count is orientation, not an instruction. */
 private const val StepCountAlpha = 0.7f
+
+/**
+ * The same rounded rectangle, moved to [offset].
+ *
+ * [RoundRect] carries its own corner radii and has no translate of its own, so
+ * moving one means rebuilding it. Only the origin moves; every radius is kept.
+ */
+private fun RoundRect.shiftedBy(offset: Offset): RoundRect = RoundRect(
+    left = left + offset.x,
+    top = top + offset.y,
+    right = right + offset.x,
+    bottom = bottom + offset.y,
+    topLeftCornerRadius = topLeftCornerRadius,
+    topRightCornerRadius = topRightCornerRadius,
+    bottomRightCornerRadius = bottomRightCornerRadius,
+    bottomLeftCornerRadius = bottomLeftCornerRadius,
+)

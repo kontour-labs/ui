@@ -137,6 +137,7 @@ fun SliderBasics() {
         onValueChange = { walkSpeed = it },
         valueRange = 2f..7f,
         steps = 4,
+        showTicks = true,
         // Without this the announcement is a bare percentage, which is not the
         // number the user is choosing.
         stateDescription = { "${it.roundToInt()} km/h" },

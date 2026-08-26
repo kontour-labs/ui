@@ -241,7 +241,7 @@ def main() -> int:
             f"    symbols = listOf({', '.join(kotlin_string(s) for s in symbols)}),\n"
             f"    family = {kotlin_string(family)},\n"
             f"    kind = {kind},\n"
-            "    blocks = " + " + ".join(f"{name}b{i}()" for i in range(len(chunks))) + ",\n"
+            "    content = { " + " + ".join(f"{name}b{i}()" for i in range(len(chunks))) + " },\n"
             ")\n"
         )
         pages.append(f"    {name}(),")

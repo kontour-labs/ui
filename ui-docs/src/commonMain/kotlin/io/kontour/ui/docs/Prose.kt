@@ -10,13 +10,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.LinkInteractionListener
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.SpanStyle
@@ -49,11 +53,17 @@ import io.kontour.ui.theme.Theme
  */
 val LocalDocPath = compositionLocalOf<String> { error("No LocalDocPath — a page must provide its own path") }
 
-/** The blocks of one page, drawn. */
-@Composable
-fun Prose(blocks: List<Block>, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-        blocks.forEach { block -> Block(block) }
+/**
+ * A page's blocks, as items in the page's own lazy list.
+ *
+ * A `LazyListScope` extension rather than a composable, so the blocks are items
+ * of the page's list rather than children of a `Column` inside it. That is the
+ * only arrangement in which they are actually windowed: a `Column` nested in a
+ * lazy list is one item, and one item composes whole.
+ */
+fun LazyListScope.prose(blocks: List<Block>, itemModifier: Modifier = Modifier) {
+    items(blocks.size) { index ->
+        Box(itemModifier) { Block(blocks[index]) }
     }
 }
 
@@ -236,24 +246,67 @@ private fun Linkable(
     Text(text = annotate(spans), style = style, color = color)
 }
 
+/**
+ * The spans as an [AnnotatedString], built once per set of spans.
+ *
+ * ### Why every piece of this is remembered
+ *
+ * It was not, and the result was that no paragraph on the site could ever skip.
+ * `LinkAnnotation.Clickable` compares by `tag`, `styles` **and**
+ * `linkInteractionListener`, and the listener by identity — so a fresh capturing
+ * lambda per link, as this used to build, guaranteed the new `AnnotatedString`
+ * was never equal to the old one. `BasicText` therefore re-ran full text layout
+ * for all 320 link-bearing spans in this corpus on every recomposition, and text
+ * shaping is the most expensive thing the renderer does.
+ *
+ * So: one listener per page rather than one per link, reading the target back
+ * out of the annotation it was attached to; one style pair per colour scheme;
+ * and the whole string keyed on what it is made of.
+ */
 @Composable
 private fun annotate(spans: List<Span>, heading: Boolean = false): AnnotatedString {
     val from = LocalDocPath.current
-    val code = SpanStyle(
-        fontFamily = FontFamily.Monospace,
-        background = if (heading) {
-            androidx.compose.ui.graphics.Color.Transparent
-        } else {
-            Theme.colors.surfaceSunken
-        },
-    )
-    val link = TextLinkStyles(
-        style = SpanStyle(
-            color = Theme.colors.accent.solid,
-            textDecoration = TextDecoration.Underline,
+    val colors = Theme.colors
+    val listener = remember(from) { DocLinkListener(from) }
+    val code = remember(colors, heading) {
+        SpanStyle(
+            fontFamily = FontFamily.Monospace,
+            background = if (heading) {
+                androidx.compose.ui.graphics.Color.Transparent
+            } else {
+                colors.surfaceSunken
+            },
         )
-    )
-    return buildAnnotatedString { emit(spans, code, link, from) }
+    }
+    val link = remember(colors) {
+        TextLinkStyles(
+            style = SpanStyle(
+                color = colors.accent.solid,
+                textDecoration = TextDecoration.Underline,
+            )
+        )
+    }
+    return remember(spans, code, link, listener) {
+        buildAnnotatedString { emit(spans, code, link, listener) }
+    }
+}
+
+/**
+ * Handles every link on one page.
+ *
+ * One instance, shared by all of them, because two `LinkAnnotation.Clickable`s
+ * are only equal when their listeners are the *same object* — and a paragraph
+ * whose annotated string is never equal to its previous self is a paragraph that
+ * re-shapes its text on every recomposition. The target comes back out of the
+ * annotation rather than being captured, which is what lets one instance serve
+ * every link.
+ */
+private class DocLinkListener(private val from: String) : LinkInteractionListener {
+    override fun onClick(link: LinkAnnotation) {
+        val target = (link as? LinkAnnotation.Clickable)?.tag ?: return
+        val route = routeForLink(target, from)
+        if (route != null) navigate(route) else openExternal(externalUrl(target, from))
+    }
 }
 
 /**
@@ -268,35 +321,25 @@ private fun AnnotatedString.Builder.emit(
     spans: List<Span>,
     code: SpanStyle,
     link: TextLinkStyles,
-    from: String,
+    listener: LinkInteractionListener,
 ) {
     spans.forEach { span ->
         when (span) {
             is Span.Plain -> append(span.text)
             is Span.Code -> withStyleOf(code) { append(span.text) }
             is Span.Strong -> withStyleOf(SpanStyle(fontWeight = FontWeight.SemiBold)) {
-                emit(span.spans, code, link, from)
+                emit(span.spans, code, link, listener)
             }
             is Span.Emphasis -> withStyleOf(SpanStyle(fontStyle = FontStyle.Italic)) {
-                emit(span.spans, code, link, from)
+                emit(span.spans, code, link, listener)
             }
-            is Span.Link -> {
-                val target = span.target
-                withLink(
-                    LinkAnnotation.Clickable(
-                        tag = target,
-                        styles = link,
-                        linkInteractionListener = {
-                            val route = routeForLink(target, from)
-                            if (route != null) {
-                                navigate(route)
-                            } else {
-                                openExternal(externalUrl(target, from))
-                            }
-                        },
-                    )
-                ) { emit(span.spans, code, link, from) }
-            }
+            is Span.Link -> withLink(
+                LinkAnnotation.Clickable(
+                    tag = span.target,
+                    styles = link,
+                    linkInteractionListener = listener,
+                )
+            ) { emit(span.spans, code, link, listener) }
         }
     }
 }

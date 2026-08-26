@@ -149,7 +149,7 @@ fun CommandPalette(
                                 .fillMaxSize()
                                 .overlayAppearance(
                                     LocalOverlayProgress.current,
-                                    fromScale = 0.96f,
+                                    fromScale = 1.03f,
                                 )
                                 .windowInsetsPadding(WindowInsets.allEdges),
                             // Near the top rather than centred: the list grows
@@ -259,7 +259,7 @@ private fun PaletteBody(
                     else -> false
                 }
             },
-        shape = Theme.shapes.medium,
+        shape = Theme.shapes.panel,
         color = Theme.colors.surface,
         shadow = Theme.elevation.overlay,
     ) {

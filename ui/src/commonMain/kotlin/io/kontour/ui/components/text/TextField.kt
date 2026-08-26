@@ -99,7 +99,7 @@ fun TextField(
     trailingIcon: ImageVector? = null,
     trailing: (@Composable () -> Unit)? = null,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
-    shape: Shape = Theme.shapes.small,
+    shape: Shape = Theme.shapes.field,
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Default,
     onKeyboardAction: KeyboardActionHandler? = null,

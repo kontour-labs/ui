@@ -63,7 +63,7 @@ fun Card(
     enabled: Boolean = true,
     variant: CardVariant = CardVariant.Elevated,
     onClick: (() -> Unit)? = null,
-    shape: Shape = Theme.shapes.medium,
+    shape: Shape = Theme.shapes.container,
     color: Color = cardColorFor(variant),
     border: BorderStroke? = cardBorderFor(variant),
     shadow: Shadow = cardShadowFor(variant),
