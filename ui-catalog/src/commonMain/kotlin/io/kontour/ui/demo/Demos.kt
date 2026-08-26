@@ -14,16 +14,28 @@ package io.kontour.ui.demo
  * slug names no page, or a page with a component on it and no demo, fails the
  * build.
  */
-val componentDemos: Map<String, ComponentDemo> =
-    (actionDemos + selectionDemos + textEditingDemos + dateTimeDemos + displayDemos + collectionDemos + navigationDemos + adaptiveDemos + overlayDemos + sheetDemos + foundationDemos)
-        .associateBy { it.slug }
-        .also { demos ->
-            // A duplicate slug would silently drop one of the two, and the
-            // count check in `check-components.py` would then be satisfied by
-            // the wrong number. Cheaper to notice here.
-            val all = actionDemos + selectionDemos + textEditingDemos + dateTimeDemos + displayDemos + collectionDemos + navigationDemos + adaptiveDemos + overlayDemos + sheetDemos + foundationDemos
-            require(all.size == demos.size) {
-                val duplicates = all.groupBy { it.slug }.filterValues { it.size > 1 }.keys
-                "two demos share a slug: ${duplicates.joinToString()}"
-            }
-        }
+val componentDemos: Map<String, ComponentDemo> = buildDemos()
+
+/**
+ * Built once, in a function, rather than twice in a property initialiser.
+ *
+ * The `require` below needs the flat list to spot a duplicate slug, and the
+ * property used to concatenate all eleven lists a second time to get it — so
+ * every one of the 103 demos and twenty intermediate lists were allocated twice
+ * at class-init time, in production, on the first page a reader opened.
+ */
+private fun buildDemos(): Map<String, ComponentDemo> {
+    val all = actionDemos + selectionDemos + textEditingDemos + dateTimeDemos +
+        displayDemos + collectionDemos + navigationDemos + adaptiveDemos +
+        overlayDemos + sheetDemos + foundationDemos
+    val bySlug = all.associateBy { it.slug }
+
+    // A duplicate slug would silently drop one of the two, and the count check
+    // in `check-components.py` would then be satisfied by the wrong number.
+    // Cheaper to notice here.
+    require(all.size == bySlug.size) {
+        val duplicates = all.groupBy { it.slug }.filterValues { it.size > 1 }.keys
+        "two demos share a slug: ${duplicates.joinToString()}"
+    }
+    return bySlug
+}

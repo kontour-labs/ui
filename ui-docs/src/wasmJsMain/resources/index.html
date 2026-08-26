@@ -6,6 +6,32 @@
     <title>Kontour UI</title>
     <meta name="description" content="A Compose Multiplatform design system.">
     <link type="text/css" rel="stylesheet" href="styles.css">
+
+    <!--
+      Start the two large downloads immediately.
+
+      Without these the browser cannot begin fetching either binary until it has
+      downloaded, parsed and run `ui-docs.js` — one round trip and a parse
+      serialised in front of the biggest thing on the page. They are ~5 MB
+      gzipped between them, so that wait is the largest part of a first load on a
+      phone.
+
+      `crossorigin` is required even same-origin: a preload without it is fetched
+      in a different mode from the one the module loader will use, and the
+      browser fetches the file twice.
+    -->
+    <link rel="preload" href="skiko.wasm" as="fetch" type="application/wasm" crossorigin>
+    <link rel="preload" href="kontour-ui-ui-docs.wasm" as="fetch" type="application/wasm" crossorigin>
+
+    <!--
+      The two faces that draw the first screen: body text and the page heading.
+      The other three arrive with the rest of the bundle. Every face is fetched
+      separately after boot, and until one lands its text is measured with a
+      fallback and re-laid-out when it arrives — so preloading the two that are
+      always on screen removes two of those waves.
+    -->
+    <link rel="preload" href="composeResources/io.kontour.ui.generated.resources/font/outfit_regular.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="composeResources/io.kontour.ui.generated.resources/font/outfit_semibold.ttf" as="font" type="font/ttf" crossorigin>
 </head>
 <body>
     <!--
@@ -20,6 +46,6 @@
         <h1>Kontour UI</h1>
         <p>Loading the component library…</p>
     </div>
-    <script type="application/javascript" src="ui-docs.js"></script>
+    <script type="application/javascript" src="ui-docs.js" defer></script>
 </body>
 </html>

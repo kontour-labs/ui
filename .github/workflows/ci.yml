@@ -323,6 +323,10 @@ jobs:
         run: |
           mkdir -p site
           cp -r ui-docs/build/dist/wasmJs/productionExecutable/. site/
+          # The Wasm compiler emits a source map beside the binary whatever
+          # webpack is told, and `cp -r .` takes everything. 281 KB of it,
+          # fetched by nobody.
+          find site -name '*.map' -delete
           mkdir -p site/api
           cp -r ui/build/dokka/html/. site/api/
           # Pages runs the whole tree through Jekyll unless told not to, and
@@ -331,6 +335,21 @@ jobs:
           touch site/.nojekyll
           test -f site/index.html
           test -f site/api/index.html
+
+          # Every preload has to name a file that is really there. A preload
+          # pointing at nothing is silent: the browser fetches it, gets a 404,
+          # and the page still works — just without the head start it was the
+          # whole point of. The bundle's filenames are a convention of the
+          # Kotlin plugin rather than a promise, so they are checked rather
+          # than trusted.
+          grep -o 'rel="preload" href="[^"]*"' site/index.html \
+            | sed 's/.*href="//; s/"$//' \
+            | while read -r asset; do
+                test -f "site/$asset" || {
+                  echo "index.html preloads $asset, which the build did not produce" >&2
+                  exit 1
+                }
+              done
 
       - uses: actions/upload-pages-artifact@v3
         with:
