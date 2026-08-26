@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -151,26 +152,73 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
     if (style != BackdropStyle.BlurAndScale) return this
 
     val clipShape: Shape = Theme.shapes.extraLarge
-    val band = remember { Path() }
-    val hole = remember { Path() }
+    val geometry = remember { GroundGeometry() }
 
     return drawBehind {
         val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
         if (f <= 0f) return@drawBehind
 
+        // The hole is the content's own outline at **full** size under the same
+        // transform the content's layer applies to itself.
+        //
+        // A `graphicsLayer`'s clip is resolved in the layer's own coordinates and
+        // then scaled with everything else in it — measured, not assumed: a 400dp
+        // box clipped to a 40dp corner in a layer at half scale comes out 200px
+        // wide with a 20px corner. So the content's corner on screen is 32dp times
+        // the scale-back, and this used to cut a 32dp one: the hole was fractionally
+        // *tighter* than the content in each corner, and the band's black showed
+        // through the content's antialiased edge there. Nothing was ever missing —
+        // the corners just blended a shade darker than the straight edges.
+        //
+        // It is also the difference between building a squircle once and building
+        // one per frame: the shrunken size changes every frame, so `createOutline`
+        // missed the shape's path cache on each one *and* evicted the entries
+        // every other container on screen was using.
+        if (geometry.size != size) {
+            geometry.hole.reset()
+            geometry.hole.addOutline(clipShape.createOutline(size, layoutDirection, this))
+            geometry.size = size
+        }
+
         val scale = lerp(1f, BackdropDefaults.ScaleBack, f)
-        val inner = Size(size.width * scale, size.height * scale)
-        val corner = Offset((size.width - inner.width) / 2f, (size.height - inner.height) / 2f)
+        geometry.matrix.reset()
+        geometry.matrix.translate(size.width / 2f, size.height / 2f)
+        geometry.matrix.scale(scale, scale)
+        geometry.matrix.translate(-size.width / 2f, -size.height / 2f)
 
-        hole.reset()
-        hole.addOutline(clipShape.createOutline(inner, layoutDirection, this))
-        hole.translate(corner)
+        // Only the hole scales. The band's outer rect is the host, which does
+        // not move, so the transform cannot be applied to the combined path.
+        geometry.scaled.reset()
+        geometry.scaled.addPath(geometry.hole)
+        geometry.scaled.transform(geometry.matrix)
 
-        band.reset()
-        band.fillType = PathFillType.EvenOdd
-        band.addRect(Rect(Offset.Zero, size))
-        band.addPath(hole)
+        geometry.band.reset()
+        geometry.band.fillType = PathFillType.EvenOdd
+        geometry.band.addRect(Rect(Offset.Zero, size))
+        geometry.band.addPath(geometry.scaled)
 
-        drawPath(band, Color.Black, alpha = f)
+        drawPath(geometry.band, Color.Black, alpha = f)
     }
+}
+
+/**
+ * The ground's scratch geometry, kept across frames.
+ *
+ * Scratch held across frames rather than allocated inside one, for a modifier
+ * that runs on every frame of every sheet animation. [hole] is the expensive
+ * one — a squircle is four corners of trigonometry and twelve cubics — and is
+ * rebuilt only when the host resizes; the rest are rewritten in place.
+ */
+private class GroundGeometry {
+    /** The content's outline at full size. Rebuilt only when the host resizes. */
+    val hole = Path()
+
+    /** [hole] under this frame's scale. */
+    val scaled = Path()
+
+    /** The host, with [scaled] cut out of it. */
+    val band = Path()
+
+    val matrix = Matrix()
+    var size: Size? = null
 }

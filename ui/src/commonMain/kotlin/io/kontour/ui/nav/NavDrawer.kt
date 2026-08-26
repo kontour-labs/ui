@@ -314,11 +314,22 @@ fun NavDrawerItem(
     // still needs to say which one it is.
     val grouped = LocalSelectionIndicator.current != null
 
-    val container by animateColorAsState(
-        targetValue = if (selected && !grouped) colors.accent.container else Color.Transparent,
-        animationSpec = motion.tweenFast(),
-        label = "drawerItemContainer",
-    )
+    // Animated only where it can move. Inside a group the travelling pill
+    // carries selection, so this target is `Transparent` whatever the row is
+    // doing — and an `animateColorAsState` holding a constant is still an
+    // `Animatable` and a launched coroutine per row. The documentation site's
+    // index is 122 rows in one group, so that was 122 of each, allocated on the
+    // first composition to animate nothing.
+    val container = if (grouped) {
+        Color.Transparent
+    } else {
+        val animated by animateColorAsState(
+            targetValue = if (selected) colors.accent.container else Color.Transparent,
+            animationSpec = motion.tweenFast(),
+            label = "drawerItemContainer",
+        )
+        animated
+    }
     val content by animateColorAsState(
         targetValue = when {
             !enabled -> colors.contentDisabled

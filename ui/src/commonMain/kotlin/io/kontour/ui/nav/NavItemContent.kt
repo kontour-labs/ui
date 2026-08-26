@@ -178,11 +178,19 @@ internal fun NavDestinationItem(
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "navItemEmphasis",
     )
-    val container by animateColorAsState(
-        targetValue = if (selected && !grouped) colors.accent.container else Color.Transparent,
-        animationSpec = motion.tweenFast(),
-        label = "navItemContainer",
-    )
+    // Same as the drawer's: inside a group this is `Transparent` whatever
+    // happens, so animating it allocates an `Animatable` and launches a
+    // coroutine per destination to hold a constant.
+    val container = if (grouped) {
+        Color.Transparent
+    } else {
+        val animated by animateColorAsState(
+            targetValue = if (selected) colors.accent.container else Color.Transparent,
+            animationSpec = motion.tweenFast(),
+            label = "navItemContainer",
+        )
+        animated
+    }
     val content by animateColorAsState(
         targetValue = when {
             !item.enabled -> colors.contentDisabled

@@ -10,7 +10,6 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -392,32 +391,57 @@ fun SelectionIndicatorBox(
 @Composable
 fun Modifier.selectionIndicatorItem(key: Any, selected: Boolean): Modifier {
     val state = LocalSelectionIndicator.current ?: return this
-    var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    // Bumped on every layout pass. `LayoutCoordinates` is compared by identity and
-    // the same instance is reused as a node moves, so without this the effect
-    // below would not re-run when an item changes position.
-    var layoutVersion by remember { mutableIntStateOf(0) }
 
-    // Keyed on the anchor as well as the item, because `onGloballyPositioned`
-    // fires children-first: on the very first pass an item reports before the
-    // enclosing box has captured the anchor, and would otherwise never report
-    // again — nothing has moved, so nothing calls it back.
-    LaunchedEffect(state, key, selected, layoutVersion, state.anchor) {
-        val item = coordinates
-        val anchor = state.anchor
-        if (!selected || item == null || anchor == null) return@LaunchedEffect
-        if (!item.isAttached || !anchor.isAttached) return@LaunchedEffect
-        state.report(
-            key = key,
-            bounds = Rect(
-                offset = anchor.localPositionOf(item, Offset.Zero),
-                size = item.size.toSize(),
-            ),
-        )
+    // A plain holder, deliberately not snapshot state.
+    //
+    // This is written from the layout phase, on every pass, by every item in the
+    // group. It used to be a `mutableStateOf` alongside a `layoutVersion` counter
+    // that the effect below took as a key — so each of those writes invalidated a
+    // composition scope, and `onGloballyPositioned` fires on every frame of a
+    // scroll. A 122-item navigation drawer therefore did 122 recompositions and
+    // 122 coroutine restarts *per scrolled frame*, none of which produced a
+    // different indicator. Nothing reads this during composition, so nothing
+    // needs to be told when it changes.
+    val coordinates = remember { LastCoordinates() }
+
+    // Two things can move the indicator and only one of them is a layout event.
+    // Selection moving between two items that did not move is not, and neither is
+    // the anchor arriving late — `onGloballyPositioned` fires children-first, so
+    // on the very first pass an item reports before the enclosing box has
+    // captured the anchor. Both still need an effect; a scroll does not.
+    LaunchedEffect(state, key, selected, state.anchor) {
+        state.reportIfPossible(key, selected, coordinates.value)
     }
 
     return onGloballyPositioned {
-        coordinates = it
-        layoutVersion++
+        coordinates.value = it
+        // Straight from the layout phase. `report` writes snapshot state, and
+        // setting it to an equal value is a no-op, so an item that scrolled with
+        // its own anchor — which is where the indicator lives — reports the same
+        // rect and invalidates nothing at all.
+        state.reportIfPossible(key, selected, it)
     }
+}
+
+/** The last position an item was laid out at. Not observed; see above. */
+private class LastCoordinates {
+    var value: LayoutCoordinates? = null
+}
+
+/** Reports [item]'s bounds relative to the group's anchor, when there are both. */
+private fun SelectionIndicatorState.reportIfPossible(
+    key: Any,
+    selected: Boolean,
+    item: LayoutCoordinates?,
+) {
+    val anchor = anchor
+    if (!selected || item == null || anchor == null) return
+    if (!item.isAttached || !anchor.isAttached) return
+    report(
+        key = key,
+        bounds = Rect(
+            offset = anchor.localPositionOf(item, Offset.Zero),
+            size = item.size.toSize(),
+        ),
+    )
 }

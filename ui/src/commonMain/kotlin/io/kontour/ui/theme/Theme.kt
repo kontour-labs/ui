@@ -109,7 +109,7 @@ fun KontourTheme(
     reduceMotion: Boolean = platformPrefersReducedMotion(),
     backdropBlur: Boolean = true,
     colors: ColorScheme = remember(darkTheme, contrast) { kontourColorScheme(darkTheme, contrast) },
-    typography: Typography = kontourTypography(outfitFontFamily()),
+    typography: Typography = rememberDefaultTypography(),
     shapes: Shapes = remember { Shapes() },
     spacing: Spacing = remember { Spacing() },
     elevation: Elevation = remember(darkTheme) { kontourElevation(darkTheme) },

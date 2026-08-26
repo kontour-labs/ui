@@ -70,7 +70,24 @@ class SquircleShape(
     val smoothing: Float = DefaultSmoothing,
 ) : CornerBasedShape(topStart, topEnd, bottomEnd, bottomStart) {
 
-    private var cache: CachedPath? = null
+    /**
+     * The last few paths this shape built, newest overwriting oldest.
+     *
+     * One entry was enough while a shape instance belonged to one component. It
+     * is not now that the semantic tokens alias the scale — `Shapes.container`
+     * *is* `Shapes.medium`, one object shared by every card, row, menu, popover
+     * and drawer on screen. Two containers at different sizes evicted each
+     * other, so both rebuilt their path on every draw, and building one is four
+     * corners of trigonometry and twelve cubic segments.
+     *
+     * Written round-robin rather than least-recently-used: with a handful of
+     * live sizes the two orders keep the same set, and a plain cursor has no
+     * bookkeeping to get wrong. Not synchronised — a shape is used from the
+     * thread that draws it, and the worst a race can do here is rebuild a path
+     * that had already been built.
+     */
+    private val cache = arrayOfNulls<CachedPath>(CacheEntries)
+    private var cursor = 0
 
     override fun copy(
         topStart: CornerSize,
@@ -99,13 +116,18 @@ class SquircleShape(
         val bottomRight = if (ltr) bottomEnd else bottomStart
         val bottomLeft = if (ltr) bottomStart else bottomEnd
 
-        val cached = cache
-        if (cached != null && cached.matches(size, topLeft, topRight, bottomRight, bottomLeft)) {
-            return Outline.Generic(cached.path)
+        for (entry in cache) {
+            // Null means the cache has not filled yet, and it fills in order, so
+            // there is nothing past the first hole to look at.
+            if (entry == null) break
+            if (entry.matches(size, topLeft, topRight, bottomRight, bottomLeft)) {
+                return Outline.Generic(entry.path)
+            }
         }
 
         val path = buildPath(size, topLeft, topRight, bottomRight, bottomLeft)
-        cache = CachedPath(size, topLeft, topRight, bottomRight, bottomLeft, path)
+        cache[cursor] = CachedPath(size, topLeft, topRight, bottomRight, bottomLeft, path)
+        cursor = (cursor + 1) % cache.size
         return Outline.Generic(path)
     }
 
@@ -287,6 +309,17 @@ class SquircleShape(
          * they build, which is the point at which they will notice.
          */
         const val DefaultSmoothing: Float = 0.6f
+
+        /**
+         * How many distinct sizes one shape instance remembers a path for.
+         *
+         * Four covers what a screen actually holds — a card, a list row, a menu
+         * and a popover are four sizes, and everything else on screen repeats
+         * one of them. A miss is a rebuild, so a larger cache only helps a
+         * screen that already has more distinct containers than it has room to
+         * show.
+         */
+        private const val CacheEntries = 4
     }
 }
 

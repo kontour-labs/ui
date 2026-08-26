@@ -1,5 +1,6 @@
 package io.kontour.ui.docs
 
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -471,30 +472,41 @@ private fun DocPageView(path: String) {
     // resolves links inside `buildAnnotatedString`, so a parameter would have to
     // be threaded through five composables that have no other use for it.
     CompositionLocalProvider(LocalDocPath provides page.path) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(PagePadding()),
+        // Windowed, and it is the difference between a page and a book.
+        //
+        // This was a `Column` in a `verticalScroll`, so every block of the page
+        // composed, measured and — the expensive part — *shaped its text* at
+        // once, and stayed composed. The tokens page is 372 leaf text nodes; a
+        // phone shows about ten of them. Shaping is the most expensive thing the
+        // renderer does and it was being done for thirty times more text than
+        // anybody could see.
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PagePadding(),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
-            Text(text = page.heading, style = Theme.typography.displaySmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-                page.referenceSymbol?.let { symbol ->
+            item {
+                Text(text = page.heading, style = Theme.typography.displaySmall)
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+                    page.referenceSymbol?.let { symbol ->
+                        Button(
+                            onClick = { openExternal(apiUrl(symbol)) },
+                            variant = ButtonVariant.Secondary,
+                            size = ButtonSize.Small,
+                        ) { +"API reference" }
+                    }
                     Button(
-                        onClick = { openExternal(apiUrl(symbol)) },
-                        variant = ButtonVariant.Secondary,
+                        onClick = { openExternal("$Repository/blob/main/$ContentRoot/${page.path}.md") },
+                        variant = ButtonVariant.Ghost,
                         size = ButtonSize.Small,
-                    ) { +"API reference" }
+                    ) { +"Edit this page" }
                 }
-                Button(
-                    onClick = { openExternal("$Repository/blob/main/$ContentRoot/${page.path}.md") },
-                    variant = ButtonVariant.Ghost,
-                    size = ButtonSize.Small,
-                ) { +"Edit this page" }
             }
 
-            Specimens(page)
+            item { Specimens(page) }
+
             // `widthIn` outside `fillMaxWidth`, and the order is the whole fix.
             //
             // It was written the other way round. `fillMaxWidth` fixes the
@@ -507,8 +519,11 @@ private fun DocPageView(path: String) {
             //
             // The sidebar two hundred lines up has always had it in this order,
             // which is why that one worked.
-            Prose(page.blocks, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
-            ApiSection(page, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+            prose(page.blocks, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+
+            item {
+                ApiSection(page, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+            }
         }
     }
 }
