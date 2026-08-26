@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -69,10 +70,35 @@ class SheetState internal constructor(
      */
     var detents: List<SheetDetent> by mutableStateOf(detents)
 
-    internal val anchoredState = AnchoredDraggableState(
-        initialValue = initialDetent,
-        confirmValueChange = { confirmDetentChange(it) },
-    )
+    internal val anchoredState = AnchoredDraggableState(initialValue = initialDetent)
+
+    /**
+     * The detents that currently have an anchor.
+     *
+     * [confirmDetentChange] used to be `AnchoredDraggableState`'s
+     * `confirmValueChange`, a veto consulted on every attempted move. That is
+     * deprecated, and the replacement upstream asks for is this: do not refuse a
+     * position, do not give it one. A refused detent then has nowhere for the
+     * sheet to go, so a drag towards it meets the end of its travel instead of
+     * following the finger down and springing back — which is what iOS does, and
+     * the difference is felt rather than seen.
+     *
+     * **The settled detent is always in here**, whatever the predicate says, and
+     * that is not a loophole. An anchor set that omits where the sheet actually
+     * *is* has no offset for it, and the sheet resolves to `NaN`. It also makes
+     * the one case this parameter exists for come out right on its own: a sheet
+     * that starts [SheetDetent.Hidden] and refuses it opens from hidden — the
+     * position it is already at — and once it has settled somewhere else, hidden
+     * stops being a place it can be dragged back to.
+     *
+     * Derived rather than filtered on each read: this is read from layout, and
+     * `updateAnchors` guards a per-frame rebuild behind a comparison that an
+     * allocation in front of it would undo.
+     */
+    internal val allowedDetents: List<SheetDetent> by derivedStateOf {
+        val settled = anchoredState.settledValue
+        detents.filter { it == settled || confirmDetentChange(it) }
+    }
 
     /** Container height in pixels. Set by the sheet's layout. */
     internal var containerHeight by mutableFloatStateOf(0f)
@@ -173,7 +199,7 @@ class SheetState internal constructor(
 
     /** Animates to [detent]. Suspends until it arrives. */
     suspend fun animateTo(detent: SheetDetent) {
-        if (detent !in detents) return
+        if (detent !in allowedDetents) return
         if (!hasAnchors) {
             pendingDetent = detent
             return
@@ -183,7 +209,7 @@ class SheetState internal constructor(
 
     /** Jumps to [detent] with no animation. For restoring state, not for interaction. */
     suspend fun snapTo(detent: SheetDetent) {
-        if (detent !in detents) return
+        if (detent !in allowedDetents) return
         if (!hasAnchors) {
             pendingDetent = detent
             return
@@ -195,12 +221,12 @@ class SheetState internal constructor(
 
     /** Animates to the tallest available detent. */
     suspend fun expand() {
-        detents.lastOrNull { it != SheetDetent.Hidden }?.let { animateTo(it) }
+        allowedDetents.lastOrNull { it != SheetDetent.Hidden }?.let { animateTo(it) }
     }
 
     /** Animates to the shortest detent that still shows something. */
     suspend fun partialExpand() {
-        detents.firstOrNull { it != SheetDetent.Hidden }?.let { animateTo(it) }
+        allowedDetents.firstOrNull { it != SheetDetent.Hidden }?.let { animateTo(it) }
     }
 
     /** Closes the sheet. No-op if [SheetDetent.Hidden] is not one of its detents. */
@@ -211,7 +237,7 @@ class SheetState internal constructor(
      * one, otherwise the first visible one.
      */
     suspend fun show() {
-        val visible = detents.filter { it != SheetDetent.Hidden }
+        val visible = allowedDetents.filter { it != SheetDetent.Hidden }
         val target = visible.getOrNull(1) ?: visible.firstOrNull() ?: return
         animateTo(target)
     }
@@ -266,7 +292,7 @@ class SheetState internal constructor(
             container = containerHeight.roundToInt(),
             sheet = sheetHeight.roundToInt(),
             peek = peekHeight.roundToInt(),
-            detents = detents,
+            detents = allowedDetents,
             density = density.density,
             fontScale = density.fontScale,
         )
@@ -275,7 +301,7 @@ class SheetState internal constructor(
 
         anchorRebuilds++
         val positions = resolveAnchors(
-            detents = detents,
+            detents = allowedDetents,
             containerHeight = containerHeight,
             sheetHeight = sheetHeight,
             peekHeight = peekHeight,
@@ -328,7 +354,7 @@ class SheetState internal constructor(
         val target = pendingDetent ?: return
         if (!hasAnchors) return
         pendingDetent = null
-        if (target in detents) anchoredState.animateTo(target)
+        if (target in allowedDetents) anchoredState.animateTo(target)
     }
 
     /**
@@ -384,8 +410,15 @@ class SheetState internal constructor(
                 // A fling that started in the list belongs to the sheet only
                 // while the sheet is the thing that has been moving.
                 val offset = anchoredState.offset
-                val expandedOffset = anchoredState.anchors
-                    .positionOf(detents.last { it != SheetDetent.Hidden })
+                // The tallest detent that has an anchor. `detents.last { … }`
+                // named one the filtered anchor set may not carry, which reads
+                // back as `NaN` — and threw outright on a sheet whose only
+                // allowed position is hidden. The guard below already treats
+                // `NaN` as "cannot tell", so an absent anchor lands there.
+                val expanded = allowedDetents.lastOrNull { it != SheetDetent.Hidden }
+                val expandedOffset = expanded
+                    ?.let { anchoredState.anchors.positionOf(it) }
+                    ?: Float.NaN
                 return if (
                     available.y < 0 &&
                     !offset.isNaN() &&
@@ -416,10 +449,19 @@ class SheetState internal constructor(
  *
  * @param detents Where the sheet may rest. Order matters: [SheetState.expand]
  *   goes to the last, [SheetState.partialExpand] to the first visible one.
- * @param confirmDetentChange Return false to refuse a position. The usual case
- *   is refusing [SheetDetent.Hidden] on a sheet the user must deal with — but
- *   see [ModalBottomSheet] before reaching for it, since a sheet that cannot be
- *   dismissed is a trap and is nearly always the wrong answer.
+ * @param confirmDetentChange Which of [detents] the sheet may rest at. Return
+ *   false and that detent gets no anchor, so there is nothing there for a drag
+ *   to reach — the sheet meets the end of its travel rather than following the
+ *   finger and springing back. The detent the sheet is currently settled at is
+ *   always kept regardless, because a sheet with no anchor for its own position
+ *   has no position at all.
+ *
+ *   The usual case is refusing [SheetDetent.Hidden] on a sheet the user must
+ *   deal with, and it composes with `initialDetent = SheetDetent.Hidden`: the
+ *   sheet opens from hidden because that is where it already is, and once it has
+ *   settled anywhere else, hidden stops being somewhere it can be dragged back
+ *   to. But see [ModalBottomSheet] before reaching for any of this — a sheet
+ *   that cannot be dismissed is a trap and is nearly always the wrong answer.
  */
 @Composable
 fun rememberSheetState(

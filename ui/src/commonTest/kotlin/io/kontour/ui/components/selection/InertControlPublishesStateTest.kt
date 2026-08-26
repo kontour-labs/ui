@@ -8,7 +8,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.foundation.SystemIcons

@@ -168,9 +168,7 @@ fun NavigationSuiteScaffold(
                             contentDescription = item.contentDescription,
                         ) {
                             +item.label
-                            item.iconFor(index == selectedIndex)?.let { icon ->
-                                leading { +icon }
-                            }
+                            leading { +item.iconFor(index == selectedIndex) }
                         }
                     }
                 }

@@ -8,20 +8,23 @@
     <link type="text/css" rel="stylesheet" href="styles.css">
 
     <!--
-      Start the two large downloads immediately.
+      The wasm preloads are not here. They are injected by the `Lay the site out`
+      step in `.github/workflows/ci.yml`, one per binary the distribution turns
+      out to contain.
 
-      Without these the browser cannot begin fetching either binary until it has
-      downloaded, parsed and run `ui-docs.js` — one round trip and a parse
-      serialised in front of the biggest thing on the page. They are ~5 MB
-      gzipped between them, so that wait is the largest part of a first load on a
-      phone.
+      They started here, hardcoded, and one of them was wrong: `skiko.wasm` is a
+      real file at `build/compose/skiko-for-web-runtime/skiko.wasm`, which is an
+      *intermediate* directory — webpack does not necessarily emit it into the
+      distribution under that name, or at that path, or at all. The build's own
+      preload check caught it, which is the only reason it is not still shipping
+      as a silent 404: a preload that misses is invisible, because the browser
+      fetches it, gets nothing, and the page still works — just without the head
+      start that was the entire point.
 
-      `crossorigin` is required even same-origin: a preload without it is fetched
-      in a different mode from the one the module loader will use, and the
-      browser fetches the file twice.
+      So the filenames are read off the build rather than predicted. Whatever
+      webpack decides to call the binaries, including a content hash, the tags
+      name them correctly.
     -->
-    <link rel="preload" href="skiko.wasm" as="fetch" type="application/wasm" crossorigin>
-    <link rel="preload" href="kontour-ui-ui-docs.wasm" as="fetch" type="application/wasm" crossorigin>
 
     <!--
       The two faces that draw the first screen: body text and the page heading.

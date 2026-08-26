@@ -95,6 +95,15 @@ val LocalDateTimeFormats = staticCompositionLocalOf { DateTimeFormats() }
 
 private fun Int.padded(): String = if (this < 10) "0$this" else toString()
 
+/**
+ * No `else`, deliberately.
+ *
+ * Both this and [DayOfWeek.fullName] used to fall through to the enum's own
+ * `name` — `JANUARY` where the reader wanted `January` — for a case that cannot
+ * happen. Without the branch the compiler proves the map is complete, and an
+ * entry appearing in a future kotlinx-datetime is a compile error here rather
+ * than a shouted month in somebody's date picker.
+ */
 internal val Month.fullName: String
     get() = when (this) {
         Month.JANUARY -> "January"
@@ -109,7 +118,6 @@ internal val Month.fullName: String
         Month.OCTOBER -> "October"
         Month.NOVEMBER -> "November"
         Month.DECEMBER -> "December"
-        else -> name
     }
 
 internal val Month.shortName: String get() = fullName.take(3)
@@ -123,7 +131,6 @@ internal val DayOfWeek.fullName: String
         DayOfWeek.FRIDAY -> "Friday"
         DayOfWeek.SATURDAY -> "Saturday"
         DayOfWeek.SUNDAY -> "Sunday"
-        else -> name
     }
 
 internal val DayOfWeek.shortName: String get() = fullName.take(3)
