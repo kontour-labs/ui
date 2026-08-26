@@ -140,9 +140,12 @@ jobs:
       # of the site at four widths. The goldens *compare* — a rendering change
       # fails here rather than turning up as an untracked file nobody looks at.
       #
-      # Named explicitly rather than via `check`: the Compose plugin registers a
-      # JS UI-test configuration check that fails for a library target, so
-      # `check` does not run to completion on `:ui`.
+      # Still named explicitly rather than run via `check`, but no longer because
+      # `check` is broken — `:ui`'s buildscript now disables the web test tasks
+      # and the Compose configuration check that existed to say they would not
+      # work, and explains why. `check` would reach `kotlinNpmInstall` and set up
+      # a browser test environment for tests this suite does not run, which is a
+      # minute of runner time for nothing. This list is the same work without it.
       - name: Test
         run: |
           ./gradlew --no-daemon \

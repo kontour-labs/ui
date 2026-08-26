@@ -69,7 +69,7 @@ data class Elevation(
  * Passing [dark] rather than shipping one scale is what stops dark mode from
  * looking flat.
  *
- * The top two tiers are lighter than they were. [overlay] used to be a 20dp
+ * The top two tiers are lighter than they were. [Elevation.overlay] used to be a 20dp
  * offset with a 50dp blur at 22%, which bled about 70dp past a dialog's edge and
  * was doing the whole job of separating it from the page. That job is now shared
  * — what is behind a modal is blurred as well as dimmed, see

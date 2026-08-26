@@ -141,8 +141,8 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
  * is catastrophic: nothing requires the app's content to be opaque, and where it
  * is not, the ground shows through the middle and the screen goes black. So this
  * cuts the content's own shape out of the fill with an even-odd path, the way
- * [io.kontour.ui.overlay.Coachmark]'s spotlight cuts its hole, and covers
- * exactly the pixels the content has vacated.
+ * [coachmarkStep]'s spotlight cuts its hole, and covers exactly the pixels the
+ * content has vacated.
  *
  * Drawn on the *host*, before its children, rather than under the content layer
  * — anything inside that layer is scaled and blurred along with everything else.
