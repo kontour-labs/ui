@@ -47,7 +47,7 @@ import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.LinearProgress
 import io.kontour.ui.components.display.PageIndicator
 import io.kontour.ui.components.display.PageIndicatorStyle
-import io.kontour.ui.components.display.ProgressRing
+import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.SkeletonListItem
 import io.kontour.ui.components.display.SkeletonText
@@ -172,7 +172,7 @@ internal val ProgressDemo = ComponentDemo(slug = "progress", knobs = listOf(prog
         ) {
             // A ring is always determinate — it has no indeterminate form, which
             // is why `Spinner` exists and is a separate component.
-            ProgressRing(progress = 0.35f)
+            CircularProgress(progress = 0.35f)
             StepProgress(current = step, total = 4)
             Button(
                 onClick = { step = step % 4 + 1 },

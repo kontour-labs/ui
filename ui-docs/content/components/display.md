@@ -9,7 +9,7 @@ Things that show rather than take input.
 | [`Badge`](badge.md) | A count or a dot over something | — |
 | [`Avatar`](avatar.md) | A person or a place | — |
 | [`LinearProgress`](progress.md) | A known fraction | `Spinner`, when you do not know it |
-| [`ProgressRing`](progress.md) | A known fraction, in a small space | — |
+| [`CircularProgress`](progress.md) | A known fraction, in a small space | — |
 | [`StepProgress`](progress.md) | A known number of steps | `LinearProgress`, for a continuous fraction |
 | [`Skeleton`](skeleton.md) | The shape of content that is loading | `Spinner`, when the shape is knowable |
 | [`EmptyState`](empty-state.md) | Nothing here, and that is fine | `ErrorState` — see below |

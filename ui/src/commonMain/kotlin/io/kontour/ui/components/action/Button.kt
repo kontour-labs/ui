@@ -47,6 +47,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
+import androidx.compose.ui.graphics.graphicsLayer
 import io.kontour.ui.theme.Theme
 
 /**
@@ -176,9 +177,8 @@ fun Button(
 /**
  * Swaps between the label and the spinner.
  *
- * The label stays composed but invisible underneath while loading, which is what
- * holds the button's width steady. Cross-fading alone would let the button
- * collapse to spinner width and shove its neighbours sideways.
+ * The arrangement of the label is this component's own; the exchange is
+ * [LoadingSwap], shared with every other control that can be `loading`.
  */
 @Composable
 private fun RowScope.ButtonContent(
@@ -186,44 +186,12 @@ private fun RowScope.ButtonContent(
     metrics: ButtonMetrics,
     content: @Composable RowContentScope.() -> Unit
 ) {
-    val motion = Theme.motion
-
-    Box(contentAlignment = Alignment.Center) {
-        val labelAlpha by animateFloatAsState(
-            targetValue = if (loading) 0f else 1f,
-            animationSpec = motion.tweenFast(),
-            label = "buttonLabelAlpha",
-        )
-
+    LoadingSwap(loading = loading, spinnerSize = metrics.iconSize) {
         Row(
-            modifier = Modifier
-                .alpha(labelAlpha)
-                .then(if (loading) Modifier.clearAndSetSemantics { } else Modifier),
             horizontalArrangement = Arrangement.spacedBy(metrics.gap, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             contentScope(iconSize = metrics.iconSize, content = content)
-        }
-
-        AnimatedContent(
-            targetState = loading,
-            transitionSpec = {
-                // The spinner pops in rather than fading — a slightly overscaled
-                // entrance is the difference between "something is happening"
-                // and "something appeared".
-                (fadeIn(motion.tweenFast()) + scaleIn(motion.tweenFast(), initialScale = 0.6f))
-                    .togetherWith(fadeOut(motion.tweenFast()) + scaleOut(motion.tweenFast(), targetScale = 0.6f))
-            },
-            label = "buttonSpinner",
-        ) { isLoading ->
-            if (isLoading) {
-                Spinner(
-                    modifier = Modifier.size(metrics.iconSize),
-                    color = LocalContentColor.current,
-                )
-            } else {
-                Box(Modifier.size(0.dp))
-            }
         }
     }
 }

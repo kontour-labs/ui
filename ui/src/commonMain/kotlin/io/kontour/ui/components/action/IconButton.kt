@@ -76,6 +76,16 @@ fun IconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /**
+     * Swaps the glyph for a spinner and blocks input.
+     *
+     * The same exchange a `Button` makes — see [LoadingSwap] — because an icon
+     * button firing a request is the same situation as a labelled one firing it,
+     * and until now only the labelled one could say so.
+     */
+    loading: Boolean = false,
+    /** What a screen reader announces while [loading]. */
+    loadingLabel: String = Theme.strings.loading,
     variant: ButtonVariant = ButtonVariant.Ghost,
     size: ButtonSize = ButtonSize.Medium,
     shape: Shape = Theme.shapes.control,
@@ -86,12 +96,14 @@ fun IconButton(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
+    val interactive = enabled && !loading
 
     IconButtonSurface(
         icon = icon,
         contentDescription = contentDescription,
-        modifier = modifier,
+        modifier = modifier.semantics { if (loading) stateDescription = loadingLabel },
         enabled = enabled,
+        loading = loading,
         shape = shape,
         rotation = rotation,
         colors = colors,
@@ -104,7 +116,7 @@ fun IconButton(
         behaviour = Modifier.clickable(
             interactionSource = interactions,
             indication = null,
-            enabled = enabled,
+            enabled = interactive,
             role = Role.Button,
             onClick = {
                 feedback.perform(FeedbackIntent.Selection)
@@ -228,6 +240,7 @@ private fun IconButtonSurface(
     contentDescription: String,
     modifier: Modifier,
     enabled: Boolean,
+    loading: Boolean = false,
     shape: Shape,
     rotation: Float,
     colors: ButtonColors,
@@ -295,12 +308,14 @@ private fun IconButtonSurface(
         contentAlignment = Alignment.Center,
     ) {
         CompositionLocalProvider(LocalContentColor provides contentColor) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                modifier = Modifier.rotate(animatedRotation),
-                size = metrics.iconSize,
-            )
+            LoadingSwap(loading = loading, spinnerSize = metrics.iconSize) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = contentDescription,
+                    modifier = Modifier.rotate(animatedRotation),
+                    size = metrics.iconSize,
+                )
+            }
         }
     }
 }

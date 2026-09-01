@@ -81,6 +81,10 @@ fun FloatingActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Swaps the icon for a spinner and blocks input. See [LoadingSwap]. */
+    loading: Boolean = false,
+    /** What a screen reader announces while [loading]. */
+    loadingLabel: String = Theme.strings.loading,
     size: FabSize = FabSize.Medium,
     shape: Shape = Theme.shapes.control,
     containerColor: Color = Theme.colors.primary,
@@ -91,6 +95,7 @@ fun FloatingActionButton(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
     val (fabColor, fabContent, fabShadow) = fabColors(enabled, containerColor, contentColor)
+    val interactive = enabled && !loading
 
     Surface(
         modifier = modifier
@@ -101,7 +106,7 @@ fun FloatingActionButton(
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
-                enabled = enabled,
+                enabled = interactive,
                 role = Role.Button,
                 onClick = {
                     feedback.perform(FeedbackIntent.Confirm)
@@ -118,7 +123,9 @@ fun FloatingActionButton(
         // its middle.
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = contentDescription, size = size.icon)
+        LoadingSwap(loading = loading, spinnerSize = size.icon) {
+            Icon(icon, contentDescription = contentDescription, size = size.icon)
+        }
     }
 }
 
@@ -150,6 +157,10 @@ fun FloatingActionButton(
     contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Swaps the icon for a spinner and blocks input. See [LoadingSwap]. */
+    loading: Boolean = false,
+    /** What a screen reader announces while [loading]. */
+    loadingLabel: String = Theme.strings.loading,
     size: FabSize = FabSize.Medium,
     shape: Shape = Theme.shapes.control,
     containerColor: Color = Theme.colors.primary,
@@ -161,6 +172,7 @@ fun FloatingActionButton(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
     val (fabColor, fabContent, fabShadow) = fabColors(enabled, containerColor, contentColor)
+    val interactive = enabled && !loading
 
     Surface(
         modifier = modifier
@@ -172,7 +184,7 @@ fun FloatingActionButton(
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
-                enabled = enabled,
+                enabled = interactive,
                 role = Role.Button,
                 onClick = {
                     feedback.perform(FeedbackIntent.Confirm)
@@ -185,7 +197,7 @@ fun FloatingActionButton(
         border = border,
         shadow = fabShadow,
         contentAlignment = Alignment.Center,
-        content = content,
+        content = { LoadingSwap(loading = loading, spinnerSize = size.icon) { content() } },
     )
 }
 
@@ -219,6 +231,10 @@ fun ExtendedFloatingActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Swaps the icon for a spinner and blocks input. See [LoadingSwap]. */
+    loading: Boolean = false,
+    /** What a screen reader announces while [loading]. */
+    loadingLabel: String = Theme.strings.loading,
     expanded: Boolean = true,
     size: FabSize = FabSize.Medium,
     shape: Shape = Theme.shapes.control,
@@ -232,6 +248,7 @@ fun ExtendedFloatingActionButton(
     val motion = Theme.motion
     val feedback = Feedback
     val (fabColor, fabContent, fabShadow) = fabColors(enabled, containerColor, contentColor)
+    val interactive = enabled && !loading
 
     // Collapsed, the padding is whatever makes the button as wide as it is tall,
     // which is a different number at every size: the icon is the only content
@@ -253,7 +270,7 @@ fun ExtendedFloatingActionButton(
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
-                enabled = enabled,
+                enabled = interactive,
                 role = Role.Button,
                 onClick = {
                     feedback.perform(FeedbackIntent.Confirm)
@@ -266,6 +283,10 @@ fun ExtendedFloatingActionButton(
         border = border,
         shadow = fabShadow,
     ) {
+        // The whole row swaps, icon and label together: a spinner beside a
+        // label that is still there would read as the label being the thing
+        // that is not loading.
+        LoadingSwap(loading = loading, spinnerSize = size.icon) {
         Row(
             modifier = Modifier
                 .height(size.container)
@@ -293,6 +314,7 @@ fun ExtendedFloatingActionButton(
                     }
                 }
             }
+        }
         }
     }
 }

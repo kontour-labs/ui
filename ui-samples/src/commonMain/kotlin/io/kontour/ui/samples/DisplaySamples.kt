@@ -47,7 +47,7 @@ import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.CardVariant
 import io.kontour.ui.components.display.EmptyState
 import io.kontour.ui.components.display.LinearProgress
-import io.kontour.ui.components.display.ProgressRing
+import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.Tag
@@ -231,7 +231,7 @@ fun ProgressBasics() {
     // is honest rather than a bar that sits at 90% for a minute.
     LinearProgress(progress = null, contentDescription = "Finding routes")
 
-    ProgressRing(progress = 0.4f, contentDescription = "Downloading timetables")
+    CircularProgress(progress = 0.4f, contentDescription = "Downloading timetables")
 
     // For a wizard, where the count is the story.
     StepProgress(current = 2, total = 4, contentDescription = "Step 2 of 4")

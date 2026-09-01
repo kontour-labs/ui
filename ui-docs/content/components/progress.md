@@ -1,4 +1,4 @@
-# `LinearProgress` / `ProgressRing` / `StepProgress`
+# `LinearProgress` / `CircularProgress` / `StepProgress`
 
 <!--sample:ProgressBasics-->
 ```kotlin
@@ -9,7 +9,7 @@ LinearProgress(progress = 0.4f, contentDescription = "Downloading timetables")
 // is honest rather than a bar that sits at 90% for a minute.
 LinearProgress(progress = null, contentDescription = "Finding routes")
 
-ProgressRing(progress = 0.4f, contentDescription = "Downloading timetables")
+CircularProgress(progress = 0.4f, contentDescription = "Downloading timetables")
 
 // For a wizard, where the count is the story.
 StepProgress(current = 2, total = 4, contentDescription = "Step 2 of 4")
@@ -17,7 +17,7 @@ StepProgress(current = 2, total = 4, contentDescription = "Step 2 of 4")
 | | |
 |---|---|
 | `LinearProgress` | Determinate or indeterminate |
-| `ProgressRing` | Circular, determinate |
+| `CircularProgress` | Circular, determinate |
 | `StepProgress` | Segmented, for a known number of steps |
 | [`Spinner`](spinner.md) | Indeterminate activity |
 

@@ -47,7 +47,7 @@ import io.kontour.ui.components.display.ErrorState
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.LinearProgress
 import io.kontour.ui.components.display.PageIndicator
-import io.kontour.ui.components.display.ProgressRing
+import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.SkeletonListItem
 import io.kontour.ui.components.display.SkeletonText
@@ -145,8 +145,8 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                     ) {
-                        ProgressRing(progress = 0.35f)
-                        ProgressRing(progress = 0.8f, size = 28.dp)
+                        CircularProgress(progress = 0.35f)
+                        CircularProgress(progress = 0.8f, size = 28.dp)
                         Spinner()
                         Spinner(size = 32.dp)
                     }
