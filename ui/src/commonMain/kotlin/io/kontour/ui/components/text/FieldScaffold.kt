@@ -29,6 +29,10 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.theme.Theme
 
 /**
@@ -46,6 +50,9 @@ import io.kontour.ui.theme.Theme
  * @param content Fills the box between the leading slots and the trailing slot.
  *   Give it `Modifier.weight(1f)` unless the control is meant to hug its value.
  */
+/** The gap between a field's label, its frame and its message. */
+private val FieldStackGap = 6.dp
+
 @Composable
 internal fun FieldScaffold(
     modifier: Modifier,
@@ -98,10 +105,11 @@ internal fun FieldScaffold(
         label = "fieldLabel",
     )
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
+    // No `verticalArrangement`: the message slot carries the gap above it, so a
+    // field that stops being in error loses the message *and* its gap over the
+    // same animation. With `spacedBy` the gap went in one frame at the end —
+    // the vertical case of the snap `AnimatedSlot` documents.
+    Column(modifier = modifier.fillMaxWidth()) {
         if (label != null) {
             Text(
                 text = label,
@@ -116,6 +124,7 @@ internal fun FieldScaffold(
                 style = Theme.typography.labelMedium,
                 color = labelColor,
             )
+            Spacer(Modifier.height(FieldStackGap))
         }
 
         Row(
@@ -197,8 +206,10 @@ internal fun FieldScaffold(
 
         // Helper and error occupy the same slot and animate in place, so the
         // form does not jump by a line height every time validation flips.
-        AnimatedVisibility(
+        AnimatedSlot(
             visible = errorMessage != null || supporting != null,
+            gap = FieldStackGap,
+            orientation = Orientation.Vertical,
             enter = fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast()),
             exit = fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast()),
         ) {

@@ -38,6 +38,7 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
+import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.theme.Theme
 
 /** How large a [FloatingActionButton] is. */
@@ -228,8 +229,14 @@ fun ExtendedFloatingActionButton(
     val motion = Theme.motion
     val feedback = Feedback
 
+    // Collapsed, the padding is whatever makes the button as wide as it is tall,
+    // which is a different number at every size: the icon is the only content
+    // left, so the width is `padding + icon + padding` and it has to come out at
+    // `container`. It was a flat 16dp, which is `(56 - 24) / 2` — correct for
+    // `Medium` by arithmetic accident and wrong either side of it, so the
+    // collapsed button drew a circle at one size and a lozenge at the other two.
     val horizontalPadding by animateDpAsState(
-        targetValue = if (expanded) 20.dp else 16.dp,
+        targetValue = if (expanded) ExpandedPadding else (size.container - size.icon) / 2,
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "fabPadding",
     )
@@ -259,7 +266,8 @@ fun ExtendedFloatingActionButton(
             modifier = Modifier
                 .height(size.container)
                 .padding(horizontal = horizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            // No `spacedBy`: the label's gap travels inside `AnimatedSlot`, or
+            // the row drops it in one frame when the label leaves composition.
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -267,8 +275,9 @@ fun ExtendedFloatingActionButton(
                 contentDescription = if (expanded) null else contentDescription,
                 size = size.icon,
             )
-            AnimatedVisibility(
+            AnimatedSlot(
                 visible = expanded,
+                gap = Theme.spacing.xs,
                 enter = expandHorizontally(motion.springOrTween(motion.springDefault)) +
                     fadeIn(motion.tweenFast()),
                 exit = shrinkHorizontally(motion.springOrTween(motion.springDefault)) +
@@ -283,6 +292,9 @@ fun ExtendedFloatingActionButton(
         }
     }
 }
+
+/** How much room the label gets either side of it once the button is open. */
+private val ExpandedPadding = 20.dp
 
 /** Metrics for a [FloatingActionButton] that are not on [FabSize] itself. */
 object FabDefaults {

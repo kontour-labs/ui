@@ -2,6 +2,7 @@ package io.kontour.ui.theme
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -10,7 +11,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.lerp
 
 /**
- * Cross-fades between colour schemes instead of cutting.
+ * A scheme and an elevation scale at the same point of the same fade.
+ *
+ * They travel together or the transition has a seam in it: shadows at dark-mode
+ * strength over surfaces that are still light is exactly the state this pair
+ * exists to make unrepresentable.
+ */
+@Immutable
+internal class ThemeFade(val colors: ColorScheme, val elevation: Elevation)
+
+/**
+ * Cross-fades between themes instead of cutting.
  *
  * Switching to dark mode, changing the accent, or moving contrast tier used to
  * be a single frame: one composition with the old colours, the next with the
@@ -37,16 +48,18 @@ import androidx.compose.ui.graphics.lerp
  * It is still a few hundred milliseconds of full recomposition, so it is a
  * parameter rather than a fact — see `KontourTheme`'s `animateThemeChanges`.
  *
- * ### What does not fade
+ * ### The elevation scale travels with it
  *
- * [Elevation] is a sibling token, not part of the scheme, and it is resolved
- * from the `darkTheme` flag rather than from the scheme — so shadows cut to
- * their dark-mode strength at the start of the fade instead of interpolating
- * across it. It is one step in alpha and blur on a surface that is already
- * changing colour underneath it, which is why it has been left: making it fade
- * means lerping a `List<ShadowSpec>` whose length is only *conventionally* the
- * same between the two schemes, and a mismatch there is a crash rather than a
- * cosmetic flaw.
+ * [Elevation] is a sibling token rather than part of the scheme, and it used to
+ * be resolved from the `darkTheme` flag — so shadows cut to their dark-mode
+ * strength on the first frame and sat there while the surfaces beneath them were
+ * still moving. Both now come out of **one** [Animatable], which is the only way
+ * they cannot drift: two animations with the same spec agree until the day one
+ * of the specs is tuned.
+ *
+ * The reason to leave it was that lerping a `List<ShadowSpec>` risks a length
+ * mismatch. That turned out to have a one-line answer — a layer that does not
+ * exist is that layer at alpha zero — which is in `lerp(Shadow, Shadow, Float)`.
  *
  * ### Interrupting mid-fade
  *
@@ -56,15 +69,20 @@ import androidx.compose.ui.graphics.lerp
  * more visible than not animating at all.
  */
 @Composable
-internal fun animatedColorScheme(target: ColorScheme, motion: Motion): ColorScheme {
+internal fun animatedTheme(
+    colors: ColorScheme,
+    elevation: Elevation,
+    motion: Motion,
+): ThemeFade {
+    val target = ThemeFade(colors, elevation)
     var from by remember { mutableStateOf(target) }
     var to by remember { mutableStateOf(target) }
     val fraction = remember { Animatable(1f) }
 
-    LaunchedEffect(target) {
-        if (target == to) return@LaunchedEffect
-        from = lerpColorScheme(from, to, fraction.value)
-        to = target
+    LaunchedEffect(colors, elevation) {
+        if (colors == to.colors && elevation == to.elevation) return@LaunchedEffect
+        from = lerpTheme(from, to, fraction.value)
+        to = ThemeFade(colors, elevation)
         fraction.snapTo(0f)
         fraction.animateTo(1f, motion.tweenDefault())
     }
@@ -74,18 +92,28 @@ internal fun animatedColorScheme(target: ColorScheme, motion: Motion): ColorSche
         when {
             f >= 1f -> to
             f <= 0f -> from
-            else -> lerpColorScheme(from, to, f)
+            else -> lerpTheme(from, to, f)
         }
     }
 }
+
+/** Both halves, from one fraction. */
+internal fun lerpTheme(start: ThemeFade, stop: ThemeFade, fraction: Float): ThemeFade =
+    ThemeFade(
+        colors = lerpColorScheme(start.colors, stop.colors, fraction),
+        elevation = lerp(start.elevation, stop.elevation, fraction),
+    )
 
 /**
  * Every colour in the scheme, interpolated.
  *
  * [ColorScheme.isDark] is not a colour and cannot be half-way: it switches at
- * the midpoint, so anything reading it — the elevation scale cuts its shadows
- * harder on a dark ground — flips once, in the middle, rather than at one end
- * where it would disagree with what is on screen for most of the fade.
+ * the midpoint, so anything reading it flips once, in the middle, rather than at
+ * one end where it would disagree with what is on screen for most of the fade.
+ *
+ * Its readers are `Skeleton`, `Tag` and `Surface`, each choosing a *content*
+ * colour by which ground it is on. The elevation scale used to be the example
+ * here and no longer is — it interpolates now, so it has nothing to ask.
  */
 internal fun lerpColorScheme(start: ColorScheme, stop: ColorScheme, fraction: Float): ColorScheme =
     ColorScheme(

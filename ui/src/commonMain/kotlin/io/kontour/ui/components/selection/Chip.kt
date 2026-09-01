@@ -41,6 +41,8 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.motion.AnimatedSlot
+import io.kontour.ui.motion.SlotGap
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 
@@ -68,6 +70,14 @@ private val ChipHeight = 34.dp
  * Chips are for things that come in *sets*. A single chip on a screen is
  * usually a small button wearing the wrong clothes.
  */
+/**
+ * The gap between a chip's tick and its label.
+ *
+ * Named because [AnimatedSlot] needs it as a value rather than as an
+ * arrangement, and because three chip variants were each restating `6.dp`.
+ */
+private val ChipIconGap = 6.dp
+
 @Composable
 fun Chip(
     onClick: () -> Unit,
@@ -185,13 +195,16 @@ fun FilterChip(
                 indication = kontourIndication(shape),
             )
             .padding(horizontal = Theme.spacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        // No `spacedBy`: the tick carries its own gap, so the row does not lose
+        // it in one frame when the tick leaves composition. See `AnimatedSlot`.
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CompositionLocalProvider(LocalContentColor provides contentColor) {
             if (selectedIcon != null) {
-                AnimatedVisibility(
+                AnimatedSlot(
                     visible = selected,
+                    gap = ChipIconGap,
+                    side = SlotGap.Trailing,
                     enter = expandHorizontally(motion.springOrTween(motion.springSnappy)) +
                         fadeIn(motion.tweenFast()) +
                         scaleIn(motion.springOrTween(motion.springBouncy), initialScale = 0.4f),

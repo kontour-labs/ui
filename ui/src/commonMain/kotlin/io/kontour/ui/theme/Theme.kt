@@ -145,21 +145,27 @@ fun KontourTheme(
     // shadow the outer's state for part of the tree.
     val alreadyTracking = LocalInputModalityInstalled.current
 
-    // Resolved here rather than in the parameter's default so it animates
+    // Resolved here rather than in the parameters' defaults so it animates
     // whatever the caller passed — an app with its own scheme gets the
     // cross-fade too, not just one using the built-in light/dark pair.
-    val resolvedColors = if (animateThemeChanges) {
-        animatedColorScheme(colors, motion)
+    //
+    // Colours and shadows go through together. They are separate tokens and it
+    // would have been less code to animate the scheme alone, which is what this
+    // did: the shadows then cut to their dark-mode strength on the fade's first
+    // frame and waited there for the surfaces to catch up.
+    val faded = if (animateThemeChanges) {
+        animatedTheme(colors, elevation, motion)
     } else {
-        colors
+        ThemeFade(colors, elevation)
     }
+    val resolvedColors = faded.colors
 
     CompositionLocalProvider(
         LocalColorScheme provides resolvedColors,
         LocalTypography provides typography,
         LocalShapes provides shapes,
         LocalSpacing provides spacing,
-        LocalElevation provides elevation,
+        LocalElevation provides faded.elevation,
         LocalMotion provides motion,
         LocalSizing provides sizing,
         LocalStrings provides strings,
