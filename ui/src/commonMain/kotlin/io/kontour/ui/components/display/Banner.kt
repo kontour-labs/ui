@@ -31,6 +31,12 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
@@ -83,7 +89,7 @@ fun Banner(
 ) {
     val slots = bannerSlots(content)
     val colors = bannerColorsFor(tone)
-    val shape = Theme.shapes.small
+    val shape = Theme.shapes.container
 
     Row(
         modifier = modifier
@@ -182,7 +188,7 @@ fun Callout(
     container: Color = Theme.colors.accent.container,
     content: @Composable () -> Unit,
 ) {
-    val shape = Theme.shapes.small
+    val shape = Theme.shapes.container
 
     Row(
         modifier = modifier
@@ -191,14 +197,39 @@ fun Callout(
             // a Row otherwise gives fillMaxHeight nothing to fill.
             .height(IntrinsicSize.Min)
             .clip(shape)
-            .background(container, shape),
+            .background(container, shape)
+            // The rule follows the box's own outline rather than standing beside
+            // it.
+            //
+            // It was a 3dp `Box` down the leading edge, and a straight bar inside
+            // a rounded container fails at exactly the corners: the clip eats it
+            // where the curve turns, so a rule that is supposed to run the full
+            // height stops short at both ends and tapers away. The rounder the
+            // corner the worse it reads, and the shape scale just got rounder.
+            //
+            // Stroking the container's own path fixes it by construction — the
+            // band *is* the outline, so it curves with it — and clipping to the
+            // leading corner's width is what keeps it a rule down one edge
+            // rather than a border all the way round. Stroked at twice the width
+            // because a stroke straddles the path and the outer half is clipped.
+            .drawWithCache {
+                val outline = shape.createOutline(size, layoutDirection, this)
+                val path = Path().apply { addOutline(outline) }
+                val width = CalloutRuleWidth.toPx()
+                val corner = shape.topStart.toPx(size, this)
+                val stroke = Stroke(width = width * 2f)
+                val extent = corner + width
+                onDrawWithContent {
+                    drawContent()
+                    clipPath(path) {
+                        clipRect(right = extent) {
+                            drawPath(path, accent, style = stroke)
+                        }
+                    }
+                }
+            },
     ) {
-        Box(
-            Modifier
-                .width(3.dp)
-                .fillMaxHeight()
-                .background(accent)
-        )
+        Box(Modifier.width(CalloutRuleWidth))
         Box(Modifier.padding(Theme.spacing.sm)) {
             CompositionLocalProvider(
                 LocalContentColor provides Theme.colors.accent.onContainer,
@@ -208,6 +239,9 @@ fun Callout(
         }
     }
 }
+
+/** How wide the accent rule down a [Callout]'s leading edge is. */
+private val CalloutRuleWidth = 3.dp
 
 @Composable
 private fun bannerColorsFor(tone: BannerTone): StatusColors = when (tone) {

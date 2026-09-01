@@ -75,6 +75,7 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.inset
 import kotlinx.coroutines.delay
 
 /** Sizing shared by every menu surface. Override per call site if you must. */
@@ -358,12 +359,15 @@ fun MenuItem(
             }
             .minimumTouchTarget()
             .padding(horizontal = Theme.spacing.xxs)
-            .clip(Theme.shapes.small)
+            .clip(Theme.shapes.container.inset(Theme.spacing.xxs))
             .clickable(
                 interactionSource = interactions,
                 // A menu row is a big target; scaling it makes the whole menu
                 // look like it is wobbling.
-                indication = kontourIndication(Theme.shapes.small, pressScale = 1f),
+                indication = kontourIndication(
+                    Theme.shapes.container.inset(Theme.spacing.xxs),
+                    pressScale = 1f,
+                ),
                 enabled = enabled,
                 onClick = {
                     feedback.perform(FeedbackIntent.Selection)

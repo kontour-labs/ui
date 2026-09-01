@@ -293,7 +293,7 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
         // constraint rather than being clamped by the default behind it.
         modifier = modifier
             .widthIn(max = TooltipDefaults.MaxWidth),
-        shape = Theme.shapes.small,
+        shape = Theme.shapes.container,
         color = Theme.colors.surfaceInverse,
         contentColor = Theme.colors.onSurfaceInverse,
     ) {

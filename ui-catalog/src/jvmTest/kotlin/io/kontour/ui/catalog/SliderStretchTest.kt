@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.Slider
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -88,11 +89,23 @@ class SliderStretchTest {
         )
     }
 
-    /** And it is round again once nothing is pulling on it. */
+    /**
+     * And it relaxes back to its resting shape once nothing is pulling on it.
+     *
+     * This used to assert the settled thumb was *round*, which stopped being the
+     * resting shape when the thumb became a horizontal capsule: it is
+     * [io.kontour.ui.components.selection.SliderDefaults.ThumbAspect] wider than
+     * it is tall before anything touches it. The property worth keeping is not
+     * the number, it is that the stretch is a movement rather than a shape — so
+     * the resting elongation is *measured* from an untouched slider rather than
+     * assumed, and this compares against that. It cannot go stale the next time
+     * the thumb's proportions are tuned.
+     */
     @Test
-    fun aThumbAtRestIsRound() {
+    fun aThumbRelaxesToItsRestingShape() {
         var value by mutableStateOf(0.5f)
         var bounds = Rect.Zero
+        var untouched = 0
         var atRest = 0
 
         Scene(width = 700, height = 240) {
@@ -105,15 +118,16 @@ class SliderStretchTest {
                 )
             }
         }.use { scene ->
-            scene.frames(3)
+            untouched = scene.frames(3).thumbElongation(bounds)
             scene.drag(from = bounds.alongX(0.5f), to = bounds.alongX(0.62f), steps = 12)
             atRest = scene.frames(40).thumbElongation(bounds)
         }
 
         assertTrue(
-            atRest <= Tolerance,
-            "the settled thumb is ${atRest}px wider than it is tall — the stretch " +
-                "has become a shape rather than a movement",
+            abs(atRest - untouched) <= Tolerance,
+            "a slider left alone draws a thumb ${untouched}px wider than it is " +
+                "tall; after a drag settled it is ${atRest}px. The stretch has " +
+                "become a shape rather than a movement.",
         )
     }
 

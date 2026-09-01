@@ -31,11 +31,29 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 
 /** The box's drawn size. The touch target around it is much larger. */
 private val CheckboxSize = 20.dp
+
+/**
+ * A checkbox's own corner, deliberately not a rung of the scale.
+ *
+ * It read [io.kontour.ui.theme.Shapes.extraSmall] until that rung moved from 8dp
+ * to 10dp — half of [CheckboxSize] — and a 20dp box with a 10dp corner is a
+ * circle. The box turned into a radio button, which is not a cosmetic problem:
+ * shape is the *only* thing distinguishing "choose any" from "choose one" before
+ * either is ticked, and a screen reader's answer is no help to someone looking
+ * at it.
+ *
+ * So this is a one-off, in exactly the sense the shape scale documents one:
+ * square-ish is a property of what a checkbox **is**, not of a family it belongs
+ * to, and it must not follow the ladder wherever the ladder goes next. 6dp is
+ * 30% of the box — clearly rounded, unmistakably not round.
+ */
+private val CheckboxShape = SquircleShape(6.dp)
 
 /**
  * A checkbox.
@@ -91,7 +109,7 @@ fun TriStateCheckbox(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colors = Theme.colors
     val motion = Theme.motion
-    val shape = Theme.shapes.extraSmall
+    val shape = CheckboxShape
     val feedback = Feedback
 
     val selected = state != ToggleableState.Off

@@ -19,6 +19,7 @@ import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColor
 import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
 
 /**
@@ -47,13 +48,24 @@ import io.kontour.ui.theme.Theme
  *   several of these in a row with a gap than as one long cap. Kept to one line:
  *   a key cap that wraps is not a key cap.
  */
+/**
+ * A keycap's own corner, for the same reason a checkbox has one.
+ *
+ * [KbdDefaults.Height] and [KbdDefaults.MinWidth] are both 20dp, so a
+ * single-character key is a 20dp square — and once
+ * [io.kontour.ui.theme.Shapes.extraSmall] became 10dp, that square was a circle.
+ * A keycap that is round is not a keycap; the whole point of the component is
+ * that it looks like the thing on the keyboard.
+ */
+private val KbdShape = SquircleShape(6.dp)
+
 @Composable
 fun Kbd(
     modifier: Modifier = Modifier,
     color: Color = Theme.colors.contentMuted,
     content: @Composable ContentScope.() -> Unit,
 ) {
-    val shape = Theme.shapes.extraSmall
+    val shape = KbdShape
     Row(
         modifier = modifier
             .clearAndSetSemantics { }

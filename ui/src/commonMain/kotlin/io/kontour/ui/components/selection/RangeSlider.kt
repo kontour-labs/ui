@@ -355,7 +355,7 @@ fun RangeSlider(
             // See `Slider`, where that layout cost the outer 11dp of the control
             // its ability to be touched at all, which is precisely where a thumb
             // sits at either end of the range.
-            val insetPx = with(density) { SliderThumbRadius.toPx() }
+            val insetPx = with(density) { SliderThumbReach.toPx() }
             val widthPx = (with(density) { maxWidth.toPx() } - insetPx * 2f).coerceAtLeast(1f)
 
             fun toFraction(x: Float): Float {
@@ -445,14 +445,17 @@ fun RangeSlider(
                     .drawWithCache {
                         val trackHeightPx = SliderTrackHeight.toPx()
                         val thumbRadiusPx = SliderThumbRadius.toPx()
+                        val thumbReachPx = SliderThumbReach.toPx()
                         val centreY = size.height / 2f
                         val trackTop = centreY - trackHeightPx / 2f
                         val activeColor = if (enabled) colors.primary else colors.contentDisabled
                         val inactiveColor = if (enabled) colors.outline else colors.surfaceSunken
 
                         onDrawBehind {
-                            val trackLeft = thumbRadiusPx
-                            val trackWidth = (size.width - thumbRadiusPx * 2f).coerceAtLeast(0f)
+                            // The thumb's reach, not its radius — see the
+                            // note in `Slider`. Must match the pointer maths.
+                            val trackLeft = thumbReachPx
+                            val trackWidth = (size.width - thumbReachPx * 2f).coerceAtLeast(0f)
                             val startX = trackLeft + trackWidth * drawnStart
                             val endX = trackLeft + trackWidth * drawnEnd
 

@@ -469,32 +469,36 @@ def main() -> int:
     shapes_source = Path("ui/src/commonMain/kotlin/io/kontour/ui/theme/Shapes.kt")
     if shapes_source.exists():
         source = shapes_source.read_text()
-        actual = {
-            name: (radius, "squircle" if kind == "SquircleShape" else "circular")
-            for name, kind, radius in re.findall(
-                r"val (\w+): CornerBasedShape = (RoundedCornerShape|SquircleShape)\((\d+)\.dp\)",
+        # The kind of corner used to be checked alongside the radius, because the
+        # scale had two of them and which rung changed over was a real fact worth
+        # pinning. Every rung is a squircle now, so a "corner" column would say
+        # the same word eight times, and a column that cannot disagree with the
+        # code cannot catch the code changing.
+        #
+        # `control` and `field` are deliberately absent: they resolve from the
+        # height of whatever they are put on, so they have no radius to check.
+        actual = dict(
+            re.findall(
+                r"val (\w+): CornerBasedShape = SquircleShape\((\d+)\.dp\)",
                 source,
             )
-        }
+        )
         tables = {
-            "Shapes.kt": (source, re.compile(r"\|\s*\[(\w+)\]\s*\|\s*(\d+)dp\s*\|\s*(\w+)\s*\|")),
+            "Shapes.kt": (source, re.compile(r"\|\s*\[(\w+)\]\s*\|\s*(\d+)dp\s*\|")),
             "tokens.md": (
                 (CONTENT / "tokens.md").read_text(),
-                re.compile(r"\|\s*`(\w+)`\s*\|\s*(\d+)dp\s*\|\s*(\w+)\s*\|"),
+                re.compile(r"\|\s*`(\w+)`\s*\|\s*(\d+)dp\s*\|"),
             ),
         }
         for where, (text, pattern) in tables.items():
-            documented = {
-                name: (radius, kind) for name, radius, kind in pattern.findall(text)
-            }
-            for name, (radius, kind) in actual.items():
+            documented = dict(pattern.findall(text))
+            for name, radius in actual.items():
                 if name not in documented:
                     problems.append(f"{where} has no row for the `{name}` radius token")
-                elif documented[name] != (radius, kind):
-                    was = documented[name]
+                elif documented[name] != radius:
                     problems.append(
-                        f"{where} says `{name}` is {was[0]}dp and {was[1]}, but "
-                        f"Shapes.kt builds it at {radius}dp and {kind}"
+                        f"{where} says `{name}` is {documented[name]}dp, but "
+                        f"Shapes.kt builds it at {radius}dp"
                     )
 
     # Rule 12 — every component in the shape-families table really asks for

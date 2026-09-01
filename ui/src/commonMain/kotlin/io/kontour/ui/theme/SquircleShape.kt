@@ -323,6 +323,12 @@ class SquircleShape(
     }
 }
 
+/** A squircle with the same [CornerSize] on all four corners. */
+fun SquircleShape(
+    corner: CornerSize,
+    smoothing: Float = SquircleShape.DefaultSmoothing,
+): SquircleShape = SquircleShape(corner, corner, corner, corner, smoothing)
+
 /** A squircle with the same radius on all four corners. */
 fun SquircleShape(radius: Dp, smoothing: Float = SquircleShape.DefaultSmoothing): SquircleShape =
     SquircleShape(CornerSize(radius), CornerSize(radius), CornerSize(radius), CornerSize(radius), smoothing)

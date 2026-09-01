@@ -96,7 +96,7 @@ enum class ListItemPosition {
  * fine on a three-item list in the catalog and wrong on every one-item list in
  * the app.
  */
-fun ListItemPosition.shape(shape: CornerBasedShape, square: Dp = 4.dp): Shape {
+fun ListItemPosition.shape(shape: CornerBasedShape, square: Dp = 4.dp): CornerBasedShape {
     val flat = androidx.compose.foundation.shape.CornerSize(square)
     return when (this) {
         ListItemPosition.Only -> shape

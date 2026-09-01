@@ -92,7 +92,7 @@ fun Switch(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colors = Theme.colors
     val motion = Theme.motion
-    val shape = Theme.shapes.pill
+    val shape = Theme.shapes.control
     val feedback = Feedback
     val scope = rememberCoroutineScope()
 

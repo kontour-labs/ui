@@ -14,6 +14,7 @@ import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.rememberInputModalityState
 import io.kontour.ui.input.trackInputModality
 import io.kontour.ui.interaction.FeedbackDispatcher
+import io.kontour.ui.interaction.HapticsLevel
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.rememberDefaultFeedbackDispatcher
 import io.kontour.ui.platform.platformPrefersHighContrast
@@ -108,6 +109,17 @@ fun KontourTheme(
     contrast: ContrastLevel = if (platformPrefersHighContrast()) ContrastLevel.High else ContrastLevel.Standard,
     reduceMotion: Boolean = platformPrefersReducedMotion(),
     backdropBlur: Boolean = true,
+    /**
+     * Whether a change of scheme cross-fades rather than cutting.
+     *
+     * On, because every other state change in the library animates and switching
+     * to dark mode is the largest one there is. See `animatedColorScheme` for
+     * what it costs: the scheme feeds a static composition local, so the fade
+     * recomposes the whole application for its duration. That is the right trade
+     * for a rare, deliberate change and the wrong one for anything frequent, so
+     * an app driving [colors] from something that moves should turn it off.
+     */
+    animateThemeChanges: Boolean = true,
     colors: ColorScheme = remember(darkTheme, contrast) { kontourColorScheme(darkTheme, contrast) },
     typography: Typography = rememberDefaultTypography(),
     shapes: Shapes = remember { Shapes() },
@@ -116,7 +128,15 @@ fun KontourTheme(
     motion: Motion = remember(reduceMotion) { kontourMotion(reduceMotion) },
     sizing: Sizing = remember(contrast) { kontourSizing(contrast) },
     strings: Strings = remember { Strings() },
-    feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(),
+    /**
+     * How much physical feedback the app gives. See [HapticsLevel].
+     *
+     * Separate from [feedback], which decides what each intent *feels like*.
+     * This decides how many of them fire at all, and is the one an app is likely
+     * to want to put behind a user-facing setting.
+     */
+    haptics: HapticsLevel = HapticsLevel.Full,
+    feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(haptics),
     content: @Composable () -> Unit,
 ) {
     // A nested KontourTheme — a screen forcing dark mode, say — re-provides the
@@ -125,8 +145,17 @@ fun KontourTheme(
     // shadow the outer's state for part of the tree.
     val alreadyTracking = LocalInputModalityInstalled.current
 
+    // Resolved here rather than in the parameter's default so it animates
+    // whatever the caller passed — an app with its own scheme gets the
+    // cross-fade too, not just one using the built-in light/dark pair.
+    val resolvedColors = if (animateThemeChanges) {
+        animatedColorScheme(colors, motion)
+    } else {
+        colors
+    }
+
     CompositionLocalProvider(
-        LocalColorScheme provides colors,
+        LocalColorScheme provides resolvedColors,
         LocalTypography provides typography,
         LocalShapes provides shapes,
         LocalSpacing provides spacing,
@@ -136,7 +165,7 @@ fun KontourTheme(
         LocalStrings provides strings,
         LocalContrastLevel provides contrast,
         LocalBackdropBlur provides backdropBlur,
-        LocalContentColor provides colors.content,
+        LocalContentColor provides resolvedColors.content,
         LocalTextStyle provides typography.bodyMedium,
         LocalFeedback provides feedback,
     ) {

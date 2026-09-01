@@ -48,6 +48,16 @@ import kotlin.math.roundToInt
 // Two copies of these would be two sliders that drift apart by a pixel.
 internal val SliderTrackHeight = 4.dp
 internal val SliderThumbRadius = 12.dp
+
+/**
+ * Half the thumb's resting width — the distance its edge reaches from its centre.
+ *
+ * The track is inset by this at each end so the thumb has room to sit at 0 and
+ * at 1 without being clipped by the control's own bounds. It was
+ * [SliderThumbRadius], which was the same number while the thumb was a circle
+ * and is 1.5× short of it now that it is a capsule.
+ */
+internal val SliderThumbReach = SliderThumbRadius * SliderDefaults.ThumbAspect
 internal val SliderHeight = 44.dp
 
 /**
@@ -316,7 +326,7 @@ fun Slider(
          * full-width box and subtract the inset themselves; the drawing insets
          * the track by the same amount, so nothing moved on screen.
          */
-        val insetPx = with(density) { SliderThumbRadius.toPx() }
+        val insetPx = with(density) { SliderThumbReach.toPx() }
         val widthPx = (with(density) { maxWidth.toPx() } - insetPx * 2f).coerceAtLeast(1f)
 
         BoxWithConstraints(
@@ -373,6 +383,7 @@ fun Slider(
                 .drawWithCache {
                     val trackHeightPx = SliderTrackHeight.toPx()
                     val thumbRadiusPx = SliderThumbRadius.toPx()
+                    val thumbReachPx = SliderThumbReach.toPx()
                     val centreY = size.height / 2f
                     val trackTop = centreY - trackHeightPx / 2f
                     val activeColor = if (enabled) colors.primary else colors.contentDisabled
@@ -380,10 +391,15 @@ fun Slider(
                     val thumbColor = if (enabled) colors.primary else colors.contentDisabled
 
                     onDrawBehind {
-                        // The track is inset by the thumb's radius at each end;
-                        // the box around it is not, because that is the hit area.
-                        val trackLeft = thumbRadiusPx
-                        val trackWidth = (size.width - thumbRadiusPx * 2f).coerceAtLeast(0f)
+                        // The track is inset by the thumb's *reach* at each
+                        // end — how far its edge sits from its centre — so a
+                        // thumb parked at 0 or 1 is not clipped by the control's
+                        // own bounds. The box around it is not inset, because
+                        // that is the hit area. This has to be the same number
+                        // the pointer maths above uses, or a tap lands on a
+                        // fraction the track does not draw at.
+                        val trackLeft = thumbReachPx
+                        val trackWidth = (size.width - thumbReachPx * 2f).coerceAtLeast(0f)
                         val thumbX = trackLeft + trackWidth * drawnFraction
 
                         drawRoundRect(
@@ -450,6 +466,17 @@ object SliderDefaults {
      * longest capsule at about one and a half thumbs, which reads as give.
      */
     const val MaxStretch: Float = 0.6f
+
+    /**
+     * How much wider than tall the thumb is at rest.
+     *
+     * 1.5 rather than a circle's 1.0: a round thumb reads as a dot sitting on
+     * the track, and a capsule reads as a handle for it — and points along the
+     * one axis the thumb travels on. Kept modest because the stretch on top of
+     * it is what carries the sense of strain, and a thumb that starts long has
+     * less room to say anything by getting longer.
+     */
+    const val ThumbAspect: Float = 1.5f
 }
 
 /** The page-coloured ring around a thumb. Constant, not scaled — see `sliderThumb`. */
