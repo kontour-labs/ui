@@ -41,6 +41,11 @@ import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.overlay.anchorBounds
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.clipPath
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
@@ -326,7 +331,15 @@ fun FabMenu(
             fractions.forEachIndexed { index, fraction ->
                 launch {
                     delay(index * stagger)
-                    fraction.animateTo(1f, motion.springOrTween(motion.springBouncy))
+                    // `springDefault`, not `springBouncy`. Overshoot is a
+                    // proportion of the distance travelled, so the same spring
+                    // that reads as lively on a chip's 6dp tick reads as a
+                    // wobble on an item thrown 120dp down the screen — worst in
+                    // the vertical and horizontal layouts, where the last item
+                    // travels furthest. The stagger already carries the sense of
+                    // the menu unfolding; the bounce was a second opinion about
+                    // the same thing.
+                    fraction.animateTo(1f, motion.springOrTween(motion.springDefault))
                 }
             }
         } else {
@@ -477,6 +490,35 @@ private fun FabMenuItems(
                     contentColor = contentColor,
                     border = border,
                 )
+            }
+        },
+        // The items come out from *behind* the anchor.
+        //
+        // They are in the overlay and the button is in the page, so the overlay
+        // is above it by construction and the first frames of an opening menu
+        // were small circles sliding across the FAB's own face. Nothing about
+        // the geometry said "these came out of that button" — they were in front
+        // of it the whole way.
+        //
+        // Cutting the anchor's shape out of this layer fixes the read without a
+        // second copy of the anchor to keep in sync: the real button shows
+        // through the hole, still rotating its own icon, and an item is hidden
+        // until it clears the edge. Difference-clipped rather than z-ordered
+        // because the two are in different layers and no z-index reaches across.
+        modifier = Modifier.drawWithCache {
+            val hole = Path().apply {
+                val rect = (anchorInRoot() ?: Rect.Zero).translate(-host.originInRoot)
+                if (!rect.isEmpty) {
+                    addOutline(shape.createOutline(rect.size, layoutDirection, this@drawWithCache))
+                    translate(Offset(rect.left, rect.top))
+                }
+            }
+            onDrawWithContent {
+                if (hole.isEmpty) {
+                    drawContent()
+                } else {
+                    clipPath(hole, ClipOp.Difference) { this@onDrawWithContent.drawContent() }
+                }
             }
         },
     ) { measurables, constraints ->

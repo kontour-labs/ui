@@ -17,6 +17,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import io.kontour.ui.theme.Motion
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
 
 /**
@@ -97,7 +106,25 @@ class PageTransitionScope internal constructor(
                     sharedContentState = state,
                     animatedVisibilityScope = visibility,
                     boundsTransform = bounds,
-                    clipInOverlayDuringTransition = OverlayClip(clip),
+                    // Outset, or the clip eats the element's shadow.
+                    //
+                    // `OverlayClip(clip)` clips the travelling element to
+                    // *exactly* its own outline, and a drop shadow is drawn
+                    // outside that outline by definition. So a card with any
+                    // elevation lost its shadow for the whole morph and got it
+                    // back the frame it landed and stopped being drawn in the
+                    // overlay — which reads as the shadow snapping into place at
+                    // the very end of an otherwise smooth transition.
+                    //
+                    // The slack is a constant rather than a parameter because
+                    // the caller would have to know the blur radius of a token
+                    // it never named. It only has to exceed the tallest tier in
+                    // the elevation scale, and being generous costs nothing: the
+                    // clip still bounds the content, just with room around it,
+                    // and only while the element is in flight.
+                    clipInOverlayDuringTransition = OverlayClip(
+                        OutsetShape(clip, ShadowSlack)
+                    ),
                 )
             }
         }
@@ -207,3 +234,38 @@ private fun pageCrossFade(motion: Motion): ContentTransform =
         initialContentExit = fadeOut(motion.tweenExit()),
         sizeTransform = null,
     )
+
+
+/**
+ * How much room a travelling element's clip leaves for its shadow.
+ *
+ * Comfortably past the `overlay` tier — a 10dp offset with a 28dp blur — so no
+ * tier of the elevation scale is cut off in flight. It is not a visual constant
+ * and nothing lines up with it; it is a bound.
+ */
+private val ShadowSlack = 48.dp
+
+/**
+ * [base], grown by [by] on every side.
+ *
+ * For clipping something that draws outside its own bounds. The outline is built
+ * at the larger size and shifted back up and left, so it stays centred on the
+ * element rather than growing away from its origin.
+ */
+private class OutsetShape(private val base: Shape, private val by: Dp) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density,
+    ): Outline {
+        val grow = with(density) { by.toPx() }
+        if (grow <= 0f) return base.createOutline(size, layoutDirection, density)
+
+        val grown = Size(size.width + grow * 2f, size.height + grow * 2f)
+        val path = Path().apply {
+            addOutline(base.createOutline(grown, layoutDirection, density))
+            translate(Offset(-grow, -grow))
+        }
+        return Outline.Generic(path)
+    }
+}

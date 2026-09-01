@@ -43,6 +43,9 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.motion.SlotGap
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.togetherWith
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 
@@ -83,6 +86,19 @@ fun Chip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /**
+     * What makes this chip's content *this* content.
+     *
+     * A chip whose label is replaced — "Perth Station" becoming "Undo" once the
+     * filter is cleared — cuts between the two, because the label arrives
+     * through a slot and a slot has no identity to compare. Give the key
+     * whatever the label is derived from and the change cross-fades and resizes
+     * instead.
+     *
+     * Null by default: without a key there is nothing to diff, and animating on
+     * every recomposition would flicker a chip whose label never changed.
+     */
+    contentKey: Any? = null,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit
 ) {
@@ -111,8 +127,41 @@ fun Chip(
                 },
             ),
         contentColor = if (enabled) colors.content else colors.contentDisabled,
-        content = content
+        content = { KeyedChipContent(contentKey, content) },
     )
+}
+
+/**
+ * A chip's label, cross-faded when its [key] changes.
+ *
+ * Without a key this is the slot and nothing else, so a chip that never changes
+ * label pays for none of this — no `AnimatedContent`, no extra layout node, and
+ * no chance of a flicker on an unrelated recomposition.
+ *
+ * With one, the label fades and the chip resizes to it, which is what a filter
+ * chip turning into an "Undo" chip should do: it is the same chip changing its
+ * mind, not one chip leaving and another arriving.
+ */
+@Composable
+private fun RowContentScope.KeyedChipContent(
+    key: Any?,
+    content: @Composable RowContentScope.() -> Unit,
+) {
+    if (key == null) {
+        content()
+        return
+    }
+    val motion = Theme.motion
+    AnimatedContent(
+        targetState = key,
+        transitionSpec = {
+            (fadeIn(motion.tweenFast()) togetherWith fadeOut(motion.tweenFast()))
+                .using(SizeTransform(clip = false))
+        },
+        label = "chipContent",
+    ) { _ ->
+        content()
+    }
 }
 
 /**
@@ -215,12 +264,29 @@ fun FilterChip(
                     Icon(selectedIcon, contentDescription = null, size = Theme.sizing.iconSmall)
                 }
             }
-            ProvideTextStyle(Theme.typography.labelMedium) {
-                contentScope(
-                    iconSize = Theme.sizing.iconSmall,
-                    maxLines = 1,
-                    content = content,
-                )
+            // The static content keeps an arrangement of its own.
+            //
+            // `contentScope` emits its icon and its label straight into the
+            // surrounding row — it has no layout of its own — so the chip's
+            // `spacedBy` was the only thing separating a leading icon from the
+            // words next to it. Dropping that arrangement for the tick's sake
+            // jammed "🚌Trains" together, which is a different bug in the same
+            // row and one the golden caught only because someone looked.
+            //
+            // Two arrangements, then: the tick's gap travels with the tick, and
+            // everything that is always there is spaced by a row that is always
+            // there.
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(ChipIconGap),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ProvideTextStyle(Theme.typography.labelMedium) {
+                    contentScope(
+                        iconSize = Theme.sizing.iconSmall,
+                        maxLines = 1,
+                        content = content,
+                    )
+                }
             }
         }
     }

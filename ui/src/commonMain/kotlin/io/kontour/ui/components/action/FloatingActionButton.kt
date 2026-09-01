@@ -39,6 +39,7 @@ import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.motion.AnimatedSlot
+import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
 
 /** How large a [FloatingActionButton] is. */
@@ -89,6 +90,7 @@ fun FloatingActionButton(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
+    val (fabColor, fabContent, fabShadow) = fabColors(enabled, containerColor, contentColor)
 
     Surface(
         modifier = modifier
@@ -107,10 +109,10 @@ fun FloatingActionButton(
                 },
             ),
         shape = shape,
-        color = containerColor,
-        contentColor = contentColor,
+        color = fabColor,
+        contentColor = fabContent,
         border = border,
-        shadow = Theme.elevation.medium,
+        shadow = fabShadow,
         // `defaultMinSize` makes the surface larger than the icon inside it, so
         // without this the icon lands in the FAB's top-left corner rather than
         // its middle.
@@ -158,6 +160,7 @@ fun FloatingActionButton(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
+    val (fabColor, fabContent, fabShadow) = fabColors(enabled, containerColor, contentColor)
 
     Surface(
         modifier = modifier
@@ -177,10 +180,10 @@ fun FloatingActionButton(
                 },
             ),
         shape = shape,
-        color = containerColor,
-        contentColor = contentColor,
+        color = fabColor,
+        contentColor = fabContent,
         border = border,
-        shadow = Theme.elevation.medium,
+        shadow = fabShadow,
         contentAlignment = Alignment.Center,
         content = content,
     )
@@ -228,6 +231,7 @@ fun ExtendedFloatingActionButton(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val motion = Theme.motion
     val feedback = Feedback
+    val (fabColor, fabContent, fabShadow) = fabColors(enabled, containerColor, contentColor)
 
     // Collapsed, the padding is whatever makes the button as wide as it is tall,
     // which is a different number at every size: the icon is the only content
@@ -257,10 +261,10 @@ fun ExtendedFloatingActionButton(
                 },
             ),
         shape = shape,
-        color = containerColor,
-        contentColor = contentColor,
+        color = fabColor,
+        contentColor = fabContent,
         border = border,
-        shadow = Theme.elevation.medium,
+        shadow = fabShadow,
     ) {
         Row(
             modifier = Modifier
@@ -291,6 +295,31 @@ fun ExtendedFloatingActionButton(
             }
         }
     }
+}
+
+/**
+ * A disabled FAB looks disabled.
+ *
+ * It did not: `containerColor` and `contentColor` were used whatever `enabled`
+ * said, so the only difference between a live FAB and a dead one was that
+ * tapping it did nothing. Every other control in the library resolves a disabled
+ * pair — see `ButtonColors.container(enabled)` — and a floating action is the
+ * one most likely to be the only affordance on a screen, so it is the worst
+ * place to leave the state invisible. It is also a WCAG 1.4.1 problem rather
+ * than a cosmetic one: "you cannot press this" was carried by behaviour alone.
+ *
+ * The shadow goes with it. A control that cannot be pressed should not be the
+ * thing floating highest off the page.
+ */
+@Composable
+private fun fabColors(
+    enabled: Boolean,
+    containerColor: Color,
+    contentColor: Color,
+): Triple<Color, Color, Shadow> = if (enabled) {
+    Triple(containerColor, contentColor, Theme.elevation.medium)
+} else {
+    Triple(Theme.colors.surfaceSunken, Theme.colors.contentDisabled, Theme.elevation.flat)
 }
 
 /** How much room the label gets either side of it once the button is open. */
