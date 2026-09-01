@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -168,6 +169,22 @@ fun Slider(
      */
     var dragFraction by remember { mutableFloatStateOf(Float.NaN) }
 
+    /**
+     * Whether the finger has actually *moved* since it went down.
+     *
+     * The value goes to wherever a press lands — that is what a slider is — but
+     * the thumb only stops easing and starts tracking exactly once the finger
+     * is carrying it. Without the distinction, taking ownership of the pointer
+     * on the down (see `horizontalDragOwning`) also made every tap a drag of
+     * length zero, and the thumb was simply at the far end of the track on the
+     * next frame. `tapEased` below is the whole reason that is wrong: a tap has
+     * nothing between one frame and the next to say which way the thumb went.
+     *
+     * So this, rather than "is `dragFraction` set", is what the four drawing
+     * decisions below ask.
+     */
+    var carrying by remember { mutableStateOf(false) }
+
     fun snap(raw: Float): Float {
         val clamped = raw.coerceIn(0f, 1f)
         if (steps <= 0) return valueRange.start + clamped * range
@@ -202,7 +219,7 @@ fun Slider(
      * advances". Inside the target, crossing a detent moves the target forward
      * and only forward, so the thumb carries on from wherever it had got to.
      */
-    val thumbTarget = if (detented && !dragFraction.isNaN()) {
+    val thumbTarget = if (detented && carrying) {
         fraction + (dragFraction - fraction) * SliderDefaults.DetentPull
     } else {
         fraction
@@ -230,11 +247,7 @@ fun Slider(
      */
     val tapEased by animateFloatAsState(
         targetValue = fraction,
-        animationSpec = if (dragFraction.isNaN()) {
-            motion.springOrTween(motion.springSnappy)
-        } else {
-            snapSpec()
-        },
+        animationSpec = if (carrying) snapSpec() else motion.springOrTween(motion.springSnappy),
         label = "sliderTap",
     )
 
@@ -242,7 +255,7 @@ fun Slider(
     // the end of its own track reads as a bug rather than as bounce.
     val drawnFraction = when {
         detented -> settled.coerceIn(0f, 1f)
-        dragFraction.isNaN() -> tapEased.coerceIn(0f, 1f)
+        !carrying -> tapEased.coerceIn(0f, 1f)
         else -> fraction
     }
 
@@ -261,7 +274,7 @@ fun Slider(
      * a thumb pinned to the finger is not straining against anything.
      */
     val thumbReach =
-        if (dragFraction.isNaN()) thumbTarget - drawnFraction else dragFraction - drawnFraction
+        if (carrying) dragFraction - drawnFraction else thumbTarget - drawnFraction
 
     fun emit(newFraction: Float) {
         val next = snap(newFraction)
@@ -363,10 +376,16 @@ fun Slider(
                         val along = (start.x - insetPx) / widthPx
                         val at = if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
                         dragFraction = at.coerceIn(0f, 1f)
+                        // Not carrying yet: the value is at the finger, and the
+                        // thumb travels there. See [carrying].
+                        carrying = false
                         emit(dragFraction)
                     },
                     onDelta = { delta ->
                         val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
+                        // The gesture only becomes a drag here. `onDelta` is
+                        // called on real horizontal movement and nothing else.
+                        carrying = true
                         // Accumulate, then emit. Never the other way around: the
                         // emitted value is quantised and the caller may not take
                         // it at all, and either would lose the remainder.
@@ -381,6 +400,7 @@ fun Slider(
                         // it springs the last of the way onto the detent rather
                         // than staying wherever the finger let go.
                         dragFraction = Float.NaN
+                        carrying = false
                         currentFinished?.invoke()
                     },
                 )

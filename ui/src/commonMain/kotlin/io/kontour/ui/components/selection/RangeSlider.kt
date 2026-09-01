@@ -169,6 +169,9 @@ fun RangeSlider(
 
     /** See [Slider]'s `dragFraction`. `NaN` when no drag is in progress. */
     var dragFraction by remember { mutableFloatStateOf(Float.NaN) }
+
+    /** See [Slider]'s `carrying`: a press moves the value, a drag moves the thumb. */
+    var carrying by remember { mutableStateOf(false) }
     var lastStepIndex by remember { mutableFloatStateOf(Float.NaN) }
 
     /**
@@ -232,7 +235,7 @@ fun RangeSlider(
 
     /** The detent one thumb is on, pulled toward the finger if it is the one being dragged. */
     fun targetFor(thumb: Thumb, base: Float): Float =
-        if (detented && activeThumb == thumb && !dragFraction.isNaN()) {
+        if (detented && carrying && activeThumb == thumb) {
             base + (dragFraction - base) * SliderDefaults.DetentPull
         } else {
             base
@@ -260,7 +263,7 @@ fun RangeSlider(
      * something other than a finger.
      */
     fun tapSpec(thumb: Thumb) =
-        if (activeThumb == thumb && !dragFraction.isNaN()) {
+        if (carrying && activeThumb == thumb) {
             snapSpec()
         } else {
             motion.springOrTween<Float>(motion.springSnappy)
@@ -281,7 +284,7 @@ fun RangeSlider(
         detented -> settled.coerceIn(0f, 1f)
         // Only the thumb under the finger tracks it exactly; the other one is
         // standing still and may as well ease if something moved it.
-        activeThumb == thumb && !dragFraction.isNaN() -> base
+        carrying && activeThumb == thumb -> base
         else -> tapEased.coerceIn(0f, 1f)
     }
 
@@ -352,7 +355,7 @@ fun RangeSlider(
      * to know about the other.
      */
     fun reach(thumb: Thumb, base: Float, drawnAt: Float): Float = when {
-        activeThumb == thumb && !dragFraction.isNaN() -> dragFraction - drawnAt
+        carrying && activeThumb == thumb -> dragFraction - drawnAt
         detented -> targetFor(thumb, base) - drawnAt
         else -> base - drawnAt
     }
@@ -436,6 +439,7 @@ fun RangeSlider(
                                 Thumb.Start, Thumb.End -> f
                                 Thumb.None -> Float.NaN
                             }
+                            carrying = false
                             if (activeThumb != Thumb.None) emit(activeThumb, dragFraction)
                         },
                         onDelta = { delta ->
@@ -454,6 +458,7 @@ fun RangeSlider(
                             // that the thumbs push rather than block, the wrong
                             // half opens the range in the direction nobody
                             // asked for.
+                            carrying = true
                             if (activeThumb == Thumb.None && signed != 0f) {
                                 activeThumb = if (signed < 0f) Thumb.Start else Thumb.End
                                 dragFraction = if (activeThumb == Thumb.Start) startFraction else endFraction
@@ -480,6 +485,7 @@ fun RangeSlider(
                             lastStepIndex = Float.NaN
                             dragFraction = Float.NaN
                             pressFraction = Float.NaN
+                            carrying = false
                             activeThumb = Thumb.None
                             currentFinished?.invoke()
                         },
