@@ -2,21 +2,18 @@ package io.kontour.ui.components.selection
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap as snapSpec
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -24,7 +21,6 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -40,6 +36,7 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -121,6 +118,7 @@ fun Slider(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    val scope = rememberCoroutineScope()
     val colors = Theme.colors
     val motion = Theme.motion
     val feedback = Feedback
@@ -332,18 +330,42 @@ fun Slider(
         BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
+                // The gesture box is taller than the control draws.
+                //
+                // Tapping the *bar* — which the thumb then animates to — was a
+                // target as tall as the track plus the thumb, and on a phone
+                // that is a thin ribbon to hit with a fingertip. The box takes
+                // the touch minimum now and the drawing is unchanged, so the
+                // slider looks identical and is a great deal easier to hit.
+                .heightIn(min = Theme.sizing.minTouchTarget)
                 .height(SliderHeight)
-                .pointerInput(enabled, widthPx, valueRange, steps) {
-                    if (!enabled) return@pointerInput
-                    detectTapGestures { offset ->
-                        val along = (offset.x - insetPx) / widthPx
-                        val f = if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
-                        emit(f)
-                        currentFinished?.invoke()
-                    }
-                }
-                .draggable(
-                    state = rememberDraggableState { delta ->
+                // One gesture, owning the pointer.
+                //
+                // This was a `detectTapGestures` beside a `draggable`, and the
+                // `draggable` let the vertical component of every change through
+                // to whatever was scrolling above it. A finger that wandered off
+                // the track while dragging handed the gesture to the parent and
+                // the slider stopped following it — without the finger lifting.
+                // See `horizontalDragOwning`.
+                //
+                // A tap falls out of the same gesture: pressing emits a value
+                // and letting go finishes, with no movement in between.
+                .horizontalDragOwning(
+                    enabled = enabled,
+                    interactionSource = interactions,
+                    scope = scope,
+                    onStart = { start ->
+                        // The thumb comes to the finger, rather than the finger
+                        // having to go and find the thumb. Pressing at 80% of a
+                        // slider sitting at 20% and dragging used to move it
+                        // from 20%, so the first part of every drag was spent
+                        // catching up to where the press already was.
+                        val along = (start.x - insetPx) / widthPx
+                        val at = if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
+                        dragFraction = at.coerceIn(0f, 1f)
+                        emit(dragFraction)
+                    },
+                    onDelta = { delta ->
                         val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
                         // Accumulate, then emit. Never the other way around: the
                         // emitted value is quantised and the caller may not take
@@ -352,25 +374,7 @@ fun Slider(
                         dragFraction = (from + signed / widthPx).coerceIn(0f, 1f)
                         emit(dragFraction)
                     },
-                    orientation = Orientation.Horizontal,
-                    enabled = enabled,
-                    interactionSource = interactions,
-                    // The thumb comes to the finger, rather than the finger
-                    // having to go and find the thumb. Pressing at 80% of a
-                    // slider sitting at 20% and dragging used to move it from
-                    // 20%, so the first part of every drag was spent catching
-                    // up to where the press already was.
-                    //
-                    // Not eased, unlike a tap: the finger is *there*, and a thumb
-                    // easing toward a finger that has already started moving
-                    // arrives late to somewhere it no longer is.
-                    onDragStarted = { start ->
-                        val along = (start.x - insetPx) / widthPx
-                        val at = if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
-                        dragFraction = at.coerceIn(0f, 1f)
-                        emit(dragFraction)
-                    },
-                    onDragStopped = {
+                    onEnd = {
                         feedback.perform(FeedbackIntent.GestureEnd)
                         lastStepIndex = Float.NaN
                         // Releasing hands the thumb back to the settled value, so

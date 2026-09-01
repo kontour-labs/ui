@@ -61,12 +61,12 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.AnimatedCheckMark
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.ProvideContentColor
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
@@ -403,12 +403,16 @@ fun MenuItem(
                 }
             }
         }
-        if (selected) {
-            Icon(
-                imageVector = SystemIcons.Check,
-                contentDescription = null,
+        // Reserved for the whole life of a multi-select menu, which stays open
+        // while its ticks come and go: a mark that takes space only when it is
+        // there makes every label in the menu step sideways as the user works
+        // down it. A single-select menu closes on the choice, so the slot is
+        // only worth reserving on the row that has one.
+        if (multiple || selected) {
+            AnimatedCheckMark(
+                checked = selected,
+                color = if (enabled) colors.accent.solid else colors.contentDisabled,
                 size = Theme.sizing.iconSmall,
-                tint = if (enabled) colors.accent.solid else colors.contentDisabled,
             )
         }
     }

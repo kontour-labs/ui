@@ -1,7 +1,8 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,11 +17,14 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -62,24 +66,34 @@ import kotlin.math.ceil
  *
  * **Press and drag across the marks to set it.** A row of stars is the most
  * obviously swipeable control there is, and until now every one of them was five
- * separate tap targets. The taps still work — the drag waits for touch slop —
- * and each mark crossed ticks, so a score can be set without looking.
+ * separate tap targets. The score follows the finger from the moment it lands —
+ * there is no slop to cross first — and each value crossed ticks, so a score can
+ * be set without looking.
  *
- * A fractional [value] is drawn as a partly-filled mark. A *tap* cannot mean
- * 3.4, so tapping is always whole marks; a drag can, and [allowHalf] is where
- * that is turned on.
+ * The row owns the pointer for the whole gesture, the way [Slider] does and for
+ * the same reason: it is an absolute control, mapping a position to a value, so
+ * there is no part of a press on it that means something else. The marks keep
+ * their `selectable` for the keyboard and for assistive tech, which is where a
+ * whole-mark activation still comes from.
+ *
+ * A fractional [value] is drawn as a partly-filled mark, and with [allowHalf] a
+ * press can produce one: the left half of a mark's *target* is the half score,
+ * which is a good deal more than the left half of the glyph.
  *
  * @param value The score. Clamped into `0f..count`.
- * @param allowHalf Whether a drag can stop on a half mark. Off by default: a
- *   rating that emits 3.5 when every caller expected 3 or 4 is a change of
- *   contract, not a nicety. On, the left half of a mark is `.5` and the right
- *   half is whole, which is the only mapping anyone guesses right first time.
+ * @param allowHalf Whether a press or drag can stop on a half mark. Off by
+ *   default: a rating that emits 3.5 when every caller expected 3 or 4 is a
+ *   change of contract, not a nicety. On, the left half of a mark is `.5` and
+ *   the right half is whole, which is the only mapping anyone guesses right
+ *   first time — and the halves divide the mark's whole 48dp target, not its
+ *   glyph, so the half score is a 24dp-wide region rather than a 10dp one.
  * @param contentDescription What the score is *of* — "Your rating", "Average
  *   rating". Required: five stars with no name is a row of decoration.
- * @param onValueChange `null` for read-only. Receives whole numbers, as the
- *   `Float` [value] is, so the emitted score assigns straight back without a
- *   conversion at every call site. A tap cannot produce a half mark; an average
- *   can, which is why the parameter is a `Float` in the first place.
+ * @param onValueChange `null` for read-only. Receives whole numbers unless
+ *   [allowHalf] is on, in which case it may also receive halves. A `Float`
+ *   either way, so the emitted score assigns straight back without a conversion
+ *   at every call site — and because an average is a `Float`, which is the more
+ *   common rating on any screen.
  * @param icon The empty mark. Defaults to a star outline.
  * @param filledIcon The full mark. Defaults to a filled star.
  */
@@ -151,7 +165,7 @@ fun Rating(
     val currentChange by rememberUpdatedState(onValueChange)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    fun setFromX(x: Float) {
+    fun setFromX(x: Float, intent: FeedbackIntent) {
         if (markWidth.all { it <= 0f }) return
         val nearest = markLeft.indices.minByOrNull { abs(markLeft[it] + markWidth[it] / 2f - x) }
             ?: return
@@ -165,7 +179,7 @@ fun Rating(
             else -> (index + 1).toFloat()
         }
         if (next == currentValue) return
-        feedback.perform(FeedbackIntent.Tick)
+        feedback.perform(intent)
         currentChange(next)
     }
 
@@ -180,10 +194,47 @@ fun Rating(
             .then(
                 if (enabled) {
                     Modifier.pointerInput(count, allowHalf, isRtl) {
-                        detectHorizontalDragGestures(
-                            onDragStart = { setFromX(it.x) },
-                            onHorizontalDrag = { change, _ -> setFromX(change.position.x) },
-                        )
+                        awaitEachGesture {
+                            // Claimed on the down, on the initial pass, which
+                            // travels parent to child — so the marks' own
+                            // `selectable` never starts a click and the score
+                            // comes from *where* the press landed rather than
+                            // from which mark it landed on. That is the whole
+                            // of the half-mark problem: a tap on the left of a
+                            // star could only ever mean the star.
+                            //
+                            // It was a `detectHorizontalDragGestures`, which
+                            // waits for touch slop. Giving a half meant pressing,
+                            // travelling 16dp, and coming back to the right side
+                            // of the star's midpoint — while a plain tap went to
+                            // the mark underneath and could only be whole.
+                            val down = awaitFirstDown(
+                                requireUnconsumed = false,
+                                pass = PointerEventPass.Initial,
+                            )
+                            down.consume()
+                            setFromX(down.position.x, FeedbackIntent.Selection)
+
+                            var moved = false
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                // Before the consume, always: `positionChange`
+                                // reports zero for a change that has already
+                                // been consumed, so reading it afterwards is a
+                                // gesture that can never see any movement.
+                                val travelled = change.positionChange() != Offset.Zero
+                                change.consume()
+                                if (!change.pressed) break
+                                if (travelled) {
+                                    moved = true
+                                    setFromX(change.position.x, FeedbackIntent.Tick)
+                                }
+                            }
+                            // A tap has already had its haptic on the way down;
+                            // only a drag has an end worth marking.
+                            if (moved) feedback.perform(FeedbackIntent.GestureEnd)
+                        }
                     }
                 } else {
                     Modifier
@@ -207,6 +258,11 @@ fun Rating(
                     }
                     .minimumTouchTarget()
                     .focusRing(interactions, Theme.shapes.small)
+                    // Whole marks, always: this is what the keyboard and
+                    // assistive tech activate, and neither of them has a
+                    // position within the mark to mean a half by. The pointer
+                    // never reaches here — the row consumed it — so there is no
+                    // second answer to the same tap.
                     .selectable(
                         selected = markValue <= selected,
                         onClick = {

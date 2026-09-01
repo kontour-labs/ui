@@ -1,7 +1,13 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -27,9 +34,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.strikethrough
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
@@ -159,6 +168,31 @@ fun IconToggleButton(
     checked: Boolean,
     onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
+    /**
+     * Drawn instead of [icon] while [checked] — a filled star against an outline
+     * one, a bookmark against its outline.
+     *
+     * Null keeps [icon] in both states, where colour alone carries the toggle.
+     * That is legible but it is one channel, and a filled counterpart is the
+     * clearest signal a toggle has: it survives greyscale, low vision and the
+     * colour being changed by a theme. Prefer passing one.
+     *
+     * The swap cross-fades rather than cutting, so the two glyphs read as one
+     * mark changing state.
+     */
+    checkedIcon: ImageVector? = null,
+    /**
+     * Draws a slash across [icon] while [checked], instead of swapping glyphs.
+     *
+     * For the toggles whose off state is conventionally "the same thing, with a
+     * line through it": a revealed password, a muted alert, a hidden layer. Icon
+     * sets ship the slashed counterpart as its own glyph and swapping to it is a
+     * cut — the line is simply there on the next frame. Drawn, it arrives.
+     *
+     * Ignored when [checkedIcon] is given: a glyph that already has a slash in
+     * it does not want a second one.
+     */
+    strikethrough: Boolean = false,
     enabled: Boolean = true,
     size: ButtonSize = ButtonSize.Medium,
     shape: Shape = Theme.shapes.control,
@@ -174,8 +208,21 @@ fun IconToggleButton(
         content = Theme.colors.accent.onContainer,
     )
 
+    val struck = strikethrough && checkedIcon == null
+    val strike by animateFloatAsState(
+        targetValue = if (struck && checked) 1f else 0f,
+        animationSpec = Theme.motion.tweenDefault(),
+        label = "iconToggleStrike",
+    )
+
     IconButtonSurface(
-        icon = icon,
+        icon = if (checked) checkedIcon ?: icon else icon,
+        // Cross-faded when the two glyphs differ, so a star filling in reads as
+        // the same star rather than one icon leaving and another arriving.
+        crossFadeIcon = checkedIcon != null,
+        // Read in the draw phase: a line moving across a glyph is not worth
+        // recomposing a button for.
+        strike = if (struck) ({ strike }) else null,
         contentDescription = contentDescription,
         // The state description goes on the same node as the toggle, not on a
         // wrapper around it. A wrapper produces two nodes — a labelled one with
@@ -241,6 +288,9 @@ private fun IconButtonSurface(
     modifier: Modifier,
     enabled: Boolean,
     loading: Boolean = false,
+    crossFadeIcon: Boolean = false,
+    /** How much of a slash is drawn across the glyph. See [IconToggleButton]. */
+    strike: (() -> Float)? = null,
     shape: Shape,
     rotation: Float,
     colors: ButtonColors,
@@ -309,13 +359,62 @@ private fun IconButtonSurface(
     ) {
         CompositionLocalProvider(LocalContentColor provides contentColor) {
             LoadingSwap(loading = loading, spinnerSize = metrics.iconSize) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = contentDescription,
-                    modifier = Modifier.rotate(animatedRotation),
-                    size = metrics.iconSize,
-                )
+                if (crossFadeIcon) {
+                    AnimatedContent(
+                        targetState = icon,
+                        transitionSpec = {
+                            fadeIn(motion.tweenFast()) +
+                                scaleIn(motion.tweenFast(), initialScale = 0.7f) togetherWith
+                                fadeOut(motion.tweenFast()) +
+                                scaleOut(motion.tweenFast(), targetScale = 0.7f)
+                        },
+                        label = "iconToggleGlyph",
+                    ) { glyph ->
+                        Icon(
+                            imageVector = glyph,
+                            contentDescription = contentDescription,
+                            modifier = Modifier
+                                .rotate(animatedRotation)
+                                .slash(strike, contentColor, container),
+                            size = metrics.iconSize,
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = contentDescription,
+                        modifier = Modifier
+                            .rotate(animatedRotation)
+                            .slash(strike, contentColor, container),
+                        size = metrics.iconSize,
+                    )
+                }
             }
         }
     }
 }
+
+/**
+ * The slash across a toggled-off glyph, or nothing at all.
+ *
+ * A tiny wrapper so the two `Icon` call sites above read the same whether or not
+ * a slash was asked for — see [strikethrough] for what it draws and why the
+ * groove is the container's colour rather than the page's.
+ */
+private fun Modifier.slash(
+    strike: (() -> Float)?,
+    color: Color,
+    container: Color,
+): Modifier = if (strike == null) {
+    this
+} else {
+    strikethrough(
+        progress = strike,
+        color = color,
+        halo = container,
+        width = StrikeWidth,
+    )
+}
+
+/** The slash's own thickness. The same weight as a control's strong border. */
+private val StrikeWidth = 2.dp

@@ -2,10 +2,6 @@ package io.kontour.ui.components.selection
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap as snapSpec
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -13,12 +9,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -26,7 +22,6 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -42,6 +37,7 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -130,6 +126,7 @@ fun RangeSlider(
     val feedback = Feedback
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
+    val scope = rememberCoroutineScope()
 
     val dragged by interactions.collectIsDraggedAsState()
     val pressed by interactions.collectIsPressedAsState()
@@ -173,6 +170,15 @@ fun RangeSlider(
     /** See [Slider]'s `dragFraction`. `NaN` when no drag is in progress. */
     var dragFraction by remember { mutableFloatStateOf(Float.NaN) }
     var lastStepIndex by remember { mutableFloatStateOf(Float.NaN) }
+
+    /**
+     * Where the press landed, kept for the gesture that never moves.
+     *
+     * With the thumbs coincident the choice of thumb is deferred to the first
+     * delta's direction — and a tap has no deltas at all. Without this, tapping
+     * a collapsed range does nothing.
+     */
+    var pressFraction by remember { mutableFloatStateOf(Float.NaN) }
 
     fun snap(raw: Float): Float {
         val clamped = raw.coerceIn(0f, 1f)
@@ -299,13 +305,39 @@ fun RangeSlider(
      * shoved looks like.
      */
     val gapFraction = if (span == 0f) 0f else gap / span
-    val drawnStart = if (activeThumb == Thumb.End) {
-        minOf(easedStart, easedEnd - gapFraction)
+
+    /**
+     * Whether the dragged thumb is currently shoving the other one along.
+     *
+     * Answered from the *values*, which are exact, rather than from the drawn
+     * positions, which are two springs. `startFraction` sits at `endFraction -
+     * gapFraction` for exactly as long as the end thumb is pushing the start
+     * one, and the epsilon is there because both sides came through a division.
+     */
+    val pushing = activeThumb != Thumb.None &&
+        endFraction - startFraction <= gapFraction + CoincidenceEpsilon
+
+    /**
+     * The two, drawn as one body while they are in contact.
+     *
+     * This used to be a `minOf` against the pushed thumb's own spring, which
+     * kept them from merging but left the drawn position switching between two
+     * curves with different dynamics: the spring while it lagged, the contact
+     * clamp while it did not. Every time the finger paused, the spring caught
+     * up, overshot past the clamp and took over — so the thumb being pushed
+     * broke contact, rang, and was recaptured. That is the jumping around.
+     *
+     * A shoved thumb has no dynamics of its own. While it is in contact it is
+     * welded to the one doing the shoving and drawn exactly a gap away from it,
+     * and it goes back to its own spring the moment the range opens again.
+     */
+    val drawnStart = if (activeThumb == Thumb.End && pushing) {
+        (easedEnd - gapFraction).coerceIn(0f, 1f)
     } else {
         easedStart
     }
-    val drawnEnd = if (activeThumb == Thumb.Start) {
-        maxOf(easedEnd, easedStart + gapFraction)
+    val drawnEnd = if (activeThumb == Thumb.Start && pushing) {
+        (easedStart + gapFraction).coerceIn(0f, 1f)
     } else {
         easedEnd
     }
@@ -328,8 +360,15 @@ fun RangeSlider(
     // Against the spring, not against the contact-clamped position above: the
     // lag is exactly the signal, and clamping it away would leave nothing to
     // stretch by at the moment there is most to stretch about.
-    val reachStart = reach(Thumb.Start, startFraction, easedStart)
-    val reachEnd = reach(Thumb.End, endFraction, easedEnd)
+    val ownReachStart = reach(Thumb.Start, startFraction, easedStart)
+    val ownReachEnd = reach(Thumb.End, endFraction, easedEnd)
+
+    // Welded thumbs deform alike. A shoved thumb drawn rigidly against its
+    // neighbour but stretching on its own spring is the same two-dynamics
+    // problem one level down — the position stopped ringing and the shape
+    // carried on. It takes the strain of the thumb pushing it instead.
+    val reachStart = if (activeThumb == Thumb.End && pushing) ownReachEnd else ownReachStart
+    val reachEnd = if (activeThumb == Thumb.Start && pushing) ownReachStart else ownReachEnd
 
     Box(
         modifier = modifier
@@ -367,58 +406,23 @@ fun RangeSlider(
                 Modifier
                     .fillMaxWidth()
                     .height(SliderHeight)
-                    .pointerInput(enabled, widthPx, valueRange, steps, startFraction, endFraction) {
-                        if (!enabled) return@pointerInput
-                        detectTapGestures { offset ->
-                            val f = toFraction(offset.x)
-                            val thumb = if (abs(f - startFraction) <= abs(f - endFraction)) {
-                                Thumb.Start
-                            } else {
-                                Thumb.End
-                            }
-                            emit(thumb, f)
-                            currentFinished?.invoke()
-                        }
-                    }
-                    .draggable(
-                        state = rememberDraggableState { delta ->
-                            val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
-                            // The thumbs can start coincident — a zero-width
-                            // range, which is exactly what "no filter yet" looks
-                            // like. Distance alone cannot tell them apart there,
-                            // and picking either one arbitrarily leaves the range
-                            // able to open in one direction only. The first
-                            // delta's sign is the answer the user just gave.
-                            if (activeThumb == Thumb.None) {
-                                // A zero delta carries no direction, and the
-                                // first one after touch slop is routinely
-                                // exactly zero. Treating it as "not negative"
-                                // silently picks the end thumb, which is right
-                                // half the time — and now that the thumbs push
-                                // rather than block, the wrong half opens the
-                                // range in the direction nobody asked for.
-                                if (signed == 0f) return@rememberDraggableState
-                                activeThumb = if (signed < 0f) Thumb.Start else Thumb.End
-                                dragFraction = if (activeThumb == Thumb.Start) startFraction else endFraction
-                            }
-                            val from = if (dragFraction.isNaN()) {
-                                if (activeThumb == Thumb.Start) startFraction else endFraction
-                            } else {
-                                dragFraction
-                            }
-                            dragFraction = (from + signed / widthPx).coerceIn(0f, 1f)
-                            emit(activeThumb, dragFraction)
-                        },
-                        orientation = Orientation.Horizontal,
+                    // One gesture, owning the pointer — the same mechanism
+                    // `Slider` uses, for the same reason. A `draggable` lets the
+                    // vertical component of every change through to whatever is
+                    // scrolling above it, so a finger that wanders off the track
+                    // hands the gesture away mid-drag. See `horizontalDragOwning`.
+                    .horizontalDragOwning(
                         enabled = enabled,
                         interactionSource = interactions,
-                        onDragStarted = { start ->
-                            val f = toFraction(start.x)
+                        scope = scope,
+                        onStart = { start ->
+                            val f = toFraction(start.x).coerceIn(0f, 1f)
+                            pressFraction = f
                             val toStart = abs(f - startFraction)
                             val toEnd = abs(f - endFraction)
                             activeThumb = when {
-                                // Equidistant means coincident, or a tap exactly
-                                // between them. Defer to the first delta.
+                                // Equidistant means coincident, or a press
+                                // exactly between them. Defer to the first delta.
                                 abs(toStart - toEnd) < CoincidenceEpsilon -> Thumb.None
                                 toStart < toEnd -> Thumb.Start
                                 else -> Thumb.End
@@ -429,15 +433,53 @@ fun RangeSlider(
                             // the first delta's direction, and moving a thumb
                             // before knowing which one would move the wrong one.
                             dragFraction = when (activeThumb) {
-                                Thumb.Start, Thumb.End -> f.coerceIn(0f, 1f)
+                                Thumb.Start, Thumb.End -> f
                                 Thumb.None -> Float.NaN
                             }
                             if (activeThumb != Thumb.None) emit(activeThumb, dragFraction)
                         },
-                        onDragStopped = {
+                        onDelta = { delta ->
+                            val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
+                            // The thumbs can start coincident — a zero-width
+                            // range, which is exactly what "no filter yet" looks
+                            // like. Distance alone cannot tell them apart there,
+                            // and picking either one arbitrarily leaves the range
+                            // able to open in one direction only. The first
+                            // delta's sign is the answer the user just gave.
+                            //
+                            // A zero delta carries no direction, and the first
+                            // one after touch is routinely exactly zero.
+                            // Treating it as "not negative" silently picks the
+                            // end thumb, which is right half the time — and now
+                            // that the thumbs push rather than block, the wrong
+                            // half opens the range in the direction nobody
+                            // asked for.
+                            if (activeThumb == Thumb.None && signed != 0f) {
+                                activeThumb = if (signed < 0f) Thumb.Start else Thumb.End
+                                dragFraction = if (activeThumb == Thumb.Start) startFraction else endFraction
+                            }
+                            if (activeThumb != Thumb.None) {
+                                val from = if (dragFraction.isNaN()) {
+                                    if (activeThumb == Thumb.Start) startFraction else endFraction
+                                } else {
+                                    dragFraction
+                                }
+                                dragFraction = (from + signed / widthPx).coerceIn(0f, 1f)
+                                emit(activeThumb, dragFraction)
+                            }
+                        },
+                        onEnd = {
+                            // A press that never moved is a tap, and on a
+                            // collapsed range no thumb was ever chosen. Ties go
+                            // to the start thumb, as they did when the tap was a
+                            // separate detector.
+                            if (activeThumb == Thumb.None && !pressFraction.isNaN()) {
+                                emit(Thumb.Start, pressFraction)
+                            }
                             feedback.perform(FeedbackIntent.GestureEnd)
                             lastStepIndex = Float.NaN
                             dragFraction = Float.NaN
+                            pressFraction = Float.NaN
                             activeThumb = Thumb.None
                             currentFinished?.invoke()
                         },

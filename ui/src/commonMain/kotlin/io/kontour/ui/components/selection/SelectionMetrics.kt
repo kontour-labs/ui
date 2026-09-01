@@ -4,6 +4,11 @@ import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.theme.Theme
@@ -69,3 +74,43 @@ internal fun pressSourceFor(
     val row = LocalRowInteractionSource.current
     return if (!hasCallback && explicit == null && row != null) row else own
 }
+
+/**
+ * How many controls in the surrounding selection group are being pressed.
+ *
+ * A press on one option in a set of mutually exclusive ones is news to *two*
+ * controls: the one being chosen, and the one about to be given up. Without
+ * this, only the first of them hears about it — the option under the finger
+ * grows a third of the way in while the current selection sits at full size and
+ * then vanishes the instant the press is released.
+ *
+ * A count rather than an identity, because the control does not need to know
+ * *which* sibling is being pressed. "Someone else in this group is being
+ * pressed, and I am the one that is currently selected" is the whole condition,
+ * and it is answerable without the group and the control agreeing on a key.
+ *
+ * Kept as a counter rather than a flag so an overlapping press — a second
+ * finger, or a press arriving before the previous one's release has propagated
+ * — cannot clear the state while a press is still down.
+ */
+@Stable
+internal class SelectionGroupPress {
+    private var pressedCount by mutableIntStateOf(0)
+
+    val anyPressed: Boolean get() = pressedCount > 0
+
+    fun press() {
+        pressedCount++
+    }
+
+    fun release() {
+        pressedCount = (pressedCount - 1).coerceAtLeast(0)
+    }
+}
+
+/**
+ * Provided by [RadioGroup] around its options. `null` everywhere else, which is
+ * what a control outside a group sees and is why the yield is opt-in rather than
+ * something every checkbox on a page starts doing to its neighbours.
+ */
+internal val LocalSelectionGroupPress = compositionLocalOf<SelectionGroupPress?> { null }

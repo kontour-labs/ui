@@ -88,7 +88,6 @@ fun TextShowcase(modifier: Modifier = Modifier) {
                         state = rememberTextFieldState("hunter2"),
                         label = "Password",
                         revealIcon = Tabler.Outline.Eye,
-                        hideIcon = Tabler.Outline.EyeOff,
                     )
                     EmailField(
                         state = rememberTextFieldState("aaron@kontour.io"),
