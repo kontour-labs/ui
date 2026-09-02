@@ -97,8 +97,9 @@ data class DateTimeFormats(
  * ### Android's 24-hour switch
  *
  * Android has a *setting* for 24-hour time that overrides the locale, and
- * reading it needs a `Context`, which nothing here has. So [is24Hour] on Android
- * follows the locale rather than the switch. An app that wants the switch
+ * reading it needs a `Context`, which nothing here has. So
+ * [DateTimeFormats.is24Hour] on Android follows the locale rather than the
+ * switch. An app that wants the switch
  * honoured provides the local itself, which is a one-liner and the reason this
  * is a composition local at all:
  *
