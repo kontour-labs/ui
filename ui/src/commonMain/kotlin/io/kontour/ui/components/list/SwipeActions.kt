@@ -1,6 +1,6 @@
 package io.kontour.ui.components.list
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
@@ -399,32 +399,45 @@ fun SwipeActions(
         }
         if (revealed.isNotEmpty()) {
             /**
-             * The revealed colour, dimmed until the swipe would commit.
+             * How far the revealed side is dimmed, while letting go would do
+             * nothing.
              *
              * Two states rather than a ramp: the question the user is asking is
              * "will letting go do the thing", and that has a yes and a no. A
              * gradient answers "sort of", which is the one answer that is no
              * help.
+             *
+             * Only while the row is still on its way *out of* rest. Once it has
+             * settled with the actions revealed, they are a destination the user
+             * is meant to tap rather than an unfinished gesture, and leaving them
+             * permanently darker would say the opposite.
              */
-            val stripColor by animateColorAsState(
-                targetValue = if (pastThreshold) {
-                    revealed.last().background
-                } else {
-                    lerp(revealed.last().background, Color.Black, SwipeActionsDefaults.DimBelowThreshold)
-                },
+            val arming = state.anchoredState.settledValue == SwipeValue.Resting && !pastThreshold
+            val dim by animateFloatAsState(
+                targetValue = if (arming) SwipeActionsDefaults.DimBelowThreshold else 0f,
                 animationSpec = motion.tweenFast(),
-                label = "swipeStrip",
+                label = "swipeDim",
             )
+            val stripColor = lerp(revealed.last().background, Color.Black, dim)
 
-            // Exactly the area the row has vacated, and not a pixel under the
-            // row itself.
+            // The area the row has vacated, plus just enough tucked under the
+            // row to fill the wedge its rounded corner cuts away.
             //
-            // It used to fill the whole box, which put the action's colour
-            // behind the row's own rounded corners — and two antialiased edges
-            // over one another leave a partly-covered ring where the lower
-            // colour shows through. That is the "tiny coloured border around the
-            // corners", and why it was worst in dark mode, where a bright action
-            // sits against a dark row.
+            // Both extremes of this are wrong, and each one is a defect that has
+            // actually been reported. Filling the whole box puts the action's
+            // colour behind *all four* of the row's corners, so the first pixel
+            // of a drag draws a coloured outline around a row that has barely
+            // moved — worst in dark mode, where a bright action sits against a
+            // dark row. Stopping dead at the row's straight edge leaves the page
+            // showing through the quarter-circle behind the corner, which at
+            // full reveal is a gap between the row and the strip rather than a
+            // card sitting over it.
+            //
+            // So the tuck is bounded by the reveal itself: at two pixels of drag
+            // it is two pixels, which cannot reach the far corners; at rest it is
+            // the corner radius, which is all the wedge needs. Half the height is
+            // an upper bound on any corner radius a row-shaped container can
+            // have — a capsule's is exactly that, and every rung below it less.
             //
             // Drawn rather than sized, so the strip follows the offset in the
             // draw phase instead of recomposing the row sixty times a second.
@@ -435,13 +448,15 @@ fun SwipeActions(
                         val live = state.anchoredState.offset
                         if (live.isNaN() || live == 0f) return@drawBehind
                         val revealedWidth = abs(live).coerceAtMost(size.width)
+                        val tuck = revealedWidth.coerceAtMost(size.height / 2f)
+                        val painted = (revealedWidth + tuck).coerceAtMost(size.width)
                         drawRect(
                             color = stripColor,
                             topLeft = Offset(
-                                x = if (live > 0f) 0f else size.width - revealedWidth,
+                                x = if (live > 0f) 0f else size.width - painted,
                                 y = 0f,
                             ),
-                            size = Size(revealedWidth, size.height),
+                            size = Size(painted, size.height),
                         )
                     }
             )
@@ -457,6 +472,13 @@ fun SwipeActions(
                 revealed.forEach { action ->
                     SwipeActionButton(
                         action = action,
+                        // The same dim as the strip, and this is the one that
+                        // can actually be seen: an action's own button covers
+                        // the whole revealed area, so the strip only ever shows
+                        // in the wedge tucked under the row. Dimming the strip
+                        // alone was a piece of feedback that existed in the code
+                        // and had never once been on screen.
+                        background = lerp(action.background, Color.Black, dim),
                         width = actionWidth,
                         onClick = {
                             action.onAction()
@@ -534,16 +556,22 @@ fun SwipeActions(
 @Composable
 private fun RowScope.SwipeActionButton(
     action: SwipeAction,
+    /** [SwipeAction.background], dimmed while the swipe would not commit. */
+    background: Color,
     width: Dp,
     onClick: () -> Unit,
 ) {
+    // From the action's own colour rather than from the dimmed one: the label
+    // has to stay legible while the ground behind it darkens, and picking the
+    // content colour off a moving background is how a white label ends up black
+    // for two frames in the middle of a gesture.
     val content = contentColorFor(action.background)
 
     Surface(
         modifier = Modifier
             .width(width)
             .fillMaxHeight(),
-        color = action.background,
+        color = background,
         contentColor = content,
         contentAlignment = Alignment.Center,
     ) {

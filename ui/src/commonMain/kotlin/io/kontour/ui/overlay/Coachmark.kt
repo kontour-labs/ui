@@ -339,7 +339,7 @@ private fun Spotlight(
                     is Outline.Generic -> path.addPath(outline.path, lit.topLeft)
                     is Outline.Rectangle -> path.addRect(outline.rect.translate(lit.topLeft))
                 }
-                drawPath(path, scrim.copy(alpha = scrim.alpha * fraction.coerceIn(0f, 1f)))
+                drawPath(path, scrim.copy(alpha = scrim.alpha * fraction().coerceIn(0f, 1f)))
             }
     )
 }

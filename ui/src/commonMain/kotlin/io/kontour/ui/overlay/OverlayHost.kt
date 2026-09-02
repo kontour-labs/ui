@@ -332,9 +332,15 @@ private fun EntryHost(
     }
 
     // One lambda for the scrim and the backdrop, remembered rather than built
-    // inline: `EntryHost` recomposes on every frame an overlay is animating, and
-    // a fresh lambda each time would re-key everything downstream of it.
+    // inline: a fresh lambda each time would re-key everything downstream of it.
     val fraction: () -> Float = remember(entry) { entry.visibility ?: { progress.value } }
+
+    // And one for the panel, which is a *different* number: `fraction` may be an
+    // entry's own visibility — a sheet's, derived from where it has been dragged
+    // to — while the panel's scale and fade always follow the host's own
+    // appearance. Both are lambdas for the same reason, and it is the reason
+    // this line exists at all: see [LocalOverlayProgress].
+    val reader: () -> Float = remember { { progress.value } }
 
     DisposableEffect(state, dimmed, fraction) {
         if (dimmed) state.backdropFraction = fraction
@@ -392,7 +398,7 @@ private fun EntryHost(
             traversalIndex = (index + 1).toFloat()
         }
     ) {
-        CompositionLocalProvider(LocalOverlayProgress provides progress.value) {
+        CompositionLocalProvider(LocalOverlayProgress provides reader) {
             entry.content()
         }
     }
@@ -404,8 +410,27 @@ private fun EntryHost(
  * Read by every panel that scales and fades — see `Modifier.overlayAppearance`.
  * Defaults to 1 so a panel rendered outside a host, as the contract suite does,
  * is simply visible rather than invisible.
+ *
+ * ### A lambda, for the same reason the scrim takes one
+ *
+ * This used to be the `Float` itself, read in composition and handed down, which
+ * changed the local's value on every frame of every overlay animation and so
+ * recomposed every reader of it sixty times a second. `Scrim` already took a
+ * lambda for exactly that reason and says so; the panel was simply left behind.
+ * Carrying the read instead of the value moves it into the phase that produces
+ * the frame — a `graphicsLayer` block, as `Scrim` uses `drawBehind` — and the
+ * local then never changes at all while an overlay moves.
+ *
+ * **It is not why the backdrop looked like it arrived first.** That was the
+ * theory this change was made on, and `DialogBackdropRateTest` disproved it: the
+ * curves are identical to three decimal places before and after, on every
+ * background it measures. Composition, layout and draw all happen inside one
+ * frame, so a value written by the frame clock reaches the screen in that frame
+ * whichever phase reads it. The real cause is arithmetic rather than timing, and
+ * it is answered in `Modifier.overlayAppearance`. This change stands on the
+ * recomposition cost alone, which is reason enough.
  */
-internal val LocalOverlayProgress = compositionLocalOf { 1f }
+internal val LocalOverlayProgress = compositionLocalOf<() -> Float> { { 1f } }
 
 /**
  * The one entry in [stack] whose scrim is actually drawn dark.

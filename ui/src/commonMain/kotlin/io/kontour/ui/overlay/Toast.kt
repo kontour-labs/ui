@@ -15,11 +15,15 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +31,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -35,15 +40,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.Button
+import io.kontour.ui.components.action.ButtonColors
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
@@ -255,6 +264,32 @@ object ToastDefaults {
     val MaxWidth: Dp = 420.dp
 
     /**
+     * Extra air between the message and the action, on top of the row's own gap.
+     *
+     * The row already spaces its children by `xs`, which is the gap between an
+     * icon and the words it belongs to. An action is not part of the sentence,
+     * and at that distance it read as though it were. This doubles it.
+     *
+     * Doubling and not more, because the gap comes out of the message: a toast
+     * is capped at [MaxWidth], and at 12dp the catalog's own "Couldn't reach the
+     * timetable service" went from one line to two. The action has a ground
+     * under it now, which is most of what tells it apart; the gap only has to
+     * finish the job.
+     */
+    val ActionGap: Dp = 8.dp
+
+    /**
+     * How much of the toast's content colour sits under its action's label.
+     *
+     * Enough to be a shape you could press, faint enough not to compete with
+     * the message — the button is the second thing on a toast, not the first.
+     */
+    const val ActionGround: Float = 0.16f
+
+    /** A disabled action, in the toast's own content colour. */
+    const val DisabledContent: Float = 0.38f
+
+    /**
      * How long a toast stays before dismissing itself.
      *
      * Two and a half seconds — long enough to read a confirmation, short enough
@@ -378,6 +413,40 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     // stack recedes upward, a top-anchored one downward.
     val towardEdge = config.position.towardEdge
     val visible = state.toasts.takeLast(config.maxVisible)
+    val density = LocalDensity.current
+
+    /**
+     * One size for the whole stack: the widest and tallest any card needs.
+     *
+     * **One silhouette is what makes a stack read as a stack.** Every card used
+     * to size to its own message, so "Saved" arriving in front of "Couldn't
+     * reach the server" left the older, wider card sticking out at both sides:
+     * three pills of three widths, which is a pile rather than a deck. Matching
+     * them leaves depth — offset and scale — as the only thing telling them
+     * apart, which is the thing depth is supposed to say.
+     *
+     * The **widest**, and not the front one's, because a width is a floor rather
+     * than a value here. Narrowing a card re-wraps the message inside it: the
+     * first version of this imposed the front card's width and turned "Couldn't
+     * reach the server just now" behind a "Saved" into a five-line tower. Only
+     * ever widening cannot re-wrap anything.
+     *
+     * Height for the same reason and a sharper one. The cards are bottom-aligned
+     * and then lifted by [ToastDefaults.Peek] each, so the peek is measured from
+     * the front card's *top* — and a two-line message in front of a one-line one
+     * swallowed the whole stack. Three toasts, and the picture was of one.
+     *
+     * It ratchets, and only within one stack: a card that has been grown reports
+     * its grown size, so the maximum never comes back down while toasts keep
+     * arriving. That is the behaviour worth having anyway — a stack that resizes
+     * under the message being read is worse than one slightly larger than it
+     * needs — and it resets when the stack empties, which is when the host drops
+     * the entry this lives in.
+     */
+    var stackWidthPx by remember { mutableIntStateOf(0) }
+    var stackHeightPx by remember { mutableIntStateOf(0) }
+    val stackWidth = if (stackWidthPx > 0) with(density) { stackWidthPx.toDp() } else Dp.Unspecified
+    val stackHeight = if (stackHeightPx > 0) with(density) { stackHeightPx.toDp() } else Dp.Unspecified
 
     Box(
         Modifier.fillMaxSize().windowInsetsPadding(config.windowInsets),
@@ -394,6 +463,12 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     towardEdge = towardEdge,
                     showClose = config.showClose,
                     closeLabel = config.closeLabel,
+                    stackWidth = stackWidth,
+                    stackHeight = stackHeight,
+                    onMeasured = { size ->
+                        stackWidthPx = maxOf(stackWidthPx, size.width)
+                        stackHeightPx = maxOf(stackHeightPx, size.height)
+                    },
                     modifier = config.modifier,
                 )
             }
@@ -409,6 +484,10 @@ private fun ToastCard(
     towardEdge: Boolean,
     showClose: Boolean,
     closeLabel: String,
+    /** The stack's shared size — see `ToastStack`. Unspecified before it has one. */
+    stackWidth: Dp,
+    stackHeight: Dp,
+    onMeasured: (IntSize) -> Unit,
     modifier: Modifier,
 ) {
     val motion = Theme.motion
@@ -445,6 +524,30 @@ private fun ToastCard(
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "toastDepthScale",
     )
+
+    /**
+     * The message on the cards behind, which is not for reading.
+     *
+     * All three cards are the same width and offset by [ToastDefaults.Peek], so
+     * what shows of the ones behind is a band along their top edge — and the
+     * text sat right in it. Three messages at once, each sliced through the
+     * middle by the card in front, which is worse than the mismatched widths
+     * this stack started with.
+     *
+     * Not the same thing as fading the *card*, which was tried and is in the
+     * `graphicsLayer` below as a note: a translucent card lets the one in front
+     * show through it and smears the two together. The card stays opaque and
+     * only what is written on it goes, so the band behind is a clean plate of
+     * colour.
+     *
+     * Animated so a card coming forward brings its message with it rather than
+     * having it appear, on the same spring as the movement that brings it.
+     */
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (depth == 0) 1f else 0f,
+        animationSpec = motion.springOrTween(motion.springDefault),
+        label = "toastContentAlpha",
+    )
     /** How far the front toast has been dragged toward the edge. */
     var swipe by remember { mutableFloatStateOf(0f) }
     var height by remember { mutableFloatStateOf(0f) }
@@ -462,6 +565,7 @@ private fun ToastCard(
             toast = toast,
             showClose = showClose && depth == 0,
             closeLabel = closeLabel,
+            contentAlpha = contentAlpha,
             modifier = modifier
                 // The gesture is the outermost thing, above the padding — and
                 // that is the point. Below it the swipe area was exactly the
@@ -515,7 +619,10 @@ private fun ToastCard(
                 // Measured in the layout phase, not read out of the draw phase:
                 // writing state from inside `graphicsLayer` is a write during
                 // draw, and the recomposition it schedules can loop.
-                .onSizeChanged { height = it.height.toFloat() }
+                .onSizeChanged {
+                    height = it.height.toFloat()
+                    onMeasured(it)
+                }
                 // Inside the padding, so the depth scale shrinks the *card* and
                 // not the card plus its slop — the stack's geometry is tuned to
                 // `Peek` against the card, and scaling a bigger box moves every
@@ -529,7 +636,22 @@ private fun ToastCard(
                     // card behind it, and the text of all three overlapped into
                     // a smear. Offset and scale already say "behind", and they
                     // say it without letting anything show through.
-                },
+                }
+                // Every card at the stack's width — see `ToastStack`. A
+                // minimum rather than an exact size, because narrowing a card
+                // re-wraps the message inside it and widening one cannot.
+                //
+                // Below the `graphicsLayer`, so the depth scale still applies on
+                // top: the cards behind are the same width *before* being pushed
+                // back, which is what makes them read as further away rather
+                // than merely narrower.
+                .then(
+                    if (stackWidth != Dp.Unspecified) {
+                        Modifier.widthIn(min = stackWidth).heightIn(min = stackHeight)
+                    } else {
+                        Modifier
+                    }
+                ),
             onAction = {
                 toast.onAction?.invoke()
                 state.dismiss(toast.id)
@@ -544,6 +666,8 @@ private fun ToastSurface(
     toast: Toast,
     showClose: Boolean,
     closeLabel: String,
+    /** How much of the message is drawn — see `ToastCard`. */
+    contentAlpha: Float,
     modifier: Modifier,
     onAction: () -> Unit,
     onClose: () -> Unit,
@@ -582,7 +706,7 @@ private fun ToastSurface(
         shadow = Theme.elevation.high,
     ) {
         Row(
-            modifier = Modifier.padding(
+            modifier = Modifier.alpha(contentAlpha).padding(
                 start = Theme.spacing.md,
                 end = if (toast.actionLabel != null || showClose) Theme.spacing.xs else Theme.spacing.md,
                 top = Theme.spacing.xs,
@@ -598,10 +722,33 @@ private fun ToastSurface(
                 Text(toast.message, style = Theme.typography.bodySmall)
             }
             if (toast.actionLabel != null) {
+                // Two things were making "Retry" read as the end of the
+                // sentence rather than as a button, and both had to go.
+                //
+                // It sat eight pixels from the message, which is the gap
+                // between an icon and the words it belongs to — so it looked
+                // like it belonged to them. And a ghost button has no ground
+                // until you hover it, which on a solid toast leaves the label
+                // in exactly the colour and weight of the text beside it.
+                Spacer(Modifier.width(ToastDefaults.ActionGap))
                 Button(
                     onClick = onAction,
                     variant = ButtonVariant.Ghost,
                     size = ButtonSize.XSmall,
+                    // Derived from the toast's own content colour rather than
+                    // taken from the palette: a toast is a solid tone, and an
+                    // accent-coloured button on a red one is two brands
+                    // arguing. A wash of the colour the text is already in
+                    // gives it a ground at every tone without introducing a
+                    // second hue.
+                    colors = ButtonColors(
+                        container = content.copy(alpha = ToastDefaults.ActionGround),
+                        content = content,
+                        border = null,
+                        disabledContainer = Color.Transparent,
+                        disabledContent = content.copy(alpha = ToastDefaults.DisabledContent),
+                        disabledBorder = null,
+                    ),
                 ) { +toast.actionLabel }
             }
             if (showClose) {

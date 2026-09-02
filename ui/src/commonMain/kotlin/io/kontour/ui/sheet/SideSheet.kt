@@ -222,7 +222,7 @@ private fun SideSheetPanel(
                 .width(width)
                 .fillMaxHeight()
                 .offset {
-                    val hidden = travel * (1f - progress)
+                    val hidden = travel * (1f - progress().coerceIn(0f, 1f))
                     IntOffset(
                         x = (if (fromRight) hidden else -hidden).roundToInt(),
                         y = 0,

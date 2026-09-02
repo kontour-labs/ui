@@ -272,6 +272,23 @@ private class ArrowPath {
 }
 
 /**
+ * The last anchor the overlay was actually placed against.
+ *
+ * A caller whose anchor *is* the state that opens the overlay — `ContextMenuArea`
+ * holds a nullable `Rect` and clears it to dismiss — leaves this layout with
+ * nothing to measure against for the whole of the exit animation, and
+ * `Rect.Zero` is the window's top-left corner. So the menu spent its exit
+ * sliding to the corner of the screen.
+ *
+ * Not snapshot state: this is read during measure, and a `mutableStateOf`
+ * written in the pass that reads it invalidates that pass. Same reason
+ * [ArrowPath] is a plain holder.
+ */
+private class AnchorMemory {
+    var last: Rect? = null
+}
+
+/**
  * Places [content] beside [anchorInRoot], flipping and shifting to stay on
  * screen.
  *
@@ -316,6 +333,7 @@ internal fun AnchoredOverlayLayout(
     val density = LocalDensity.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val geometry = remember { ArrowPath() }
+    val anchorMemory = remember { AnchorMemory() }
 
     val gapPx = with(density) { gap.roundToPx() }
     val marginPx = with(density) { margin.roundToPx() }
@@ -360,7 +378,9 @@ internal fun AnchoredOverlayLayout(
             placeables.maxOfOrNull { it.height } ?: 0,
         )
 
-        val anchorRect = anchorInRoot()
+        // Falls back to the last real anchor rather than to the origin — see
+        // `AnchorMemory`.
+        val anchorRect = anchorInRoot()?.also { anchorMemory.last = it } ?: anchorMemory.last
         val anchorInHost = (anchorRect ?: Rect.Zero).translate(-host.originInRoot)
         val placement = positionAnchored(
             anchor = anchorInHost,

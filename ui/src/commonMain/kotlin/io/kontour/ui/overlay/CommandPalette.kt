@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -40,11 +40,14 @@ import androidx.compose.foundation.layout.WindowInsets
 import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.components.list.shape
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.inset
 
 /**
  * One thing a [CommandPalette] can run.
@@ -263,11 +266,24 @@ private fun PaletteBody(
         color = Theme.colors.surface,
         shadow = Theme.elevation.overlay,
     ) {
-        Column {
+        // One gap, one derived corner. The field and the rows sat at their own
+        // default radii inside the panel's — a 26dp capsule and a 22dp container
+        // inside a 28dp panel with 8dp of air — so nothing lined up with anything
+        // and the whole thing read as three components that had been stacked
+        // rather than one panel. `inset` is the rule the shape scale exists for:
+        // an inner radius is its container's less the gap between them.
+        val gap = Theme.spacing.xs
+        val inner = Theme.shapes.panel.inset(gap)
+
+        Column(
+            modifier = Modifier.padding(gap),
+            verticalArrangement = Arrangement.spacedBy(gap),
+        ) {
             SearchField(
                 state = query,
                 placeholder = placeholder,
-                modifier = Modifier.fillMaxWidth().padding(Theme.spacing.xs),
+                modifier = Modifier.fillMaxWidth(),
+                shape = inner,
                 // No debounce. A palette filters a list already in memory, and
                 // a quarter-second lag between the key and the result is the
                 // whole difference between this feeling instant and feeling
@@ -280,25 +296,31 @@ private fun PaletteBody(
                     text = emptyLabel,
                     style = Theme.typography.bodyMedium,
                     color = Theme.colors.contentMuted,
-                    modifier = Modifier.padding(Theme.spacing.md),
+                    modifier = Modifier.padding(
+                        horizontal = Theme.spacing.xs,
+                        vertical = Theme.spacing.sm,
+                    ),
                 )
             } else {
+                // A connected group, the same one the rest of the library
+                // draws: the results are one list, and spacing them apart made
+                // each command look like its own card in a pile of cards.
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.heightIn(max = maxHeight),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = Theme.spacing.xs,
-                        vertical = Theme.spacing.xxs,
-                    ),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {
-                    items(matches, key = { it.id }) { command ->
-                        val index = matches.indexOf(command)
+                    itemsIndexed(matches, key = { _, command -> command.id }) { index, command ->
+                        val position = ListItemPosition.of(index, matches.size)
                         ListItem(
                             onClick = { run(index) },
                             enabled = command.enabled,
                             selected = index == highlighted,
-                            position = ListItemPosition.Only,
+                            position = position,
+                            // The group's own corner rather than the default,
+                            // so the rows are concentric with the panel too and
+                            // not only with each other.
+                            shape = position.shape(inner, ListItemDefaults.InnerCorner),
                         ) {
                             command.icon?.let { icon -> leading { +icon } }
                             +command.label

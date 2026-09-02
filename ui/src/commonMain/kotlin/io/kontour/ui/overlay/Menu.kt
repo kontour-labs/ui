@@ -618,7 +618,15 @@ fun ContextMenuArea(
     enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
+    // Two pieces of state rather than one nullable `Rect`, because the anchor has
+    // to outlive the dismissal. Clearing it *was* the dismissal, so the menu
+    // spent its whole exit animation with no anchor to place against and slid to
+    // the top-left corner of the window on the way out. `AnchoredOverlayLayout`
+    // now keeps the last real anchor as well, so either half of this is enough —
+    // and the pair is worth having anyway: "where it opened" and "whether it is
+    // open" are two facts, and one of them survives the other.
     var anchor by remember { mutableStateOf<Rect?>(null) }
+    var open by remember { mutableStateOf(false) }
     var coordinates by remember {
         mutableStateOf<LayoutCoordinates?>(null)
     }
@@ -631,6 +639,7 @@ fun ContextMenuArea(
         // A zero-size anchor: the menu hangs off the point itself, which is what
         // makes it feel like it belongs to the click rather than the row.
         anchor = Rect(root, root)
+        open = true
     }
 
     Box(
@@ -664,9 +673,9 @@ fun ContextMenuArea(
     }
 
     AnchoredDropdownMenu(
-        visible = anchor != null,
+        visible = open,
         anchor = anchor,
-        onDismissRequest = { anchor = null },
+        onDismissRequest = { open = false },
         side = OverlaySide.Bottom,
         alignment = OverlayAlignment.Start,
         content = menu,

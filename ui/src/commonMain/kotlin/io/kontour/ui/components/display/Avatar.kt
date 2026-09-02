@@ -200,6 +200,7 @@ fun AvatarGroup(
     val shown = names.take(max)
     val overflow = names.size - shown.size
     val overlap = size.diameter / 3
+    val density = LocalDensity.current
 
     Row(
         modifier.semantics(mergeDescendants = true) {
@@ -237,7 +238,14 @@ fun AvatarGroup(
             ) {
                 Text(
                     text = "+$overflow",
-                    style = Theme.typography.labelSmall,
+                    // The same rule the initials follow, for the same reason —
+                    // and this is the call site that made the first fix look
+                    // half-done: a group of scaled initials with an unscaled
+                    // "+2" beside them reads as one avatar in the wrong font.
+                    style = Theme.typography.labelSmall.copy(
+                        fontSize = with(density) { size.textSize.toSp() },
+                        lineHeight = TextUnit.Unspecified,
+                    ),
                     color = Theme.colors.contentMuted,
                     modifier = Modifier.clearAndSetSemantics { },
                 )
