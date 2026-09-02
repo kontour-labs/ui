@@ -214,10 +214,10 @@ fun Modifier.sharedBounds(key: Any, clip: Shape? = null): Modifier {
  *
  * ### Reduced motion
  *
- * Degrades to a cross-fade with no bounds morph at all — [PageTransitionScope]
- * hands back plain modifiers. An element flying across the screen is the
- * clearest case that preference covers, and there is no gentle version of it:
- * half a morph is still a thing travelling a long way.
+ * Degrades to a cross-fade with no bounds morph at all — [sharedElement] and
+ * [sharedBounds] both hand back plain modifiers. An element flying across the
+ * screen is the clearest case that preference covers, and there is no gentle
+ * version of it: half a morph is still a thing travelling a long way.
  *
  * @param contentKey Which changes to [target] count as a page change. Defaults
  *   to the target itself; give it something coarser when the target carries data
