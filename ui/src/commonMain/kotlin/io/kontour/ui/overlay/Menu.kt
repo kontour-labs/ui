@@ -3,10 +3,10 @@ package io.kontour.ui.overlay
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.focusGroup
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.list.ListItemScope
+import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.AnimatedCheckMark
 import io.kontour.ui.foundation.ContentScope
@@ -293,13 +294,34 @@ private fun MenuPanel(
         // the intrinsic measurement to the surface just made every menu its
         // maximum width instead, which is worse — a two-item menu has no
         // business being 320dp wide.
-        Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
-                .fillMaxWidth(),
-        ) {
-            MenuScopeImpl(this, onDismissRequest).content()
+        // A scrollbar, where a scrollbar is a thing.
+        //
+        // A menu is the archetypal short container holding a list that may not
+        // fit — a `Combobox` over forty stops, a context menu on a small window
+        // — and until now the only clue that there was more below was that the
+        // last row was cut in half. `Scrollbar` returns nothing on touch and
+        // nothing when the content fits, so this costs an empty composable on a
+        // phone and draws only when it has something to say.
+        //
+        // In the panel rather than at each call site, which is the point: every
+        // menu in the library goes through here, so `Select`, `MultiSelect`,
+        // `Combobox`, the context menu and every submenu get it without knowing
+        // it exists.
+        val scroll = rememberScrollState()
+        Box {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(scroll)
+                    .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
+                    .fillMaxWidth(),
+            ) {
+                MenuScopeImpl(this, onDismissRequest).content()
+            }
+
+            Scrollbar(
+                state = scroll,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
         }
     }
 }

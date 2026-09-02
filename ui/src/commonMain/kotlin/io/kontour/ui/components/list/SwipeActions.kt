@@ -1,12 +1,13 @@
 package io.kontour.ui.components.list
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.anchoredDraggable
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,17 +27,24 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -55,9 +63,11 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** One action revealed by swiping a row. */
 @Immutable
@@ -173,6 +183,30 @@ object SwipeActionsDefaults {
 
     /** Fraction of the row's width past which a full swipe fires. */
     const val FullSwipeThreshold: Float = 0.6f
+
+    /**
+     * How far the revealed colour is taken toward black before the swipe would
+     * commit.
+     *
+     * A fifth. Enough that the brightening at the threshold is unmistakable
+     * beside itself, not so much that the action's colour stops being
+     * recognisable on the way there — a red that has gone brown says something
+     * different from a red that is waiting.
+     */
+    const val DimBelowThreshold: Float = 0.2f
+
+    /**
+     * How many pixels of row one pixel of sideways scroll moves.
+     *
+     * More than one: a trackpad reports fine deltas and a swipe is a coarse
+     * gesture, so at parity crossing a 176dp action strip is a long push. Three
+     * makes a flick of the fingers reach the actions and a deliberate push stop
+     * anywhere in between.
+     */
+    const val ScrollStep: Float = 3f
+
+    /** How long after the last scroll event the row settles onto an anchor. */
+    const val SettleAfterScroll: Long = 120L
 }
 
 /**
@@ -295,8 +329,19 @@ fun SwipeActions(
      * - A **`GestureEnd`** when the row settles.
      */
     val ticker = rememberDetentTicker()
+
+    /**
+     * Whether the swipe has gone far enough to commit.
+     *
+     * Hoisted out of the effect below so the *colour* can read it as well as
+     * the haptics. A vibration is a good signal and a lonely one: it says
+     * nothing to a user who has haptics off, nothing on a desktop, and nothing
+     * at all if the phone is in a pocket. The strip brightening at the same
+     * moment is the same statement in a channel everybody has.
+     */
+    var pastThreshold by remember { mutableStateOf(false) }
+
     LaunchedEffect(state, actionWidthPx, width) {
-        var pastThreshold = false
         var settled = true
         snapshotFlow { state.anchoredState.offset }.collect { offset ->
             if (offset.isNaN() || actionWidthPx <= 0f) return@collect
@@ -353,18 +398,52 @@ fun SwipeActions(
             else -> emptyList()
         }
         if (revealed.isNotEmpty()) {
-            // The whole revealed area in the outermost action's colour, under
-            // the buttons rather than instead of them.
+            /**
+             * The revealed colour, dimmed until the swipe would commit.
+             *
+             * Two states rather than a ramp: the question the user is asking is
+             * "will letting go do the thing", and that has a yes and a no. A
+             * gradient answers "sort of", which is the one answer that is no
+             * help.
+             */
+            val stripColor by animateColorAsState(
+                targetValue = if (pastThreshold) {
+                    revealed.last().background
+                } else {
+                    lerp(revealed.last().background, Color.Black, SwipeActionsDefaults.DimBelowThreshold)
+                },
+                animationSpec = motion.tweenFast(),
+                label = "swipeStrip",
+            )
+
+            // Exactly the area the row has vacated, and not a pixel under the
+            // row itself.
             //
-            // The strip is only `n × 88dp` wide and pinned to one edge, so
-            // everything beyond it — including the space behind the row's own
-            // rounded corners, and the entire travel of a committing swipe —
-            // used to be bare page. The colour appeared to stop at the corner
-            // because there was nothing behind the corner to see.
+            // It used to fill the whole box, which put the action's colour
+            // behind the row's own rounded corners — and two antialiased edges
+            // over one another leave a partly-covered ring where the lower
+            // colour shows through. That is the "tiny coloured border around the
+            // corners", and why it was worst in dark mode, where a bright action
+            // sits against a dark row.
+            //
+            // Drawn rather than sized, so the strip follows the offset in the
+            // draw phase instead of recomposing the row sixty times a second.
             Box(
                 Modifier
                     .matchParentSize()
-                    .background(revealed.last().background)
+                    .drawBehind {
+                        val live = state.anchoredState.offset
+                        if (live.isNaN() || live == 0f) return@drawBehind
+                        val revealedWidth = abs(live).coerceAtMost(size.width)
+                        drawRect(
+                            color = stripColor,
+                            topLeft = Offset(
+                                x = if (live > 0f) 0f else size.width - revealedWidth,
+                                y = 0f,
+                            ),
+                            size = Size(revealedWidth, size.height),
+                        )
+                    }
             )
 
             Row(
@@ -388,14 +467,63 @@ fun SwipeActions(
             }
         }
 
+        val swipeable = enabled && (start.isNotEmpty() || end.isNotEmpty())
+
         Box(
             Modifier
                 .offset { IntOffset(settled.roundToInt(), 0) }
                 .anchoredDraggable(
                     state = state.anchoredState,
                     orientation = Orientation.Horizontal,
-                    enabled = enabled && (start.isNotEmpty() || end.isNotEmpty()),
+                    enabled = swipeable,
                     flingBehavior = fling,
+                )
+                /**
+                 * A sideways scroll is a swipe.
+                 *
+                 * On a desktop there is no finger to drag the row with, and a
+                 * trackpad's two-finger sideways push is the gesture that means
+                 * exactly this everywhere else on the platform. It was doing
+                 * nothing at all: `anchoredDraggable` answers drags, and a wheel
+                 * is not one.
+                 *
+                 * No end event exists for a scroll — the platform never says
+                 * "they stopped" — so the row settles on a short timer after the
+                 * last one, which is also what makes a run of notches read as
+                 * one gesture rather than as a dozen tiny ones each snapping
+                 * back.
+                 */
+                .then(
+                    if (swipeable) {
+                        Modifier.pointerInput(state, scope) {
+                            var settling: Job? = null
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    if (event.type != PointerEventType.Scroll) continue
+                                    val sideways = event.changes.sumOf {
+                                        it.scrollDelta.x.toDouble()
+                                    }.toFloat()
+                                    if (sideways == 0f) continue
+                                    event.changes.forEach { it.consume() }
+                                    state.anchoredState.dispatchRawDelta(
+                                        -sideways * SwipeActionsDefaults.ScrollStep
+                                    )
+                                    settling?.cancel()
+                                    settling = scope.launch {
+                                        delay(SwipeActionsDefaults.SettleAfterScroll)
+                                        val anchors = state.anchoredState.anchors
+                                        val nearest = anchors.closestAnchor(
+                                            state.anchoredState.offset
+                                        )
+                                        if (nearest != null) state.anchoredState.animateTo(nearest)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Modifier
+                    }
                 )
         ) {
             content()

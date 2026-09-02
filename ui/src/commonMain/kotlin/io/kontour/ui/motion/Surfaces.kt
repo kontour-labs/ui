@@ -171,7 +171,7 @@ object GlassSurfaceDefaults {
      */
     const val Alpha: Float = 0.58f
 
-    /** What [Alpha] becomes under [io.kontour.ui.a11y.ContrastLevel.High]. */
+    /** What [Alpha] becomes under [io.kontour.ui.theme.ContrastLevel.High]. */
     const val OpaqueAlpha: Float = 0.94f
 
     /**
