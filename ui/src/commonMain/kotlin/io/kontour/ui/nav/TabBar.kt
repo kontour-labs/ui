@@ -10,18 +10,19 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.layout.LayoutScopeMarker
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -32,36 +33,37 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.ui.graphics.vector.ImageVector
-import io.kontour.ui.foundation.IndicatorEdge
-import io.kontour.ui.foundation.IndicatorSizing
-import io.kontour.ui.foundation.SelectionIndicatorBox
-import io.kontour.ui.foundation.rememberSelectionIndicatorState
-import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.IndicatorEdge
+import io.kontour.ui.foundation.IndicatorSizing
+import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.foundation.RowContentScope
+import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.contentScope
+import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
-import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.kontourIndication
-import io.kontour.ui.foundation.RowContentScope
-import io.kontour.ui.foundation.contentScope
-import io.kontour.ui.foundation.ProvideContentColor
-import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
 
 object TabBarDefaults {
@@ -327,7 +329,7 @@ fun TabBarScope.Tab(
             )
             // Horizontal only: the tab's height is the bar's, and the label is
             // centred in it by the arrangement below.
-            .padding(horizontal = Theme.spacing.md),
+            .tabPadding(Theme.spacing.md),
         // Centred, because a fixed tab is now as wide as its share of the bar
         // rather than as wide as its label: laid out from the start edge, three
         // tabs of one width each read as a row shoved to the left, with the
@@ -373,6 +375,32 @@ fun TabBarScope.Tab(
         // the last two letters of a word.
         // The gap the row's arrangement would normally provide — see above.
         if (badge != null) Badge(count = badge, modifier = Modifier.padding(start = Theme.spacing.xs))
+    }
+}
+
+/**
+ * Horizontal padding that gives way when the tab is narrower than its own air.
+ *
+ * A tab's `md` either side exists to give the travelling pill room around the
+ * label. Fixed, it is 32dp the label can never reclaim — and on a bar squeezed
+ * to 48dp that leaves 16dp, which is narrower than the ellipsis the label
+ * would truncate to, so **nothing was drawn at all**. `WidthSweepTest` asks
+ * every component to draw something from 48dp up, and this one did not; the
+ * hairline rule under the bar was the only ink, which is why turning that off
+ * by default is what exposed this rather than caused it.
+ *
+ * The rule is that **the padding never takes more than the label keeps**, which
+ * needs no number of its own and stops binding at 64dp — twice the padding —
+ * so every width anybody ships is untouched. Measured at 48dp: nothing at all
+ * with the full padding, the truncated label with this.
+ */
+private fun Modifier.tabPadding(each: Dp): Modifier = layout { measurable, constraints ->
+    val wanted = each.roundToPx() * 2
+    val taken = wanted.coerceAtMost((constraints.maxWidth - wanted).coerceAtLeast(0))
+    val placeable = measurable.measure(constraints.offset(horizontal = -taken))
+    val width = (placeable.width + taken).coerceIn(constraints.minWidth, constraints.maxWidth)
+    layout(width, placeable.height) {
+        placeable.place((width - placeable.width) / 2, 0)
     }
 }
 

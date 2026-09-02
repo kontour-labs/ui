@@ -65,8 +65,18 @@ height. Every other marker in the library is either a constant (the nav bar's
 `Inset(vertical = 0.dp)`); this was the only one whose proportions were a
 platform guideline.
 
-A pill sized to the bar is also what lets the rule go: a squeezed bar still
-draws 40dp of marker whatever happens to its labels.
+### A squeezed tab keeps its label
+
+A tab's `md` of padding either side is what gives the marker room around the
+label. Fixed, it is 32dp the label can never reclaim — so a bar squeezed to 48dp
+gave the label 16dp, which is narrower than the ellipsis it truncates to, and
+the tab drew *nothing at all*. The hairline rule was the only ink left, which is
+what the argument for keeping it was really describing.
+
+The padding now gives way, under one rule: **it never takes more than the label
+keeps.** That needs no number of its own and stops applying at 64dp — twice the
+padding — so every width an app actually draws is untouched, and a bar narrower
+than any of them shows a truncated word instead of an empty strip.
 
 ### When the labels do not fit
 

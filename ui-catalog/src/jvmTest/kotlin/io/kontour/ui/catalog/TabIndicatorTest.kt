@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -117,6 +118,46 @@ class TabIndicatorTest {
             "the marker came out ${narrow.width}×${narrow.height}dp in a 48dp-wide " +
                 "bar, against the ${expected}dp of height it has at any other width",
         )
+    }
+
+    @Test
+    fun aBarWithNothingSelectedStillDrawsItsLabel() {
+        // The case the marker test misses and `WidthSweepTest` caught: with no
+        // selection there is no pill, so the label is the only ink there is —
+        // and a tab's `md` either side is 32dp the label can never reclaim, so
+        // at 48dp it had 16dp, which is narrower than the ellipsis it would
+        // truncate to. The bar drew *nothing at all*, and the hairline rule was
+        // covering for it.
+        //
+        // Measured before the padding was made to yield: nothing below 64dp.
+        assertTrue(
+            unselectedInk(width = 48) > 0,
+            "a 48dp bar with nothing selected drew nothing at all",
+        )
+        // And nothing changed where it matters: the cap stops binding at twice
+        // the padding, so a bar any real app draws is untouched.
+        assertTrue(
+            unselectedInk(width = 200) == unselectedInk(width = 360),
+            "the padding cap is still binding at widths an app would use",
+        )
+    }
+
+    /** How many non-white pixels a bar with no selected tab draws. */
+    private fun unselectedInk(width: Int): Int {
+        var image: BufferedImage? = null
+        Scene(width = (width + 40) * Density.toInt(), height = 160) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                TabBar(modifier = Modifier.width(width.dp)) {
+                    Tab(selected = false, onClick = {}, key = "d") { +"Departures" }
+                }
+            }
+        }.use { scene -> image = scene.frames(20) }
+        val frame = requireNotNull(image)
+        var count = 0
+        for (y in 0 until frame.height) for (x in 0 until frame.width) {
+            if ((frame.getRGB(x, y) and 0xFFFFFF) != 0xFFFFFF) count++
+        }
+        return count
     }
 
     /** Width and height, in dp, of the one block of `accent.container` on screen. */
