@@ -109,8 +109,8 @@ fun Rating(
     icon: ImageVector? = null,
     filledIcon: ImageVector? = null,
     markSize: Dp = Theme.sizing.iconLarge,
-    filledColor: Color = Theme.colors.warning.solid,
-    emptyColor: Color = Theme.colors.outlineStrong,
+    filledColour: Color = Theme.colours.warning.solid,
+    emptyColour: Color = Theme.colours.outlineStrong,
     stateDescription: ((Float) -> String)? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
@@ -138,8 +138,8 @@ fun Rating(
                     empty = empty,
                     full = full,
                     size = markSize,
-                    filledColor = filledColor,
-                    emptyColor = emptyColor,
+                    filledColour = filledColour,
+                    emptyColour = emptyColour,
                 )
             }
         }
@@ -288,8 +288,8 @@ fun Rating(
                     empty = empty,
                     full = full,
                     size = markSize,
-                    filledColor = if (enabled) filledColor else Theme.colors.contentDisabled,
-                    emptyColor = if (enabled) emptyColor else Theme.colors.contentDisabled,
+                    filledColour = if (enabled) filledColour else Theme.colours.contentDisabled,
+                    emptyColour = if (enabled) emptyColour else Theme.colours.contentDisabled,
                     springOnFill = true,
                 )
             }
@@ -311,8 +311,8 @@ private fun Mark(
     empty: ImageVector,
     full: ImageVector,
     size: Dp,
-    filledColor: Color,
-    emptyColor: Color,
+    filledColour: Color,
+    emptyColour: Color,
     springOnFill: Boolean = false,
 ) {
     val scale by animateFloatAsState(
@@ -336,7 +336,7 @@ private fun Mark(
     )
 
     Box(Modifier.size(size), contentAlignment = Alignment.Center) {
-        Icon(empty, contentDescription = null, tint = emptyColor, modifier = Modifier.size(size))
+        Icon(empty, contentDescription = null, tint = emptyColour, modifier = Modifier.size(size))
         if (shownFill > 0f) {
             Box(
                 Modifier
@@ -357,7 +357,7 @@ private fun Mark(
                         }
                     },
             ) {
-                Icon(full, contentDescription = null, tint = filledColor, modifier = Modifier.size(size))
+                Icon(full, contentDescription = null, tint = filledColour, modifier = Modifier.size(size))
             }
         }
     }

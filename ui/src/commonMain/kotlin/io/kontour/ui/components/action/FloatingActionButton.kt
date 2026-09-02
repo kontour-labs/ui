@@ -87,14 +87,14 @@ fun FloatingActionButton(
     loadingLabel: String = Theme.strings.loading,
     size: FabSize = FabSize.Medium,
     shape: Shape = Theme.shapes.control,
-    containerColor: Color = Theme.colors.primary,
-    contentColor: Color = Theme.colors.onPrimary,
+    containerColour: Color = Theme.colours.primary,
+    contentColour: Color = Theme.colours.onPrimary,
     border: BorderStroke? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
-    val (fabColor, fabContent, fabShadow) = fabColors(enabled, containerColor, contentColor)
+    val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
     val interactive = enabled && !loading
 
     Surface(
@@ -114,8 +114,8 @@ fun FloatingActionButton(
                 },
             ),
         shape = shape,
-        color = fabColor,
-        contentColor = fabContent,
+        colour = fabColor,
+        contentColour = fabContent,
         border = border,
         shadow = fabShadow,
         // `defaultMinSize` makes the surface larger than the icon inside it, so
@@ -163,15 +163,15 @@ fun FloatingActionButton(
     loadingLabel: String = Theme.strings.loading,
     size: FabSize = FabSize.Medium,
     shape: Shape = Theme.shapes.control,
-    containerColor: Color = Theme.colors.primary,
-    contentColor: Color = Theme.colors.onPrimary,
+    containerColour: Color = Theme.colours.primary,
+    contentColour: Color = Theme.colours.onPrimary,
     border: BorderStroke? = null,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
-    val (fabColor, fabContent, fabShadow) = fabColors(enabled, containerColor, contentColor)
+    val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
     val interactive = enabled && !loading
 
     Surface(
@@ -192,8 +192,8 @@ fun FloatingActionButton(
                 },
             ),
         shape = shape,
-        color = fabColor,
-        contentColor = fabContent,
+        colour = fabColor,
+        contentColour = fabContent,
         border = border,
         shadow = fabShadow,
         contentAlignment = Alignment.Center,
@@ -238,8 +238,8 @@ fun ExtendedFloatingActionButton(
     expanded: Boolean = true,
     size: FabSize = FabSize.Medium,
     shape: Shape = Theme.shapes.control,
-    containerColor: Color = Theme.colors.primary,
-    contentColor: Color = Theme.colors.onPrimary,
+    containerColour: Color = Theme.colours.primary,
+    contentColour: Color = Theme.colours.onPrimary,
     border: BorderStroke? = null,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit,
@@ -247,7 +247,7 @@ fun ExtendedFloatingActionButton(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val motion = Theme.motion
     val feedback = Feedback
-    val (fabColor, fabContent, fabShadow) = fabColors(enabled, containerColor, contentColor)
+    val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
     val interactive = enabled && !loading
 
     // Collapsed, the padding is whatever makes the button as wide as it is tall,
@@ -278,8 +278,8 @@ fun ExtendedFloatingActionButton(
                 },
             ),
         shape = shape,
-        color = fabColor,
-        contentColor = fabContent,
+        colour = fabColor,
+        contentColour = fabContent,
         border = border,
         shadow = fabShadow,
     ) {
@@ -322,10 +322,10 @@ fun ExtendedFloatingActionButton(
 /**
  * A disabled FAB looks disabled.
  *
- * It did not: `containerColor` and `contentColor` were used whatever `enabled`
+ * It did not: `containerColour` and `contentColour` were used whatever `enabled`
  * said, so the only difference between a live FAB and a dead one was that
  * tapping it did nothing. Every other control in the library resolves a disabled
- * pair — see `ButtonColors.container(enabled)` — and a floating action is the
+ * pair — see `ButtonColours.container(enabled)` — and a floating action is the
  * one most likely to be the only affordance on a screen, so it is the worst
  * place to leave the state invisible. It is also a WCAG 1.4.1 problem rather
  * than a cosmetic one: "you cannot press this" was carried by behaviour alone.
@@ -334,14 +334,14 @@ fun ExtendedFloatingActionButton(
  * thing floating highest off the page.
  */
 @Composable
-private fun fabColors(
+private fun fabColours(
     enabled: Boolean,
-    containerColor: Color,
-    contentColor: Color,
+    containerColour: Color,
+    contentColour: Color,
 ): Triple<Color, Color, Shadow> = if (enabled) {
-    Triple(containerColor, contentColor, Theme.elevation.medium)
+    Triple(containerColour, contentColour, Theme.elevation.medium)
 } else {
-    Triple(Theme.colors.surfaceSunken, Theme.colors.contentDisabled, Theme.elevation.flat)
+    Triple(Theme.colours.surfaceSunken, Theme.colours.contentDisabled, Theme.elevation.flat)
 }
 
 /** How much room the label gets either side of it once the button is open. */

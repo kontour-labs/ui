@@ -287,7 +287,7 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
                 alpha = scale
             },
         shape = Theme.shapes.pill,
-        color = Theme.colors.surfaceRaised,
+        colour = Theme.colours.surfaceRaised,
         shadow = Theme.elevation.high,
         contentAlignment = Alignment.Center,
     ) {
@@ -297,7 +297,7 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
             CircularProgress(
                 progress = pull,
                 size = Theme.sizing.iconMedium,
-                trackColor = Color.Transparent,
+                trackColour = Color.Transparent,
                 strokeWidth = PullStroke,
                 modifier = Modifier.rotate(if (reduceMotion) 0f else pull * PullTurn),
             )
@@ -379,7 +379,7 @@ fun LoadMore(
                 Text(
                     text = errorLabel,
                     style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentMuted,
+                    colour = Theme.colours.contentMuted,
                 )
                 Button(onClick = onRetry, variant = ButtonVariant.Ghost) { +retryLabel }
             }
@@ -388,7 +388,7 @@ fun LoadMore(
                 Text(
                     text = endLabel,
                     style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentSubtle,
+                    colour = Theme.colours.contentSubtle,
                 )
             }
         }

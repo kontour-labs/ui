@@ -18,7 +18,7 @@ import kotlin.math.max
  */
 @Immutable
 data class ShadowSpec(
-    val color: Color,
+    val colour: Color,
     val alpha: Float,
     val offsetY: Dp,
     val blurRadius: Dp,
@@ -83,7 +83,7 @@ data class Elevation(
 fun kontourElevation(dark: Boolean): Elevation {
     val ink = Color.Black
     fun spec(offsetY: Int, blur: Int, alpha: Float) =
-        ShadowSpec(color = ink, alpha = alpha, offsetY = offsetY.dp, blurRadius = blur.dp)
+        ShadowSpec(colour = ink, alpha = alpha, offsetY = offsetY.dp, blurRadius = blur.dp)
 
     val boost = if (dark) 2.4f else 1f
 
@@ -125,7 +125,7 @@ fun kontourElevation(dark: Boolean): Elevation {
  */
 internal fun lerp(start: ShadowSpec, stop: ShadowSpec, fraction: Float): ShadowSpec =
     ShadowSpec(
-        color = lerp(start.color, stop.color, fraction),
+        colour = lerp(start.colour, stop.colour, fraction),
         alpha = start.alpha + (stop.alpha - start.alpha) * fraction,
         offsetY = lerp(start.offsetY, stop.offsetY, fraction),
         blurRadius = lerp(start.blurRadius, stop.blurRadius, fraction),

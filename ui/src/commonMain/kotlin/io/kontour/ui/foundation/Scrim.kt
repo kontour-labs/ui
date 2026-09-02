@@ -74,11 +74,11 @@ fun Scrim(
     onDismissRequest: (() -> Unit)?,
     modifier: Modifier = Modifier,
     dismissLabel: String? = null,
-    color: Color = Theme.colors.scrim,
+    colour: Color = Theme.colours.scrim,
     onScrollRequest: (() -> Unit)? = null,
 ) {
     val animated by animateColorAsState(
-        targetValue = color,
+        targetValue = colour,
         animationSpec = Theme.motion.tweenDefault(),
         label = "scrimColor",
     )

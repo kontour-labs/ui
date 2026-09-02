@@ -53,7 +53,7 @@ fun RadioButton(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = Feedback
 
@@ -61,9 +61,9 @@ fun RadioButton(
 
     val ring by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.contentDisabled
-            selected -> colors.primary
-            else -> colors.outlineStrong
+            !enabled -> colours.contentDisabled
+            selected -> colours.primary
+            else -> colours.outlineStrong
         },
         animationSpec = motion.tweenFast(),
         label = "radioRing",
@@ -139,7 +139,7 @@ fun RadioButton(
 
         if (dotScale > 0f) {
             drawCircle(
-                color = if (enabled) colors.primary else colors.contentDisabled,
+                color = if (enabled) colours.primary else colours.contentDisabled,
                 radius = radius * 0.55f * dotScale,
             )
         }

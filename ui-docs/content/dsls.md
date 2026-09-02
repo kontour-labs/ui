@@ -71,7 +71,7 @@ Button(onClick = ::save) {
 ### Style comes from the slot, not the call site
 
 `+"…"` never says how to draw itself. Each slot wraps its content in
-`ProvideTextStyle` and `ProvideContentColor`, so the same character is
+`ProvideTextStyle` and `ProvideContentColour`, so the same character is
 `bodySmall` and muted under a row's supporting line, and the button's own label
 style inside a button. That is the whole reason it can be one character: there is
 nothing left for the call site to decide.

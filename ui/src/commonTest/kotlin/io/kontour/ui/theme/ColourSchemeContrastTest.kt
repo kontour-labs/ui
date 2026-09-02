@@ -25,20 +25,20 @@ import kotlin.test.fail
  *    That is the token's documented contract; [BrandIsDecorativeOnlyTest]
  *    pins it so nobody promotes it to a text colour by accident.
  */
-class ColorSchemeContrastTest {
+class ColourSchemeContrastTest {
 
-    private data class Scheme(val name: String, val colors: ColorScheme, val contrast: ContrastLevel)
+    private data class Scheme(val name: String, val colours: ColourScheme, val contrast: ContrastLevel)
 
     private val schemes = listOf(
-        Scheme("light", lightColorScheme(), ContrastLevel.Standard),
-        Scheme("dark", darkColorScheme(), ContrastLevel.Standard),
-        Scheme("light/high-contrast", highContrastLightColorScheme(), ContrastLevel.High),
-        Scheme("dark/high-contrast", highContrastDarkColorScheme(), ContrastLevel.High),
+        Scheme("light", lightColourScheme(), ContrastLevel.Standard),
+        Scheme("dark", darkColourScheme(), ContrastLevel.Standard),
+        Scheme("light/high-contrast", highContrastLightColourScheme(), ContrastLevel.High),
+        Scheme("dark/high-contrast", highContrastDarkColourScheme(), ContrastLevel.High),
     )
 
     private class Failure(val scheme: String, val pair: String, val actual: Float, val required: Float)
 
-    private fun ColorScheme.grounds(): List<Pair<String, Color>> = listOf(
+    private fun ColourScheme.grounds(): List<Pair<String, Color>> = listOf(
         "background" to background,
         "surface" to surface,
         "surfaceSunken" to surfaceSunken,
@@ -175,14 +175,14 @@ class ColorSchemeContrastTest {
 }
 
 /**
- * Pins the contract that makes [ColorScheme.brand] and [ColorScheme.accent] two
+ * Pins the contract that makes [ColourScheme.brand] and [ColourScheme.accent] two
  * separate tokens rather than one.
  */
 class BrandIsDecorativeOnlyTest {
 
     /**
      * A brand colour an app supplies is allowed to fail contrast — that is the
-     * whole reason [ColorScheme.brand] is not [ColorScheme.accent] — but only
+     * whole reason [ColourScheme.brand] is not [ColourScheme.accent] — but only
      * where nothing has to be read on it.
      *
      * This used to assert the opposite: that brand *must* fail, because brand
@@ -194,8 +194,8 @@ class BrandIsDecorativeOnlyTest {
      */
     @Test
     fun theDefaultBrandIsTheAccentUntilAnAppSetsOne() {
-        for ((name, colors) in listOf("light" to lightColorScheme(), "dark" to darkColorScheme())) {
-            if (colors.brand != colors.accent.solid) {
+        for ((name, colours) in listOf("light" to lightColourScheme(), "dark" to darkColourScheme())) {
+            if (colours.brand != colours.accent.solid) {
                 fail(
                     "the default $name scheme's brand ($name) has drifted from its accent. " +
                         "A library with no product in it should have nothing to say about " +
@@ -207,8 +207,8 @@ class BrandIsDecorativeOnlyTest {
 
     @Test
     fun accentCarriesTextEverywhereBrandCannot() {
-        for ((name, colors) in listOf("light" to lightColorScheme(), "dark" to darkColorScheme())) {
-            val ratio = contrastRatio(colors.accent.solid, colors.background)
+        for ((name, colours) in listOf("light" to lightColourScheme(), "dark" to darkColourScheme())) {
+            val ratio = contrastRatio(colours.accent.solid, colours.background)
             if (ratio < ContrastThreshold.NON_TEXT) {
                 fail("accent fails non-text contrast in $name: $ratio:1")
             }

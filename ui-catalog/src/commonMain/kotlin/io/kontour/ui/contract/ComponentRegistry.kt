@@ -807,7 +807,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     Surface(
                         modifier = Modifier.fillMaxWidth().height(80.dp),
                         shape = Theme.shapes.small,
-                        color = Theme.colors.surfaceSunken,
+                        colour = Theme.colours.surfaceSunken,
                     ) {
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                             Text("Photo ${page + 1}")

@@ -4,7 +4,7 @@ Everything a component is allowed to look like. Read through `Theme` inside a
 composable:
 
 ```kotlin
-Theme.colors.surface
+Theme.colours.surface
 Theme.typography.titleMedium
 Theme.spacing.md
 Theme.shapes.medium
@@ -21,7 +21,7 @@ exception to this — if a value you need is missing, add a token.
 
 ## Colour
 
-Defined in [`theme/ColorScheme.kt`](../../ui/src/commonMain/kotlin/io/kontour/ui/theme/ColorScheme.kt);
+Defined in [`theme/ColourScheme.kt`](../../ui/src/commonMain/kotlin/io/kontour/ui/theme/ColourScheme.kt);
 raw values in [`theme/Palette.kt`](../../ui/src/commonMain/kotlin/io/kontour/ui/theme/Palette.kt).
 
 Four built-in schemes: light, dark, and a high-contrast variant of each.
@@ -63,11 +63,11 @@ WCAG 1.4.11 asks of a UI component boundary. Inputs, checkboxes and switches use
 | Token | Light | Dark | For |
 |---|---|---|---|
 | `primary` / `onPrimary` | `#121212` / `#FFFFFF` | `#F4F1F8` / `#121212` | The solid call to action |
-| `accent` | a `StatusColors`, below | | The brand, as a tone |
+| `accent` | a `StatusColours`, below | | The brand, as a tone |
 | `brand` | `#BB86FC` | `#BB86FC` | Purple as **decoration only** |
 | `focusRing` | `#6D28D9` | `#BB86FC` | The keyboard focus indicator |
 
-**`accent` is a tone, not four loose fields.** It is a `StatusColors` exactly
+**`accent` is a tone, not four loose fields.** It is a `StatusColours` exactly
 like `success` and the rest, so there is one tone type and six tones:
 
 | Member | Light | Dark | Was |
@@ -84,7 +84,7 @@ one, which is what `ButtonVariant.Accent`, `BannerTone.Accent` and
 had to reach past the group and assemble itself from three separate fields.
 
 It also means a custom scheme has to supply the whole tone rather than one
-colour. That is the point too: the old `lightColorScheme(accent = Color(...))`
+colour. That is the point too: the old `lightColourScheme(accent = Color(...))`
 left `accentContainer` at the default purple, so a blue accent came with a
 purple selected-state and the signature said nothing about it.
 
@@ -97,7 +97,7 @@ pins that contract so nobody quietly promotes `brand` to a text colour.
 
 ### Status
 
-Each of `success`, `warning`, `danger` and `info` is a `StatusColors` with five
+Each of `success`, `warning`, `danger` and `info` is a `StatusColours` with five
 fields, matching how the web properties already use them:
 
 | Field | For |

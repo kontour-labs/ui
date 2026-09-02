@@ -96,8 +96,8 @@ fun SideSheet(
      */
     width: Dp = SideSheetDefaults.Width,
     shape: CornerBasedShape = Theme.shapes.sideSheet,
-    containerColor: Color = Theme.colors.surfaceRaised,
-    contentColor: Color = Theme.colors.content,
+    containerColour: Color = Theme.colours.surfaceRaised,
+    contentColour: Color = Theme.colours.content,
     scrim: ScrimStyle = ScrimStyle.Dimmed,
     dismissible: Boolean = true,
     dismissLabel: String = Theme.strings.close,
@@ -131,8 +131,8 @@ fun SideSheet(
     // the sheet appeared.
     val latestModifier by rememberUpdatedState(modifier)
     val latestShape by rememberUpdatedState(shape)
-    val latestContainerColor by rememberUpdatedState(containerColor)
-    val latestContentColor by rememberUpdatedState(contentColor)
+    val latestContainerColour by rememberUpdatedState(containerColour)
+    val latestContentColour by rememberUpdatedState(contentColour)
     val latestPaneTitle by rememberUpdatedState(paneTitle)
     val latestOnBack by rememberUpdatedState(onBack)
     val latestBackLabel by rememberUpdatedState(backLabel)
@@ -166,8 +166,8 @@ fun SideSheet(
                         side = side,
                         width = width,
                         shape = latestShape,
-                        containerColor = latestContainerColor,
-                        contentColor = latestContentColor,
+                        containerColour = latestContainerColour,
+                        contentColour = latestContentColour,
                         paneTitle = latestPaneTitle,
                         onBack = latestOnBack,
                         backLabel = latestBackLabel,
@@ -194,8 +194,8 @@ private fun SideSheetPanel(
     side: SheetSide,
     width: Dp,
     shape: CornerBasedShape,
-    containerColor: Color,
-    contentColor: Color,
+    containerColour: Color,
+    contentColour: Color,
     paneTitle: String?,
     onBack: (() -> Unit)?,
     backLabel: String,
@@ -238,8 +238,8 @@ private fun SideSheetPanel(
                 // Mirrored for a start-side sheet, so the rounded edge is always
                 // the one facing the content rather than the window edge.
                 shape = if (fromRight) shape else shape.mirrorHorizontally(),
-                color = containerColor,
-                contentColor = contentColor,
+                colour = containerColour,
+                contentColour = contentColour,
                 border = contrastEdge(),
                 shadow = Theme.elevation.overlay,
             ) {

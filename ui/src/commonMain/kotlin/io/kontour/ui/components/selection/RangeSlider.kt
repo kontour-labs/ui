@@ -121,7 +121,7 @@ fun RangeSlider(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = Feedback
     val density = LocalDensity.current
@@ -496,8 +496,8 @@ fun RangeSlider(
                         val thumbReachPx = SliderThumbReach.toPx()
                         val centreY = size.height / 2f
                         val trackTop = centreY - trackHeightPx / 2f
-                        val activeColor = if (enabled) colors.primary else colors.contentDisabled
-                        val inactiveColor = if (enabled) colors.outline else colors.surfaceSunken
+                        val activeColour = if (enabled) colours.primary else colours.contentDisabled
+                        val inactiveColour = if (enabled) colours.outline else colours.surfaceSunken
 
                         onDrawBehind {
                             // The thumb's reach, not its radius — see the
@@ -508,7 +508,7 @@ fun RangeSlider(
                             val endX = trackLeft + trackWidth * drawnEnd
 
                             drawRoundRect(
-                                color = inactiveColor,
+                                color = inactiveColour,
                                 topLeft = Offset(trackLeft, trackTop),
                                 size = Size(trackWidth, trackHeightPx),
                                 cornerRadius = CornerRadius(trackHeightPx / 2f),
@@ -517,7 +517,7 @@ fun RangeSlider(
                             // on a plain slider the filled part runs from the
                             // start of the track, and here it does not.
                             drawRoundRect(
-                                color = activeColor,
+                                color = activeColour,
                                 topLeft = Offset(startX, trackTop),
                                 size = Size(endX - startX, trackHeightPx),
                                 cornerRadius = CornerRadius(trackHeightPx / 2f),
@@ -529,7 +529,7 @@ fun RangeSlider(
                                     val x = trackLeft + trackWidth * i / stepCount
                                     val inBand = x in startX..endX
                                     drawCircle(
-                                        color = if (inBand) colors.onPrimary else colors.contentSubtle,
+                                        color = if (inBand) colours.onPrimary else colours.contentSubtle,
                                         radius = trackHeightPx * 0.22f,
                                         center = Offset(x, centreY),
                                     )
@@ -546,8 +546,8 @@ fun RangeSlider(
                                     radiusPx = thumbRadiusPx,
                                     scale = thumbScale,
                                     reachPx = reachPx,
-                                    ringColor = colors.surface,
-                                    fillColor = activeColor,
+                                    ringColour = colours.surface,
+                                    fillColour = activeColour,
                                     ringPx = SliderThumbRing.toPx(),
                                 )
                             }

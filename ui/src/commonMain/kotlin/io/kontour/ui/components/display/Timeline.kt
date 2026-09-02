@@ -44,7 +44,7 @@ enum class ConnectorStyle {
  *
  * ```
  * Timeline {
- *     TimelineItem(nodeColor = routeColor, connector = ConnectorStyle.Solid) {
+ *     TimelineItem(nodeColour = routeColor, connector = ConnectorStyle.Solid) {
  *         Text("Perth Station"); Text("Platform 3", …)
  *     }
  *     TimelineItem(connector = ConnectorStyle.Dashed) { Text("Walk 4 min") }
@@ -75,7 +75,7 @@ fun Timeline(
  *
  * @param connector How to join this item to the next. The last item should pass
  *   [ConnectorStyle.None].
- * @param nodeColor The dot's colour. Takes a route colour straight from a feed.
+ * @param nodeColour The dot's colour. Takes a route colour straight from a feed.
  * @param filled A solid dot for a place the traveller actually stops; a hollow
  *   one for a point they pass through.
  * @param connectorWidth How thick the line to the next item is. Per item, not
@@ -88,8 +88,8 @@ fun Timeline(
 fun TimelineItem(
     modifier: Modifier = Modifier,
     connector: ConnectorStyle = ConnectorStyle.Solid,
-    nodeColor: Color = Theme.colors.primary,
-    connectorColor: Color = Theme.colors.outlineStrong,
+    nodeColour: Color = Theme.colours.primary,
+    connectorColour: Color = Theme.colours.outlineStrong,
     filled: Boolean = true,
     nodeSize: Dp = 12.dp,
     gutterWidth: Dp = 28.dp,
@@ -118,7 +118,7 @@ fun TimelineItem(
                     val top = nodeCentreY + nodeRadius + nodeGap
                     if (top < size.height) {
                         drawLine(
-                            color = connectorColor,
+                            color = connectorColour,
                             start = Offset(centreX, top),
                             end = Offset(centreX, size.height),
                             strokeWidth = stroke,
@@ -136,13 +136,13 @@ fun TimelineItem(
 
                 if (filled) {
                     drawCircle(
-                        color = nodeColor,
+                        color = nodeColour,
                         radius = nodeRadius,
                         center = Offset(centreX, nodeCentreY),
                     )
                 } else {
                     drawCircle(
-                        color = nodeColor,
+                        color = nodeColour,
                         radius = nodeRadius - stroke / 2f,
                         center = Offset(centreX, nodeCentreY),
                         style = Stroke(width = stroke),

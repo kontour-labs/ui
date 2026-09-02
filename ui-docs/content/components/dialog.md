@@ -14,7 +14,7 @@ Dialog(visible = open, onDismissRequest = { open = false }) {
     Text(
         "Give it a name you will recognise on the home screen.",
         style = Theme.typography.bodySmall,
-        color = Theme.colors.contentMuted,
+        colour = Theme.colours.contentMuted,
     )
     Button(onClick = { open = false }, modifier = Modifier.fillMaxWidth()) { +"Save" }
 }

@@ -15,9 +15,9 @@ import androidx.compose.ui.text.TextStyle
  * surface and a dark one without editing it.
  *
  * Defaults to `Color.Unspecified`, which [Text] and [Icon] resolve to
- * `Theme.colors.content`. `KontourTheme` provides the real value at the root.
+ * `Theme.colours.content`. `KontourTheme` provides the real value at the root.
  */
-val LocalContentColor = compositionLocalOf { Color.Unspecified }
+val LocalContentColour = compositionLocalOf { Color.Unspecified }
 
 /**
  * The text style inherited by [Text] when none is passed.
@@ -41,8 +41,8 @@ fun ProvideTextStyle(value: TextStyle, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalTextStyle provides merged, content = content)
 }
 
-/** Runs [content] with [color] as the inherited content colour. */
+/** Runs [content] with [colour] as the inherited content colour. */
 @Composable
-fun ProvideContentColor(color: Color, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalContentColor provides color, content = content)
+fun ProvideContentColour(colour: Color, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalContentColour provides colour, content = content)
 }

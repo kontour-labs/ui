@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.Dp
  */
 internal fun Modifier.strikethrough(
     progress: () -> Float,
-    color: Color,
+    colour: Color,
     halo: Color,
     width: Dp,
 ): Modifier = drawWithContent {
@@ -61,7 +61,7 @@ internal fun Modifier.strikethrough(
         cap = StrokeCap.Round,
     )
     drawLine(
-        color = color,
+        color = colour,
         start = start,
         end = to,
         strokeWidth = strokeWidth,

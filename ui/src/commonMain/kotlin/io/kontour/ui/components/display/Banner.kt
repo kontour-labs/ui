@@ -42,10 +42,10 @@ import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.theme.StatusColors
+import io.kontour.ui.theme.StatusColours
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
@@ -88,7 +88,7 @@ fun Banner(
     content: BannerScope.() -> Unit,
 ) {
     val slots = bannerSlots(content)
-    val colors = bannerColorsFor(tone)
+    val colours = bannerColoursFor(tone)
     val shape = Theme.shapes.container
 
     Row(
@@ -102,12 +102,12 @@ fun Banner(
                 }
             }
             .clip(shape)
-            .background(colors.container, shape)
-            .border(BorderStroke(Theme.sizing.borderWidth, colors.border), shape)
+            .background(colours.container, shape)
+            .border(BorderStroke(Theme.sizing.borderWidth, colours.border), shape)
             .padding(Theme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
     ) {
-        CompositionLocalProvider(LocalContentColor provides colors.onContainer) {
+        CompositionLocalProvider(LocalContentColour provides colours.onContainer) {
             slots.leading?.let { leading ->
                 Box(Modifier.padding(top = 1.dp)) {
                     ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
@@ -194,8 +194,8 @@ fun AnimatedBanner(
 @Composable
 fun Callout(
     modifier: Modifier = Modifier,
-    accent: Color = Theme.colors.accent.solid,
-    container: Color = Theme.colors.accent.container,
+    accent: Color = Theme.colours.accent.solid,
+    container: Color = Theme.colours.accent.container,
     content: @Composable () -> Unit,
 ) {
     val shape = Theme.shapes.container
@@ -242,7 +242,7 @@ fun Callout(
         Box(Modifier.width(CalloutRuleWidth))
         Box(Modifier.padding(Theme.spacing.sm)) {
             CompositionLocalProvider(
-                LocalContentColor provides Theme.colors.accent.onContainer,
+                LocalContentColour provides Theme.colours.accent.onContainer,
             ) {
                 content()
             }
@@ -254,15 +254,15 @@ fun Callout(
 private val CalloutRuleWidth = 3.dp
 
 @Composable
-private fun bannerColorsFor(tone: BannerTone): StatusColors = when (tone) {
-    BannerTone.Info -> Theme.colors.info
-    BannerTone.Success -> Theme.colors.success
-    BannerTone.Warning -> Theme.colors.warning
-    BannerTone.Danger -> Theme.colors.danger
-    // Reachable at all only because `accent` is a `StatusColors` now. As four
+private fun bannerColoursFor(tone: BannerTone): StatusColours = when (tone) {
+    BannerTone.Info -> Theme.colours.info
+    BannerTone.Success -> Theme.colours.success
+    BannerTone.Warning -> Theme.colours.warning
+    BannerTone.Danger -> Theme.colours.danger
+    // Reachable at all only because `accent` is a `StatusColours` now. As four
     // loose fields it had no `border`, so a banner could not have been built
     // out of it without inventing one here.
-    BannerTone.Accent -> Theme.colors.accent
+    BannerTone.Accent -> Theme.colours.accent
 }
 
 /**

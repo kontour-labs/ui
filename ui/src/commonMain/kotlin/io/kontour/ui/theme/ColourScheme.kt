@@ -24,7 +24,7 @@ enum class ContrastLevel { Standard, High }
  * [onContainer] doing double duty as the standalone text colour for that tone.
  */
 @Immutable
-data class StatusColors(
+data class StatusColours(
     /** Filled backgrounds — badges, solid buttons, progress fills. */
     val solid: Color,
     /** Labels and icons drawn on [solid]. */
@@ -41,7 +41,7 @@ data class StatusColors(
  * Every colour a component is allowed to use, named for what it means rather
  * than what it looks like.
  *
- * Read these through [Theme.colors]; never hardcode a [Color] in a component.
+ * Read these through [Theme.colours]; never hardcode a [Color] in a component.
  * That indirection is the whole reason a theme can be swapped, a contrast tier
  * can be raised, or a generated palette can be dropped in later without
  * touching a single component.
@@ -74,7 +74,7 @@ data class StatusColors(
  *   [accent] instead.
  */
 @Immutable
-data class ColorScheme(
+data class ColourScheme(
     // --- Grounds ---
     /** The page itself. */
     val background: Color,
@@ -113,22 +113,22 @@ data class ColorScheme(
      * The brand tone, shaped exactly like the four status tones.
      *
      * It used to be four loose fields — `accent`, `onAccent`, `accentContainer`,
-     * `onAccentContainer` — beside four grouped [StatusColors]. One tone type and
+     * `onAccentContainer` — beside four grouped [StatusColours]. One tone type and
      * six tones means a component that takes a tone can take *this* one, which is
      * what `ButtonVariant.Accent` and `BannerTone.Accent` are made of, and it is
      * why `TagTone.Accent` had to reach past the group to build itself.
      */
-    val accent: StatusColors,
+    val accent: StatusColours,
 
     // --- Brand ---
     val brand: Color,
     val focusRing: Color,
 
     // --- Status ---
-    val success: StatusColors,
-    val warning: StatusColors,
-    val danger: StatusColors,
-    val info: StatusColors,
+    val success: StatusColours,
+    val warning: StatusColours,
+    val danger: StatusColours,
+    val info: StatusColours,
 
     // --- Overlays ---
     /**
@@ -167,10 +167,10 @@ data class ColorScheme(
  *
  * Every parameter is defaulted, so a product theme overrides only what it needs:
  * ```
- * val ocean = lightColorScheme(accent = Color(0xFF0B6E99), focusRing = Color(0xFF0B6E99))
+ * val ocean = lightColourScheme(accent = Color(0xFF0B6E99), focusRing = Color(0xFF0B6E99))
  * ```
  */
-fun lightColorScheme(
+fun lightColourScheme(
     background: Color = Palette.White,
     surface: Color = Palette.White,
     surfaceSunken: Color = Palette.Grey50,
@@ -186,7 +186,7 @@ fun lightColorScheme(
     outlineSubtle: Color = Palette.Grey100,
     primary: Color = Palette.Ink,
     onPrimary: Color = Palette.White,
-    accent: StatusColors = StatusColors(
+    accent: StatusColours = StatusColours(
         solid = Palette.BlueReadable,
         onSolid = Palette.White,
         container = Palette.BlueTintLight,
@@ -195,28 +195,28 @@ fun lightColorScheme(
     ),
     brand: Color = Palette.BlueReadable,
     focusRing: Color = Palette.BlueReadable,
-    success: StatusColors = StatusColors(
+    success: StatusColours = StatusColours(
         solid = Palette.GreenSolid,
         onSolid = Palette.White,
         container = Palette.GreenTint,
         onContainer = Palette.GreenDeep,
         border = Color(0xFFC5E3C7),
     ),
-    warning: StatusColors = StatusColors(
+    warning: StatusColours = StatusColours(
         solid = Palette.AmberSolid,
         onSolid = Palette.White,
         container = Palette.AmberTint,
         onContainer = Palette.AmberDeep,
         border = Color(0xFFF3D9B5),
     ),
-    danger: StatusColors = StatusColors(
+    danger: StatusColours = StatusColours(
         solid = Palette.RedSolid,
         onSolid = Palette.White,
         container = Palette.RedTint,
         onContainer = Palette.RedDeep,
         border = Color(0xFFF6C9C9),
     ),
-    info: StatusColors = StatusColors(
+    info: StatusColours = StatusColours(
         solid = Palette.SkySolid,
         onSolid = Palette.White,
         container = Palette.SkyTint,
@@ -227,7 +227,7 @@ fun lightColorScheme(
     overlayHover: Color = Color(0x0F121212),
     overlayPressed: Color = Color(0x1F121212),
     overlayDragged: Color = Color(0x29121212),
-): ColorScheme = ColorScheme(
+): ColourScheme = ColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
@@ -258,7 +258,7 @@ fun lightColorScheme(
 )
 
 /** The default dark scheme. Surfaces and muted tones come from `home html.dark`. */
-fun darkColorScheme(
+fun darkColourScheme(
     background: Color = Palette.Ink,
     surface: Color = Palette.Slate850,
     surfaceSunken: Color = Palette.Slate900,
@@ -274,7 +274,7 @@ fun darkColorScheme(
     outlineSubtle: Color = Color(0xFF2C2735),
     primary: Color = Palette.Paper,
     onPrimary: Color = Palette.Ink,
-    accent: StatusColors = StatusColors(
+    accent: StatusColours = StatusColours(
         solid = Palette.BlueLight,
         onSolid = Palette.BlueOnLight,
         container = Palette.BlueTintDark,
@@ -283,28 +283,28 @@ fun darkColorScheme(
     ),
     brand: Color = Palette.BlueLight,
     focusRing: Color = Palette.BlueLight,
-    success: StatusColors = StatusColors(
+    success: StatusColours = StatusColours(
         solid = Palette.GreenLight,
         onSolid = Palette.GreenOnLight,
         container = Palette.GreenDarkTint,
         onContainer = Palette.GreenPale,
         border = Color(0xFF2A5232),
     ),
-    warning: StatusColors = StatusColors(
+    warning: StatusColours = StatusColours(
         solid = Palette.AmberLight,
         onSolid = Palette.AmberOnLight,
         container = Palette.AmberDarkTint,
         onContainer = Palette.AmberPale,
         border = Color(0xFF5C3D1B),
     ),
-    danger: StatusColors = StatusColors(
+    danger: StatusColours = StatusColours(
         solid = Palette.RedLight,
         onSolid = Palette.RedOnLight,
         container = Palette.RedDarkTint,
         onContainer = Palette.RedPale,
         border = Color(0xFF5E2630),
     ),
-    info: StatusColors = StatusColors(
+    info: StatusColours = StatusColours(
         solid = Palette.SkyLight,
         onSolid = Palette.SkyOnLight,
         container = Palette.SkyDarkTint,
@@ -315,7 +315,7 @@ fun darkColorScheme(
     overlayHover: Color = Color(0x14FFFFFF),
     overlayPressed: Color = Color(0x29FFFFFF),
     overlayDragged: Color = Color(0x33FFFFFF),
-): ColorScheme = ColorScheme(
+): ColourScheme = ColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
@@ -357,8 +357,8 @@ fun darkColorScheme(
  * An app with a brand supplies its high-contrast accent here, the way
  * `KontourBrandTheme` in `anyways` does.
  */
-fun highContrastLightColorScheme(
-    accent: StatusColors = StatusColors(
+fun highContrastLightColourScheme(
+    accent: StatusColours = StatusColours(
         solid = Palette.BlueStrong,
         onSolid = Palette.White,
         container = Palette.BlueTintLightHc,
@@ -367,7 +367,7 @@ fun highContrastLightColorScheme(
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
-): ColorScheme = lightColorScheme(
+): ColourScheme = lightColourScheme(
     // The press and hover washes are the four values easiest to miss, because
     // they are not named after anything visible: a 6% wash is invisible at this
     // tier, so a control the user is pressing looks like a control they are not.
@@ -390,28 +390,28 @@ fun highContrastLightColorScheme(
     accent = accent,
     brand = brand,
     focusRing = focusRing,
-    success = StatusColors(
+    success = StatusColours(
         solid = Palette.GreenHcSolid,
         onSolid = Palette.White,
         container = Palette.GreenHcTint,
         onContainer = Palette.GreenHcDeep,
         border = Palette.GreenHcSolid,
     ),
-    warning = StatusColors(
+    warning = StatusColours(
         solid = Palette.AmberHcSolid,
         onSolid = Palette.White,
         container = Palette.AmberHcTint,
         onContainer = Palette.AmberHcDeep,
         border = Palette.AmberHcSolid,
     ),
-    danger = StatusColors(
+    danger = StatusColours(
         solid = Palette.RedHcSolid,
         onSolid = Palette.White,
         container = Palette.RedHcTint,
         onContainer = Palette.RedHcDeep,
         border = Palette.RedHcSolid,
     ),
-    info = StatusColors(
+    info = StatusColours(
         solid = Palette.SkyHcSolid,
         onSolid = Palette.White,
         container = Palette.SkyHcTint,
@@ -423,12 +423,12 @@ fun highContrastLightColorScheme(
 /**
  * The dark scheme at [ContrastLevel.High]: pure black ground, pure white text.
  *
- * Takes the same three tones as [highContrastLightColorScheme], for the same
+ * Takes the same three tones as [highContrastLightColourScheme], for the same
  * reason: at AAA on black, everything but the accent is fixed by the ratio it
  * has to clear.
  */
-fun highContrastDarkColorScheme(
-    accent: StatusColors = StatusColors(
+fun highContrastDarkColourScheme(
+    accent: StatusColours = StatusColours(
         solid = Palette.BlueLightHc,
         onSolid = Palette.BlueHcOnLight,
         container = Palette.BlueTintDarkHc,
@@ -437,7 +437,7 @@ fun highContrastDarkColorScheme(
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
-): ColorScheme = darkColorScheme(
+): ColourScheme = darkColourScheme(
     scrim = Color(0xC2000000),
     overlayHover = Color(0x24FFFFFF),
     overlayPressed = Color(0x47FFFFFF),
@@ -460,28 +460,28 @@ fun highContrastDarkColorScheme(
     accent = accent,
     brand = brand,
     focusRing = focusRing,
-    success = StatusColors(
+    success = StatusColours(
         solid = Palette.GreenHcLight,
         onSolid = Palette.GreenHcOnLight,
         container = Palette.GreenHcDarkTint,
         onContainer = Palette.GreenHcPale,
         border = Palette.GreenHcLight,
     ),
-    warning = StatusColors(
+    warning = StatusColours(
         solid = Palette.AmberHcLight,
         onSolid = Palette.AmberHcOnLight,
         container = Palette.AmberHcDarkTint,
         onContainer = Palette.AmberHcPale,
         border = Palette.AmberHcLight,
     ),
-    danger = StatusColors(
+    danger = StatusColours(
         solid = Palette.RedHcLight,
         onSolid = Palette.RedHcOnLight,
         container = Palette.RedHcDarkTint,
         onContainer = Palette.RedHcPale,
         border = Palette.RedHcLight,
     ),
-    info = StatusColors(
+    info = StatusColours(
         solid = Palette.SkyHcLight,
         onSolid = Palette.SkyHcOnLight,
         container = Palette.SkyHcDarkTint,
@@ -491,11 +491,11 @@ fun highContrastDarkColorScheme(
 )
 
 /** Picks the built-in scheme for a given mode and contrast tier. */
-fun kontourColorScheme(dark: Boolean, contrast: ContrastLevel): ColorScheme = when {
-    dark && contrast == ContrastLevel.High -> highContrastDarkColorScheme()
-    dark -> darkColorScheme()
-    contrast == ContrastLevel.High -> highContrastLightColorScheme()
-    else -> lightColorScheme()
+fun kontourColourScheme(dark: Boolean, contrast: ContrastLevel): ColourScheme = when {
+    dark && contrast == ContrastLevel.High -> highContrastDarkColourScheme()
+    dark -> darkColourScheme()
+    contrast == ContrastLevel.High -> highContrastLightColourScheme()
+    else -> lightColourScheme()
 }
 
 /**
@@ -511,7 +511,7 @@ fun kontourColorScheme(dark: Boolean, contrast: ContrastLevel): ColorScheme = wh
  * picker left a grey ghost on every day it had just released.
  *
  * ```kotlin
- * animateColorAsState(if (selected) colors.accent.container else colors.accent.container.invisible())
+ * animateColorAsState(if (selected) colours.accent.container else colours.accent.container.invisible())
  * ```
  *
  * Painted, this is identical to [Color.Transparent] — nothing is drawn either

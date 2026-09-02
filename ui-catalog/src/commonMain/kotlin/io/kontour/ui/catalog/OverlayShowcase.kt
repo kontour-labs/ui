@@ -72,7 +72,7 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun OverlayShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Column(
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -179,7 +179,7 @@ fun OverlayShowcase(modifier: Modifier = Modifier) {
                                 "Runs every 15 minutes until 11pm, then every 30 " +
                                     "minutes overnight.",
                                 style = Theme.typography.bodySmall,
-                                color = Theme.colors.contentMuted,
+                                colour = Theme.colours.contentMuted,
                             )
                         }
                     }
@@ -413,7 +413,7 @@ private fun Panel(
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
+            colour = Theme.colours.accent.solid,
         )
         Surface(
             modifier = Modifier
@@ -421,11 +421,11 @@ private fun Panel(
                 .height(height)
                 .border(
                     width = Theme.sizing.borderWidth,
-                    color = Theme.colors.outline,
+                    color = Theme.colours.outline,
                     shape = Theme.shapes.medium,
                 )
                 .clip(Theme.shapes.medium),
-            color = Theme.colors.surface,
+            colour = Theme.colours.surface,
         ) {
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize()) {
@@ -438,7 +438,7 @@ private fun Panel(
                         Text(
                             "Platform 2 · Joondalup line",
                             style = Theme.typography.bodySmall,
-                            color = Theme.colors.contentMuted,
+                            colour = Theme.colours.contentMuted,
                         )
                     }
                     content()

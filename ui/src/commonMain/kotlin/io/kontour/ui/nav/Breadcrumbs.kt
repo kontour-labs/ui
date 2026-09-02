@@ -81,7 +81,7 @@ fun Breadcrumbs(
                     imageVector = separator,
                     contentDescription = null,
                     size = Theme.sizing.iconSmall,
-                    tint = Theme.colors.contentSubtle,
+                    tint = Theme.colours.contentSubtle,
                 )
             }
         }
@@ -90,7 +90,7 @@ fun Breadcrumbs(
 
 @Composable
 private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.control
@@ -101,7 +101,7 @@ private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
             text = crumb.label,
             modifier = Modifier.padding(horizontal = Theme.spacing.xs),
             style = Theme.typography.bodySmall,
-            color = if (isCurrent) colors.content else colors.contentMuted,
+            colour = if (isCurrent) colours.content else colours.contentMuted,
             maxLines = 1,
         )
         return
@@ -128,7 +128,7 @@ private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
             )
             .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs),
         style = Theme.typography.bodySmall,
-        color = colors.contentMuted,
+        colour = colours.contentMuted,
         maxLines = 1,
     )
 }

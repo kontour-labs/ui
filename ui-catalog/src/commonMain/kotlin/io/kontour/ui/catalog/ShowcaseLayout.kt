@@ -108,7 +108,7 @@ internal fun Section(title: String, content: @Composable ColumnScope.() -> Unit)
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
+            colour = Theme.colours.accent.solid,
         )
         content()
     }

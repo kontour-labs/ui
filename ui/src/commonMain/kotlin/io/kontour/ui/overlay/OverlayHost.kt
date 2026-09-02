@@ -387,7 +387,7 @@ private fun EntryHost(
             fraction = fraction,
             onDismissRequest = dismiss,
             dismissLabel = entry.dismissLabel,
-            color = if (dimmed) Theme.colors.scrim else Color.Transparent,
+            colour = if (dimmed) Theme.colours.scrim else Color.Transparent,
             onScrollRequest = scrolled,
         )
     }

@@ -27,12 +27,12 @@ import io.kontour.ui.theme.Theme
  * ```
  * Text("Departures")                                        // inherits
  * Text("Departures", style = Theme.typography.titleMedium)  // explicit role
- * Text("4 min", color = Theme.colors.contentMuted)          // explicit colour
+ * Text("4 min", colour = Theme.colours.contentMuted)          // explicit colour
  * ```
  *
- * Resolution order for colour: the [color] parameter, then [style]'s colour,
- * then [LocalContentColor] (which [Surface] sets from the ground it paints),
- * then `Theme.colors.content`. That chain is why text on a dark card is light
+ * Resolution order for colour: the [colour] parameter, then [style]'s colour,
+ * then [LocalContentColour] (which [Surface] sets from the ground it paints),
+ * then `Theme.colours.content`. That chain is why text on a dark card is light
  * without the call site knowing the card is dark.
  *
  * Wraps foundation's `BasicText`. The individual overrides — [fontSize],
@@ -50,7 +50,7 @@ import io.kontour.ui.theme.Theme
 fun Text(
     text: String,
     modifier: Modifier = Modifier,
-    color: Color = Color.Unspecified,
+    colour: Color = Color.Unspecified,
     fontSize: TextUnit = TextUnit.Unspecified,
     fontStyle: FontStyle? = null,
     fontWeight: FontWeight? = null,
@@ -71,7 +71,7 @@ fun Text(
         modifier = modifier,
         style = resolveTextStyle(
             style = style,
-            color = color,
+            colour = colour,
             fontSize = fontSize,
             fontStyle = fontStyle,
             fontWeight = fontWeight,
@@ -101,7 +101,7 @@ fun Text(
 fun Text(
     text: AnnotatedString,
     modifier: Modifier = Modifier,
-    color: Color = Color.Unspecified,
+    colour: Color = Color.Unspecified,
     fontSize: TextUnit = TextUnit.Unspecified,
     fontStyle: FontStyle? = null,
     fontWeight: FontWeight? = null,
@@ -122,7 +122,7 @@ fun Text(
         modifier = modifier,
         style = resolveTextStyle(
             style = style,
-            color = color,
+            colour = colour,
             fontSize = fontSize,
             fontStyle = fontStyle,
             fontWeight = fontWeight,
@@ -143,7 +143,7 @@ fun Text(
 @Composable
 private fun resolveTextStyle(
     style: TextStyle,
-    color: Color,
+    colour: Color,
     fontSize: TextUnit,
     fontStyle: FontStyle?,
     fontWeight: FontWeight?,
@@ -153,11 +153,11 @@ private fun resolveTextStyle(
     textAlign: TextAlign?,
     lineHeight: TextUnit,
 ): TextStyle {
-    val inherited = LocalContentColor.current
-    val themeContent = Theme.colors.content
+    val inherited = LocalContentColour.current
+    val themeContent = Theme.colours.content
 
-    val resolvedColor = when {
-        color.isSpecified -> color
+    val resolvedColour = when {
+        colour.isSpecified -> colour
         style.color.isSpecified -> style.color
         inherited.isSpecified -> inherited
         else -> themeContent
@@ -183,11 +183,11 @@ private fun resolveTextStyle(
         textAlign == null &&
         lineHeight.isUnspecified
     ) {
-        remember(style, resolvedColor) { style.copy(color = resolvedColor) }
+        remember(style, resolvedColour) { style.copy(color = resolvedColour) }
     } else {
         remember(
             style,
-            resolvedColor,
+            resolvedColour,
             fontSize,
             fontWeight,
             fontStyle,
@@ -198,7 +198,7 @@ private fun resolveTextStyle(
             lineHeight,
         ) {
             style.merge(
-                color = resolvedColor,
+                color = resolvedColour,
                 fontSize = fontSize,
                 fontWeight = fontWeight,
                 fontStyle = fontStyle,

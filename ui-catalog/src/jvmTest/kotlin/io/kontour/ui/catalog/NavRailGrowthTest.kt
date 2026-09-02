@@ -73,7 +73,7 @@ class NavRailGrowthTest {
                     expanded = expanded,
                     onExpandedChange = { expanded = it },
                     showLabels = true,
-                    indicatorColor = Color.Transparent,
+                    indicatorColour = Color.Transparent,
                 )
             }
         }.use { scene ->

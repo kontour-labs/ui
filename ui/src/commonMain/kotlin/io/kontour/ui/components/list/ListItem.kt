@@ -35,7 +35,7 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
@@ -187,14 +187,14 @@ fun ListItem(
     position: ListItemPosition = ListItemPosition.Only,
     shape: Shape = position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner),
     /**
-     * The row's own ground. Sunken rather than [io.kontour.ui.theme.ColorScheme.surface]
+     * The row's own ground. Sunken rather than [io.kontour.ui.theme.ColourScheme.surface]
      * by default, because in this scheme `surface` and `background` are the same
      * white — a row drawn on `surface` is invisible on a page, and a group of
      * them reads as loose text rather than as one object with rows in it.
      */
-    containerColor: Color = Theme.colors.surfaceSunken,
-    selectedContainerColor: Color = Theme.colors.accent.container,
-    contentColor: Color = Theme.colors.content,
+    containerColour: Color = Theme.colours.surfaceSunken,
+    selectedContainerColour: Color = Theme.colours.accent.container,
+    contentColour: Color = Theme.colours.content,
     /**
      * Unspecified derives it from the content: a row with an [ListItemScope.overline]
      * or [ListItemScope.supporting] line is taller. It used to be a default
@@ -206,19 +206,19 @@ fun ListItem(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
-    val colors = Theme.colors
+    val colours = Theme.colours
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
     val container = when {
-        !enabled -> colors.surfaceSunken.copy(alpha = 0.5f)
-        selected -> selectedContainerColor
-        else -> containerColor
+        !enabled -> colours.surfaceSunken.copy(alpha = 0.5f)
+        selected -> selectedContainerColour
+        else -> containerColour
     }
     val content = when {
-        !enabled -> colors.contentDisabled
-        selected -> colors.accent.onContainer
-        else -> contentColor
+        !enabled -> colours.contentDisabled
+        selected -> colours.accent.onContainer
+        else -> contentColour
     }
 
     val interactive = onClick != null && enabled
@@ -291,14 +291,14 @@ fun ListItem(
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val muted = if (enabled) colors.contentMuted else colors.contentDisabled
+            val muted = if (enabled) colours.contentMuted else colours.contentDisabled
 
             slots.leading?.let { leading ->
                 Box(contentAlignment = Alignment.Center) {
                     // Muted and `iconLarge`, which is what the old `leadingIcon`
                     // parameter did. Anything that is not a bare glyph — an avatar, a
                     // checkbox — sets its own colours and is unaffected.
-                    ProvideContentColor(muted) {
+                    ProvideContentColour(muted) {
                         ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
                     }
                 }
@@ -306,21 +306,21 @@ fun ListItem(
 
             Column(Modifier.weight(1f)) {
                 slots.overline?.let { overline ->
-                    ProvideContentColor(muted) {
+                    ProvideContentColour(muted) {
                         ProvideTextStyle(Theme.typography.labelSmall) {
                             ContentSlot(maxLines = 1, content = overline)
                         }
                     }
                 }
                 slots.label?.let { label ->
-                    ProvideContentColor(content) {
+                    ProvideContentColour(content) {
                         ProvideTextStyle(Theme.typography.bodyMedium) {
                             ContentSlot(maxLines = 2, content = label)
                         }
                     }
                 }
                 slots.supporting?.let { supporting ->
-                    ProvideContentColor(muted) {
+                    ProvideContentColour(muted) {
                         ProvideTextStyle(Theme.typography.bodySmall) {
                             ContentSlot(maxLines = 2, content = supporting)
                         }
@@ -395,7 +395,7 @@ fun ListSection(
                 )
             ) {
                 ProvideTextStyle(Theme.typography.bodySmall) {
-                    ProvideContentColor(Theme.colors.contentMuted) {
+                    ProvideContentColour(Theme.colours.contentMuted) {
                         ContentSlot(content = footer)
                     }
                 }
@@ -431,14 +431,14 @@ fun SectionHeader(
             // than no heading.
             Box(Modifier.semantics(mergeDescendants = true) { heading() }) {
                 ProvideTextStyle(Theme.typography.labelMedium) {
-                    ProvideContentColor(Theme.colors.contentMuted) {
+                    ProvideContentColour(Theme.colours.contentMuted) {
                         ContentSlot(content = title)
                     }
                 }
             }
             if (description != null) {
                 ProvideTextStyle(Theme.typography.bodySmall) {
-                    ProvideContentColor(Theme.colors.contentSubtle) {
+                    ProvideContentColour(Theme.colours.contentSubtle) {
                         ContentSlot(content = description)
                     }
                 }
@@ -509,7 +509,7 @@ fun ContentScope.settingValue(value: String) {
     Text(
         text = value,
         style = Theme.typography.bodyMedium,
-        color = Theme.colors.contentMuted,
+        colour = Theme.colours.contentMuted,
         maxLines = 1,
     )
 }

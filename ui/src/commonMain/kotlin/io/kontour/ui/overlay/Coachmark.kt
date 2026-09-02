@@ -236,7 +236,7 @@ private fun CoachmarkSpotlight(
     tour: CoachmarkTour,
 ) {
     val host = LocalOverlayHost.current
-    val colors = Theme.colors
+    val colours = Theme.colours
     val key = remember { Any() }
     val dismissLabel = Theme.strings.gotIt
     val latestAnchor by rememberUpdatedState(anchor)
@@ -280,7 +280,7 @@ private fun CoachmarkSpotlight(
                         // pointing at.
                         gap = padding + Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
-                        arrow = ArrowSpec(color = colors.accent.solid),
+                        arrow = ArrowSpec(colour = colours.accent.solid),
                     ) {
                         CoachmarkBubble(
                             title = title,
@@ -316,7 +316,7 @@ private fun Spotlight(
     onDismissRequest: () -> Unit,
 ) {
     val host = LocalOverlayHost.current
-    val scrim = Theme.colors.scrim
+    val scrim = Theme.colours.scrim
     val fraction = LocalOverlayProgress.current
     val path = remember { Path() }
 
@@ -352,7 +352,7 @@ private fun CoachmarkBubble(
     icon: ImageVector?,
     tour: CoachmarkTour,
 ) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val strings = Theme.strings
 
     Surface(
@@ -362,8 +362,8 @@ private fun CoachmarkBubble(
                 contentDescription = "$title. $text"
             },
         shape = Theme.shapes.container,
-        color = colors.accent.solid,
-        contentColor = colors.accent.onSolid,
+        colour = colours.accent.solid,
+        contentColour = colours.accent.onSolid,
         shadow = Theme.elevation.overlay,
     ) {
         Column(
@@ -394,7 +394,7 @@ private fun CoachmarkBubble(
                     Text(
                         text = "${tour.position} / ${tour.count}",
                         style = Theme.typography.labelSmall,
-                        color = colors.accent.onSolid.copy(alpha = StepCountAlpha),
+                        colour = colours.accent.onSolid.copy(alpha = StepCountAlpha),
                     )
                 }
                 Box(Modifier.weight(1f))

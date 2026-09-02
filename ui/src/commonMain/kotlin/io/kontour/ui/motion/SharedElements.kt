@@ -12,6 +12,8 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -29,104 +31,131 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
 
 /**
- * What a page can hand to the page after it.
+ * The page transition the calling content is inside, or null when there is none.
  *
- * Handed to [PageTransition]'s content, and its whole job is to make the two
- * Compose scopes a shared element needs stop being the caller's problem — see
- * [PageTransition].
+ * A composition local rather than a receiver, and that is the whole of item 79.
+ * `sharedElement` used to be a **member extension** on a scope handed to
+ * `PageTransition`'s content lambda, which meant it could only be written
+ * literally inside that lambda. Factor a page into its own composable — which is
+ * what every real app does, and what this component's own documented example
+ * did — and the call no longer compiles, because the receiver is not there any
+ * more. The only way out was to thread the scope down as a parameter through
+ * every composable between the transition and the element, which is worse than
+ * the two-`this@` incantation the scope existed to hide.
+ *
+ * Read through a local, a page marks a shared element at any depth and needs to
+ * know nothing about who is animating it.
  */
+internal val LocalPageTransition = compositionLocalOf<PageTransitionState?> { null }
+
+/** The two Compose scopes a shared element needs, held together. */
 @Stable
-class PageTransitionScope internal constructor(
-    private val shared: SharedTransitionScope,
-    private val visibility: AnimatedVisibilityScope,
-    private val bounds: BoundsTransform,
+internal class PageTransitionState(
+    val shared: SharedTransitionScope,
+    val visibility: AnimatedVisibilityScope,
+    val bounds: BoundsTransform,
     /** False under reduced motion, where every one of these is a plain modifier. */
-    private val morphs: Boolean,
-) {
+    val morphs: Boolean,
+)
 
-    /** True while a page change is in flight. */
-    val isTransitionActive: Boolean get() = shared.isTransitionActive
+/**
+ * True while a page change is in flight.
+ *
+ * False outside a [PageTransition], so a page can ask without knowing whether it
+ * is inside one.
+ */
+@Composable
+fun isPageTransitionActive(): Boolean =
+    LocalPageTransition.current?.shared?.isTransitionActive == true
 
-    /**
-     * Marks this element as **the same thing** as the element with [key] on the
-     * other page.
-     *
-     * Put it on both: the card in the list, and the header it becomes. Compose
-     * then animates the bounds of one into the bounds of the other rather than
-     * cross-fading two unrelated rectangles, which is what turns "a new screen
-     * appeared" into "the thing I tapped opened".
-     *
-     * The two must be the *same kind of thing* — an image becoming a larger
-     * image, a title becoming a larger title. For a container whose contents
-     * differ between the pages, use [sharedBounds].
-     *
-     * Keys are matched across pages, so they have to identify the subject rather
-     * than the position: `"stop-${stop.id}"`, never `"card"`.
-     */
-    @Composable
-    fun Modifier.sharedElement(key: Any): Modifier {
-        if (!morphs) return this
-        with(shared) {
-            return this@sharedElement.sharedElement(
-                sharedContentState = rememberSharedContentState(key),
-                animatedVisibilityScope = visibility,
-                boundsTransform = bounds,
-            )
-        }
+/**
+ * Marks this element as **the same thing** as the element with [key] on the
+ * other page.
+ *
+ * Put it on both: the card in the list, and the header it becomes. Compose then
+ * animates the bounds of one into the bounds of the other rather than
+ * cross-fading two unrelated rectangles, which is what turns "a new screen
+ * appeared" into "the thing I tapped opened".
+ *
+ * The two must be the *same kind of thing* — an image becoming a larger image, a
+ * title becoming a larger title. For a container whose contents differ between
+ * the pages, use [sharedBounds].
+ *
+ * Keys are matched across pages, so they have to identify the subject rather
+ * than the position: `"stop-${stop.id}"`, never `"card"`.
+ *
+ * **Does nothing outside a [PageTransition]**, the same bargain
+ * [io.kontour.ui.foundation.selectionIndicatorItem] makes: a page is a component
+ * like any other, and it has to render in a test, in the contract suite, or in a
+ * caller's own layout without a transition wrapped around it.
+ */
+@Composable
+fun Modifier.sharedElement(key: Any): Modifier {
+    val page = LocalPageTransition.current ?: return this
+    if (!page.morphs) return this
+    with(page.shared) {
+        return this@sharedElement.sharedElement(
+            sharedContentState = rememberSharedContentState(key),
+            animatedVisibilityScope = page.visibility,
+            boundsTransform = page.bounds,
+        )
     }
+}
 
-    /**
-     * Like [sharedElement], for a **container** whose contents differ.
-     *
-     * The card in the list holds a name and a time; the header it becomes holds
-     * a name, a time and four more rows. Those are not the same content, so
-     * matching them as one element would stretch one into the other. This
-     * animates the container's bounds and cross-fades what is inside.
-     *
-     * @param clip Rounds the travelling container, so a card with an 8dp radius
-     *   does not turn into a hard-edged rectangle for the length of the
-     *   transition. Null keeps whatever clip the parent applies.
-     */
-    @Composable
-    fun Modifier.sharedBounds(key: Any, clip: Shape? = null): Modifier {
-        if (!morphs) return this
-        with(shared) {
-            val state = rememberSharedContentState(key)
-            // Two calls rather than a nullable argument: the parameter has no
-            // null in it, and its default — clip to the parent — is the right
-            // answer whenever the caller names no shape of its own.
-            return if (clip == null) {
-                this@sharedBounds.sharedBounds(
-                    sharedContentState = state,
-                    animatedVisibilityScope = visibility,
-                    boundsTransform = bounds,
-                )
-            } else {
-                this@sharedBounds.sharedBounds(
-                    sharedContentState = state,
-                    animatedVisibilityScope = visibility,
-                    boundsTransform = bounds,
-                    // Outset, or the clip eats the element's shadow.
-                    //
-                    // `OverlayClip(clip)` clips the travelling element to
-                    // *exactly* its own outline, and a drop shadow is drawn
-                    // outside that outline by definition. So a card with any
-                    // elevation lost its shadow for the whole morph and got it
-                    // back the frame it landed and stopped being drawn in the
-                    // overlay — which reads as the shadow snapping into place at
-                    // the very end of an otherwise smooth transition.
-                    //
-                    // The slack is a constant rather than a parameter because
-                    // the caller would have to know the blur radius of a token
-                    // it never named. It only has to exceed the tallest tier in
-                    // the elevation scale, and being generous costs nothing: the
-                    // clip still bounds the content, just with room around it,
-                    // and only while the element is in flight.
-                    clipInOverlayDuringTransition = OverlayClip(
-                        OutsetShape(clip, ShadowSlack)
-                    ),
-                )
-            }
+/**
+ * Like [sharedElement], for a **container** whose contents differ.
+ *
+ * The card in the list holds a name and a time; the header it becomes holds a
+ * name, a time and four more rows. Those are not the same content, so matching
+ * them as one element would stretch one into the other. This animates the
+ * container's bounds and cross-fades what is inside.
+ *
+ * Does nothing outside a [PageTransition] — see [sharedElement].
+ *
+ * @param clip Rounds the travelling container, so a card with an 8dp radius does
+ *   not turn into a hard-edged rectangle for the length of the transition. Null
+ *   keeps whatever clip the parent applies.
+ */
+@Composable
+fun Modifier.sharedBounds(key: Any, clip: Shape? = null): Modifier {
+    val page = LocalPageTransition.current ?: return this
+    if (!page.morphs) return this
+    with(page.shared) {
+        val state = rememberSharedContentState(key)
+        // Two calls rather than a nullable argument: the parameter has no null
+        // in it, and its default — clip to the parent — is the right answer
+        // whenever the caller names no shape of its own.
+        return if (clip == null) {
+            this@sharedBounds.sharedBounds(
+                sharedContentState = state,
+                animatedVisibilityScope = page.visibility,
+                boundsTransform = page.bounds,
+            )
+        } else {
+            this@sharedBounds.sharedBounds(
+                sharedContentState = state,
+                animatedVisibilityScope = page.visibility,
+                boundsTransform = page.bounds,
+                // Outset, or the clip eats the element's shadow.
+                //
+                // `OverlayClip(clip)` clips the travelling element to *exactly*
+                // its own outline, and a drop shadow is drawn outside that
+                // outline by definition. So a card with any elevation lost its
+                // shadow for the whole morph and got it back the frame it landed
+                // and stopped being drawn in the overlay — which reads as the
+                // shadow snapping into place at the very end of an otherwise
+                // smooth transition.
+                //
+                // The slack is a constant rather than a parameter because the
+                // caller would have to know the blur radius of a token it never
+                // named. It only has to exceed the tallest tier in the elevation
+                // scale, and being generous costs nothing: the clip still bounds
+                // the content, just with room around it, and only while the
+                // element is in flight.
+                clipInOverlayDuringTransition = OverlayClip(
+                    OutsetShape(clip, ShadowSlack)
+                ),
+            )
         }
     }
 }
@@ -162,8 +191,22 @@ class PageTransitionScope internal constructor(
  * from two different composables, and the call ends up as
  * `Modifier.sharedElement(rememberSharedContentState(key), animatedVisibilityScope)`
  * with two `this@` qualifiers to get them into the same place. That is most of
- * why the feature goes unused. Here both scopes are held by
- * [PageTransitionScope] and the call is `Modifier.sharedElement(key)`.
+ * why the feature goes unused. Here both are put in a composition local and the
+ * call is `Modifier.sharedElement(key)`.
+ *
+ * ### The element does not have to be written inside this lambda
+ *
+ * [content] takes the page and nothing else. The scopes reach the element
+ * through [LocalPageTransition], so `Modifier.sharedElement(key)` works at any
+ * depth — inside `StopList()`, inside the row it renders, inside a component
+ * three modules away that has never heard of this one.
+ *
+ * That is the whole of the API rethink. The scopes used to be a **receiver** on
+ * this lambda, which meant a shared element could only be written literally
+ * inside it: factor a page into its own composable — as the example above does,
+ * and as every real app does — and the call stopped compiling. The escape was to
+ * pass the scope down as a parameter through every composable in between, which
+ * is worse than the incantation the scope was hiding.
  *
  * [Transitions.containerTransform] is the cheap version of this, for when the
  * two elements are not literally the same node. This is the real one; reach for
@@ -187,7 +230,7 @@ fun <T> PageTransition(
     target: T,
     modifier: Modifier = Modifier,
     contentKey: (T) -> Any? = { it },
-    content: @Composable PageTransitionScope.(T) -> Unit,
+    content: @Composable (T) -> Unit,
 ) {
     val motion = Theme.motion
     val morphs = !motion.reduceMotion
@@ -202,15 +245,20 @@ fun <T> PageTransition(
             contentKey = contentKey,
             label = "page",
         ) { page ->
-            val scope = remember(this@SharedTransitionLayout, this@AnimatedContent, bounds, morphs) {
-                PageTransitionScope(
+            val state = remember(this@SharedTransitionLayout, this@AnimatedContent, bounds, morphs) {
+                PageTransitionState(
                     shared = this@SharedTransitionLayout,
                     visibility = this@AnimatedContent,
                     bounds = bounds,
                     morphs = morphs,
                 )
             }
-            scope.content(page)
+            // Provided inside `AnimatedContent`, not around it: each page gets
+            // its own `AnimatedVisibilityScope`, and a shared element has to see
+            // the one belonging to the page it is on.
+            CompositionLocalProvider(LocalPageTransition provides state) {
+                content(page)
+            }
         }
     }
 }

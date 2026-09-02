@@ -71,11 +71,11 @@ private fun Stage(height: Dp = 260.dp, content: @Composable BoxScope.() -> Unit)
             .height(height)
             .border(
                 width = Theme.sizing.borderWidth,
-                color = Theme.colors.outline,
+                color = Theme.colours.outline,
                 shape = Theme.shapes.medium,
             )
             .clip(Theme.shapes.medium),
-        color = Theme.colors.surface,
+        colour = Theme.colours.surface,
     ) {
         OverlayHost(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize()) {
@@ -87,7 +87,7 @@ private fun Stage(height: Dp = 260.dp, content: @Composable BoxScope.() -> Unit)
                     Text(
                         "Platform 2 · Joondalup line",
                         style = Theme.typography.bodySmall,
-                        color = Theme.colors.contentMuted,
+                        colour = Theme.colours.contentMuted,
                     )
                 }
                 content()
@@ -110,7 +110,7 @@ internal val DialogDemo = ComponentDemo(slug = "dialog") {
             Text(
                 "Give it a name you will recognise on the home screen.",
                 style = Theme.typography.bodySmall,
-                color = Theme.colors.contentMuted,
+                colour = Theme.colours.contentMuted,
             )
             Button(onClick = { open = false }, modifier = Modifier.fillMaxWidth()) { +"Save" }
         }
@@ -167,7 +167,7 @@ internal val PopoverDemo = ComponentDemo(slug = "popover") {
                     "Runs every 15 minutes until 11pm, then every 30 minutes " +
                         "overnight.",
                     style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentMuted,
+                    colour = Theme.colours.contentMuted,
                 )
             }
         }
@@ -223,7 +223,7 @@ internal val ContextMenuAreaDemo = ComponentDemo(slug = "context-menu-area") {
         ) {
             Surface(
                 modifier = Modifier.padding(Theme.spacing.md),
-                color = Theme.colors.surfaceSunken,
+                colour = Theme.colours.surfaceSunken,
                 shape = Theme.shapes.medium,
             ) {
                 Text(
@@ -296,7 +296,7 @@ internal val ToastDemo = ComponentDemo(slug = "toast") {
             Text(
                 "Three at once is the cap — press faster than they expire.",
                 style = Theme.typography.labelSmall,
-                color = Theme.colors.contentMuted,
+                colour = Theme.colours.contentMuted,
             )
         }
     }
@@ -364,7 +364,7 @@ internal val OverlayHostDemo = ComponentDemo(slug = "overlay-host", knobs = list
                     "The scrim stops at this card's edge, because the nearest " +
                         "host is the one inside it.",
                     style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentMuted,
+                    colour = Theme.colours.contentMuted,
                 )
             }
         } else {
@@ -393,7 +393,7 @@ internal val SelectionIndicatorDemo = ComponentDemo(slug = "selection-indicator"
             "The pill travels between tabs rather than appearing on one — one " +
                 "indicator owned by the bar, not three owned by the tabs.",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }

@@ -132,9 +132,9 @@ fun ExpandingListItem(
                         contentDescription = null,
                         modifier = Modifier.chevronTurn(expanded, label = "expandingListChevron"),
                         tint = if (enabled) {
-                            Theme.colors.contentMuted
+                            Theme.colours.contentMuted
                         } else {
-                            Theme.colors.contentDisabled
+                            Theme.colours.contentDisabled
                         },
                     )
                 }

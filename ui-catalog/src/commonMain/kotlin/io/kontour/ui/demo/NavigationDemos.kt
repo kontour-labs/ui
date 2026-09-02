@@ -71,11 +71,11 @@ private fun Frame(height: Dp, content: @Composable () -> Unit) {
             .height(height)
             .border(
                 width = Theme.sizing.borderWidth,
-                color = Theme.colors.outline,
+                color = Theme.colours.outline,
                 shape = Theme.shapes.medium,
             )
             .clip(Theme.shapes.medium)
-            .background(Theme.colors.surfaceSunken),
+            .background(Theme.colours.surfaceSunken),
     ) {
         OverlayHost(Modifier.fillMaxSize()) { content() }
     }
@@ -162,7 +162,7 @@ internal val NavigationSuiteScaffoldDemo = ComponentDemo(slug = "navigation-suit
                     Text(
                         "content",
                         style = Theme.typography.monoLabel,
-                        color = Theme.colors.contentSubtle,
+                        colour = Theme.colours.contentSubtle,
                     )
                 }
             }
@@ -258,7 +258,7 @@ internal val PaginationDemo = ComponentDemo(slug = "pagination") {
             "Page ${page + 1} of 40 — the run of numbers collapses differently " +
                 "at each end.",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }

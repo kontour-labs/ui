@@ -18,7 +18,7 @@ import androidx.compose.ui.graphics.lerp
  * exists to make unrepresentable.
  */
 @Immutable
-internal class ThemeFade(val colors: ColorScheme, val elevation: Elevation)
+internal class ThemeFade(val colours: ColourScheme, val elevation: Elevation)
 
 /**
  * Cross-fades between themes instead of cutting.
@@ -37,7 +37,7 @@ internal class ThemeFade(val colors: ColorScheme, val elevation: Elevation)
  *
  * ### What it costs, and why that is the right trade anyway
  *
- * [LocalColorScheme] is a `staticCompositionLocalOf`, so a new scheme
+ * [LocalColourScheme] is a `staticCompositionLocalOf`, so a new scheme
  * invalidates the whole content subtree — the entire application, once per
  * frame, for the length of the fade. That is the exact cost round 18 removed
  * from the window size class, and it is being spent deliberately here: a theme
@@ -70,19 +70,19 @@ internal class ThemeFade(val colors: ColorScheme, val elevation: Elevation)
  */
 @Composable
 internal fun animatedTheme(
-    colors: ColorScheme,
+    colours: ColourScheme,
     elevation: Elevation,
     motion: Motion,
 ): ThemeFade {
-    val target = ThemeFade(colors, elevation)
+    val target = ThemeFade(colours, elevation)
     var from by remember { mutableStateOf(target) }
     var to by remember { mutableStateOf(target) }
     val fraction = remember { Animatable(1f) }
 
-    LaunchedEffect(colors, elevation) {
-        if (colors == to.colors && elevation == to.elevation) return@LaunchedEffect
+    LaunchedEffect(colours, elevation) {
+        if (colours == to.colours && elevation == to.elevation) return@LaunchedEffect
         from = lerpTheme(from, to, fraction.value)
-        to = ThemeFade(colors, elevation)
+        to = ThemeFade(colours, elevation)
         fraction.snapTo(0f)
         fraction.animateTo(1f, motion.tweenDefault())
     }
@@ -100,14 +100,14 @@ internal fun animatedTheme(
 /** Both halves, from one fraction. */
 internal fun lerpTheme(start: ThemeFade, stop: ThemeFade, fraction: Float): ThemeFade =
     ThemeFade(
-        colors = lerpColorScheme(start.colors, stop.colors, fraction),
+        colours = lerpColourScheme(start.colours, stop.colours, fraction),
         elevation = lerp(start.elevation, stop.elevation, fraction),
     )
 
 /**
  * Every colour in the scheme, interpolated.
  *
- * [ColorScheme.isDark] is not a colour and cannot be half-way: it switches at
+ * [ColourScheme.isDark] is not a colour and cannot be half-way: it switches at
  * the midpoint, so anything reading it flips once, in the middle, rather than at
  * one end where it would disagree with what is on screen for most of the fade.
  *
@@ -115,8 +115,8 @@ internal fun lerpTheme(start: ThemeFade, stop: ThemeFade, fraction: Float): Them
  * colour by which ground it is on. The elevation scale used to be the example
  * here and no longer is — it interpolates now, so it has nothing to ask.
  */
-internal fun lerpColorScheme(start: ColorScheme, stop: ColorScheme, fraction: Float): ColorScheme =
-    ColorScheme(
+internal fun lerpColourScheme(start: ColourScheme, stop: ColourScheme, fraction: Float): ColourScheme =
+    ColourScheme(
         isDark = if (fraction < 0.5f) start.isDark else stop.isDark,
     background = lerp(start.background, stop.background, fraction),
     surface = lerp(start.surface, stop.surface, fraction),
@@ -146,9 +146,9 @@ internal fun lerpColorScheme(start: ColorScheme, stop: ColorScheme, fraction: Fl
     info = lerp(start.info, stop.info, fraction),
     )
 
-/** [StatusColors] is five colours and interpolates as five colours. */
-internal fun lerp(start: StatusColors, stop: StatusColors, fraction: Float): StatusColors =
-    StatusColors(
+/** [StatusColours] is five colours and interpolates as five colours. */
+internal fun lerp(start: StatusColours, stop: StatusColours, fraction: Float): StatusColours =
+    StatusColours(
         solid = lerp(start.solid, stop.solid, fraction),
         onSolid = lerp(start.onSolid, stop.onSolid, fraction),
         container = lerp(start.container, stop.container, fraction),

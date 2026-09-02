@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
@@ -53,7 +53,7 @@ fun EmptyState(
     StateBlock(
         modifier = modifier,
         slots = stateSlots(content),
-        iconTint = Theme.colors.contentSubtle,
+        iconTint = Theme.colours.contentSubtle,
         assertive = false,
     )
 }
@@ -101,7 +101,7 @@ fun ErrorState(
     StateBlock(
         modifier = modifier,
         slots = slots,
-        iconTint = Theme.colors.danger.onContainer,
+        iconTint = Theme.colours.danger.onContainer,
         assertive = true,
     )
 }
@@ -125,7 +125,7 @@ private fun StateBlock(
     ) {
         slots.leading?.let { leading ->
             Box(Modifier.padding(bottom = Theme.spacing.xs)) {
-                ProvideContentColor(iconTint) {
+                ProvideContentColour(iconTint) {
                     ContentSlot(iconSize = StateIconSize, content = leading)
                 }
             }
@@ -140,7 +140,7 @@ private fun StateBlock(
         slots.supporting?.let { supporting ->
             // Long lines are hard to read centred; cap the measure.
             Box(Modifier.widthIn(max = 320.dp)) {
-                ProvideContentColor(Theme.colors.contentMuted) {
+                ProvideContentColour(Theme.colours.contentMuted) {
                     ProvideTextStyle(
                         Theme.typography.bodyMedium.copy(textAlign = TextAlign.Center)
                     ) {

@@ -21,7 +21,7 @@ import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.Sparkles
 import com.composables.icons.tabler.outline.Train
 import com.composables.icons.tabler.outline.Walk
-import io.kontour.ui.components.selection.ColorSwatchPicker
+import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.text.Combobox
 import io.kontour.ui.components.text.MultiSelect
 import io.kontour.ui.components.text.Select
@@ -61,7 +61,7 @@ private val operators = listOf(
 /** Selects, comboboxes and the swatch picker. Source for the form goldens. */
 @Composable
 fun SelectShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Panels {
             FormPanel("Select, closed") {
                 var departure by remember { mutableStateOf(Departure.DepartAt) }
@@ -154,11 +154,11 @@ fun SelectShowcase(modifier: Modifier = Modifier) {
                 val to = rememberTextFieldState()
                 val chain = rememberImeChain("from", "to")
 
-                ColorSwatchPicker(
+                ColourSwatchPicker(
                     value = accent,
                     options = Accent.entries,
                     onValueChange = { accent = it },
-                    swatchColor = { it.seed },
+                    swatchColour = { it.seed },
                     swatchLabel = { it.label },
                     automaticIcon = Tabler.Outline.Sparkles,
                 )
@@ -191,7 +191,7 @@ private fun FormPanel(title: String, content: @Composable () -> Unit) {
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
+            colour = Theme.colours.accent.solid,
         )
         // No host of its own. An open select renders into the *root* one from
         // `Catalog`, which is outside the page's scroll and fills the window.

@@ -82,7 +82,7 @@ internal val CardDemo = ComponentDemo(
         Text(
             "Platform 3 — Armadale line",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }
@@ -102,12 +102,12 @@ internal val TagDemo = ComponentDemo(slug = "tag", knobs = listOf(tagTone)) {
         Text(
             "A route colour from a feed, with the label derived rather than designed:",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-            Tag(color = Color(0xFF1B5E20)) { +"960" }
-            Tag(color = Color(0xFFFFD54F)) { +"SPT" }
-            Tag(color = Color(0xFFB3261E)) { +"RED" }
+            Tag(colour = Color(0xFF1B5E20)) { +"960" }
+            Tag(colour = Color(0xFFFFD54F)) { +"SPT" }
+            Tag(colour = Color(0xFFB3261E)) { +"RED" }
         }
     }
 }
@@ -219,28 +219,28 @@ internal val CalloutDemo = ComponentDemo(slug = "callout") {
 
 internal val TimelineDemo = ComponentDemo(slug = "timeline") {
     Timeline(Modifier.fillMaxWidth()) {
-        TimelineItem(nodeColor = Color(0xFF1B5E20)) {
+        TimelineItem(nodeColour = Color(0xFF1B5E20)) {
             Text("Perth Station", style = Theme.typography.titleSmall)
             Text(
                 "08:12 — Platform 3",
                 style = Theme.typography.bodySmall,
-                color = Theme.colors.contentMuted,
+                colour = Theme.colours.contentMuted,
             )
         }
         TimelineItem(
             connector = ConnectorStyle.Dashed,
             filled = false,
-            nodeColor = Theme.colors.outlineStrong,
+            nodeColour = Theme.colours.outlineStrong,
         ) {
             Text(
                 "Walk 4 min",
                 style = Theme.typography.bodySmall,
-                color = Theme.colors.contentMuted,
+                colour = Theme.colours.contentMuted,
             )
         }
-        TimelineItem(connector = ConnectorStyle.None, nodeColor = Color(0xFF1B5E20)) {
+        TimelineItem(connector = ConnectorStyle.None, nodeColour = Color(0xFF1B5E20)) {
             Text("Elizabeth Quay", style = Theme.typography.titleSmall)
-            Text("08:31", style = Theme.typography.bodySmall, color = Theme.colors.contentMuted)
+            Text("08:31", style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
         }
     }
 }
@@ -286,7 +286,7 @@ internal val AccordionDemo = ComponentDemo(slug = "accordion") {
             "Contrast follows the system tier, motion follows the reduce-motion " +
                 "preference, and type scales to 200% without clipping.",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }
@@ -425,7 +425,7 @@ internal val KbdDemo = ComponentDemo(slug = "kbd") {
         Text(
             "opens the command palette",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }

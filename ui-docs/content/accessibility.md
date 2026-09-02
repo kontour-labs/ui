@@ -11,7 +11,7 @@ that has no unsafe value to pick.
 
 ## Contrast
 
-**Enforced by** `ColorSchemeContrastTest`, which runs in `:ui:jvmTest`.
+**Enforced by** `ColourSchemeContrastTest`, which runs in `:ui:jvmTest`.
 
 The test walks every foreground/background pairing a component can produce, in
 all four built-in schemes, and asserts WCAG:
@@ -37,11 +37,11 @@ by a tenth of a point against `surfaceSunken`; the test found them before a
 single component existed. Contrast cannot be eyeballed.
 
 **For colours the system does not control** — a route colour out of a GTFS feed,
-a user-picked accent, an image's dominant tone — use `contentColorFor()`, which
+a user-picked accent, an image's dominant tone — use `contentColourFor()`, which
 picks whichever of two candidates reads better:
 
 ```kotlin
-val labelColor = contentColorFor(routeColor)
+val labelColour = contentColourFor(routeColour)
 ```
 
 ---
@@ -61,8 +61,8 @@ authored would be a lie in an enum.
 
 Three things, and for a long time it was only the first:
 
-**The scheme.** `kontourColorScheme(dark, contrast)` returns a different
-`ColorScheme` — AAA body contrast, a near-ink `outline`, pure white on pure
+**The scheme.** `kontourColourScheme(dark, contrast)` returns a different
+`ColourScheme` — AAA body contrast, a near-ink `outline`, pure white on pure
 black in dark mode.
 
 **The tokens.** `Sizing` is keyed on the tier, so every line in the system gets

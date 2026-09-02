@@ -1,15 +1,15 @@
 # `Surface`
 
-*Also on this page: `ProvideContentColor`.*
+*Also on this page: `ProvideContentColour`.*
 
 Background, shape, border and shadow in one — and the thing that sets
-`LocalContentColor` for everything inside it.
+`LocalContentColour` for everything inside it.
 
 <!--sample:SurfaceBasics-->
 ```kotlin
-// No colour argument on either child: the surface set `LocalContentColor`
+// No colour argument on either child: the surface set `LocalContentColour`
 // from its own background, and both resolve against it.
-Surface(color = Theme.colors.primary, shape = Theme.shapes.medium, shadow = Theme.elevation.low) {
+Surface(colour = Theme.colours.primary, shape = Theme.shapes.medium, shadow = Theme.elevation.low) {
     Column(Modifier.padding(Theme.spacing.md)) {
         Text("Perth Underground")
         Icon(Tabler.Outline.Star, contentDescription = null)
@@ -32,12 +32,12 @@ work instead.
 
 ## Accessibility
 
-A surface sets `LocalContentColor` from the ground it paints, which is the
+A surface sets `LocalContentColour` from the ground it paints, which is the
 mechanism that keeps contrast correct without any call site asking for it: text
 and icons inside resolve against the background they are actually on.
 
-That is why `color` and `contentColor` travel together, and why passing a literal
-`color` without its matching `contentColor` is the way to produce unreadable text
+That is why `colour` and `contentColour` travel together, and why passing a literal
+`colour` without its matching `contentColour` is the way to produce unreadable text
 in one theme and not the other. The token pairs are asserted for contrast by a
 test over every combination — see
 [accessibility](../accessibility.md).

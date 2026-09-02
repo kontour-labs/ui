@@ -254,7 +254,7 @@ internal val LocalSelectionIndicator = staticCompositionLocalOf<SelectionIndicat
  * SelectionIndicatorBox(
  *     state = indicator,
  *     sizing = IndicatorSizing.Edge(IndicatorEdge.Bottom, 3.dp),
- *     indicator = { Box(Modifier.fillMaxSize().background(Theme.colors.accent.solid, Theme.shapes.pill)) },
+ *     indicator = { Box(Modifier.fillMaxSize().background(Theme.colours.accent.solid, Theme.shapes.pill)) },
  * ) {
  *     Row(Modifier.fillMaxWidth().selectableGroup()) {
  *         items.forEachIndexed { index, item ->

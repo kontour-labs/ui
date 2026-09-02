@@ -85,7 +85,7 @@ class ExpandingListSeamTest {
             KontourTheme(reduceMotion = true) {
                 OverlayHost(Modifier.fillMaxSize()) {
                     Box(
-                        Modifier.fillMaxSize().background(Theme.colors.background),
+                        Modifier.fillMaxSize().background(Theme.colours.background),
                         Alignment.TopCenter,
                     ) {
                         Column(

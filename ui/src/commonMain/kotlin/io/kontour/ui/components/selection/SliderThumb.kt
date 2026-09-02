@@ -51,8 +51,8 @@ internal fun DrawScope.sliderThumb(
     radiusPx: Float,
     scale: Float,
     reachPx: Float,
-    ringColor: Color,
-    fillColor: Color,
+    ringColour: Color,
+    fillColour: Color,
     ringPx: Float,
 ) {
     val r = radiusPx * scale
@@ -71,13 +71,13 @@ internal fun DrawScope.sliderThumb(
     val right = centreX + halfWidth + maxOf(reach, 0f)
 
     drawRoundRect(
-        color = ringColor,
+        color = ringColour,
         topLeft = Offset(left, centreY - r),
         size = Size(right - left, r * 2f),
         cornerRadius = CornerRadius(r),
     )
     drawRoundRect(
-        color = fillColor,
+        color = fillColour,
         topLeft = Offset(left + ringPx, centreY - r + ringPx),
         size = Size(
             (right - left - ringPx * 2f).coerceAtLeast(0f),

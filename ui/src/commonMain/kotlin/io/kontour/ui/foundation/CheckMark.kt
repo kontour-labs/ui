@@ -36,7 +36,7 @@ import io.kontour.ui.theme.Theme
 @Composable
 internal fun AnimatedCheckMark(
     checked: Boolean,
-    color: Color,
+    colour: Color,
     size: Dp,
     modifier: Modifier = Modifier,
     strokeWidth: Dp = Theme.sizing.borderWidthStrong,
@@ -53,7 +53,7 @@ internal fun AnimatedCheckMark(
         drawCheckMark(
             flatness = 0f,
             progress = progress,
-            color = color,
+            colour = colour,
             strokeWidth = strokeWidth.toPx(),
             spread = spread,
         )
@@ -94,7 +94,7 @@ internal fun AnimatedCheckMark(
 internal fun DrawScope.drawCheckMark(
     flatness: Float,
     progress: Float,
-    color: Color,
+    colour: Color,
     strokeWidth: Float,
     spread: Float = 1f,
 ) {
@@ -152,7 +152,7 @@ internal fun DrawScope.drawCheckMark(
 
     drawPath(
         path = path,
-        color = color,
+        color = colour,
         style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round),
     )
 }

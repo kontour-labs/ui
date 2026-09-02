@@ -162,7 +162,7 @@ fun Pagination(
                                 // on. When it *is* a control, `JumpGap` labels it.
                                 .semantics { contentDescription = "" },
                             style = Theme.typography.bodyMedium,
-                            color = Theme.colors.contentSubtle,
+                            colour = Theme.colours.contentSubtle,
                         )
                     }
                 }
@@ -226,7 +226,7 @@ private fun JumpGap(
             Text(
                 text = "…",
                 style = Theme.typography.bodyMedium,
-                color = Theme.colors.contentSubtle,
+                colour = Theme.colours.contentSubtle,
             )
         }
 
@@ -288,7 +288,7 @@ private fun widestWindowThatFits(
 
 @Composable
 private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.control
@@ -303,7 +303,7 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
             .sizeIn(minWidth = PageButtonSize, minHeight = PageButtonSize)
             .clip(shape)
             .background(
-                if (selected) colors.accent.container else androidx.compose.ui.graphics.Color.Transparent,
+                if (selected) colours.accent.container else androidx.compose.ui.graphics.Color.Transparent,
                 shape,
             )
             .selectable(
@@ -325,7 +325,7 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
         Text(
             text = "${number + 1}",
             style = Theme.typography.bodyMedium,
-            color = if (selected) colors.accent.onContainer else colors.contentMuted,
+            colour = if (selected) colours.accent.onContainer else colours.contentMuted,
         )
     }
 }

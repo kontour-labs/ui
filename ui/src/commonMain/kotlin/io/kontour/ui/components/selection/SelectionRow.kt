@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.ContentSlot
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
@@ -87,7 +87,7 @@ fun SelectionRow(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
-    val colors = Theme.colors
+    val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.container
     val feedback = Feedback
@@ -158,12 +158,12 @@ fun SelectionRow(
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val labelColor = if (enabled) colors.content else colors.contentDisabled
-            val muted = if (enabled) colors.contentMuted else colors.contentDisabled
+            val labelColour = if (enabled) colours.content else colours.contentDisabled
+            val muted = if (enabled) colours.contentMuted else colours.contentDisabled
 
             slots.leading?.let { leading ->
                 Box(contentAlignment = Alignment.Center) {
-                    ProvideContentColor(muted) {
+                    ProvideContentColour(muted) {
                         ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
                     }
                 }
@@ -174,21 +174,21 @@ fun SelectionRow(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 slots.overline?.let { overline ->
-                    ProvideContentColor(muted) {
+                    ProvideContentColour(muted) {
                         ProvideTextStyle(Theme.typography.labelSmall) {
                             ContentSlot(maxLines = 1, content = overline)
                         }
                     }
                 }
                 slots.label?.let { label ->
-                    ProvideContentColor(labelColor) {
+                    ProvideContentColour(labelColour) {
                         ProvideTextStyle(Theme.typography.bodyMedium) {
                             ContentSlot(maxLines = 2, content = label)
                         }
                     }
                 }
                 slots.supporting?.let { supporting ->
-                    ProvideContentColor(muted) {
+                    ProvideContentColour(muted) {
                         ProvideTextStyle(Theme.typography.bodySmall) {
                             ContentSlot(maxLines = 2, content = supporting)
                         }

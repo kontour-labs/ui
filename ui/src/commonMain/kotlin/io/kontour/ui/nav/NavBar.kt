@@ -245,11 +245,11 @@ fun NavBar(
     modifier: Modifier = Modifier,
     style: NavBarStyle = NavBarStyle.Free,
     showLabels: Boolean = false,
-    containerColor: Color = Theme.colors.surface,
-    contentColor: Color = Theme.colors.content,
-    indicatorColor: Color = Theme.colors.accent.container,
+    containerColour: Color = Theme.colours.surface,
+    contentColour: Color = Theme.colours.content,
+    indicatorColour: Color = Theme.colours.accent.container,
     backdrop: Boolean = false,
-    backdropColor: Color = Theme.colors.background,
+    backdropColour: Color = Theme.colours.background,
     indicatorSize: DpSize = NavItemDefaults.CircleSize,
     labelGap: Dp = Theme.spacing.xxs,
     search: (@Composable () -> Unit)? = null,
@@ -277,11 +277,11 @@ fun NavBar(
         modifier = modifier,
         style = style,
         showLabels = showLabels,
-        containerColor = containerColor,
-        contentColor = contentColor,
-        indicatorColor = indicatorColor,
+        containerColour = containerColour,
+        contentColour = contentColour,
+        indicatorColour = indicatorColour,
         backdrop = backdrop,
-        backdropColor = backdropColor,
+        backdropColour = backdropColour,
         indicatorSize = indicatorSize,
         labelGap = labelGap,
         arrangement = arrangement,
@@ -331,11 +331,11 @@ fun NavBar(
     modifier: Modifier = Modifier,
     style: NavBarStyle = NavBarStyle.Free,
     showLabels: Boolean = false,
-    containerColor: Color = Theme.colors.surface,
-    contentColor: Color = Theme.colors.content,
-    indicatorColor: Color = Theme.colors.accent.container,
+    containerColour: Color = Theme.colours.surface,
+    contentColour: Color = Theme.colours.content,
+    indicatorColour: Color = Theme.colours.accent.container,
     backdrop: Boolean = false,
-    backdropColor: Color = Theme.colors.background,
+    backdropColour: Color = Theme.colours.background,
     indicatorSize: DpSize = NavItemDefaults.CircleSize,
     labelGap: Dp = Theme.spacing.xxs,
     arrangement: Arrangement.Horizontal = NavBarDefaults.arrangementFor(style),
@@ -364,7 +364,7 @@ fun NavBar(
         Modifier.drawWithCache {
             val top = size.height - backdropHeight
             val brush = Brush.verticalGradient(
-                colors = listOf(Color.Transparent, backdropColor),
+                colors = listOf(Color.Transparent, backdropColour),
                 startY = top,
                 endY = size.height,
             )
@@ -380,7 +380,7 @@ fun NavBar(
     // surface behind them doing that job, and an item painting over it is a
     // second ground on top of the first — which is also what would hide the
     // travelling marker.
-    val itemContainer = if (style == NavBarStyle.Free) containerColor else Color.Transparent
+    val itemContainer = if (style == NavBarStyle.Free) containerColour else Color.Transparent
 
     @Composable
     fun BarRow(rowModifier: Modifier) {
@@ -404,7 +404,7 @@ fun NavBar(
                         .fillMaxSize()
                         .elevation(Theme.elevation.low, Theme.shapes.pill)
                         .clip(Theme.shapes.pill)
-                        .background(indicatorColor)
+                        .background(indicatorColour)
                 )
             },
         ) {
@@ -427,12 +427,12 @@ fun NavBar(
                                 // over the marker behind it, so the selected
                                 // one has to be the travelling circle or the
                                 // marker is invisible.
-                                containerColor = if (index == selectedIndex) {
+                                containerColour = if (index == selectedIndex) {
                                     Color.Transparent
                                 } else {
                                     itemContainer
                                 },
-                                contentColor = contentColor,
+                                contentColour = contentColour,
                                 indicatorSize = indicatorSize,
                                 labelGap = labelGap,
                                 shadow = style == NavBarStyle.Free,
@@ -492,8 +492,8 @@ fun NavBar(
         // stopping short of it.
         NavBarStyle.Docked -> Surface(
             modifier = modifier.fillMaxWidth(),
-            color = containerColor,
-            contentColor = contentColor,
+            colour = containerColour,
+            contentColour = contentColour,
             shadow = Theme.elevation.low,
         ) {
             BarRow(
@@ -522,8 +522,8 @@ fun NavBar(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = Theme.shapes.control,
-                color = containerColor,
-                contentColor = contentColor,
+                colour = containerColour,
+                contentColour = contentColour,
                 shadow = Theme.elevation.high,
             ) {
                 BarRow(
@@ -549,8 +549,8 @@ fun NavBarItem(
     selected: Boolean,
     modifier: Modifier = Modifier,
     showLabel: Boolean = false,
-    containerColor: Color = Theme.colors.surface,
-    contentColor: Color = Theme.colors.content,
+    containerColour: Color = Theme.colours.surface,
+    contentColour: Color = Theme.colours.content,
     indicatorSize: DpSize = NavItemDefaults.CircleSize,
     labelGap: Dp = Theme.spacing.xxs,
     /**
@@ -569,8 +569,8 @@ fun NavBarItem(
         modifier = modifier,
         layout = NavItemLayout.Stacked,
         showLabel = showLabel,
-        containerColor = containerColor,
-        contentColor = contentColor,
+        containerColour = containerColour,
+        contentColour = contentColour,
         indicatorSize = indicatorSize,
         labelGap = labelGap,
         shadow = if (shadow) Theme.elevation.low else Shadow.None,

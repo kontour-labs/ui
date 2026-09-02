@@ -85,7 +85,7 @@ answer is a question about your app rather than about the component.
 **The pill sits on `surface` with the destinations' own shadow**, not in the
 `surfaceSunken` well a text field uses. It is a raised thing on the page beside
 other raised things; a sunken control on a sunken page has no edge at all.
-`containerColor` and `contentColor` are there for an app that wants otherwise.
+`containerColour` and `contentColour` are there for an app that wants otherwise.
 
 ### The same shape without a search in it
 

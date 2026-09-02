@@ -87,7 +87,7 @@ private fun destinations(selected: Int, onSelectedChange: (Int) -> Unit) = listO
  */
 @Composable
 fun NavShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Column(
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -331,7 +331,7 @@ private fun BarPanel(
         Text(
             text = label,
             style = Theme.typography.labelSmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
         Box(
             Modifier
@@ -343,14 +343,14 @@ private fun BarPanel(
                         Modifier.background(
                             Brush.linearGradient(
                                 listOf(
-                                    Theme.colors.accent.solid,
-                                    Theme.colors.warning.solid,
-                                    Theme.colors.accent.container,
+                                    Theme.colours.accent.solid,
+                                    Theme.colours.warning.solid,
+                                    Theme.colours.accent.container,
                                 ),
                             )
                         )
                     } else {
-                        Modifier.background(Theme.colors.surfaceSunken)
+                        Modifier.background(Theme.colours.surfaceSunken)
                     }
                 ),
             contentAlignment = Alignment.BottomCenter,
@@ -387,7 +387,7 @@ private fun BarPanel(
                                 Text(
                                     "Results go here",
                                     style = Theme.typography.bodyMedium,
-                                    color = Theme.colors.contentMuted,
+                                    colour = Theme.colours.contentMuted,
                                 )
                             },
                         )
@@ -443,7 +443,7 @@ private fun RailPanel(expanded: Boolean, search: Boolean = false) {
             .height(340.dp)
             .border(
                 width = Theme.sizing.borderWidth,
-                color = Theme.colors.outline,
+                color = Theme.colours.outline,
                 shape = Theme.shapes.medium,
             )
             .clip(Theme.shapes.medium)
@@ -490,7 +490,7 @@ private fun DevicePanel(title: String, width: Dp, height: Dp, safeArea: Dp = 0.d
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
+            colour = Theme.colours.accent.solid,
         )
         Box(
             Modifier
@@ -498,7 +498,7 @@ private fun DevicePanel(title: String, width: Dp, height: Dp, safeArea: Dp = 0.d
                 .height(height)
                 .border(
                     width = Theme.sizing.borderWidth,
-                    color = Theme.colors.outline,
+                    color = Theme.colours.outline,
                     shape = Theme.shapes.medium,
                 )
                 .clip(Theme.shapes.medium)
@@ -526,7 +526,7 @@ private fun DevicePanel(title: String, width: Dp, height: Dp, safeArea: Dp = 0.d
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .background(Theme.colors.surfaceSunken)
+                            .background(Theme.colours.surfaceSunken)
                             .padding(bottom = contentPadding),
                         contentAlignment = Alignment.TopCenter,
                     ) {
@@ -537,14 +537,14 @@ private fun DevicePanel(title: String, width: Dp, height: Dp, safeArea: Dp = 0.d
                             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                         ) {
                             TopBar(
-                                containerColor = Theme.colors.surfaceSunken,
+                                containerColour = Theme.colours.surfaceSunken,
                             ) {
                                 +"Map"
                             }
                             Text(
                                 "content",
                                 style = Theme.typography.monoLabel,
-                                color = Theme.colors.contentSubtle,
+                                colour = Theme.colours.contentSubtle,
                             )
                         }
                     }
@@ -562,7 +562,7 @@ private fun DevicePanel(title: String, width: Dp, height: Dp, safeArea: Dp = 0.d
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .height(safeArea)
-                        .background(Theme.colors.accent.container.copy(alpha = 0.7f)),
+                        .background(Theme.colours.accent.container.copy(alpha = 0.7f)),
                 )
             }
         }

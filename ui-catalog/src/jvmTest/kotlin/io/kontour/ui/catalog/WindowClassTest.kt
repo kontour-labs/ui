@@ -106,7 +106,7 @@ class WindowClassTest {
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                .background(Theme.colors.background)
+                                .background(Theme.colours.background)
                                 .verticalScroll(rememberScrollState())
                         ) {
                             content(Modifier.fillMaxWidth())

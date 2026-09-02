@@ -20,7 +20,7 @@ Box {
         Text(
             "Runs every 15 minutes until 11pm, then every 30 minutes overnight.",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }

@@ -28,7 +28,7 @@ hoisting round-tripped through a recomposition.
 | [`MultiSelect`](multi-select.md) | Any number of a fixed set | `ChipGroup` of `FilterChip`, when they fit on screen |
 | [`Combobox`](combobox.md) | One of a *long* fixed set | `SearchField`, for free text |
 | [`rememberImeChain`](ime-chain.md) | Wiring a form's Next and Done | — |
-| [`KontourTextToolbar`](text-toolbar.md) | The selection popup on desktop and web | — |
+| [`TextSelectionToolbar`](text-toolbar.md) | Adding items to the text-selection toolbar | — |
 
 ---
 
@@ -60,13 +60,15 @@ password halfway down a form.
 ---
 
 ## Text selection toolbar
-`KontourTextToolbar` replaces Compose's selection popup with one drawn in the
-design system — but **only on desktop and web**, where the default is a bare
-unstyled row. On Android and iOS it is a deliberate no-op: the platform toolbar
-there is a real system surface carrying "Look Up", "Translate", "Share", the
-user's keyboard extensions and their configured text replacements, none of which
-four buttons of our own can reproduce. Install it unconditionally at the root and
-it does the right thing per platform.
+Every platform keeps its own. A selection toolbar is a system surface carrying
+"Look Up", "Translate", "Share", the user's keyboard extensions and their
+configured text replacements, and the library used to replace it on desktop and
+web with four buttons of its own — which was the wrong trade.
+
+`TextSelectionToolbar` is now only for **adding** to it. With no actions it
+installs nothing; with actions it has to draw the toolbar itself, because no
+platform lets Compose append an item to theirs. See
+[`TextSelectionToolbar`](text-toolbar.md).
 
 ---
 

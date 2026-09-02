@@ -83,7 +83,7 @@ import io.kontour.ui.theme.Theme
 fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape = Theme.shapes.large,
-    tint: Color = Theme.colors.surfaceRaised,
+    tint: Color = Theme.colours.surfaceRaised,
     /**
      * How much of the tint is laid over what is behind — so how *little* of it
      * shows through.
@@ -143,13 +143,13 @@ fun GlassSurface(
         Surface(
             modifier = Modifier.matchParentSize(),
             shape = shape,
-            color = tint.copy(alpha = alpha),
+            colour = tint.copy(alpha = alpha),
             // A hairline of the content colour along the edge. On real frosted
             // glass this is the refraction at the bevel; here it is the thing
             // that stops a translucent rectangle reading as a bug.
             border = androidx.compose.foundation.BorderStroke(
                 Theme.sizing.borderWidth,
-                Theme.colors.content.copy(alpha = borderAlpha * 0.2f),
+                Theme.colours.content.copy(alpha = borderAlpha * 0.2f),
             ),
             content = {},
         )
@@ -206,8 +206,8 @@ object GlassSurfaceDefaults {
 @Composable
 fun Modifier.atmosphere(
     intensity: Float = 1f,
-    primary: Color = Theme.colors.accent.solid,
-    secondary: Color = Theme.colors.brand,
+    primary: Color = Theme.colours.accent.solid,
+    secondary: Color = Theme.colours.brand,
 ): Modifier = drawWithCache {
     val glow = buildAtmosphere(size, primary, secondary, intensity)
     onDrawBehind { glow.forEach { it.draw(this) } }
@@ -291,7 +291,7 @@ fun Modifier.edgeVignette(
     topFade: Float,
     bottomFade: Float,
     height: Dp = 80.dp,
-    color: Color = Theme.colors.background,
+    colour: Color = Theme.colours.background,
 ): Modifier {
     val heightPx = with(androidx.compose.ui.platform.LocalDensity.current) { height.toPx() }
     // Over the content, not behind it. `drawBehind` paints before the content
@@ -302,7 +302,7 @@ fun Modifier.edgeVignette(
         if (topFade > 0f) {
             drawRect(
                 brush = Brush.verticalGradient(
-                    colors = listOf(color.copy(alpha = topFade), Color.Transparent),
+                    colors = listOf(colour.copy(alpha = topFade), Color.Transparent),
                     startY = 0f,
                     endY = heightPx,
                 ),
@@ -312,7 +312,7 @@ fun Modifier.edgeVignette(
         if (bottomFade > 0f) {
             drawRect(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color.Transparent, color.copy(alpha = bottomFade)),
+                    colors = listOf(Color.Transparent, colour.copy(alpha = bottomFade)),
                     startY = size.height - heightPx,
                     endY = size.height,
                 ),
@@ -339,12 +339,12 @@ fun Modifier.edgeVignette(
  */
 @Composable
 fun Modifier.shimmer(
-    color: Color = Theme.colors.surfaceSunken,
-    highlight: Color = Theme.colors.surface,
+    colour: Color = Theme.colours.surfaceSunken,
+    highlight: Color = Theme.colours.surface,
     durationMillis: Int = 1_400,
 ): Modifier {
     val motion = Theme.motion
-    if (motion.reduceMotion) return drawBehind { drawRect(color) }
+    if (motion.reduceMotion) return drawBehind { drawRect(colour) }
 
     val transition = rememberInfiniteTransition(label = "shimmer")
     val progress by transition.animateFloat(
@@ -358,7 +358,7 @@ fun Modifier.shimmer(
     )
 
     return drawBehind {
-        drawRect(color)
+        drawRect(colour)
         // Travels one and a half widths, so the highlight is fully off screen
         // between passes rather than wrapping visibly at the edge.
         val travel = size.width * 1.5f

@@ -38,6 +38,7 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.GlassSurface
 import io.kontour.ui.motion.PageTransition
+import io.kontour.ui.motion.sharedBounds
 import io.kontour.ui.motion.atmosphere
 import io.kontour.ui.motion.edgeVignette
 import io.kontour.ui.motion.shimmer
@@ -47,7 +48,7 @@ import io.kontour.ui.theme.Theme
 /** Pane scaffolds at two window sizes, plus the decorative surfaces. */
 @Composable
 fun AdaptiveShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Column(
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -113,7 +114,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                     Text(
                         text = "PAGE TRANSITION",
                         style = Theme.typography.monoLabel,
-                        color = Theme.colors.accent.solid,
+                        colour = Theme.colours.accent.solid,
                     )
                     // Tap the card and it becomes the header of the page it
                     // opens; tap Back and it returns. The whole of what
@@ -126,7 +127,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                             .fillMaxWidth()
                             .height(260.dp)
                             .clip(Theme.shapes.large)
-                            .background(Theme.colors.surfaceSunken),
+                            .background(Theme.colours.surfaceSunken),
                     ) {
                         PageTransition(target = open.value, modifier = Modifier.fillMaxSize()) { detail ->
                             if (detail) {
@@ -144,7 +145,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                                         Text(
                                             "4 platforms · Mandurah, Joondalup, Airport",
                                             style = Theme.typography.bodySmall,
-                                            color = Theme.colors.contentMuted,
+                                            colour = Theme.colours.contentMuted,
                                         )
                                     }
                                     Box(
@@ -179,7 +180,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                                     Text(
                                         "Tap the card — it becomes the header.",
                                         style = Theme.typography.bodySmall,
-                                        color = Theme.colors.contentMuted,
+                                        colour = Theme.colours.contentMuted,
                                     )
                                 }
                             }
@@ -191,7 +192,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                     Text(
                         text = "ATMOSPHERE AND GLASS",
                         style = Theme.typography.monoLabel,
-                        color = Theme.colors.accent.solid,
+                        colour = Theme.colours.accent.solid,
                     )
                     Box(
                         Modifier
@@ -208,7 +209,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                             Text(
                                 "Live departures for every stop in Perth.",
                                 style = Theme.typography.bodyMedium,
-                                color = Theme.colors.contentMuted,
+                                colour = Theme.colours.contentMuted,
                             )
                         }
 
@@ -224,7 +225,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                                 Text(
                                     "translucent, not blurred — see the docs",
                                     style = Theme.typography.labelSmall,
-                                    color = Theme.colors.contentMuted,
+                                    colour = Theme.colours.contentMuted,
                                 )
                             }
                         }
@@ -235,14 +236,14 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                     Text(
                         text = "EDGE VIGNETTE AND SHIMMER",
                         style = Theme.typography.monoLabel,
-                        color = Theme.colors.accent.solid,
+                        colour = Theme.colours.accent.solid,
                     )
                     Box(
                         Modifier
                             .fillMaxWidth()
                             .height(180.dp)
                             .clip(Theme.shapes.large)
-                            .background(Theme.colors.surfaceSunken)
+                            .background(Theme.colours.surfaceSunken)
                             .edgeVignette(topFade = 1f, bottomFade = 1f, height = 48.dp)
                     ) {
                         Column(
@@ -284,7 +285,7 @@ fun AdaptiveShowcase(modifier: Modifier = Modifier) {
                         Text(
                             "16:9 reserved",
                             style = Theme.typography.labelSmall,
-                            color = Theme.colors.contentSubtle,
+                            colour = Theme.colours.contentSubtle,
                         )
                     }
                 }
@@ -298,7 +299,7 @@ private fun StopList(selected: Int, onSelectedChange: (Int) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Theme.colors.background)
+            .background(Theme.colours.background)
             .padding(Theme.spacing.sm),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -328,7 +329,7 @@ private fun StopDetail() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Theme.colors.background)
+            .background(Theme.colours.background)
             .padding(Theme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
@@ -336,7 +337,7 @@ private fun StopDetail() {
         Text(
             "Platform 1 · Mandurah line",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
         Card {
             Text("Next departure", style = Theme.typography.labelMedium)
@@ -350,7 +351,7 @@ private fun FilterPane() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Theme.colors.surfaceSunken)
+            .background(Theme.colours.surfaceSunken)
             .padding(Theme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
     ) {
@@ -358,7 +359,7 @@ private fun FilterPane() {
         Text(
             "Supporting panes go on the trailing side — they are about the content, not about where you can go.",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }
@@ -372,7 +373,7 @@ private fun Frame(title: String, width: Dp, height: Dp, content: @Composable () 
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
+            colour = Theme.colours.accent.solid,
         )
         Box(
             Modifier
@@ -380,7 +381,7 @@ private fun Frame(title: String, width: Dp, height: Dp, content: @Composable () 
                 .height(height)
                 .border(
                     width = Theme.sizing.borderWidth,
-                    color = Theme.colors.outline,
+                    color = Theme.colours.outline,
                     shape = Theme.shapes.medium,
                 )
                 .clip(Theme.shapes.medium)

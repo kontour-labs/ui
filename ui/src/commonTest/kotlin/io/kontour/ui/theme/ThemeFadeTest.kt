@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
 class ThemeFadeTest {
 
     private fun spec(alpha: Float, blur: Int = 8) =
-        ShadowSpec(color = Color.Black, alpha = alpha, offsetY = 2.dp, blurRadius = blur.dp)
+        ShadowSpec(colour = Color.Black, alpha = alpha, offsetY = 2.dp, blurRadius = blur.dp)
 
     private fun scale(alpha: Float) = Elevation(
         low = Shadow(listOf(spec(alpha))),
@@ -114,35 +114,35 @@ class ThemeFadeTest {
     @Test
     fun bothHalvesMoveTogether() = runComposeUiTest {
         var dark by mutableStateOf(false)
-        var seenColors: Color? = null
+        var seenColours: Color? = null
         var seenAlpha: Float? = null
 
-        val lightColors = kontourColorScheme(dark = false, contrast = ContrastLevel.Standard)
-        val darkColors = kontourColorScheme(dark = true, contrast = ContrastLevel.Standard)
+        val lightColours = kontourColourScheme(dark = false, contrast = ContrastLevel.Standard)
+        val darkColours = kontourColourScheme(dark = true, contrast = ContrastLevel.Standard)
         val lightAlpha = kontourElevation(dark = false).medium.layers.first().alpha
         val darkAlpha = kontourElevation(dark = true).medium.layers.first().alpha
 
         mainClock.autoAdvance = false
         setContent {
             KontourTheme(darkTheme = dark) {
-                seenColors = Theme.colors.surface
+                seenColours = Theme.colours.surface
                 seenAlpha = Theme.elevation.medium.layers.first().alpha
                 Box(Modifier.fillMaxSize())
             }
         }
 
         mainClock.advanceTimeByFrame()
-        assertEquals(lightColors.surface, seenColors, "did not start light")
+        assertEquals(lightColours.surface, seenColours, "did not start light")
 
         dark = true
         mainClock.advanceTimeByFrame()
         mainClock.advanceTimeBy(80)
 
-        val colorMid = seenColors!!
+        val colourMid = seenColours!!
         val alphaMid = seenAlpha!!
 
-        assertNotEquals(lightColors.surface, colorMid, "the surface never left its start")
-        assertNotEquals(darkColors.surface, colorMid, "the surface arrived in one frame")
+        assertNotEquals(lightColours.surface, colourMid, "the surface never left its start")
+        assertNotEquals(darkColours.surface, colourMid, "the surface arrived in one frame")
         assertTrue(
             alphaMid > lightAlpha && alphaMid < darkAlpha,
             "the shadow is at $alphaMid, outside the $lightAlpha..$darkAlpha it " +

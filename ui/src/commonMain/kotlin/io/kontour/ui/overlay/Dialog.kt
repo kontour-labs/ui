@@ -40,7 +40,7 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.StateScope
 import io.kontour.ui.components.display.stateSlots
 import io.kontour.ui.foundation.ContentSlot
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
@@ -135,7 +135,7 @@ fun Dialog(
                                         .widthIn(max = 400.dp)
                                         .semantics { dialog() },
                                     shape = Theme.shapes.panel,
-                                    color = Theme.colors.surfaceRaised,
+                                    colour = Theme.colours.surfaceRaised,
                                     border = contrastEdge(),
                                     shadow = Theme.elevation.overlay,
                                 ) {
@@ -242,7 +242,7 @@ fun AlertDialog(
             }
         }
         slots.supporting?.let { message ->
-            ProvideContentColor(Theme.colors.contentMuted) {
+            ProvideContentColour(Theme.colours.contentMuted) {
                 ProvideTextStyle(Theme.typography.bodyMedium) {
                     ContentSlot(content = message)
                 }

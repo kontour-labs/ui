@@ -21,7 +21,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.contentColorFor
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
@@ -117,12 +117,12 @@ fun Avatar(
     val background = if (name != null) {
         palette[name.stableIndex(palette.size)]
     } else {
-        Theme.colors.surfaceSunken
+        Theme.colours.surfaceSunken
     }
-    val foreground = contentColorFor(
+    val foreground = contentColourFor(
         background = background,
-        light = Theme.colors.onPrimary,
-        dark = Theme.colors.content,
+        light = Theme.colours.onPrimary,
+        dark = Theme.colours.content,
     )
 
     Box(
@@ -132,7 +132,7 @@ fun Avatar(
             }
             .size(size.diameter)
             .clip(Theme.shapes.pill)
-            .background(if (image != null) Theme.colors.surfaceSunken else background),
+            .background(if (image != null) Theme.colours.surfaceSunken else background),
         contentAlignment = Alignment.Center,
     ) {
         when {
@@ -164,14 +164,14 @@ fun Avatar(
                     fontSize = with(density) { size.textSize.toSp() },
                     lineHeight = TextUnit.Unspecified,
                 ),
-                color = foreground,
+                colour = foreground,
                 modifier = Modifier.clearAndSetSemantics { },
             )
 
             fallbackIcon != null -> Icon(
                 imageVector = fallbackIcon,
                 contentDescription = null,
-                tint = Theme.colors.contentMuted,
+                tint = Theme.colours.contentMuted,
                 size = size.diameter / 2,
             )
         }
@@ -218,7 +218,7 @@ fun AvatarGroup(
                     // hardcoded 2dp and pill shape behind it.
                     modifier = Modifier.border(
                         AvatarGroupRing,
-                        Theme.colors.surface,
+                        Theme.colours.surface,
                         Theme.shapes.pill,
                     ),
                     size = size,
@@ -232,8 +232,8 @@ fun AvatarGroup(
                     .offset(x = -overlap * shown.size)
                     .size(size.diameter)
                     .clip(Theme.shapes.pill)
-                    .background(Theme.colors.surfaceSunken)
-                    .border(2.dp, Theme.colors.surface, Theme.shapes.pill),
+                    .background(Theme.colours.surfaceSunken)
+                    .border(2.dp, Theme.colours.surface, Theme.shapes.pill),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -246,7 +246,7 @@ fun AvatarGroup(
                         fontSize = with(density) { size.textSize.toSp() },
                         lineHeight = TextUnit.Unspecified,
                     ),
-                    color = Theme.colors.contentMuted,
+                    colour = Theme.colours.contentMuted,
                     modifier = Modifier.clearAndSetSemantics { },
                 )
             }
@@ -257,7 +257,7 @@ fun AvatarGroup(
 /** The scheme's tones, used as avatar backgrounds so derived colours stay on-brand. */
 @Composable
 private fun avatarPalette(): List<Color> {
-    val c = Theme.colors
+    val c = Theme.colours
     return listOf(
         c.accent.solid,
         c.success.solid,

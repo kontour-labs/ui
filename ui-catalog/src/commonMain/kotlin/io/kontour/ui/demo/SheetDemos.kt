@@ -55,19 +55,19 @@ private fun Screen(content: @Composable BoxScope.() -> Unit) {
             .height(420.dp)
             .border(
                 width = Theme.sizing.borderWidth,
-                color = Theme.colors.outline,
+                color = Theme.colours.outline,
                 shape = Theme.shapes.medium,
             )
             .clip(Theme.shapes.medium),
-        color = Theme.colors.surface,
+        colour = Theme.colours.surface,
     ) {
         OverlayHost(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize().background(Theme.colors.surfaceSunken)) {
+            Box(Modifier.fillMaxSize().background(Theme.colours.surfaceSunken)) {
                 Text(
                     text = "map",
                     modifier = Modifier.align(Alignment.TopCenter).padding(Theme.spacing.lg),
                     style = Theme.typography.monoLabel,
-                    color = Theme.colors.contentSubtle,
+                    colour = Theme.colours.contentSubtle,
                 )
                 content()
             }
@@ -163,7 +163,7 @@ internal val ModalBottomSheetDemo = ComponentDemo(slug = "modal-bottom-sheet") {
                 Text(
                     "Give it a name you will recognise on the home screen.",
                     style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentMuted,
+                    colour = Theme.colours.contentMuted,
                 )
                 Button(
                     onClick = { open = false; echo("Saved") },
@@ -202,7 +202,7 @@ internal val SideSheetDemo = ComponentDemo(slug = "side-sheet", knobs = listOf(s
                 Text(
                     "run in the next hour",
                     style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentMuted,
+                    colour = Theme.colours.contentMuted,
                 )
             }
         }

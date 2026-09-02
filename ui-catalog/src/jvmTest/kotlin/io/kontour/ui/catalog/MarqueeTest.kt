@@ -77,7 +77,7 @@ class MarqueeTest {
             reduceMotion = reduceMotion,
         ) {
             Box(
-                Modifier.fillMaxSize().background(Theme.colors.background).padding(16.dp),
+                Modifier.fillMaxSize().background(Theme.colours.background).padding(16.dp),
                 Alignment.CenterStart,
             ) {
                 Box(Modifier.width(BoxWidth.dp)) {

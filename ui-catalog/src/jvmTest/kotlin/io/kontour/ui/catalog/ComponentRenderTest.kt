@@ -141,7 +141,7 @@ class ComponentRenderTest {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Theme.colors.background)
+                        .background(Theme.colours.background)
                         .padding(Theme.spacing.md),
                     contentAlignment = Alignment.Center,
                 ) {

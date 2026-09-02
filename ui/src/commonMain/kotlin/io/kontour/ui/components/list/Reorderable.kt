@@ -354,7 +354,7 @@ private fun ReorderGrip(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (enabled) Theme.colors.contentMuted else Theme.colors.contentDisabled,
+            tint = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled,
             size = Theme.sizing.iconMedium,
         )
     }

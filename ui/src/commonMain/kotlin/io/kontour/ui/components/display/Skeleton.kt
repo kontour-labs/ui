@@ -70,15 +70,15 @@ fun Skeleton(
      */
     angle: Float = 0f,
 ) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val reduceMotion = Theme.motion.reduceMotion
 
-    val base = colors.surfaceSunken
-    val highlight = if (colors.isDark) {
-        colors.outline
+    val base = colours.surfaceSunken
+    val highlight = if (colours.isDark) {
+        colours.outline
     } else {
         // Lighter than the base rather than darker: a dark band reads as content.
-        colors.surface
+        colours.surface
     }
 
     val transition = rememberInfiniteTransition(label = "skeleton")

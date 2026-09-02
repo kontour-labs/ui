@@ -88,7 +88,7 @@ fun AnimatedCounter(
     value: Int,
     modifier: Modifier = Modifier,
     format: (Int) -> String = { it.toString() },
-    color: Color = Color.Unspecified,
+    colour: Color = Color.Unspecified,
     style: TextStyle = LocalTextStyle.current,
     contentDescription: String? = null,
 ) {
@@ -149,7 +149,7 @@ fun AnimatedCounter(
                     Box(Modifier.width(digitWidth), Alignment.Center) {
                         Text(
                             text = digit.toString(),
-                            color = color,
+                            colour = colour,
                             style = figures,
                             maxLines = 1,
                             modifier = Modifier.clearAndSetSemantics { },
@@ -159,7 +159,7 @@ fun AnimatedCounter(
             } else {
                 Text(
                     text = character.toString(),
-                    color = color,
+                    colour = colour,
                     style = style,
                     maxLines = 1,
                     modifier = Modifier.clearAndSetSemantics { },

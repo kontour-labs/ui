@@ -91,11 +91,11 @@ KontourTheme(
 
 ```kotlin
 KontourTheme(
-    colors = lightColorScheme(
-        // `accent` is a `StatusColors`, not a `Color` — it is a whole tone, the
+    colours = lightColourScheme(
+        // `accent` is a `StatusColours`, not a `Color` — it is a whole tone, the
         // same shape as `success` and `danger`, because a component that takes a
         // tone has to be able to take this one.
-        accent = StatusColors(
+        accent = StatusColours(
             solid = Color(0xFF0B6E99),
             onSolid = Color.White,
             container = Color(0xFFE3F2FA),
@@ -111,7 +111,7 @@ Keeping the whole tone together is what makes the five values consistent: pick
 `solid` on its own and the first `ButtonVariant.Accent` you draw has a label
 nobody can read on it.
 
-`lightColorScheme()` and `darkColorScheme()` default every parameter, so this
+`lightColourScheme()` and `darkColourScheme()` default every parameter, so this
 keeps the rest of the palette intact.
 
 **Change the typeface:**
@@ -135,9 +135,9 @@ constructors, so you inherit defaults for anything you do not care about:
 
 ```kotlin
 object OceanTheme {
-    fun colors(dark: Boolean) = if (dark) {
-        darkColorScheme(
-            accent = StatusColors(
+    fun colours(dark: Boolean) = if (dark) {
+        darkColourScheme(
+            accent = StatusColours(
                 solid = Color(0xFF4FC3F7),
                 onSolid = Color(0xFF002E3F),
                 container = Color(0xFF0A2A38),
@@ -148,8 +148,8 @@ object OceanTheme {
             focusRing = Color(0xFF4FC3F7),
         )
     } else {
-        lightColorScheme(
-            accent = StatusColors(
+        lightColourScheme(
+            accent = StatusColours(
                 solid = Color(0xFF01579B),
                 onSolid = Color(0xFFFFFFFF),
                 container = Color(0xFFE1F5FE),
@@ -172,7 +172,7 @@ fun OceanApp(content: @Composable () -> Unit) {
     val dark = isSystemInDarkTheme()
     KontourTheme(
         darkTheme = dark,
-        colors = OceanTheme.colors(dark),
+        colours = OceanTheme.colours(dark),
         shapes = OceanTheme.shapes,
         content = content,
     )
@@ -180,7 +180,7 @@ fun OceanApp(content: @Composable () -> Unit) {
 ```
 
 **Verify its contrast.** The built-in schemes are covered by
-`ColorSchemeContrastTest`; a new scheme is not, until you add it. Copy the test
+`ColourSchemeContrastTest`; a new scheme is not, until you add it. Copy the test
 and point it at your scheme — the whole value of that suite is that it runs on
 palettes nobody has eyeballed yet.
 
@@ -193,7 +193,7 @@ enough, set both to it.
 
 ## Contrast tiers
 
-`kontourColorScheme(dark, contrast)` picks between the four built-in schemes.
+`kontourColourScheme(dark, contrast)` picks between the four built-in schemes.
 A custom theme that wants a high-contrast tier authors a second scheme and
 selects on `ContrastLevel` the same way — and can read
 `platformPrefersHighContrast()` to know which tier to build, the same function
@@ -207,16 +207,16 @@ should make knowingly rather than by omission.
 
 ## The generator, later
 
-`ColorScheme` is a plain `@Immutable data class` built by *factory functions*
+`ColourScheme` is a plain `@Immutable data class` built by *factory functions*
 rather than only by its constructor. That shape is deliberate.
 
 Today the factories are hand-authored:
 
 ```kotlin
-fun lightColorScheme(…): ColorScheme                 // every token
-fun darkColorScheme(…): ColorScheme                  // every token
-fun highContrastLightColorScheme(accent, brand, focusRing): ColorScheme
-fun highContrastDarkColorScheme(accent, brand, focusRing): ColorScheme
+fun lightColourScheme(…): ColourScheme                 // every token
+fun darkColourScheme(…): ColourScheme                  // every token
+fun highContrastLightColourScheme(accent, brand, focusRing): ColourScheme
+fun highContrastDarkColourScheme(accent, brand, focusRing): ColourScheme
 ```
 
 The high-contrast pair takes three parameters rather than every token, and that
@@ -229,11 +229,11 @@ Deriving a full palette from a single seed colour — for user-selectable accent
 or Android's wallpaper-derived colours — means adding one more factory:
 
 ```kotlin
-fun generatedColorScheme(seed: Color, dark: Boolean, contrast: ContrastLevel): ColorScheme
+fun generatedColorScheme(seed: Color, dark: Boolean, contrast: ContrastLevel): ColourScheme
 ```
 
 and nothing else. No component changes, because no component knows where its
-`ColorScheme` came from. That is the entire reason components are forbidden from
+`ColourScheme` came from. That is the entire reason components are forbidden from
 touching `Palette` directly — the ban is on *components* reading it, not on you:
 `Palette` is public, so an app that wants to change one colour can keep the
 other twenty-seven instead of starting from raw hex.

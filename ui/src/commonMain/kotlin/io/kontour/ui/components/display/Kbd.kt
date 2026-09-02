@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
@@ -63,7 +63,7 @@ private val KbdShape = SquircleShape(6.dp)
 @Composable
 fun Kbd(
     modifier: Modifier = Modifier,
-    color: Color = Theme.colors.contentMuted,
+    colour: Color = Theme.colours.contentMuted,
     content: @Composable ContentScope.() -> Unit,
 ) {
     val shape = KbdShape
@@ -72,8 +72,8 @@ fun Kbd(
             .clearAndSetSemantics { }
             .defaultMinSize(minWidth = KbdDefaults.MinWidth, minHeight = KbdDefaults.Height)
             .clip(shape)
-            .background(Theme.colors.surfaceSunken, shape)
-            .border(Theme.sizing.borderWidth, Theme.colors.outline, shape)
+            .background(Theme.colours.surfaceSunken, shape)
+            .border(Theme.sizing.borderWidth, Theme.colours.outline, shape)
             .padding(horizontal = Theme.spacing.xxs),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
@@ -98,7 +98,7 @@ fun Kbd(
                 ),
             )
         ) {
-            ProvideContentColor(color) {
+            ProvideContentColour(colour) {
                 ContentSlot(iconSize = Theme.sizing.iconSmall, maxLines = 1, content = content)
             }
         }

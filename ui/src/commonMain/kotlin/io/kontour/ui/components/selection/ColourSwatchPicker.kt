@@ -27,7 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
-import io.kontour.ui.a11y.contentColorFor
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
@@ -41,11 +41,11 @@ import io.kontour.ui.theme.Theme
  * Picks a colour from a fixed set.
  *
  * ```kotlin
- * ColorSwatchPicker(
+ * ColourSwatchPicker(
  *     value = prefs.accent,
  *     options = AccentColour.entries,
  *     onValueChange = viewModel::updateAccent,
- *     swatchColor = { it.seed },
+ *     swatchColour = { it.seed },
  *     swatchLabel = { it.displayName },
  * )
  * ```
@@ -60,7 +60,7 @@ import io.kontour.ui.theme.Theme
  * selection control in the library does.
  *
  * **The tick is drawn in whatever colour is legible on the swatch**, resolved
- * through `contentColorFor()`. A fixed white tick vanishes on pale yellow and a
+ * through `contentColourFor()`. A fixed white tick vanishes on pale yellow and a
  * fixed black one vanishes on navy, and a picker whose selection is invisible on
  * two of its own options is a picker with a bug in it.
  *
@@ -69,16 +69,16 @@ import io.kontour.ui.theme.Theme
  * it — and to anyone who can, in a screenshot they are describing over the
  * phone.
  *
- * @param swatchColor The colour to draw. Return `null` for an option that is not
+ * @param swatchColour The colour to draw. Return `null` for an option that is not
  *   a colour — a "match the system" entry — which renders as an outlined swatch
  *   with [automaticIcon] instead.
  */
 @Composable
-fun <T> ColorSwatchPicker(
+fun <T> ColourSwatchPicker(
     value: T?,
     options: List<T>,
     onValueChange: (T) -> Unit,
-    swatchColor: (T) -> Color?,
+    swatchColour: (T) -> Color?,
     swatchLabel: (T) -> String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -94,7 +94,7 @@ fun <T> ColorSwatchPicker(
     ) {
         for (option in options) {
             Swatch(
-                color = swatchColor(option),
+                colour = swatchColour(option),
                 label = swatchLabel(option),
                 selected = option == value,
                 onSelectedChange = { onValueChange(option) },
@@ -108,7 +108,7 @@ fun <T> ColorSwatchPicker(
 
 @Composable
 private fun Swatch(
-    color: Color?,
+    colour: Color?,
     label: String,
     selected: Boolean,
     onSelectedChange: () -> Unit,
@@ -116,14 +116,14 @@ private fun Swatch(
     size: Dp,
     automaticIcon: ImageVector?,
 ) {
-    val scheme = Theme.colors
+    val scheme = Theme.colours
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.pill
 
-    val fill = color ?: scheme.surfaceSunken
-    val tick = if (color != null) contentColorFor(color) else scheme.content
+    val fill = colour ?: scheme.surfaceSunken
+    val tick = if (colour != null) contentColourFor(colour) else scheme.content
 
     // The swatch used to grow a second ring out of its own centre, at full size
     // by the time it stopped — an animation nothing else in the library does,
@@ -138,7 +138,7 @@ private fun Swatch(
         label = "swatchMark",
     )
 
-    val ringColor by animateColorAsState(
+    val ringColour by animateColorAsState(
         targetValue = when {
             !enabled -> scheme.contentDisabled
             selected -> scheme.content
@@ -165,7 +165,7 @@ private fun Swatch(
             .size(size)
             .clip(shape)
             .background(if (enabled) fill else fill.copy(alpha = 0.5f), shape)
-            .border(width = ringWidth, color = ringColor, shape = shape)
+            .border(width = ringWidth, color = ringColour, shape = shape)
             .selectable(
                 selected = selected,
                 interactionSource = interactions,
@@ -181,7 +181,7 @@ private fun Swatch(
     ) {
         // The two marks trade places on one number, so the automatic swatch does
         // not cut from its icon to a tick with a blank frame in between.
-        if (color == null && automaticIcon != null && mark < 1f) {
+        if (colour == null && automaticIcon != null && mark < 1f) {
             Icon(
                 imageVector = automaticIcon,
                 contentDescription = null,

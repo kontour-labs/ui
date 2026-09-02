@@ -120,7 +120,7 @@ fun Slider(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val scope = rememberCoroutineScope()
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = Feedback
     val density = LocalDensity.current
@@ -410,9 +410,9 @@ fun Slider(
                     val thumbReachPx = SliderThumbReach.toPx()
                     val centreY = size.height / 2f
                     val trackTop = centreY - trackHeightPx / 2f
-                    val activeColor = if (enabled) colors.primary else colors.contentDisabled
-                    val inactiveColor = if (enabled) colors.outline else colors.surfaceSunken
-                    val thumbColor = if (enabled) colors.primary else colors.contentDisabled
+                    val activeColour = if (enabled) colours.primary else colours.contentDisabled
+                    val inactiveColour = if (enabled) colours.outline else colours.surfaceSunken
+                    val thumbColour = if (enabled) colours.primary else colours.contentDisabled
 
                     onDrawBehind {
                         // The track is inset by the thumb's *reach* at each
@@ -427,13 +427,13 @@ fun Slider(
                         val thumbX = trackLeft + trackWidth * drawnFraction
 
                         drawRoundRect(
-                            color = inactiveColor,
+                            color = inactiveColour,
                             topLeft = Offset(trackLeft, trackTop),
                             size = Size(trackWidth, trackHeightPx),
                             cornerRadius = CornerRadius(trackHeightPx / 2f),
                         )
                         drawRoundRect(
-                            color = activeColor,
+                            color = activeColour,
                             topLeft = Offset(trackLeft, trackTop),
                             size = Size(thumbX - trackLeft, trackHeightPx),
                             cornerRadius = CornerRadius(trackHeightPx / 2f),
@@ -444,7 +444,7 @@ fun Slider(
                             for (i in 0..stepCount) {
                                 val x = trackLeft + trackWidth * i / stepCount
                                 drawCircle(
-                                    color = if (x <= thumbX) colors.onPrimary else colors.contentSubtle,
+                                    color = if (x <= thumbX) colours.onPrimary else colours.contentSubtle,
                                     radius = trackHeightPx * 0.22f,
                                     center = Offset(x, centreY),
                                 )
@@ -459,8 +459,8 @@ fun Slider(
                             reachPx = thumbReach * trackWidth,
                             // A ring of the page colour keeps the thumb legible
                             // where it overlaps the filled track.
-                            ringColor = colors.surface,
-                            fillColor = thumbColor,
+                            ringColour = colours.surface,
+                            fillColour = thumbColour,
                             ringPx = SliderThumbRing.toPx(),
                         )
                     }

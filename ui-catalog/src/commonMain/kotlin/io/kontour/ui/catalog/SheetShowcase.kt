@@ -43,7 +43,7 @@ import io.kontour.ui.theme.Theme
 /** Bottom sheets at each detent, plus the modal and side variants. */
 @Composable
 fun SheetShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Panels {
             SheetPanel("Peeking over a map") {
                 val sheet = rememberSheetState(
@@ -108,7 +108,7 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                         Text(
                             "Give it a name you will recognise on the home screen.",
                             style = Theme.typography.bodySmall,
-                            color = Theme.colors.contentMuted,
+                            colour = Theme.colours.contentMuted,
                         )
                         Button(
                             onClick = tap("Save"),
@@ -143,7 +143,7 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = Theme.shapes.container,
-                            color = Theme.colors.surfaceRaised,
+                            colour = Theme.colours.surfaceRaised,
                         ) {
                             SheetHeader(
                                 style = style,
@@ -187,7 +187,7 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                         Text(
                             "run in the next hour",
                             style = Theme.typography.bodySmall,
-                            color = Theme.colors.contentMuted,
+                            colour = Theme.colours.contentMuted,
                         )
                     }
                 }
@@ -230,7 +230,7 @@ private fun StopSheetBody(peekAnchored: Boolean) {
                     Text(
                         if (index == 1) "3 min late" else "on time",
                         style = Theme.typography.bodySmall,
-                        color = Theme.colors.contentMuted,
+                        colour = Theme.colours.contentMuted,
                     )
                 }
                 Text("${4 + index * 7} min", style = Theme.typography.titleSmall)
@@ -245,7 +245,7 @@ private fun MapStandIn() {
     Box(
         Modifier
             .fillMaxSize()
-            .background(Theme.colors.surfaceSunken)
+            .background(Theme.colours.surfaceSunken)
     ) {
         Text(
             text = "map",
@@ -253,7 +253,7 @@ private fun MapStandIn() {
                 .align(Alignment.TopCenter)
                 .padding(top = Theme.spacing.lg),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.contentSubtle,
+            colour = Theme.colours.contentSubtle,
         )
     }
 }
@@ -264,7 +264,7 @@ private fun SheetPanel(title: String, content: @Composable () -> Unit) {
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
+            colour = Theme.colours.accent.solid,
         )
         Surface(
             modifier = Modifier
@@ -272,11 +272,11 @@ private fun SheetPanel(title: String, content: @Composable () -> Unit) {
                 .height(560.dp)
                 .border(
                     width = Theme.sizing.borderWidth,
-                    color = Theme.colors.outline,
+                    color = Theme.colours.outline,
                     shape = Theme.shapes.medium,
                 )
                 .clip(Theme.shapes.medium),
-            color = Theme.colors.surface,
+            colour = Theme.colours.surface,
         ) {
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize()) { content() }

@@ -128,8 +128,8 @@ fun BottomSheet(
     state: SheetState,
     modifier: Modifier = Modifier,
     shape: Shape = Theme.shapes.sheet,
-    containerColor: Color = Theme.colors.surfaceRaised,
-    contentColor: Color = Theme.colors.content,
+    containerColour: Color = Theme.colours.surfaceRaised,
+    contentColour: Color = Theme.colours.content,
     paneTitle: String? = null,
     /**
      * Whether the sheet answers a drag.
@@ -261,8 +261,8 @@ fun BottomSheet(
                 state = state,
                 shape = shape,
                 windowInsets = windowInsets,
-                containerColor = containerColor,
-                contentColor = contentColor,
+                containerColour = containerColour,
+                contentColour = contentColour,
                 // A handle on a sheet that cannot be dragged is a lie.
                 dragHandle = dragHandle.takeIf { draggable },
                 density = density,
@@ -347,8 +347,8 @@ fun ModalBottomSheet(
         initialDetent = SheetDetent.Hidden,
     ),
     shape: Shape = Theme.shapes.sheet,
-    containerColor: Color = Theme.colors.surfaceRaised,
-    contentColor: Color = Theme.colors.content,
+    containerColour: Color = Theme.colours.surfaceRaised,
+    contentColour: Color = Theme.colours.content,
     /**
      * Whether the user can close this sheet without the app's help.
      *
@@ -392,8 +392,8 @@ fun ModalBottomSheet(
     // this reason; the appearance was missed.
     val latestModifier by rememberUpdatedState(modifier)
     val latestShape by rememberUpdatedState(shape)
-    val latestContainerColor by rememberUpdatedState(containerColor)
-    val latestContentColor by rememberUpdatedState(contentColor)
+    val latestContainerColour by rememberUpdatedState(containerColour)
+    val latestContentColour by rememberUpdatedState(contentColour)
     val latestPaneTitle by rememberUpdatedState(paneTitle)
     val latestDragHandle by rememberUpdatedState(dragHandle)
     val latestDraggable by rememberUpdatedState(draggable)
@@ -450,8 +450,8 @@ fun ModalBottomSheet(
                             state = state,
                             modifier = latestModifier,
                             shape = latestShape,
-                            containerColor = latestContainerColor,
-                            contentColor = latestContentColor,
+                            containerColour = latestContainerColour,
+                            contentColour = latestContentColour,
                             paneTitle = latestPaneTitle,
                             draggable = latestDraggable,
                             dragHandle = latestDragHandle,
@@ -476,8 +476,8 @@ private fun BoxScope.SheetSurface(
     state: SheetState,
     shape: Shape,
     windowInsets: WindowInsets,
-    containerColor: Color,
-    contentColor: Color,
+    containerColour: Color,
+    contentColour: Color,
     dragHandle: (@Composable () -> Unit)?,
     density: androidx.compose.ui.unit.Density,
     content: @Composable ColumnScope.() -> Unit,
@@ -526,8 +526,8 @@ private fun BoxScope.SheetSurface(
                 state.updateAnchors(density)
             },
         shape = shape,
-        color = containerColor,
-        contentColor = contentColor,
+        colour = containerColour,
+        contentColour = contentColour,
         border = contrastEdge(),
         shadow = Theme.elevation.overlay,
     ) {

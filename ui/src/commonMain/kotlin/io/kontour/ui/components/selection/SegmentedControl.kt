@@ -104,7 +104,7 @@ fun SegmentedControl(
 ) {
     if (options.isEmpty()) return
 
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val outerShape = Theme.shapes.field
     // Concentric by construction rather than by picking the token one rung down
@@ -170,7 +170,7 @@ fun SegmentedControl(
             .selectableGroup()
             .height(height)
             .clip(outerShape)
-            .background(colors.surfaceSunken, outerShape)
+            .background(colours.surfaceSunken, outerShape)
             .then(
                 contrastEdge()?.let { Modifier.border(it, outerShape) } ?: Modifier
             )
@@ -227,7 +227,7 @@ fun SegmentedControl(
                         scaleX = 1f + reach.coerceAtMost(MaxSegmentStretch)
                     },
                 shape = innerShape,
-                color = if (enabled) colors.surface else colors.surfaceSunken,
+                colour = if (enabled) colours.surface else colours.surfaceSunken,
                 border = contrastEdge(),
                 shadow = if (enabled) Theme.elevation.low else Shadow.None,
                 content = {},
@@ -300,11 +300,11 @@ fun SegmentedControl(
                 val selected = index == selected
                 val interactions = remember { MutableInteractionSource() }
 
-                val labelColor by animateColorAsState(
+                val labelColour by animateColorAsState(
                     targetValue = when {
-                        !enabled -> colors.contentDisabled
-                        selected -> colors.content
-                        else -> colors.contentMuted
+                        !enabled -> colours.contentDisabled
+                        selected -> colours.content
+                        else -> colours.contentMuted
                     },
                     animationSpec = motion.tweenFast(),
                     label = "segmentLabel",
@@ -333,7 +333,7 @@ fun SegmentedControl(
                     contentAlignment = Alignment.Center,
                 ) {
                     ProvideTextStyle(Theme.typography.labelMedium) {
-                        Text(text = option, color = labelColor, maxLines = 1)
+                        Text(text = option, colour = labelColour, maxLines = 1)
                     }
                 }
             }

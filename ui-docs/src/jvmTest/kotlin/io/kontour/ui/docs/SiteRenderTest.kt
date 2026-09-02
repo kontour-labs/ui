@@ -170,7 +170,7 @@ class SiteRenderTest {
               main { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
               figure { margin: 0; }
               img { width: 100%; border: 1px solid #ddd; background: #fff; display: block; }
-              figcaption { padding-top: 6px; color: #555; }
+              figcaption { padding-top: 6px; colour: #555; }
             </style>
             <h1>$widthName — ${shots.size} pages</h1>
             <main>

@@ -12,7 +12,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.theme.Theme
 
@@ -67,7 +67,7 @@ fun Stat(
         }
 
         slots.label?.let { label ->
-            ProvideContentColor(Theme.colors.contentMuted) {
+            ProvideContentColour(Theme.colours.contentMuted) {
                 ProvideTextStyle(Theme.typography.labelMedium) {
                     ContentSlot(maxLines = 2, content = label)
                 }
@@ -75,7 +75,7 @@ fun Stat(
         }
 
         slots.supporting?.let { supporting ->
-            ProvideContentColor(Theme.colors.contentSubtle) {
+            ProvideContentColour(Theme.colours.contentSubtle) {
                 ProvideTextStyle(Theme.typography.bodySmall) {
                     ContentSlot(maxLines = 2, content = supporting)
                 }
@@ -87,7 +87,7 @@ fun Stat(
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ProvideContentColor(slots.trendDirection.color()) {
+                ProvideContentColour(slots.trendDirection.colour()) {
                     ProvideTextStyle(Theme.typography.labelSmall) {
                         ContentSlot(iconSize = Theme.sizing.iconSmall, content = trend)
                     }
@@ -116,10 +116,10 @@ enum class StatTrend {
 }
 
 @Composable
-private fun StatTrend.color() = when (this) {
-    StatTrend.Positive -> Theme.colors.success.solid
-    StatTrend.Negative -> Theme.colors.danger.solid
-    StatTrend.Neutral -> Theme.colors.contentMuted
+private fun StatTrend.colour() = when (this) {
+    StatTrend.Positive -> Theme.colours.success.solid
+    StatTrend.Negative -> Theme.colours.danger.solid
+    StatTrend.Neutral -> Theme.colours.contentMuted
 }
 
 /**

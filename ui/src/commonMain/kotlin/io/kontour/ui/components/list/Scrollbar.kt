@@ -77,7 +77,7 @@ fun Scrollbar(
     state: ScrollableState,
     modifier: Modifier = Modifier,
     orientation: Orientation = Orientation.Vertical,
-    color: Color = Theme.colors.outlineStrong,
+    colour: Color = Theme.colours.outlineStrong,
     thickness: Dp = ScrollbarDefaults.Thickness,
     hoveredThickness: Dp = ScrollbarDefaults.HoveredThickness,
     minThumbLength: Dp = ScrollbarDefaults.MinThumbLength,
@@ -157,7 +157,7 @@ fun Scrollbar(
                             })
                     }
                 )
-                .background(color.copy(alpha = alpha), Theme.shapes.pill)
+                .background(colour.copy(alpha = alpha), Theme.shapes.pill)
         )
     }
 }

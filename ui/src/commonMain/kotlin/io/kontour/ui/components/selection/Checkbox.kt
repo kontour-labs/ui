@@ -103,7 +103,7 @@ fun TriStateCheckbox(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val shape = CheckboxShape
     val feedback = Feedback
@@ -137,16 +137,16 @@ fun TriStateCheckbox(
     // disabled; how much of it there is comes from `filled`, so the box fills
     // and empties with the mark rather than a frame behind it.
     val containerBase by animateColorAsState(
-        targetValue = if (enabled) colors.primary else colors.contentDisabled,
+        targetValue = if (enabled) colours.primary else colours.contentDisabled,
         animationSpec = motion.tweenFast(),
         label = "checkboxContainer",
     )
     val container = containerBase.copy(alpha = containerBase.alpha * filled)
     val border by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.contentDisabled
-            selected -> colors.primary
-            else -> colors.outlineStrong
+            !enabled -> colours.contentDisabled
+            selected -> colours.primary
+            else -> colours.outlineStrong
         },
         animationSpec = motion.tweenFast(),
         label = "checkboxBorder",
@@ -224,7 +224,7 @@ fun TriStateCheckbox(
                 drawCheckMark(
                     flatness = flatness,
                     progress = markProgress,
-                    color = if (enabled) colors.onPrimary else colors.surface,
+                    colour = if (enabled) colours.onPrimary else colours.surface,
                     strokeWidth = strokeWidth,
                 )
             }

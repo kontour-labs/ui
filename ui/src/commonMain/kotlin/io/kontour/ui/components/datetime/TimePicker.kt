@@ -94,7 +94,7 @@ fun TimePicker(
                 )
             }
 
-            Text(":", style = Theme.typography.headlineSmall, color = Theme.colors.contentMuted)
+            Text(":", style = Theme.typography.headlineSmall, colour = Theme.colours.contentMuted)
 
             Box(Modifier.width(72.dp).semantics { contentDescription = "Minute" }) {
                 WheelPicker(
@@ -163,7 +163,7 @@ fun TimeField(
             Text(
                 text = label,
                 style = Theme.typography.labelMedium,
-                color = if (enabled) Theme.colors.contentMuted else Theme.colors.contentDisabled,
+                colour = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled,
                 // Cleared, because the name goes on the control below instead.
                 //
                 // Compose has no `labelledBy`: a label drawn above a field is an
@@ -196,13 +196,13 @@ fun TimeField(
                     },
                 ),
             shape = shape,
-            color = Theme.colors.surfaceSunken,
+            colour = Theme.colours.surfaceSunken,
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(
                 text = formats.time(value),
                 style = Theme.typography.bodyLarge,
-                color = if (enabled) Theme.colors.content else Theme.colors.contentDisabled,
+                colour = if (enabled) Theme.colours.content else Theme.colours.contentDisabled,
                 modifier = Modifier.padding(
                     horizontal = Theme.spacing.sm,
                     vertical = Theme.spacing.sm,

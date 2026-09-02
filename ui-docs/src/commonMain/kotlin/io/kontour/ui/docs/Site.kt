@@ -345,7 +345,7 @@ private fun Home() {
                 "with no Material. $components components, each on its own page with the " +
                 "component itself running beside the words — running, not pictured: press it.",
             style = Theme.typography.bodyLarge,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
             modifier = Modifier.widthIn(max = ProseWidth),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
@@ -558,7 +558,7 @@ private fun Specimens(page: DocPage) {
             Text(
                 text = "LIVE",
                 style = Theme.typography.monoLabel,
-                color = Theme.colors.accent.solid,
+                colour = Theme.colours.accent.solid,
             )
             DemoCard(demo)
         }
@@ -582,7 +582,7 @@ private fun Specimens(page: DocPage) {
         Text(
             text = "LIVE",
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
+            colour = Theme.colours.accent.solid,
         )
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = Theme.spacing.md),
@@ -594,7 +594,7 @@ private fun Specimens(page: DocPage) {
                         Text(
                             text = spec.name,
                             style = Theme.typography.labelSmall,
-                            color = Theme.colors.contentMuted,
+                            colour = Theme.colours.contentMuted,
                         )
                     }
                     spec.content(Modifier, true) {}

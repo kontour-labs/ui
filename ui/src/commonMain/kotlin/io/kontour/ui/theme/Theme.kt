@@ -8,7 +8,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.rememberInputModalityState
@@ -26,7 +26,7 @@ import io.kontour.ui.platform.platformPrefersReducedMotion
  * ```
  * Box(
  *     Modifier
- *         .background(Theme.colors.surface, Theme.shapes.medium)
+ *         .background(Theme.colours.surface, Theme.shapes.medium)
  *         .padding(Theme.spacing.md)
  * ) {
  *     Text("Departures", style = Theme.typography.titleMedium)
@@ -39,8 +39,8 @@ import io.kontour.ui.platform.platformPrefersReducedMotion
  * component contract test that ships alongside it.
  */
 object Theme {
-    val colors: ColorScheme
-        @Composable @ReadOnlyComposable get() = LocalColorScheme.current
+    val colours: ColourScheme
+        @Composable @ReadOnlyComposable get() = LocalColourScheme.current
 
     val typography: Typography
         @Composable @ReadOnlyComposable get() = LocalTypography.current
@@ -117,10 +117,10 @@ fun KontourTheme(
      * what it costs: the scheme feeds a static composition local, so the fade
      * recomposes the whole application for its duration. That is the right trade
      * for a rare, deliberate change and the wrong one for anything frequent, so
-     * an app driving [colors] from something that moves should turn it off.
+     * an app driving [colours] from something that moves should turn it off.
      */
     animateThemeChanges: Boolean = true,
-    colors: ColorScheme = remember(darkTheme, contrast) { kontourColorScheme(darkTheme, contrast) },
+    colours: ColourScheme = remember(darkTheme, contrast) { kontourColourScheme(darkTheme, contrast) },
     typography: Typography = rememberDefaultTypography(),
     shapes: Shapes = remember { Shapes() },
     spacing: Spacing = remember { Spacing() },
@@ -154,14 +154,14 @@ fun KontourTheme(
     // did: the shadows then cut to their dark-mode strength on the fade's first
     // frame and waited there for the surfaces to catch up.
     val faded = if (animateThemeChanges) {
-        animatedTheme(colors, elevation, motion)
+        animatedTheme(colours, elevation, motion)
     } else {
-        ThemeFade(colors, elevation)
+        ThemeFade(colours, elevation)
     }
-    val resolvedColors = faded.colors
+    val resolvedColours = faded.colours
 
     CompositionLocalProvider(
-        LocalColorScheme provides resolvedColors,
+        LocalColourScheme provides resolvedColours,
         LocalTypography provides typography,
         LocalShapes provides shapes,
         LocalSpacing provides spacing,
@@ -171,7 +171,7 @@ fun KontourTheme(
         LocalStrings provides strings,
         LocalContrastLevel provides contrast,
         LocalBackdropBlur provides backdropBlur,
-        LocalContentColor provides resolvedColors.content,
+        LocalContentColour provides resolvedColours.content,
         LocalTextStyle provides typography.bodyMedium,
         LocalFeedback provides feedback,
     ) {
@@ -201,7 +201,7 @@ private const val NOT_IN_THEME =
     "No KontourTheme found. Wrap your app in KontourTheme { … } — components " +
         "read their tokens from it and have no sensible default without one."
 
-internal val LocalColorScheme = staticCompositionLocalOf<ColorScheme> { error(NOT_IN_THEME) }
+internal val LocalColourScheme = staticCompositionLocalOf<ColourScheme> { error(NOT_IN_THEME) }
 internal val LocalTypography = staticCompositionLocalOf<Typography> { error(NOT_IN_THEME) }
 internal val LocalShapes = staticCompositionLocalOf<Shapes> { error(NOT_IN_THEME) }
 internal val LocalSpacing = staticCompositionLocalOf<Spacing> { error(NOT_IN_THEME) }

@@ -262,11 +262,11 @@ internal val SpinnerDemo = ComponentDemo(slug = "spinner") {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Spinner()
-            Text("default", style = Theme.typography.labelSmall, color = Theme.colors.contentMuted)
+            Text("default", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Spinner(size = 32.dp)
-            Text("32dp", style = Theme.typography.labelSmall, color = Theme.colors.contentMuted)
+            Text("32dp", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
         }
     }
 }

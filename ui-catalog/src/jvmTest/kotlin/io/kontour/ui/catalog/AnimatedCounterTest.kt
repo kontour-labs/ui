@@ -171,7 +171,7 @@ class AnimatedCounterTest {
             reduceMotion = true,
         ) {
             Box(
-                Modifier.fillMaxSize().background(Theme.colors.background),
+                Modifier.fillMaxSize().background(Theme.colours.background),
                 Alignment.TopStart,
             ) {
                 AnimatedCounter(
@@ -187,7 +187,7 @@ class AnimatedCounterTest {
     @Composable
     private fun Counter(value: MutableState<Int>) {
         Box(
-            Modifier.fillMaxSize().background(Theme.colors.background),
+            Modifier.fillMaxSize().background(Theme.colours.background),
             Alignment.TopStart,
         ) {
             AnimatedCounter(

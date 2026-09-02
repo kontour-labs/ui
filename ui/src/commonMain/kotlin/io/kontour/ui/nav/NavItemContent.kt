@@ -139,9 +139,9 @@ internal fun NavDestinationItem(
      * surface. Set by [NavBar], where each destination is its own free-standing
      * circle and there is no row surface at all.
      */
-    containerColor: Color = Color.Transparent,
+    containerColour: Color = Color.Transparent,
     /** An unselected destination's icon and label. */
-    contentColor: Color = Theme.colors.contentMuted,
+    contentColour: Color = Theme.colours.contentMuted,
     /**
      * Cast by this one destination, when it is a shape standing on its own.
      *
@@ -163,7 +163,7 @@ internal fun NavDestinationItem(
     indicatorKey: Any = item.label,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -185,7 +185,7 @@ internal fun NavDestinationItem(
         Color.Transparent
     } else {
         val animated by animateColorAsState(
-            targetValue = if (selected) colors.accent.container else Color.Transparent,
+            targetValue = if (selected) colours.accent.container else Color.Transparent,
             animationSpec = motion.tweenFast(),
             label = "navItemContainer",
         )
@@ -193,9 +193,9 @@ internal fun NavDestinationItem(
     }
     val content by animateColorAsState(
         targetValue = when {
-            !item.enabled -> colors.contentDisabled
-            selected -> colors.accent.onContainer
-            else -> contentColor
+            !item.enabled -> colours.contentDisabled
+            selected -> colours.accent.onContainer
+            else -> contentColour
         },
         animationSpec = motion.tweenFast(),
         label = "navItemContent",
@@ -259,13 +259,13 @@ internal fun NavDestinationItem(
                             // behind the whole row is what is raised, and a
                             // shadow here would fall from nothing.
                             .then(
-                                if (containerColor.alpha > 0f) {
+                                if (containerColour.alpha > 0f) {
                                     Modifier.elevation(shadow, shape)
                                 } else {
                                     Modifier
                                 }
                             )
-                            .background(containerColor, shape)
+                            .background(containerColour, shape)
                     )
                     // The per-item fallback marker, for a destination rendered
                     // outside a group. Inside one this is transparent and the
@@ -321,7 +321,7 @@ internal fun NavDestinationItem(
             Text(
                 text = item.label,
                 style = Theme.typography.labelSmall,
-                color = content,
+                colour = content,
                 maxLines = 1,
             )
         }

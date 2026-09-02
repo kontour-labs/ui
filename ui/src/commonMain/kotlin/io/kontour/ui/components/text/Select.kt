@@ -32,7 +32,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.FeedbackIntent
@@ -113,7 +113,7 @@ fun <T> Select(
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
-    colors: TextFieldColors = TextFieldDefaults.colors(variant),
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     state: SelectState = rememberSelectState(),
     interactionSource: MutableInteractionSource? = null,
@@ -127,7 +127,7 @@ fun <T> Select(
         supporting = supporting,
         errorMessage = errorMessage,
         leadingIcon = leadingIcon ?: value?.let { optionIcon?.invoke(it) },
-        colors = colors,
+        colours = colours,
         metrics = metrics,
         state = state,
         interactionSource = interactionSource,
@@ -197,7 +197,7 @@ fun <T> MultiSelect(
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
-    colors: TextFieldColors = TextFieldDefaults.colors(variant),
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     state: SelectState = rememberSelectState(),
     interactionSource: MutableInteractionSource? = null,
@@ -211,7 +211,7 @@ fun <T> MultiSelect(
         supporting = supporting,
         errorMessage = errorMessage,
         leadingIcon = leadingIcon,
-        colors = colors,
+        colours = colours,
         metrics = metrics,
         state = state,
         interactionSource = interactionSource,
@@ -279,7 +279,7 @@ fun <T> Combobox(
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
-    colors: TextFieldColors = TextFieldDefaults.colors(variant),
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     state: SelectState = rememberSelectState(),
     interactionSource: MutableInteractionSource? = null,
@@ -303,7 +303,7 @@ fun <T> Combobox(
         supporting = supporting,
         errorMessage = errorMessage,
         leadingIcon = leadingIcon,
-        colors = colors,
+        colours = colours,
         metrics = metrics,
         state = state,
         interactionSource = interactionSource,
@@ -312,19 +312,19 @@ fun <T> Combobox(
         // ago and has no reason to remember.
         onOpenChange = { open -> if (!open) query.clearText() },
         editor = { slot, requester ->
-            CompositionLocalProvider(LocalContentColor provides colors.content) {
+            CompositionLocalProvider(LocalContentColour provides colours.content) {
                 BasicTextField(
                     state = query,
                     modifier = slot.fillMaxWidth().focusRequester(requester),
-                    textStyle = Theme.typography.bodyMedium.merge(color = colors.content),
+                    textStyle = Theme.typography.bodyMedium.merge(color = colours.content),
                     lineLimits = TextFieldLineLimits.SingleLine,
-                    cursorBrush = SolidColor(colors.cursor),
+                    cursorBrush = SolidColor(colours.cursor),
                 )
                 if (query.text.isEmpty()) {
                     Text(
                         text = value?.let(optionLabel) ?: placeholder,
                         style = Theme.typography.bodyMedium,
-                        color = colors.placeholder,
+                        colour = colours.placeholder,
                         maxLines = 1,
                     )
                 }
@@ -339,7 +339,7 @@ fun <T> Combobox(
                     vertical = Theme.spacing.xs,
                 ),
                 style = Theme.typography.bodyMedium,
-                color = Theme.colors.contentMuted,
+                colour = Theme.colours.contentMuted,
             )
         }
         for (option in filtered) {
@@ -383,7 +383,7 @@ private fun SelectFrame(
     supporting: String?,
     errorMessage: String?,
     leadingIcon: ImageVector?,
-    colors: TextFieldColors,
+    colours: TextFieldColours,
     metrics: TextFieldMetrics,
     state: SelectState,
     interactionSource: MutableInteractionSource?,
@@ -418,7 +418,7 @@ private fun SelectFrame(
         // Drawn focused while its menu is open: that is where the user's
         // attention is, whatever the focus system thinks.
         focused = focused || expanded,
-        colors = colors,
+        colours = colours,
         metrics = metrics,
         shape = Theme.shapes.field,
         label = label,
@@ -430,7 +430,7 @@ private fun SelectFrame(
                 imageVector = SystemIcons.ChevronDown,
                 contentDescription = null,
                 modifier = Modifier.chevronTurn(expanded, label = "selectChevron"),
-                tint = if (enabled) colors.label else colors.contentDisabled,
+                tint = if (enabled) colours.label else colours.contentDisabled,
                 size = Theme.sizing.iconMedium,
             )
         },
@@ -464,10 +464,10 @@ private fun SelectFrame(
                 text = valueLabel ?: placeholder,
                 modifier = Modifier.weight(1f),
                 style = Theme.typography.bodyMedium,
-                color = when {
-                    !enabled -> colors.contentDisabled
-                    valueLabel == null -> colors.placeholder
-                    else -> colors.content
+                colour = when {
+                    !enabled -> colours.contentDisabled
+                    valueLabel == null -> colours.placeholder
+                    else -> colours.content
                 },
                 maxLines = 1,
             )

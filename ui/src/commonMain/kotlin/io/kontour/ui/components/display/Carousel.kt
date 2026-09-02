@@ -222,7 +222,7 @@ fun Carousel(
         // Snapping rather than free scroll: a carousel that stops between two
         // pages is showing neither, and the indicator below it is then lying
         // whatever it says.
-        flingBehavior = firmSnapFlingBehavior(state.listState),
+        flingBehavior = firmSnapFlingBehaviour(state.listState),
     ) {
         items(count) { page ->
             Box(Modifier.fillParentMaxWidth()) { content(page) }
@@ -257,8 +257,8 @@ fun PageIndicator(
     enabled: Boolean = true,
     onPageSelect: ((Int) -> Unit)? = null,
     style: PageIndicatorStyle = PageIndicatorStyle.Dots,
-    activeColor: Color = Theme.colors.primary,
-    inactiveColor: Color = Theme.colors.outlineStrong,
+    activeColour: Color = Theme.colours.primary,
+    inactiveColour: Color = Theme.colours.outlineStrong,
     label: (Int, Int) -> String = Theme.strings.pageOfCount,
     /**
      * Glyphs for a step-back and step-forward button either side of the dots.
@@ -282,7 +282,7 @@ fun PageIndicator(
     nextLabel: String = Theme.strings.next,
 ) {
     if (previousIcon == null && nextIcon == null) {
-        PageDots(state, modifier, enabled, onPageSelect, style, activeColor, inactiveColor, label)
+        PageDots(state, modifier, enabled, onPageSelect, style, activeColour, inactiveColour, label)
         return
     }
 
@@ -310,8 +310,8 @@ fun PageIndicator(
             enabled = enabled,
             onPageSelect = onPageSelect,
             style = style,
-            activeColor = activeColor,
-            inactiveColor = inactiveColor,
+            activeColour = activeColour,
+            inactiveColour = inactiveColour,
             label = label,
         )
 
@@ -342,8 +342,8 @@ private fun PageDots(
     enabled: Boolean,
     onPageSelect: ((Int) -> Unit)?,
     style: PageIndicatorStyle,
-    activeColor: Color,
-    inactiveColor: Color,
+    activeColour: Color,
+    inactiveColour: Color,
     label: (Int, Int) -> String,
 ) {
     val count = state.count
@@ -380,7 +380,7 @@ private fun PageDots(
                         val trail = a + (b - a) * (fraction * 2f - 1f).coerceAtLeast(0f)
                         if (a == 0f && b == 0f) return@drawWithContent
                         drawRoundRect(
-                            color = activeColor,
+                            color = activeColour,
                             topLeft = Offset(
                                 minOf(lead, trail) - dotRadius,
                                 (size.height - dotRadius * 2f) / 2f,
@@ -428,7 +428,7 @@ private fun PageDots(
                     shape = Theme.shapes.pill,
                     // Under a worm every dot is a track, and the pill on top is
                     // the only thing that says which page this is.
-                    color = if (active) activeColor else inactiveColor,
+                    colour = if (active) activeColour else inactiveColour,
                     content = {},
                 )
             }
@@ -521,7 +521,7 @@ private fun Modifier.reportCentre(into: FloatArray, index: Int): Modifier =
  * is allowed to drift before it starts.
  */
 @Composable
-private fun firmSnapFlingBehavior(listState: LazyListState): FlingBehavior {
+private fun firmSnapFlingBehaviour(listState: LazyListState): FlingBehavior {
     val motion = Theme.motion
     val snap = motion.springOrTween<Float>(motion.springSnappy)
     val decay = remember { exponentialDecay<Float>() }

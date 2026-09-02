@@ -4,7 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
-import io.kontour.ui.theme.ColorScheme
+import io.kontour.ui.theme.ColourScheme
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import io.kontour.ui.theme.ContrastLevel
@@ -68,7 +68,7 @@ fun meetsContrast(
  * Whether a scheme's brand colour is safe to put text on.
  *
  * A brand colour is under no obligation to pass a contrast checker — that is
- * the entire reason [io.kontour.ui.theme.ColorScheme.brand] is a separate token
+ * the entire reason [io.kontour.ui.theme.ColourScheme.brand] is a separate token
  * from `accent`, which is under every obligation. Kontour's own `#BB86FC` is
  * 2.1:1 on white and has to stay decorative.
  *
@@ -78,14 +78,14 @@ fun meetsContrast(
  * ```kotlin
  * @Test
  * fun theBrandPurpleStaysDecorative() {
- *     assertFalse(brandIsSafeForText(KontourBrandTheme.colors(dark = false)))
+ *     assertFalse(brandIsSafeForText(KontourBrandTheme.colours(dark = false)))
  * }
  * ```
  *
  * A `false` answer is not a failure. It means "use `accent` for anything with
  * words on it", which is what the token split exists to make possible.
  */
-fun brandIsSafeForText(scheme: ColorScheme): Boolean =
+fun brandIsSafeForText(scheme: ColourScheme): Boolean =
     meetsContrast(scheme.brand, scheme.background, ContrastThreshold.BODY_TEXT)
 
 /**
@@ -96,10 +96,10 @@ fun brandIsSafeForText(scheme: ColorScheme): Boolean =
  * label has to stay legible whatever arrives.
  *
  * ```
- * val labelColor = contentColorFor(routeColor)   // white on a dark route, ink on a yellow one
+ * val labelColour = contentColourFor(routeColor)   // white on a dark route, ink on a yellow one
  * ```
  */
-fun contentColorFor(
+fun contentColourFor(
     background: Color,
     light: Color = Color.White,
     dark: Color = Color(0xFF121212),
@@ -132,12 +132,12 @@ fun highContrast(): Boolean = LocalContrastLevel.current == ContrastLevel.High
  * this landed and no standard-contrast golden did, which is the shape the change
  * was supposed to have.
  *
- * @param color Defaults to [io.kontour.ui.theme.ColorScheme.outline], which the
+ * @param colour Defaults to [io.kontour.ui.theme.ColourScheme.outline], which the
  *   high-contrast schemes already darken to near-ink. Pass a tone's own border
  *   where the container has one, so the edge stays part of the component rather
  *   than a grey rectangle drawn around it.
  */
 @Composable
 @ReadOnlyComposable
-fun contrastEdge(color: Color = Theme.colors.outline): BorderStroke? =
-    if (highContrast()) BorderStroke(Theme.sizing.borderWidth, color) else null
+fun contrastEdge(colour: Color = Theme.colours.outline): BorderStroke? =
+    if (highContrast()) BorderStroke(Theme.sizing.borderWidth, colour) else null

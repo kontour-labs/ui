@@ -22,6 +22,7 @@ import io.kontour.ui.components.display.StatTrend
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.PageTransition
+import io.kontour.ui.motion.sharedBounds
 import io.kontour.ui.motion.marquee
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
@@ -120,24 +121,37 @@ fun PageTransitionBasics() {
 
     PageTransition(target = route, modifier = Modifier.fillMaxSize()) { page ->
         when (page) {
-            is Route.List -> Column {
-                for (stop in stops) {
-                    Card(
-                        modifier = Modifier.sharedBounds("stop-${stop.name}"),
-                        onClick = { route = Route.Detail(stop) },
-                    ) {
-                        Text(stop.name)
-                    }
-                }
-            }
+            is Route.List -> StopList(onOpen = { route = Route.Detail(it) })
+            is Route.Detail -> StopDetail(page.stop)
+        }
+    }
+}
 
-            is Route.Detail -> Column {
-                Card(modifier = Modifier.sharedBounds("stop-${page.stop.name}")) {
-                    Text(page.stop.name)
-                }
-                Text("${page.stop.routes} routes")
+// The pages are ordinary composables. `sharedBounds` reaches the transition
+// through a composition local, so neither of these takes a scope, and either
+// renders on its own — in a test, or in a pane with no transition around it —
+// with the modifier quietly doing nothing.
+@Composable
+private fun StopList(onOpen: (Stop) -> Unit) {
+    Column {
+        for (stop in stops) {
+            Card(
+                modifier = Modifier.sharedBounds("stop-${stop.name}"),
+                onClick = { onOpen(stop) },
+            ) {
+                Text(stop.name)
             }
         }
+    }
+}
+
+@Composable
+private fun StopDetail(stop: Stop) {
+    Column {
+        Card(modifier = Modifier.sharedBounds("stop-${stop.name}")) {
+            Text(stop.name)
+        }
+        Text("${stop.routes} routes")
     }
 }
 
@@ -203,7 +217,7 @@ fun CardBasics() {
         Text(
             "Platform 2 · Joondalup line",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }

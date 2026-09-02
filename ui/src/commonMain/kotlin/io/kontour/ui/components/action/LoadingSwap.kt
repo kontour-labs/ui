@@ -18,7 +18,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.Spinner
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.theme.Theme
 
 /**
@@ -104,7 +104,7 @@ internal fun LoadingSwap(
             label = "loadingSwapSpinner",
         ) { isLoading ->
             if (isLoading) {
-                Spinner(modifier = Modifier.size(spinnerSize), color = LocalContentColor.current)
+                Spinner(modifier = Modifier.size(spinnerSize), colour = LocalContentColour.current)
             } else {
                 Box(Modifier.size(0.dp))
             }

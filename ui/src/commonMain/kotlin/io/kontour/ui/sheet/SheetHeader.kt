@@ -44,7 +44,7 @@ import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.CentredBar
 import io.kontour.ui.foundation.ContentSlot
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
@@ -90,8 +90,8 @@ fun DragHandle(
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "dragHandleWidth",
     )
-    val color by animateColorAsState(
-        targetValue = if (engaged) Theme.colors.contentMuted else Theme.colors.outlineStrong,
+    val colour by animateColorAsState(
+        targetValue = if (engaged) Theme.colours.contentMuted else Theme.colours.outlineStrong,
         animationSpec = motion.tweenFast(),
         label = "dragHandleColor",
     )
@@ -153,7 +153,7 @@ fun DragHandle(
             Modifier
                 .width(width)
                 .height(4.dp)
-                .background(color, Theme.shapes.pill)
+                .background(colour, Theme.shapes.pill)
         )
     }
 }
@@ -313,7 +313,7 @@ fun SheetHeader(
                 }
             }
             slots.supporting?.let { supporting ->
-                ProvideContentColor(Theme.colors.contentMuted) {
+                ProvideContentColour(Theme.colours.contentMuted) {
                     ProvideTextStyle(Theme.typography.bodySmall) {
                         ContentSlot(maxLines = 1, content = supporting)
                     }

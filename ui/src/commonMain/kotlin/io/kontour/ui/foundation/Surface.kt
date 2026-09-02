@@ -14,7 +14,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
-import io.kontour.ui.a11y.contentColorFor
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
 
@@ -25,13 +25,13 @@ import io.kontour.ui.theme.Theme
  * The substrate nearly every component in the system is built on. A card is a
  * `Surface`; so is a sheet, a menu, a dialog, a chip. What makes it worth having
  * rather than reaching for `Modifier.background()` is the last part — it sets
- * [LocalContentColor], so text and icons inside it are legible without any call
+ * [LocalContentColour], so text and icons inside it are legible without any call
  * site knowing what colour it painted.
  *
  * ```
  * Surface(
  *     shape = Theme.shapes.medium,
- *     color = Theme.colors.surface,
+ *     colour = Theme.colours.surface,
  *     shadow = Theme.elevation.low,
  * ) {
  *     Column(Modifier.padding(Theme.spacing.md)) {
@@ -40,8 +40,8 @@ import io.kontour.ui.theme.Theme
  * }
  * ```
  *
- * @param contentColor Defaults to whichever of the scheme's light or dark
- *   content colours reads better on [color] — so a surface painted an arbitrary
+ * @param contentColour Defaults to whichever of the scheme's light or dark
+ *   content colours reads better on [colour] — so a surface painted an arbitrary
  *   colour (a route colour out of a transit feed, say) still gets legible
  *   content without the caller working it out.
  * @param contentAlignment Where the content sits when the surface is larger
@@ -56,20 +56,20 @@ import io.kontour.ui.theme.Theme
 fun Surface(
     modifier: Modifier = Modifier,
     shape: Shape = RectangleShape,
-    color: Color = Theme.colors.surface,
-    contentColor: Color = defaultContentColorFor(color),
+    colour: Color = Theme.colours.surface,
+    contentColour: Color = defaultContentColourFor(colour),
     border: BorderStroke? = null,
     shadow: Shadow = Shadow.None,
     contentAlignment: Alignment = Alignment.TopStart,
     propagateMinConstraints: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    CompositionLocalProvider(LocalContentColor provides contentColor) {
+    CompositionLocalProvider(LocalContentColour provides contentColour) {
         Box(
             modifier = modifier
                 .elevation(shadow, shape)
                 .clip(shape)
-                .background(color = color, shape = shape)
+                .background(color = colour, shape = shape)
                 .then(if (border != null) Modifier.border(border, shape) else Modifier),
             contentAlignment = contentAlignment,
             propagateMinConstraints = propagateMinConstraints,
@@ -95,7 +95,7 @@ fun Modifier.elevation(shadow: Shadow, shape: Shape): Modifier {
             radius = spec.blurRadius.toPx()
             spread = spec.spread.toPx()
             offset = Offset(spec.offsetX.toPx(), spec.offsetY.toPx())
-            color = spec.color
+            color = spec.colour
             alpha = spec.alpha
         }
     }
@@ -112,32 +112,32 @@ fun Modifier.elevation(shadow: Shadow, shape: Shape): Modifier {
  * surface is still the thing the content sits on — so it inherits rather than
  * deciding. Measuring it would treat it as black, since `contrastRatio` reads
  * the colour channels and a transparent colour's are `(0, 0, 0)`, and every
- * `Surface(color = Color.Transparent)` would get near-white content on a light
+ * `Surface(colour = Color.Transparent)` would get near-white content on a light
  * page. That is the case a bar with no ground of its own is in, and it is why
  * `TabBar` could not go through `Surface` until now.
  */
 @Composable
-private fun defaultContentColorFor(background: Color): Color {
-    val colors = Theme.colors
-    if (background.alpha == 0f) return LocalContentColor.current
+private fun defaultContentColourFor(background: Color): Color {
+    val colours = Theme.colours
+    if (background.alpha == 0f) return LocalContentColour.current
     return when (background) {
-        colors.background, colors.surface, colors.surfaceSunken, colors.surfaceRaised -> colors.content
-        colors.surfaceInverse -> colors.onSurfaceInverse
-        colors.primary -> colors.onPrimary
-        colors.accent.solid -> colors.accent.onSolid
-        colors.accent.container -> colors.accent.onContainer
-        colors.success.solid -> colors.success.onSolid
-        colors.success.container -> colors.success.onContainer
-        colors.warning.solid -> colors.warning.onSolid
-        colors.warning.container -> colors.warning.onContainer
-        colors.danger.solid -> colors.danger.onSolid
-        colors.danger.container -> colors.danger.onContainer
-        colors.info.solid -> colors.info.onSolid
-        colors.info.container -> colors.info.onContainer
-        else -> contentColorFor(
+        colours.background, colours.surface, colours.surfaceSunken, colours.surfaceRaised -> colours.content
+        colours.surfaceInverse -> colours.onSurfaceInverse
+        colours.primary -> colours.onPrimary
+        colours.accent.solid -> colours.accent.onSolid
+        colours.accent.container -> colours.accent.onContainer
+        colours.success.solid -> colours.success.onSolid
+        colours.success.container -> colours.success.onContainer
+        colours.warning.solid -> colours.warning.onSolid
+        colours.warning.container -> colours.warning.onContainer
+        colours.danger.solid -> colours.danger.onSolid
+        colours.danger.container -> colours.danger.onContainer
+        colours.info.solid -> colours.info.onSolid
+        colours.info.container -> colours.info.onContainer
+        else -> contentColourFor(
             background = background,
-            light = if (colors.isDark) colors.content else colors.onPrimary,
-            dark = if (colors.isDark) colors.onPrimary else colors.content,
+            light = if (colours.isDark) colours.content else colours.onPrimary,
+            dark = if (colours.isDark) colours.onPrimary else colours.content,
         )
     }
 }

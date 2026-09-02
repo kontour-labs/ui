@@ -159,7 +159,7 @@ object FabMenuDefaults {
     @Composable
     @ReadOnlyComposable
     fun itemBorder(): BorderStroke =
-        BorderStroke(Theme.sizing.borderWidth, Theme.colors.outlineSubtle)
+        BorderStroke(Theme.sizing.borderWidth, Theme.colours.outlineSubtle)
 }
 
 /**
@@ -240,10 +240,10 @@ fun FabMenu(
     expandedIcon: ImageVector? = null,
     expandedContentDescription: String = Theme.strings.close,
     shape: Shape = Theme.shapes.control,
-    containerColor: Color = Theme.colors.primary,
-    contentColor: Color = Theme.colors.onPrimary,
-    itemContainerColor: Color = Theme.colors.surfaceRaised,
-    itemContentColor: Color = Theme.colors.content,
+    containerColour: Color = Theme.colours.primary,
+    contentColour: Color = Theme.colours.onPrimary,
+    itemContainerColour: Color = Theme.colours.surfaceRaised,
+    itemContentColour: Color = Theme.colours.content,
     itemBorder: BorderStroke? = FabMenuDefaults.itemBorder(),
     scrim: ScrimStyle = ScrimStyle.Transparent,
     key: Any = remember { Any() },
@@ -284,8 +284,8 @@ fun FabMenu(
     val latestItemSize by rememberUpdatedState(itemSize)
     val latestAnchorSize by rememberUpdatedState(size)
     val latestShape by rememberUpdatedState(shape)
-    val latestItemContainer by rememberUpdatedState(itemContainerColor)
-    val latestItemContent by rememberUpdatedState(itemContentColor)
+    val latestItemContainer by rememberUpdatedState(itemContainerColour)
+    val latestItemContent by rememberUpdatedState(itemContentColour)
     val latestItemBorder by rememberUpdatedState(itemBorder)
     val latestAnchor by rememberUpdatedState(anchor)
     val dismiss by rememberUpdatedState(onExpandedChange)
@@ -317,8 +317,8 @@ fun FabMenu(
                             itemSize = latestItemSize,
                             anchorSize = latestAnchorSize,
                             shape = latestShape,
-                            containerColor = latestItemContainer,
-                            contentColor = latestItemContent,
+                            containerColour = latestItemContainer,
+                            contentColour = latestItemContent,
                             border = latestItemBorder,
                             onDismissRequest = { dismiss(false) },
                         )
@@ -375,8 +375,8 @@ fun FabMenu(
         enabled = enabled && opens,
         size = size,
         shape = shape,
-        containerColor = containerColor,
-        contentColor = contentColor,
+        containerColour = containerColour,
+        contentColour = contentColour,
     ) {
         Icon(
             imageVector = if (showingClose) expandedIcon else icon,
@@ -413,8 +413,8 @@ private fun FabMenuItems(
     itemSize: FabSize,
     anchorSize: FabSize,
     shape: Shape,
-    containerColor: Color,
-    contentColor: Color,
+    containerColour: Color,
+    contentColour: Color,
     border: BorderStroke?,
     onDismissRequest: () -> Unit,
 ) {
@@ -446,8 +446,8 @@ private fun FabMenuItems(
                             .clearAndSetSemantics { }
                             .graphicsLayer { alpha = fractions[index].value },
                         shape = Theme.shapes.control,
-                        color = Theme.colors.surfaceRaised,
-                        contentColor = Theme.colors.content,
+                        colour = Theme.colours.surfaceRaised,
+                        contentColour = Theme.colours.content,
                         // A label is a light chip on a light page too, and it
                         // has no icon inside it to give away where its edges are.
                         border = border,
@@ -486,8 +486,8 @@ private fun FabMenuItems(
                     enabled = item.enabled,
                     size = itemSize,
                     shape = shape,
-                    containerColor = containerColor,
-                    contentColor = contentColor,
+                    containerColour = containerColour,
+                    contentColour = contentColour,
                     border = border,
                 )
             }

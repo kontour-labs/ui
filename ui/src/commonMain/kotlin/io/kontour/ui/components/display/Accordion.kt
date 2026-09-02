@@ -30,7 +30,7 @@ import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
@@ -115,18 +115,18 @@ fun Accordion(
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val muted = if (enabled) Theme.colors.contentMuted else Theme.colors.contentDisabled
+            val muted = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled
 
             slots.leading?.let { leading ->
-                ProvideContentColor(muted) {
+                ProvideContentColour(muted) {
                     ContentSlot(content = leading)
                 }
             }
 
             Column(Modifier.weight(1f)) {
                 slots.label?.let { title ->
-                    ProvideContentColor(
-                        if (enabled) Theme.colors.content else Theme.colors.contentDisabled
+                    ProvideContentColour(
+                        if (enabled) Theme.colours.content else Theme.colours.contentDisabled
                     ) {
                         ProvideTextStyle(Theme.typography.titleSmall) {
                             ContentSlot(content = title)
@@ -134,7 +134,7 @@ fun Accordion(
                     }
                 }
                 slots.supporting?.let { supporting ->
-                    ProvideContentColor(muted) {
+                    ProvideContentColour(muted) {
                         ProvideTextStyle(Theme.typography.bodySmall) {
                             ContentSlot(content = supporting)
                         }
@@ -146,7 +146,7 @@ fun Accordion(
                 Icon(
                     imageVector = chevron,
                     contentDescription = null,
-                    tint = if (enabled) Theme.colors.contentMuted else Theme.colors.contentDisabled,
+                    tint = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled,
                     modifier = Modifier.chevronTurn(expanded, label = "accordionChevron"),
                 )
             }

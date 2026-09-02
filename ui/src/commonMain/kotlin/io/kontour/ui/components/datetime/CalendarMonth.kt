@@ -169,7 +169,7 @@ fun CalendarMonth(
                     Text(
                         text = initial,
                         style = Theme.typography.labelSmall,
-                        color = Theme.colors.contentMuted,
+                        colour = Theme.colours.contentMuted,
                         modifier = Modifier.padding(vertical = Theme.spacing.xs),
                     )
                 }
@@ -322,7 +322,7 @@ private fun DayCell(
     dragging: Boolean,
     onSelectedChange: (LocalDate) -> Unit,
 ) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = Feedback
     val interactions = remember { MutableInteractionSource() }
@@ -376,13 +376,13 @@ private fun DayCell(
     val arriving = filled || inRange
 
     val containerTarget = when {
-        filled -> colors.primary
-        inRange -> colors.accent.container
+        filled -> colours.primary
+        inRange -> colours.accent.container
         // `invisible()`, not `Color.Transparent`, which is black. This is where
         // a cell animates *from* when it joins a range, and a lerp moves the
         // channels as well as the alpha — so the tint used to arrive out of the
         // dark rather than fading up.
-        else -> colors.accent.container.invisible()
+        else -> colours.accent.container.invisible()
     }
     val animatedContainer by animateColorAsState(
         targetValue = containerTarget,
@@ -392,10 +392,10 @@ private fun DayCell(
     val container = if (arriving) animatedContainer else containerTarget
 
     val labelTarget = when {
-        !enabled -> colors.contentDisabled
-        filled -> colors.onPrimary
-        inRange -> colors.accent.onContainer
-        else -> colors.content
+        !enabled -> colours.contentDisabled
+        filled -> colours.onPrimary
+        inRange -> colours.accent.onContainer
+        else -> colours.content
     }
     val animatedLabel by animateColorAsState(
         targetValue = labelTarget,
@@ -511,7 +511,7 @@ private fun DayCell(
                     if (isToday && !filled) {
                         Modifier.border(
                             Theme.sizing.borderWidth,
-                            colors.outlineStrong,
+                            colours.outlineStrong,
                             Theme.shapes.pill,
                         )
                     } else {
@@ -557,7 +557,7 @@ private fun DayCell(
                 Text(
                     text = date.day.toString(),
                     style = dayStyle,
-                    color = label,
+                    colour = label,
                 )
                 if (marker != null) {
                     Box(
@@ -565,7 +565,7 @@ private fun DayCell(
                             .padding(top = 2.dp)
                             .markerSize()
                             .clip(Theme.shapes.pill)
-                            .background(if (filled) colors.onPrimary else marker)
+                            .background(if (filled) colours.onPrimary else marker)
                     )
                 }
             }

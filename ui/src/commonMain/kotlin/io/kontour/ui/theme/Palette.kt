@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Color
  * The raw colour values behind the default themes.
  *
  * These are the only literal colours in the design system. Everything else —
- * every component, every layout — reads semantic tokens off [ColorScheme], so
+ * every component, every layout — reads semantic tokens off [ColourScheme], so
  * that swapping a theme swaps meaning rather than hex codes.
  *
  * **Monochrome, plus one blue.** The default scheme has no product in it: ink
@@ -24,10 +24,10 @@ import androidx.compose.ui.graphics.Color
  *  - **Uber's structural palette.** Near-black primary actions on white or
  *    near-black grounds, with grey used sparingly and deliberately.
  *  - **WCAG.** Nothing here is eyeballed. Every pairing these feed into is
- *    asserted by `ColorSchemeContrastTest`, and several candidate values were
+ *    asserted by `ColourSchemeContrastTest`, and several candidate values were
  *    replaced because they could not survive contact with a contrast checker.
  *
- * **Public**, because the scheme factories default from it — `lightColorScheme`
+ * **Public**, because the scheme factories default from it — `lightColourScheme`
  * lists `Palette.White` and `Palette.Ink` twenty-eight times — and an app that
  * wants to change one colour should not have to start from raw hex to keep the
  * other twenty-seven.
@@ -69,7 +69,7 @@ object Palette {
     // The ramp mirrors what a status colour needs — a solid that carries white
     // text, a deep tone for text on a tint, the tint itself, and light-on-dark
     // versions of all three. Every pairing is asserted by
-    // `ColorSchemeContrastTest`; the ratios are not eyeballed.
+    // `ColourSchemeContrastTest`; the ratios are not eyeballed.
 
     /** Carries white text and clears non-text contrast on white. 6.7:1. */
     val BlueReadable = Color(0xFF1D4ED8)

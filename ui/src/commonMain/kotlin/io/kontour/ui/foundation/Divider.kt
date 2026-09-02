@@ -30,7 +30,7 @@ import io.kontour.ui.theme.Theme
  * into a grid; dividers earn their place when rows are dense enough that the
  * eye needs help tracking across them.
  *
- * Uses [io.kontour.ui.theme.ColorScheme.outline], which is decorative and
+ * Uses [io.kontour.ui.theme.ColourScheme.outline], which is decorative and
  * deliberately below the 3:1 that a *control* boundary needs — a divider that
  * meets control contrast looks like a border.
  *
@@ -41,7 +41,7 @@ import io.kontour.ui.theme.Theme
 fun HorizontalDivider(
     modifier: Modifier = Modifier,
     thickness: Dp = Theme.sizing.dividerThickness,
-    color: Color = Theme.colors.outline,
+    colour: Color = Theme.colours.outline,
     startIndent: Dp = Dp.Hairline,
     endIndent: Dp = Dp.Hairline,
 ) {
@@ -52,7 +52,7 @@ fun HorizontalDivider(
             .fillMaxWidth()
             .padding(start = startIndent, end = endIndent)
             .height(thickness)
-            .background(color)
+            .background(colour)
     )
 }
 
@@ -66,7 +66,7 @@ fun HorizontalDivider(
 fun VerticalDivider(
     modifier: Modifier = Modifier,
     thickness: Dp = Theme.sizing.dividerThickness,
-    color: Color = Theme.colors.outline,
+    colour: Color = Theme.colours.outline,
     topIndent: Dp = Dp.Hairline,
     bottomIndent: Dp = Dp.Hairline,
 ) {
@@ -76,6 +76,6 @@ fun VerticalDivider(
             .fillMaxHeight()
             .padding(top = topIndent, bottom = bottomIndent)
             .width(thickness)
-            .background(color)
+            .background(colour)
     )
 }

@@ -50,7 +50,7 @@ import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.IndicatorEdge
 import io.kontour.ui.foundation.IndicatorSizing
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.SelectionIndicatorBox
@@ -113,8 +113,8 @@ object TabBarDefaults {
 fun TabBar(
     modifier: Modifier = Modifier,
     scrollable: Boolean = false,
-    containerColor: Color = Color.Transparent,
-    indicatorColor: Color = Theme.colors.accent.container,
+    containerColour: Color = Color.Transparent,
+    indicatorColour: Color = Theme.colours.accent.container,
     /**
      * A rule under the bar.
      *
@@ -139,10 +139,10 @@ fun TabBar(
     val indicator = rememberSelectionIndicatorState()
     // Through `Surface` rather than a bare `Modifier.background`, which is what
     // `NavBar`, `NavRail`, `NavDrawer` and `Scaffold` all do with their own
-    // container colour. The difference is `LocalContentColor`: a bar given a
+    // container colour. The difference is `LocalContentColour`: a bar given a
     // solid ground has to recolour the tabs sitting on it, and a background
     // modifier paints the colour and tells the content nothing.
-    Surface(modifier = modifier, color = containerColor) {
+    Surface(modifier = modifier, colour = containerColour) {
         Column {
             // The indicator box sits *inside* the scroll container, so the anchor
             // and the tabs scroll together and the scroll offset never enters the
@@ -194,7 +194,7 @@ fun TabBar(
                             Modifier
                                 .fillMaxSize()
                                 .clip(Theme.shapes.pill)
-                                .background(indicatorColor)
+                                .background(indicatorColour)
                         )
                     },
                 ) {
@@ -278,18 +278,18 @@ fun TabBarScope.Tab(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit,
 ) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
-    val contentColor by animateColorAsState(
+    val contentColour by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.contentDisabled
+            !enabled -> colours.contentDisabled
             // On the indicator pill rather than over a bare bar, so the tone's
             // own on-container colour rather than its solid one.
-            selected -> colors.accent.onContainer
-            else -> colors.contentMuted
+            selected -> colours.accent.onContainer
+            else -> colours.contentMuted
         },
         animationSpec = motion.tweenFast(),
         label = "tabContent",
@@ -356,7 +356,7 @@ fun TabBarScope.Tab(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ProvideTextStyle(Theme.typography.labelLarge) {
-                ProvideContentColor(contentColor) {
+                ProvideContentColour(contentColour) {
                     // Ellipsis rather than the scope's default clip: a fixed
                     // bar divides its width evenly, so a long label on a narrow
                     // screen is *expected* to run out of room, and "Departures"

@@ -29,7 +29,7 @@ import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.CentredBar
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
@@ -97,8 +97,8 @@ fun TopBar(
     backLabel: String = Theme.strings.back,
     navigation: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
-    containerColor: Color = Theme.colors.background,
-    contentColor: Color = Theme.colors.content,
+    containerColour: Color = Theme.colours.background,
+    contentColour: Color = Theme.colours.content,
     showDivider: Boolean = false,
     /**
      * 0 when the content is at the top, 1 when it has scrolled far enough to
@@ -123,7 +123,7 @@ fun TopBar(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
-    Surface(modifier = modifier.fillMaxWidth(), color = containerColor, contentColor = contentColor) {
+    Surface(modifier = modifier.fillMaxWidth(), colour = containerColour, contentColour = contentColour) {
         // Inside the surface, so the container colour still reaches the top of the
         // window and the status bar sits on the bar rather than on a strip of
         // whatever is behind it.
@@ -259,7 +259,7 @@ private fun TitleBlock(
             }
         }
         slots.supporting?.let { subtitle ->
-            ProvideContentColor(Theme.colors.contentMuted) {
+            ProvideContentColour(Theme.colours.contentMuted) {
                 ProvideTextStyle(Theme.typography.bodySmall.copy(textAlign = align)) {
                     ContentSlot(maxLines = 1, content = subtitle)
                 }

@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 
@@ -69,7 +69,7 @@ enum class ButtonSize {
 
 /** Resolved colours for one button variant, in one state. */
 @Immutable
-data class ButtonColors(
+data class ButtonColours(
     val container: Color,
     val content: Color,
     val border: Color?,
@@ -99,7 +99,7 @@ data class ButtonMetrics(
  * override it:
  * ```
  * Button(
- *     colors = ButtonDefaults.colors(ButtonVariant.Primary).copy(container = brandOverride),
+ *     colours = ButtonDefaults.colours(ButtonVariant.Primary).copy(container = brandOverride),
  *     onClick = ::save,
  * ) { +"Save" }
  * ```
@@ -119,9 +119,9 @@ object ButtonDefaults {
     @Composable
     @ReadOnlyComposable
     private fun disabledGhostContent(): Color {
-        val inherited = LocalContentColor.current
-        return if (inherited == Theme.colors.content) {
-            Theme.colors.contentDisabled
+        val inherited = LocalContentColour.current
+        return if (inherited == Theme.colours.content) {
+            Theme.colours.contentDisabled
         } else {
             inherited.copy(alpha = DisabledContentAlpha)
         }
@@ -132,8 +132,8 @@ object ButtonDefaults {
 
     @Composable
     @ReadOnlyComposable
-    fun colors(variant: ButtonVariant): ButtonColors {
-        val c = Theme.colors
+    fun colours(variant: ButtonVariant): ButtonColours {
+        val c = Theme.colours
         // Disabled styling is shared: a flat sunken ground and muted content,
         // rather than each variant fading its own colours. A disabled outlined
         // button and a disabled solid one should not look like different
@@ -159,7 +159,7 @@ object ButtonDefaults {
         }
 
         return when (variant) {
-            ButtonVariant.Primary -> ButtonColors(
+            ButtonVariant.Primary -> ButtonColours(
                 container = c.primary,
                 content = c.onPrimary,
                 border = null,
@@ -168,7 +168,7 @@ object ButtonDefaults {
                 disabledBorder = disabledBorder,
             )
 
-            ButtonVariant.Secondary -> ButtonColors(
+            ButtonVariant.Secondary -> ButtonColours(
                 container = Color.Transparent,
                 content = c.content,
                 border = c.outlineStrong,
@@ -180,7 +180,7 @@ object ButtonDefaults {
             // `surfaceSunken` on `background` measures 1.14:1 at the
             // high-contrast light tier and 1.06:1 at dark — a button-shaped
             // region of the page either way. The edge is what makes it a control.
-            ButtonVariant.Tertiary -> ButtonColors(
+            ButtonVariant.Tertiary -> ButtonColours(
                 container = c.surfaceSunken,
                 content = c.content,
                 border = edge?.let { c.outline },
@@ -200,16 +200,16 @@ object ButtonDefaults {
             // shape of its own text is one WCAG 1.4.11 has an opinion about. It
             // becomes a secondary button, which is the right answer for a user
             // who asked for this.
-            ButtonVariant.Ghost -> ButtonColors(
+            ButtonVariant.Ghost -> ButtonColours(
                 container = Color.Transparent,
-                content = LocalContentColor.current,
-                border = edge?.let { LocalContentColor.current },
+                content = LocalContentColour.current,
+                border = edge?.let { LocalContentColour.current },
                 disabledContainer = disabledContainer,
                 disabledContent = disabledGhostContent(),
                 disabledBorder = disabledBorder,
             )
 
-            ButtonVariant.Accent -> ButtonColors(
+            ButtonVariant.Accent -> ButtonColours(
                 container = c.accent.solid,
                 content = c.accent.onSolid,
                 border = null,
@@ -218,7 +218,7 @@ object ButtonDefaults {
                 disabledBorder = disabledBorder,
             )
 
-            ButtonVariant.Destructive -> ButtonColors(
+            ButtonVariant.Destructive -> ButtonColours(
                 container = c.danger.solid,
                 content = c.danger.onSolid,
                 border = null,
@@ -227,7 +227,7 @@ object ButtonDefaults {
                 disabledBorder = disabledBorder,
             )
 
-            ButtonVariant.DestructiveGhost -> ButtonColors(
+            ButtonVariant.DestructiveGhost -> ButtonColours(
                 container = Color.Transparent,
                 content = c.danger.onContainer,
                 // The tone's own border, so the edge stays part of the button

@@ -95,9 +95,9 @@ fun NavRail(
     itemAlignment: Alignment.Vertical = Alignment.Top,
     collapsedWidth: Dp = NavRailDefaults.CollapsedWidth,
     expandedWidth: Dp = NavRailDefaults.ExpandedWidth,
-    containerColor: Color = Theme.colors.surface,
-    contentColor: Color = Theme.colors.content,
-    indicatorColor: Color = Theme.colors.accent.container,
+    containerColour: Color = Theme.colours.surface,
+    contentColour: Color = Theme.colours.content,
+    indicatorColour: Color = Theme.colours.accent.container,
     expandLabel: String = Theme.strings.expandNavigation,
     collapseLabel: String = Theme.strings.collapseNavigation,
     header: (@Composable ColumnScope.() -> Unit)? = null,
@@ -175,8 +175,8 @@ fun NavRail(
     CompositionLocalProvider(LocalNavExpansion provides room) {
     Surface(
         modifier = modifier.width(width).fillMaxHeight(),
-        color = containerColor,
-        contentColor = contentColor,
+        colour = containerColour,
+        contentColour = contentColour,
     ) {
         Column(
             modifier = Modifier
@@ -273,7 +273,7 @@ fun NavRail(
                                 Modifier
                                     .fillMaxSize()
                                     .clip(Theme.shapes.pill)
-                                    .background(indicatorColor)
+                                    .background(indicatorColour)
                             )
                         },
                     ) {

@@ -66,7 +66,7 @@ import io.kontour.ui.foundation.AnimatedCheckMark
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
@@ -358,14 +358,14 @@ fun MenuItem(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
-    val colors = Theme.colors
+    val colours = Theme.colours
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
-    val contentColor = when {
-        !enabled -> colors.contentDisabled
-        destructive -> colors.danger.solid
-        else -> colors.content
+    val contentColour = when {
+        !enabled -> colours.contentDisabled
+        destructive -> colours.danger.solid
+        else -> colours.content
     }
 
     Row(
@@ -400,17 +400,17 @@ fun MenuItem(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val muted = if (enabled) colors.contentMuted else colors.contentDisabled
+        val muted = if (enabled) colours.contentMuted else colours.contentDisabled
 
         slots.leading?.let { leading ->
-            ProvideContentColor(contentColor) {
+            ProvideContentColour(contentColour) {
                 ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
             }
         }
 
         Box(Modifier.weight(1f)) {
             slots.label?.let { label ->
-                ProvideContentColor(contentColor) {
+                ProvideContentColour(contentColour) {
                     ProvideTextStyle(Theme.typography.bodyMedium) {
                         ContentSlot(maxLines = 1, content = label)
                     }
@@ -419,7 +419,7 @@ fun MenuItem(
         }
 
         slots.trailing?.let { trailing ->
-            ProvideContentColor(muted) {
+            ProvideContentColour(muted) {
                 ProvideTextStyle(Theme.typography.labelSmall) {
                     ContentSlot(iconSize = Theme.sizing.iconSmall, maxLines = 1, content = trailing)
                 }
@@ -433,7 +433,7 @@ fun MenuItem(
         if (multiple || selected) {
             AnimatedCheckMark(
                 checked = selected,
-                color = if (enabled) colors.accent.solid else colors.contentDisabled,
+                colour = if (enabled) colours.accent.solid else colours.contentDisabled,
                 size = Theme.sizing.iconSmall,
             )
         }
@@ -448,7 +448,7 @@ fun MenuDivider(modifier: Modifier = Modifier) {
             horizontal = Theme.spacing.xs,
             vertical = Theme.spacing.xxs,
         ),
-        color = Theme.colors.outlineSubtle,
+        colour = Theme.colours.outlineSubtle,
     )
 }
 
@@ -472,7 +472,7 @@ fun MenuSectionHeader(
         )
     ) {
         ProvideTextStyle(Theme.typography.labelSmall) {
-            ProvideContentColor(Theme.colors.contentMuted) {
+            ProvideContentColour(Theme.colours.contentMuted) {
                 ContentSlot(iconSize = Theme.sizing.iconSmall, content = content)
             }
         }

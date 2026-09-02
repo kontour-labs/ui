@@ -45,7 +45,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 
@@ -113,17 +113,17 @@ fun TextField(
     inputTransformation: InputTransformation? = null,
     outputTransformation: OutputTransformation? = null,
     lineLimits: TextFieldLineLimits = TextFieldLineLimits.SingleLine,
-    colors: TextFieldColors = TextFieldDefaults.colors(variant),
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
 
-    val selectionColors = remember(colors) {
+    val selectionColours = remember(colours) {
         TextSelectionColors(
-            handleColor = colors.cursor,
-            backgroundColor = colors.selectionBackground,
+            handleColor = colours.cursor,
+            backgroundColor = colours.selectionBackground,
         )
     }
 
@@ -131,7 +131,7 @@ fun TextField(
         modifier = modifier,
         enabled = enabled,
         focused = focused,
-        colors = colors,
+        colours = colours,
         metrics = metrics,
         shape = shape,
         label = label,
@@ -144,18 +144,18 @@ fun TextField(
                 Icon(
                     imageVector = it,
                     contentDescription = null,
-                    tint = if (enabled) colors.label else colors.contentDisabled,
+                    tint = if (enabled) colours.label else colours.contentDisabled,
                     size = Theme.sizing.iconMedium,
                 )
             }
         },
     ) {
-        val contentColor = if (enabled) colors.content else colors.contentDisabled
+        val contentColour = if (enabled) colours.content else colours.contentDisabled
 
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             CompositionLocalProvider(
-                LocalTextSelectionColors provides selectionColors,
-                LocalContentColor provides contentColor,
+                LocalTextSelectionColors provides selectionColours,
+                LocalContentColour provides contentColour,
             ) {
                 BasicTextField(
                     state = state,
@@ -189,7 +189,7 @@ fun TextField(
                         },
                     enabled = enabled,
                     readOnly = readOnly,
-                    textStyle = Theme.typography.bodyMedium.merge(color = contentColor),
+                    textStyle = Theme.typography.bodyMedium.merge(color = contentColour),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = keyboardType,
                         // A chain decides the action key outright, overriding
@@ -203,7 +203,7 @@ fun TextField(
                     lineLimits = lineLimits,
                     inputTransformation = inputTransformation,
                     outputTransformation = outputTransformation,
-                    cursorBrush = SolidColor(colors.cursor),
+                    cursorBrush = SolidColor(colours.cursor),
                     interactionSource = interactions,
                 )
             }
@@ -212,7 +212,7 @@ fun TextField(
                 Text(
                     text = placeholder,
                     style = Theme.typography.bodyMedium,
-                    color = colors.placeholder,
+                    colour = colours.placeholder,
                     maxLines = 1,
                 )
             }

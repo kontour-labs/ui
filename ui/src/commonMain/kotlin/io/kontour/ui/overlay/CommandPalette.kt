@@ -284,7 +284,7 @@ private fun PaletteBody(
                 }
             },
         shape = Theme.shapes.panel,
-        color = Theme.colors.surface,
+        colour = Theme.colours.surface,
         shadow = Theme.elevation.overlay,
     ) {
         // One gap, one derived corner. The field and the rows sat at their own
@@ -316,7 +316,7 @@ private fun PaletteBody(
                 Text(
                     text = emptyLabel,
                     style = Theme.typography.bodyMedium,
-                    color = Theme.colors.contentMuted,
+                    colour = Theme.colours.contentMuted,
                     modifier = Modifier.padding(
                         horizontal = Theme.spacing.xs,
                         vertical = Theme.spacing.sm,

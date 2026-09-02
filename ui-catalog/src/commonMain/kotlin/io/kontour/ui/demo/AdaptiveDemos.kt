@@ -22,6 +22,7 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.PageTransition
+import io.kontour.ui.motion.sharedBounds
 import io.kontour.ui.theme.Theme
 
 /** The key both pages use for the card that becomes the header. */
@@ -34,7 +35,7 @@ internal val PageTransitionDemo = ComponentDemo(slug = "page-transition") {
             .fillMaxWidth()
             .height(260.dp)
             .clip(Theme.shapes.large)
-            .background(Theme.colors.surfaceSunken),
+            .background(Theme.colours.surfaceSunken),
     ) {
         PageTransition(target = open, modifier = Modifier.fillMaxSize()) { detail ->
             if (detail) {
@@ -49,7 +50,7 @@ internal val PageTransitionDemo = ComponentDemo(slug = "page-transition") {
                         Text(
                             "4 platforms · Mandurah, Joondalup, Airport",
                             style = Theme.typography.bodySmall,
-                            color = Theme.colors.contentMuted,
+                            colour = Theme.colours.contentMuted,
                         )
                     }
                     Box(
@@ -79,7 +80,7 @@ internal val PageTransitionDemo = ComponentDemo(slug = "page-transition") {
                     Text(
                         "Tap the card — it becomes the header.",
                         style = Theme.typography.bodySmall,
-                        color = Theme.colors.contentMuted,
+                        colour = Theme.colours.contentMuted,
                     )
                 }
             }

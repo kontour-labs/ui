@@ -52,7 +52,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.Button
-import io.kontour.ui.components.action.ButtonColors
+import io.kontour.ui.components.action.ButtonColours
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
@@ -672,20 +672,20 @@ private fun ToastSurface(
     onAction: () -> Unit,
     onClose: () -> Unit,
 ) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val container = when (toast.tone) {
-        ToastTone.Neutral -> colors.surfaceInverse
-        ToastTone.Success -> colors.success.solid
-        ToastTone.Warning -> colors.warning.solid
-        ToastTone.Danger -> colors.danger.solid
-        ToastTone.Accent -> colors.accent.solid
+        ToastTone.Neutral -> colours.surfaceInverse
+        ToastTone.Success -> colours.success.solid
+        ToastTone.Warning -> colours.warning.solid
+        ToastTone.Danger -> colours.danger.solid
+        ToastTone.Accent -> colours.accent.solid
     }
     val content = when (toast.tone) {
-        ToastTone.Neutral -> colors.onSurfaceInverse
-        ToastTone.Success -> colors.success.onSolid
-        ToastTone.Warning -> colors.warning.onSolid
-        ToastTone.Danger -> colors.danger.onSolid
-        ToastTone.Accent -> colors.accent.onSolid
+        ToastTone.Neutral -> colours.onSurfaceInverse
+        ToastTone.Success -> colours.success.onSolid
+        ToastTone.Warning -> colours.warning.onSolid
+        ToastTone.Danger -> colours.danger.onSolid
+        ToastTone.Accent -> colours.accent.onSolid
     }
 
     Surface(
@@ -701,8 +701,8 @@ private fun ToastSurface(
                 }
             },
         shape = Theme.shapes.pill,
-        color = container,
-        contentColor = content,
+        colour = container,
+        contentColour = content,
         shadow = Theme.elevation.high,
     ) {
         Row(
@@ -741,7 +741,7 @@ private fun ToastSurface(
                     // arguing. A wash of the colour the text is already in
                     // gives it a ground at every tone without introducing a
                     // second hue.
-                    colors = ButtonColors(
+                    colours = ButtonColours(
                         container = content.copy(alpha = ToastDefaults.ActionGround),
                         content = content,
                         border = null,

@@ -20,7 +20,7 @@ enum class TextFieldVariant { Outlined, Filled }
 
 /** Resolved colours for a text field across its states. */
 @Immutable
-data class TextFieldColors(
+data class TextFieldColours(
     val container: Color,
     val containerFocused: Color,
     val containerDisabled: Color,
@@ -87,9 +87,9 @@ object TextFieldDefaults {
 
     @Composable
     @ReadOnlyComposable
-    fun colors(variant: TextFieldVariant = TextFieldVariant.Outlined): TextFieldColors {
-        val c = Theme.colors
-        return TextFieldColors(
+    fun colours(variant: TextFieldVariant = TextFieldVariant.Outlined): TextFieldColours {
+        val c = Theme.colours
+        return TextFieldColours(
             // `invisible()`, not `Color.Transparent`. `FieldScaffold` animates
             // this to `containerFocused` and back, and `Color.Transparent` is
             // black — so an outlined field faded *through* a half-opaque

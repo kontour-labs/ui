@@ -48,7 +48,7 @@ internal val DatePickerDemo = ComponentDemo(slug = "date-picker") {
             previousIcon = Tabler.Outline.ChevronLeft,
             nextIcon = Tabler.Outline.ChevronRight,
         )
-        Text("$depart", style = Theme.typography.labelSmall, color = Theme.colors.contentMuted)
+        Text("$depart", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
     }
 }
 
@@ -121,7 +121,7 @@ internal val WheelPickerDemo = ComponentDemo(slug = "wheel-picker") {
         Text(
             "Hour ${values[index]}",
             style = Theme.typography.labelSmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }

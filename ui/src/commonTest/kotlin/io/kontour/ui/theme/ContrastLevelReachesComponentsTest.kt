@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
  * The contrast tier reaches the components, not only the palette.
  *
  * `ContrastLevel` used to reach the UI through exactly one mechanism —
- * `kontourColorScheme(dark, contrast)` picking a different `ColorScheme` — and
+ * `kontourColourScheme(dark, contrast)` picking a different `ColourScheme` — and
  * `LocalContrastLevel` was provided by the theme and **read by nothing in the
  * repo**. What a user got for asking for high contrast was `outline` jumping
  * from `#E5E5E5` to `#767676`, so every bordered thing leapt and every

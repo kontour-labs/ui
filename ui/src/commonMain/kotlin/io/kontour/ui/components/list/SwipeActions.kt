@@ -55,7 +55,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.contentColorFor
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
@@ -215,7 +215,7 @@ object SwipeActionsDefaults {
  * ```kotlin
  * SwipeActions(
  *     end = listOf(
- *         SwipeAction("Delete", Tabler.Outline.Trash, ::delete, Theme.colors.danger.solid,
+ *         SwipeAction("Delete", Tabler.Outline.Trash, ::delete, Theme.colours.danger.solid,
  *             isFullSwipeAction = true),
  *     ),
  * ) {
@@ -418,7 +418,7 @@ fun SwipeActions(
                 animationSpec = motion.tweenFast(),
                 label = "swipeDim",
             )
-            val stripColor = lerp(revealed.last().background, Color.Black, dim)
+            val stripColour = lerp(revealed.last().background, Color.Black, dim)
 
             // The area the row has vacated, plus just enough tucked under the
             // row to fill the wedge its rounded corner cuts away.
@@ -451,7 +451,7 @@ fun SwipeActions(
                         val tuck = revealedWidth.coerceAtMost(size.height / 2f)
                         val painted = (revealedWidth + tuck).coerceAtMost(size.width)
                         drawRect(
-                            color = stripColor,
+                            color = stripColour,
                             topLeft = Offset(
                                 x = if (live > 0f) 0f else size.width - painted,
                                 y = 0f,
@@ -565,14 +565,14 @@ private fun RowScope.SwipeActionButton(
     // has to stay legible while the ground behind it darkens, and picking the
     // content colour off a moving background is how a white label ends up black
     // for two frames in the middle of a gesture.
-    val content = contentColorFor(action.background)
+    val content = contentColourFor(action.background)
 
     Surface(
         modifier = Modifier
             .width(width)
             .fillMaxHeight(),
-        color = background,
-        contentColor = content,
+        colour = background,
+        contentColour = content,
         contentAlignment = Alignment.Center,
     ) {
         BoxWithConstraints(
@@ -625,7 +625,7 @@ private fun RowScope.SwipeActionButton(
                     Text(
                         text = action.label,
                         style = Theme.typography.labelSmall,
-                        color = content,
+                        colour = content,
                         maxLines = 1,
                     )
                 }
@@ -670,7 +670,7 @@ fun SwipeToDismiss(
     icon: ImageVector,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    background: Color = Theme.colors.danger.solid,
+    background: Color = Theme.colours.danger.solid,
     state: SwipeActionsState = rememberSwipeActionsState(),
     shape: Shape = Theme.shapes.container,
     content: @Composable () -> Unit,

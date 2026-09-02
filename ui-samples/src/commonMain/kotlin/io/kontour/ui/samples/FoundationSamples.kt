@@ -33,7 +33,8 @@ import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.display.Kbd
-import io.kontour.ui.components.text.KontourTextToolbar
+import io.kontour.ui.components.text.TextSelectionToolbar
+import io.kontour.ui.components.text.TextToolbarAction
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.components.text.rememberImeChain
 import io.kontour.ui.foundation.HorizontalDivider
@@ -54,7 +55,7 @@ fun TextBasics() {
     Text(
         "Platform 2 · Joondalup line",
         style = Theme.typography.bodySmall,
-        color = Theme.colors.contentMuted,
+        colour = Theme.colours.contentMuted,
     )
 
     // The `AnnotatedString` overload is why there are two: a route number in
@@ -63,7 +64,7 @@ fun TextBasics() {
     Text(
         buildAnnotatedString {
             append("The ")
-            withStyle(SpanStyle(color = Theme.colors.accent.solid)) { append("950") }
+            withStyle(SpanStyle(color = Theme.colours.accent.solid)) { append("950") }
             append(" leaves in 4 minutes.")
         },
     )
@@ -81,9 +82,9 @@ fun IconBasics() {
 
 @Composable
 fun SurfaceBasics() {
-    // No colour argument on either child: the surface set `LocalContentColor`
+    // No colour argument on either child: the surface set `LocalContentColour`
     // from its own background, and both resolve against it.
-    Surface(color = Theme.colors.primary, shape = Theme.shapes.medium, shadow = Theme.elevation.low) {
+    Surface(colour = Theme.colours.primary, shape = Theme.shapes.medium, shadow = Theme.elevation.low) {
         Column(Modifier.padding(Theme.spacing.md)) {
             Text("Perth Underground")
             Icon(Tabler.Outline.Star, contentDescription = null)
@@ -202,7 +203,7 @@ fun AspectRatioBoxBasics() {
         modifier = Modifier
             .fillMaxWidth()
             .clip(Theme.shapes.medium)
-            .background(Theme.colors.surfaceSunken),
+            .background(Theme.colours.surfaceSunken),
     ) {
         Screen()
     }
@@ -222,10 +223,14 @@ fun ImeChainBasics() {
 
 @Composable
 fun TextToolbarBasics() {
-    // Wrap the app once. Cut, copy, paste and select-all are then drawn by the
-    // library rather than by the platform, so they look the same everywhere and
-    // read their labels from `Theme.strings`.
-    KontourTextToolbar {
+    // Wrap the app once, with the items this app wants on a text selection.
+    // With no actions this does nothing at all and every platform keeps its own
+    // toolbar — which is the right default, and why the list is what you pass.
+    TextSelectionToolbar(
+        actions = listOf(
+            TextToolbarAction("Plan a trip") { /* open the planner */ },
+        ),
+    ) {
         Screen()
     }
 }

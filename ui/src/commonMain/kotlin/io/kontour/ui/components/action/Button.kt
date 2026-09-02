@@ -38,7 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Spinner
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
@@ -88,7 +88,7 @@ fun Button(
     loading: Boolean = false,
     loadingLabel: String = Theme.strings.loading,
     shape: Shape = Theme.shapes.control,
-    colors: ButtonColors = ButtonDefaults.colors(variant),
+    colours: ButtonColours = ButtonDefaults.colours(variant),
     metrics: ButtonMetrics = ButtonDefaults.metrics(size),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit
@@ -99,16 +99,16 @@ fun Button(
     val feedback = Feedback
 
     val container by animateColorAsState(
-        targetValue = colors.container(enabled),
+        targetValue = colours.container(enabled),
         animationSpec = motion.tweenFast(),
         label = "buttonContainer",
     )
-    val contentColor by animateColorAsState(
-        targetValue = colors.content(enabled),
+    val contentColour by animateColorAsState(
+        targetValue = colours.content(enabled),
         animationSpec = motion.tweenFast(),
         label = "buttonContent",
     )
-    val borderColor = colors.border(enabled)
+    val borderColour = colours.border(enabled)
 
     Row(
         modifier = modifier
@@ -136,8 +136,8 @@ fun Button(
             .clip(shape)
             .background(container, shape)
             .then(
-                if (borderColor != null) {
-                    Modifier.border(BorderStroke(Theme.sizing.borderWidthStrong, borderColor), shape)
+                if (borderColour != null) {
+                    Modifier.border(BorderStroke(Theme.sizing.borderWidthStrong, borderColour), shape)
                 } else {
                     Modifier
                 }
@@ -162,7 +162,7 @@ fun Button(
         horizontalArrangement = Arrangement.spacedBy(metrics.gap, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) {
+        CompositionLocalProvider(LocalContentColour provides contentColour) {
             ProvideTextStyle(metrics.textStyle) {
                 ButtonContent(
                     loading = loading,

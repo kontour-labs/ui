@@ -52,8 +52,8 @@ fun LinearProgress(
     progress: Float?,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
-    color: Color = Theme.colors.primary,
-    trackColor: Color = Theme.colors.outline,
+    colour: Color = Theme.colours.primary,
+    trackColour: Color = Theme.colours.outline,
     height: Dp = 6.dp,
 ) {
     val motion = Theme.motion
@@ -88,18 +88,18 @@ fun LinearProgress(
             }
     ) {
         val radius = CornerRadius(size.height / 2f)
-        drawRoundRect(color = trackColor, cornerRadius = radius)
+        drawRoundRect(color = trackColour, cornerRadius = radius)
 
         if (progress != null) {
             drawRoundRect(
-                color = color,
+                color = colour,
                 size = Size(size.width * animatedProgress, size.height),
                 cornerRadius = radius,
             )
         } else if (motion.reduceMotion) {
             // Static, so it still reads as "working" without the travel.
             drawRoundRect(
-                color = color,
+                color = colour,
                 size = Size(size.width * 0.35f, size.height),
                 cornerRadius = radius,
             )
@@ -110,7 +110,7 @@ fun LinearProgress(
             val travel = size.width + bandWidth
             val left = -bandWidth + travel * sweep
             drawRoundRect(
-                color = color,
+                color = colour,
                 topLeft = Offset(left.coerceAtLeast(0f), 0f),
                 size = Size(
                     width = (bandWidth + minOf(left, 0f))
@@ -138,8 +138,8 @@ fun CircularProgress(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     size: Dp = 40.dp,
-    color: Color = Theme.colors.primary,
-    trackColor: Color = Theme.colors.outline,
+    colour: Color = Theme.colours.primary,
+    trackColour: Color = Theme.colours.outline,
     strokeWidth: Dp = 4.dp,
 ) {
     // Indeterminate is the [Spinner], not a second sweep of the same arc.
@@ -153,7 +153,7 @@ fun CircularProgress(
         Spinner(
             modifier = modifier,
             size = size,
-            color = color,
+            colour = colour,
             strokeWidth = strokeWidth,
             contentDescription = contentDescription,
         )
@@ -180,7 +180,7 @@ fun CircularProgress(
         val arcSize = Size(this.size.width - stroke, this.size.height - stroke)
 
         drawArc(
-            color = trackColor,
+            color = trackColour,
             startAngle = 0f,
             sweepAngle = 360f,
             useCenter = false,
@@ -189,7 +189,7 @@ fun CircularProgress(
             style = Stroke(width = stroke),
         )
         drawArc(
-            color = color,
+            color = colour,
             // From twelve o'clock, like every other progress ring a user has seen.
             startAngle = -90f,
             sweepAngle = 360f * animated,
@@ -217,8 +217,8 @@ fun StepProgress(
     total: Int,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
-    color: Color = Theme.colors.primary,
-    trackColor: Color = Theme.colors.outline,
+    colour: Color = Theme.colours.primary,
+    trackColour: Color = Theme.colours.outline,
     height: Dp = 4.dp,
     gap: Dp = 4.dp,
 ) {
@@ -280,7 +280,7 @@ fun StepProgress(
         for (index in 0 until total) {
             val left = index * (segmentWidth + gapPx)
             drawRoundRect(
-                color = trackColor,
+                color = trackColour,
                 topLeft = Offset(left, 0f),
                 size = Size(segmentWidth, size.height),
                 cornerRadius = radius,
@@ -295,7 +295,7 @@ fun StepProgress(
             }
             if (fill > 0f) {
                 drawRoundRect(
-                    color = color,
+                    color = colour,
                     topLeft = Offset(left, 0f),
                     size = Size(segmentWidth * fill, size.height),
                     cornerRadius = radius,

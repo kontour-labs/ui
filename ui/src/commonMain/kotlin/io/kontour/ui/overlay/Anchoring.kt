@@ -261,7 +261,7 @@ private val ArrowOverlap: Dp = 1.dp
 /** A pointer showing which element an overlay belongs to. */
 @Immutable
 data class ArrowSpec(
-    val color: Color,
+    val colour: Color,
     val width: Dp = 14.dp,
     val height: Dp = 7.dp,
 )
@@ -361,7 +361,7 @@ internal fun AnchoredOverlayLayout(
             .drawWithContent {
                 drawContent()
                 val path = geometry.path
-                if (path != null && arrow != null) drawPath(path, arrow.color)
+                if (path != null && arrow != null) drawPath(path, arrow.colour)
             },
         content = content,
     ) { measurables, constraints ->
@@ -520,8 +520,8 @@ private fun arrowPath(
 internal fun OverlaySurface(
     modifier: Modifier = Modifier,
     shape: Shape = Theme.shapes.container,
-    color: Color = Theme.colors.surfaceRaised,
-    contentColor: Color = Theme.colors.content,
+    colour: Color = Theme.colours.surfaceRaised,
+    contentColour: Color = Theme.colours.content,
     border: Boolean = true,
     /**
      * Hands the panel's settled width down to its content.
@@ -537,10 +537,10 @@ internal fun OverlaySurface(
         modifier = modifier,
         shape = shape,
         propagateMinConstraints = propagateMinConstraints,
-        color = color,
-        contentColor = contentColor,
+        colour = colour,
+        contentColour = contentColour,
         border = if (border) {
-            BorderStroke(Theme.sizing.borderWidth, Theme.colors.outlineSubtle)
+            BorderStroke(Theme.sizing.borderWidth, Theme.colours.outlineSubtle)
         } else {
             null
         },

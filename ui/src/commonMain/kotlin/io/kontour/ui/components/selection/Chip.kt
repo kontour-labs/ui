@@ -32,7 +32,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
@@ -103,7 +103,7 @@ fun Chip(
     content: @Composable RowContentScope.() -> Unit
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val colors = Theme.colors
+    val colours = Theme.colours
     val shape = Theme.shapes.control
     val feedback = Feedback
 
@@ -115,7 +115,7 @@ fun Chip(
             .minimumTouchTarget()
             .focusRing(interactions, shape)
             .clip(shape)
-            .background(if (enabled) colors.surfaceSunken else Color.Transparent, shape)
+            .background(if (enabled) colours.surfaceSunken else Color.Transparent, shape)
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape),
@@ -126,7 +126,7 @@ fun Chip(
                     onClick()
                 },
             ),
-        contentColor = if (enabled) colors.content else colors.contentDisabled,
+        contentColour = if (enabled) colours.content else colours.contentDisabled,
         content = { KeyedChipContent(contentKey, content) },
     )
 }
@@ -191,34 +191,34 @@ fun FilterChip(
     content: @Composable RowContentScope.() -> Unit
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val shape = Theme.shapes.control
     val feedback = Feedback
 
     val container by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.accent.container.invisible()
-            selected -> colors.accent.container
-            else -> colors.accent.container.invisible()
+            !enabled -> colours.accent.container.invisible()
+            selected -> colours.accent.container
+            else -> colours.accent.container.invisible()
         },
         animationSpec = motion.tweenFast(),
         label = "chipContainer",
     )
-    val contentColor by animateColorAsState(
+    val contentColour by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.contentDisabled
-            selected -> colors.accent.onContainer
-            else -> colors.content
+            !enabled -> colours.contentDisabled
+            selected -> colours.accent.onContainer
+            else -> colours.content
         },
         animationSpec = motion.tweenFast(),
         label = "chipContent",
     )
-    val borderColor by animateColorAsState(
+    val borderColour by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.outline
-            selected -> colors.outlineStrong.invisible()
-            else -> colors.outlineStrong
+            !enabled -> colours.outline
+            selected -> colours.outlineStrong.invisible()
+            else -> colours.outlineStrong
         },
         animationSpec = motion.tweenFast(),
         label = "chipBorder",
@@ -231,7 +231,7 @@ fun FilterChip(
             .height(ChipHeight)
             .clip(shape)
             .background(container, shape)
-            .border(BorderStroke(Theme.sizing.borderWidth, borderColor), shape)
+            .border(BorderStroke(Theme.sizing.borderWidth, borderColour), shape)
             .selectable(
                 selected = selected,
                 onClick = {
@@ -248,7 +248,7 @@ fun FilterChip(
         // it in one frame when the tick leaves composition. See `AnimatedSlot`.
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) {
+        CompositionLocalProvider(LocalContentColour provides contentColour) {
             if (selectedIcon != null) {
                 AnimatedSlot(
                     visible = selected,
@@ -318,7 +318,7 @@ fun InputChip(
     content: @Composable RowContentScope.() -> Unit
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val colors = Theme.colors
+    val colours = Theme.colours
     val shape = Theme.shapes.control
     val feedback = Feedback
 
@@ -328,7 +328,7 @@ fun InputChip(
             .focusRing(interactions, shape)
             .height(ChipHeight)
             .clip(shape)
-            .background(colors.surfaceSunken, shape)
+            .background(colours.surfaceSunken, shape)
             .then(
                 if (onClick != null) {
                     Modifier.clickable(
@@ -347,7 +347,7 @@ fun InputChip(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CompositionLocalProvider(
-            LocalContentColor provides if (enabled) colors.content else colors.contentDisabled
+            LocalContentColour provides if (enabled) colours.content else colours.contentDisabled
         ) {
             ProvideTextStyle(Theme.typography.labelMedium) {
                 contentScope(
@@ -406,7 +406,7 @@ fun ChipGroup(
 @Composable
 private fun ChipSurface(
     modifier: Modifier,
-    contentColor: Color,
+    contentColour: Color,
     content: @Composable RowContentScope.() -> Unit
 ) {
     Row(
@@ -429,7 +429,7 @@ private fun ChipSurface(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) {
+        CompositionLocalProvider(LocalContentColour provides contentColour) {
             ProvideTextStyle(Theme.typography.labelMedium) {
                 contentScope(
                     iconSize = Theme.sizing.iconSmall,

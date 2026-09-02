@@ -254,7 +254,7 @@ private fun TwoPane(
  */
 @Composable
 private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
@@ -294,7 +294,7 @@ private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
             Modifier
                 .width(thickness.dp)
                 .fillMaxHeight()
-                .background(if (hovered) colors.accent.solid else colors.outline)
+                .background(if (hovered) colours.accent.solid else colours.outline)
         )
     }
 }

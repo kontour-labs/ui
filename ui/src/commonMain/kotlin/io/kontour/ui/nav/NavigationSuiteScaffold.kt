@@ -83,7 +83,7 @@ fun NavigationSuiteScaffold(
      * Set it to override both.
      */
     showLabels: Boolean? = null,
-    containerColor: Color = Theme.colors.background,
+    containerColour: Color = Theme.colours.background,
     /**
      * A search field in the bar, usually a [NavSearch].
      *
@@ -108,7 +108,7 @@ fun NavigationSuiteScaffold(
     windowInsets: WindowInsets? = null,
     content: @Composable (contentPadding: Dp) -> Unit,
 ) {
-    Surface(modifier = modifier.fillMaxSize(), color = containerColor) {
+    Surface(modifier = modifier.fillMaxSize(), colour = containerColour) {
         when (type) {
             NavigationSuiteType.Bar -> Box(Modifier.fillMaxSize()) {
                 // Measured, not calculated. A constant was wrong twice over: it

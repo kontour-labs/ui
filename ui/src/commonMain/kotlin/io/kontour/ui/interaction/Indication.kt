@@ -53,9 +53,9 @@ import kotlinx.coroutines.launch
  */
 class KontourIndication(
     private val shape: Shape,
-    private val hoverColor: Color,
-    private val pressColor: Color,
-    private val draggedColor: Color,
+    private val hoverColour: Color,
+    private val pressColour: Color,
+    private val draggedColour: Color,
     private val pressScale: Float,
     private val motion: Motion,
     private val hoverEnabled: Boolean,
@@ -65,9 +65,9 @@ class KontourIndication(
         KontourIndicationNode(
             interactionSource = interactionSource,
             shape = shape,
-            hoverColor = hoverColor,
-            pressColor = pressColor,
-            draggedColor = draggedColor,
+            hoverColour = hoverColour,
+            pressColour = pressColour,
+            draggedColour = draggedColour,
             pressScale = pressScale,
             motion = motion,
             hoverEnabled = hoverEnabled,
@@ -77,9 +77,9 @@ class KontourIndication(
         if (this === other) return true
         if (other !is KontourIndication) return false
         return shape == other.shape &&
-            hoverColor == other.hoverColor &&
-            pressColor == other.pressColor &&
-            draggedColor == other.draggedColor &&
+            hoverColour == other.hoverColour &&
+            pressColour == other.pressColour &&
+            draggedColour == other.draggedColour &&
             pressScale == other.pressScale &&
             hoverEnabled == other.hoverEnabled &&
             motion == other.motion
@@ -87,9 +87,9 @@ class KontourIndication(
 
     override fun hashCode(): Int {
         var result = shape.hashCode()
-        result = 31 * result + hoverColor.hashCode()
-        result = 31 * result + pressColor.hashCode()
-        result = 31 * result + draggedColor.hashCode()
+        result = 31 * result + hoverColour.hashCode()
+        result = 31 * result + pressColour.hashCode()
+        result = 31 * result + draggedColour.hashCode()
         result = 31 * result + pressScale.hashCode()
         result = 31 * result + hoverEnabled.hashCode()
         result = 31 * result + motion.hashCode()
@@ -100,9 +100,9 @@ class KontourIndication(
 private class KontourIndicationNode(
     private val interactionSource: InteractionSource,
     private val shape: Shape,
-    private val hoverColor: Color,
-    private val pressColor: Color,
-    private val draggedColor: Color,
+    private val hoverColour: Color,
+    private val pressColour: Color,
+    private val draggedColour: Color,
     private val pressScale: Float,
     private val motion: Motion,
     private val hoverEnabled: Boolean,
@@ -112,7 +112,7 @@ private class KontourIndicationNode(
     private val scale = Animatable(1f)
 
     /** The wash currently being drawn. Press wins over drag, drag over hover. */
-    private var overlayColor: Color = Color.Transparent
+    private var overlayColour: Color = Color.Transparent
 
     override fun onAttach() {
         coroutineScope.launch {
@@ -135,14 +135,14 @@ private class KontourIndicationNode(
                 val hovered = hovers > 0 && hoverEnabled
 
                 val target = when {
-                    pressed -> pressColor
-                    dragged -> draggedColor
-                    hovered -> hoverColor
+                    pressed -> pressColour
+                    dragged -> draggedColour
+                    hovered -> hoverColour
                     else -> Color.Transparent
                 }
 
                 if (target != Color.Transparent) {
-                    overlayColor = target
+                    overlayColour = target
                 }
 
                 launch {
@@ -191,7 +191,7 @@ private class KontourIndicationNode(
     }
 
     private fun DrawScope.drawWash(alpha: Float) {
-        val wash = overlayColor.copy(alpha = alpha)
+        val wash = overlayColour.copy(alpha = alpha)
         if (shape === RectangleShape) {
             drawRect(color = wash)
         } else {
@@ -217,15 +217,15 @@ fun kontourIndication(
     shape: Shape = RectangleShape,
     pressScale: Float = DefaultPressScale,
 ): IndicationNodeFactory {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val hoverEnabled = LocalInputModality.current.supportsHover
-    return remember(shape, pressScale, colors, motion, hoverEnabled) {
+    return remember(shape, pressScale, colours, motion, hoverEnabled) {
         KontourIndication(
             shape = shape,
-            hoverColor = colors.overlayHover,
-            pressColor = colors.overlayPressed,
-            draggedColor = colors.overlayDragged,
+            hoverColour = colours.overlayHover,
+            pressColour = colours.overlayPressed,
+            draggedColour = colours.overlayDragged,
             pressScale = pressScale,
             motion = motion,
             hoverEnabled = hoverEnabled,

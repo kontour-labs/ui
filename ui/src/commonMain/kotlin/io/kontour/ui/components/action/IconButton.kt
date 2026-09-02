@@ -37,7 +37,7 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.strikethrough
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
@@ -100,7 +100,7 @@ fun IconButton(
     size: ButtonSize = ButtonSize.Medium,
     shape: Shape = Theme.shapes.control,
     rotation: Float = 0f,
-    colors: ButtonColors = ButtonDefaults.colors(variant),
+    colours: ButtonColours = ButtonDefaults.colours(variant),
     metrics: ButtonMetrics = ButtonDefaults.metrics(size),
     interactionSource: MutableInteractionSource? = null,
 ) {
@@ -116,7 +116,7 @@ fun IconButton(
         loading = loading,
         shape = shape,
         rotation = rotation,
-        colors = colors,
+        colours = colours,
         metrics = metrics,
         interactions = interactions,
         indication = kontourIndication(
@@ -208,11 +208,11 @@ fun IconToggleButton(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
-    val checkedColors = ButtonDefaults.colors(ButtonVariant.Tertiary)
-    val uncheckedColors = ButtonDefaults.colors(ButtonVariant.Ghost)
-    val accentColors = checkedColors.copy(
-        container = Theme.colors.accent.container,
-        content = Theme.colors.accent.onContainer,
+    val checkedColours = ButtonDefaults.colours(ButtonVariant.Tertiary)
+    val uncheckedColours = ButtonDefaults.colours(ButtonVariant.Ghost)
+    val accentColours = checkedColours.copy(
+        container = Theme.colours.accent.container,
+        content = Theme.colours.accent.onContainer,
     )
 
     // A struck glyph carries its own state, so the container stays out of it.
@@ -253,7 +253,7 @@ fun IconToggleButton(
         enabled = enabled,
         shape = shape,
         rotation = 0f,
-        colors = if (checked && !struck) accentColors else uncheckedColors,
+        colours = if (checked && !struck) accentColours else uncheckedColours,
         metrics = ButtonDefaults.metrics(size),
         interactions = interactions,
         // An inert toggle still gets an indication node; it simply never sees a
@@ -308,7 +308,7 @@ private fun IconButtonSurface(
     strike: (() -> Float)? = null,
     shape: Shape,
     rotation: Float,
-    colors: ButtonColors,
+    colours: ButtonColours,
     metrics: ButtonMetrics,
     interactions: MutableInteractionSource,
     behaviour: Modifier,
@@ -318,12 +318,12 @@ private fun IconButtonSurface(
     val motion = Theme.motion
 
     val container by animateColorAsState(
-        targetValue = colors.container(enabled),
+        targetValue = colours.container(enabled),
         animationSpec = motion.tweenFast(),
         label = "iconButtonContainer",
     )
-    val contentColor by animateColorAsState(
-        targetValue = colors.content(enabled),
+    val contentColour by animateColorAsState(
+        targetValue = colours.content(enabled),
         animationSpec = motion.tweenFast(),
         label = "iconButtonContent",
     )
@@ -334,7 +334,7 @@ private fun IconButtonSurface(
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "iconButtonRotation",
     )
-    val borderColor = colors.border(enabled)
+    val borderColour = colours.border(enabled)
     // The control height, not the icon plus a padding of its own.
     //
     // It used to be `iconSize + iconOnlyPadding * 2`, which is a second way of
@@ -363,8 +363,8 @@ private fun IconButtonSurface(
             .clip(shape)
             .background(container, shape)
             .then(
-                if (borderColor != null) {
-                    Modifier.border(BorderStroke(Theme.sizing.borderWidthStrong, borderColor), shape)
+                if (borderColour != null) {
+                    Modifier.border(BorderStroke(Theme.sizing.borderWidthStrong, borderColour), shape)
                 } else {
                     Modifier
                 }
@@ -372,7 +372,7 @@ private fun IconButtonSurface(
             .then(behaviour),
         contentAlignment = Alignment.Center,
     ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) {
+        CompositionLocalProvider(LocalContentColour provides contentColour) {
             LoadingSwap(loading = loading, spinnerSize = metrics.iconSize) {
                 if (crossFadeIcon) {
                     AnimatedContent(
@@ -390,7 +390,7 @@ private fun IconButtonSurface(
                             contentDescription = contentDescription,
                             modifier = Modifier
                                 .rotate(animatedRotation)
-                                .slash(strike, contentColor, container),
+                                .slash(strike, contentColour, container),
                             size = metrics.iconSize,
                         )
                     }
@@ -400,7 +400,7 @@ private fun IconButtonSurface(
                         contentDescription = contentDescription,
                         modifier = Modifier
                             .rotate(animatedRotation)
-                            .slash(strike, contentColor, container),
+                            .slash(strike, contentColour, container),
                         size = metrics.iconSize,
                     )
                 }
@@ -418,14 +418,14 @@ private fun IconButtonSurface(
  */
 private fun Modifier.slash(
     strike: (() -> Float)?,
-    color: Color,
+    colour: Color,
     container: Color,
 ): Modifier = if (strike == null) {
     this
 } else {
     strikethrough(
         progress = strike,
-        color = color,
+        colour = colour,
         halo = container,
         width = StrikeWidth,
     )

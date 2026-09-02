@@ -61,7 +61,7 @@ fun RelativeTimeText(
     until: Duration,
     modifier: Modifier = Modifier,
     style: TextStyle = LocalTextStyle.current,
-    color: Color = Color.Unspecified,
+    colour: Color = Color.Unspecified,
     imminentThreshold: Duration = 30.seconds,
     announce: Boolean = true,
     animateValue: Boolean = false,
@@ -92,7 +92,7 @@ fun RelativeTimeText(
     }
 
     if (!animateValue || parts.amount == null) {
-        Text(text = spoken, modifier = announced, style = style, color = color)
+        Text(text = spoken, modifier = announced, style = style, colour = colour)
         return
     }
 
@@ -106,11 +106,11 @@ fun RelativeTimeText(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (parts.prefix.isNotEmpty()) {
-            Text(text = parts.prefix, style = style, color = color)
+            Text(text = parts.prefix, style = style, colour = colour)
         }
-        AnimatedCounter(value = parts.amount, style = style, color = color)
+        AnimatedCounter(value = parts.amount, style = style, colour = colour)
         if (parts.suffix.isNotEmpty()) {
-            Text(text = parts.suffix, style = style, color = color)
+            Text(text = parts.suffix, style = style, colour = colour)
         }
     }
 }

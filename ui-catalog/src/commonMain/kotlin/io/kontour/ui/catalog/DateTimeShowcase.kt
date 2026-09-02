@@ -32,7 +32,7 @@ import kotlinx.datetime.LocalTime
 fun DateTimeShowcase(modifier: Modifier = Modifier) {
     val today = LocalDate(2026, 6, 12)
 
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Panels {
             Panel(width = 360.dp, spacing = Theme.spacing.md) {
                 Section("Date picker") {
@@ -123,7 +123,7 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                     Text(
                         text = "Tapping opens a TimePicker in a sheet",
                         style = Theme.typography.bodySmall,
-                        color = Theme.colors.contentMuted,
+                        colour = Theme.colours.contentMuted,
                     )
 
                     ModalBottomSheet(
