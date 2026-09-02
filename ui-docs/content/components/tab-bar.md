@@ -34,14 +34,39 @@ single control with a moving part. It used to be a bar sliding along the bottom
 edge with a full-width rule under it, which was the most Material thing in the
 library and had no counterpart on any other platform. The mechanism is unchanged
 — the same shared indicator box, the same anchor arithmetic — it just says the
-same thing in the library's own vocabulary, which is already full of pills. The
-hairline rule under the bar stays: it was never the Android tell, and a bar
-squeezed narrow enough to clip its labels draws *nothing at all* without it —
-which `WidthSweepTest` says out loud.
+same thing in the library's own vocabulary, which is already full of pills.
+
+The hairline rule under the bar used to stay, on the grounds that a bar squeezed
+narrow enough to clip its labels draws *nothing at all* without it. That was
+true, and it is not any more — see below — so `showDivider` now defaults to
+`false`, matching [`TopBar`](top-bar.md). A pill *and* a full-width rule is the
+sliding-underline bar wearing a different hat, and it is the one thing this bar
+had that no other navigation surface in the library does.
 
 **Reach for `SegmentedControl` instead** when you are switching a *value* rather
 than a view. Tabs announce `Role.Tab`; segments announce `Role.RadioButton`, and
 a screen reader user acts on that difference.
+
+### The marker is sized to the bar, not to the label
+
+`TabBar` is `TabBarDefaults.Height` tall and each tab fills it, so the pill
+is that height less one grid step of air above and below — 40dp in a 48dp bar,
+on every platform.
+
+That last clause is the point. The pill used to be inset from the tab's *own*
+box, and a tab is only as tall as its label plus padding unless
+`minimumTouchTarget()` grows it — which it does to `Sizing.minTouchTarget`:
+**24dp on desktop, 44 on iOS and web, 48 on Android**. So the same bar drew a
+24dp marker on one platform, a 32dp one on another and a 36dp one on a third,
+inside a bar that is 48dp on all of them. On desktop that is a 97 × 24dp lozenge
+— four times as wide as it is tall — floating in the middle of a bar twice its
+height. Every other marker in the library is either a constant (the nav bar's
+`Fixed(56, 32)`) or exactly the row it marks (the rail's and drawer's
+`Inset(vertical = 0.dp)`); this was the only one whose proportions were a
+platform guideline.
+
+A pill sized to the bar is also what lets the rule go: a squeezed bar still
+draws 40dp of marker whatever happens to its labels.
 
 ### When the labels do not fit
 

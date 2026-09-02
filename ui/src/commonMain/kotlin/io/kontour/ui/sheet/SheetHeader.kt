@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.CentredBar
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColor
 import io.kontour.ui.foundation.ProvideTextStyle
@@ -219,15 +220,12 @@ enum class SheetHeaderStyle {
      * For a sheet with a control on both sides — a close on one, an action on
      * the other — where a leading title reads off-balance against them.
      *
-     * Centred in the room the controls leave rather than in the header, which
-     * is the same thing [io.kontour.ui.nav.TopBarStyle.Centred] does and the
-     * same thing that has been reported against it: with controls on one side
-     * only, the title sits visibly left of the middle. Balancing it by mirroring
-     * the controls' width onto the other side is arithmetically right and starves
-     * the title — at a 340dp panel it broke "Perth Underground" mid-word — so the
-     * real answer is a layout that centres against the full width and only takes
-     * the inset it can afford. That is one fix for both components rather than
-     * two, and it belongs with the top bar's.
+     * Centred on the **header**, not on the room its controls left over — see
+     * [io.kontour.ui.foundation.CentredBar], which this and
+     * [io.kontour.ui.nav.TopBarStyle.Centred] share. Both were reported for the
+     * same defect and both had the same cause: a weighted title in a row is
+     * centred between the two sides, which is the middle only when they happen
+     * to be the same width.
      */
     Centred,
 
@@ -299,12 +297,12 @@ fun SheetHeader(
     }
 
     @Composable
-    fun Title(textStyle: TextStyle, centred: Boolean) {
+    fun Title(textStyle: TextStyle, centred: Boolean, modifier: Modifier = Modifier) {
         Column(
             // Full width, or the alignment has nothing to align against: a Column
             // that wraps its content is already exactly as wide as the text in it,
             // and centring inside that is a no-op.
-            modifier = Modifier.fillMaxWidth(),
+            modifier = modifier.fillMaxWidth(),
             horizontalAlignment = if (centred) Alignment.CenterHorizontally else Alignment.Start,
         ) {
             slots.label?.let { title ->
@@ -332,20 +330,28 @@ fun SheetHeader(
     )
 
     when (style) {
-        SheetHeaderStyle.Small, SheetHeaderStyle.Centred -> Row(
+        SheetHeaderStyle.Small, SheetHeaderStyle.Centred -> CentredBar(
             modifier = modifier.fillMaxWidth().then(padding),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            slots.leading?.let { leading -> ContentSlot(content = leading) }
-            Box(Modifier.weight(1f)) {
+            centred = style == SheetHeaderStyle.Centred,
+            leading = {
+                slots.leading?.let { leading -> ContentSlot(content = leading) }
+            },
+            title = {
                 Title(
                     textStyle = Theme.typography.titleMedium,
                     centred = style == SheetHeaderStyle.Centred,
+                    modifier = Modifier.padding(horizontal = Theme.spacing.sm),
                 )
-            }
-            Controls(this)
-        }
+            },
+            trailing = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Controls(this)
+                }
+            },
+        )
 
         // Controls first, title under them. The title gets the whole width, so
         // it is the one thing here that never has to truncate around a button.

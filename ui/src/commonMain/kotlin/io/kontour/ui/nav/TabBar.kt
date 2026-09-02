@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -112,7 +113,16 @@ fun TabBar(
     scrollable: Boolean = false,
     containerColor: Color = Color.Transparent,
     indicatorColor: Color = Theme.colors.accent.container,
-    showDivider: Boolean = true,
+    /**
+     * A rule under the bar.
+     *
+     * Off, like [TopBar]'s. The travelling pill *is* the selection, and a
+     * full-width rule beneath it is the other half of the sliding-underline bar
+     * this deliberately is not — a tab row that draws both reads as a Material
+     * component with a pill bolted on, which is exactly how it was reported.
+     * Callers who need the bar separated from what is under it can still ask.
+     */
+    showDivider: Boolean = false,
     /**
      * Controls at the trailing edge — an overflow menu, a filter.
      *
@@ -153,7 +163,30 @@ fun TabBar(
                     // mechanism — the shared indicator box, the same anchor
                     // arithmetic — saying the same thing in the library's own
                     // vocabulary, which is already full of pills.
-                    sizing = IndicatorSizing.Inset(horizontal = 2.dp, vertical = 6.dp),
+                    // Inset by one grid step from the tab, which is the rail's
+                    // and the drawer's rule and now means something here: a tab
+                    // fills the bar's height, so the pill is 40dp inside a 48dp
+                    // bar on every platform.
+                    //
+                    // It used to be `Inset(2.dp, 6.dp)` from a tab that was
+                    // only as tall as its own label plus padding, or as tall as
+                    // `minimumTouchTarget()` made it — whichever is more. And
+                    // that floor is `platformMinTouchTarget`: 24dp on the JVM,
+                    // 44 on iOS and web, 48 on Android. So
+                    // the marker came out 24dp tall on desktop, 32 on a phone
+                    // browser and 36 on Android, in a bar that is 48dp on all
+                    // three. Measured on the desktop showcase: a 97×24dp
+                    // lozenge, four times as wide as it was tall, floating in
+                    // the middle of a bar twice its height, with barely 2dp of
+                    // it below the label's ink. Every other marker in the
+                    // library is either sized to a constant (the bar's
+                    // `Fixed(56, 32)`) or exactly the row it marks (the rail's
+                    // and drawer's `Inset(vertical = 0.dp)`); this was the only
+                    // one whose proportions were a platform constant.
+                    sizing = IndicatorSizing.Inset(
+                        horizontal = Theme.spacing.xxs,
+                        vertical = Theme.spacing.xxs,
+                    ),
                     indicator = {
                         Box(
                             Modifier
@@ -263,7 +296,16 @@ fun TabBarScope.Tab(
     Row(
         modifier = modifier
             .then(if (fixed) with(row) { Modifier.weight(1f) } else Modifier)
+            // The bar's full height, and this is what makes the indicator a
+            // fixed size: the marker is inset from *this* node, and without the
+            // fill it was inset from whatever `minimumTouchTarget` happened to
+            // reserve on the platform — 24dp on the JVM, 48 on Android. It also
+            // makes the whole 48dp band tappable on desktop rather than the
+            // 36dp the label occupied.
+            .fillMaxHeight()
             .selectionIndicatorItem(key, selected)
+            // Kept for a tab measured outside the bar's fixed-height row, where
+            // the fill above has no bounded height to take.
             .minimumTouchTarget()
             .focusRing(interactions, Theme.shapes.control)
             .clip(Theme.shapes.control)
@@ -283,7 +325,9 @@ fun TabBarScope.Tab(
                     onClick()
                 },
             )
-            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.xs),
+            // Horizontal only: the tab's height is the bar's, and the label is
+            // centred in it by the arrangement below.
+            .padding(horizontal = Theme.spacing.md),
         // Centred, because a fixed tab is now as wide as its share of the bar
         // rather than as wide as its label: laid out from the start edge, three
         // tabs of one width each read as a row shoved to the left, with the

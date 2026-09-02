@@ -25,11 +25,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.Calendar
 import com.composables.icons.tabler.outline.DotsVertical
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
+import com.composables.icons.tabler.outline.Pin
 import com.composables.icons.tabler.outline.Search
+import com.composables.icons.tabler.outline.Trash
 import com.composables.icons.tabler.outline.User
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.components.action.ButtonSize
@@ -52,6 +55,8 @@ import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
+import io.kontour.ui.overlay.DropdownMenu
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
 
@@ -181,15 +186,52 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                 Panel(width = 520.dp, spacing = Theme.spacing.md) {
                     Section("Tabs — within one screen") {
                         var tab by remember { mutableStateOf(1) }
+                        var overflow by remember { mutableStateOf(false) }
+                        // The bar's overflow menu renders into a host, and this
+                        // panel is the honest one to give it: a menu opened from
+                        // a tab bar belongs over the screen the tabs are on, not
+                        // over the gallery page they are being shown on.
+                        OverlayHost(Modifier.fillMaxWidth()) {
                         TabBar(
                             actions = {
-                                IconButton(
-                                    icon = Tabler.Outline.DotsVertical,
-                                    contentDescription = "More",
-                                    onClick = tap("More"),
-                                    variant = ButtonVariant.Ghost,
-                                    size = ButtonSize.Small,
-                                )
+                                // A real menu, not a button that echoes its own
+                                // name: the overflow slot exists because some
+                                // actions do not fit in the row, and what it
+                                // opens is the library's own `DropdownMenu`.
+                                Box {
+                                    IconButton(
+                                        icon = Tabler.Outline.DotsVertical,
+                                        contentDescription = "More",
+                                        onClick = { overflow = !overflow },
+                                        variant = ButtonVariant.Ghost,
+                                        size = ButtonSize.Small,
+                                    )
+                                    DropdownMenu(
+                                        visible = overflow,
+                                        onDismissRequest = { overflow = false },
+                                        alignment = OverlayAlignment.End,
+                                    ) {
+                                        // The rows dismiss the menu themselves
+                                        // — see `MenuScopeImpl.item`.
+                                        item(
+                                            "Pin this stop",
+                                            icon = Tabler.Outline.Pin,
+                                            onClick = tap("Pin this stop"),
+                                        )
+                                        item(
+                                            "Alert settings",
+                                            icon = Tabler.Outline.Bell,
+                                            onClick = tap("Alert settings"),
+                                        )
+                                        divider()
+                                        item(
+                                            "Remove stop",
+                                            icon = Tabler.Outline.Trash,
+                                            destructive = true,
+                                            onClick = tap("Remove stop"),
+                                        )
+                                    }
+                                }
                             },
                         ) {
                             Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) {
@@ -201,6 +243,7 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                             Tab(selected = tab == 2, onClick = { tab = 2 }, key = 2, badge = 2) {
                                 +"Alerts"
                             }
+                        }
                         }
                     }
 

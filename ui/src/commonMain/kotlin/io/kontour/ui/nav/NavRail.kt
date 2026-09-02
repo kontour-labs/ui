@@ -7,19 +7,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -29,6 +30,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.adaptive.leadingEdges
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.IndicatorEdge
 import io.kontour.ui.foundation.IndicatorSizing
@@ -36,7 +38,6 @@ import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
-import io.kontour.ui.adaptive.leadingEdges
 import io.kontour.ui.motion.ChevronTurn
 import io.kontour.ui.theme.Theme
 
@@ -230,54 +231,74 @@ fun NavRail(
             // different one has `ColumnScope` to say so with.
             Box(Modifier.padding(start = Theme.spacing.sm)) { header?.invoke(this@Column) }
 
-            // Always emitted, so the destinations can be centred or pushed. The
-            // old version only added a spacer when there was an action, which
-            // left the items top-aligned with no way to move them.
-            if (itemAlignment != Alignment.Top) Spacer(Modifier.weight(1f))
-
-            SelectionIndicatorBox(
-                state = indicator,
-                // A pill around the whole row, travelling between destinations.
-                // The bar's pill is sized to its icon; a rail row is wider than
-                // that, so the marker follows the row instead.
-                // Narrower than the row, and exactly as tall. Inset on both
-                // axes the pill lost 8dp of its height and the label sat hard
-                // against its edge.
-                sizing = IndicatorSizing.Inset(
-                    horizontal = Theme.spacing.xxs,
-                    vertical = 0.dp,
-                ),
-                indicator = {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .clip(Theme.shapes.pill)
-                            .background(indicatorColor)
-                    )
+            // One box for all the room between the header and the action, with
+            // the destinations scrolling inside it.
+            //
+            // It was a `Spacer(weight(1f))` either side of the destinations,
+            // which is fine until the rail is shorter than they are: a `Column`
+            // measures its children in order against the room that is left, so
+            // the ones at the end are measured against nothing. Measured on a
+            // 300px rail with nine destinations, three were drawn — at 45, 41
+            // and 41 pixels — and the other six were not drawn at all. A
+            // destination shorter than the one above it reads as a rendering
+            // fault; one that is missing cannot be reached.
+            //
+            // A box takes exactly the leftover and aligns what is inside it, so
+            // [itemAlignment] still means what it did. The scroll only engages
+            // when the destinations are taller than that leftover, which is the
+            // case that was broken and the only one where anything changes.
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = when (itemAlignment) {
+                    Alignment.Bottom -> Alignment.BottomStart
+                    Alignment.CenterVertically -> Alignment.CenterStart
+                    else -> Alignment.TopStart
                 },
             ) {
-                Column(
-                    modifier = Modifier.selectableGroup(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                ) {
-                    items.forEachIndexed { index, item ->
-                        NavRailItem(
-                            item = item,
-                            selected = index == selectedIndex,
-                            showLabel = itemLabels,
-                            // Full width whether stacked or inline, so the
-                            // leading-edge marker sits at the same x for every
-                            // destination. Sized to content instead, the bar
-                            // would shift sideways as it moved between a short
-                            // label and a long one.
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    SelectionIndicatorBox(
+                        state = indicator,
+                        // A pill around the whole row, travelling between destinations.
+                        // The bar's pill is sized to its icon; a rail row is wider than
+                        // that, so the marker follows the row instead.
+                        // Narrower than the row, and exactly as tall. Inset on both
+                        // axes the pill lost 8dp of its height and the label sat hard
+                        // against its edge.
+                        sizing = IndicatorSizing.Inset(
+                            horizontal = Theme.spacing.xxs,
+                            vertical = 0.dp,
+                        ),
+                        indicator = {
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .clip(Theme.shapes.pill)
+                                    .background(indicatorColor)
+                            )
+                        },
+                    ) {
+                        Column(
+                            modifier = Modifier.selectableGroup(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                        ) {
+                            items.forEachIndexed { index, item ->
+                                NavRailItem(
+                                    item = item,
+                                    selected = index == selectedIndex,
+                                    showLabel = itemLabels,
+                                    // Full width whether stacked or inline, so the
+                                    // leading-edge marker sits at the same x for every
+                                    // destination. Sized to content instead, the bar
+                                    // would shift sideways as it moved between a short
+                                    // label and a long one.
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
                     }
                 }
             }
-
-            Spacer(Modifier.weight(1f))
             Box(Modifier.padding(start = Theme.spacing.sm)) { action?.invoke(this@Column) }
         }
     }

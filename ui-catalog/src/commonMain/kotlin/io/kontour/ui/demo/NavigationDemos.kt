@@ -20,24 +20,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.Calendar
 import com.composables.icons.tabler.outline.DotsVertical
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
+import com.composables.icons.tabler.outline.Pin
 import com.composables.icons.tabler.outline.Search
+import com.composables.icons.tabler.outline.Trash
 import com.composables.icons.tabler.outline.User
 import io.kontour.ui.adaptive.WindowSizeClassProvider
+import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.FabSize
 import io.kontour.ui.components.action.FloatingActionButton
-import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
-import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.ModalNavDrawer
+import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavRail
 import io.kontour.ui.nav.NavigationSuiteScaffold
@@ -46,6 +49,8 @@ import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
+import io.kontour.ui.overlay.DropdownMenu
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
 
@@ -178,18 +183,46 @@ internal val TopBarDemo = ComponentDemo(
         style = style,
         onBack = if (back) ({ echo("Back") }) else null,
         showDivider = true,
-        actions = {
-            IconButton(
-                icon = Tabler.Outline.DotsVertical,
-                contentDescription = "More",
-                onClick = { echo("More") },
-                variant = ButtonVariant.Ghost,
-                size = ButtonSize.Small,
-            )
-        },
+        actions = { OverflowMenu(::echo) },
     ) {
         +"Perth Underground"
         supporting { +"Platform 2 · Joondalup line" }
+    }
+}
+
+/**
+ * The overflow button both bars carry, and what it opens.
+ *
+ * A button labelled "More" that echoes the word "More" demonstrates nothing —
+ * the point of an overflow slot is the menu behind it, so this is the library's
+ * own [DropdownMenu] with rows a transit app would really put there.
+ */
+@Composable
+private fun OverflowMenu(echo: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            icon = Tabler.Outline.DotsVertical,
+            contentDescription = "More",
+            onClick = { open = !open },
+            variant = ButtonVariant.Ghost,
+            size = ButtonSize.Small,
+        )
+        DropdownMenu(
+            visible = open,
+            onDismissRequest = { open = false },
+            // Opened from the trailing edge, so it hangs back into the bar
+            // rather than off the side of it.
+            alignment = OverlayAlignment.End,
+        ) {
+            // The rows dismiss the menu themselves — see `MenuScopeImpl.item`.
+            item("Pin this stop", icon = Tabler.Outline.Pin) { echo("Pin this stop") }
+            item("Alert settings", icon = Tabler.Outline.Bell) { echo("Alert settings") }
+            divider()
+            item("Remove stop", icon = Tabler.Outline.Trash, destructive = true) {
+                echo("Remove stop")
+            }
+        }
     }
 }
 
@@ -197,15 +230,7 @@ internal val TabBarDemo = ComponentDemo(slug = "tab-bar") {
     var tab by remember { mutableStateOf(1) }
     TabBar(
         modifier = Modifier.fillMaxWidth(),
-        actions = {
-            IconButton(
-                icon = Tabler.Outline.DotsVertical,
-                contentDescription = "More",
-                onClick = { echo("More") },
-                variant = ButtonVariant.Ghost,
-                size = ButtonSize.Small,
-            )
-        },
+        actions = { OverflowMenu(::echo) },
     ) {
         Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) { +"Departures" }
         Tab(selected = tab == 1, onClick = { tab = 1 }, key = 1) { +"Route map" }
