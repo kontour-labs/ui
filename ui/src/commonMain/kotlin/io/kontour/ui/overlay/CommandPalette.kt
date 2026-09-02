@@ -126,6 +126,16 @@ fun CommandPalette(
      * bottom, which read as the component being broken.
      */
     topInset: Dp = CommandPaletteDefaults.TopInset,
+    /**
+     * Whether the user can close it without the app's help — the tap outside,
+     * the back gesture, Escape.
+     *
+     * The one modal surface in the library that had no such knob, which is the
+     * kind of gap that only shows up when somebody goes looking for it. `false`
+     * is rare here — a palette is opened by the user and closing it is free —
+     * but a palette that is the only way through a required step is a real case.
+     */
+    dismissible: Boolean = true,
     filter: (String, Command) -> Boolean = ::commandMatches,
 ) {
     val host = LocalOverlayHost.current
@@ -134,6 +144,7 @@ fun CommandPalette(
     val latestFilter by rememberUpdatedState(filter)
     val latestDismiss by rememberUpdatedState(onDismissRequest)
     val latestTopInset by rememberUpdatedState(topInset)
+    val latestDismissible by rememberUpdatedState(dismissible)
 
     LaunchedEffect(visible, key) {
         if (visible) {
@@ -142,7 +153,7 @@ fun CommandPalette(
                     key = key,
                     layer = OverlayLayer.Dialog,
                     scrim = ScrimStyle.Dimmed,
-                    dismissOnOutside = true,
+                    dismissOnOutside = latestDismissible,
                     dismissLabel = "Dismiss",
                     trapFocus = true,
                     onDismiss = { latestDismiss() },
@@ -170,6 +181,7 @@ fun CommandPalette(
                                 width = width,
                                 maxHeight = maxHeight,
                                 onDismissRequest = { latestDismiss() },
+                                dismissible = latestDismissible,
                             )
                         }
                     },
@@ -192,6 +204,7 @@ private fun PaletteBody(
     width: Dp,
     maxHeight: Dp,
     onDismissRequest: () -> Unit,
+    dismissible: Boolean,
 ) {
     val text = query.text.toString()
     val matches = remember(text, commands) {
@@ -255,7 +268,15 @@ private fun PaletteBody(
                     }
 
                     Key.Escape -> {
-                        onDismissRequest()
+                        // Gated, unlike the close after a command runs: escaping
+                        // is the user leaving without an answer, which is the
+                        // thing `dismissible` is about. Running something *is*
+                        // the answer, so that always closes.
+                        //
+                        // Swallowed either way. A palette that cannot be
+                        // dismissed must not let Escape past it to whatever is
+                        // underneath, which would close that instead.
+                        if (dismissible) onDismissRequest()
                         true
                     }
 

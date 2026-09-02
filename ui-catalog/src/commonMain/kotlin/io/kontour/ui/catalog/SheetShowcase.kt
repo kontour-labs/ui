@@ -33,6 +33,7 @@ import io.kontour.ui.sheet.BottomSheet
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetHeader
+import io.kontour.ui.sheet.SheetHeaderStyle
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.sheet.rememberSheetState
@@ -59,7 +60,7 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                 MapStandIn()
                 BottomSheet(
                     state = sheet,
-                    actions = {
+                    floatingControls = {
                         IconButton(
                             icon = Tabler.Outline.CurrentLocation,
                             contentDescription = "Recentre",
@@ -119,6 +120,45 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                             variant = ButtonVariant.Ghost,
                         ) {
                             +"Cancel"
+                        }
+                    }
+                }
+            }
+
+            SheetPanel("Header sizes") {
+                // Outside a sheet on purpose: the three styles are about the
+                // header's own shape, and a sheet around each one would be 560dp
+                // of panel showing three title rows.
+                // Centred by arrangement rather than by `align`: `SheetPanel`'s
+                // slot is a plain `@Composable () -> Unit`, so there is no
+                // `BoxScope` here to align against.
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(Theme.spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(
+                        space = Theme.spacing.sm,
+                        alignment = Alignment.CenterVertically,
+                    ),
+                ) {
+                    for (style in SheetHeaderStyle.entries) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = Theme.shapes.container,
+                            color = Theme.colors.surfaceRaised,
+                        ) {
+                            SheetHeader(
+                                style = style,
+                                onClose = tap("Close"),
+                                actions = {
+                                    IconButton(
+                                        Tabler.Outline.Star,
+                                        "Add to favourites",
+                                        onClick = tap("Favourite"),
+                                    )
+                                },
+                            ) {
+                                +"Perth Underground"
+                                supporting { +style.name }
+                            }
                         }
                     }
                 }

@@ -99,7 +99,7 @@ fun SideSheet(
     containerColor: Color = Theme.colors.surfaceRaised,
     contentColor: Color = Theme.colors.content,
     scrim: ScrimStyle = ScrimStyle.Dimmed,
-    dismissOnOutside: Boolean = true,
+    dismissible: Boolean = true,
     dismissLabel: String = Theme.strings.close,
     /**
      * Shown as a back arrow at the sheet's leading edge, above the content.
@@ -157,7 +157,7 @@ fun SideSheet(
                 } else {
                     BackdropStyle.None
                 },
-                dismissOnOutside = dismissOnOutside,
+                dismissOnOutside = dismissible,
                 dismissLabel = dismissLabel,
                 onDismiss = { dismiss() },
                 content = {

@@ -111,7 +111,7 @@ internal val BottomSheetDemo = ComponentDemo(slug = "bottom-sheet") {
     Screen {
         BottomSheet(
             state = sheet,
-            actions = {
+            floatingControls = {
                 IconButton(
                     icon = Tabler.Outline.CurrentLocation,
                     contentDescription = "Recentre",

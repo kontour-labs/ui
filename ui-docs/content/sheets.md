@@ -214,5 +214,17 @@ top of the content still closed a sheet that cannot be dragged.
 The scrim follows the sheet's visible height, so a sheet that cannot be dragged
 also cannot fade its scrim halfway — there is no halfway for it to be at.
 
-`dismissOnOutside = false` is the other half, and it already existed: it stops a
-scrim tap closing a modal sheet or a dialog. `SheetDraggableTest` covers both.
+`dismissible = false` is the other half, and it is a different question:
+`draggable` is about whether the sheet *moves*, this is about whether the user can
+get *out*. It closes every route — the tap outside, the back gesture, and a drag
+to the bottom, which springs back instead of closing. A sheet can be
+undismissable and still be dragged freely between its detents.
+
+It was called `dismissOnOutside` and covered only the tap, which was the wrong
+name for a surface with three ways out of it. The same parameter, under the same
+name, is now on `Dialog`, `AlertDialog`, `SideSheet` and `CommandPalette` — the
+palette had never had one.
+
+Pair it with `onClose = null` on the `SheetHeader`, or the sheet grows a close
+button that contradicts it. `SheetDraggableTest` covers the tap, the drag and the
+spring back.

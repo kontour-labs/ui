@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.IconButton
@@ -195,6 +198,50 @@ fun closeEnclosingSheet(): (() -> Unit)? {
 }
 
 /**
+ * How much room a [SheetHeader] takes, and where its title sits.
+ *
+ * The same three a [io.kontour.ui.nav.TopBarStyle] offers, and deliberately the
+ * same names: a sheet that is a screen wants the same vocabulary as the screen
+ * it replaced, and a caller who has met one should not have to learn the other.
+ *
+ * There is no collapse-on-scroll here, which is the one thing [Large] does at
+ * the top of a page and cannot do on a sheet: a sheet already answers the same
+ * gesture by moving between its detents, and two things responding to one drag
+ * is the sheet fighting its own header.
+ */
+enum class SheetHeaderStyle {
+    /** One line, title on the leading side. The default. */
+    Small,
+
+    /**
+     * One line, title centred.
+     *
+     * For a sheet with a control on both sides — a close on one, an action on
+     * the other — where a leading title reads off-balance against them.
+     *
+     * Centred in the room the controls leave rather than in the header, which
+     * is the same thing [io.kontour.ui.nav.TopBarStyle.Centred] does and the
+     * same thing that has been reported against it: with controls on one side
+     * only, the title sits visibly left of the middle. Balancing it by mirroring
+     * the controls' width onto the other side is arithmetically right and starves
+     * the title — at a 340dp panel it broke "Perth Underground" mid-word — so the
+     * real answer is a layout that centres against the full width and only takes
+     * the inset it can afford. That is one fix for both components rather than
+     * two, and it belongs with the top bar's.
+     */
+    Centred,
+
+    /**
+     * Two lines: the controls on the first, a large title on the second.
+     *
+     * For a sheet that *is* the destination rather than a panel over one — a
+     * whole trip, a form — where the title is what the user came for and the
+     * close button should not be sitting on its line competing with it.
+     */
+    Large,
+}
+
+/**
  * A sheet's title row, with optional actions on either side.
  *
  * ```kotlin
@@ -215,6 +262,15 @@ fun closeEnclosingSheet(): (() -> Unit)? {
  * The title is marked as a heading, so a screen reader can jump to it, and the
  * close button is a real button with its own label rather than a glyph in the
  * title row.
+ *
+ * @param onClose What the close button does, or **`null` for no close button** —
+ *   which is the way to say a sheet cannot be dismissed from its header, and
+ *   pairs with `dismissible = false` on the sheet itself. The default asks the
+ *   enclosing sheet to close, and is already `null` when there is not one.
+ * @param actions The row *inside* the header, beside the title. For controls
+ *   that ride above the sheet's top edge instead, see `BottomSheet`'s
+ *   `floatingControls`.
+ * @param style How much room the header takes. See [SheetHeaderStyle].
  */
 @Composable
 fun SheetHeader(
@@ -222,29 +278,38 @@ fun SheetHeader(
     onClose: (() -> Unit)? = closeEnclosingSheet(),
     closeLabel: String = Theme.strings.close,
     closeIcon: ImageVector = SystemIcons.Close,
+    style: SheetHeaderStyle = SheetHeaderStyle.Small,
     actions: (@Composable RowScope.() -> Unit)? = null,
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(
-                start = Theme.spacing.md,
-                end = Theme.spacing.xs,
-                top = Theme.spacing.xs,
-                bottom = Theme.spacing.sm,
-            ),
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        slots.leading?.let { leading -> ContentSlot(content = leading) }
+    @Composable
+    fun Controls(scope: RowScope) {
+        with(scope) {
+            actions?.invoke(this)
+            if (onClose != null) {
+                IconButton(
+                    icon = closeIcon,
+                    contentDescription = closeLabel,
+                    onClick = onClose,
+                )
+            }
+        }
+    }
 
-        Column(Modifier.weight(1f)) {
+    @Composable
+    fun Title(textStyle: TextStyle, centred: Boolean) {
+        Column(
+            // Full width, or the alignment has nothing to align against: a Column
+            // that wraps its content is already exactly as wide as the text in it,
+            // and centring inside that is a no-op.
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = if (centred) Alignment.CenterHorizontally else Alignment.Start,
+        ) {
             slots.label?.let { title ->
                 Box(Modifier.semantics { heading() }) {
-                    ProvideTextStyle(Theme.typography.titleMedium) {
+                    ProvideTextStyle(textStyle) {
                         ContentSlot(maxLines = 2, content = title)
                     }
                 }
@@ -257,15 +322,48 @@ fun SheetHeader(
                 }
             }
         }
+    }
 
-        actions?.invoke(this)
+    val padding = Modifier.padding(
+        start = Theme.spacing.md,
+        end = Theme.spacing.xs,
+        top = Theme.spacing.xs,
+        bottom = Theme.spacing.sm,
+    )
 
-        if (onClose != null) {
-            IconButton(
-                icon = closeIcon,
-                contentDescription = closeLabel,
-                onClick = onClose,
-            )
+    when (style) {
+        SheetHeaderStyle.Small, SheetHeaderStyle.Centred -> Row(
+            modifier = modifier.fillMaxWidth().then(padding),
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            slots.leading?.let { leading -> ContentSlot(content = leading) }
+            Box(Modifier.weight(1f)) {
+                Title(
+                    textStyle = Theme.typography.titleMedium,
+                    centred = style == SheetHeaderStyle.Centred,
+                )
+            }
+            Controls(this)
+        }
+
+        // Controls first, title under them. The title gets the whole width, so
+        // it is the one thing here that never has to truncate around a button.
+        SheetHeaderStyle.Large -> Column(
+            modifier = modifier.fillMaxWidth().then(padding),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                slots.leading?.let { leading -> ContentSlot(content = leading) }
+                Spacer(Modifier.weight(1f))
+                Controls(this)
+            }
+
+            Title(textStyle = Theme.typography.titleLarge, centred = false)
         }
     }
 }

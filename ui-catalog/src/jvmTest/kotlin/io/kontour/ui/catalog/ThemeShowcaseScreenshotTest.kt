@@ -187,7 +187,11 @@ class ThemeShowcaseScreenshotTest {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "sheets-"),
-                width = 2960,
+                // Five panels of 340dp at 2x, plus their gaps. Grown when the
+                // header-sizes panel arrived, and the harness is why: it measured
+                // the page at 3688 against a 2960 canvas and refused, rather than
+                // quietly clipping a panel off the edge and passing.
+                width = 3760,
                 height = 1280,
                 frames = 60,
             ) {

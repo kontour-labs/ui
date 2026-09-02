@@ -62,7 +62,7 @@ import kotlinx.coroutines.CompletableDeferred
  * sliding, because a dialog has no direction to come from — it is not somewhere
  * else on the screen, it is *on top of* the screen.
  *
- * @param dismissOnOutside Pass `false` for a decision the user must actually
+ * @param dismissible Pass `false` for a decision the user must actually
  *   make. Use sparingly: a dialog that cannot be escaped is a trap, and most
  *   "are you sure" prompts are safe to cancel by tapping away.
  */
@@ -72,7 +72,7 @@ fun Dialog(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     key: Any = remember { Any() },
-    dismissOnOutside: Boolean = true,
+    dismissible: Boolean = true,
     dismissLabel: String = Theme.strings.dismiss,
     /**
      * What the dialog keeps clear of. Every edge including the keyboard — a
@@ -99,7 +99,7 @@ fun Dialog(
                 OverlayEntry(
                     key = key,
                     layer = OverlayLayer.Dialog,
-                    dismissOnOutside = dismissOnOutside,
+                    dismissOnOutside = dismissible,
                     dismissLabel = dismissLabel,
                     onDismiss = onDismissRequest,
                     content = {
@@ -222,7 +222,7 @@ fun AlertDialog(
     neutralLabel: String? = null,
     onNeutral: (() -> Unit)? = null,
     destructive: Boolean = false,
-    dismissOnOutside: Boolean = true,
+    dismissible: Boolean = true,
     content: StateScope.() -> Unit,
 ) {
     // Reuses the state block's regions: a title, a body under it, and an action
@@ -234,7 +234,7 @@ fun AlertDialog(
         visible = visible,
         onDismissRequest = onDismissRequest,
         modifier = modifier,
-        dismissOnOutside = dismissOnOutside,
+        dismissible = dismissible,
     ) {
         slots.title?.let { title ->
             ProvideTextStyle(Theme.typography.titleLarge) {
