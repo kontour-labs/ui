@@ -170,10 +170,14 @@ internal val ProgressDemo = ComponentDemo(slug = "progress", knobs = listOf(prog
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // A ring is always determinate — it has no indeterminate form, which
-            // is why `Spinner` exists and is a separate component.
-            CircularProgress(progress = 0.35f)
-            StepProgress(current = step, total = 4)
+            // A ring has no indeterminate sweep of its own: at `progress = null`
+            // it hands off to `Spinner`, which is the library's one loader. So
+            // the knob reaches all three, and the third of them is a different
+            // component drawn in the ring's place.
+            CircularProgress(progress = if (indeterminate) null else 0.35f)
+            // And a step count with no current step is the row of steps with
+            // none of them filled — "somewhere in this sequence, not yet known".
+            StepProgress(current = if (indeterminate) null else step, total = 4)
             Button(
                 onClick = { step = step % 4 + 1 },
                 variant = ButtonVariant.Secondary,

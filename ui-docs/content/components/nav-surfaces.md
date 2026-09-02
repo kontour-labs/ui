@@ -43,6 +43,25 @@ gesture bar underneath asks for.
 the destinations of an app this size are the four or five its user already
 knows. Turn it on for an app whose icons are not obvious.
 
+### Three styles, and one axis
+
+`style` decides what — if anything — the circles sit on. It is one enum rather
+than two because the bar has been here before: it used to be three container
+styles and two item styles, nine combinations of which the product wanted one.
+Each of the nine looked defensible alone, which is how a matrix gets built. **A
+second axis is the thing to refuse**, so the item's own presentation is derived
+from the style rather than chosen beside it.
+
+| | |
+|---|---|
+| `Free` | Free-standing circles over the page, nothing behind them. The default. Each circle carries its own elevation, so the bar works over a map with no surface separating it from one. |
+| `Docked` | One surface spanning the window, on the bottom edge. What to reach for when the content behind is a list rather than a map — a surface meeting the window's edge is a firmer footing than shapes floating over a scroll. |
+| `Floating` | A capsule inset from every edge. `Docked`'s footing without its commitment: the page runs under it, so it suits content that should be seen to continue past the bar. |
+
+`NavBarDefaults.arrangementFor` reads the same value, so the style moves the
+items as well as the surface — a docked bar spreads them across the window, a
+floating capsule packs them.
+
 ### A search field in the middle of it
 
 <!--sample:NavBarCentreSearch-->

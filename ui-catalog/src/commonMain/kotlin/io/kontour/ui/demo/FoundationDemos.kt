@@ -38,6 +38,8 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.text.TextField
+import io.kontour.ui.components.text.TextToolbarAction
+import io.kontour.ui.components.text.TextSelectionToolbar
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
@@ -365,13 +367,48 @@ internal val ImeChainDemo = ComponentDemo(slug = "ime-chain") {
     }
 }
 
-internal val TextToolbarDemo = ComponentDemo(slug = "text-toolbar") {
+/**
+ * Whether there is an app action to add to the selection menu.
+ *
+ * This is the whole component. With no extra actions `TextSelectionToolbar`
+ * returns its content untouched and the platform's own toolbar comes up — the
+ * one that knows about the system clipboard, Look Up and Translate. Passing one
+ * trades that surface for a drawn one, because the platforms give no way to
+ * append to theirs.
+ */
+private val toolbarActions = Knob.Flag("App action", initial = true)
+
+internal val TextToolbarDemo = ComponentDemo(
+    slug = "text-toolbar",
+    knobs = listOf(toolbarActions),
+) {
     val state = rememberTextFieldState("Select this text to see the toolbar.")
+    val extra = this[toolbarActions]
+    // Rebuilt when the flag moves, and not otherwise: the actions list is read
+    // through `rememberUpdatedState` inside the toolbar, so a new list on every
+    // recomposition would be a new list for no reason.
+    val actions = remember(extra) {
+        if (extra) {
+            listOf(TextToolbarAction("Plan a trip") { echo("Plan a trip") })
+        } else {
+            emptyList()
+        }
+    }
+
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-        TextField(state = state, label = "Try it", modifier = Modifier.fillMaxWidth())
+        TextSelectionToolbar(actions = actions) {
+            TextField(state = state, label = "Try it", modifier = Modifier.fillMaxWidth())
+        }
         Text(
-            "Cut, copy, paste and select-all are drawn by the library rather " +
-                "than by the platform, so they look the same everywhere.",
+            text = if (extra) {
+                "Selecting text gives the library's toolbar: the verbs the " +
+                    "framework offered, plus “Plan a trip”. A verb the platform " +
+                    "did not offer is absent rather than greyed out."
+            } else {
+                "With no actions it does nothing at all, and that is the point — " +
+                    "the field is handed straight back and the platform's own " +
+                    "selection menu comes up."
+            },
             style = Theme.typography.bodySmall,
             colour = Theme.colours.contentMuted,
         )

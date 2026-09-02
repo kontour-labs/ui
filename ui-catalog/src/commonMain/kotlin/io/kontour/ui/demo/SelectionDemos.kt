@@ -62,14 +62,21 @@ internal val CheckboxDemo = ComponentDemo(
     }
 }
 
-internal val TriStateCheckboxDemo = ComponentDemo(slug = "tri-state-checkbox") {
+private val triStateEnabled = Knob.Flag("Enabled", initial = true)
+
+internal val TriStateCheckboxDemo = ComponentDemo(
+    slug = "tri-state-checkbox",
+    knobs = listOf(triStateEnabled),
+) {
     var state by remember { mutableStateOf(ToggleableState.Indeterminate) }
+    val enabled = this[triStateEnabled]
     Row(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TriStateCheckbox(
             state = state,
+            enabled = enabled,
             onClick = {
                 state = when (state) {
                     ToggleableState.Off -> ToggleableState.On

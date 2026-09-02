@@ -12,7 +12,7 @@ missing: a section that lands in two files, a component whose page was never
 made, a page nothing links to. So the arrangement is checked rather than
 trusted.
 
-Thirteen rules:
+Fourteen rules:
 
   1. Every component in `componentRegistry` has a page whose title names it.
      The registry is the library's own list, so this cannot drift from what
@@ -33,10 +33,13 @@ Thirteen rules:
  10. Every name an accessibility section mentions exists in `:ui`.
  11. The radius scale is written down three times and executes once.
  12. Every component in the shape-families table really asks for that family.
- 13. `components.md` — the map — agrees with the eleven indexes it summarises.
+ 13. Every page agrees about which family it is in — the map, the index that
+     links it, and the page's own footer. Three copies is three chances for one
+     to be a version behind.
+ 14. Every enum a component takes as a parameter is on some demo's knob.
 
-Rules 4, 6 and 7 are **ratchets**: a ceiling that only goes down, rather than a
-list of exempted names. You cannot exempt *your* page, only make the total
+Rules 4, 6, 7 and 14 are **ratchets**: a ceiling that only goes down, rather
+than a list of exempted names. You cannot exempt *your* page, only make the total
 worse, and that is the difference that matters — a list of names in a test is
 how a defect becomes a permanent exemption.
 
@@ -83,6 +86,24 @@ SYMBOL = re.compile(r"`([^`]+)`")
 # called "Not a `SegmentedControl`", and a page is not the owner of everything
 # it mentions.
 ALSO = re.compile(r"^\*Also on this page:\s*(.+?)\*$", re.MULTILINE)
+
+# The way back up, which every component page ends with:
+#
+#     ← [Navigation](navigation.md) · [All components](../components.md)
+#
+# The site never draws it — the generator cuts the footer and provides its own
+# navigation — so it is the copy of a page's family that only a GitHub reader
+# ever sees, and the one nothing was checking.
+FAMILY_FOOTER = re.compile(r"\n← \[[^\]]+\]\(([a-z0-9-]+)\.md\)")
+
+# The declaration line of a `@Composable`, with its annotations skipped: groups
+# are visibility, receiver and name. Shared by `public_composables` — which is
+# the definition of "a component" — and by `unswept_enums`, so both agree about
+# what counts.
+COMPOSABLE_HEADER = re.compile(
+    r"@Composable[^\n]*\n(?:@[^\n]*\n)*"
+    r"((?:internal |private |public )?)fun (?:<[^>]*> )?(?:(\w+)\.)?(\w+)\s*\("
+)
 
 
 
@@ -158,12 +179,8 @@ def public_composables() -> dict[str, Path]:
     whatever they attach to rather than on pages of their own.
     """
     found: dict[str, Path] = {}
-    pattern = re.compile(
-        r"@Composable[^\n]*\n(?:@[^\n]*\n)*"
-        r"((?:internal |private |public )?)fun (?:<[^>]*> )?(?:(\w+)\.)?(\w+)\s*\("
-    )
     for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
-        for match in pattern.finditer(path.read_text()):
+        for match in COMPOSABLE_HEADER.finditer(path.read_text()):
             visibility, receiver, name = match.group(1).strip(), match.group(2), match.group(3)
             if visibility in ("internal", "private") or not name[0].isupper():
                 continue
@@ -197,6 +214,84 @@ def claimed_symbols() -> set[str]:
 # ratchet rather than a flat `if any` because the number is the honest way to
 # say what a regression costs, and because the accessibility ceiling below it
 # is nowhere near zero and reads the same way.
+# Only goes down. See rule 14.
+#
+# Fourteen, and what is in it is as interesting as the number. `ContrastLevel`
+# and `HapticsLevel` are parameters of `KontourTheme`, which no component demo
+# will ever sweep — the site's own settings panel drives them instead. Excusing
+# those two would need either a list of names, which this file's whole argument
+# is against, or a second derived rule with one customer. A ceiling is not a
+# claim that it should be zero; it is a claim that it should not grow.
+#
+# The other twelve are all reachable and all worth a knob: `LoadMoreState`'s
+# four states, `OverlaySide` and `OverlayAlignment` in every direction,
+# `ToastPosition` at both ends, `ReorderHandleSide` at either.
+MAX_UNSWEPT_ENUMS = 14
+
+
+def unswept_enums() -> list[str]:
+    """Enums a component takes as a parameter and no demo's knob sweeps.
+
+    The demos are what a reader presses, and `DemoRenderTest.every knob setting
+    draws` renders each setting of each knob — so a `Knob.Choice` built from an
+    enum's `entries` is the only construct that cannot fall behind the enum. An
+    enum with no knob is a parameter the generated table tells the reader exists
+    and the page shows one value of. Round 20 shipped `NavBarStyle` with three
+    variants and `SheetHeaderStyle` with three, and the site rendered one of
+    each, for six months, with every gate green.
+
+    **The criterion does the work a list of exemptions would otherwise do.** A
+    *named parameter whose declared type is the enum*, on a *TitleCase public
+    `@Composable`* — the same cut `public_composables` makes, where the
+    lowercase ones are modifiers and factories. That is enough to leave out, with
+    no clause written for any of them: `InputModality`, which only ever comes
+    back from `rememberInputModalityState`; `SwipeValue`, which is a gesture's
+    state rather than an argument; `RangePosition`, which appears only as a
+    lambda's return type; and `RevealVariant`, which belongs to
+    `Modifier.revealOnScroll`.
+
+    What it cannot see, said rather than left to be discovered: a choice handed
+    to a slot DSL. `StatTrend` reaches `Stat` through `StatScope.trend`, so it is
+    swept and is not in the denominator either. `KotlinSignatures` in `buildSrc`
+    reads receivers and enclosing types and would see them — it is Kotlin and
+    this is Python, the same wall `MAX_WITHOUT_DEMO` names above.
+    """
+    enums: set[str] = set()
+    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+        enums |= set(re.findall(r"^\s*(?:public\s+)?enum class (\w+)", path.read_text(), re.M))
+
+    takes: set[str] = set()
+    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+        text = path.read_text()
+        for match in COMPOSABLE_HEADER.finditer(text):
+            visibility, name = match.group(1).strip(), match.group(3)
+            if visibility in ("internal", "private") or not name[0].isupper():
+                continue
+            # To the paren that closes the one the header ended on, so a default
+            # value containing brackets does not truncate the parameter list.
+            at, depth = match.end() - 1, 0
+            while at < len(text):
+                if text[at] == "(":
+                    depth += 1
+                elif text[at] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                at += 1
+            parameters = text[match.end():at]
+            for enum in enums:
+                if re.search(rf"^\s*\w+:\s*{enum}\s*(?:=|,|$)", parameters, re.M):
+                    takes.add(enum)
+
+    swept: set[str] = set()
+    for path in Path("ui-catalog/src").rglob("*Demos.kt"):
+        if "build" in path.parts:
+            continue
+        swept |= set(re.findall(r"Knob\.Choice[^\n]*?(\w+)\.entries", path.read_text()))
+
+    return sorted(takes - swept)
+
+
 MAX_WITHOUT_SAMPLE = 0
 
 # Only goes down. See rule 7.
@@ -590,6 +685,47 @@ def main() -> int:
                     f"from the map"
                 )
 
+    # And the third copy: each page's own "← Family" footer.
+    #
+    # The site strips it — `generate-doc-pages.py` cuts the footer because the
+    # site draws its own navigation — so this is invisible there and live on
+    # GitHub, which is the second audience every one of these pages is written
+    # for. Re-homing `Spinner` and `DragHandle` left both pointing back at the
+    # family they had just left, and nothing said so.
+    for page_stem, family in sorted(owner_family.items()):
+        footer = FAMILY_FOOTER.search((COMPONENTS / f"{page_stem}.md").read_text())
+        if footer is None:
+            problems.append(
+                f"{page_stem}.md has no “← [Family](family.md)” footer — on "
+                f"GitHub that page is a dead end"
+            )
+        elif footer.group(1) != family:
+            problems.append(
+                f"{page_stem}.md's footer points back at {footer.group(1)}.md "
+                f"but {family}.md is the index that links it — the page and the "
+                f"sidebar disagree about which family it is in"
+            )
+
+    # Rule 14 — a component's choices are things a reader can press.
+    #
+    # Rule 4 counts demos per page; nothing looked inside one. So Round 20 could
+    # add `NavBarStyle` with three variants and `SheetHeaderStyle` with three,
+    # ship both, and have the site render one of each with every gate green — the
+    # generated parameter table told a reader the choice existed and the live
+    # demo showed a single value of it.
+    #
+    # A ratchet, like rules 4, 6 and 7, and named rather than only counted: the
+    # point of a ceiling is that lowering it is the fix, and nobody can lower it
+    # without knowing what is inside.
+    unswept = unswept_enums()
+    if len(unswept) > MAX_UNSWEPT_ENUMS:
+        problems.append(
+            f"{len(unswept)} component parameter enums are on no demo's knob, "
+            f"over the ceiling of {MAX_UNSWEPT_ENUMS}: {', '.join(unswept)} — "
+            f"a `Knob.Choice(…, X.entries.toList())` puts every value of one in "
+            f"front of a reader and under `DemoRenderTest`"
+        )
+
     if problems:
         print(f"{len(problems)} problem(s):", file=sys.stderr)
         for problem in sorted(problems):
@@ -603,6 +739,7 @@ def main() -> int:
         f"{len(demos)} demos ({len(without)} pages still without one), "
         f"{len(component_pages) - len(without_sample)} compiled examples, "
         f"{len(component_pages) - len(without_a11y)} accessibility sections, "
+        f"{len(unswept)} parameter enums on no knob, "
         f"all accounted for."
     )
     return 0

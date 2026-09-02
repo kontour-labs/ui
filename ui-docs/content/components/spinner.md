@@ -38,4 +38,4 @@ which is a worse answer than a calmer one.
 
 ---
 
-← [Actions](actions.md) · [All components](../components.md)
+← [Display](display.md) · [All components](../components.md)

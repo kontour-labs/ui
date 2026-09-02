@@ -96,8 +96,18 @@ private fun Stage(height: Dp = 260.dp, content: @Composable BoxScope.() -> Unit)
     }
 }
 
-internal val DialogDemo = ComponentDemo(slug = "dialog") {
+/**
+ * Whether a press on the scrim closes it.
+ *
+ * Off is the modal that has to be answered rather than escaped. Every demo
+ * carrying this knob keeps a button inside that closes it, because a reader who
+ * turns it off and cannot get out has found a trap, not a demonstration.
+ */
+private val overlayDismissible = Knob.Flag("Dismissible", initial = true)
+
+internal val DialogDemo = ComponentDemo(slug = "dialog", knobs = listOf(overlayDismissible)) {
     var open by remember { mutableStateOf(false) }
+    val dismissible = this[overlayDismissible]
     Stage {
         Button(
             onClick = { open = true },
@@ -105,7 +115,11 @@ internal val DialogDemo = ComponentDemo(slug = "dialog") {
             modifier = Modifier.align(Alignment.Center),
         ) { +"Open a dialog" }
 
-        Dialog(visible = open, onDismissRequest = { open = false }) {
+        Dialog(
+            visible = open,
+            onDismissRequest = { open = false },
+            dismissible = dismissible,
+        ) {
             Text("Rename favourite", style = Theme.typography.titleMedium)
             Text(
                 "Give it a name you will recognise on the home screen.",
@@ -122,11 +136,12 @@ private val alertNeutral = Knob.Flag("Third answer", initial = true)
 
 internal val AlertDialogDemo = ComponentDemo(
     slug = "alert-dialog",
-    knobs = listOf(alertDestructive, alertNeutral),
+    knobs = listOf(alertDestructive, alertNeutral, overlayDismissible),
 ) {
     var open by remember { mutableStateOf(false) }
     val destructive = this[alertDestructive]
     val neutral = this[alertNeutral]
+    val dismissible = this[overlayDismissible]
     Stage {
         Button(
             onClick = { open = true },
@@ -139,6 +154,7 @@ internal val AlertDialogDemo = ComponentDemo(
             confirmLabel = "Remove",
             onConfirm = { open = false; echo("Removed") },
             onDismissRequest = { open = false },
+            dismissible = dismissible,
             neutralLabel = if (neutral) "Hide instead" else null,
             onNeutral = if (neutral) ({ open = false; echo("Hidden") }) else null,
             destructive = destructive,
@@ -314,13 +330,23 @@ internal val LoadingOverlayDemo = ComponentDemo(slug = "loading-overlay") {
     }
 }
 
-internal val CommandPaletteDemo = ComponentDemo(slug = "command-palette") {
+internal val CommandPaletteDemo = ComponentDemo(
+    slug = "command-palette",
+    knobs = listOf(overlayDismissible),
+) {
     var open by remember { mutableStateOf(false) }
+    val dismissible = this[overlayDismissible]
+    // Running a command closes the palette and says which one ran.
+    //
+    // `onRun = {}` before, which made the palette look alive while doing
+    // nothing — the exact defect `echo` exists for. It also mattered once the
+    // knob below could switch the tap-outside off: a palette whose commands do
+    // nothing and whose scrim is inert is one there is no way out of.
     val commands = remember {
         listOf(
-            Command("plan", "Plan a trip", onRun = {}, shortcut = "P"),
-            Command("saved", "Saved trips", onRun = {}, keywords = listOf("favourites")),
-            Command("settings", "Settings", onRun = {}, keywords = listOf("prefs")),
+            Command("plan", "Plan a trip", onRun = { open = false; echo("Plan a trip") }, shortcut = "P"),
+            Command("saved", "Saved trips", onRun = { open = false; echo("Saved trips") }, keywords = listOf("favourites")),
+            Command("settings", "Settings", onRun = { open = false; echo("Settings") }, keywords = listOf("prefs")),
             Command("offline", "Download for offline", onRun = {}, enabled = false),
         )
     }
@@ -335,6 +361,7 @@ internal val CommandPaletteDemo = ComponentDemo(slug = "command-palette") {
             visible = open,
             onDismissRequest = { open = false },
             commands = commands,
+            dismissible = dismissible,
             width = 320.dp,
             topInset = 24.dp,
             maxHeight = 220.dp,

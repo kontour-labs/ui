@@ -21,7 +21,7 @@ val componentDemos: Map<String, ComponentDemo> = buildDemos()
  *
  * The `require` below needs the flat list to spot a duplicate slug, and the
  * property used to concatenate all eleven lists a second time to get it — so
- * every one of the 103 demos and twenty intermediate lists were allocated twice
+ * every one of the 102 demos and twenty intermediate lists were allocated twice
  * at class-init time, in production, on the first page a reader opened.
  */
 private fun buildDemos(): Map<String, ComponentDemo> {
