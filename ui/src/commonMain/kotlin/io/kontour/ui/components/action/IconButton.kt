@@ -191,6 +191,12 @@ fun IconToggleButton(
      *
      * Ignored when [checkedIcon] is given: a glyph that already has a slash in
      * it does not want a second one.
+     *
+     * A struck toggle also keeps its ghost container while checked, rather than
+     * taking the accent one every other toggle takes. The slash is already an
+     * unmistakable statement of the state, and a filled chip behind it says the
+     * same thing a second time — too loudly for what is usually a secondary
+     * affordance sitting inside something else.
      */
     strikethrough: Boolean = false,
     enabled: Boolean = true,
@@ -208,6 +214,14 @@ fun IconToggleButton(
         content = Theme.colors.accent.onContainer,
     )
 
+    // A struck glyph carries its own state, so the container stays out of it.
+    //
+    // Every other checked toggle takes the accent container, because "filled
+    // star" against "outline star" is a real but quiet difference and the tint
+    // is what makes it carry across a room. A slash is not quiet. Tinting as
+    // well puts a filled chip behind a secondary affordance — the reveal eye in
+    // a password field is the case that showed it — and says the same thing
+    // twice, the second time louder than the control deserves.
     val struck = strikethrough && checkedIcon == null
     val strike by animateFloatAsState(
         targetValue = if (struck && checked) 1f else 0f,
@@ -238,7 +252,7 @@ fun IconToggleButton(
         enabled = enabled,
         shape = shape,
         rotation = 0f,
-        colors = if (checked) accentColors else uncheckedColors,
+        colors = if (checked && !struck) accentColors else uncheckedColors,
         metrics = ButtonDefaults.metrics(size),
         interactions = interactions,
         // An inert toggle still gets an indication node; it simply never sees a
