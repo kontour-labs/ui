@@ -135,6 +135,16 @@ fun Banner(
                     icon = dismissIcon,
                     contentDescription = dismissLabel,
                     onClick = onDismissRequest,
+                    // Centred in the banner, not sitting on the title's line.
+                    //
+                    // The row aligns to the top because the *leading* icon has
+                    // to: an icon beside a paragraph belongs with its first
+                    // line, not floating in the middle of it. The dismiss is
+                    // the opposite case — it belongs to the banner rather than
+                    // to any line of it — and inheriting the row's alignment put
+                    // it up in the corner of a three-line banner, level with the
+                    // title and a long way from the middle of the box.
+                    modifier = Modifier.align(Alignment.CenterVertically),
                     size = ButtonSize.XSmall,
                 )
             }

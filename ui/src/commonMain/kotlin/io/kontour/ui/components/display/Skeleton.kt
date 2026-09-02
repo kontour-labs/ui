@@ -20,11 +20,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * A placeholder in the shape of the content that is loading.
@@ -49,6 +54,21 @@ import io.kontour.ui.theme.Theme
 fun Skeleton(
     modifier: Modifier = Modifier,
     shape: Shape = Theme.shapes.extraSmall,
+    /**
+     * Which way the wipe travels, in degrees clockwise from left-to-right.
+     *
+     * `0` is the default and the one everything shipped with. `90` runs top to
+     * bottom, `180` right to left, and the diagonals in between are what a large
+     * block wants — a wipe straight across a tall card reads as a horizontal
+     * seam rather than as light moving over a surface, and the angle is the only
+     * thing that fixes it.
+     *
+     * The band's width and travel are measured along the angle rather than
+     * across the box, so the sweep covers the whole shape at every angle and
+     * takes the same time to cross it. At `0` the arithmetic reduces to exactly
+     * the horizontal gradient this used to draw.
+     */
+    angle: Float = 0f,
 ) {
     val colors = Theme.colors
     val reduceMotion = Theme.motion.reduceMotion
@@ -80,19 +100,40 @@ fun Skeleton(
                     Modifier.background(base)
                 } else {
                     Modifier.drawWithCache {
-                        val bandWidth = size.width * 0.6f
-                        val travel = size.width + bandWidth
+                        // The wipe's own axis, and everything measured along it.
+                        //
+                        // A box has no single "width" from an angle's point of
+                        // view: the distance light has to travel to cross it is
+                        // the box's *projection* onto the direction of travel,
+                        // which is where the two absolutes come from. Get that
+                        // wrong and a diagonal wipe either stops short of the
+                        // far corner or spends half its time off the edge.
+                        val radians = angle * PI.toFloat() / 180f
+                        val dx = cos(radians)
+                        val dy = sin(radians)
+                        val span = abs(size.width * dx) + abs(size.height * dy)
+                        val bandWidth = span * BandShare
+                        val travel = span + bandWidth
+                        val centre = Offset(size.width / 2f, size.height / 2f)
+
                         onDrawBehind {
-                            val start = -bandWidth + travel * sweep
+                            // Measured from the centre outwards, so the band
+                            // enters one edge and leaves the other whatever the
+                            // angle. At 0° this is `-bandWidth + travel * sweep`
+                            // offset from the left edge, which is what it was.
+                            val head = -span / 2f - bandWidth + travel * sweep
                             drawRect(
-                                brush = Brush.horizontalGradient(
+                                brush = Brush.linearGradient(
                                     colorStops = arrayOf(
                                         0f to base,
                                         0.5f to highlight,
                                         1f to base,
                                     ),
-                                    startX = start,
-                                    endX = start + bandWidth,
+                                    start = centre + Offset(dx * head, dy * head),
+                                    end = centre + Offset(
+                                        dx * (head + bandWidth),
+                                        dy * (head + bandWidth),
+                                    ),
                                 ),
                             )
                         }
@@ -171,3 +212,12 @@ fun SkeletonListItem(
         }
     }
 }
+
+/**
+ * How much of the crossing distance the lit band takes up.
+ *
+ * Three fifths, which is what the horizontal wipe always was. Narrower reads as
+ * a glare passing over; this reads as a surface being lit, which is the softer
+ * of the two and the right one for something that repeats forever.
+ */
+private const val BandShare = 0.6f

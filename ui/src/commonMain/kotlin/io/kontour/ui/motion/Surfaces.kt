@@ -13,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
@@ -21,12 +20,18 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Surface
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.platform.platformSupportsBackdropBlur
+import io.kontour.ui.theme.LocalBackdropBlur
 import io.kontour.ui.theme.Theme
 
 /**
@@ -56,6 +61,13 @@ import io.kontour.ui.theme.Theme
  * that is free and here it is not. The translucent form is the honest
  * equivalent.
  *
+ * The blur itself is now the library's own — `BlurEffect` through a
+ * `graphicsLayer`, the same call [io.kontour.ui.overlay.BackdropStyle] makes —
+ * rather than `Modifier.blur`. So it answers to the theme's `backdropBlur`
+ * switch and to `platformSupportsBackdropBlur`, and a target that cannot blur
+ * falls back to the translucent tint everywhere at once instead of here and
+ * there.
+ *
  * ### A modal is not this problem
  *
  * All of the above is about a panel that is a sibling *above* live content:
@@ -72,19 +84,57 @@ fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape = Theme.shapes.large,
     tint: Color = Theme.colors.surfaceRaised,
-    alpha: Float = 0.72f,
+    /**
+     * How much of the tint is laid over what is behind — so how *little* of it
+     * shows through.
+     *
+     * `0f` is a pane of clear glass and `1f` is a painted panel. It used to
+     * default to `0.72`, which is nearly opaque: the panel read as a solid bar
+     * with a slightly wrong colour rather than as something you could see
+     * through, and the frosting behind it was doing almost no work. Now
+     * [GlassSurfaceDefaults.Alpha].
+     *
+     * **Except under high contrast**, where it goes back up to
+     * [GlassSurfaceDefaults.OpaqueAlpha]. Glass is a contrast hazard by
+     * definition — the text on it is sitting over whatever happens to be
+     * underneath — and a user who has asked the system for more contrast has
+     * asked for exactly the thing translucency takes away.
+     */
+    alpha: Float = if (highContrast()) {
+        GlassSurfaceDefaults.OpaqueAlpha
+    } else {
+        GlassSurfaceDefaults.Alpha
+    },
     borderAlpha: Float = 0.35f,
-    blurRadius: Dp = 14.dp,
+    blurRadius: Dp = GlassSurfaceDefaults.BlurRadius,
     backdrop: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
+    // The same blur the overlay backdrop uses, gated the same way.
+    //
+    // It was `Modifier.blur`, which is a different thing with the same name: on
+    // a target without the render effect it quietly draws nothing at all, and
+    // it takes no notice of the theme's own `backdropBlur` switch — so an app
+    // that had turned blur off across the whole library went on paying for it
+    // here. `BlurEffect` through a `graphicsLayer` is what
+    // `io.kontour.ui.overlay.BackdropStyle` applies, and using it means one
+    // answer to "does this platform blur" rather than two.
+    val blurring = LocalBackdropBlur.current && platformSupportsBackdropBlur
+    val radiusPx = with(LocalDensity.current) { blurRadius.toPx() }
+
     Box(modifier) {
         if (backdrop != null) {
             Box(
                 Modifier
                     .matchParentSize()
                     .clip(shape)
-                    .blur(blurRadius)
+                    .graphicsLayer {
+                        renderEffect = if (blurring && radiusPx > 0f) {
+                            BlurEffect(radiusX = radiusPx, radiusY = radiusPx)
+                        } else {
+                            null
+                        }
+                    }
             ) {
                 backdrop()
             }
@@ -106,6 +156,31 @@ fun GlassSurface(
 
         content()
     }
+}
+
+object GlassSurfaceDefaults {
+
+    /**
+     * How much tint a pane carries by default.
+     *
+     * Well under half again from the 0.72 it shipped with. The number that
+     * reads as glass rather than as a tinted panel is lower than it feels like
+     * it should be: at 0.72 the eye sees a solid bar, and the difference
+     * between 0.6 and 0.55 is the difference between "the bar is a bit
+     * see-through" and "there is something behind the bar".
+     */
+    const val Alpha: Float = 0.58f
+
+    /** What [Alpha] becomes under [io.kontour.ui.a11y.ContrastLevel.High]. */
+    const val OpaqueAlpha: Float = 0.94f
+
+    /**
+     * Tuned for a small panel over a busy background, and smaller than
+     * `BackdropDefaults.BlurRadius` for the reason recorded there: across a
+     * whole screen a radius this size reads as a smudge rather than as
+     * distance.
+     */
+    val BlurRadius: Dp = 14.dp
 }
 
 /**

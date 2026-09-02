@@ -14,10 +14,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColorFor
 import io.kontour.ui.foundation.Icon
@@ -109,6 +111,7 @@ fun Avatar(
     size: AvatarSize = AvatarSize.Medium,
     contentDescription: String? = null,
 ) {
+    val density = LocalDensity.current
     val announcement = contentDescription ?: name
     val palette = avatarPalette()
     val background = if (name != null) {
@@ -140,9 +143,27 @@ fun Avatar(
                 modifier = Modifier.size(size.diameter).clip(Theme.shapes.pill),
             )
 
+            // `size.textSize`, which has been sitting there computed and unread.
+            //
+            // The initials were `labelMedium` at every diameter, so a 20dp
+            // avatar and an 80dp one drew the same 14sp letters — lost in the
+            // large one and overflowing the small. `AvatarSize` has carried the
+            // right number the whole time, with a paragraph explaining the line
+            // it comes from; nothing called it.
+            //
+            // Derived from the diameter in `dp` rather than scaled from the
+            // style in `sp`, which is the opposite of what a day number in a
+            // calendar wants and right for the same reason: this is a glyph
+            // inside a circle of fixed size, not text. The circle does not grow
+            // with the user's font setting, so the letters inside it must not
+            // either — and they are `clearAndSetSemantics` because the name is
+            // announced by the avatar itself.
             name != null -> Text(
                 text = name.initials(),
-                style = Theme.typography.labelMedium,
+                style = Theme.typography.labelMedium.copy(
+                    fontSize = with(density) { size.textSize.toSp() },
+                    lineHeight = TextUnit.Unspecified,
+                ),
                 color = foreground,
                 modifier = Modifier.clearAndSetSemantics { },
             )
