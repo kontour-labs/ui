@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -29,6 +31,8 @@ import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.AnimatedSlot
+import io.kontour.ui.motion.SlotGap
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -106,6 +110,15 @@ fun DatePicker(
     markerFor: ((LocalDate) -> Color?)? = null,
     previousIcon: ImageVector? = null,
     nextIcon: ImageVector? = null,
+    /**
+     * A glyph for the button that brings the calendar back to [today]'s month.
+     *
+     * Shown only while the calendar is somewhere else, and only when [today] is
+     * known — which is the whole of when it has anything to do. Null leaves it
+     * out entirely, like the paging icons: the library does not ship an icon
+     * set, so a component that draws one has picked for you.
+     */
+    todayIcon: ImageVector? = null,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(
         selected ?: today ?: LocalDate(2026, 1, 1)
     ),
@@ -117,6 +130,8 @@ fun DatePicker(
         formats = formats,
         previousIcon = previousIcon,
         nextIcon = nextIcon,
+        today = today,
+        todayIcon = todayIcon,
     ) { month ->
         CalendarMonth(
             month = month,
@@ -151,6 +166,8 @@ fun DateRangePicker(
     isDateSelectable: (LocalDate) -> Boolean = { true },
     previousIcon: ImageVector? = null,
     nextIcon: ImageVector? = null,
+    /** See [DatePicker]. */
+    todayIcon: ImageVector? = null,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(
         start ?: today ?: LocalDate(2026, 1, 1)
     ),
@@ -162,6 +179,8 @@ fun DateRangePicker(
         formats = formats,
         previousIcon = previousIcon,
         nextIcon = nextIcon,
+        today = today,
+        todayIcon = todayIcon,
     ) { month ->
         CalendarMonth(
             month = month,
@@ -206,10 +225,18 @@ private fun CalendarFrame(
     formats: DateTimeFormats,
     previousIcon: ImageVector?,
     nextIcon: ImageVector?,
+    today: LocalDate?,
+    todayIcon: ImageVector?,
     content: @Composable (LocalDate) -> Unit,
 ) {
     val motion = Theme.motion
     var stepDirection by remember { mutableStateOf(1) }
+
+    // Only worth offering from somewhere else. Paging three months forward and
+    // wanting to come back is the whole case; a button that is always there and
+    // does nothing eleven times out of twelve is a button people stop reading.
+    val todayMonth = today?.let { LocalDate(it.year, it.month, 1) }
+    val awayFromToday = todayMonth != null && todayMonth != navigation.visibleMonth
 
     Column(modifier.fillMaxWidth()) {
         Row(
@@ -236,16 +263,43 @@ private fun CalendarFrame(
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
 
-            if (nextIcon != null) {
-                IconButton(
-                    icon = nextIcon,
-                    contentDescription = "Next month",
-                    onClick = {
-                        stepDirection = 1
-                        navigation.step(1)
-                    },
-                    size = ButtonSize.Small,
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // The gap belongs to the animated child, not to an arrangement
+                // around it — see `AnimatedSlot`. With `spacedBy` the row loses
+                // the whole gap in one frame at the end of the animation, after
+                // the button has finished shrinking, and the next-month button
+                // jumps sideways.
+                if (todayIcon != null && today != null) {
+                    AnimatedSlot(
+                        visible = awayFromToday,
+                        gap = Theme.spacing.xxs,
+                        side = SlotGap.Trailing,
+                        enter = fadeIn(motion.tweenFast()) + scaleIn(motion.tweenFast(), initialScale = 0.8f),
+                        exit = fadeOut(motion.tweenFast()) + scaleOut(motion.tweenFast(), targetScale = 0.8f),
+                    ) {
+                        IconButton(
+                            icon = todayIcon,
+                            contentDescription = "Return to today",
+                            onClick = {
+                                stepDirection = if (today < navigation.visibleMonth) -1 else 1
+                                navigation.jumpTo(today)
+                            },
+                            size = ButtonSize.Small,
+                        )
+                    }
+                }
+
+                if (nextIcon != null) {
+                    IconButton(
+                        icon = nextIcon,
+                        contentDescription = "Next month",
+                        onClick = {
+                            stepDirection = 1
+                            navigation.step(1)
+                        },
+                        size = ButtonSize.Small,
+                    )
+                }
             }
         }
 

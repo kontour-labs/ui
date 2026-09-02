@@ -2,7 +2,6 @@ package io.kontour.ui.nav
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
@@ -34,7 +33,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -43,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
@@ -427,12 +426,6 @@ fun NavDrawerGroup(
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.container
 
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = motion.springOrTween(motion.springDefault),
-        label = "drawerGroupChevron",
-    )
-
     Column(modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -474,7 +467,7 @@ fun NavDrawerGroup(
             Icon(
                 imageVector = SystemIcons.ChevronDown,
                 contentDescription = null,
-                modifier = Modifier.graphicsLayer { rotationZ = rotation },
+                modifier = Modifier.chevronTurn(expanded, label = "drawerGroupChevron"),
                 size = Theme.sizing.iconMedium,
                 tint = colors.contentMuted,
             )

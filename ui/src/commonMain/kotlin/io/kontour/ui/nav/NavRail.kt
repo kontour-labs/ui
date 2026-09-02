@@ -1,7 +1,6 @@
 package io.kontour.ui.nav
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +37,7 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.adaptive.leadingEdges
+import io.kontour.ui.motion.ChevronTurn
 import io.kontour.ui.theme.Theme
 
 object NavRailDefaults {
@@ -307,17 +307,14 @@ private fun RailToggle(
     // control that changes has nothing to say about what it just did. The select
     // chevron has always rotated; this now does the same, and the button itself
     // stays where it is while the rail grows past it.
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = Theme.motion.springOrTween(Theme.motion.springDefault),
-        label = "railToggle",
-    )
-
     IconButton(
         icon = if (rtl) SystemIcons.ChevronLeft else SystemIcons.ChevronRight,
         contentDescription = if (expanded) collapseLabel else expandLabel,
         onClick = { onExpandedChange(!expanded) },
-        rotation = rotation,
+        // A target, not an angle — see `SplitButton`. `IconButton` owns the
+        // spring, and it is the same one every other arrow in the library turns
+        // on.
+        rotation = if (expanded) ChevronTurn else 0f,
         modifier = Modifier.semantics {
             stateDescription = if (expanded) "Expanded" else "Collapsed"
         },

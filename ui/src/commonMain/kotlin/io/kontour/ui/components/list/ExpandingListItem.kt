@@ -13,12 +13,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.foundation.Icon
 import androidx.compose.foundation.shape.CornerBasedShape
 import io.kontour.ui.theme.lerpCorners
@@ -90,12 +90,6 @@ fun ExpandingListItem(
     val motion = Theme.motion
     val children = ListGroupScope().apply(content).rows
 
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
-        label = "expandingListChevron",
-    )
-
     // Nothing to unfold is not an error, and it is not a disclosure either — a
     // chevron on a row that opens onto nothing is a promise the row cannot keep.
     val opens = children.isNotEmpty()
@@ -136,7 +130,7 @@ fun ExpandingListItem(
                     Icon(
                         imageVector = chevron,
                         contentDescription = null,
-                        modifier = Modifier.rotate(rotation),
+                        modifier = Modifier.chevronTurn(expanded, label = "expandingListChevron"),
                         tint = if (enabled) {
                             Theme.colors.contentMuted
                         } else {

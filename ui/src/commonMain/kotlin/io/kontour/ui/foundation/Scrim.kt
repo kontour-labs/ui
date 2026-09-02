@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -51,6 +52,21 @@ import io.kontour.ui.theme.Theme
  * @param dismissLabel What a screen reader announces for the dismiss action.
  *   Required when [onDismissRequest] is set, because "button" is not a useful thing to
  *   hear when a dialog opens.
+ * @param onScrollRequest Called when the wheel turns over the scrim.
+ *
+ *   A scrim is hit-tested before anything behind it and Compose's hit test
+ *   stops at the topmost node, so a scrim blocks the wheel whether or not it
+ *   consumes it — which is why the page went dead under an open dropdown. There
+ *   is no way to be transparent to one kind of pointer event and opaque to
+ *   another; a full-window node is in the way or it is not.
+ *
+ *   So a light overlay gets out of the way instead: this dismisses it, and the
+ *   rest of the scroll lands on the page a frame later. That is also the right
+ *   thing on its own terms — a menu is anchored to something that is about to
+ *   move, and one left hanging beside a field that has scrolled away is worse
+ *   than one that closed. Pass `null` for an overlay that must survive a
+ *   scroll, which is any of them holding something the user is part way
+ *   through.
  */
 @Composable
 fun Scrim(
@@ -59,6 +75,7 @@ fun Scrim(
     modifier: Modifier = Modifier,
     dismissLabel: String? = null,
     color: Color = Theme.colors.scrim,
+    onScrollRequest: (() -> Unit)? = null,
 ) {
     val animated by animateColorAsState(
         targetValue = color,
@@ -73,6 +90,20 @@ fun Scrim(
                 val f = fraction().coerceIn(0f, 1f)
                 if (f > 0f) drawRect(animated.copy(alpha = animated.alpha * f))
             }
+            .then(
+                if (onScrollRequest != null) {
+                    Modifier.pointerInput(onScrollRequest) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                if (event.type == PointerEventType.Scroll) onScrollRequest()
+                            }
+                        }
+                    }
+                } else {
+                    Modifier
+                }
+            )
             .then(
                 if (onDismissRequest != null) {
                     Modifier

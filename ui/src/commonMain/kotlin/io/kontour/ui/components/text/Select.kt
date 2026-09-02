@@ -1,6 +1,5 @@
 package io.kontour.ui.components.text
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -25,13 +24,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColor
 import io.kontour.ui.foundation.SystemIcons
@@ -407,12 +406,6 @@ private fun SelectFrame(
         onOpenChange(open)
     }
 
-    val chevron by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = motion.springOrTween(motion.springDefault),
-        label = "selectChevron",
-    )
-
     if (editor != null) {
         LaunchedEffect(expanded) {
             if (expanded) runCatching { editorFocus.requestFocus() }
@@ -436,7 +429,7 @@ private fun SelectFrame(
             Icon(
                 imageVector = SystemIcons.ChevronDown,
                 contentDescription = null,
-                modifier = Modifier.graphicsLayer { rotationZ = chevron },
+                modifier = Modifier.chevronTurn(expanded, label = "selectChevron"),
                 tint = if (enabled) colors.label else colors.contentDisabled,
                 size = Theme.sizing.iconMedium,
             )

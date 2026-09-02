@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import io.kontour.ui.theme.Theme
 
 /** Which way a [Transitions.sharedAxis] transition travels. */
@@ -224,4 +226,46 @@ internal fun AnimatedSlot(
             }
         }
     }
+}
+
+/**
+ * How far an arrow turns to say the thing it points at is open.
+ *
+ * A half turn, so the chevron ends up pointing back the way it came. Ninety
+ * degrees is the other convention and it is worse here: it leaves the arrow
+ * pointing sideways, which is a direction that means something else in a
+ * library with a `ChevronForward` in it.
+ *
+ * Public in effect through [io.kontour.ui.components.action.IconButton]'s
+ * `rotation`, which takes this as a *target* and springs to it.
+ */
+internal const val ChevronTurn = 180f
+
+/**
+ * The turn every "this opens" arrow in the library makes.
+ *
+ * There were six of these, hand-rolled, on three different springs. Three used
+ * `springBouncy` and three used `springDefault`, so a `Select` and an
+ * `Accordion` sitting one above the other on the same page opened their arrows
+ * at visibly different rates — and two more fed an already-animated angle into
+ * [io.kontour.ui.components.action.IconButton]'s `rotation`, which is a target
+ * and springs to it itself, so those turned through *two* springs in series and
+ * arrived last of all.
+ *
+ * One mechanism, one spring, and the bouncy one: an arrow that overshoots a few
+ * degrees and settles reads as something physically flipping over, where a
+ * critically damped one reads as a value being assigned.
+ *
+ * The angle is read in the draw phase, so a turning arrow does not recompose
+ * whatever it is attached to sixty times a second.
+ */
+@Composable
+internal fun Modifier.chevronTurn(expanded: Boolean, label: String = "chevronTurn"): Modifier {
+    val motion = Theme.motion
+    val turn = animateFloatAsState(
+        targetValue = if (expanded) ChevronTurn else 0f,
+        animationSpec = motion.springOrTween(motion.springBouncy),
+        label = label,
+    )
+    return graphicsLayer { rotationZ = turn.value }
 }

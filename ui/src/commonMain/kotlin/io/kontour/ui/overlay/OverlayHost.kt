@@ -103,6 +103,25 @@ class OverlayEntry(
     val backdrop: BackdropStyle =
         if (scrim == ScrimStyle.Dimmed) BackdropStyle.Blur else BackdropStyle.None,
     val dismissOnOutside: Boolean = true,
+    /**
+     * Whether scrolling the page behind this entry closes it.
+     *
+     * Follows [dismissOnOutside], which is already the library's way of saying
+     * "this is a light thing the user can wave away" — a menu, a dropdown, a
+     * tooltip. Those are anchored to something that is about to move, and a
+     * scroll is the clearest possible statement that the user has finished with
+     * them.
+     *
+     * It is also what lets the page scroll at all. See [Scrim]'s
+     * `onScrollRequest`: a scrim is in front of the page for every kind of
+     * pointer event or none, so an overlay that will not close on a scroll is
+     * an overlay that stops the page scrolling.
+     *
+     * Turn it off for anything holding work in progress — a popover with a form
+     * in it — and accept that the page is frozen while it is open, which for a
+     * form is usually the right trade anyway.
+     */
+    val dismissOnScroll: Boolean = dismissOnOutside,
     val dismissOnBack: Boolean = true,
     val trapFocus: Boolean = true,
     val dismissLabel: String? = null,
@@ -346,6 +365,16 @@ private fun EntryHost(
                 null
             }
         }
+        // Remembered for the same reason `dismiss` is: `Scrim` keys a gesture
+        // coroutine on it, and `EntryHost` recomposes every frame an overlay is
+        // animating.
+        val scrolled: (() -> Unit)? = remember(entry, state, entry.dismissOnScroll, leaving) {
+            if (entry.dismissOnScroll && !leaving) {
+                { state.dismissOutside(entry) }
+            } else {
+                null
+            }
+        }
         Scrim(
             // The same number the panel is drawn with, so the dimming and the
             // thing it dims are one movement — see `Scrim`.
@@ -353,6 +382,7 @@ private fun EntryHost(
             onDismissRequest = dismiss,
             dismissLabel = entry.dismissLabel,
             color = if (dimmed) Theme.colors.scrim else Color.Transparent,
+            onScrollRequest = scrolled,
         )
     }
 

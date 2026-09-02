@@ -74,9 +74,10 @@ import io.kontour.ui.theme.Theme
  *   value: it is animated through `springBouncy`, so it overshoots a few degrees
  *   and settles, which a static modifier cannot express.
  *
- *   For disclosure chevrons
- *   and menu/close morphs — pass `if (expanded) 90f else 0f` rather than
- *   swapping between two icons, which reads as a flicker.
+ *   For disclosure chevrons and menu/close morphs, pass the target — 
+ *   `if (expanded) ChevronTurn else 0f` — rather than swapping between two
+ *   icons, which reads as a flicker. Never pass an already-animated angle: two
+ *   springs in series arrive late and land differently from every other arrow.
  */
 @Composable
 fun IconButton(
