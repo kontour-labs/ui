@@ -66,8 +66,14 @@ val generateDocPages = tasks.register<Exec>("generateDocPages") {
 
     val pages = layout.projectDirectory.dir("content")
     val script = rootProject.layout.projectDirectory.file("docs/generate-doc-pages.py")
+    // `doctree.py` is an input too, and it became a load-bearing one when the
+    // guides took their order from `GUIDES`: reordering that tuple with only the
+    // script declared leaves this task up to date, so the generated pages keep
+    // the old order until somebody happens to touch a markdown file.
+    val shape = rootProject.layout.projectDirectory.file("docs/doctree.py")
     inputs.dir(pages).withPropertyName("pages")
     inputs.file(script).withPropertyName("script")
+    inputs.file(shape).withPropertyName("doctree")
     outputs.dir(generatedDocs).withPropertyName("generated")
 
     workingDir = rootProject.layout.projectDirectory.asFile

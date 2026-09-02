@@ -1,6 +1,6 @@
 # Foundation
 
-The five primitives every other component is built from.
+The primitives every other component is built from.
 
 | | |
 |---|---|
@@ -16,10 +16,9 @@ colour argument in the common case: a surface says what it is, and its content
 resolves against it. That chain is why a component can be dropped on a dark card
 without every child being told.
 
-`DragHandle` lives here too, in
-[`sheets.md`](../sheets.md#draghandle-is-drawn-not-draggable).
-
-![DragHandle](../../../ui-catalog/screenshots/components/draghandle-light.png)
+`DragHandle` is the near miss — a primitive by shape, but it means one specific
+thing, so it is filed with the sheets and explained under
+[the detent model](../sheets.md#draghandle-is-drawn-not-draggable).
 
 ---
 

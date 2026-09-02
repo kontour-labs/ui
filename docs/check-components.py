@@ -12,7 +12,7 @@ missing: a section that lands in two files, a component whose page was never
 made, a page nothing links to. So the arrangement is checked rather than
 trusted.
 
-Ten rules:
+Thirteen rules:
 
   1. Every component in `componentRegistry` has a page whose title names it.
      The registry is the library's own list, so this cannot drift from what
@@ -31,6 +31,9 @@ Ten rules:
   8. Every page title names a declaration that exists in `:ui`.
   9. The README's component count is the tree's component count.
  10. Every name an accessibility section mentions exists in `:ui`.
+ 11. The radius scale is written down three times and executes once.
+ 12. Every component in the shape-families table really asks for that family.
+ 13. `components.md` — the map — agrees with the eleven indexes it summarises.
 
 Rules 4, 6 and 7 are **ratchets**: a ceiling that only goes down, rather than a
 list of exempted names. You cannot exempt *your* page, only make the total
@@ -47,7 +50,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from doctree import COMPONENTS, CONTENT, INDEXES  # noqa: E402
+from doctree import COMPONENTS, CONTENT, INDEXES, family_of  # noqa: E402
 
 # Found rather than named. The registry has already moved source set once — out
 # of `commonTest` and into `commonMain`, so the documentation site could read
@@ -447,10 +450,7 @@ def main() -> int:
                 )
 
     # Rule 3 — every page is reachable from its index.
-    linked = set()
-    for index in index_pages:
-        for target in re.findall(r"\(([a-z0-9-]+\.md)(?:#[^)]*)?\)", index.read_text()):
-            linked.add(target)
+    linked = {f"{stem}.md" for stem in family_of()}
     for page in component_pages:
         if page.name not in linked:
             problems.append(
@@ -528,6 +528,66 @@ def main() -> int:
                 problems.append(
                     f"tokens.md says `{name}` uses the `{family}` shape, but "
                     f"{path.name} never asks for `Theme.shapes.{family}`"
+                )
+
+    # Rule 13 — the map agrees with the indexes it summarises.
+    #
+    # `components.md` is the one page claiming to show the whole shape of the
+    # library, and it is a hand-written summary of eleven hand-written indexes:
+    # two chances to forget the same row, and nothing comparing them. It had
+    # drifted in both directions at once. Fifteen components — among them
+    # `ExtendedFloatingActionButton`, `TriStateCheckbox`, `PageIndicator` and
+    # `OverlayHost` — had a page and an index and no line on the map. `Divider`
+    # was *on* the map under a name nothing has been called since it split into
+    # `HorizontalDivider` and `VerticalDivider`. And `DragHandle` sat on the
+    # Sheets row while the Collections index owned the page, so the map and the
+    # sidebar disagreed about where it lived.
+    #
+    # Asymmetric on purpose. A summary row is a summary — it should not have to
+    # name `SkeletonText` and `BadgedBox` — so the second half asks only that
+    # every page get *a* mention. The first half is strict, because a name on
+    # the map that leads nowhere is the failure a reader actually hits.
+    #
+    # `Motion.*` and its like need no exemption: `BACKTICKED` will not match a
+    # name containing a `*`, so a wildcard on the map is not a claim about a page.
+    # From `doctree` rather than re-derived, so this checks what the site does
+    # rather than something that resembles it.
+    owner_family = {stem: claim[0] for stem, claim in family_of().items()}
+
+    symbol_page: dict[str, Path] = {}
+    for page in component_pages:
+        for symbol in page_symbols(page):
+            symbol_page.setdefault(symbol, page)
+
+    family_row = re.compile(
+        r"^\|\s*\[\*\*.+?\*\*\]\(components/([a-z0-9-]+)\.md\)\s*\|[^|]*\|(.+?)\|\s*$",
+        re.M,
+    )
+    for stem, members in family_row.findall((CONTENT / "components.md").read_text()):
+        mentioned: set[str] = set()
+        for symbol in BACKTICKED.findall(members):
+            page = symbol_page.get(symbol)
+            if page is None:
+                problems.append(
+                    f"components.md lists `{symbol}` under {stem} and no component "
+                    f"page is titled that — it has been renamed, or its page was "
+                    f"never written"
+                )
+            elif owner_family.get(page.stem) != stem:
+                problems.append(
+                    f"components.md lists `{symbol}` under {stem}, but "
+                    f"{page.name} is indexed by "
+                    f"{owner_family.get(page.stem, 'no index')} — the map and the "
+                    f"sidebar disagree about where it lives"
+                )
+            else:
+                mentioned.add(page.stem)
+        for page_stem, family in sorted(owner_family.items()):
+            if family == stem and page_stem not in mentioned:
+                problems.append(
+                    f"components.md's {stem} row names nothing on {page_stem}.md "
+                    f"— a component the map never mentions is one nobody finds "
+                    f"from the map"
                 )
 
     if problems:

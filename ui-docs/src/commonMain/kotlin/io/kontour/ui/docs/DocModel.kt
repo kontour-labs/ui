@@ -30,6 +30,10 @@ enum class DocKind {
  *   and for the link into the API reference.
  * @param family Which index links to it, or `Guides` for a page that is not
  *   about a component at all.
+ * @param order Where it sits within [family] — for a component, the position
+ *   its index links it at; for a guide, its position in `doctree.GUIDES`. The
+ *   family pages themselves carry `-1`, since a family page is drawn beside its
+ *   family rather than inside it and its order is never read.
  * @param content Builds this page's blocks, and is not called until something
  *   asks for them. See [blocks].
  */
@@ -40,6 +44,7 @@ class DocPage(
     val symbols: List<String>,
     val family: String,
     val kind: DocKind,
+    val order: Int,
     private val content: () -> List<Block>,
 ) {
     /**
@@ -151,17 +156,25 @@ val familyOrder: List<String> = listOf(
 )
 
 /**
- * The index: families in [familyOrder], and within each the pages by title.
+ * The index: families in [familyOrder], and within each the pages in [DocPage.order].
  *
  * A family's own page is excluded from its list and carried beside it instead —
  * a section headed "Overlays" whose first entry is also "Overlays" reads as a
  * duplicate rather than as the way in.
+ *
+ * The order within a family is the family index's own, and the comment above
+ * [familyOrder] is why: this sorted by `title` — the *raw markdown*, backticks
+ * and all — so `` `ButtonGroup` `` beat `` `Button` `` on the strength of a
+ * closing backtick sorting after `G`, and `NavigationSuiteScaffold`, which
+ * `navigation.md` introduces with **Start here.**, arrived fifth. Sorting by a
+ * better string would have been the same mistake spelled differently. The index
+ * pages are already written in the order a reader should meet them in.
  */
 val docPagesByFamily: List<DocFamily> =
     familyOrder.mapNotNull { family ->
         val pages = docPages.filter { it.family == family }
         val index = pages.firstOrNull { it.kind == DocKind.Family }
-        val rest = pages.filter { it.kind != DocKind.Family }.sortedBy { it.title }
+        val rest = pages.filter { it.kind != DocKind.Family }.sortedBy { it.order }
         if (rest.isEmpty()) null else DocFamily(family, index, rest)
     }
 

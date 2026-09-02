@@ -1,4 +1,4 @@
-# Sheets
+# The detent model
 
 Panels that slide in from an edge. The Anyways map is sheet-driven — seven of
 them, 5,845 lines, all sitting over a live map — so this gets more attention

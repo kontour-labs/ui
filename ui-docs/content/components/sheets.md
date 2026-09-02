@@ -10,10 +10,11 @@ why those positions are values rather than an enum — is in
 | [`ModalBottomSheet`](modal-bottom-sheet.md) | A task that owns the screen until it is done | A `Dialog`, on a phone, where a sheet is easier to reach |
 | [`SideSheet`](side-sheet.md) | Filters and detail beside the content on a wide window | A `ModalNavDrawer`, which is for destinations |
 | [`SheetHeader`](sheet-header.md) | The title row every sheet needs | Rebuilding the title, actions and handle per sheet |
+| [`DragHandle`](drag-handle.md) | The grab bar at the top of a sheet | — |
 
-[`DragHandle`](drag-handle.md) is filed under Collections because it is a row
-affordance as much as a sheet one, and it is
-[drawn rather than draggable](../sheets.md#draghandle-is-drawn-not-draggable).
+`DragHandle` is a row affordance as much as a sheet one, and it is
+[drawn rather than draggable](../sheets.md#draghandle-is-drawn-not-draggable) —
+the sheet under it owns the gesture.
 
 ---
 

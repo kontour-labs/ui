@@ -11,6 +11,7 @@ Things that show rather than take input.
 | [`LinearProgress`](progress.md) | A known fraction | `Spinner`, when you do not know it |
 | [`CircularProgress`](progress.md) | A known fraction, in a small space | — |
 | [`StepProgress`](progress.md) | A known number of steps | `LinearProgress`, for a continuous fraction |
+| [`Spinner`](spinner.md) | Work is happening, duration unknown | `LinearProgress`, when you know the fraction |
 | [`Skeleton`](skeleton.md) | The shape of content that is loading | `Spinner`, when the shape is knowable |
 | [`EmptyState`](empty-state.md) | Nothing here, and that is fine | `ErrorState` — see below |
 | [`ErrorState`](empty-state.md) | Something went wrong | `EmptyState` — see below |
