@@ -31,6 +31,8 @@ import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.elevation
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.foundation.Surface
+import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
 
 object NavBarDefaults {
@@ -56,12 +58,150 @@ object NavBarDefaults {
         @Composable get() = maxOf(Theme.sizing.minTouchTarget, NavItemDefaults.CircleSize.height)
 
     /**
+     * The gap between destinations when they are not spread across the window.
+     *
+     * Four. The bar's complaint has always been that its buttons are too far
+     * apart, and on the styles with a surface behind them there is no reason to
+     * spread: a docked bar's shape already says where the navigation is, so the
+     * items can sit together and read as one group.
+     */
+    val ItemGap: Dp = 4.dp
+
+    /**
+     * How a bar in [style] distributes its children, unless the caller says
+     * otherwise.
+     *
+     * [NavBarStyle.Free] spreads, because free-standing circles with nothing
+     * behind them need the window's width to read as a bar at all. The other two
+     * group in the middle, because their surface has already done that job — and
+     * spreading them is what made the buttons feel too far apart.
+     *
+     * Moot the moment a weighted slot is in the row: the slot takes the slack,
+     * so there is none left for an arrangement to distribute.
+     */
+    fun arrangementFor(style: NavBarStyle): Arrangement.Horizontal = when (style) {
+        NavBarStyle.Free -> Arrangement.SpaceEvenly
+        NavBarStyle.Docked, NavBarStyle.Floating ->
+            Arrangement.spacedBy(ItemGap, Alignment.CenterHorizontally)
+    }
+
+    /**
      * How tall the fade behind the bar is.
      *
      * Enough to cover the destinations and a little of what is above them, so
      * the content dissolves into the fade rather than meeting a line.
      */
     val BackdropHeight: Dp = 128.dp
+}
+
+/**
+ * How a [NavBar] presents itself. **A container decision, and only that.**
+ *
+ * The item's own presentation — circle, label, badge — is derived from the style
+ * rather than chosen beside it, and that restraint is the whole reason this is
+ * an enum and not two. The bar has been here before: it "used to be three
+ * container styles and two item styles — nine combinations, of which the product
+ * wanted one". Every one of those nine looked defensible on its own, which is
+ * exactly how a matrix gets built. A second axis is the thing to refuse.
+ */
+enum class NavBarStyle {
+    /**
+     * Free-standing circles over the page, with nothing behind them.
+     *
+     * The default, and what the app ships. Each circle carries its own
+     * elevation, so the bar works over a map without a surface separating it
+     * from one.
+     */
+    Free,
+
+    /**
+     * One surface spanning the window, sitting on the bottom edge.
+     *
+     * The arrangement most apps use, and the one to reach for when the content
+     * behind the bar is a list rather than a map — a surface that meets the
+     * window's edge is a firmer footing than shapes floating over a scroll.
+     */
+    Docked,
+
+    /**
+     * A capsule inset from every edge, hovering over the content.
+     *
+     * [Docked]'s footing without its commitment: the page runs under it, so it
+     * suits content that should be seen to continue past the bar.
+     */
+    Floating,
+}
+
+/**
+ * What goes in a [NavBar], in the order it goes in.
+ *
+ * Two primitives, because two is what the cases need. [item] is a destination —
+ * it takes part in the selection marker and the screen reader's count of them.
+ * [slot] is everything else, and its [slot]'s `weight` is Compose's own `Row`
+ * vocabulary rather than a private one: at zero it is sized to its content, and
+ * above zero it takes that share of whatever is left over.
+ *
+ * ```kotlin
+ * NavBar(style = NavBarStyle.Docked, selectedIndex = current) {
+ *     item(home)
+ *     item(browse)
+ *     slot(weight = 1f) { SearchField(query, placeholder = "Search") }
+ *     item(orders)
+ *     item(account)
+ * }
+ * ```
+ *
+ * That replaces `search` and `searchIndex`, whose own documentation predicted
+ * this: "an index rather than a builder… worth revisiting if the index proves
+ * too blunt". It did. An index can put one thing in one place; it cannot say
+ * that the search should be twice the width of the wide button beside it, or
+ * that two destinations should be pushed to the far edge by an empty
+ * `slot(weight = 1f) {}`.
+ */
+interface NavBarScope {
+
+    /**
+     * One destination.
+     *
+     * `selectedIndex` counts **these and nothing else**, so putting a search in
+     * the middle of a bar does not shift the index of the items after it. That
+     * is the trap an entry list of one type would set.
+     */
+    fun item(item: NavItem)
+
+    /**
+     * Anything that is not a destination: a search field, a wide button, an
+     * avatar, a floating action.
+     *
+     * Outside the destinations' `selectableGroup`, so a screen reader does not
+     * announce a search field as "4 of 4" among three places to go.
+     *
+     * @param weight Zero — the default — sizes it to its content. Above zero it
+     *   takes that share of the room the fixed children leave, which is what a
+     *   search field wants and what makes an empty slot a spacer.
+     */
+    fun slot(weight: Float = 0f, content: @Composable () -> Unit)
+}
+
+internal sealed interface NavBarEntry
+
+internal data class NavBarDestination(val item: NavItem) : NavBarEntry
+
+internal class NavBarSlotEntry(
+    val weight: Float,
+    val content: @Composable () -> Unit,
+) : NavBarEntry
+
+internal class NavBarScopeImpl : NavBarScope {
+    val entries = mutableListOf<NavBarEntry>()
+
+    override fun item(item: NavItem) {
+        entries += NavBarDestination(item)
+    }
+
+    override fun slot(weight: Float, content: @Composable () -> Unit) {
+        entries += NavBarSlotEntry(weight, content)
+    }
 }
 
 /**
@@ -103,6 +243,7 @@ fun NavBar(
     items: List<NavItem>,
     selectedIndex: Int,
     modifier: Modifier = Modifier,
+    style: NavBarStyle = NavBarStyle.Free,
     showLabels: Boolean = false,
     containerColor: Color = Theme.colors.surface,
     contentColor: Color = Theme.colors.content,
@@ -115,31 +256,94 @@ fun NavBar(
     /**
      * Where [search] sits among the items.
      *
-     * `null` — the default — puts it after all of them, which is where it has
-     * always been. An index puts it *between* two: `items.size / 2` is the
-     * middle, which is the arrangement a map app wants, with destinations either
-     * side of the thing people actually came to do.
+     * `null` — the default — puts it after all of them. An index puts it
+     * *between* two: `items.size / 2` is the middle, which is the arrangement a
+     * map app wants, with destinations either side of the thing people actually
+     * came to do.
      *
-     * An index rather than a builder because [NavigationSuiteScaffold] hands the
-     * bar, the rail and the drawer one `List<NavItem>` and expects all three to
-     * show the same list. A `NavBarScope` with `item()` and `search()` would be
-     * more flexible and would match `NavDrawerScope`; it would also mean the
-     * suite could no longer drive them from one list. Worth revisiting if the
-     * index proves too blunt.
+     * An index because [NavigationSuiteScaffold] hands the bar, the rail and the
+     * drawer one `List<NavItem>` and expects all three to show the same list.
+     * That constraint is real and this overload keeps it; the [NavBarScope]
+     * overload below is where a bar arranges itself freely, and this one is
+     * written in terms of it.
      */
     searchIndex: Int? = null,
     action: (@Composable () -> Unit)? = null,
-    /**
-     * What the row keeps clear of. The gesture bar and the display cutout by
-     * default.
-     *
-     * The row moves *up* by the inset rather than growing into it: there is no
-     * surface here to extend to the window's edge, only shapes with air around
-     * them.
-     */
+    arrangement: Arrangement.Horizontal = NavBarDefaults.arrangementFor(style),
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
 ) {
+    NavBar(
+        selectedIndex = selectedIndex,
+        modifier = modifier,
+        style = style,
+        showLabels = showLabels,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        indicatorColor = indicatorColor,
+        backdrop = backdrop,
+        backdropColor = backdropColor,
+        indicatorSize = indicatorSize,
+        labelGap = labelGap,
+        arrangement = arrangement,
+        windowInsets = windowInsets,
+    ) {
+        items.forEachIndexed { index, destination ->
+            if (search != null && searchIndex == index) slot(weight = 1f) { search() }
+            item(destination)
+        }
+        if (search != null && searchIndex == null) slot(weight = 1f) { search() }
+        if (action != null) slot { action() }
+    }
+}
+
+/**
+ * The primary navigation surface on a phone, arranged by the caller.
+ *
+ * ```kotlin
+ * NavBar(style = NavBarStyle.Docked, selectedIndex = current) {
+ *     item(home)
+ *     item(browse)
+ *     slot(weight = 1f) { SearchField(query, placeholder = "Search") }
+ *     item(orders)
+ *     item(account)
+ * }
+ * ```
+ *
+ * See [NavBarScope] for what goes in it and [NavBarStyle] for how it presents
+ * itself. The `List<NavItem>` overload above is this one with the list laid out
+ * left to right, and is what [NavigationSuiteScaffold] drives so that the bar,
+ * the rail and the drawer keep showing the same destinations.
+ *
+ * @param selectedIndex Counts `item`s and nothing else, so a slot in the middle
+ *   does not shift the indices of the destinations after it.
+ * @param showLabels Off by default. A word under every icon is a row of words,
+ *   and the destinations of an app this size are the four or five its user
+ *   already knows. Turn it on for an app whose icons are not obvious.
+ * @param backdrop A vertical fade from transparent to the page colour behind the
+ *   whole row. A [NavBarStyle.Free] concern only: the other two styles have a
+ *   surface, which is what a backdrop is standing in for.
+ * @param arrangement How the row distributes its children. Defaults per style —
+ *   see [NavBarDefaults.arrangementFor].
+ */
+@Composable
+fun NavBar(
+    selectedIndex: Int,
+    modifier: Modifier = Modifier,
+    style: NavBarStyle = NavBarStyle.Free,
+    showLabels: Boolean = false,
+    containerColor: Color = Theme.colors.surface,
+    contentColor: Color = Theme.colors.content,
+    indicatorColor: Color = Theme.colors.accent.container,
+    backdrop: Boolean = false,
+    backdropColor: Color = Theme.colors.background,
+    indicatorSize: DpSize = NavItemDefaults.CircleSize,
+    labelGap: Dp = Theme.spacing.xxs,
+    arrangement: Arrangement.Horizontal = NavBarDefaults.arrangementFor(style),
+    windowInsets: WindowInsets = WindowInsets.bottomEdges,
+    content: NavBarScope.() -> Unit,
+) {
     val indicator = rememberSelectionIndicatorState()
+    val entries = NavBarScopeImpl().also(content).entries
 
     // The fade is *drawn*, not laid out.
     //
@@ -148,146 +352,185 @@ fun NavBar(
     // carried no alignment it then sat at the top of that box rather than at the
     // bottom. [NavigationSuiteScaffold] measures this component and hands its
     // height to the screen as padding, so turning the backdrop on inset the
-    // content by 128dp and lifted the destinations away from the edge. Visible
-    // in the gallery's own golden, in the one panel that uses it.
+    // content by 128dp and lifted the destinations away from the edge.
     //
     // Reaching above the node's own bounds is the point: the fade has to start
     // well over the row it stands behind, and nothing here clips.
     val backdropHeight = with(LocalDensity.current) { NavBarDefaults.BackdropHeight.toPx() }
+    val fade = if (backdrop && style == NavBarStyle.Free) {
+        // `drawWithCache`, not `drawBehind`: a `Brush` built inside the draw
+        // block is rebuilt on every frame, and a vertical gradient carries a
+        // shader that has to be recreated with it.
+        Modifier.drawWithCache {
+            val top = size.height - backdropHeight
+            val brush = Brush.verticalGradient(
+                colors = listOf(Color.Transparent, backdropColor),
+                startY = top,
+                endY = size.height,
+            )
+            val topLeft = Offset(0f, top)
+            val area = Size(size.width, backdropHeight)
+            onDrawBehind { drawRect(brush = brush, topLeft = topLeft, size = area) }
+        }
+    } else {
+        Modifier
+    }
 
-    Box(modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (backdrop) {
-                        // `drawWithCache`, not `drawBehind`: a `Brush` built
-                        // inside the draw block is rebuilt on every frame the
-                        // bar is redrawn, and a vertical gradient carries a
-                        // shader that has to be recreated with it. Nothing here
-                        // depends on anything but the size and the colour, so
-                        // both live in the cache block and the draw block only
-                        // draws.
-                        Modifier.drawWithCache {
-                            val top = size.height - backdropHeight
-                            val brush = Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, backdropColor),
-                                startY = top,
-                                endY = size.height,
-                            )
-                            val topLeft = Offset(0f, top)
-                            val fade = Size(size.width, backdropHeight)
-                            onDrawBehind {
-                                drawRect(brush = brush, topLeft = topLeft, size = fade)
-                            }
-                        }
-                    } else {
-                        Modifier
-                    }
-                )
-                .windowInsetsPadding(windowInsets)
-                // Horizontal only. Every destination reserves
-                // `Theme.sizing.minTouchTarget` and draws a smaller circle
-                // inside it, so the air above and below the circles is already
-                // there; 4dp on top of it was the same 4dp twice, and eight of
-                // the bar's fifty-six were paying for it.
-                .padding(horizontal = NavBarDefaults.Inset),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SelectionIndicatorBox(
-                state = indicator,
-                // The circle *is* the marker, so it is sized to the glyph rather
-                // than to the item — otherwise it stretches to take in a label
-                // underneath and stops being a circle.
-                sizing = IndicatorSizing.Fixed(
-                    width = indicatorSize.width,
-                    height = indicatorSize.height,
-                    // Against the top when there is a label below the icon: the
-                    // circle marks the glyph, and centring it on the whole item
-                    // drops it into the gap between the icon and the word.
-                    verticalBias = if (showLabels) 0f else 0.5f,
-                ),
-                modifier = if (search == null) Modifier.weight(1f) else Modifier,
-                indicator = {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .elevation(Theme.elevation.low, Theme.shapes.pill)
-                            .clip(Theme.shapes.pill)
-                            .background(indicatorColor)
-                    )
-                },
-            ) {
-                Row(
-                    modifier = Modifier
-                        .then(if (search == null) Modifier.fillMaxWidth() else Modifier)
-                        .selectableGroup(),
-                    horizontalArrangement = if (search == null) {
-                        Arrangement.SpaceEvenly
-                    } else {
-                        Arrangement.spacedBy(Theme.spacing.xs)
-                    },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    items.forEachIndexed { index, item ->
-                        if (search != null && searchIndex == index) {
-                            // `propagateMinConstraints`, so the slot's content is
-                            // *given* the width rather than merely offered it.
-                            // The `search` parameter has always promised to be
-                            // "sized to what is left"; without this the `Box` was
-                            // sized to what was left and the pill inside it wrapped
-                            // its own content and sat at the start, leaving 45dp of
-                            // nothing between the search and the destination after
-                            // it — against 8dp everywhere else in the row.
-                            Box(Modifier.weight(1f), propagateMinConstraints = true) {
-                                BarSlot(search)
-                            }
-                        }
-                        NavBarItem(
-                            item = item,
-                            selected = index == selectedIndex,
-                            showLabel = showLabels,
-                            // Only the *unselected* circles paint themselves. An
-                            // item's own background is part of its content and
-                            // draws over the marker behind it, so the selected
-                            // one has to be the travelling circle or the marker
-                            // is invisible.
-                            containerColor = if (index == selectedIndex) {
-                                Color.Transparent
-                            } else {
-                                containerColor
-                            },
-                            contentColor = contentColor,
-                            indicatorSize = indicatorSize,
-                            labelGap = labelGap,
-                        )
-                    }
-                }
-            }
+    // Only the free style's items paint their own circles. The other two have a
+    // surface behind them doing that job, and an item painting over it is a
+    // second ground on top of the first — which is also what would hide the
+    // travelling marker.
+    val itemContainer = if (style == NavBarStyle.Free) containerColor else Color.Transparent
 
-            // Only when it has not already been placed among the items.
-            if (search != null && searchIndex == null) {
-                Box(Modifier.weight(1f), propagateMinConstraints = true) {
-                    BarSlot(search)
-                }
-            }
-
-            if (action != null) {
-                // Aligned to the *icons*, not to the row.
-                //
-                // With `showLabels` the items grow a word taller, so centring
-                // the action in the row dropped it half a label below the icons
-                // it is meant to sit beside — a trailing FAB visibly lower than
-                // everything else on the bar. Top-aligned and given the
-                // indicator's height, its centre is the icons' centre whatever
-                // is underneath them.
+    @Composable
+    fun BarRow(rowModifier: Modifier) {
+        SelectionIndicatorBox(
+            state = indicator,
+            // The circle *is* the marker, so it is sized to the glyph rather
+            // than to the item — otherwise it stretches to take in a label
+            // underneath and stops being a circle.
+            sizing = IndicatorSizing.Fixed(
+                width = indicatorSize.width,
+                height = indicatorSize.height,
+                // Against the top when there is a label below the icon: the
+                // circle marks the glyph, and centring it on the whole item
+                // drops it into the gap between the icon and the word.
+                verticalBias = if (showLabels) 0f else 0.5f,
+            ),
+            modifier = rowModifier,
+            indicator = {
                 Box(
-                    modifier = Modifier.align(Alignment.Top).height(indicatorSize.height),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    BarSlot(action)
+                    Modifier
+                        .fillMaxSize()
+                        .elevation(Theme.elevation.low, Theme.shapes.pill)
+                        .clip(Theme.shapes.pill)
+                        .background(indicatorColor)
+                )
+            },
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().selectableGroup(),
+                horizontalArrangement = arrangement,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                var ordinal = 0
+                entries.forEach { entry ->
+                    when (entry) {
+                        is NavBarDestination -> {
+                            val index = ordinal++
+                            NavBarItem(
+                                item = entry.item,
+                                selected = index == selectedIndex,
+                                showLabel = showLabels,
+                                // Only the *unselected* circles paint
+                                // themselves: an item's own background draws
+                                // over the marker behind it, so the selected
+                                // one has to be the travelling circle or the
+                                // marker is invisible.
+                                containerColor = if (index == selectedIndex) {
+                                    Color.Transparent
+                                } else {
+                                    itemContainer
+                                },
+                                contentColor = contentColor,
+                                indicatorSize = indicatorSize,
+                                labelGap = labelGap,
+                                shadow = style == NavBarStyle.Free,
+                            )
+                        }
+
+                        is NavBarSlotEntry -> if (entry.weight > 0f) {
+                            // `propagateMinConstraints`, so the slot's content
+                            // is *given* the width rather than merely offered
+                            // it. Without it a search pill wrapped its own
+                            // content and sat at the start of the space it had
+                            // been handed.
+                            Box(
+                                modifier = Modifier.weight(entry.weight),
+                                propagateMinConstraints = true,
+                            ) {
+                                BarSlot(entry.content)
+                            }
+                        } else {
+                            // Aligned to the *icons*, not to the row. With
+                            // `showLabels` the items grow a word taller, so
+                            // centring a trailing action in the row dropped it
+                            // half a label below the icons it sits beside.
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.Top)
+                                    .height(indicatorSize.height),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                BarSlot(entry.content)
+                            }
+                        }
+                    }
                 }
+            }
+        }
+    }
+
+    when (style) {
+        // No surface at all: shapes with air around them, so the row moves *up*
+        // by the inset rather than growing into it.
+        NavBarStyle.Free -> Box(modifier.fillMaxWidth()) {
+            BarRow(
+                Modifier
+                    .fillMaxWidth()
+                    .then(fade)
+                    .windowInsetsPadding(windowInsets)
+                    // Horizontal only. Every destination reserves
+                    // `Theme.sizing.minTouchTarget` and draws a smaller circle
+                    // inside it, so the air above and below is already there.
+                    .padding(horizontal = NavBarDefaults.Inset)
+            )
+        }
+
+        // The surface reaches the window's edge and the insets are applied
+        // inside it, so its colour runs under the gesture bar rather than
+        // stopping short of it.
+        NavBarStyle.Docked -> Surface(
+            modifier = modifier.fillMaxWidth(),
+            color = containerColor,
+            contentColor = contentColor,
+            shadow = Theme.elevation.low,
+        ) {
+            BarRow(
+                Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(windowInsets)
+                    // Vertical too, unlike the free style. A destination's own
+                    // touch target already carries air above and below it, which
+                    // is enough when there is nothing behind it — but a surface
+                    // wrapping that air sits skin-tight against it, and with
+                    // labels on the words touch the bar's own edge.
+                    .padding(
+                        horizontal = NavBarDefaults.Inset,
+                        vertical = Theme.spacing.xs,
+                    )
+            )
+        }
+
+        // Inset from every edge, so the page is visibly continuing underneath.
+        NavBarStyle.Floating -> Box(
+            modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(windowInsets)
+                .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = Theme.shapes.control,
+                color = containerColor,
+                contentColor = contentColor,
+                shadow = Theme.elevation.high,
+            ) {
+                BarRow(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs)
+                )
             }
         }
     }
@@ -310,6 +553,14 @@ fun NavBarItem(
     contentColor: Color = Theme.colors.content,
     indicatorSize: DpSize = NavItemDefaults.CircleSize,
     labelGap: Dp = Theme.spacing.xxs,
+    /**
+     * Whether the circle casts its own shadow.
+     *
+     * True for [NavBarStyle.Free], where each circle is its own object floating
+     * over the page. On a bar with a surface behind it that surface casts the
+     * shadow, and a per-item one is a second shadow inside the first.
+     */
+    shadow: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
 ) {
     NavDestinationItem(
@@ -322,10 +573,7 @@ fun NavBarItem(
         contentColor = contentColor,
         indicatorSize = indicatorSize,
         labelGap = labelGap,
-        // Each circle is its own object floating over the page, so it casts its
-        // own shadow. In a rail or a drawer the surface behind the row does that
-        // job and a per-item shadow would be a second one.
-        shadow = Theme.elevation.low,
+        shadow = if (shadow) Theme.elevation.low else Shadow.None,
         interactionSource = interactionSource,
     )
 }
