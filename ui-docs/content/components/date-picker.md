@@ -15,6 +15,18 @@ DatePicker(
 )
 ```
 
+**It has a width it stops at.** `fillMaxWidth` means "as wide as the container",
+and a desktop window is a container — so a picker given one used to fill it, at
+which point it is not more legible, only larger. It caps itself at
+`CalendarMonthDefaults.MaxWidth` and centres nothing: put it where you want it,
+and give it less width if you want it narrower.
+
+### It needs its whole month
+
+A month grid is up to six rows of dates plus a header, and it has nowhere to put
+the sixth row in a window shorter than about 400dp — a phone turned sideways is
+360. **Put it somewhere that scrolls.**
+
 ---
 
 ## Accessibility

@@ -21,6 +21,14 @@ DateRangePicker(
 start and clears any end, the second sets the end, and tapping before the
 current start *restarts* the range there rather than producing a backwards one.
 
+**A range can also be dragged out in one gesture**, in either direction —
+dragging from the 20th back to the 16th selects the 16th to the 20th. The band
+extends as one strip behind the finger and only its moving end animates; it is
+drawn the whole way rather than appearing when the finger lifts.
+
+Dragging is never the *only* way to reach a range. Both ends can be tapped, which
+is what makes the gesture safe to offer: see the accessibility note below.
+
 A multi-month scrolling calendar, for ranges that cross a month boundary
 comfortably, is [not yet built](../components.md#not-yet-built).
 

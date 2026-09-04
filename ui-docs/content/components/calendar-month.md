@@ -23,6 +23,18 @@ knowing which mode it is in.
 Range endpoints get a rounded cap and the interior stays square, so a run reads
 as continuous rather than as a row of separate pills.
 
+**The grid grows with the room it is given.** A cell is a seventh of the width,
+and past about 44dp the day numbers grow in proportion to it — with the row of
+weekday initials above them growing at the same rate, so the header keeps looking
+like a header for the numbers under it. Both stop at the same point, which is
+also where the grid stops widening: past it the digits are as large as they will
+get and more width only buys a larger empty circle around the same number.
+
+**Dragging a range extends one band.** Only the end the finger is moving
+animates, sweeping along the track out of the edge the range is arriving from;
+everything behind it is drawn. A cell in the middle of a run is not an edge that
+is moving.
+
 > A day cell used to announce its selection from a decorative sibling, so a
 > screen reader could read a date as selected when it was not. Found by the
 > contract suite.
