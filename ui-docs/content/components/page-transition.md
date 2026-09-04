@@ -10,11 +10,14 @@ PageTransition(target = route, modifier = Modifier.fillMaxSize()) { page ->
         is Route.Detail -> StopDetail(page.stop)
     }
 }
+```
 
-// The pages are ordinary composables. `sharedBounds` reaches the transition
-// through a composition local, so neither of these takes a scope, and either
-// renders on its own — in a test, or in a pane with no transition around it —
-// with the modifier quietly doing nothing.
+The two pages are ordinary composables. `sharedBounds` reaches the transition
+through a composition local, so neither takes a scope, and either renders on its
+own — in a test, or in a pane with no transition around it — with the modifier
+quietly doing nothing:
+
+```kotlin
 @Composable
 private fun StopList(onOpen: (Stop) -> Unit) {
     Column {

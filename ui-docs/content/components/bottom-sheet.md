@@ -17,9 +17,9 @@ val sheet = rememberSheetState(
 
 BottomSheet(
     state = sheet,
-    // Floating controls that ride up with the sheet rather than being
-    // covered by it — the map's "recentre" button is the case this is for.
-    actions = {
+    // Controls that ride up with the sheet rather than being covered by
+    // it — the map's "recentre" button is the case this is for.
+    floatingControls = {
         IconButton(
             icon = Tabler.Outline.CurrentLocation,
             contentDescription = "Recentre",

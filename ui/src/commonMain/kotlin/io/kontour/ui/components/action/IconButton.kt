@@ -169,6 +169,7 @@ fun IconToggleButton(
     checked: Boolean,
     onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     /**
      * Drawn instead of [icon] while [checked] — a filled star against an outline
      * one, a bookmark against its outline.
@@ -200,7 +201,6 @@ fun IconToggleButton(
      * affordance sitting inside something else.
      */
     strikethrough: Boolean = false,
-    enabled: Boolean = true,
     size: ButtonSize = ButtonSize.Medium,
     shape: Shape = Theme.shapes.control,
     stateDescription: String? = null,

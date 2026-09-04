@@ -22,7 +22,7 @@ Text(
 Text(
     buildAnnotatedString {
         append("The ")
-        withStyle(SpanStyle(colour = Theme.colours.accent.solid)) { append("950") }
+        withStyle(SpanStyle(color = Theme.colours.accent.solid)) { append("950") }
         append(" leaves in 4 minutes.")
     },
 )

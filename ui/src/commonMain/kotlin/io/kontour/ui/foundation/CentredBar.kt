@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.unit.Constraints
 import kotlin.math.max
 
@@ -96,7 +97,7 @@ internal fun CentredBar(
         )
 
         layout(width, height) {
-            fun place(placeables: List<androidx.compose.ui.layout.Placeable>, startAt: Int) {
+            fun place(placeables: List<Placeable>, startAt: Int) {
                 var x = startAt
                 placeables.forEach { placeable ->
                     placeable.place(x, Alignment.CenterVertically.align(placeable.height, height))
