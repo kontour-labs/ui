@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -434,6 +435,30 @@ fun Modifier.selectionIndicatorItem(key: Any, selected: Boolean): Modifier {
     // captured the anchor. Both still need an effect; a scroll does not.
     LaunchedEffect(state, key, selected, state.anchor) {
         state.reportIfPossible(key, selected, coordinates.value)
+    }
+
+    // Leaving is a report too, and it was the one nobody made.
+    //
+    // Only the selected item reports, and it reports a rect. When that item
+    // stops existing — a drawer group collapsing over it is the case that
+    // found this — the rect it last reported stayed on the state, so the
+    // marker went on being drawn at coordinates that now belong to whatever
+    // took the item's place. Collapsing the group containing the current page
+    // painted the pill across the group's own header, and opening a different
+    // group painted it across a row of that one.
+    //
+    // `SelectionIndicatorBox` has always had the branch for this — "the
+    // selected item stopped reporting … fade out where it stands" — and
+    // `clear()` has always existed. Neither had a caller.
+    //
+    // Guarded on still being the reported item, not on `selected`, because
+    // selection moving from one item to another disposes the old one *and*
+    // composes the new one, in an order this cannot depend on: if the arriving
+    // item has already reported, `targetKey` is its key and the departing item
+    // must keep its hands off. Only a departure that leaves nothing behind
+    // clears.
+    DisposableEffect(state, key) {
+        onDispose { if (state.targetKey == key) state.clear() }
     }
 
     return onGloballyPositioned {

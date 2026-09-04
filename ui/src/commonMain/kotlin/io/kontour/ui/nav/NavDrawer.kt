@@ -25,8 +25,10 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -67,6 +69,9 @@ import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.adaptive.leadingEdges
 import io.kontour.ui.theme.Theme
+import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 object NavDrawerDefaults {
     val Width: Dp = 280.dp
@@ -115,6 +120,15 @@ fun NavDrawer(
     containerColour: Color = Theme.colours.surface,
     contentColour: Color = Theme.colours.content,
     indicatorColour: Color = Theme.colours.accent.container,
+    /**
+     * Whether opening the drawer scrolls the selected destination into view.
+     *
+     * A drawer opens on the page you are already on, and a sidebar of twenty
+     * destinations opens showing the first five — so on a phone the row that
+     * says where you are is routinely off the bottom of it. Costs nothing on a
+     * list that already fits.
+     */
+    revealSelected: Boolean = true,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     /**
@@ -158,6 +172,7 @@ fun NavDrawer(
             DrawerItems(
                 modifier = Modifier.weight(1f),
                 indicatorColour = indicatorColour,
+                revealSelected = revealSelected,
                 content = content,
             )
 
@@ -196,6 +211,15 @@ fun ModalNavDrawer(
     dismissLabel: String = Theme.strings.closeNavigation,
     paneTitle: String = Theme.strings.navigation,
     indicatorColour: Color = Theme.colours.accent.container,
+    /**
+     * Whether opening the drawer scrolls the selected destination into view.
+     *
+     * A drawer opens on the page you are already on, and a sidebar of twenty
+     * destinations opens showing the first five — so on a phone the row that
+     * says where you are is routinely off the bottom of it. Costs nothing on a
+     * list that already fits.
+     */
+    revealSelected: Boolean = true,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable NavDrawerScope.() -> Unit,
@@ -219,6 +243,7 @@ fun ModalNavDrawer(
             DrawerItems(
                 modifier = Modifier.weight(1f),
                 indicatorColour = indicatorColour,
+                revealSelected = revealSelected,
                 content = content,
             )
             footer?.invoke(this)
@@ -240,11 +265,43 @@ fun ModalNavDrawer(
 private fun DrawerItems(
     modifier: Modifier,
     indicatorColour: Color,
+    revealSelected: Boolean,
     content: @Composable NavDrawerScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
+    val scroll = rememberScrollState()
 
-    Box(modifier.verticalScroll(rememberScrollState())) {
+    // A drawer opens on the page you are already on, and on a phone a list of
+    // twenty destinations opens showing the first five of them.
+    //
+    // The rect to scroll to is one the drawer already has: the selected row
+    // reports itself to the indicator, in the anchor's space, and the anchor is
+    // *inside* the scroll container — so the reported top is the row's offset
+    // down the scrolling content and no coordinate conversion is needed. That
+    // is the same property `SelectionIndicatorBox` relies on to keep the marker
+    // under its row while the list scrolls.
+    //
+    // It waits for the report rather than reading it now: nothing has been laid
+    // out on the first composition, so the rect arrives a frame or two later.
+    // And it snaps rather than animating — the row should already be in place
+    // when the drawer arrives, not slide there once it has.
+    if (revealSelected) {
+        LaunchedEffect(scroll) {
+            val row = snapshotFlow { indicator.target }.filterNotNull().first()
+            val margin = row.height / 2f
+            val top = (row.top - margin).roundToInt().coerceAtLeast(0)
+            val bottom = (row.bottom + margin).roundToInt()
+            val destination = when {
+                top < scroll.value -> top
+                bottom > scroll.value + scroll.viewportSize ->
+                    bottom - scroll.viewportSize
+                else -> return@LaunchedEffect
+            }
+            scroll.scrollTo(destination.coerceIn(0, scroll.maxValue))
+        }
+    }
+
+    Box(modifier.verticalScroll(scroll)) {
         SelectionIndicatorBox(
             state = indicator,
             // A pill around the whole row, matching the rail. The two surfaces

@@ -153,6 +153,15 @@ not something the component can know.
 `ModalNavDrawer` is the same drawer rendered into the `OverlayHost`, for a
 narrow window where it slides over the content instead of sitting beside it.
 
+**A drawer opens showing the page you are on.** `revealSelected` scrolls the
+selected destination into view as the drawer arrives, which matters most on a
+phone: a sidebar of twenty destinations opens showing the first five, and the
+row that says where you are is routinely below the fold. It costs nothing on a
+list that already fits, and it snaps rather than scrolling — the row should be
+in place when the drawer gets there, not slide into it afterwards. Turn it off
+for a drawer whose list is short enough that the movement is the only thing
+you would notice.
+
 ### The rail expands
 
 <!--sample:NavRailExpanding-->
