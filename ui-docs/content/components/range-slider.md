@@ -43,6 +43,17 @@ goes. The range still never *swaps*: a range that inverts under the finger is on
 the user has to drag twice to fix. The pushed thumb lags a little and stretches
 while it lags, so being shoved looks like being shoved.
 
+**A shoved thumb stays shoved.** Reverse the drag and it holds its ground while
+the thumb that pushed it comes back — the two separate from the moment the finger
+turns round, rather than travelling home together.
+
+**A press picks a thumb; it does not move one.** Tap the track and the nearer
+thumb comes to you, the way a single [`Slider`](slider.md)'s does. But a press
+that has not travelled yet might be the start of a drag, and with two thumbs a
+pixel either side of the midpoint picks a *different* one — so answering on the
+press sent whichever thumb you were not aiming at across the track. The move
+waits until the gesture has said which it is.
+
 **`minDistance`** is the narrowest the range may be, in the units of
 `valueRange`. A departure window of "no less than twenty minutes" is a real
 requirement and there was no way to say it. Both thumbs respect it, from a drag

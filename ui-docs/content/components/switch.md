@@ -17,6 +17,13 @@ its 2dp of clearance on both sides the whole way, growing into whichever side ha
 the room. At either end that is all behind it, so the stretch trails the way give
 should.
 
+**The stretch is the travel, not a second animation about it.** It is taken from
+how fast the thumb is going, so it grows as the thumb sets off, is widest where
+the thumb is quickest, and is gone by the time it arrives — one movement. Driven
+instead by a flag saying *the position is animating*, it could only ever start
+after the thumb had and finish after it stopped, which is a flip that expands,
+then moves, then contracts.
+
 **The track is filled in both states and the thumb never changes colour.** Only
 the track behind it does, because a switch has one moving part and one thing that
 changes behind it; recolouring the thumb as well makes the flip read as two

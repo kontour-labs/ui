@@ -184,6 +184,15 @@ fun RangeSlider(
      */
     var pressFraction by remember { mutableFloatStateOf(Float.NaN) }
 
+    /**
+     * What this gesture last emitted, or `null` between gestures.
+     *
+     * See [emit]. A gesture has to build on its own last answer rather than on
+     * one that has been round a recomposition, or the push rule compares against
+     * a position the pushed thumb left a frame ago.
+     */
+    var emitted by remember { mutableStateOf<ClosedFloatingPointRange<Float>?>(null) }
+
     fun snap(raw: Float): Float {
         val clamped = raw.coerceIn(0f, 1f)
         if (steps <= 0) return valueRange.start + clamped * span
@@ -211,22 +220,44 @@ fun RangeSlider(
      * [gap] between them and clamped to the end; and if the neighbour runs out
      * of track, the dragged one stops [gap] short of it rather than pretending to
      * carry on.
+     *
+     * ### It builds on what it last emitted, not on [value]
+     *
+     * The push rule is `maxOf(theOtherThumb, dragged + gap)` — hold the pushed
+     * thumb where it was pushed to, and only move it further. Right, and it was
+     * reading the wrong number: [value] is the caller's and comes back through a
+     * recomposition, so inside one gesture it is always one emit behind. The
+     * `maxOf` was therefore comparing against `dragged_previous + gap`, which on
+     * the way back is *below* the current position — so the pushed thumb came
+     * down one step behind the thumb doing the pushing and the two never
+     * separated. Measured on a `0f..10f` range: collide at 7.26, reverse 80px,
+     * and the pushed thumb had followed all the way back to 6.00 with the pair
+     * still exactly `gap` apart.
+     *
+     * [emitted] is what this gesture last produced, so the comparison is against
+     * where the thumb actually is. It is cleared at the end of the gesture, so
+     * anything the caller does to the value between gestures is honoured — a
+     * caller that clamps *during* one is the case this deliberately does not
+     * chase, because a gesture that argues with itself mid-drag is the thing
+     * being fixed.
      */
     fun emit(thumb: Thumb, rawFraction: Float) {
         val next = snap(rawFraction)
         tick(next)
+        val current = emitted ?: value
         val updated = when (thumb) {
             Thumb.Start -> {
                 val start = next.coerceIn(valueRange.start, valueRange.endInclusive - gap)
-                start..maxOf(value.endInclusive, start + gap)
+                start..maxOf(current.endInclusive, start + gap)
                     .coerceAtMost(valueRange.endInclusive)
             }
             Thumb.End -> {
                 val end = next.coerceIn(valueRange.start + gap, valueRange.endInclusive)
-                minOf(value.start, end - gap).coerceAtLeast(valueRange.start)..end
+                minOf(current.start, end - gap).coerceAtLeast(valueRange.start)..end
             }
             Thumb.None -> return
         }
+        emitted = updated
         currentOnValueChange(updated)
     }
 
@@ -432,17 +463,33 @@ fun RangeSlider(
                                 toStart < toEnd -> Thumb.Start
                                 else -> Thumb.End
                             }
-                            // The thumb comes to the finger, as `Slider`'s
-                            // does — but only once one of them has been picked.
-                            // With the two coincident the choice is deferred to
-                            // the first delta's direction, and moving a thumb
-                            // before knowing which one would move the wrong one.
+                            // A press picks a thumb. It does not move one.
+                            //
+                            // `Slider` brings its thumb to the finger, and that
+                            // is right where there is one thumb and therefore
+                            // one answer. With two, "the nearer thumb comes to
+                            // the finger" means every press between them drags
+                            // one inwards — and near the midpoint a pixel either
+                            // way picks a *different* one, so pressing to start a
+                            // drag would send whichever thumb you were not
+                            // aiming at off to meet your finger. Measured on a
+                            // `3f..5f` range with no movement at all: a press at
+                            // 0.45 of the track moved the end thumb from 5.00 to
+                            // 4.43, and one at 0.65 moved it to 6.69.
+                            //
+                            // A range is two values, and narrowing one of them
+                            // without being asked is destructive in a way that
+                            // moving a single slider's only thumb is not. So the
+                            // thumb still comes to the finger — on the first
+                            // *delta*, below, which is where a tap and a drag
+                            // become distinguishable — and a press on its own
+                            // changes nothing.
                             dragFraction = when (activeThumb) {
                                 Thumb.Start, Thumb.End -> f
                                 Thumb.None -> Float.NaN
                             }
                             carrying = false
-                            if (activeThumb != Thumb.None) emit(activeThumb, dragFraction)
+                            emitted = null
                         },
                         onDelta = { delta ->
                             val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
@@ -471,17 +518,52 @@ fun RangeSlider(
                                 } else {
                                     dragFraction
                                 }
-                                dragFraction = (from + signed / widthPx).coerceIn(0f, 1f)
+                                // Clamped to what this thumb can actually
+                                // reach, not to the whole track.
+                                //
+                                // `emit` holds the start thumb at
+                                // `valueRange.endInclusive - gap` and the end
+                                // thumb at `valueRange.start + gap`, so with a
+                                // `minDistance` the last `gap` of track is
+                                // unreachable — and the accumulator was still
+                                // climbing into it. Every pixel of finger spent
+                                // up there had to be spent again on the way back
+                                // before anything moved: measured at 56px of
+                                // dead travel at `minDistance = 1f` on a
+                                // `0f..10f` range, and past 80px at 2f. Zero at
+                                // the default, which is why nothing caught it.
+                                val reach = when (activeThumb) {
+                                    Thumb.Start -> 0f to (1f - gapFraction)
+                                    else -> gapFraction to 1f
+                                }
+                                dragFraction = (from + signed / widthPx)
+                                    .coerceIn(reach.first, reach.second)
                                 emit(activeThumb, dragFraction)
                             }
                         },
                         onEnd = {
-                            // A press that never moved is a tap, and on a
-                            // collapsed range no thumb was ever chosen. Ties go
-                            // to the start thumb, as they did when the tap was a
-                            // separate detector.
-                            if (activeThumb == Thumb.None && !pressFraction.isNaN()) {
-                                emit(Thumb.Start, pressFraction)
+                            // A press that never moved is a tap, and a tap
+                            // moves the nearer thumb to it.
+                            //
+                            // This is where that belongs, and it is where it now
+                            // happens for *every* tap rather than only for one
+                            // on a collapsed range. Doing it in `onStart`
+                            // committed to an answer before the gesture had said
+                            // whether it was a tap at all, so a press that was
+                            // about to become a drag sent a thumb — sometimes
+                            // the wrong one, near the midpoint — off to meet the
+                            // finger first. Deferred here, a drag never jumps and
+                            // a tap behaves exactly as it did.
+                            //
+                            // Ties still go to the start thumb, as they did when
+                            // the tap was a separate detector: on a collapsed
+                            // range no thumb was ever chosen, and one of them has
+                            // to answer.
+                            if (!carrying && !pressFraction.isNaN()) {
+                                emit(
+                                    if (activeThumb == Thumb.None) Thumb.Start else activeThumb,
+                                    pressFraction,
+                                )
                             }
                             feedback.perform(FeedbackIntent.GestureEnd)
                             lastStepIndex = Float.NaN
@@ -489,6 +571,7 @@ fun RangeSlider(
                             pressFraction = Float.NaN
                             carrying = false
                             activeThumb = Thumb.None
+                            emitted = null
                             currentFinished?.invoke()
                         },
                     )
