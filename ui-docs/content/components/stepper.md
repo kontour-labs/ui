@@ -29,6 +29,12 @@ sequence never contains.
 `stateDescription`, so a screen reader says "Adults, 2" rather than offering an
 unlabelled "2" between two buttons.
 
+**`animateValue` rolls the digit** rather than replacing it, which is worth
+having when the number is the whole content and the user is the one changing it
+— the roll says *you did that* where a silent swap looks like the screen
+redrawing. It is off by default because a stepper inside a long form is one of
+several things moving, and under reduced motion it does nothing at all.
+
 **Reach for a [`Slider`](slider.md) instead** when the number is approximate and
 the range is wide. A stepper is for a count someone knows exactly and will change
 by one or two; nobody taps `+` thirty times.

@@ -64,6 +64,11 @@ RangeSlider(
 independent. If one must not exceed the other, they are a range, and two sliders
 cannot enforce that between them.
 
+**`showTicks` marks the steps**, as small dots along the bar. Only on a stepped
+range: a continuous one has nothing to mark, and the parameter draws nothing.
+Reach for it when the steps are the point — whole hours, a fare band — and leave
+it off when they are only there to keep the value tidy.
+
 ---
 
 ## Accessibility

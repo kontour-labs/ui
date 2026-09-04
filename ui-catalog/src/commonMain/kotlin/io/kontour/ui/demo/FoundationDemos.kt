@@ -194,7 +194,19 @@ internal val ScaffoldDemo = ComponentDemo(slug = "scaffold") {
     }
 }
 
-internal val PaneScaffoldDemo = ComponentDemo(slug = "pane-scaffold") {
+/**
+ * A handle between the two panes that the user can drag.
+ *
+ * Only means anything at a width that shows both — on a phone there is one pane
+ * and nothing to divide — so it is off by default and the frame below is wide
+ * enough here to make it reachable.
+ */
+private val paneResizable = Knob.Flag("Resizable")
+
+internal val PaneScaffoldDemo = ComponentDemo(
+    slug = "pane-scaffold",
+    knobs = listOf(paneResizable),
+) {
     var focus by remember { mutableStateOf(PaneFocus.List) }
     var selected by remember { mutableStateOf(1) }
     val stops = listOf("Perth Underground", "Elizabeth Quay", "Perth Busport", "McIver")
@@ -213,6 +225,7 @@ internal val PaneScaffoldDemo = ComponentDemo(slug = "pane-scaffold") {
             ListDetailPaneScaffold(
                 focus = focus,
                 onBack = { focus = PaneFocus.List },
+                resizable = this@ComponentDemo[paneResizable],
                 list = {
                     ListGroup(spacing = 2.dp) {
                         stops.forEachIndexed { index, name ->

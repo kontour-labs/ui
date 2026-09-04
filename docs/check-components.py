@@ -12,7 +12,7 @@ missing: a section that lands in two files, a component whose page was never
 made, a page nothing links to. So the arrangement is checked rather than
 trusted.
 
-Fifteen rules:
+Sixteen rules:
 
   1. Every component in `componentRegistry` has a page whose title names it.
      The registry is the library's own list, so this cannot drift from what
@@ -39,8 +39,9 @@ Fifteen rules:
      of the writing-for-GitHub in round 22.
  14. Every enum a component takes as a parameter is on some demo's knob.
  15. Every click target sets a mouse cursor.
+ 16. Every boolean a component takes as a parameter is on some demo's knob.
 
-Rules 4, 6, 7 and 14 are **ratchets**: a ceiling that only goes down, rather
+Rules 4, 6, 7, 14 and 16 are **ratchets**: a ceiling that only goes down, rather
 than a list of exempted names. You cannot exempt *your* page, only make the total
 worse, and that is the difference that matters — a list of names in a test is
 how a defect becomes a permanent exemption.
@@ -225,6 +226,73 @@ def claimed_symbols() -> set[str]:
 # four states, `OverlaySide` and `OverlayAlignment` in every direction,
 # `ToastPosition` at both ends, `ReorderHandleSide` at either.
 MAX_UNSWEPT_ENUMS = 14
+
+# Only goes down. See rule 16.
+#
+# Five, and the criterion earns every one of them. `isNewPassword` is an
+# autofill hint with nothing to render; `matchHeightConstraintsFirst` and
+# `propagateMinConstraints` are layout escape hatches on `AspectRatioBox` and
+# `Surface`, pressed by nobody because there is nothing to look at;
+# `MenuItem.multiple` changes what a screen reader announces and is set by
+# `MultiSelect` at `Select.kt:233`, so it is exercised without being named; and
+# `NavBarItem.showLabel` is handed down from `NavBar.showLabels`, which the
+# nav-surfaces demo *does* sweep.
+#
+# It was sixteen before round 22. Twelve of those were features that shipped
+# switched off and stayed that way — the chip morph whose own KDoc carries the
+# worked example, the stepper's `AnimatedCounter` wired in and never turned on,
+# the range slider's tick marks. A reader could not press one of them.
+MAX_UNDEMOED_FLAGS = 5
+
+
+def undemoed_flags() -> list[str]:
+    """Boolean parameters of public components that no demo names.
+
+    The mirror of `unswept_enums`, and it cannot be built the same way. A
+    `Knob.Choice(…, X.entries)` names the *type*, so a regex can tie a knob to
+    an enum; `Knob.Flag("Ticks")` names a human label with no mechanical link to
+    the parameter it drives. So the criterion is the call site instead: the flag
+    appears as a named argument somewhere in a `*Demos.kt`.
+
+    Which means this measures exactly what rule 14 measures — that a reader can
+    press it — and nothing about whether the knob is any good. That is the right
+    trade: the failure it exists to catch is a parameter no call site anywhere
+    passes, which is a feature that was written, documented and never once run.
+    """
+    flags: dict[str, set[str]] = {}
+    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+        text = path.read_text()
+        for match in COMPOSABLE_HEADER.finditer(text):
+            visibility, name = match.group(1).strip(), match.group(3)
+            if visibility in ("internal", "private") or not name[0].isupper():
+                continue
+            at, depth = match.end() - 1, 0
+            while at < len(text):
+                if text[at] == "(":
+                    depth += 1
+                elif text[at] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                at += 1
+            for flag in BOOLEAN_FLAG.findall(text[match.end() - 1:at]):
+                flags.setdefault(flag, set()).add(name)
+
+    demos = "\n".join(
+        path.read_text()
+        for path in Path("ui-catalog/src").rglob("*Demos.kt")
+        if "build" not in path.parts
+    )
+    return sorted(
+        flag for flag in flags
+        if not re.search(rf"\b{re.escape(flag)}\s*=", demos)
+    )
+
+
+# A parameter that ships a feature switched off. `= true` is a feature switched
+# *on*, which a demo turning it off is a nicety rather than a gap.
+BOOLEAN_FLAG = re.compile(r"^\s*(\w+): Boolean = false,?\s*$", re.M)
+
 
 # Only goes down, and it is already at the floor. See rule 15.
 #
@@ -768,6 +836,21 @@ def main() -> int:
             f"nothing renders a pointer so no golden will tell you"
         )
 
+    # Rule 16 — a component's booleans are things a reader can press.
+    #
+    # Rule 14 does this for enums, and the gap it left was the larger one: an
+    # enum at least renders one of its values, while a `Boolean = false` nobody
+    # sets renders nothing at all. Twelve features were in that state — written,
+    # documented, and never run by anything in this repository.
+    undemoed = undemoed_flags()
+    if len(undemoed) > MAX_UNDEMOED_FLAGS:
+        problems.append(
+            f"{len(undemoed)} component boolean parameters are on no demo's "
+            f"knob, over the ceiling of {MAX_UNDEMOED_FLAGS}: "
+            f"{', '.join(undemoed)} — a `Knob.Flag` passed at the call site "
+            f"puts one in front of a reader and under `DemoRenderTest`"
+        )
+
     unswept = unswept_enums()
     if len(unswept) > MAX_UNSWEPT_ENUMS:
         problems.append(
@@ -790,7 +873,7 @@ def main() -> int:
         f"{len(demos)} demos ({len(without)} pages still without one), "
         f"{len(component_pages) - len(without_sample)} compiled examples, "
         f"{len(component_pages) - len(without_a11y)} accessibility sections, "
-        f"{len(unswept)} parameter enums on no knob, "
+        f"{len(unswept)} parameter enums and {len(undemoed)} booleans on no knob, "
         f"all accounted for."
     )
     return 0

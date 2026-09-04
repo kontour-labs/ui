@@ -37,11 +37,22 @@ import io.kontour.ui.theme.Theme
 private val fieldVariant =
     Knob.Choice("Variant", TextFieldVariant.entries.toList(), TextFieldVariant.Outlined)
 private val fieldError = Knob.Flag("Error")
+
+/**
+ * Selectable and focusable, but not editable — which is the difference from
+ * `enabled = false` and the reason both exist.
+ *
+ * A confirmed booking's origin is a value the user should be able to select and
+ * copy and cannot change; disabling the field would grey it out and take it out
+ * of the focus order, saying "this is unavailable" about something that is
+ * simply settled.
+ */
+private val fieldReadOnly = Knob.Flag("Read-only")
 private val fieldEnabled = Knob.Flag("Enabled", initial = true)
 
 internal val TextFieldDemo = ComponentDemo(
     slug = "text-field",
-    knobs = listOf(fieldVariant, fieldError, fieldEnabled),
+    knobs = listOf(fieldVariant, fieldError, fieldReadOnly, fieldEnabled),
 ) {
     val state = rememberTextFieldState("Perth Station")
     TextField(
@@ -51,6 +62,7 @@ internal val TextFieldDemo = ComponentDemo(
         leadingIcon = Tabler.Outline.MapPin,
         variant = this[fieldVariant],
         errorMessage = "That stop is not on this network".takeIf { this[fieldError] },
+        readOnly = this[fieldReadOnly],
         enabled = this[fieldEnabled],
         modifier = Modifier.fillMaxWidth(),
     )
@@ -82,7 +94,16 @@ internal val TextAreaDemo = ComponentDemo(slug = "text-area") {
     )
 }
 
-internal val SpecialisedFieldsDemo = ComponentDemo(slug = "specialised-fields") {
+/** A decimal point, for a walking speed rather than a passenger count. */
+private val numberDecimal = Knob.Flag("Decimals")
+
+/** A leading minus, for a temperature or a balance rather than a distance. */
+private val numberNegative = Knob.Flag("Negatives")
+
+internal val SpecialisedFieldsDemo = ComponentDemo(
+    slug = "specialised-fields",
+    knobs = listOf(numberDecimal, numberNegative),
+) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
@@ -104,10 +125,20 @@ internal val SpecialisedFieldsDemo = ComponentDemo(slug = "specialised-fields") 
             supporting = "Masked for display; stored as digits",
             modifier = Modifier.fillMaxWidth(),
         )
+        // The two knobs are the field: what it *will not* accept is the whole
+        // of what a number field is, and both refusals are silent — a rejected
+        // keystroke never reaches the state, so there is nothing to see except
+        // by trying to type one.
         NumberField(
             state = rememberTextFieldState("42"),
             label = "Walk speed",
-            supporting = "Non-numeric keystrokes never arrive",
+            supporting = if (this@ComponentDemo[numberDecimal]) {
+                "A decimal point is allowed; other keystrokes never arrive"
+            } else {
+                "Non-numeric keystrokes never arrive"
+            },
+            allowDecimal = this@ComponentDemo[numberDecimal],
+            allowNegative = this@ComponentDemo[numberNegative],
             modifier = Modifier.fillMaxWidth(),
         )
     }

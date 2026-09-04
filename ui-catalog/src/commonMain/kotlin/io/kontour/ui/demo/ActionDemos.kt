@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.ChevronRight
 import com.composables.icons.tabler.outline.CurrentLocation
 import com.composables.icons.tabler.outline.Minus
@@ -88,20 +89,41 @@ internal val IconButtonDemo = ComponentDemo(
 
 // --- IconToggleButton -----------------------------------------------------
 
+/**
+ * Draws a slash across the glyph when unchecked, rather than beside it.
+ *
+ * For a mute or a visibility toggle, where the *off* state is the one that
+ * needs a shape of its own — a bell and a crossed-out bell read at a glance
+ * where two bells in different colours do not.
+ */
+private val iconToggleStrike = Knob.Flag("Strikethrough")
 private val iconToggleEnabled = Knob.Flag("Enabled", initial = true)
 
 internal val IconToggleButtonDemo = ComponentDemo(
     slug = "icon-toggle-button",
-    knobs = listOf(iconToggleEnabled),
+    knobs = listOf(iconToggleStrike, iconToggleEnabled),
 ) {
     var favourited by remember { mutableStateOf(false) }
-    IconToggleButton(
-        icon = Tabler.Outline.Star,
-        contentDescription = "Favourite",
-        checked = favourited,
-        onCheckedChange = { favourited = it },
-        enabled = this[iconToggleEnabled],
-    )
+    var audible by remember { mutableStateOf(true) }
+    val strike = this[iconToggleStrike]
+    val enabled = this[iconToggleEnabled]
+    Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        IconToggleButton(
+            icon = Tabler.Outline.Star,
+            contentDescription = "Favourite",
+            checked = favourited,
+            onCheckedChange = { favourited = it },
+            enabled = enabled,
+        )
+        IconToggleButton(
+            icon = Tabler.Outline.Bell,
+            contentDescription = "Delay alerts",
+            checked = audible,
+            onCheckedChange = { audible = it },
+            strikethrough = strike,
+            enabled = enabled,
+        )
+    }
 }
 
 // --- FloatingActionButton -------------------------------------------------

@@ -108,7 +108,19 @@ internal val TimeFieldDemo = ComponentDemo(slug = "time-field") {
     }
 }
 
-internal val WheelPickerDemo = ComponentDemo(slug = "wheel-picker") {
+/**
+ * Whether the list wraps past its ends.
+ *
+ * Hours do wrap — 23 is next to 00 — and a picker that stops dead at midnight
+ * makes the user scroll the whole way back. Off is right for anything with a
+ * real first and last, which is why it is not the default.
+ */
+private val wheelInfinite = Knob.Flag("Wrap around", initial = true)
+
+internal val WheelPickerDemo = ComponentDemo(
+    slug = "wheel-picker",
+    knobs = listOf(wheelInfinite),
+) {
     var index by remember { mutableStateOf(2) }
     val values = remember { (0..23).map { it.toString().padStart(2, '0') } }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
@@ -116,6 +128,7 @@ internal val WheelPickerDemo = ComponentDemo(slug = "wheel-picker") {
             items = values,
             selected = index,
             onSelectedChange = { index = it },
+            infinite = this@ComponentDemo[wheelInfinite],
             label = { it },
         )
         Text(
@@ -126,12 +139,25 @@ internal val WheelPickerDemo = ComponentDemo(slug = "wheel-picker") {
     }
 }
 
-internal val RelativeTimeTextDemo = ComponentDemo(slug = "relative-time-text") {
+/**
+ * Whether the number rolls over as the countdown ticks.
+ *
+ * The one place a departure board's animation is worth the frames: the digit
+ * that changes is the whole content, and a roll says *this just changed* where
+ * a silent swap looks like a re-render.
+ */
+private val relativeAnimate = Knob.Flag("Animate", initial = true)
+
+internal val RelativeTimeTextDemo = ComponentDemo(
+    slug = "relative-time-text",
+    knobs = listOf(relativeAnimate),
+) {
     // A duration until, not an instant: the component ticks it down itself, so
     // what a caller hands over is "how long from when this composed".
+    val animate = this[relativeAnimate]
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-        RelativeTimeText(until = 4.minutes)
-        RelativeTimeText(until = 14.minutes)
+        RelativeTimeText(until = 4.minutes, animateValue = animate)
+        RelativeTimeText(until = 14.minutes, animateValue = animate)
     }
 }
 

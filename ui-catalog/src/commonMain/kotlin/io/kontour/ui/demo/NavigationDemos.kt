@@ -125,14 +125,25 @@ private val barLabels = Knob.Flag("Labels", initial = true)
  */
 private val barStyle = Knob.Choice("Bar style", NavBarStyle.entries.toList(), NavBarStyle.Free)
 
+/**
+ * A vertical fade from transparent to the page colour behind the whole row.
+ *
+ * `Free` circles carry their own elevation, which separates them from a map and
+ * not from a photograph. The fade is *drawn*, not laid out — it reaches 128dp up
+ * the screen without the bar measuring a pixel taller — so the demo shows it
+ * over content rather than over the frame's own ground.
+ */
+private val barBackdrop = Knob.Flag("Backdrop")
+
 internal val NavSurfacesDemo = ComponentDemo(
     slug = "nav-surfaces",
-    knobs = listOf(barStyle, barLabels),
+    knobs = listOf(barStyle, barLabels, barBackdrop),
 ) {
     var selected by remember { mutableStateOf(1) }
     var expanded by remember { mutableStateOf(false) }
     val labels = this[barLabels]
     val style = this[barStyle]
+    val backdrop = this[barBackdrop]
 
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
         Text("NavBar", style = Theme.typography.labelMedium)
@@ -143,6 +154,7 @@ internal val NavSurfacesDemo = ComponentDemo(
                     selectedIndex = selected.coerceAtMost(3),
                     style = style,
                     showLabels = labels,
+                    backdrop = backdrop,
                     action = {
                         FloatingActionButton(
                             icon = Tabler.Outline.Search,
@@ -271,20 +283,40 @@ private fun OverflowMenu(echo: (String) -> Unit) {
  */
 private val tabDivider = Knob.Flag("Divider")
 
-internal val TabBarDemo = ComponentDemo(slug = "tab-bar", knobs = listOf(tabDivider)) {
+/**
+ * Tabs that run past the edge and scroll, rather than sharing the width.
+ *
+ * The two are different components wearing one name: a fixed bar divides what
+ * it has between however many tabs there are, and a scrolling one lets each tab
+ * be as wide as its label and takes the row off the edge. Six tabs is where the
+ * difference stops being theoretical.
+ */
+private val tabScrollable = Knob.Flag("Scrollable")
+
+internal val TabBarDemo = ComponentDemo(
+    slug = "tab-bar",
+    knobs = listOf(tabDivider, tabScrollable),
+) {
     var tab by remember { mutableStateOf(1) }
     var narrow by remember { mutableStateOf(0) }
     val divider = this[tabDivider]
+    val scrollable = this[tabScrollable]
 
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
         TabBar(
             modifier = Modifier.fillMaxWidth(),
             showDivider = divider,
+            scrollable = scrollable,
             actions = { OverflowMenu(::echo) },
         ) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) { +"Departures" }
             Tab(selected = tab == 1, onClick = { tab = 1 }, key = 1) { +"Route map" }
             Tab(selected = tab == 2, onClick = { tab = 2 }, key = 2, badge = 2) { +"Alerts" }
+            if (scrollable) {
+                Tab(selected = tab == 3, onClick = { tab = 3 }, key = 3) { +"Timetable" }
+                Tab(selected = tab == 4, onClick = { tab = 4 }, key = 4) { +"Accessibility" }
+                Tab(selected = tab == 5, onClick = { tab = 5 }, key = 5) { +"Fares and passes" }
+            }
         }
 
         // Deliberately too narrow for its labels.

@@ -43,6 +43,18 @@ Pass one when it matters which chips are on. Without it selection is carried by
 colour alone, which is legible but is a single channel, and a filter bar is
 exactly the place someone scans rather than reads.
 
+**A chip whose label is replaced can change its mind rather than cut.** Give
+`contentKey` whatever the label is derived from — "Perth Station" becoming
+"Undo" once the filter is cleared — and the two cross-fade while the chip
+resizes between them. Without a key there is nothing to compare, because the
+label arrives through a slot and a slot has no identity, so the swap happens
+between frames.
+
+It has to be **the same chip** on both sides of the change. Two different
+components — an `InputChip` swapped for a plain `Chip` — cannot morph into each
+other however the key is set: what animates is one chip's content, not one
+component becoming another.
+
 `InputChip`'s `removeLabel` is **required** and announces the remove button —
 "Remove Perth Station", not "Remove". It used to default to `"Remove $label"`;
 with the label in a slot there is no string to interpolate, and a bare "Remove"

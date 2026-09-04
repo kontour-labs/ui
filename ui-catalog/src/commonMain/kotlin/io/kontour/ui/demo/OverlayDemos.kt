@@ -190,7 +190,20 @@ internal val PopoverDemo = ComponentDemo(slug = "popover") {
     }
 }
 
-internal val DropdownMenuDemo = ComponentDemo(slug = "dropdown-menu") {
+/**
+ * Whether the menu takes the width of what opened it.
+ *
+ * Right when the anchor *is* the menu's subject — a select, a filter pill —
+ * because a panel narrower or wider than the control it belongs to reads as a
+ * separate thing floating nearby. Wrong for an overflow button, where the menu
+ * has nothing to do with the size of the dots that opened it.
+ */
+private val menuMatchAnchor = Knob.Flag("Match the anchor")
+
+internal val DropdownMenuDemo = ComponentDemo(
+    slug = "dropdown-menu",
+    knobs = listOf(menuMatchAnchor),
+) {
     var open by remember { mutableStateOf(false) }
     var order by remember { mutableStateOf(0) }
     // The builder collects rather than composes, so the callbacks are hoisted.
@@ -205,7 +218,11 @@ internal val DropdownMenuDemo = ComponentDemo(slug = "dropdown-menu") {
                 contentDescription = "More",
                 onClick = { open = !open },
             )
-            DropdownMenu(visible = open, onDismissRequest = { open = false }) {
+            DropdownMenu(
+                visible = open,
+                onDismissRequest = { open = false },
+                matchAnchorWidth = this@ComponentDemo[menuMatchAnchor],
+            ) {
                 section("This stop")
                 item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S", onClick = share)
                 item("Copy stop ID", icon = Tabler.Outline.Copy, onClick = copy)
