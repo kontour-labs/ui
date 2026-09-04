@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.horizontalDragOwning
@@ -363,6 +364,7 @@ fun Slider(
                 //
                 // A tap falls out of the same gesture: pressing emits a value
                 // and letting go finishes, with no movement in between.
+                .pointerCursor(enabled = enabled)
                 .horizontalDragOwning(
                     enabled = enabled,
                     interactionSource = interactions,

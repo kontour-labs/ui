@@ -39,6 +39,7 @@ import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.LocalRowInteractionSource
@@ -229,21 +230,22 @@ fun ListItem(
     // no role and no "disabled", and a screen-reader user would keep trying it.
     val clickModifier = when {
         onClick == null -> Modifier
-        selected || role == Role.RadioButton -> Modifier.selectable(
-            selected = selected,
-            interactionSource = interactions,
-            // A whole row flinching is too much movement; the tonal wash is the
-            // feedback here.
-            indication = kontourIndication(shape, pressScale = 1f),
-            enabled = enabled,
-            role = role,
-            onClick = {
-                feedback.perform(FeedbackIntent.Selection)
-                onClick()
-            },
-        )
+        selected || role == Role.RadioButton -> Modifier.pointerCursor(enabled = enabled)
+            .selectable(
+                selected = selected,
+                interactionSource = interactions,
+                // A whole row flinching is too much movement; the tonal wash is the
+                // feedback here.
+                indication = kontourIndication(shape, pressScale = 1f),
+                enabled = enabled,
+                role = role,
+                onClick = {
+                    feedback.perform(FeedbackIntent.Selection)
+                    onClick()
+                },
+            )
 
-        else -> Modifier.clickable(
+        else -> Modifier.pointerCursor(enabled = enabled).clickable(
             interactionSource = interactions,
             indication = kontourIndication(shape, pressScale = 1f),
             enabled = enabled,

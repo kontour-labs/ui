@@ -12,7 +12,7 @@ missing: a section that lands in two files, a component whose page was never
 made, a page nothing links to. So the arrangement is checked rather than
 trusted.
 
-Fourteen rules:
+Fifteen rules:
 
   1. Every component in `componentRegistry` has a page whose title names it.
      The registry is the library's own list, so this cannot drift from what
@@ -38,11 +38,17 @@ Fourteen rules:
      was a third, the page's own "← Family" footer, and it went with the rest
      of the writing-for-GitHub in round 22.
  14. Every enum a component takes as a parameter is on some demo's knob.
+ 15. Every click target sets a mouse cursor.
 
 Rules 4, 6, 7 and 14 are **ratchets**: a ceiling that only goes down, rather
 than a list of exempted names. You cannot exempt *your* page, only make the total
 worse, and that is the difference that matters — a list of names in a test is
 how a defect becomes a permanent exemption.
+
+Rule 15 is a ratchet whose ceiling has already reached zero, which is what a
+ratchet is for. It stays written as one rather than as a flat `if any` so that
+the number in the message is the honest cost of a regression, the same way rule
+6's is.
 
 Run:  python3 docs/check-components.py
 """
@@ -219,6 +225,54 @@ def claimed_symbols() -> set[str]:
 # four states, `OverlaySide` and `OverlayAlignment` in every direction,
 # `ToastPosition` at both ends, `ReorderHandleSide` at either.
 MAX_UNSWEPT_ENUMS = 14
+
+# Only goes down, and it is already at the floor. See rule 15.
+#
+# Zero, measured: every one of the 25 files in `:ui` that installs a click,
+# selection or toggle handler sets at least as many cursors as it has handlers.
+#
+# A ceiling on the *count* rather than a per-site pairing, because pairing a
+# cursor to the handler it belongs to needs a Kotlin parser and this is Python
+# — the same wall `MAX_WITHOUT_DEMO` and `unswept_enums` both name. Counting
+# per file is enough for the thing that actually happens: someone adds a
+# thirty-sixth clickable and forgets, and the file's totals stop matching.
+MAX_UNCURSORED_CLICKS = 0
+
+
+# A click handler and a cursor, ignoring anything inside a comment — every
+# modifier chain in this library's KDoc is a worked example and none of them is
+# a call site. The lookbehind on `//` keeps a `https://` in a string from
+# swallowing the rest of its line.
+CLICK_HANDLER = re.compile(r"\.(?:clickable|selectable|toggleable|combinedClickable)\(")
+CURSOR_CALL = re.compile(r"pointerCursor\(")
+BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+LINE_COMMENT = re.compile(r"(?<!:)//[^\n]*")
+
+
+def uncursored_clicks() -> list[str]:
+    """Files with more click handlers than mouse cursors.
+
+    A cursor is the one affordance in this library with nothing to render into a
+    golden — `ImageComposeScene` draws no pointer — so thirty-five call sites
+    were about to be verified by reading. This is what replaces the reading.
+
+    Counted per file rather than matched per site: `Modifier.pointerCursor` sits
+    directly above the handler it belongs to at every call site here, and
+    proving that mechanically needs a Kotlin parser. What the count does catch
+    is the failure that will actually happen — a new clickable added to a file
+    that already had cursors, where a per-file "does it mention one" check would
+    pass and a reader would see an arrow over a button.
+    """
+    behind: list[str] = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        clicks = len(CLICK_HANDLER.findall(text))
+        if clicks == 0:
+            continue
+        cursors = len(CURSOR_CALL.findall(text))
+        if cursors < clicks:
+            behind.append(f"{path.name} ({clicks - cursors} short)")
+    return behind
 
 
 def unswept_enums() -> list[str]:
@@ -693,6 +747,27 @@ def main() -> int:
     # A ratchet, like rules 4, 6 and 7, and named rather than only counted: the
     # point of a ceiling is that lowering it is the fix, and nobody can lower it
     # without knowing what is inside.
+    # Rule 15 — a click target sets a mouse cursor.
+    #
+    # An arrow over a button is the oldest tell that something is not really a
+    # button, and every one of the thirty-five call sites this round touched had
+    # one. The reason it went unnoticed for twenty-one rounds is the reason it
+    # needs a rule rather than a review: `ImageComposeScene` draws no pointer, so
+    # not one of the 204 goldens could show it, and there is no frame anywhere in
+    # this repository in which a cursor appears.
+    #
+    # So the check is structural. See `uncursored_clicks` for why it counts per
+    # file rather than pairing each handler with its own cursor.
+    uncursored = uncursored_clicks()
+    if uncursored:
+        short = sum(int(entry.split("(")[1].split()[0]) for entry in uncursored)
+        problems.append(
+            f"{short} click handler(s) in :ui set no mouse cursor, over the "
+            f"ceiling of {MAX_UNCURSORED_CLICKS}: {', '.join(uncursored)} — a "
+            f"`Modifier.pointerCursor()` above the handler is the fix, and "
+            f"nothing renders a pointer so no golden will tell you"
+        )
+
     unswept = unswept_enums()
     if len(unswept) > MAX_UNSWEPT_ENUMS:
         problems.append(

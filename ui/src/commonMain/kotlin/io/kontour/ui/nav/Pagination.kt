@@ -37,6 +37,7 @@ import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -240,6 +241,7 @@ private fun JumpGap(
                 .minimumTouchTarget()
                 .focusRing(interactions, shape)
                 .clip(shape)
+                .pointerCursor()
                 .clickable(interactionSource = interactions, indication = null) {
                     onOpenChange(!open)
                 }
@@ -333,6 +335,7 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
                 if (selected) colours.accent.container else androidx.compose.ui.graphics.Color.Transparent,
                 shape,
             )
+            .pointerCursor()
             .selectable(
                 selected = selected,
                 interactionSource = interactions,

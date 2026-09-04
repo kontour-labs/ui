@@ -39,6 +39,7 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
@@ -263,6 +264,7 @@ fun Rating(
                     // position within the mark to mean a half by. The pointer
                     // never reaches here — the row consumed it — so there is no
                     // second answer to the same tap.
+                    .pointerCursor(enabled = enabled)
                     .selectable(
                         selected = markValue <= selected,
                         onClick = {

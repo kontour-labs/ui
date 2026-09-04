@@ -70,6 +70,7 @@ page:
 |---|---|
 | `Modifier.minimumTouchTarget` | [Touch targets](../accessibility.md#touch-targets) |
 | `Modifier.focusRing` | [Focus](../accessibility.md#focus) |
+| `Modifier.pointerCursor` | [The mouse cursor](../accessibility.md#the-mouse-cursor) |
 | `LocalInputModality` | [Input modality](../accessibility.md#input-modality) |
 | `kontourIndication` | [Interaction](../../../docs/building/contributing.md#interaction) |
 | `Feedback` / `FeedbackIntent` | [Interaction](../../../docs/building/contributing.md#interaction) |

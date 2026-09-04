@@ -42,6 +42,7 @@ import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
@@ -317,6 +318,7 @@ fun SegmentedControl(
                         .selectionIndicatorItem(option, selected)
                         .focusRing(interactions, innerShape)
                         .clip(innerShape)
+                        .pointerCursor(enabled = enabled)
                         .selectable(
                             selected = selected,
                             onClick = {

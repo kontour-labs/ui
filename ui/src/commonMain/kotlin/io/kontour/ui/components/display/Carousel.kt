@@ -51,6 +51,7 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
 
@@ -440,6 +441,7 @@ private fun PageDots(
                     modifier = Modifier
                         .reportCentre(dotCentre, page)
                         .minimumTouchTarget()
+                        .pointerCursor(enabled = enabled)
                         .selectable(
                             selected = active,
                             onClick = { onPageSelect(page) },

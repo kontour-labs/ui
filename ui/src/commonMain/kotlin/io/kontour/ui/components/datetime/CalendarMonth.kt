@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
@@ -537,6 +538,7 @@ private fun DayCell(
                 // one of a set of choices, and this is the modifier that says so
                 // and carries the state with the action.
                 .semantics { stateDescription = formats.dateFull(date) }
+                .pointerCursor(enabled = enabled)
                 .selectable(
                     selected = filled,
                     interactionSource = interactions,

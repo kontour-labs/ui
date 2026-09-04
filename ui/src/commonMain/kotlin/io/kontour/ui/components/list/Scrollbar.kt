@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
@@ -116,6 +117,7 @@ fun Scrollbar(
         modifier = modifier
             // Nothing to announce: the list already conveys its own position.
             .clearAndSetSemantics {}
+            .pointerCursor()
             .hoverable(interactions)
             .then(
                 if (orientation == Orientation.Vertical) {

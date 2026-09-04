@@ -59,6 +59,7 @@ import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.rememberDetentTicker
@@ -639,8 +640,9 @@ private fun RowScope.SwipeActionButton(
  * custom accessibility action — announcing it twice makes one action sound like
  * two.
  */
+@Composable
 private fun Modifier.clickableAction(onClick: () -> Unit, label: String): Modifier =
-    clickable(onClickLabel = label, onClick = onClick)
+    pointerCursor().clickable(onClickLabel = label, onClick = onClick)
 
 /**
  * A row that can be swiped away entirely.

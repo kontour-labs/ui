@@ -26,6 +26,7 @@ import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalRowInteractionSource
@@ -102,7 +103,7 @@ fun SelectionRow(
         }
 
         else -> when (role) {
-        Role.RadioButton -> Modifier.selectable(
+        Role.RadioButton -> Modifier.pointerCursor(enabled = enabled).selectable(
             selected = selected,
             onClick = {
                 feedback.perform(FeedbackIntent.Selection)
@@ -116,7 +117,7 @@ fun SelectionRow(
             indication = kontourIndication(shape, pressScale = 1f),
         )
 
-        else -> Modifier.toggleable(
+        else -> Modifier.pointerCursor(enabled = enabled).toggleable(
             value = selected,
             onValueChange = { now ->
                 feedback.perform(FeedbackIntent.Selection)

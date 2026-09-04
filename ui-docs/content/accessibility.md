@@ -146,6 +146,7 @@ tracks the last used input instead:
 |---|---|---|---|---|
 | Minimum target | 44–48dp | 24dp | n/a | 44–48dp |
 | Hover states | off | on | off | off |
+| Mouse cursor | n/a | shown | n/a | n/a |
 | Focus ring | hidden | hidden | **shown** | hidden |
 | Tooltips | long-press | hover | on focus | long-press |
 | Scrollbars | not drawn | persistent | persistent | not drawn |
@@ -157,6 +158,24 @@ letter is noise.
 
 The default is `Touch`: assuming touch only costs a mouse user some padding,
 whereas assuming mouse gives a touch user targets too small to hit.
+
+### The mouse cursor
+
+`Modifier.pointerCursor` puts a hand over anything that answers a click, a text
+beam over an editable field, and it takes the component's own `enabled` so a
+disabled control does not promise a click it will not answer. Every clickable
+component in the library sets one; you only need it for a target of your own.
+
+It is a separate modifier rather than part of `focusRing`, which would have been
+tidier to write and wrong: a focus ring is drawn when the keyboard reaches an
+element and a cursor is about what the mouse is over, so folding them together
+would show a cursor only on things you had already tabbed to.
+
+**There are four cursors and no more.** Compose Multiplatform's `PointerIcon`
+offers `Default`, `Crosshair`, `Text` and `Hand` across the platforms this
+library builds for. There is no resize cursor for a pane splitter and no grab
+cursor for a scrollbar thumb, so those get a hand — the closest of the four to
+"you can take hold of this".
 
 ---
 

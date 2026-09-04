@@ -31,6 +31,7 @@ import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -240,6 +241,7 @@ private fun CollapsedControl(
         modifier = modifier
             .minimumTouchTarget()
             .focusRing(interactions, shape, enabled = enabled)
+            .pointerCursor(enabled = enabled)
             .clickable(
                 interactionSource = interactions,
                 // Wide, so it shrinks by the amount a wide button does rather

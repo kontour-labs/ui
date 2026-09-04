@@ -72,6 +72,7 @@ import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -382,6 +383,7 @@ fun MenuItem(
             .minimumTouchTarget()
             .padding(horizontal = Theme.spacing.xxs)
             .clip(Theme.shapes.container.inset(Theme.spacing.xxs))
+            .pointerCursor(enabled = enabled)
             .clickable(
                 interactionSource = interactions,
                 // A menu row is a big target; scaling it makes the whole menu

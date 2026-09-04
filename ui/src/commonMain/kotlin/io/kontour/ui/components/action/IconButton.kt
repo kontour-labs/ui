@@ -40,6 +40,7 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.strikethrough
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
@@ -123,7 +124,7 @@ fun IconButton(
             shape,
             ButtonDefaults.pressScale(variant, size, iconOnly = true),
         ),
-        behaviour = Modifier.clickable(
+        behaviour = Modifier.pointerCursor(enabled = interactive).clickable(
             interactionSource = interactions,
             indication = null,
             enabled = interactive,
@@ -271,7 +272,7 @@ fun IconToggleButton(
                 toggleableState = ToggleableState(checked)
             }
         } else {
-            Modifier.toggleable(
+            Modifier.pointerCursor(enabled = enabled).toggleable(
                 value = checked,
                 interactionSource = interactions,
                 indication = null,

@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.VerticalDivider
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.theme.Theme
@@ -270,6 +271,7 @@ private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
         modifier = Modifier
             .width(PaneScaffoldDefaults.HandleWidth)
             .fillMaxHeight()
+            .pointerCursor()
             .hoverable(interactions)
             .semantics {
                 contentDescription = "Resize panes"

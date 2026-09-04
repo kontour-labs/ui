@@ -33,6 +33,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
@@ -103,6 +104,7 @@ fun FloatingActionButton(
             .focusRing(interactions, shape)
             .defaultMinSize(minWidth = size.container, minHeight = size.container)
             .height(size.container)
+            .pointerCursor(enabled = interactive)
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
@@ -181,6 +183,7 @@ fun FloatingActionButton(
             .defaultMinSize(minWidth = size.container, minHeight = size.container)
             .height(size.container)
             .semantics { this.contentDescription = contentDescription }
+            .pointerCursor(enabled = interactive)
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
@@ -267,6 +270,7 @@ fun ExtendedFloatingActionButton(
             .minimumTouchTarget()
             .focusRing(interactions, shape)
             .height(size.container)
+            .pointerCursor(enabled = interactive)
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),

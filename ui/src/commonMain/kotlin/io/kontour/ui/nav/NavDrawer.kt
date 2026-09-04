@@ -62,6 +62,7 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -411,6 +412,7 @@ fun NavDrawerItem(
             .focusRing(interactions, shape)
             .clip(shape)
             .background(container, shape)
+            .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,
                 interactionSource = interactions,
@@ -491,6 +493,7 @@ fun NavDrawerGroup(
                 .minimumTouchTarget()
                 .focusRing(interactions, shape)
                 .clip(shape)
+                .pointerCursor()
                 .selectable(
                     selected = expanded,
                     interactionSource = interactions,

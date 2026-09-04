@@ -35,6 +35,7 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -445,6 +446,7 @@ private fun SelectFrame(
                 if (label != null) contentDescription = label
                 if (!enabled) disabled()
             }
+            .pointerCursor(enabled = enabled)
             .clickable(
                 interactionSource = interactions,
                 // A whole field flinching is too much movement for a control

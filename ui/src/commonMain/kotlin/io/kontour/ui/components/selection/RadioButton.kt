@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
@@ -118,7 +119,7 @@ fun RadioButton(
             .focusRing(interactions, Theme.shapes.pill)
             .then(
                 if (onClick != null) {
-                    Modifier.selectable(
+                    Modifier.pointerCursor(enabled = enabled).selectable(
                         selected = selected,
                         onClick = {
                             feedback.perform(FeedbackIntent.Selection)

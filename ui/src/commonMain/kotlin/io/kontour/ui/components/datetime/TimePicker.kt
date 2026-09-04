@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -182,6 +183,7 @@ fun TimeField(
                     if (label != null) contentDescription = label
                     stateDescription = formats.time(value)
                 }
+                .pointerCursor(enabled = enabled)
                 .clickable(
                     interactionSource = interactions,
                     // The same press wash every other tappable surface in the

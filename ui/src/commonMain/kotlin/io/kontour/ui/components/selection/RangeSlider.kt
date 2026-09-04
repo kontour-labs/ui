@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.horizontalDragOwning
@@ -414,6 +415,7 @@ fun RangeSlider(
                     // vertical component of every change through to whatever is
                     // scrolling above it, so a finger that wanders off the track
                     // hands the gesture away mid-drag. See `horizontalDragOwning`.
+                    .pointerCursor(enabled = enabled)
                     .horizontalDragOwning(
                         enabled = enabled,
                         interactionSource = interactions,

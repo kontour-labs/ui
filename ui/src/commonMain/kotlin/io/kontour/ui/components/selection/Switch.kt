@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalRowInteractionSource
@@ -197,7 +198,7 @@ fun Switch(
             .focusRing(interactions, shape)
             .then(
                 if (onCheckedChange != null) {
-                    Modifier.toggleable(
+                    Modifier.pointerCursor(enabled = enabled).toggleable(
                         value = checked,
                         onValueChange = {
                             feedback.perform(FeedbackIntent.Selection)

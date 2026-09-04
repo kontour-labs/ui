@@ -44,6 +44,7 @@ import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
@@ -142,6 +143,7 @@ fun Button(
                     Modifier
                 }
             )
+            .pointerCursor(enabled = interactive)
             .clickable(
                 interactionSource = interactions,
                 indication = null,
