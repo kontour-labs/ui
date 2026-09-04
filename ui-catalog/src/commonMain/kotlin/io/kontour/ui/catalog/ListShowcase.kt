@@ -64,7 +64,7 @@ private val accents = listOf("Anyways", "Transperth", "Monochrome")
 /** List items, sections, swipe actions and the scroll affordances. */
 @Composable
 fun ListShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Panels {
             Panel(width = 380.dp, spacing = Theme.spacing.md) {
                 Section("Grouped rows") {
@@ -206,7 +206,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                                 label = "Remove",
                                 icon = Tabler.Outline.Trash,
                                 onAction = tap("Remove"),
-                                background = Theme.colors.danger.solid,
+                                background = Theme.colours.danger.solid,
                                 isFullSwipeAction = true,
                             ),
                         ),
@@ -215,7 +215,7 @@ fun ListShowcase(modifier: Modifier = Modifier) {
                                 label = "Favourite",
                                 icon = Tabler.Outline.Star,
                                 onAction = tap("Favourite"),
-                                background = Theme.colors.success.solid,
+                                background = Theme.colours.success.solid,
                             ),
                         ),
                     ) {

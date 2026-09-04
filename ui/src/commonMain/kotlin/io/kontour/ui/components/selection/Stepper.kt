@@ -25,6 +25,7 @@ import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.theme.Theme
 
 /**
@@ -86,6 +87,16 @@ fun Stepper(
     format: (Int) -> String = { it.toString() },
     decrementLabel: String = Theme.strings.decrease,
     incrementLabel: String = Theme.strings.increase,
+    /**
+     * Rolls the digits when the value changes, through [AnimatedCounter].
+     *
+     * Off by default. A stepper is usually pressed repeatedly — three taps to
+     * get to four bags — and a roll on each one turns a quick adjustment into a
+     * queue of animations. Worth turning on where the number is the point of the
+     * screen and changes one at a time: a passenger count, a quantity in a
+     * basket.
+     */
+    animateValue: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val shown = value.coerceIn(range)
@@ -149,17 +160,28 @@ fun Stepper(
             interactionSource = interactionSource,
         )
 
-        Text(
-            text = format(shown),
-            style = valueStyle,
-            textAlign = TextAlign.Center,
-            // Cleared rather than merged: the row above already announces the
-            // value as its state, and a bare "2" read out between two buttons
-            // is a node with no meaning of its own.
-            modifier = Modifier
-                .widthIn(min = maxOf(valueWidth, widestValue))
-                .clearAndSetSemantics {},
-        )
+        // Cleared rather than merged, either way: the row above already
+        // announces the value as its state, and a bare "2" read out between two
+        // buttons is a node with no meaning of its own.
+        val valueModifier = Modifier
+            .widthIn(min = maxOf(valueWidth, widestValue))
+            .clearAndSetSemantics {}
+
+        if (animateValue) {
+            AnimatedCounter(
+                value = shown,
+                format = format,
+                style = valueStyle,
+                modifier = valueModifier,
+            )
+        } else {
+            Text(
+                text = format(shown),
+                style = valueStyle,
+                textAlign = TextAlign.Center,
+                modifier = valueModifier,
+            )
+        }
 
         IconButton(
             icon = SystemIcons.Plus,

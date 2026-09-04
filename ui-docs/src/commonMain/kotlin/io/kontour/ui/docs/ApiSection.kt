@@ -69,7 +69,7 @@ private fun EntryBlock(entry: ApiEntry) {
                 Text(
                     text = "@Composable",
                     style = Theme.typography.monoLabel,
-                    color = Theme.colors.accent.solid,
+                    colour = Theme.colours.accent.solid,
                 )
             }
         }
@@ -78,7 +78,7 @@ private fun EntryBlock(entry: ApiEntry) {
             Text(
                 text = "No parameters.",
                 style = Theme.typography.bodySmall,
-                color = Theme.colors.contentMuted,
+                colour = Theme.colours.contentMuted,
             )
         } else {
             // The same question `DocTable` asks, for the same reason: below the
@@ -93,7 +93,7 @@ private fun EntryBlock(entry: ApiEntry) {
             Text(
                 text = "${enum.name}: ${enum.values.joinToString(", ")}",
                 style = Theme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                color = Theme.colors.contentMuted,
+                colour = Theme.colours.contentMuted,
             )
         }
     }
@@ -112,7 +112,7 @@ private fun WideTable(entry: ApiEntry) {
     Column(
         Modifier
             .fillMaxWidth()
-            .background(Theme.colors.surfaceSunken, Theme.shapes.small)
+            .background(Theme.colours.surfaceSunken, Theme.shapes.small)
             .padding(Theme.spacing.sm),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
     ) {
@@ -143,7 +143,7 @@ private fun StackedList(entry: ApiEntry) {
     Column(
         Modifier
             .fillMaxWidth()
-            .background(Theme.colors.surfaceSunken, Theme.shapes.small)
+            .background(Theme.colours.surfaceSunken, Theme.shapes.small)
             .padding(Theme.spacing.sm),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
     ) {
@@ -166,7 +166,7 @@ private fun Mono(text: String, weight: FontWeight = FontWeight.Normal) {
     Text(
         text = text,
         style = Theme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = weight),
-        color = Theme.colors.content,
+        colour = Theme.colours.content,
     )
 }
 
@@ -184,7 +184,7 @@ private fun Default(parameter: ApiParameter) {
         style = Theme.typography.bodySmall.copy(
             fontFamily = if (parameter.required) FontFamily.Default else FontFamily.Monospace,
         ),
-        color = if (parameter.required) Theme.colors.contentMuted else Theme.colors.content,
+        colour = if (parameter.required) Theme.colours.contentMuted else Theme.colours.content,
     )
 }
 

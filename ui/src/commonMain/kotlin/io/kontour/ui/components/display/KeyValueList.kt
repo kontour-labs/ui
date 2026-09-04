@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.theme.Theme
 
@@ -106,7 +106,7 @@ fun KeyValueList(
                     .padding(vertical = Theme.spacing.xs)
 
                 val label: @Composable (Modifier) -> Unit = { slot ->
-                    ProvideContentColor(Theme.colors.contentMuted) {
+                    ProvideContentColour(Theme.colours.contentMuted) {
                         ProvideTextStyle(Theme.typography.bodyMedium) {
                             Row(slot) { ContentSlot(maxLines = 2, content = row.label) }
                         }

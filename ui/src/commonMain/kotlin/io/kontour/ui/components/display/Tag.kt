@@ -23,9 +23,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.contentColorFor
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.Text
@@ -42,7 +42,7 @@ enum class TagTone { Neutral, Accent, Success, Warning, Danger, Info }
  *
  * ```
  * Tag(tone = TagTone.Success) { +"Live" }
- * Tag(color = routeColor) { +"960" }          // colour straight out of a GTFS feed
+ * Tag(colour = routeColor) { +"960" }          // colour straight out of a GTFS feed
  * ```
  *
  * Not a [io.kontour.ui.components.selection.Chip]. A chip is something the user
@@ -52,20 +52,20 @@ enum class TagTone { Neutral, Accent, Success, Warning, Danger, Info }
  * ### Arbitrary colours
  *
  * Transit feeds supply their own route colours, and they are not drawn from any
- * palette — a route can be pale yellow or near-black. Passing [color] resolves
- * the label with [contentColorFor], which picks whichever of light or dark reads
+ * palette — a route can be pale yellow or near-black. Passing [colour] resolves
+ * the label with [contentColourFor], which picks whichever of light or dark reads
  * better on it. That is the whole reason this component exists rather than
  * callers styling a `Surface` themselves: the one thing they would get wrong is
  * the case where the feed hands them a colour nobody designed for.
  *
- * @param color An explicit background. Overrides [tone]. The label colour is
+ * @param colour An explicit background. Overrides [tone]. The label colour is
  *   derived, not guessed.
  */
 @Composable
 fun Tag(
     modifier: Modifier = Modifier,
     tone: TagTone = TagTone.Neutral,
-    color: Color = Color.Unspecified,
+    colour: Color = Color.Unspecified,
     shape: Shape = Theme.shapes.control,
     /**
      * Overrides what the tag announces.
@@ -77,12 +77,12 @@ fun Tag(
     contentDescription: String? = null,
     content: @Composable RowContentScope.() -> Unit
 ) {
-    val container = if (color != Color.Unspecified) color else tagContainerFor(tone)
-    val contentColor = if (color != Color.Unspecified) {
-        contentColorFor(
-            background = color,
-            light = Theme.colors.onPrimary.takeIf { !Theme.colors.isDark } ?: Theme.colors.content,
-            dark = Theme.colors.content.takeIf { !Theme.colors.isDark } ?: Theme.colors.onPrimary,
+    val container = if (colour != Color.Unspecified) colour else tagContainerFor(tone)
+    val contentColour = if (colour != Color.Unspecified) {
+        contentColourFor(
+            background = colour,
+            light = Theme.colours.onPrimary.takeIf { !Theme.colours.isDark } ?: Theme.colours.content,
+            dark = Theme.colours.content.takeIf { !Theme.colours.isDark } ?: Theme.colours.onPrimary,
         )
     } else {
         tagContentFor(tone)
@@ -112,7 +112,7 @@ fun Tag(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) {
+        CompositionLocalProvider(LocalContentColour provides contentColour) {
             ProvideTextStyle(
                 Theme.typography.labelSmall.copy()
             ) {
@@ -150,8 +150,8 @@ fun Badge(
     modifier: Modifier = Modifier,
     count: Int? = null,
     max: Int = 9,
-    color: Color = Theme.colors.danger.solid,
-    contentColor: Color = Theme.colors.danger.onSolid,
+    colour: Color = Theme.colours.danger.solid,
+    contentColour: Color = Theme.colours.danger.onSolid,
     contentDescription: String? = null,
 ) {
     val label = when {
@@ -172,7 +172,7 @@ fun Badge(
                 .semantics { this.contentDescription = announcement }
                 .defaultMinSize(minWidth = 8.dp, minHeight = 8.dp)
                 .clip(Theme.shapes.pill)
-                .background(color)
+                .background(colour)
         )
     } else {
         Box(
@@ -180,14 +180,14 @@ fun Badge(
                 .semantics { this.contentDescription = announcement }
                 .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
                 .clip(Theme.shapes.pill)
-                .background(color)
+                .background(colour)
                 .padding(horizontal = 5.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = label,
                 style = Theme.typography.labelSmall,
-                color = contentColor,
+                colour = contentColour,
                 maxLines = 1,
                 modifier = Modifier.clearAndSetSemantics { },
             )
@@ -257,32 +257,32 @@ object BadgeDefaults {
 @Composable
 @ReadOnlyComposable
 private fun tagContainerFor(tone: TagTone): Color = when (tone) {
-    TagTone.Neutral -> Theme.colors.surfaceSunken
-    TagTone.Accent -> Theme.colors.accent.container
-    TagTone.Success -> Theme.colors.success.container
-    TagTone.Warning -> Theme.colors.warning.container
-    TagTone.Danger -> Theme.colors.danger.container
-    TagTone.Info -> Theme.colors.info.container
+    TagTone.Neutral -> Theme.colours.surfaceSunken
+    TagTone.Accent -> Theme.colours.accent.container
+    TagTone.Success -> Theme.colours.success.container
+    TagTone.Warning -> Theme.colours.warning.container
+    TagTone.Danger -> Theme.colours.danger.container
+    TagTone.Info -> Theme.colours.info.container
 }
 
 @Composable
 @ReadOnlyComposable
 private fun tagBorderFor(tone: TagTone): Color = when (tone) {
-    TagTone.Neutral -> Theme.colors.outline
-    TagTone.Accent -> Theme.colors.accent.solid
-    TagTone.Success -> Theme.colors.success.border
-    TagTone.Warning -> Theme.colors.warning.border
-    TagTone.Danger -> Theme.colors.danger.border
-    TagTone.Info -> Theme.colors.info.border
+    TagTone.Neutral -> Theme.colours.outline
+    TagTone.Accent -> Theme.colours.accent.solid
+    TagTone.Success -> Theme.colours.success.border
+    TagTone.Warning -> Theme.colours.warning.border
+    TagTone.Danger -> Theme.colours.danger.border
+    TagTone.Info -> Theme.colours.info.border
 }
 
 @Composable
 @ReadOnlyComposable
 private fun tagContentFor(tone: TagTone): Color = when (tone) {
-    TagTone.Neutral -> Theme.colors.contentMuted
-    TagTone.Accent -> Theme.colors.accent.onContainer
-    TagTone.Success -> Theme.colors.success.onContainer
-    TagTone.Warning -> Theme.colors.warning.onContainer
-    TagTone.Danger -> Theme.colors.danger.onContainer
-    TagTone.Info -> Theme.colors.info.onContainer
+    TagTone.Neutral -> Theme.colours.contentMuted
+    TagTone.Accent -> Theme.colours.accent.onContainer
+    TagTone.Success -> Theme.colours.success.onContainer
+    TagTone.Warning -> Theme.colours.warning.onContainer
+    TagTone.Danger -> Theme.colours.danger.onContainer
+    TagTone.Info -> Theme.colours.info.onContainer
 }

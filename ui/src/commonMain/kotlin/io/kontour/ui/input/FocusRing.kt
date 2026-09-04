@@ -42,14 +42,14 @@ import io.kontour.ui.theme.Theme
  *
  * @param shape Should match the component's own shape; the ring is drawn as
  *   that shape, grown by the offset.
- * @param color Defaults to [io.kontour.ui.theme.ColorScheme.focusRing], which
+ * @param colour Defaults to [io.kontour.ui.theme.ColourScheme.focusRing], which
  *   is guaranteed to clear 3:1 against every ground in the scheme.
  */
 @Composable
 fun Modifier.focusRing(
     interactionSource: InteractionSource,
     shape: Shape = RectangleShape,
-    color: Color = Theme.colors.focusRing,
+    colour: Color = Theme.colours.focusRing,
     enabled: Boolean = true,
 ): Modifier {
     val focused by interactionSource.collectIsFocusedAsState()
@@ -102,7 +102,7 @@ fun Modifier.focusRing(
             translate(left = -grow, top = -grow) {
                 drawOutline(
                     outline = outline,
-                    color = color,
+                    color = colour,
                     style = Stroke(width = stroke),
                 )
             }

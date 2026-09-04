@@ -103,3 +103,21 @@ tasks.withType<Test>().configureEach {
     // than being skipped as up-to-date.
     inputs.dir(layout.projectDirectory.dir("screenshots")).withPropertyName("screenshotGoldens")
 }
+
+// ---------------------------------------------------------------------------
+// One region for the tests
+// ---------------------------------------------------------------------------
+//
+// `DateTimeFormats` resolves from the platform's locale now — that is the whole
+// of the "dates are backwards in the US" fix — which makes every calendar and
+// every clock in the suite a function of the machine it runs on. A golden
+// recorded in one region is not a golden, and an assertion about "9 Jun" is a
+// different assertion in Chicago.
+//
+// So the tests get a region of their own: the one the screenshots were recorded
+// in, stated here rather than inherited. Nothing else pins it, and the library
+// itself goes on following whatever the user's device says.
+tasks.withType<Test>().configureEach {
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "AU")
+}

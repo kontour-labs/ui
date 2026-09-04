@@ -17,3 +17,8 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Python bytecode. `docs/*.py` are run by the build, so their caches land in
+# the tree; they were committed once and turned up in every documentation diff.
+__pycache__/
+*.pyc

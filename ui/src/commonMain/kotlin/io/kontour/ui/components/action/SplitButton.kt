@@ -1,6 +1,5 @@
 package io.kontour.ui.components.action
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -26,6 +25,7 @@ import io.kontour.ui.overlay.MenuScope
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.anchorBounds
+import io.kontour.ui.motion.ChevronTurn
 import io.kontour.ui.theme.Theme
 
 /**
@@ -104,14 +104,6 @@ fun SplitButton(
     val motion = Theme.motion
     var anchor by remember { mutableStateOf<Rect?>(null) }
 
-    // Turns as the menu opens, so the chevron says which way things are rather
-    // than only which way they could go — the same 180° `Accordion` uses.
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
-        label = "splitButtonChevron",
-    )
-
     CompositionLocalProvider(LocalTouchTargetOwnedByParent provides true) {
         Row(
             modifier = modifier
@@ -146,7 +138,11 @@ fun SplitButton(
                 // outside: this half is the *end* of the pair, so its container
                 // has two rounded corners and two square ones. Turning the
                 // container over puts the round pair on the seam.
-                rotation = rotation,
+                // A target, not an angle: `IconButton` springs to it. This
+                // used to be a spring of its own feeding a second one, so the
+                // chevron here turned through two of them in series and
+                // arrived after every other arrow in the library.
+                rotation = if (expanded) ChevronTurn else 0f,
             )
         }
     }

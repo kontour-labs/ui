@@ -11,6 +11,7 @@ pages nothing verifies.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 # The reader-facing documentation, which is also the documentation site's
@@ -57,6 +58,47 @@ FAMILY = {
 # 2,084 lines of the reasoning behind the library could only be read as raw
 # markdown on GitHub.
 GUIDES = ("components", "installing", "tokens", "theming", "accessibility", "dsls", "overlays", "sheets")
+
+
+# A link to a page, as these files write them: `(button.md)`, `(chip.md#tone)`.
+# Deliberately not matching `(../sheets.md)` — a link out of the components
+# directory is a cross-reference, not a claim of ownership.
+PAGE_LINK = re.compile(r"\(([a-z0-9-]+\.md)(?:#[^)]*)?\)")
+
+
+def family_of() -> dict[str, tuple[str, int]]:
+    """Which index claims each component page, and where in it — `{stem: (family, position)}`.
+
+    First index wins, and within it the first mention wins: `nav-surfaces.md` is
+    linked three times from `navigation.md`, once per surface, and belongs where
+    the first of those rows puts it. [INDEXES] order breaks the tie between two
+    indexes that both link a page.
+
+    The position is the index page's own order, which is an editorial one — the
+    table in `navigation.md` opens with `NavigationSuiteScaffold` and the words
+    "**Start here.**". The site sorted by the page's raw markdown title instead,
+    a string starting with a backtick, and got `ButtonGroup` before `Button`.
+
+    Lives here because three callers needed it and two had grown their own copy:
+    `generate-doc-pages.py` to assign families, `check-components.py` twice — for
+    "every page is linked from an index" and for "the map agrees with the
+    indexes". Which is the thing this module's docstring is about.
+    """
+    claimed: dict[str, tuple[str, int]] = {}
+    for stem in INDEXES:
+        index = COMPONENTS / f"{stem}.md"
+        if not index.exists():
+            continue
+        placed = 0
+        for target in PAGE_LINK.findall(index.read_text()):
+            page = Path(target).stem
+            # An index linking another index is a cross-reference between
+            # families, not a family claiming a page.
+            if page in claimed or page in INDEXES:
+                continue
+            claimed[page] = (stem, placed)
+            placed += 1
+    return claimed
 
 
 def content_pages() -> list[Path]:

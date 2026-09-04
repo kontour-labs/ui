@@ -8,12 +8,13 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.rememberInputModalityState
 import io.kontour.ui.input.trackInputModality
 import io.kontour.ui.interaction.FeedbackDispatcher
+import io.kontour.ui.interaction.HapticsLevel
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.rememberDefaultFeedbackDispatcher
 import io.kontour.ui.platform.platformPrefersHighContrast
@@ -25,7 +26,7 @@ import io.kontour.ui.platform.platformPrefersReducedMotion
  * ```
  * Box(
  *     Modifier
- *         .background(Theme.colors.surface, Theme.shapes.medium)
+ *         .background(Theme.colours.surface, Theme.shapes.medium)
  *         .padding(Theme.spacing.md)
  * ) {
  *     Text("Departures", style = Theme.typography.titleMedium)
@@ -38,8 +39,8 @@ import io.kontour.ui.platform.platformPrefersReducedMotion
  * component contract test that ships alongside it.
  */
 object Theme {
-    val colors: ColorScheme
-        @Composable @ReadOnlyComposable get() = LocalColorScheme.current
+    val colours: ColourScheme
+        @Composable @ReadOnlyComposable get() = LocalColourScheme.current
 
     val typography: Typography
         @Composable @ReadOnlyComposable get() = LocalTypography.current
@@ -108,7 +109,18 @@ fun KontourTheme(
     contrast: ContrastLevel = if (platformPrefersHighContrast()) ContrastLevel.High else ContrastLevel.Standard,
     reduceMotion: Boolean = platformPrefersReducedMotion(),
     backdropBlur: Boolean = true,
-    colors: ColorScheme = remember(darkTheme, contrast) { kontourColorScheme(darkTheme, contrast) },
+    /**
+     * Whether a change of scheme cross-fades rather than cutting.
+     *
+     * On, because every other state change in the library animates and switching
+     * to dark mode is the largest one there is. See `animatedColorScheme` for
+     * what it costs: the scheme feeds a static composition local, so the fade
+     * recomposes the whole application for its duration. That is the right trade
+     * for a rare, deliberate change and the wrong one for anything frequent, so
+     * an app driving [colours] from something that moves should turn it off.
+     */
+    animateThemeChanges: Boolean = true,
+    colours: ColourScheme = remember(darkTheme, contrast) { kontourColourScheme(darkTheme, contrast) },
     typography: Typography = rememberDefaultTypography(),
     shapes: Shapes = remember { Shapes() },
     spacing: Spacing = remember { Spacing() },
@@ -116,7 +128,15 @@ fun KontourTheme(
     motion: Motion = remember(reduceMotion) { kontourMotion(reduceMotion) },
     sizing: Sizing = remember(contrast) { kontourSizing(contrast) },
     strings: Strings = remember { Strings() },
-    feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(),
+    /**
+     * How much physical feedback the app gives. See [HapticsLevel].
+     *
+     * Separate from [feedback], which decides what each intent *feels like*.
+     * This decides how many of them fire at all, and is the one an app is likely
+     * to want to put behind a user-facing setting.
+     */
+    haptics: HapticsLevel = HapticsLevel.Full,
+    feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(haptics),
     content: @Composable () -> Unit,
 ) {
     // A nested KontourTheme — a screen forcing dark mode, say — re-provides the
@@ -125,18 +145,33 @@ fun KontourTheme(
     // shadow the outer's state for part of the tree.
     val alreadyTracking = LocalInputModalityInstalled.current
 
+    // Resolved here rather than in the parameters' defaults so it animates
+    // whatever the caller passed — an app with its own scheme gets the
+    // cross-fade too, not just one using the built-in light/dark pair.
+    //
+    // Colours and shadows go through together. They are separate tokens and it
+    // would have been less code to animate the scheme alone, which is what this
+    // did: the shadows then cut to their dark-mode strength on the fade's first
+    // frame and waited there for the surfaces to catch up.
+    val faded = if (animateThemeChanges) {
+        animatedTheme(colours, elevation, motion)
+    } else {
+        ThemeFade(colours, elevation)
+    }
+    val resolvedColours = faded.colours
+
     CompositionLocalProvider(
-        LocalColorScheme provides colors,
+        LocalColourScheme provides resolvedColours,
         LocalTypography provides typography,
         LocalShapes provides shapes,
         LocalSpacing provides spacing,
-        LocalElevation provides elevation,
+        LocalElevation provides faded.elevation,
         LocalMotion provides motion,
         LocalSizing provides sizing,
         LocalStrings provides strings,
         LocalContrastLevel provides contrast,
         LocalBackdropBlur provides backdropBlur,
-        LocalContentColor provides colors.content,
+        LocalContentColour provides resolvedColours.content,
         LocalTextStyle provides typography.bodyMedium,
         LocalFeedback provides feedback,
     ) {
@@ -166,7 +201,7 @@ private const val NOT_IN_THEME =
     "No KontourTheme found. Wrap your app in KontourTheme { … } — components " +
         "read their tokens from it and have no sensible default without one."
 
-internal val LocalColorScheme = staticCompositionLocalOf<ColorScheme> { error(NOT_IN_THEME) }
+internal val LocalColourScheme = staticCompositionLocalOf<ColourScheme> { error(NOT_IN_THEME) }
 internal val LocalTypography = staticCompositionLocalOf<Typography> { error(NOT_IN_THEME) }
 internal val LocalShapes = staticCompositionLocalOf<Shapes> { error(NOT_IN_THEME) }
 internal val LocalSpacing = staticCompositionLocalOf<Spacing> { error(NOT_IN_THEME) }

@@ -4,7 +4,7 @@ Everything a component is allowed to look like. Read through `Theme` inside a
 composable:
 
 ```kotlin
-Theme.colors.surface
+Theme.colours.surface
 Theme.typography.titleMedium
 Theme.spacing.md
 Theme.shapes.medium
@@ -21,7 +21,7 @@ exception to this — if a value you need is missing, add a token.
 
 ## Colour
 
-Defined in [`theme/ColorScheme.kt`](../../ui/src/commonMain/kotlin/io/kontour/ui/theme/ColorScheme.kt);
+Defined in [`theme/ColourScheme.kt`](../../ui/src/commonMain/kotlin/io/kontour/ui/theme/ColourScheme.kt);
 raw values in [`theme/Palette.kt`](../../ui/src/commonMain/kotlin/io/kontour/ui/theme/Palette.kt).
 
 Four built-in schemes: light, dark, and a high-contrast variant of each.
@@ -63,11 +63,11 @@ WCAG 1.4.11 asks of a UI component boundary. Inputs, checkboxes and switches use
 | Token | Light | Dark | For |
 |---|---|---|---|
 | `primary` / `onPrimary` | `#121212` / `#FFFFFF` | `#F4F1F8` / `#121212` | The solid call to action |
-| `accent` | a `StatusColors`, below | | The brand, as a tone |
+| `accent` | a `StatusColours`, below | | The brand, as a tone |
 | `brand` | `#BB86FC` | `#BB86FC` | Purple as **decoration only** |
 | `focusRing` | `#6D28D9` | `#BB86FC` | The keyboard focus indicator |
 
-**`accent` is a tone, not four loose fields.** It is a `StatusColors` exactly
+**`accent` is a tone, not four loose fields.** It is a `StatusColours` exactly
 like `success` and the rest, so there is one tone type and six tones:
 
 | Member | Light | Dark | Was |
@@ -84,7 +84,7 @@ one, which is what `ButtonVariant.Accent`, `BannerTone.Accent` and
 had to reach past the group and assemble itself from three separate fields.
 
 It also means a custom scheme has to supply the whole tone rather than one
-colour. That is the point too: the old `lightColorScheme(accent = Color(...))`
+colour. That is the point too: the old `lightColourScheme(accent = Color(...))`
 left `accentContainer` at the default purple, so a blue accent came with a
 purple selected-state and the signature said nothing about it.
 
@@ -97,7 +97,7 @@ pins that contract so nobody quietly promotes `brand` to a text colour.
 
 ### Status
 
-Each of `success`, `warning`, `danger` and `info` is a `StatusColors` with five
+Each of `success`, `warning`, `danger` and `info` is a `StatusColours` with five
 fields, matching how the web properties already use them:
 
 | Field | For |
@@ -176,27 +176,39 @@ same `of(n)` is a sign that value wants a name.
 
 ## Shape
 
-| Token | Radius | Corner | Used by |
-|---|---|---|---|
-| `extraSmall` | 8dp | circular | Badges, tags, inline code |
-| `small` | 14dp | circular | Buttons, inputs, checkboxes |
-| `medium` | 20dp | squircle | Cards, list groups, menus |
-| `large` | 26dp | squircle | Dialogs, large cards |
-| `extraLarge` | 32dp | squircle | Sheets, hero panels |
-| `pill` | 50% | capsule | Nav bars, chips, avatars, FABs |
-| `sheet` | 32dp top only | squircle | Bottom sheets |
-| `sideSheet` | 32dp leading only | squircle | Side sheets |
+| Token | Radius | Used by |
+|---|---|---|
+| `extraSmall` | 10dp | Badges, tags, inline code |
+| `small` | 16dp | Small containers, swatches |
+| `medium` | 22dp | Cards, list groups, menus |
+| `large` | 28dp | Dialogs, large cards |
+| `extraLarge` | 34dp | Sheets, hero panels |
+| `pill` | 50% | Avatars, scrollbars, indicators |
+| `sheet` | 34dp top only | Bottom sheets |
+| `sideSheet` | 34dp leading only | Side sheets |
 
 **One step, all the way up.** Every rung is 6dp above the one below it, and that
 regularity is the point rather than tidiness. Two rounded shapes nested inside
 one another look right when the inner radius is the outer radius minus the gap
 between them, and wrong otherwise — the corners stop being parallel and the gap
-pinches. That only works if the scale steps evenly, and the old `4 / 4 / 4 / 8`
-ladder broke at the top, so a control nested in a dialog was concentric and the
-same control nested in a sheet was not.
+pinches. That only works if the scale steps evenly.
 
-Do not step through the scale by eye. `Theme.shapes.small.inset(6.dp)` gives the
-radius something 6dp inside a `small` container should use, floors at zero, and
+**And the numbers are chosen, not inherited.** `22` is the medium rung because
+the medium control height is 44dp, so a medium button's corner is exactly half
+its height and the button is a capsule. The ladder is built around that number
+rather than the other way round, which is what lets a card sit beside a button
+and read as the same family.
+
+**Every rung is a squircle** — curvature eased in and out rather than a quarter
+circle bolted between two straight edges. The two small rungs used to be circular
+on the grounds that the smoothing is invisible below about 12dp and a generic
+path costs more to clip. Both true, and still the wrong trade: a scale whose
+continuity stops halfway up is a discontinuity in the *scale*, and a badge with a
+corner from a different design system to the card it sits on is more visible than
+the thing that was being avoided.
+
+Do not step through the scale by eye. `Theme.shapes.medium.inset(6.dp)` gives the
+radius something 6dp inside a `medium` container should use, floors at zero, and
 keeps the kind of corner it was called on.
 
 ### Ask for what a thing *is*
@@ -207,8 +219,8 @@ is, and every button reads it.
 
 | Token | Resolves to | For |
 |---|---|---|
-| `control` | `pill` | `Button`, `IconButton`, `SplitButton`, `ButtonGroup`, `FloatingActionButton`, `FabMenu`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
-| `field` | `small` | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
+| `control` | half its height | `Button`, `IconButton`, `SplitButton`, `ButtonGroup`, `FloatingActionButton`, `FabMenu`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
+| `field` | half its height, up to 26dp | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
 | `container` | `medium` | `Card`, `ListItem`, `SelectionRow`, `Accordion`, `SwipeActions`, `DropdownMenu`, `Popover`, `Tooltip`, `NavDrawer` |
 | `panel` | `large` | `Dialog`, `CommandPalette`, `NavSearch` |
 
@@ -218,9 +230,17 @@ was nearly square, so one component disagreed with itself across its own size
 scale. And a `Button` sat at 14dp next to a circular `IconButton` in the same
 toolbar. Now every action is the same shape whatever size it happens to be.
 
-**A field is not a capsule**, deliberately. A field is a box with content in it,
-and a capsule reads as something to press rather than something to fill in — a
-multi-line text area shaped like a lozenge makes that obvious.
+**A field is a capsule too, up to a point.** It used to be a fixed 14dp, on the
+argument that a capsule reads as something to press rather than something to fill
+in. Half right: a single-line field *is* a control by every other measure — same
+height, same row, same press target — and giving it a different corner from the
+button beside it was the inconsistency rather than the fix.
+
+What that argument was really protecting is the multi-line case, and a text area
+shaped like a lozenge is nobody's idea of a text area. So the rule is capped at
+26dp — half the height a text field's `minHeight` resolves to — which puts the
+default single-line field exactly on a capsule and stops everything taller right
+there.
 
 Reaching past these four to a rung of the size scale is for genuine one-offs — an
 avatar, a scrollbar, a skeleton line, a drag handle — where the shape belongs to

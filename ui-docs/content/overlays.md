@@ -1,4 +1,4 @@
-# Overlays
+# The overlay layer
 
 Everything that draws over the screen: dialogs, menus, tooltips, toasts, sheets.
 

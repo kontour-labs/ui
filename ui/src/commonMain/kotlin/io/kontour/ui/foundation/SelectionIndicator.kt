@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -204,6 +205,23 @@ class SelectionIndicatorState internal constructor() {
     internal var targetKey: Any? by mutableStateOf(null)
         private set
 
+    /**
+     * Where the indicator is *now*, in [anchor]'s space — the animated rect
+     * rather than the one it is heading for.
+     *
+     * Published for the callers that draw something relative to the indicator
+     * while it is still moving. A segmented control's thumb leans toward the
+     * finger, and it has to lean from where it actually is: measured from the
+     * selected segment's resting centre instead, the lean flips sign the instant
+     * the selection changes, while the indicator underneath is still travelling.
+     * The thumb jumps backwards past the segment it just left and then chases
+     * the finger from there.
+     *
+     * Written from a `SideEffect`, so it lands before the frame is drawn and
+     * nothing reads a value it wrote itself during composition.
+     */
+    internal var drawn: Rect by mutableStateOf(Rect.Zero)
+
     internal fun report(key: Any, bounds: Rect) {
         targetKey = key
         target = bounds
@@ -236,7 +254,7 @@ internal val LocalSelectionIndicator = staticCompositionLocalOf<SelectionIndicat
  * SelectionIndicatorBox(
  *     state = indicator,
  *     sizing = IndicatorSizing.Edge(IndicatorEdge.Bottom, 3.dp),
- *     indicator = { Box(Modifier.fillMaxSize().background(Theme.colors.accent.solid, Theme.shapes.pill)) },
+ *     indicator = { Box(Modifier.fillMaxSize().background(Theme.colours.accent.solid, Theme.shapes.pill)) },
  * ) {
  *     Row(Modifier.fillMaxWidth().selectableGroup()) {
  *         items.forEachIndexed { index, item ->
@@ -329,6 +347,11 @@ fun SelectionIndicatorBox(
 
     val rect = bounds.value
     val visible = measured
+
+    // See `SelectionIndicatorState.drawn`. Not assigned inline: writing a state
+    // during composition that another composable in the same frame reads is how
+    // a recomposition loop starts.
+    SideEffect { state.drawn = rect }
 
     CompositionLocalProvider(LocalSelectionIndicator provides state) {
         Layout(

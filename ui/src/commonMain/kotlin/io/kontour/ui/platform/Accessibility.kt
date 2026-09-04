@@ -30,7 +30,7 @@ expect fun platformPrefersReducedMotion(): Boolean
  * Drives the default [io.kontour.ui.theme.ContrastLevel]. An in-app setting can
  * still override it.
  *
- * **Public**, because an app that supplies its own `ColorScheme` has to know
+ * **Public**, because an app that supplies its own `ColourScheme` has to know
  * which tier to build — `KontourTheme` takes the scheme and the tier as two
  * separate parameters, and an app that could not read this would have to
  * reimplement the platform detection to keep them in step.

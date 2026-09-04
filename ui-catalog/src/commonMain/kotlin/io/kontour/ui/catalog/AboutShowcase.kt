@@ -37,7 +37,7 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun AboutShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Column(
             modifier = Modifier.padding(Theme.spacing.lg).widthIn(max = 720.dp),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -60,7 +60,7 @@ private fun Masthead() {
                 "with no Material dependency. Android, iOS, desktop, JS and Wasm " +
                 "from one source.",
             style = Theme.typography.bodyLarge,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }
@@ -111,7 +111,7 @@ private fun Install() {
                 "repository's Maven packages. Versions are tags: v0.2.0 publishes " +
                 "0.2.0, and anything untagged is a snapshot.",
             style = Theme.typography.bodyMedium,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }
@@ -134,7 +134,7 @@ private fun Theming() {
                 "and inherits the rest. Kontour's own theme is about a hundred " +
                 "lines, most of them colour values.",
             style = Theme.typography.bodyMedium,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
         Text(
             "Dark mode, contrast tier and reduced motion resolve from the " +
@@ -142,7 +142,7 @@ private fun Theming() {
                 "settings sheet override all three, which is how to see a " +
                 "component under a setting you are not running.",
             style = Theme.typography.bodyMedium,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }
@@ -167,20 +167,20 @@ private fun Reading() {
             "The site is the same content with the components running in it, " +
                 "which is the half a path in a repository cannot give you.",
             style = Theme.typography.bodyMedium,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
         Text(
             "Every example on those pages is compiled — they live in ui-samples " +
                 "and the pages hold checked copies, so an example that no longer " +
                 "works fails the build rather than being found by whoever pastes it.",
             style = Theme.typography.bodyMedium,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
         Text(
             "The generated API reference lists every public symbol, which the " +
                 "pages above do not attempt: ./gradlew :ui:dokkaGenerateHtml.",
             style = Theme.typography.bodyMedium,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }

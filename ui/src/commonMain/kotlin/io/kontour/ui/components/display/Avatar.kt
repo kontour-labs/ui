@@ -14,12 +14,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.contentColorFor
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
@@ -109,17 +111,18 @@ fun Avatar(
     size: AvatarSize = AvatarSize.Medium,
     contentDescription: String? = null,
 ) {
+    val density = LocalDensity.current
     val announcement = contentDescription ?: name
     val palette = avatarPalette()
     val background = if (name != null) {
         palette[name.stableIndex(palette.size)]
     } else {
-        Theme.colors.surfaceSunken
+        Theme.colours.surfaceSunken
     }
-    val foreground = contentColorFor(
+    val foreground = contentColourFor(
         background = background,
-        light = Theme.colors.onPrimary,
-        dark = Theme.colors.content,
+        light = Theme.colours.onPrimary,
+        dark = Theme.colours.content,
     )
 
     Box(
@@ -129,7 +132,7 @@ fun Avatar(
             }
             .size(size.diameter)
             .clip(Theme.shapes.pill)
-            .background(if (image != null) Theme.colors.surfaceSunken else background),
+            .background(if (image != null) Theme.colours.surfaceSunken else background),
         contentAlignment = Alignment.Center,
     ) {
         when {
@@ -140,17 +143,35 @@ fun Avatar(
                 modifier = Modifier.size(size.diameter).clip(Theme.shapes.pill),
             )
 
+            // `size.textSize`, which has been sitting there computed and unread.
+            //
+            // The initials were `labelMedium` at every diameter, so a 20dp
+            // avatar and an 80dp one drew the same 14sp letters — lost in the
+            // large one and overflowing the small. `AvatarSize` has carried the
+            // right number the whole time, with a paragraph explaining the line
+            // it comes from; nothing called it.
+            //
+            // Derived from the diameter in `dp` rather than scaled from the
+            // style in `sp`, which is the opposite of what a day number in a
+            // calendar wants and right for the same reason: this is a glyph
+            // inside a circle of fixed size, not text. The circle does not grow
+            // with the user's font setting, so the letters inside it must not
+            // either — and they are `clearAndSetSemantics` because the name is
+            // announced by the avatar itself.
             name != null -> Text(
                 text = name.initials(),
-                style = Theme.typography.labelMedium,
-                color = foreground,
+                style = Theme.typography.labelMedium.copy(
+                    fontSize = with(density) { size.textSize.toSp() },
+                    lineHeight = TextUnit.Unspecified,
+                ),
+                colour = foreground,
                 modifier = Modifier.clearAndSetSemantics { },
             )
 
             fallbackIcon != null -> Icon(
                 imageVector = fallbackIcon,
                 contentDescription = null,
-                tint = Theme.colors.contentMuted,
+                tint = Theme.colours.contentMuted,
                 size = size.diameter / 2,
             )
         }
@@ -179,6 +200,7 @@ fun AvatarGroup(
     val shown = names.take(max)
     val overflow = names.size - shown.size
     val overlap = size.diameter / 3
+    val density = LocalDensity.current
 
     Row(
         modifier.semantics(mergeDescendants = true) {
@@ -196,7 +218,7 @@ fun AvatarGroup(
                     // hardcoded 2dp and pill shape behind it.
                     modifier = Modifier.border(
                         AvatarGroupRing,
-                        Theme.colors.surface,
+                        Theme.colours.surface,
                         Theme.shapes.pill,
                     ),
                     size = size,
@@ -210,14 +232,21 @@ fun AvatarGroup(
                     .offset(x = -overlap * shown.size)
                     .size(size.diameter)
                     .clip(Theme.shapes.pill)
-                    .background(Theme.colors.surfaceSunken)
-                    .border(2.dp, Theme.colors.surface, Theme.shapes.pill),
+                    .background(Theme.colours.surfaceSunken)
+                    .border(2.dp, Theme.colours.surface, Theme.shapes.pill),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = "+$overflow",
-                    style = Theme.typography.labelSmall,
-                    color = Theme.colors.contentMuted,
+                    // The same rule the initials follow, for the same reason —
+                    // and this is the call site that made the first fix look
+                    // half-done: a group of scaled initials with an unscaled
+                    // "+2" beside them reads as one avatar in the wrong font.
+                    style = Theme.typography.labelSmall.copy(
+                        fontSize = with(density) { size.textSize.toSp() },
+                        lineHeight = TextUnit.Unspecified,
+                    ),
+                    colour = Theme.colours.contentMuted,
                     modifier = Modifier.clearAndSetSemantics { },
                 )
             }
@@ -228,7 +257,7 @@ fun AvatarGroup(
 /** The scheme's tones, used as avatar backgrounds so derived colours stay on-brand. */
 @Composable
 private fun avatarPalette(): List<Color> {
-    val c = Theme.colors
+    val c = Theme.colours
     return listOf(
         c.accent.solid,
         c.success.solid,

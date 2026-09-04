@@ -33,6 +33,7 @@ import io.kontour.ui.sheet.BottomSheet
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetHeader
+import io.kontour.ui.sheet.SheetHeaderStyle
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.sheet.rememberSheetState
@@ -42,7 +43,7 @@ import io.kontour.ui.theme.Theme
 /** Bottom sheets at each detent, plus the modal and side variants. */
 @Composable
 fun SheetShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Panels {
             SheetPanel("Peeking over a map") {
                 val sheet = rememberSheetState(
@@ -59,7 +60,7 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                 MapStandIn()
                 BottomSheet(
                     state = sheet,
-                    actions = {
+                    floatingControls = {
                         IconButton(
                             icon = Tabler.Outline.CurrentLocation,
                             contentDescription = "Recentre",
@@ -107,7 +108,7 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                         Text(
                             "Give it a name you will recognise on the home screen.",
                             style = Theme.typography.bodySmall,
-                            color = Theme.colors.contentMuted,
+                            colour = Theme.colours.contentMuted,
                         )
                         Button(
                             onClick = tap("Save"),
@@ -119,6 +120,45 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                             variant = ButtonVariant.Ghost,
                         ) {
                             +"Cancel"
+                        }
+                    }
+                }
+            }
+
+            SheetPanel("Header sizes") {
+                // Outside a sheet on purpose: the three styles are about the
+                // header's own shape, and a sheet around each one would be 560dp
+                // of panel showing three title rows.
+                // Centred by arrangement rather than by `align`: `SheetPanel`'s
+                // slot is a plain `@Composable () -> Unit`, so there is no
+                // `BoxScope` here to align against.
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(Theme.spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(
+                        space = Theme.spacing.sm,
+                        alignment = Alignment.CenterVertically,
+                    ),
+                ) {
+                    for (style in SheetHeaderStyle.entries) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = Theme.shapes.container,
+                            colour = Theme.colours.surfaceRaised,
+                        ) {
+                            SheetHeader(
+                                style = style,
+                                onClose = tap("Close"),
+                                actions = {
+                                    IconButton(
+                                        Tabler.Outline.Star,
+                                        "Add to favourites",
+                                        onClick = tap("Favourite"),
+                                    )
+                                },
+                            ) {
+                                +"Perth Underground"
+                                supporting { +style.name }
+                            }
                         }
                     }
                 }
@@ -147,7 +187,7 @@ fun SheetShowcase(modifier: Modifier = Modifier) {
                         Text(
                             "run in the next hour",
                             style = Theme.typography.bodySmall,
-                            color = Theme.colors.contentMuted,
+                            colour = Theme.colours.contentMuted,
                         )
                     }
                 }
@@ -190,7 +230,7 @@ private fun StopSheetBody(peekAnchored: Boolean) {
                     Text(
                         if (index == 1) "3 min late" else "on time",
                         style = Theme.typography.bodySmall,
-                        color = Theme.colors.contentMuted,
+                        colour = Theme.colours.contentMuted,
                     )
                 }
                 Text("${4 + index * 7} min", style = Theme.typography.titleSmall)
@@ -205,7 +245,7 @@ private fun MapStandIn() {
     Box(
         Modifier
             .fillMaxSize()
-            .background(Theme.colors.surfaceSunken)
+            .background(Theme.colours.surfaceSunken)
     ) {
         Text(
             text = "map",
@@ -213,7 +253,7 @@ private fun MapStandIn() {
                 .align(Alignment.TopCenter)
                 .padding(top = Theme.spacing.lg),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.contentSubtle,
+            colour = Theme.colours.contentSubtle,
         )
     }
 }
@@ -224,7 +264,7 @@ private fun SheetPanel(title: String, content: @Composable () -> Unit) {
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
+            colour = Theme.colours.accent.solid,
         )
         Surface(
             modifier = Modifier
@@ -232,11 +272,11 @@ private fun SheetPanel(title: String, content: @Composable () -> Unit) {
                 .height(560.dp)
                 .border(
                     width = Theme.sizing.borderWidth,
-                    color = Theme.colors.outline,
+                    color = Theme.colours.outline,
                     shape = Theme.shapes.medium,
                 )
                 .clip(Theme.shapes.medium),
-            color = Theme.colors.surface,
+            colour = Theme.colours.surface,
         ) {
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize()) { content() }

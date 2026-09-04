@@ -29,6 +29,10 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.theme.Theme
 
 /**
@@ -46,12 +50,15 @@ import io.kontour.ui.theme.Theme
  * @param content Fills the box between the leading slots and the trailing slot.
  *   Give it `Modifier.weight(1f)` unless the control is meant to hug its value.
  */
+/** The gap between a field's label, its frame and its message. */
+private val FieldStackGap = 6.dp
+
 @Composable
 internal fun FieldScaffold(
     modifier: Modifier,
     enabled: Boolean,
     focused: Boolean,
-    colors: TextFieldColors,
+    colours: TextFieldColours,
     metrics: TextFieldMetrics,
     shape: Shape,
     label: String? = null,
@@ -66,8 +73,8 @@ internal fun FieldScaffold(
     val motion = Theme.motion
     val isError = errorMessage != null
 
-    val borderColor by animateColorAsState(
-        targetValue = colors.border(enabled, focused, isError),
+    val borderColour by animateColorAsState(
+        targetValue = colours.border(enabled, focused, isError),
         animationSpec = motion.tweenFast(),
         label = "fieldBorder",
     )
@@ -82,26 +89,27 @@ internal fun FieldScaffold(
     )
     // Animated for the same reason the border is: a ground that changes colour
     // between frames reads as a repaint, and one that fades reads as a response.
-    val containerColor by animateColorAsState(
-        targetValue = colors.container(enabled, focused),
+    val containerColour by animateColorAsState(
+        targetValue = colours.container(enabled, focused),
         animationSpec = motion.tweenFast(),
         label = "fieldContainer",
     )
-    val labelColor by animateColorAsState(
+    val labelColour by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.contentDisabled
-            isError -> colors.error
-            focused -> colors.labelFocused
-            else -> colors.label
+            !enabled -> colours.contentDisabled
+            isError -> colours.error
+            focused -> colours.labelFocused
+            else -> colours.label
         },
         animationSpec = motion.tweenFast(),
         label = "fieldLabel",
     )
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
+    // No `verticalArrangement`: the message slot carries the gap above it, so a
+    // field that stops being in error loses the message *and* its gap over the
+    // same animation. With `spacedBy` the gap went in one frame at the end —
+    // the vertical case of the snap `AnimatedSlot` documents.
+    Column(modifier = modifier.fillMaxWidth()) {
         if (label != null) {
             Text(
                 text = label,
@@ -114,8 +122,9 @@ internal fun FieldScaffold(
                 // is what stops this from silently losing the label instead.
                 modifier = Modifier.clearAndSetSemantics {},
                 style = Theme.typography.labelMedium,
-                color = labelColor,
+                colour = labelColour,
             )
+            Spacer(Modifier.height(FieldStackGap))
         }
 
         Row(
@@ -123,8 +132,8 @@ internal fun FieldScaffold(
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = metrics.minHeight)
                 .clip(shape)
-                .background(containerColor, shape)
-                .border(borderWidth, borderColor, shape)
+                .background(containerColour, shape)
+                .border(borderWidth, borderColour, shape)
                 .then(frameModifier)
                 // Each side is padded for what is actually on it. A glyph does
                 // not fill its own box, so an icon padded like text reads as
@@ -184,7 +193,7 @@ internal fun FieldScaffold(
                     Icon(
                         imageVector = leadingIcon,
                         contentDescription = null,
-                        tint = if (enabled) colors.label else colors.contentDisabled,
+                        tint = if (enabled) colours.label else colours.contentDisabled,
                         size = Theme.sizing.iconMedium,
                     )
                 }
@@ -197,8 +206,10 @@ internal fun FieldScaffold(
 
         // Helper and error occupy the same slot and animate in place, so the
         // form does not jump by a line height every time validation flips.
-        AnimatedVisibility(
+        AnimatedSlot(
             visible = errorMessage != null || supporting != null,
+            gap = FieldStackGap,
+            orientation = Orientation.Vertical,
             enter = fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast()),
             exit = fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast()),
         ) {
@@ -217,7 +228,7 @@ internal fun FieldScaffold(
                 Text(
                     text = message,
                     style = Theme.typography.bodySmall,
-                    color = if (isError) colors.error else colors.helper,
+                    colour = if (isError) colours.error else colours.helper,
                 )
             }
         }

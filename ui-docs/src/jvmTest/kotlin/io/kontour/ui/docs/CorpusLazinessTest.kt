@@ -43,6 +43,10 @@ class CorpusLazinessTest {
             symbols = emptyList(),
             family = "Guides",
             kind = DocKind.Guide,
+            // Spelled out rather than defaulted on the constructor. The only
+            // other caller is the generator, and a default would let a real page
+            // silently take position zero the day it stopped emitting one.
+            order = 0,
         ) {
             builds++
             emptyList()

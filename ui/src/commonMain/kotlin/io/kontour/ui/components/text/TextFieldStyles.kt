@@ -20,7 +20,7 @@ enum class TextFieldVariant { Outlined, Filled }
 
 /** Resolved colours for a text field across its states. */
 @Immutable
-data class TextFieldColors(
+data class TextFieldColours(
     val container: Color,
     val containerFocused: Color,
     val containerDisabled: Color,
@@ -87,9 +87,9 @@ object TextFieldDefaults {
 
     @Composable
     @ReadOnlyComposable
-    fun colors(variant: TextFieldVariant = TextFieldVariant.Outlined): TextFieldColors {
-        val c = Theme.colors
-        return TextFieldColors(
+    fun colours(variant: TextFieldVariant = TextFieldVariant.Outlined): TextFieldColours {
+        val c = Theme.colours
+        return TextFieldColours(
             // `invisible()`, not `Color.Transparent`. `FieldScaffold` animates
             // this to `containerFocused` and back, and `Color.Transparent` is
             // black — so an outlined field faded *through* a half-opaque
@@ -136,7 +136,21 @@ object TextFieldDefaults {
             helper = c.contentMuted,
             error = c.danger.onContainer,
             cursor = c.accent.solid,
-            selectionBackground = c.accent.container,
+            // The *solid* accent at a third, not the container tint.
+            //
+            // It was `accent.container` — which is exactly the colour a focused
+            // field paints its own ground, so selecting text inside one
+            // highlighted it in the colour it was already sitting on. On a
+            // filled field the two were the same value and the selection was
+            // invisible; on an outlined one the ground is that colour at half
+            // strength, so the highlight was the same hue one step darker,
+            // which reads as a rendering artefact rather than as a selection.
+            //
+            // A translucent solid instead: it deepens whatever it lands on
+            // rather than matching it, so it separates from the focused ground,
+            // the unfocused ground and the page alike — and it is what every
+            // text editor does, for the same reason.
+            selectionBackground = c.accent.solid.copy(alpha = SelectionAlpha),
         )
     }
 
@@ -152,3 +166,13 @@ object TextFieldDefaults {
         gap = Theme.spacing.xs,
     )
 }
+
+/**
+ * How much of the accent a text selection lays over the ground beneath it.
+ *
+ * A third: enough to be unmistakable against a focused field's own tint, not so
+ * much that the text on top of it loses its contrast — which is the failure at
+ * the other end, and a worse one, because a selection you cannot read is harder
+ * to work with than one you cannot see.
+ */
+private const val SelectionAlpha = 0.35f

@@ -37,7 +37,7 @@ enum class CardVariant {
  * ```
  * Card {
  *     Text("Perth Station", style = Theme.typography.titleMedium)
- *     Text("Platform 3", color = Theme.colors.contentMuted)
+ *     Text("Platform 3", colour = Theme.colours.contentMuted)
  * }
  *
  * Card(onClick = ::openStop) { … }   // whole card is one target
@@ -64,7 +64,7 @@ fun Card(
     variant: CardVariant = CardVariant.Elevated,
     onClick: (() -> Unit)? = null,
     shape: Shape = Theme.shapes.container,
-    color: Color = cardColorFor(variant),
+    colour: Color = cardColourFor(variant),
     border: BorderStroke? = cardBorderFor(variant),
     shadow: Shadow = cardShadowFor(variant),
     contentPadding: PaddingValues = PaddingValues(Theme.spacing.md),
@@ -89,7 +89,7 @@ fun Card(
             }
         ),
         shape = shape,
-        color = color,
+        colour = colour,
         border = border,
         shadow = shadow,
     ) {
@@ -101,14 +101,14 @@ fun Card(
 }
 
 @Composable
-private fun cardColorFor(variant: CardVariant): Color = when (variant) {
-    CardVariant.Elevated, CardVariant.Outlined -> Theme.colors.surface
-    CardVariant.Filled -> Theme.colors.surfaceSunken
+private fun cardColourFor(variant: CardVariant): Color = when (variant) {
+    CardVariant.Elevated, CardVariant.Outlined -> Theme.colours.surface
+    CardVariant.Filled -> Theme.colours.surfaceSunken
 }
 
 @Composable
 private fun cardBorderFor(variant: CardVariant): BorderStroke? = when (variant) {
-    CardVariant.Outlined -> BorderStroke(Theme.sizing.borderWidth, Theme.colors.outline)
+    CardVariant.Outlined -> BorderStroke(Theme.sizing.borderWidth, Theme.colours.outline)
     // Elevated is white on white with a shadow for an edge, and Filled is
     // `surfaceSunken` on `background` — 1.3:1 and 1.06:1 respectively at the
     // high-contrast tier, where the shadow does not change and the two grounds

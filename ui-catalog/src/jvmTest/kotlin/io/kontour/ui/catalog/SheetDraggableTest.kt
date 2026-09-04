@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -35,8 +37,9 @@ import kotlin.test.assertTrue
  * behind would mean a flick at the top of the content still closed a sheet that
  * cannot be dragged.
  *
- * The `dismissable` half of this was already built, under the name
- * `dismissOnOutside`. It had no test, which is the part worth fixing.
+ * The dismissal half of this was already built, under the name
+ * `dismissOnOutside`; round 20 renamed it `dismissible` and widened it to cover
+ * the drag as well as the tap. It had no test, which was the part worth fixing.
  */
 class SheetDraggableTest {
 
@@ -75,19 +78,19 @@ class SheetDraggableTest {
 
     @Test
     fun aModalSheetIgnoresAnOutsideTapWhenAskedTo() {
-        assertTrue(closedByScrimTap(dismissOnOutside = true), "an outside tap did not close the sheet")
+        assertTrue(closedByScrimTap(dismissible = true), "an outside tap did not close the sheet")
         assertTrue(
-            !closedByScrimTap(dismissOnOutside = false),
-            "an outside tap closed a sheet with `dismissOnOutside = false`",
+            !closedByScrimTap(dismissible = false),
+            "an outside tap closed a sheet with `dismissible = false`",
         )
     }
 
     @Test
     fun aDialogIgnoresAnOutsideTapWhenAskedTo() {
-        assertTrue(dialogClosedByScrimTap(dismissOnOutside = true), "an outside tap did not close the dialog")
+        assertTrue(dialogClosedByScrimTap(dismissible = true), "an outside tap did not close the dialog")
         assertTrue(
-            !dialogClosedByScrimTap(dismissOnOutside = false),
-            "an outside tap closed a dialog with `dismissOnOutside = false`",
+            !dialogClosedByScrimTap(dismissible = false),
+            "an outside tap closed a dialog with `dismissible = false`",
         )
     }
 
@@ -150,7 +153,7 @@ class SheetDraggableTest {
     }
 
     /** Taps the scrim above a modal sheet and reports whether it asked to close. */
-    private fun closedByScrimTap(dismissOnOutside: Boolean): Boolean {
+    private fun closedByScrimTap(dismissible: Boolean): Boolean {
         var closed = false
         var open by mutableStateOf(true)
 
@@ -160,7 +163,7 @@ class SheetDraggableTest {
                     ModalBottomSheet(
                         visible = open,
                         onDismissRequest = { closed = true; open = false },
-                        dismissOnOutside = dismissOnOutside,
+                        dismissible = dismissible,
                     ) {
                         Box(Modifier.fillMaxWidth().height(200.dp).background(Color.LightGray))
                     }
@@ -175,8 +178,106 @@ class SheetDraggableTest {
         return closed
     }
 
+    @Test
+    fun aSheetThatCannotBeDismissedComesBackFromADragToTheFloor() {
+        var dismissed = false
+        var settled: SheetDetent? = null
+
+        Scene(width = 600, height = 800) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    val sheet = rememberSheetState(
+                        detents = listOf(SheetDetent.Hidden, SheetDetent.Expanded),
+                        initialDetent = SheetDetent.Hidden,
+                    )
+                    ModalBottomSheet(
+                        visible = true,
+                        onDismissRequest = { dismissed = true },
+                        state = sheet,
+                        dismissible = false,
+                    ) {
+                        Box(Modifier.fillMaxWidth().height(200.dp).background(Color.LightGray))
+                    }
+                    LaunchedEffect(sheet) {
+                        snapshotFlow { sheet.currentDetent }.collect { settled = it }
+                    }
+                }
+            }
+        }.use { scene ->
+            val open = scene.frames(30)
+            scene.drag(from = Offset(300f, open.crownRow() + 40f), to = Offset(300f, 790f), steps = 24)
+            scene.frames(60)
+        }
+
+        assertTrue(
+            !dismissed,
+            "a sheet with `dismissible = false` still reported the drag as a dismissal",
+        )
+        assertEquals(
+            SheetDetent.Expanded,
+            settled,
+            "a sheet with `dismissible = false` was left at $settled after being " +
+                "dragged to the floor — it has to come back, or the screen is dimmed " +
+                "and blocked by a sheet nobody can see",
+        )
+    }
+
+    @Test
+    fun floatingControlsGoWhenTheSheetGoes() {
+        // Differential, not absolute. A hidden sheet is not a blank window: its
+        // surface sits just off the bottom edge and the top of its shadow still
+        // bleeds a few dp up into it. Counting all the ink measured that shadow
+        // and would have failed whatever the controls did.
+        assertEquals(
+            ink(visible = false, controls = false),
+            ink(visible = false, controls = true),
+            "a hidden sheet drew more with floating controls than without — they " +
+                "were parked at the bottom of the window over a sheet that was no " +
+                "longer there",
+        )
+        assertTrue(
+            ink(visible = true, controls = true) > ink(visible = true, controls = false),
+            "an open sheet drew the same with and without floating controls, so " +
+                "the assertion above proves nothing",
+        )
+    }
+
+    /** How much a sheet draws, with or without floating controls, open or hidden. */
+    private fun ink(visible: Boolean, controls: Boolean): Int {
+        var ink = 0
+        Scene(width = 600, height = 800) {
+            val sheet = rememberSheetState(
+                detents = listOf(SheetDetent.Hidden, SheetDetent.Expanded),
+                initialDetent = if (visible) SheetDetent.Expanded else SheetDetent.Hidden,
+            )
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                BottomSheet(
+                    state = sheet,
+                    floatingControls = if (controls) {
+                        { Box(Modifier.height(40.dp).width(40.dp).background(Color.Red)) }
+                    } else {
+                        null
+                    },
+                ) {
+                    Box(Modifier.fillMaxWidth().height(200.dp).background(Color.LightGray))
+                }
+            }
+        }.use { scene ->
+            val image = scene.frames(30)
+            val background = image.getRGB(0, 0)
+            var count = 0
+            for (y in 0 until image.height) {
+                for (x in 0 until image.width) {
+                    if (image.getRGB(x, y) != background) count++
+                }
+            }
+            ink = count
+        }
+        return ink
+    }
+
     /** The same, for a dialog. */
-    private fun dialogClosedByScrimTap(dismissOnOutside: Boolean): Boolean {
+    private fun dialogClosedByScrimTap(dismissible: Boolean): Boolean {
         var closed = false
         var open by mutableStateOf(true)
 
@@ -186,7 +287,7 @@ class SheetDraggableTest {
                     Dialog(
                         visible = open,
                         onDismissRequest = { closed = true; open = false },
-                        dismissOnOutside = dismissOnOutside,
+                        dismissible = dismissible,
                     ) {
                         Box(Modifier.fillMaxWidth().height(100.dp).background(Color.LightGray))
                     }

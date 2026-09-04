@@ -11,13 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.semantics.Role
@@ -28,14 +23,33 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.foundation.drawCheckMark
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 
 /** The box's drawn size. The touch target around it is much larger. */
 private val CheckboxSize = 20.dp
+
+/**
+ * A checkbox's own corner, deliberately not a rung of the scale.
+ *
+ * It read [io.kontour.ui.theme.Shapes.extraSmall] until that rung moved from 8dp
+ * to 10dp — half of [CheckboxSize] — and a 20dp box with a 10dp corner is a
+ * circle. The box turned into a radio button, which is not a cosmetic problem:
+ * shape is the *only* thing distinguishing "choose any" from "choose one" before
+ * either is ticked, and a screen reader's answer is no help to someone looking
+ * at it.
+ *
+ * So this is a one-off, in exactly the sense the shape scale documents one:
+ * square-ish is a property of what a checkbox **is**, not of a family it belongs
+ * to, and it must not follow the ladder wherever the ladder goes next. 6dp is
+ * 30% of the box — clearly rounded, unmistakably not round.
+ */
+private val CheckboxShape = SquircleShape(6.dp)
 
 /**
  * A checkbox.
@@ -89,9 +103,9 @@ fun TriStateCheckbox(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
-    val shape = Theme.shapes.extraSmall
+    val shape = CheckboxShape
     val feedback = Feedback
 
     val selected = state != ToggleableState.Off
@@ -123,16 +137,16 @@ fun TriStateCheckbox(
     // disabled; how much of it there is comes from `filled`, so the box fills
     // and empties with the mark rather than a frame behind it.
     val containerBase by animateColorAsState(
-        targetValue = if (enabled) colors.primary else colors.contentDisabled,
+        targetValue = if (enabled) colours.primary else colours.contentDisabled,
         animationSpec = motion.tweenFast(),
         label = "checkboxContainer",
     )
     val container = containerBase.copy(alpha = containerBase.alpha * filled)
     val border by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.contentDisabled
-            selected -> colors.primary
-            else -> colors.outlineStrong
+            !enabled -> colours.contentDisabled
+            selected -> colours.primary
+            else -> colours.outlineStrong
         },
         animationSpec = motion.tweenFast(),
         label = "checkboxBorder",
@@ -140,6 +154,17 @@ fun TriStateCheckbox(
     // The mark strokes on: 0 to 1 is the fraction of the tick path drawn, and
     // that is exactly how full the box is.
     val markProgress = filled
+    // How flat the mark is: 0 a tick, 1 the indeterminate bar.
+    //
+    // A second fraction rather than a second shape, because the two marks are
+    // the *same three points* at different heights, and animating between them
+    // is what makes a tick flatten into a bar instead of one being rubbed out
+    // and the other snapping in.
+    val flatness by animateFloatAsState(
+        targetValue = if (state == ToggleableState.Indeterminate) 1f else 0f,
+        animationSpec = motion.tweenFast(),
+        label = "checkboxFlatness",
+    )
     // The box itself springs up to meet the tick — the bounce lands on the way
     // *in*, which is the one place an overshoot on arrival is right.
     val boxScale by animateFloatAsState(
@@ -196,74 +221,15 @@ fun TriStateCheckbox(
             )
 
             if (markProgress > 0f) {
-                drawMark(
-                    state = state,
+                drawCheckMark(
+                    flatness = flatness,
                     progress = markProgress,
-                    color = if (enabled) colors.onPrimary else colors.surface,
+                    colour = if (enabled) colours.onPrimary else colours.surface,
                     strokeWidth = strokeWidth,
                 )
             }
         }
     }
-}
-
-/**
- * Draws the tick or dash, revealed [progress] of the way along its path.
- *
- * The tick is two segments: a short down-stroke and a long up-stroke. Revealing
- * them in order is what makes it read as being *drawn* rather than appearing.
- */
-private fun DrawScope.drawMark(
-    state: ToggleableState,
-    progress: Float,
-    color: Color,
-    strokeWidth: Float,
-) {
-    val w = size.width
-    val h = size.height
-
-    if (state == ToggleableState.Indeterminate) {
-        val inset = w * 0.25f
-        val y = h / 2f
-        val halfLength = (w / 2f - inset) * progress
-        drawLine(
-            color = color,
-            start = Offset(w / 2f - halfLength, y),
-            end = Offset(w / 2f + halfLength, y),
-            strokeWidth = strokeWidth,
-            cap = StrokeCap.Round,
-        )
-        return
-    }
-
-    val start = Offset(w * 0.24f, h * 0.52f)
-    val elbow = Offset(w * 0.43f, h * 0.70f)
-    val end = Offset(w * 0.76f, h * 0.32f)
-
-    // Segment lengths, so the reveal moves at a constant speed across the elbow
-    // instead of racing through the short leg.
-    val firstLength = (elbow - start).getDistance()
-    val secondLength = (end - elbow).getDistance()
-    val total = firstLength + secondLength
-    val drawn = total * progress
-
-    val path = Path().apply {
-        moveTo(start.x, start.y)
-        if (drawn <= firstLength) {
-            val t = if (firstLength == 0f) 0f else drawn / firstLength
-            lineTo(start.x + (elbow.x - start.x) * t, start.y + (elbow.y - start.y) * t)
-        } else {
-            lineTo(elbow.x, elbow.y)
-            val t = if (secondLength == 0f) 0f else (drawn - firstLength) / secondLength
-            lineTo(elbow.x + (end.x - elbow.x) * t, elbow.y + (end.y - elbow.y) * t)
-        }
-    }
-
-    drawPath(
-        path = path,
-        color = color,
-        style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round),
-    )
 }
 
 /** The drawn size of a [Checkbox], for callers laying out around one. */

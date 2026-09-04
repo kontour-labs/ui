@@ -226,7 +226,7 @@ private fun TooltipOverlay(
     onDismissRequest: () -> Unit,
 ) {
     val host = LocalOverlayHost.current
-    val colors = Theme.colors
+    val colours = Theme.colours
     val modality = LocalInputModality.current
     val key = remember { Any() }
     val dismiss by rememberUpdatedState(onDismissRequest)
@@ -271,7 +271,7 @@ private fun TooltipOverlay(
                         alignment = alignment,
                         gap = 0.dp,
                         margin = MenuDefaults.ScreenMargin,
-                        arrow = ArrowSpec(color = colors.surfaceInverse),
+                        arrow = ArrowSpec(colour = colours.surfaceInverse),
                     ) {
                         TooltipBubble(latestContent, latestModifier)
                     }
@@ -293,9 +293,9 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
         // constraint rather than being clamped by the default behind it.
         modifier = modifier
             .widthIn(max = TooltipDefaults.MaxWidth),
-        shape = Theme.shapes.small,
-        color = Theme.colors.surfaceInverse,
-        contentColor = Theme.colors.onSurfaceInverse,
+        shape = Theme.shapes.container,
+        colour = Theme.colours.surfaceInverse,
+        contentColour = Theme.colours.onSurfaceInverse,
     ) {
         Box(
             Modifier.padding(
@@ -407,7 +407,7 @@ private fun CoachMarkOverlay(
     onDismiss: () -> Unit,
 ) {
     val host = LocalOverlayHost.current
-    val colors = Theme.colors
+    val colours = Theme.colours
     val key = remember { Any() }
     val dismissNow by rememberUpdatedState(onDismiss)
     // Read live by the overlay's measure pass rather than captured when the
@@ -442,7 +442,7 @@ private fun CoachMarkOverlay(
                         alignment = alignment,
                         gap = Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
-                        arrow = ArrowSpec(color = colors.accent.solid),
+                        arrow = ArrowSpec(colour = colours.accent.solid),
                     ) {
                         CoachMarkBubble(
                             title = title,
@@ -466,14 +466,14 @@ private fun CoachMarkBubble(
     dismissLabel: String,
     onDismiss: () -> Unit,
 ) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     Surface(
         modifier = Modifier
             .widthIn(max = 320.dp)
             .semantics(mergeDescendants = true) { contentDescription = "$title. $text" },
         shape = Theme.shapes.container,
-        color = colors.accent.solid,
-        contentColor = colors.accent.onSolid,
+        colour = colours.accent.solid,
+        contentColour = colours.accent.onSolid,
         shadow = Theme.elevation.overlay,
     ) {
         Column(
@@ -503,7 +503,7 @@ private fun CoachMarkBubble(
                 Button(
                     onClick = onDismiss,
                     variant = ButtonVariant.Ghost,
-                    // Ghost takes its label from LocalContentColor, which the
+                    // Ghost takes its label from LocalContentColour, which the
                     // bubble's Surface has already set to `accent.onSolid`.
                     size = ButtonSize.Small,
                 ) { +dismissLabel }

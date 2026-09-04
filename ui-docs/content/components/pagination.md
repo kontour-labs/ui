@@ -29,6 +29,30 @@ pages are a web pattern; a phone list pages by scrolling.
 
 ---
 
+## Jumping to a page you cannot see
+
+```kotlin
+Pagination(value = page, pageCount = 40, onValueChange = { page = it }, allowJump = true)
+```
+
+`allowJump` makes the ellipsis a control: tapping it opens a box to type a page
+number into. The gap is the only sensible place for it — it is the part of the
+row that stands for the pages you cannot reach by tapping, which is exactly the
+set you would be typing a number to get to.
+
+Off by default, because it changes what the ellipsis *is*. With it on the gap
+gets a touch target, a focus ring and a name a screen reader reads out; with it
+off it is punctuation, announced as nothing. Both are right, for different rows:
+a forty-page result set wants it, and a five-page one has no ellipsis to tap.
+
+The number is typed **one-based** — "3" is the third page — because that is what
+the row shows and what each button announces. Out of range is clamped rather
+than rejected: someone typing 99 into a forty-page set means the end, and an
+error message for that is a lecture. A long row has an ellipsis at each end, and
+they are separate controls: opening one closes the other.
+
+---
+
 ## Accessibility
 
 Each page number is a button with its own name, and previous/next carry

@@ -38,7 +38,7 @@ import io.kontour.ui.theme.Theme
 /** Every selection control, in every state. Source for the selection goldens. */
 @Composable
 fun SelectionShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Column(
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),

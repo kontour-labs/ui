@@ -3,10 +3,10 @@ package io.kontour.ui.overlay
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.focusGroup
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,13 +60,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.list.ListItemScope
+import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.AnimatedCheckMark
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
@@ -75,6 +76,7 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.inset
 import kotlinx.coroutines.delay
 
 /** Sizing shared by every menu surface. Override per call site if you must. */
@@ -292,13 +294,34 @@ private fun MenuPanel(
         // the intrinsic measurement to the surface just made every menu its
         // maximum width instead, which is worse — a two-item menu has no
         // business being 320dp wide.
-        Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
-                .fillMaxWidth(),
-        ) {
-            MenuScopeImpl(this, onDismissRequest).content()
+        // A scrollbar, where a scrollbar is a thing.
+        //
+        // A menu is the archetypal short container holding a list that may not
+        // fit — a `Combobox` over forty stops, a context menu on a small window
+        // — and until now the only clue that there was more below was that the
+        // last row was cut in half. `Scrollbar` returns nothing on touch and
+        // nothing when the content fits, so this costs an empty composable on a
+        // phone and draws only when it has something to say.
+        //
+        // In the panel rather than at each call site, which is the point: every
+        // menu in the library goes through here, so `Select`, `MultiSelect`,
+        // `Combobox`, the context menu and every submenu get it without knowing
+        // it exists.
+        val scroll = rememberScrollState()
+        Box {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(scroll)
+                    .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
+                    .fillMaxWidth(),
+            ) {
+                MenuScopeImpl(this, onDismissRequest).content()
+            }
+
+            Scrollbar(
+                state = scroll,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
         }
     }
 }
@@ -335,14 +358,14 @@ fun MenuItem(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
-    val colors = Theme.colors
+    val colours = Theme.colours
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
-    val contentColor = when {
-        !enabled -> colors.contentDisabled
-        destructive -> colors.danger.solid
-        else -> colors.content
+    val contentColour = when {
+        !enabled -> colours.contentDisabled
+        destructive -> colours.danger.solid
+        else -> colours.content
     }
 
     Row(
@@ -358,12 +381,15 @@ fun MenuItem(
             }
             .minimumTouchTarget()
             .padding(horizontal = Theme.spacing.xxs)
-            .clip(Theme.shapes.small)
+            .clip(Theme.shapes.container.inset(Theme.spacing.xxs))
             .clickable(
                 interactionSource = interactions,
                 // A menu row is a big target; scaling it makes the whole menu
                 // look like it is wobbling.
-                indication = kontourIndication(Theme.shapes.small, pressScale = 1f),
+                indication = kontourIndication(
+                    Theme.shapes.container.inset(Theme.spacing.xxs),
+                    pressScale = 1f,
+                ),
                 enabled = enabled,
                 onClick = {
                     feedback.perform(FeedbackIntent.Selection)
@@ -374,17 +400,17 @@ fun MenuItem(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val muted = if (enabled) colors.contentMuted else colors.contentDisabled
+        val muted = if (enabled) colours.contentMuted else colours.contentDisabled
 
         slots.leading?.let { leading ->
-            ProvideContentColor(contentColor) {
+            ProvideContentColour(contentColour) {
                 ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
             }
         }
 
         Box(Modifier.weight(1f)) {
             slots.label?.let { label ->
-                ProvideContentColor(contentColor) {
+                ProvideContentColour(contentColour) {
                     ProvideTextStyle(Theme.typography.bodyMedium) {
                         ContentSlot(maxLines = 1, content = label)
                     }
@@ -393,18 +419,22 @@ fun MenuItem(
         }
 
         slots.trailing?.let { trailing ->
-            ProvideContentColor(muted) {
+            ProvideContentColour(muted) {
                 ProvideTextStyle(Theme.typography.labelSmall) {
                     ContentSlot(iconSize = Theme.sizing.iconSmall, maxLines = 1, content = trailing)
                 }
             }
         }
-        if (selected) {
-            Icon(
-                imageVector = SystemIcons.Check,
-                contentDescription = null,
+        // Reserved for the whole life of a multi-select menu, which stays open
+        // while its ticks come and go: a mark that takes space only when it is
+        // there makes every label in the menu step sideways as the user works
+        // down it. A single-select menu closes on the choice, so the slot is
+        // only worth reserving on the row that has one.
+        if (multiple || selected) {
+            AnimatedCheckMark(
+                checked = selected,
+                colour = if (enabled) colours.accent.solid else colours.contentDisabled,
                 size = Theme.sizing.iconSmall,
-                tint = if (enabled) colors.accent.solid else colors.contentDisabled,
             )
         }
     }
@@ -418,7 +448,7 @@ fun MenuDivider(modifier: Modifier = Modifier) {
             horizontal = Theme.spacing.xs,
             vertical = Theme.spacing.xxs,
         ),
-        color = Theme.colors.outlineSubtle,
+        colour = Theme.colours.outlineSubtle,
     )
 }
 
@@ -442,7 +472,7 @@ fun MenuSectionHeader(
         )
     ) {
         ProvideTextStyle(Theme.typography.labelSmall) {
-            ProvideContentColor(Theme.colors.contentMuted) {
+            ProvideContentColour(Theme.colours.contentMuted) {
                 ContentSlot(iconSize = Theme.sizing.iconSmall, content = content)
             }
         }
@@ -588,7 +618,15 @@ fun ContextMenuArea(
     enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
+    // Two pieces of state rather than one nullable `Rect`, because the anchor has
+    // to outlive the dismissal. Clearing it *was* the dismissal, so the menu
+    // spent its whole exit animation with no anchor to place against and slid to
+    // the top-left corner of the window on the way out. `AnchoredOverlayLayout`
+    // now keeps the last real anchor as well, so either half of this is enough —
+    // and the pair is worth having anyway: "where it opened" and "whether it is
+    // open" are two facts, and one of them survives the other.
     var anchor by remember { mutableStateOf<Rect?>(null) }
+    var open by remember { mutableStateOf(false) }
     var coordinates by remember {
         mutableStateOf<LayoutCoordinates?>(null)
     }
@@ -601,6 +639,7 @@ fun ContextMenuArea(
         // A zero-size anchor: the menu hangs off the point itself, which is what
         // makes it feel like it belongs to the click rather than the row.
         anchor = Rect(root, root)
+        open = true
     }
 
     Box(
@@ -634,9 +673,9 @@ fun ContextMenuArea(
     }
 
     AnchoredDropdownMenu(
-        visible = anchor != null,
+        visible = open,
         anchor = anchor,
-        onDismissRequest = { anchor = null },
+        onDismissRequest = { open = false },
         side = OverlaySide.Bottom,
         alignment = OverlayAlignment.Start,
         content = menu,

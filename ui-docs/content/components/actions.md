@@ -13,4 +13,9 @@ Things the user presses to make something happen.
 | [`SplitButton`](split-button.md) | One usual action, with variants a tap away | A `Button` + menu, when there is no *usual* one |
 | [`ButtonGroup`](button-group.md) | Related actions that read as one control | `SegmentedControl`, when one is *selected* |
 | [`Toolbar`](toolbar.md) | A floating surface of actions over other content | `TopBar`, when it is the screen's own chrome |
-| [`Spinner`](spinner.md) | Work is happening, duration unknown | `LinearProgress`, when you know the fraction |
+
+A button that is working shows a `Spinner` in place of its label. The spinner
+itself is filed under Display, beside `LinearProgress` and `Skeleton` — the rest
+of the vocabulary for "something is happening". It is deliberately not linked
+from here: an index page that links a component *claims* it, so a helpful
+cross-reference between families would move the page into the wrong one.

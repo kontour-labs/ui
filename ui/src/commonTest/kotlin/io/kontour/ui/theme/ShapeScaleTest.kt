@@ -55,17 +55,35 @@ class ShapeScaleTest {
 
     @Test
     fun theSemanticTokensClimbInTheRightOrder() {
+        // The ladder half of the model. `container` and `panel` are still rungs
+        // and still have to climb, because a dialog holding a card has to read
+        // as holding it.
         val size = Size(400f, 400f)
-        val field = shapes.field.topStart.toPx(size, density)
         val container = shapes.container.topStart.toPx(size, density)
         val panel = shapes.panel.topStart.toPx(size, density)
 
         assertTrue(
-            field < container && container < panel,
-            "a control has to look like it is inside its container and the " +
-                "container inside the panel, but the radii went $field, " +
-                "$container, $panel",
+            container < panel,
+            "a container has to look like it is inside its panel, but the radii " +
+                "went $container, $panel",
         )
+    }
+
+    @Test
+    fun aBigFieldNeverOutroundsItsOwnCap() {
+        // `field` used to be a rung *below* `container`, and this test used to
+        // assert exactly that. It cannot any more: a field is derived from its
+        // height now, so a single-line one is a capsule at 22–26dp — which is the
+        // point, and which is more than a container's 22.
+        //
+        // What survives of the old assertion is the case it was really about. A
+        // text area is tall, and a tall box with a proportional corner is a
+        // lozenge; the cap is what stops it, so the cap is what to check.
+        val cap = 26f
+        for (height in listOf(120f, 400f, 1000f)) {
+            val radius = shapes.field.topStart.toPx(Size(400f, height), density)
+            assertEquals(cap, radius, "a $height-tall field should stop at the cap")
+        }
     }
 
     @Test
@@ -135,7 +153,14 @@ class ShapeScaleTest {
             "inset a squircle and the corner must stay smooth, or a nested control " +
                 "comes out concentric in radius and wrong in curvature",
         )
-        assertTrue(shapes.small.inset(2.dp) is RoundedCornerShape)
+        // Every rung is a squircle now, the small ones included, so `inset`
+        // preserving the shape class is a claim about the whole scale rather
+        // than about its top half.
+        assertTrue(
+            shapes.small.inset(2.dp) is SquircleShape,
+            "the small rungs are squircles too now, and inset must not quietly " +
+                "turn one back into a rounded rectangle",
+        )
     }
 
     @Test

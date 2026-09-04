@@ -85,7 +85,19 @@ class RangeBandHeightTest {
             // The grid's geometry is read off the band itself rather than
             // assumed: it spans exactly the six days of the range, so its extent
             // divided by six is a cell.
-            val band = (0 until pixels.width).filter { runAt(it) >= BandFloor }
+            //
+            // Which columns are band is decided against the tallest run in the
+            // image rather than against a fixed number of pixels. It was a
+            // constant, and the constant was chosen when a day number was
+            // whatever the type scale said — the digits size with their cells
+            // now, and the first calendar wide enough to grow them past 24px
+            // put glyph columns into `band`, which moved its ends, which made
+            // `cell` wrong, which walked the six samples off the cell centres
+            // and had them measuring digits. The band is a whole cell tall and
+            // no glyph is close, so the ratio holds however the type is scaled.
+            val tallest = (0 until pixels.width).maxOf { runAt(it) }
+            val floor = tallest * BandShare
+            val band = (0 until pixels.width).filter { runAt(it) >= floor }
             if (band.isNotEmpty()) {
                 val cell = (band.last() - band.first() + 1) / Days.toFloat()
                 repeat(Days) { i ->
@@ -109,7 +121,16 @@ class RangeBandHeightTest {
         const val Tag = "range"
 
         /** Above any glyph, below any fill, at this width and density. */
-        const val BandFloor = 24
+        /**
+     * How much of the tallest run in the image a column has to reach to count
+     * as part of the band.
+     *
+     * Four fifths. The band is a whole cell tall and the tallest thing in the
+     * picture; the next tallest is a digit at rather less than half of it, so
+     * anything in between separates them — and the *one-pixel* difference this
+     * test exists to catch is far inside the margin.
+     */
+    const val BandShare = 0.8f
 
         /** 9th to 14th inclusive. */
         const val Days = 6

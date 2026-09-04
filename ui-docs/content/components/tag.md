@@ -2,8 +2,8 @@
 
 **Takes an arbitrary background and derives its own text colour.** Transit feeds
 supply route colours that are not drawn from any palette — a route can be pale
-yellow or near-black. Passing `color` resolves the label with
-`contentColorFor()`, so it stays legible.
+yellow or near-black. Passing `colour` resolves the label with
+`contentColourFor()`, so it stays legible.
 
 <!--sample:TagBasics-->
 ```kotlin

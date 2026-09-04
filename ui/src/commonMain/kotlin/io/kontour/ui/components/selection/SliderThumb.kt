@@ -51,25 +51,33 @@ internal fun DrawScope.sliderThumb(
     radiusPx: Float,
     scale: Float,
     reachPx: Float,
-    ringColor: Color,
-    fillColor: Color,
+    ringColour: Color,
+    fillColour: Color,
     ringPx: Float,
 ) {
     val r = radiusPx * scale
     val limit = r * SliderDefaults.MaxStretch
     val reach = reachPx.coerceIn(-limit, limit)
 
-    val left = centreX - r + minOf(reach, 0f)
-    val right = centreX + r + maxOf(reach, 0f)
+    // Wider than it is tall, before any stretch. A circle is what every slider
+    // ships and it reads as a dot sitting *on* the track rather than as a handle
+    // *for* it; a horizontal capsule reads as something to grab and points along
+    // the axis it moves on. The corner stays half the height, so it is a capsule
+    // at every size and there is no curvature discontinuity to smooth — the same
+    // rule `Shapes.control` uses, arrived at from the drawing side.
+    val halfWidth = r * SliderDefaults.ThumbAspect
+
+    val left = centreX - halfWidth + minOf(reach, 0f)
+    val right = centreX + halfWidth + maxOf(reach, 0f)
 
     drawRoundRect(
-        color = ringColor,
+        color = ringColour,
         topLeft = Offset(left, centreY - r),
         size = Size(right - left, r * 2f),
         cornerRadius = CornerRadius(r),
     )
     drawRoundRect(
-        color = fillColor,
+        color = fillColour,
         topLeft = Offset(left + ringPx, centreY - r + ringPx),
         size = Size(
             (right - left - ringPx * 2f).coerceAtLeast(0f),

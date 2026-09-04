@@ -127,7 +127,24 @@ private fun Shell(settings: DisplaySettings, systemDark: Boolean, route: Route) 
 
     // A drawer still open over the page you just chose is a drawer you have to
     // dismiss before you can read anything.
-    LaunchedEffect(route) { indexOpen = false }
+    LaunchedEffect(route) {
+        indexOpen = false
+        // And a family you have just navigated into is one you can see the
+        // inside of, whatever you last did to its chevron.
+        //
+        // Not tidiness: a collapsed group composes none of its rows, and the
+        // selection pill is driven by the selected row *reporting* its bounds.
+        // `SelectionIndicator` has a branch for the item that stops reporting —
+        // "a drawer group collapsed over it, say" — but it only runs when the
+        // target is cleared, and `SelectionIndicatorState.clear()` is internal
+        // with no callers anywhere in `:ui`. So the pill would stay drawn at the
+        // vanished row's last rectangle, over whichever row moved up into it.
+        // Forgetting the manual choice for the family you are entering is the
+        // one line that makes that unreachable from here.
+        (route as? Route.Doc)?.let { doc ->
+            docPagesByPath[doc.path]?.let { familyOpen = familyOpen - it.family }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -245,6 +262,20 @@ private fun IndexSearchHeader() {
  */
 private var indexQuery by mutableStateOf("")
 
+/**
+ * Which families the reader has opened or closed by hand.
+ *
+ * Absent means "no opinion", and the default below applies. A `Set` of the open
+ * ones would not do: a family is open by default while you are reading it, and a
+ * set could only ever add to that — pressing the chevron to close the family you
+ * are in would compute `open` and get `true` straight back, which is a control
+ * that does nothing. An explicit `false` is a different thing from no entry, so
+ * the map stores which and the reader always wins.
+ *
+ * Hoisted for the same reason as [indexQuery]: two drawers, one on screen.
+ */
+private var familyOpen by mutableStateOf(emptyMap<String, Boolean>())
+
 /** Every page, by family, filtered as you type. */
 @Composable
 private fun NavDrawerScope.indexItems(current: Route) {
@@ -258,18 +289,55 @@ private fun NavDrawerScope.indexItems(current: Route) {
             }
         }
     }
+    val searching = indexQuery.isNotBlank()
 
     matching.forEach { family ->
-        section(family.name) {
-            // The family's own page first, where it has one — the "which one"
-            // table and the prose that is about the family rather than any
-            // component in it. Round 16 gave those pages routes; before that
-            // they were the only part of the tree the site could not show.
-            family.index?.let { index -> indexItem(index, current, "Overview") }
-            family.pages.forEach { page -> indexItem(page, current) }
+        // Guides stays flat. It is eight rows and it is the way in — putting the
+        // map, installing and the tokens behind a chevron hides the things a
+        // first-time reader is looking for in order to tidy away the shortest
+        // section on the page.
+        //
+        // Asked as "has no index page", which is true of Guides and only Guides.
+        // Reading the kind off `pages.first()` answered the same question by
+        // asking a page about its family, and would throw on an empty one.
+        if (family.index == null) {
+            section(family.name) { indexFamily(family, current) }
+            return@forEach
+        }
+        group(
+            label = family.name,
+            // A search reveals its hits whatever the reader last did to a
+            // chevron, otherwise typing a name and getting nothing back is the
+            // behaviour, and it looks like the search is broken.
+            expanded = searching || (familyOpen[family.name] ?: family.holds(current)),
+            onExpandedChange = { familyOpen = familyOpen + (family.name to it) },
+        ) {
+            indexFamily(family, current)
         }
     }
 }
+
+/** One family's rows: its own page, then its components. */
+@Composable
+private fun NavDrawerScope.indexFamily(family: DocFamily, current: Route) {
+    // The family's own page first, where it has one — the "which one" table and
+    // the prose that is about the family rather than any component in it. Round
+    // 16 gave those pages routes; before that they were the only part of the
+    // tree the site could not show.
+    family.index?.let { index -> indexItem(index, current, "Overview") }
+    family.pages.forEach { page -> indexItem(page, current) }
+}
+
+/**
+ * Whether the page being read is in this family.
+ *
+ * Which is what decides whether it starts open, and is also what keeps the
+ * travelling selection pill honest: a collapsed group composes none of its rows,
+ * so a selected row inside a closed family would be a selection with nothing to
+ * draw on.
+ */
+private fun DocFamily.holds(route: Route): Boolean =
+    route is Route.Doc && (index?.path == route.path || pages.any { it.path == route.path })
 
 /**
  * One destination.
@@ -330,7 +398,11 @@ private fun Home() {
     // README has carried a hand-written "138 components" for four rounds that
     // matched nothing measurable.
     val components = remember { docPages.count { it.kind == DocKind.Component } }
-    val guides = remember { docPages.filter { it.kind == DocKind.Guide }.sortedBy { it.title } }
+    // The same order the sidebar uses, which is `doctree.GUIDES` — the map, then
+    // how to install it, then the tokens and the theme. Sorted by title, this
+    // list and the sidebar's showed the same eight pages in two different
+    // orders, and neither was a reading order.
+    val guides = remember { docPages.filter { it.kind == DocKind.Guide }.sortedBy { it.order } }
 
     Column(
         modifier = Modifier
@@ -345,7 +417,7 @@ private fun Home() {
                 "with no Material. $components components, each on its own page with the " +
                 "component itself running beside the words — running, not pictured: press it.",
             style = Theme.typography.bodyLarge,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
             modifier = Modifier.widthIn(max = ProseWidth),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
@@ -558,7 +630,7 @@ private fun Specimens(page: DocPage) {
             Text(
                 text = "LIVE",
                 style = Theme.typography.monoLabel,
-                color = Theme.colors.accent.solid,
+                colour = Theme.colours.accent.solid,
             )
             DemoCard(demo)
         }
@@ -582,7 +654,7 @@ private fun Specimens(page: DocPage) {
         Text(
             text = "LIVE",
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
+            colour = Theme.colours.accent.solid,
         )
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = Theme.spacing.md),
@@ -594,7 +666,7 @@ private fun Specimens(page: DocPage) {
                         Text(
                             text = spec.name,
                             style = Theme.typography.labelSmall,
-                            color = Theme.colors.contentMuted,
+                            colour = Theme.colours.contentMuted,
                         )
                     }
                     spec.content(Modifier, true) {}
@@ -608,7 +680,23 @@ private fun Specimens(page: DocPage) {
 private fun apiUrl(symbol: String): String =
     "api/index.html?query=${symbol.substringAfterLast('.')}"
 
-private val IndexWidth = 280.dp
+/**
+ * 320, not the 280 it was, and the collapsible index is why.
+ *
+ * A component's rows sit one nest level inside their family's chevron, which is
+ * `NavDrawerDefaults.NestIndent` — 24dp — off the leading edge, and
+ * `NavDrawerItem` draws its label at `maxLines = 1`: it truncates rather than
+ * wrapping. At 280 that ate the tail of the longest names in the tree, and
+ * `ExtendedFloatingActionButton` came out as "ExtendedFloatingActionButt".
+ *
+ * Widening here rather than shrinking `NestIndent`, which is a library token
+ * every drawer in every consumer draws against. This is the site's own measure.
+ *
+ * Kept below `SiteRenderTest.IndexWidth`, which is where that test starts
+ * looking for a page's own ink — if the index grew past it, a page with an empty
+ * content area would pass on the strength of the sidebar beside it.
+ */
+private val IndexWidth = 320.dp
 
 /** Long-form prose is read, and a 1600px line is not. */
 private val ProseWidth = 760.dp

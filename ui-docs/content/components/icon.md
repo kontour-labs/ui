@@ -41,7 +41,7 @@ otherwise a screen reader announces it twice. Pass a description when the icon
 carries the meaning on its own, which for an icon-only button means the
 description is the button's name.
 
-`tint` defaults to `LocalContentColor`, so an icon inside a `Surface` is legible
+`tint` defaults to `LocalContentColour`, so an icon inside a `Surface` is legible
 against whatever that surface painted without anyone choosing a colour. Overriding
 it with a literal is how an icon ends up invisible in the high-contrast scheme.
 

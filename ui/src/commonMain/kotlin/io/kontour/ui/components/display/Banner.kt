@@ -31,15 +31,21 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.theme.StatusColors
+import io.kontour.ui.theme.StatusColours
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
@@ -82,8 +88,8 @@ fun Banner(
     content: BannerScope.() -> Unit,
 ) {
     val slots = bannerSlots(content)
-    val colors = bannerColorsFor(tone)
-    val shape = Theme.shapes.small
+    val colours = bannerColoursFor(tone)
+    val shape = Theme.shapes.container
 
     Row(
         modifier = modifier
@@ -96,12 +102,12 @@ fun Banner(
                 }
             }
             .clip(shape)
-            .background(colors.container, shape)
-            .border(BorderStroke(Theme.sizing.borderWidth, colors.border), shape)
+            .background(colours.container, shape)
+            .border(BorderStroke(Theme.sizing.borderWidth, colours.border), shape)
             .padding(Theme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
     ) {
-        CompositionLocalProvider(LocalContentColor provides colors.onContainer) {
+        CompositionLocalProvider(LocalContentColour provides colours.onContainer) {
             slots.leading?.let { leading ->
                 Box(Modifier.padding(top = 1.dp)) {
                     ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
@@ -129,6 +135,16 @@ fun Banner(
                     icon = dismissIcon,
                     contentDescription = dismissLabel,
                     onClick = onDismissRequest,
+                    // Centred in the banner, not sitting on the title's line.
+                    //
+                    // The row aligns to the top because the *leading* icon has
+                    // to: an icon beside a paragraph belongs with its first
+                    // line, not floating in the middle of it. The dismiss is
+                    // the opposite case — it belongs to the banner rather than
+                    // to any line of it — and inheriting the row's alignment put
+                    // it up in the corner of a three-line banner, level with the
+                    // title and a long way from the middle of the box.
+                    modifier = Modifier.align(Alignment.CenterVertically),
                     size = ButtonSize.XSmall,
                 )
             }
@@ -178,11 +194,11 @@ fun AnimatedBanner(
 @Composable
 fun Callout(
     modifier: Modifier = Modifier,
-    accent: Color = Theme.colors.accent.solid,
-    container: Color = Theme.colors.accent.container,
+    accent: Color = Theme.colours.accent.solid,
+    container: Color = Theme.colours.accent.container,
     content: @Composable () -> Unit,
 ) {
-    val shape = Theme.shapes.small
+    val shape = Theme.shapes.container
 
     Row(
         modifier = modifier
@@ -191,17 +207,42 @@ fun Callout(
             // a Row otherwise gives fillMaxHeight nothing to fill.
             .height(IntrinsicSize.Min)
             .clip(shape)
-            .background(container, shape),
+            .background(container, shape)
+            // The rule follows the box's own outline rather than standing beside
+            // it.
+            //
+            // It was a 3dp `Box` down the leading edge, and a straight bar inside
+            // a rounded container fails at exactly the corners: the clip eats it
+            // where the curve turns, so a rule that is supposed to run the full
+            // height stops short at both ends and tapers away. The rounder the
+            // corner the worse it reads, and the shape scale just got rounder.
+            //
+            // Stroking the container's own path fixes it by construction — the
+            // band *is* the outline, so it curves with it — and clipping to the
+            // leading corner's width is what keeps it a rule down one edge
+            // rather than a border all the way round. Stroked at twice the width
+            // because a stroke straddles the path and the outer half is clipped.
+            .drawWithCache {
+                val outline = shape.createOutline(size, layoutDirection, this)
+                val path = Path().apply { addOutline(outline) }
+                val width = CalloutRuleWidth.toPx()
+                val corner = shape.topStart.toPx(size, this)
+                val stroke = Stroke(width = width * 2f)
+                val extent = corner + width
+                onDrawWithContent {
+                    drawContent()
+                    clipPath(path) {
+                        clipRect(right = extent) {
+                            drawPath(path, accent, style = stroke)
+                        }
+                    }
+                }
+            },
     ) {
-        Box(
-            Modifier
-                .width(3.dp)
-                .fillMaxHeight()
-                .background(accent)
-        )
+        Box(Modifier.width(CalloutRuleWidth))
         Box(Modifier.padding(Theme.spacing.sm)) {
             CompositionLocalProvider(
-                LocalContentColor provides Theme.colors.accent.onContainer,
+                LocalContentColour provides Theme.colours.accent.onContainer,
             ) {
                 content()
             }
@@ -209,16 +250,19 @@ fun Callout(
     }
 }
 
+/** How wide the accent rule down a [Callout]'s leading edge is. */
+private val CalloutRuleWidth = 3.dp
+
 @Composable
-private fun bannerColorsFor(tone: BannerTone): StatusColors = when (tone) {
-    BannerTone.Info -> Theme.colors.info
-    BannerTone.Success -> Theme.colors.success
-    BannerTone.Warning -> Theme.colors.warning
-    BannerTone.Danger -> Theme.colors.danger
-    // Reachable at all only because `accent` is a `StatusColors` now. As four
+private fun bannerColoursFor(tone: BannerTone): StatusColours = when (tone) {
+    BannerTone.Info -> Theme.colours.info
+    BannerTone.Success -> Theme.colours.success
+    BannerTone.Warning -> Theme.colours.warning
+    BannerTone.Danger -> Theme.colours.danger
+    // Reachable at all only because `accent` is a `StatusColours` now. As four
     // loose fields it had no `border`, so a banner could not have been built
     // out of it without inventing one here.
-    BannerTone.Accent -> Theme.colors.accent
+    BannerTone.Accent -> Theme.colours.accent
 }
 
 /**

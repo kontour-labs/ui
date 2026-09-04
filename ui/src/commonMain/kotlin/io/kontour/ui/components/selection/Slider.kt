@@ -2,21 +2,19 @@ package io.kontour.ui.components.selection
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap as snapSpec
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -24,7 +22,6 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -40,6 +37,7 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -48,6 +46,16 @@ import kotlin.math.roundToInt
 // Two copies of these would be two sliders that drift apart by a pixel.
 internal val SliderTrackHeight = 4.dp
 internal val SliderThumbRadius = 12.dp
+
+/**
+ * Half the thumb's resting width — the distance its edge reaches from its centre.
+ *
+ * The track is inset by this at each end so the thumb has room to sit at 0 and
+ * at 1 without being clipped by the control's own bounds. It was
+ * [SliderThumbRadius], which was the same number while the thumb was a circle
+ * and is 1.5× short of it now that it is a capsule.
+ */
+internal val SliderThumbReach = SliderThumbRadius * SliderDefaults.ThumbAspect
 internal val SliderHeight = 44.dp
 
 /**
@@ -111,7 +119,8 @@ fun Slider(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val colors = Theme.colors
+    val scope = rememberCoroutineScope()
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = Feedback
     val density = LocalDensity.current
@@ -160,6 +169,22 @@ fun Slider(
      */
     var dragFraction by remember { mutableFloatStateOf(Float.NaN) }
 
+    /**
+     * Whether the finger has actually *moved* since it went down.
+     *
+     * The value goes to wherever a press lands — that is what a slider is — but
+     * the thumb only stops easing and starts tracking exactly once the finger
+     * is carrying it. Without the distinction, taking ownership of the pointer
+     * on the down (see `horizontalDragOwning`) also made every tap a drag of
+     * length zero, and the thumb was simply at the far end of the track on the
+     * next frame. `tapEased` below is the whole reason that is wrong: a tap has
+     * nothing between one frame and the next to say which way the thumb went.
+     *
+     * So this, rather than "is `dragFraction` set", is what the four drawing
+     * decisions below ask.
+     */
+    var carrying by remember { mutableStateOf(false) }
+
     fun snap(raw: Float): Float {
         val clamped = raw.coerceIn(0f, 1f)
         if (steps <= 0) return valueRange.start + clamped * range
@@ -194,7 +219,7 @@ fun Slider(
      * advances". Inside the target, crossing a detent moves the target forward
      * and only forward, so the thumb carries on from wherever it had got to.
      */
-    val thumbTarget = if (detented && !dragFraction.isNaN()) {
+    val thumbTarget = if (detented && carrying) {
         fraction + (dragFraction - fraction) * SliderDefaults.DetentPull
     } else {
         fraction
@@ -222,11 +247,7 @@ fun Slider(
      */
     val tapEased by animateFloatAsState(
         targetValue = fraction,
-        animationSpec = if (dragFraction.isNaN()) {
-            motion.springOrTween(motion.springSnappy)
-        } else {
-            snapSpec()
-        },
+        animationSpec = if (carrying) snapSpec() else motion.springOrTween(motion.springSnappy),
         label = "sliderTap",
     )
 
@@ -234,7 +255,7 @@ fun Slider(
     // the end of its own track reads as a bug rather than as bounce.
     val drawnFraction = when {
         detented -> settled.coerceIn(0f, 1f)
-        dragFraction.isNaN() -> tapEased.coerceIn(0f, 1f)
+        !carrying -> tapEased.coerceIn(0f, 1f)
         else -> fraction
     }
 
@@ -253,7 +274,7 @@ fun Slider(
      * a thumb pinned to the finger is not straining against anything.
      */
     val thumbReach =
-        if (dragFraction.isNaN()) thumbTarget - drawnFraction else dragFraction - drawnFraction
+        if (carrying) dragFraction - drawnFraction else thumbTarget - drawnFraction
 
     fun emit(newFraction: Float) {
         val next = snap(newFraction)
@@ -316,25 +337,55 @@ fun Slider(
          * full-width box and subtract the inset themselves; the drawing insets
          * the track by the same amount, so nothing moved on screen.
          */
-        val insetPx = with(density) { SliderThumbRadius.toPx() }
+        val insetPx = with(density) { SliderThumbReach.toPx() }
         val widthPx = (with(density) { maxWidth.toPx() } - insetPx * 2f).coerceAtLeast(1f)
 
         BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
+                // The gesture box is taller than the control draws.
+                //
+                // Tapping the *bar* — which the thumb then animates to — was a
+                // target as tall as the track plus the thumb, and on a phone
+                // that is a thin ribbon to hit with a fingertip. The box takes
+                // the touch minimum now and the drawing is unchanged, so the
+                // slider looks identical and is a great deal easier to hit.
+                .heightIn(min = Theme.sizing.minTouchTarget)
                 .height(SliderHeight)
-                .pointerInput(enabled, widthPx, valueRange, steps) {
-                    if (!enabled) return@pointerInput
-                    detectTapGestures { offset ->
-                        val along = (offset.x - insetPx) / widthPx
-                        val f = if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
-                        emit(f)
-                        currentFinished?.invoke()
-                    }
-                }
-                .draggable(
-                    state = rememberDraggableState { delta ->
+                // One gesture, owning the pointer.
+                //
+                // This was a `detectTapGestures` beside a `draggable`, and the
+                // `draggable` let the vertical component of every change through
+                // to whatever was scrolling above it. A finger that wandered off
+                // the track while dragging handed the gesture to the parent and
+                // the slider stopped following it — without the finger lifting.
+                // See `horizontalDragOwning`.
+                //
+                // A tap falls out of the same gesture: pressing emits a value
+                // and letting go finishes, with no movement in between.
+                .horizontalDragOwning(
+                    enabled = enabled,
+                    interactionSource = interactions,
+                    scope = scope,
+                    onStart = { start ->
+                        // The thumb comes to the finger, rather than the finger
+                        // having to go and find the thumb. Pressing at 80% of a
+                        // slider sitting at 20% and dragging used to move it
+                        // from 20%, so the first part of every drag was spent
+                        // catching up to where the press already was.
+                        val along = (start.x - insetPx) / widthPx
+                        val at = if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
+                        dragFraction = at.coerceIn(0f, 1f)
+                        // Not carrying yet: the value is at the finger, and the
+                        // thumb travels there. See [carrying].
+                        carrying = false
+                        emit(dragFraction)
+                    },
+                    onDelta = { delta ->
                         val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
+                        // The gesture only becomes a drag here. `onDelta` is
+                        // called on real horizontal movement and nothing else.
+                        carrying = true
                         // Accumulate, then emit. Never the other way around: the
                         // emitted value is quantised and the caller may not take
                         // it at all, and either would lose the remainder.
@@ -342,58 +393,47 @@ fun Slider(
                         dragFraction = (from + signed / widthPx).coerceIn(0f, 1f)
                         emit(dragFraction)
                     },
-                    orientation = Orientation.Horizontal,
-                    enabled = enabled,
-                    interactionSource = interactions,
-                    // The thumb comes to the finger, rather than the finger
-                    // having to go and find the thumb. Pressing at 80% of a
-                    // slider sitting at 20% and dragging used to move it from
-                    // 20%, so the first part of every drag was spent catching
-                    // up to where the press already was.
-                    //
-                    // Not eased, unlike a tap: the finger is *there*, and a thumb
-                    // easing toward a finger that has already started moving
-                    // arrives late to somewhere it no longer is.
-                    onDragStarted = { start ->
-                        val along = (start.x - insetPx) / widthPx
-                        val at = if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
-                        dragFraction = at.coerceIn(0f, 1f)
-                        emit(dragFraction)
-                    },
-                    onDragStopped = {
+                    onEnd = {
                         feedback.perform(FeedbackIntent.GestureEnd)
                         lastStepIndex = Float.NaN
                         // Releasing hands the thumb back to the settled value, so
                         // it springs the last of the way onto the detent rather
                         // than staying wherever the finger let go.
                         dragFraction = Float.NaN
+                        carrying = false
                         currentFinished?.invoke()
                     },
                 )
                 .drawWithCache {
                     val trackHeightPx = SliderTrackHeight.toPx()
                     val thumbRadiusPx = SliderThumbRadius.toPx()
+                    val thumbReachPx = SliderThumbReach.toPx()
                     val centreY = size.height / 2f
                     val trackTop = centreY - trackHeightPx / 2f
-                    val activeColor = if (enabled) colors.primary else colors.contentDisabled
-                    val inactiveColor = if (enabled) colors.outline else colors.surfaceSunken
-                    val thumbColor = if (enabled) colors.primary else colors.contentDisabled
+                    val activeColour = if (enabled) colours.primary else colours.contentDisabled
+                    val inactiveColour = if (enabled) colours.outline else colours.surfaceSunken
+                    val thumbColour = if (enabled) colours.primary else colours.contentDisabled
 
                     onDrawBehind {
-                        // The track is inset by the thumb's radius at each end;
-                        // the box around it is not, because that is the hit area.
-                        val trackLeft = thumbRadiusPx
-                        val trackWidth = (size.width - thumbRadiusPx * 2f).coerceAtLeast(0f)
+                        // The track is inset by the thumb's *reach* at each
+                        // end — how far its edge sits from its centre — so a
+                        // thumb parked at 0 or 1 is not clipped by the control's
+                        // own bounds. The box around it is not inset, because
+                        // that is the hit area. This has to be the same number
+                        // the pointer maths above uses, or a tap lands on a
+                        // fraction the track does not draw at.
+                        val trackLeft = thumbReachPx
+                        val trackWidth = (size.width - thumbReachPx * 2f).coerceAtLeast(0f)
                         val thumbX = trackLeft + trackWidth * drawnFraction
 
                         drawRoundRect(
-                            color = inactiveColor,
+                            color = inactiveColour,
                             topLeft = Offset(trackLeft, trackTop),
                             size = Size(trackWidth, trackHeightPx),
                             cornerRadius = CornerRadius(trackHeightPx / 2f),
                         )
                         drawRoundRect(
-                            color = activeColor,
+                            color = activeColour,
                             topLeft = Offset(trackLeft, trackTop),
                             size = Size(thumbX - trackLeft, trackHeightPx),
                             cornerRadius = CornerRadius(trackHeightPx / 2f),
@@ -404,7 +444,7 @@ fun Slider(
                             for (i in 0..stepCount) {
                                 val x = trackLeft + trackWidth * i / stepCount
                                 drawCircle(
-                                    color = if (x <= thumbX) colors.onPrimary else colors.contentSubtle,
+                                    color = if (x <= thumbX) colours.onPrimary else colours.contentSubtle,
                                     radius = trackHeightPx * 0.22f,
                                     center = Offset(x, centreY),
                                 )
@@ -419,8 +459,8 @@ fun Slider(
                             reachPx = thumbReach * trackWidth,
                             // A ring of the page colour keeps the thumb legible
                             // where it overlaps the filled track.
-                            ringColor = colors.surface,
-                            fillColor = thumbColor,
+                            ringColour = colours.surface,
+                            fillColour = thumbColour,
                             ringPx = SliderThumbRing.toPx(),
                         )
                     }
@@ -450,6 +490,17 @@ object SliderDefaults {
      * longest capsule at about one and a half thumbs, which reads as give.
      */
     const val MaxStretch: Float = 0.6f
+
+    /**
+     * How much wider than tall the thumb is at rest.
+     *
+     * 1.5 rather than a circle's 1.0: a round thumb reads as a dot sitting on
+     * the track, and a capsule reads as a handle for it — and points along the
+     * one axis the thumb travels on. Kept modest because the stretch on top of
+     * it is what carries the sense of strain, and a thumb that starts long has
+     * less room to say anything by getting longer.
+     */
+    const val ThumbAspect: Float = 1.5f
 }
 
 /** The page-coloured ring around a thumb. Constant, not scaled — see `sliderThumb`. */

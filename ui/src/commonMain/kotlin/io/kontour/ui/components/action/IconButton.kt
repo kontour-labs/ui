@@ -1,7 +1,13 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -27,9 +34,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
+import io.kontour.ui.foundation.strikethrough
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
@@ -65,9 +74,10 @@ import io.kontour.ui.theme.Theme
  *   value: it is animated through `springBouncy`, so it overshoots a few degrees
  *   and settles, which a static modifier cannot express.
  *
- *   For disclosure chevrons
- *   and menu/close morphs — pass `if (expanded) 90f else 0f` rather than
- *   swapping between two icons, which reads as a flicker.
+ *   For disclosure chevrons and menu/close morphs, pass the target — 
+ *   `if (expanded) ChevronTurn else 0f` — rather than swapping between two
+ *   icons, which reads as a flicker. Never pass an already-animated angle: two
+ *   springs in series arrive late and land differently from every other arrow.
  */
 @Composable
 fun IconButton(
@@ -76,25 +86,37 @@ fun IconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /**
+     * Swaps the glyph for a spinner and blocks input.
+     *
+     * The same exchange a `Button` makes — see [LoadingSwap] — because an icon
+     * button firing a request is the same situation as a labelled one firing it,
+     * and until now only the labelled one could say so.
+     */
+    loading: Boolean = false,
+    /** What a screen reader announces while [loading]. */
+    loadingLabel: String = Theme.strings.loading,
     variant: ButtonVariant = ButtonVariant.Ghost,
     size: ButtonSize = ButtonSize.Medium,
     shape: Shape = Theme.shapes.control,
     rotation: Float = 0f,
-    colors: ButtonColors = ButtonDefaults.colors(variant),
+    colours: ButtonColours = ButtonDefaults.colours(variant),
     metrics: ButtonMetrics = ButtonDefaults.metrics(size),
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
+    val interactive = enabled && !loading
 
     IconButtonSurface(
         icon = icon,
         contentDescription = contentDescription,
-        modifier = modifier,
+        modifier = modifier.semantics { if (loading) stateDescription = loadingLabel },
         enabled = enabled,
+        loading = loading,
         shape = shape,
         rotation = rotation,
-        colors = colors,
+        colours = colours,
         metrics = metrics,
         interactions = interactions,
         indication = kontourIndication(
@@ -104,7 +126,7 @@ fun IconButton(
         behaviour = Modifier.clickable(
             interactionSource = interactions,
             indication = null,
-            enabled = enabled,
+            enabled = interactive,
             role = Role.Button,
             onClick = {
                 feedback.perform(FeedbackIntent.Selection)
@@ -148,6 +170,37 @@ fun IconToggleButton(
     onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /**
+     * Drawn instead of [icon] while [checked] — a filled star against an outline
+     * one, a bookmark against its outline.
+     *
+     * Null keeps [icon] in both states, where colour alone carries the toggle.
+     * That is legible but it is one channel, and a filled counterpart is the
+     * clearest signal a toggle has: it survives greyscale, low vision and the
+     * colour being changed by a theme. Prefer passing one.
+     *
+     * The swap cross-fades rather than cutting, so the two glyphs read as one
+     * mark changing state.
+     */
+    checkedIcon: ImageVector? = null,
+    /**
+     * Draws a slash across [icon] while [checked], instead of swapping glyphs.
+     *
+     * For the toggles whose off state is conventionally "the same thing, with a
+     * line through it": a revealed password, a muted alert, a hidden layer. Icon
+     * sets ship the slashed counterpart as its own glyph and swapping to it is a
+     * cut — the line is simply there on the next frame. Drawn, it arrives.
+     *
+     * Ignored when [checkedIcon] is given: a glyph that already has a slash in
+     * it does not want a second one.
+     *
+     * A struck toggle also keeps its ghost container while checked, rather than
+     * taking the accent one every other toggle takes. The slash is already an
+     * unmistakable statement of the state, and a filled chip behind it says the
+     * same thing a second time — too loudly for what is usually a secondary
+     * affordance sitting inside something else.
+     */
+    strikethrough: Boolean = false,
     size: ButtonSize = ButtonSize.Medium,
     shape: Shape = Theme.shapes.control,
     stateDescription: String? = null,
@@ -155,15 +208,36 @@ fun IconToggleButton(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
-    val checkedColors = ButtonDefaults.colors(ButtonVariant.Tertiary)
-    val uncheckedColors = ButtonDefaults.colors(ButtonVariant.Ghost)
-    val accentColors = checkedColors.copy(
-        container = Theme.colors.accent.container,
-        content = Theme.colors.accent.onContainer,
+    val checkedColours = ButtonDefaults.colours(ButtonVariant.Tertiary)
+    val uncheckedColours = ButtonDefaults.colours(ButtonVariant.Ghost)
+    val accentColours = checkedColours.copy(
+        container = Theme.colours.accent.container,
+        content = Theme.colours.accent.onContainer,
+    )
+
+    // A struck glyph carries its own state, so the container stays out of it.
+    //
+    // Every other checked toggle takes the accent container, because "filled
+    // star" against "outline star" is a real but quiet difference and the tint
+    // is what makes it carry across a room. A slash is not quiet. Tinting as
+    // well puts a filled chip behind a secondary affordance — the reveal eye in
+    // a password field is the case that showed it — and says the same thing
+    // twice, the second time louder than the control deserves.
+    val struck = strikethrough && checkedIcon == null
+    val strike by animateFloatAsState(
+        targetValue = if (struck && checked) 1f else 0f,
+        animationSpec = Theme.motion.tweenDefault(),
+        label = "iconToggleStrike",
     )
 
     IconButtonSurface(
-        icon = icon,
+        icon = if (checked) checkedIcon ?: icon else icon,
+        // Cross-faded when the two glyphs differ, so a star filling in reads as
+        // the same star rather than one icon leaving and another arriving.
+        crossFadeIcon = checkedIcon != null,
+        // Read in the draw phase: a line moving across a glyph is not worth
+        // recomposing a button for.
+        strike = if (struck) ({ strike }) else null,
         contentDescription = contentDescription,
         // The state description goes on the same node as the toggle, not on a
         // wrapper around it. A wrapper produces two nodes — a labelled one with
@@ -179,7 +253,7 @@ fun IconToggleButton(
         enabled = enabled,
         shape = shape,
         rotation = 0f,
-        colors = if (checked) accentColors else uncheckedColors,
+        colours = if (checked && !struck) accentColours else uncheckedColours,
         metrics = ButtonDefaults.metrics(size),
         interactions = interactions,
         // An inert toggle still gets an indication node; it simply never sees a
@@ -228,9 +302,13 @@ private fun IconButtonSurface(
     contentDescription: String,
     modifier: Modifier,
     enabled: Boolean,
+    loading: Boolean = false,
+    crossFadeIcon: Boolean = false,
+    /** How much of a slash is drawn across the glyph. See [IconToggleButton]. */
+    strike: (() -> Float)? = null,
     shape: Shape,
     rotation: Float,
-    colors: ButtonColors,
+    colours: ButtonColours,
     metrics: ButtonMetrics,
     interactions: MutableInteractionSource,
     behaviour: Modifier,
@@ -240,12 +318,12 @@ private fun IconButtonSurface(
     val motion = Theme.motion
 
     val container by animateColorAsState(
-        targetValue = colors.container(enabled),
+        targetValue = colours.container(enabled),
         animationSpec = motion.tweenFast(),
         label = "iconButtonContainer",
     )
-    val contentColor by animateColorAsState(
-        targetValue = colors.content(enabled),
+    val contentColour by animateColorAsState(
+        targetValue = colours.content(enabled),
         animationSpec = motion.tweenFast(),
         label = "iconButtonContent",
     )
@@ -256,7 +334,7 @@ private fun IconButtonSurface(
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "iconButtonRotation",
     )
-    val borderColor = colors.border(enabled)
+    val borderColour = colours.border(enabled)
     // The control height, not the icon plus a padding of its own.
     //
     // It used to be `iconSize + iconOnlyPadding * 2`, which is a second way of
@@ -285,8 +363,8 @@ private fun IconButtonSurface(
             .clip(shape)
             .background(container, shape)
             .then(
-                if (borderColor != null) {
-                    Modifier.border(BorderStroke(Theme.sizing.borderWidthStrong, borderColor), shape)
+                if (borderColour != null) {
+                    Modifier.border(BorderStroke(Theme.sizing.borderWidthStrong, borderColour), shape)
                 } else {
                     Modifier
                 }
@@ -294,13 +372,64 @@ private fun IconButtonSurface(
             .then(behaviour),
         contentAlignment = Alignment.Center,
     ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                modifier = Modifier.rotate(animatedRotation),
-                size = metrics.iconSize,
-            )
+        CompositionLocalProvider(LocalContentColour provides contentColour) {
+            LoadingSwap(loading = loading, spinnerSize = metrics.iconSize) {
+                if (crossFadeIcon) {
+                    AnimatedContent(
+                        targetState = icon,
+                        transitionSpec = {
+                            fadeIn(motion.tweenFast()) +
+                                scaleIn(motion.tweenFast(), initialScale = 0.7f) togetherWith
+                                fadeOut(motion.tweenFast()) +
+                                scaleOut(motion.tweenFast(), targetScale = 0.7f)
+                        },
+                        label = "iconToggleGlyph",
+                    ) { glyph ->
+                        Icon(
+                            imageVector = glyph,
+                            contentDescription = contentDescription,
+                            modifier = Modifier
+                                .rotate(animatedRotation)
+                                .slash(strike, contentColour, container),
+                            size = metrics.iconSize,
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = contentDescription,
+                        modifier = Modifier
+                            .rotate(animatedRotation)
+                            .slash(strike, contentColour, container),
+                        size = metrics.iconSize,
+                    )
+                }
+            }
         }
     }
 }
+
+/**
+ * The slash across a toggled-off glyph, or nothing at all.
+ *
+ * A tiny wrapper so the two `Icon` call sites above read the same whether or not
+ * a slash was asked for — see [strikethrough] for what it draws and why the
+ * groove is the container's colour rather than the page's.
+ */
+private fun Modifier.slash(
+    strike: (() -> Float)?,
+    colour: Color,
+    container: Color,
+): Modifier = if (strike == null) {
+    this
+} else {
+    strikethrough(
+        progress = strike,
+        colour = colour,
+        halo = container,
+        width = StrikeWidth,
+    )
+}
+
+/** The slash's own thickness. The same weight as a control's strong border. */
+private val StrikeWidth = 2.dp

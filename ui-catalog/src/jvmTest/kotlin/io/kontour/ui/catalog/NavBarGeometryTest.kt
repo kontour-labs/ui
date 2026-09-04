@@ -325,9 +325,9 @@ class NavBarGeometryTest {
                                 // Flattened to two tones, so "which pixels are the
                                 // glyph" is a question about the render rather than
                                 // about the palette.
-                                containerColor = Color.White,
-                                indicatorColor = Color.White,
-                                contentColor = Color.Black,
+                                containerColour = Color.White,
+                                indicatorColour = Color.White,
+                                contentColour = Color.Black,
                             )
                         }
                     }
@@ -367,7 +367,7 @@ class NavBarGeometryTest {
         // Against a plain neighbour rather than dead centre: an icon whose own
         // artwork is not symmetric is allowed to sit slightly off, as long as it
         // sits there for every destination. Both are unselected, so both are
-        // drawn in the `contentColor` the threshold was chosen for — the current
+        // drawn in the `contentColour` the threshold was chosen for — the current
         // destination takes the accent's on-container colour instead and is not
         // one of the two being compared.
         val plain = ink[1]

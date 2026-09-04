@@ -1,6 +1,7 @@
 package io.kontour.ui.nav
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,26 +9,38 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.components.action.Button
+import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.overlay.Popover
 import io.kontour.ui.theme.Theme
 
 /**
@@ -74,8 +87,26 @@ fun Pagination(
     window: Int = 1,
     previousLabel: String = Theme.strings.previousPage,
     nextLabel: String = Theme.strings.nextPage,
+    /**
+     * Whether tapping an ellipsis opens a box to type a page number into.
+     *
+     * Off by default, because it changes what the ellipsis *is*: with this on it
+     * is a control and gets a touch target, an outline when focused and a label
+     * a screen reader will read out; with it off it is punctuation, announced as
+     * nothing. Both are right, for different rows — a forty-page result set
+     * wants it, a five-page one has no ellipsis to tap.
+     *
+     * The gap is the only sensible place for it. It is the part of the row that
+     * stands for the pages you cannot see, which is exactly the set you would be
+     * typing a number to reach.
+     */
+    allowJump: Boolean = false,
+    jumpLabel: String = Theme.strings.goToPage,
+    jumpConfirmLabel: String = Theme.strings.goToPageConfirm,
 ) {
     if (pageCount <= 1) return
+
+    var openGap by remember { mutableStateOf(-1) }
 
     BoxWithConstraints(modifier) {
         val fitted = widestWindowThatFits(
@@ -99,6 +130,10 @@ fun Pagination(
                 enabled = value > 0,
             )
 
+            // Which gap has its box open, by position in the row. A single
+            // boolean would open both of them: a long row has an ellipsis at each
+            // end and they are different controls.
+            var gapOrdinal = -1
             for (slot in paginationSlots(value, pageCount, fitted)) {
                 when (slot) {
                     is PaginationSlot.Page -> PageButton(
@@ -107,16 +142,29 @@ fun Pagination(
                         onClick = { onValueChange(slot.index) },
                     )
 
-                    PaginationSlot.Gap -> Text(
-                        text = "…",
-                        modifier = Modifier
-                            .padding(horizontal = Theme.spacing.xxs)
-                            // Announcing "ellipsis" between two page numbers tells a
-                            // screen-reader user nothing they can act on.
-                            .semantics { contentDescription = "" },
-                        style = Theme.typography.bodyMedium,
-                        color = Theme.colors.contentSubtle,
-                    )
+                    PaginationSlot.Gap -> if (allowJump) {
+                        gapOrdinal++
+                        JumpGap(
+                            open = openGap == gapOrdinal,
+                            onOpenChange = { open -> openGap = if (open) gapOrdinal else -1 },
+                            pageCount = pageCount,
+                            onValueChange = onValueChange,
+                            label = jumpLabel,
+                            confirmLabel = jumpConfirmLabel,
+                        )
+                    } else {
+                        Text(
+                            text = "…",
+                            modifier = Modifier
+                                .padding(horizontal = Theme.spacing.xxs)
+                                // Announcing "ellipsis" between two page numbers
+                                // tells a screen-reader user nothing they can act
+                                // on. When it *is* a control, `JumpGap` labels it.
+                                .semantics { contentDescription = "" },
+                            style = Theme.typography.bodyMedium,
+                            colour = Theme.colours.contentSubtle,
+                        )
+                    }
                 }
             }
 
@@ -129,6 +177,81 @@ fun Pagination(
         }
     }
 }
+
+/**
+ * An ellipsis you can tap to type a page number into.
+ *
+ * The pages it stands for are exactly the ones you cannot reach by tapping, so
+ * it is the one part of the row where a number is worth typing.
+ *
+ * Typed one-based, because that is what the row shows and what
+ * `contentDescription` announces — "Page 1" for index zero. Clamped rather than
+ * rejected: somebody typing 99 into a forty-page set means the end, and an error
+ * message for that is a lecture.
+ */
+@Composable
+private fun JumpGap(
+    open: Boolean,
+    onOpenChange: (Boolean) -> Unit,
+    pageCount: Int,
+    onValueChange: (Int) -> Unit,
+    label: String,
+    confirmLabel: String,
+) {
+    val typed = rememberTextFieldState()
+    val interactions = remember { MutableInteractionSource() }
+    val shape = Theme.shapes.control
+
+    fun commit() {
+        typed.text.toString().trim().toIntOrNull()?.let { page ->
+            onValueChange((page - 1).coerceIn(0, pageCount - 1))
+        }
+        typed.clearText()
+        onOpenChange(false)
+    }
+
+    Box {
+        Box(
+            modifier = Modifier
+                .semantics(mergeDescendants = true) { contentDescription = label }
+                .minimumTouchTarget()
+                .focusRing(interactions, shape)
+                .clip(shape)
+                .clickable(interactionSource = interactions, indication = null) {
+                    onOpenChange(!open)
+                }
+                .padding(horizontal = Theme.spacing.xxs),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "…",
+                style = Theme.typography.bodyMedium,
+                colour = Theme.colours.contentSubtle,
+            )
+        }
+
+        Popover(visible = open, onDismissRequest = { onOpenChange(false) }) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextField(
+                    state = typed,
+                    label = null,
+                    placeholder = "1\u2013$pageCount",
+                    modifier = Modifier.width(JumpFieldWidth),
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Go,
+                    onKeyboardAction = { commit() },
+                )
+                Button(onClick = { commit() }, size = ButtonSize.Small) { +confirmLabel }
+            }
+        }
+    }
+}
+
+/** Wide enough for four digits and the range hint behind them. */
+private val JumpFieldWidth: Dp = 96.dp
 
 /**
  * The largest window from [requested] down to zero whose row fits [available].
@@ -165,7 +288,7 @@ private fun widestWindowThatFits(
 
 @Composable
 private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.control
@@ -180,7 +303,7 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
             .sizeIn(minWidth = PageButtonSize, minHeight = PageButtonSize)
             .clip(shape)
             .background(
-                if (selected) colors.accent.container else androidx.compose.ui.graphics.Color.Transparent,
+                if (selected) colours.accent.container else androidx.compose.ui.graphics.Color.Transparent,
                 shape,
             )
             .selectable(
@@ -202,7 +325,7 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
         Text(
             text = "${number + 1}",
             style = Theme.typography.bodyMedium,
-            color = if (selected) colors.accent.onContainer else colors.contentMuted,
+            colour = if (selected) colours.accent.onContainer else colours.contentMuted,
         )
     }
 }

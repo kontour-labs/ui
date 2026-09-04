@@ -21,7 +21,7 @@ import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.ChipGroup
-import io.kontour.ui.components.selection.ColorSwatchPicker
+import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
 import io.kontour.ui.components.selection.RadioButton
@@ -62,14 +62,21 @@ internal val CheckboxDemo = ComponentDemo(
     }
 }
 
-internal val TriStateCheckboxDemo = ComponentDemo(slug = "tri-state-checkbox") {
+private val triStateEnabled = Knob.Flag("Enabled", initial = true)
+
+internal val TriStateCheckboxDemo = ComponentDemo(
+    slug = "tri-state-checkbox",
+    knobs = listOf(triStateEnabled),
+) {
     var state by remember { mutableStateOf(ToggleableState.Indeterminate) }
+    val enabled = this[triStateEnabled]
     Row(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TriStateCheckbox(
             state = state,
+            enabled = enabled,
             onClick = {
                 state = when (state) {
                     ToggleableState.Off -> ToggleableState.On
@@ -78,7 +85,7 @@ internal val TriStateCheckboxDemo = ComponentDemo(slug = "tri-state-checkbox") {
                 }
             },
         )
-        Text(state.name, style = Theme.typography.bodyMedium, color = Theme.colors.contentMuted)
+        Text(state.name, style = Theme.typography.bodyMedium, colour = Theme.colours.contentMuted)
     }
 }
 
@@ -226,7 +233,7 @@ internal val SliderDemo = ComponentDemo(
             Text(
                 "${stepped.toInt()} of 5",
                 style = Theme.typography.labelSmall,
-                color = Theme.colors.contentMuted,
+                colour = Theme.colours.contentMuted,
             )
         }
     } else {
@@ -309,13 +316,13 @@ private enum class Accent(val label: String, val seed: Color?) {
     Rose("Rose", Color(0xFFBE123C)),
 }
 
-internal val ColorSwatchPickerDemo = ComponentDemo(slug = "color-swatch-picker") {
+internal val ColourSwatchPickerDemo = ComponentDemo(slug = "colour-swatch-picker") {
     var accent by remember { mutableStateOf(Accent.Anyways) }
-    ColorSwatchPicker(
+    ColourSwatchPicker(
         value = accent,
         options = Accent.entries,
         onValueChange = { accent = it },
-        swatchColor = { it.seed },
+        swatchColour = { it.seed },
         swatchLabel = { it.label },
         automaticIcon = Tabler.Outline.Sparkles,
     )
@@ -334,5 +341,5 @@ internal val selectionDemos = listOf(
     RangeSliderDemo,
     StepperDemo,
     RatingDemo,
-    ColorSwatchPickerDemo,
+    ColourSwatchPickerDemo,
 )

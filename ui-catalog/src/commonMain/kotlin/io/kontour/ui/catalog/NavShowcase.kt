@@ -25,11 +25,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.Calendar
 import com.composables.icons.tabler.outline.DotsVertical
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
+import com.composables.icons.tabler.outline.Pin
 import com.composables.icons.tabler.outline.Search
+import com.composables.icons.tabler.outline.Trash
 import com.composables.icons.tabler.outline.User
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.components.action.ButtonSize
@@ -52,6 +55,8 @@ import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
+import io.kontour.ui.overlay.DropdownMenu
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
 
@@ -82,7 +87,7 @@ private fun destinations(selected: Int, onSelectedChange: (Int) -> Unit) = listO
  */
 @Composable
 fun NavShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Column(
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -181,15 +186,52 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                 Panel(width = 520.dp, spacing = Theme.spacing.md) {
                     Section("Tabs — within one screen") {
                         var tab by remember { mutableStateOf(1) }
+                        var overflow by remember { mutableStateOf(false) }
+                        // The bar's overflow menu renders into a host, and this
+                        // panel is the honest one to give it: a menu opened from
+                        // a tab bar belongs over the screen the tabs are on, not
+                        // over the gallery page they are being shown on.
+                        OverlayHost(Modifier.fillMaxWidth()) {
                         TabBar(
                             actions = {
-                                IconButton(
-                                    icon = Tabler.Outline.DotsVertical,
-                                    contentDescription = "More",
-                                    onClick = tap("More"),
-                                    variant = ButtonVariant.Ghost,
-                                    size = ButtonSize.Small,
-                                )
+                                // A real menu, not a button that echoes its own
+                                // name: the overflow slot exists because some
+                                // actions do not fit in the row, and what it
+                                // opens is the library's own `DropdownMenu`.
+                                Box {
+                                    IconButton(
+                                        icon = Tabler.Outline.DotsVertical,
+                                        contentDescription = "More",
+                                        onClick = { overflow = !overflow },
+                                        variant = ButtonVariant.Ghost,
+                                        size = ButtonSize.Small,
+                                    )
+                                    DropdownMenu(
+                                        visible = overflow,
+                                        onDismissRequest = { overflow = false },
+                                        alignment = OverlayAlignment.End,
+                                    ) {
+                                        // The rows dismiss the menu themselves
+                                        // — see `MenuScopeImpl.item`.
+                                        item(
+                                            "Pin this stop",
+                                            icon = Tabler.Outline.Pin,
+                                            onClick = tap("Pin this stop"),
+                                        )
+                                        item(
+                                            "Alert settings",
+                                            icon = Tabler.Outline.Bell,
+                                            onClick = tap("Alert settings"),
+                                        )
+                                        divider()
+                                        item(
+                                            "Remove stop",
+                                            icon = Tabler.Outline.Trash,
+                                            destructive = true,
+                                            onClick = tap("Remove stop"),
+                                        )
+                                    }
+                                }
                             },
                         ) {
                             Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) {
@@ -201,6 +243,7 @@ fun NavShowcase(modifier: Modifier = Modifier) {
                             Tab(selected = tab == 2, onClick = { tab = 2 }, key = 2, badge = 2) {
                                 +"Alerts"
                             }
+                        }
                         }
                     }
 
@@ -288,7 +331,7 @@ private fun BarPanel(
         Text(
             text = label,
             style = Theme.typography.labelSmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
         Box(
             Modifier
@@ -300,14 +343,14 @@ private fun BarPanel(
                         Modifier.background(
                             Brush.linearGradient(
                                 listOf(
-                                    Theme.colors.accent.solid,
-                                    Theme.colors.warning.solid,
-                                    Theme.colors.accent.container,
+                                    Theme.colours.accent.solid,
+                                    Theme.colours.warning.solid,
+                                    Theme.colours.accent.container,
                                 ),
                             )
                         )
                     } else {
-                        Modifier.background(Theme.colors.surfaceSunken)
+                        Modifier.background(Theme.colours.surfaceSunken)
                     }
                 ),
             contentAlignment = Alignment.BottomCenter,
@@ -344,7 +387,7 @@ private fun BarPanel(
                                 Text(
                                     "Results go here",
                                     style = Theme.typography.bodyMedium,
-                                    color = Theme.colors.contentMuted,
+                                    colour = Theme.colours.contentMuted,
                                 )
                             },
                         )
@@ -400,7 +443,7 @@ private fun RailPanel(expanded: Boolean, search: Boolean = false) {
             .height(340.dp)
             .border(
                 width = Theme.sizing.borderWidth,
-                color = Theme.colors.outline,
+                color = Theme.colours.outline,
                 shape = Theme.shapes.medium,
             )
             .clip(Theme.shapes.medium)
@@ -447,7 +490,7 @@ private fun DevicePanel(title: String, width: Dp, height: Dp, safeArea: Dp = 0.d
         Text(
             text = title.uppercase(),
             style = Theme.typography.monoLabel,
-            color = Theme.colors.accent.solid,
+            colour = Theme.colours.accent.solid,
         )
         Box(
             Modifier
@@ -455,7 +498,7 @@ private fun DevicePanel(title: String, width: Dp, height: Dp, safeArea: Dp = 0.d
                 .height(height)
                 .border(
                     width = Theme.sizing.borderWidth,
-                    color = Theme.colors.outline,
+                    color = Theme.colours.outline,
                     shape = Theme.shapes.medium,
                 )
                 .clip(Theme.shapes.medium)
@@ -483,7 +526,7 @@ private fun DevicePanel(title: String, width: Dp, height: Dp, safeArea: Dp = 0.d
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .background(Theme.colors.surfaceSunken)
+                            .background(Theme.colours.surfaceSunken)
                             .padding(bottom = contentPadding),
                         contentAlignment = Alignment.TopCenter,
                     ) {
@@ -494,14 +537,14 @@ private fun DevicePanel(title: String, width: Dp, height: Dp, safeArea: Dp = 0.d
                             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                         ) {
                             TopBar(
-                                containerColor = Theme.colors.surfaceSunken,
+                                containerColour = Theme.colours.surfaceSunken,
                             ) {
                                 +"Map"
                             }
                             Text(
                                 "content",
                                 style = Theme.typography.monoLabel,
-                                color = Theme.colors.contentSubtle,
+                                colour = Theme.colours.contentSubtle,
                             )
                         }
                     }
@@ -519,7 +562,7 @@ private fun DevicePanel(title: String, width: Dp, height: Dp, safeArea: Dp = 0.d
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .height(safeArea)
-                        .background(Theme.colors.accent.container.copy(alpha = 0.7f)),
+                        .background(Theme.colours.accent.container.copy(alpha = 0.7f)),
                 )
             }
         }

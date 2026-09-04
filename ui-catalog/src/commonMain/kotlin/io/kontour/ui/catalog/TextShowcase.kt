@@ -29,7 +29,7 @@ import io.kontour.ui.theme.Theme
 /** Every text field, in every state. Source for the text-editing goldens. */
 @Composable
 fun TextShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Panels {
             Panel(width = 420.dp, spacing = Theme.spacing.md) {
                 Section("States") {
@@ -88,7 +88,6 @@ fun TextShowcase(modifier: Modifier = Modifier) {
                         state = rememberTextFieldState("hunter2"),
                         label = "Password",
                         revealIcon = Tabler.Outline.Eye,
-                        hideIcon = Tabler.Outline.EyeOff,
                     )
                     EmailField(
                         state = rememberTextFieldState("aaron@kontour.io"),

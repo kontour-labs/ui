@@ -31,7 +31,7 @@ Four layers. Each one only knows about the layers below it.
 Three rules follow from that shape, and they are the whole system:
 
 **1. Components read tokens, never literals.** No component contains a `Color`,
-a `Dp` radius, or a duration. It reads `Theme.colors.surface`,
+a `Dp` radius, or a duration. It reads `Theme.colours.surface`,
 `Theme.shapes.medium`, `Theme.motion.default`. That indirection is what makes a
 theme swappable, a contrast tier possible, and reduced motion automatic.
 

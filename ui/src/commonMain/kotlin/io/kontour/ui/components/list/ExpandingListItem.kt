@@ -13,13 +13,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.foundation.Icon
+import androidx.compose.foundation.shape.CornerBasedShape
+import io.kontour.ui.theme.lerpCorners
 import io.kontour.ui.theme.Theme
 
 /**
@@ -88,16 +90,16 @@ fun ExpandingListItem(
     val motion = Theme.motion
     val children = ListGroupScope().apply(content).rows
 
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
-        label = "expandingListChevron",
-    )
-
     // Nothing to unfold is not an error, and it is not a disclosure either — a
     // chevron on a row that opens onto nothing is a promise the row cannot keep.
     val opens = children.isNotEmpty()
     val open = expanded && opens
+
+    val openness by animateFloatAsState(
+        targetValue = if (open) 1f else 0f,
+        animationSpec = motion.tweenDefault(),
+        label = "expandingListItemCorners",
+    )
 
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing)) {
         ListItem(
@@ -108,6 +110,14 @@ fun ExpandingListItem(
                 null
             },
             position = position.opening(open),
+            // The corners travel rather than switch.
+            //
+            // A header's bottom corners are round while the group is shut and
+            // square once it has rows under it, and it used to be exactly that:
+            // one value on one frame and the other on the next, under a body
+            // that was busy animating open. The disclosure was smooth and the
+            // thing disclosing it clicked.
+            shape = headerShape(position, openness),
             interactionSource = interactionSource,
             modifier = Modifier.semantics {
                 if (opens) stateDescription = if (open) expandedLabel else collapsedLabel
@@ -120,11 +130,11 @@ fun ExpandingListItem(
                     Icon(
                         imageVector = chevron,
                         contentDescription = null,
-                        modifier = Modifier.rotate(rotation),
+                        modifier = Modifier.chevronTurn(expanded, label = "expandingListChevron"),
                         tint = if (enabled) {
-                            Theme.colors.contentMuted
+                            Theme.colours.contentMuted
                         } else {
-                            Theme.colors.contentDisabled
+                            Theme.colours.contentDisabled
                         },
                     )
                 }
@@ -143,6 +153,22 @@ fun ExpandingListItem(
             }
         }
     }
+}
+
+/**
+ * The header's shape, [fraction] of the way from shut to open.
+ *
+ * Both ends come from the same [ListItemPosition.shape] the rest of the list
+ * uses, so an animated header and a static row still agree about what a corner
+ * is. Where opening does not change the position — a header that was already a
+ * `First` or a `Middle` — the two ends are equal and the lerp is a no-op.
+ */
+@Composable
+private fun headerShape(position: ListItemPosition, fraction: Float): CornerBasedShape {
+    val base = ListItemDefaults.Shape
+    val inner = ListItemDefaults.InnerCorner
+    return position.shape(base, inner)
+        .lerpCorners(position.opening(true).shape(base, inner), fraction)
 }
 
 /**

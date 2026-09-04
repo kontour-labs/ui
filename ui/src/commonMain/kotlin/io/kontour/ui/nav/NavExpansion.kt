@@ -163,7 +163,7 @@ object NavExpandDefaults {
  * The host brings the rest for nothing: a scrim over the content, back and
  * escape closing it, focus trapped inside it, and its own entrance.
  *
- * @param containerColor The collapsed control's ground. Chosen from
+ * @param containerColour The collapsed control's ground. Chosen from
  *   [LocalNavExpansion] by default — raised `surface` in a bar, where this
  *   floats over the content beside destinations that are themselves raised
  *   circles, and recessed `surfaceSunken` in a rail or drawer, where there is a
@@ -179,8 +179,8 @@ fun NavExpandingSlot(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     placement: NavExpandPlacement = NavExpandPlacement.AboveKeyboard,
-    containerColor: Color = navSlotContainerColor(),
-    contentColor: Color = Theme.colors.content,
+    containerColour: Color = navSlotContainerColour(),
+    contentColour: Color = Theme.colours.content,
     shadow: io.kontour.ui.theme.Shadow = navSlotShadow(),
     dismissLabel: String = Theme.strings.close,
     expandedContent: @Composable ColumnScope.() -> Unit,
@@ -190,8 +190,8 @@ fun NavExpandingSlot(
         onClick = { onExpandedChange(true) },
         modifier = modifier,
         enabled = enabled,
-        containerColor = containerColor,
-        contentColor = contentColor,
+        containerColour = containerColour,
+        contentColour = contentColour,
         shadow = shadow,
         content = content,
     )
@@ -227,8 +227,8 @@ private fun CollapsedControl(
     onClick: () -> Unit,
     modifier: Modifier,
     enabled: Boolean,
-    containerColor: Color,
-    contentColor: Color,
+    containerColour: Color,
+    contentColour: Color,
     shadow: io.kontour.ui.theme.Shadow,
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -254,8 +254,8 @@ private fun CollapsedControl(
                 },
             ),
         shape = shape,
-        color = containerColor,
-        contentColor = if (enabled) contentColor else Theme.colors.contentDisabled,
+        colour = containerColour,
+        contentColour = if (enabled) contentColour else Theme.colours.contentDisabled,
         shadow = shadow,
     ) {
         Row(
@@ -340,14 +340,14 @@ private fun ExpandedPanel(
  * answer depends on which surface it landed in rather than on what it is.
  */
 @Composable
-fun navSlotContainerColor(): Color =
+fun navSlotContainerColour(): Color =
     if (LocalNavExpansion.current.onSurface) {
-        Theme.colors.surfaceSunken
+        Theme.colours.surfaceSunken
     } else {
-        Theme.colors.surface
+        Theme.colours.surface
     }
 
-/** The shadow that goes with [navSlotContainerColor]. A recess casts none. */
+/** The shadow that goes with [navSlotContainerColour]. A recess casts none. */
 @Composable
 fun navSlotShadow(): io.kontour.ui.theme.Shadow =
     if (LocalNavExpansion.current.onSurface) Shadow.None else Theme.elevation.low

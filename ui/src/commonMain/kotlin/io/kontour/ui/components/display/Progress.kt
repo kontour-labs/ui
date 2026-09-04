@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import io.kontour.ui.theme.Theme
 
 /**
@@ -51,8 +52,8 @@ fun LinearProgress(
     progress: Float?,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
-    color: Color = Theme.colors.primary,
-    trackColor: Color = Theme.colors.outline,
+    colour: Color = Theme.colours.primary,
+    trackColour: Color = Theme.colours.outline,
     height: Dp = 6.dp,
 ) {
     val motion = Theme.motion
@@ -87,18 +88,18 @@ fun LinearProgress(
             }
     ) {
         val radius = CornerRadius(size.height / 2f)
-        drawRoundRect(color = trackColor, cornerRadius = radius)
+        drawRoundRect(color = trackColour, cornerRadius = radius)
 
         if (progress != null) {
             drawRoundRect(
-                color = color,
+                color = colour,
                 size = Size(size.width * animatedProgress, size.height),
                 cornerRadius = radius,
             )
         } else if (motion.reduceMotion) {
             // Static, so it still reads as "working" without the travel.
             drawRoundRect(
-                color = color,
+                color = colour,
                 size = Size(size.width * 0.35f, size.height),
                 cornerRadius = radius,
             )
@@ -109,7 +110,7 @@ fun LinearProgress(
             val travel = size.width + bandWidth
             val left = -bandWidth + travel * sweep
             drawRoundRect(
-                color = color,
+                color = colour,
                 topLeft = Offset(left.coerceAtLeast(0f), 0f),
                 size = Size(
                     width = (bandWidth + minOf(left, 0f))
@@ -132,15 +133,33 @@ fun LinearProgress(
  * quantity.
  */
 @Composable
-fun ProgressRing(
-    progress: Float,
+fun CircularProgress(
+    progress: Float?,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     size: Dp = 40.dp,
-    color: Color = Theme.colors.primary,
-    trackColor: Color = Theme.colors.outline,
+    colour: Color = Theme.colours.primary,
+    trackColour: Color = Theme.colours.outline,
     strokeWidth: Dp = 4.dp,
 ) {
+    // Indeterminate is the [Spinner], not a second sweep of the same arc.
+    //
+    // Two components drawing a rotating arc drift: one gets a new duration or a
+    // rounded cap and the other does not, and an app showing both at once shows
+    // two different products. `Spinner` is the one loader in the library and
+    // every other indeterminate state in it — a button, `LoadMore`,
+    // `PullToRefresh` — already goes through it.
+    if (progress == null) {
+        Spinner(
+            modifier = modifier,
+            size = size,
+            colour = colour,
+            strokeWidth = strokeWidth,
+            contentDescription = contentDescription,
+        )
+        return
+    }
+
     val clamped = progress.coerceIn(0f, 1f)
     val animated by animateFloatAsState(
         targetValue = clamped,
@@ -161,7 +180,7 @@ fun ProgressRing(
         val arcSize = Size(this.size.width - stroke, this.size.height - stroke)
 
         drawArc(
-            color = trackColor,
+            color = trackColour,
             startAngle = 0f,
             sweepAngle = 360f,
             useCenter = false,
@@ -170,7 +189,7 @@ fun ProgressRing(
             style = Stroke(width = stroke),
         )
         drawArc(
-            color = color,
+            color = colour,
             // From twelve o'clock, like every other progress ring a user has seen.
             startAngle = -90f,
             sweepAngle = 360f * animated,
@@ -194,35 +213,64 @@ fun ProgressRing(
  */
 @Composable
 fun StepProgress(
-    current: Int,
+    current: Int?,
     total: Int,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
-    color: Color = Theme.colors.primary,
-    trackColor: Color = Theme.colors.outline,
+    colour: Color = Theme.colours.primary,
+    trackColour: Color = Theme.colours.outline,
     height: Dp = 4.dp,
     gap: Dp = 4.dp,
 ) {
     if (total <= 0) return
     val motion = Theme.motion
+    val indeterminate = current == null
 
     val animated by animateFloatAsState(
-        targetValue = current.coerceIn(0, total).toFloat(),
+        targetValue = (current ?: 0).coerceIn(0, total).toFloat(),
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "stepProgress",
     )
+
+    // Indeterminate walks one lit segment along the track.
+    //
+    // "How many steps there are, but not which one you are on" is a real state —
+    // a wizard restoring a session, a checkout waiting on a server that has not
+    // said where it got to — and the alternative was to pass `0`, which claims
+    // you are at the start rather than that nobody knows.
+    //
+    // Under reduced motion it stops on the first segment: the travel is what
+    // says "working", and a looping animation is exactly what that setting is
+    // asking to be spared.
+    val sweep by rememberInfiniteTransition(label = "stepSweep").animateFloat(
+        initialValue = 0f,
+        targetValue = total.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 320 * total, easing = LinearEasing),
+        ),
+        label = "stepSweepValue",
+    )
+    val lit = if (motion.reduceMotion) 0f else sweep
 
     Canvas(
         modifier
             .fillMaxWidth()
             .height(height)
             .semantics {
-                this.contentDescription = contentDescription ?: "Step $current of $total"
-                progressBarRangeInfo = ProgressBarRangeInfo(
-                    current = current.toFloat(),
-                    range = 0f..total.toFloat(),
-                    steps = total - 1,
-                )
+                this.contentDescription = contentDescription
+                    ?: if (indeterminate) "In progress" else "Step $current of $total"
+                // `Indeterminate` rather than a made-up position: a screen reader
+                // saying "step 0 of 4" would be stating something the caller
+                // explicitly said it does not know.
+                progressBarRangeInfo = if (indeterminate) {
+                    ProgressBarRangeInfo.Indeterminate
+                } else {
+                    ProgressBarRangeInfo(
+                        current = animated,
+                        range = 0f..total.toFloat(),
+                        steps = total - 1,
+                    )
+                }
             }
     ) {
         val gapPx = gap.toPx()
@@ -232,17 +280,22 @@ fun StepProgress(
         for (index in 0 until total) {
             val left = index * (segmentWidth + gapPx)
             drawRoundRect(
-                color = trackColor,
+                color = trackColour,
                 topLeft = Offset(left, 0f),
                 size = Size(segmentWidth, size.height),
                 cornerRadius = radius,
             )
             // Partial fill on the segment currently in progress, so a step that
-            // is halfway does not read as not started.
-            val fill = (animated - index).coerceIn(0f, 1f)
+            // is halfway does not read as not started. Indeterminate lights one
+            // segment at a time instead, walking it along.
+            val fill = if (indeterminate) {
+                (1f - abs(lit - index - 0.5f)).coerceIn(0f, 1f)
+            } else {
+                (animated - index).coerceIn(0f, 1f)
+            }
             if (fill > 0f) {
                 drawRoundRect(
-                    color = color,
+                    color = colour,
                     topLeft = Offset(left, 0f),
                     size = Size(segmentWidth * fill, size.height),
                     cornerRadius = radius,

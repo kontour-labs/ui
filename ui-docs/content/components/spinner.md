@@ -14,7 +14,7 @@ inside something that already announces itself as busy — a loading `Button`
 does, so its spinner is silent. Pass one when the spinner is the only thing
 saying work is happening.
 
-**Reach for `LinearProgress` or `ProgressRing` instead** when the fraction is
+**Reach for `LinearProgress` or `CircularProgress` instead** when the fraction is
 known. A spinner says "wait"; a progress bar says how long, and people wait
 longer when they can see the end. Both are in
 [display.md](progress.md).
@@ -38,4 +38,4 @@ which is a worse answer than a calmer one.
 
 ---
 
-← [Actions](actions.md) · [All components](../components.md)
+← [Display](display.md) · [All components](../components.md)

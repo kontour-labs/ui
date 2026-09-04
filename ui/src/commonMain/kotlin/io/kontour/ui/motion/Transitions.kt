@@ -14,6 +14,18 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import io.kontour.ui.theme.Theme
 
 /** Which way a [Transitions.sharedAxis] transition travels. */
@@ -151,4 +163,109 @@ object Transitions {
                 .togetherWith(fadeOut(motion.tweenFast()))
         }
     }
+}
+
+/**
+ * Which side of an [AnimatedSlot] its gap sits on.
+ *
+ * The side away from the content it is spacing away from: a slot at the *start*
+ * of a row carries its gap [Trailing], and one at the end carries it [Leading].
+ */
+enum class SlotGap { Leading, Trailing }
+
+/**
+ * An appearing or disappearing row item that carries its own gap.
+ *
+ * ### The bug this exists to prevent
+ *
+ * `AnimatedVisibility` inside a `Row` with `Arrangement.spacedBy(gap)` animates
+ * the child's width down to nothing and then, when the animation finishes,
+ * removes the child from composition. The arrangement applies the **full** gap
+ * for as long as that child exists and none the instant it does not — so the row
+ * loses `gap` of width in a single frame, *after* everything else has stopped
+ * moving. It reads as a snap at the very end of an otherwise smooth collapse,
+ * and it was reported independently against the extended FAB, the chip and a
+ * text field's error row before anyone noticed it was one bug.
+ *
+ * The fix is not to animate the gap alongside the content: that is a second
+ * animation with its own curve, and keeping two curves in step is a promise the
+ * next person to tune one of them will break. The gap goes **inside** the thing
+ * being animated, so it is part of the width already being interpolated and
+ * there is only ever one animation to get right.
+ *
+ * Drop the `spacedBy` from the parent when using this — a gap on both sides is
+ * the same snap with an extra `gap` of width in front of it.
+ *
+ * @param orientation The parent's axis. A column has exactly the same bug on the
+ *   vertical one: a validation message leaving takes its line height *and* the
+ *   gap above it, and the gap goes in the last frame.
+ */
+@Composable
+internal fun AnimatedSlot(
+    visible: Boolean,
+    gap: Dp,
+    enter: EnterTransition,
+    exit: ExitTransition,
+    modifier: Modifier = Modifier,
+    side: SlotGap = SlotGap.Leading,
+    orientation: Orientation = Orientation.Horizontal,
+    content: @Composable () -> Unit,
+) {
+    AnimatedVisibility(visible = visible, modifier = modifier, enter = enter, exit = exit) {
+        if (orientation == Orientation.Horizontal) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (side == SlotGap.Leading) Spacer(Modifier.width(gap))
+                content()
+                if (side == SlotGap.Trailing) Spacer(Modifier.width(gap))
+            }
+        } else {
+            Column {
+                if (side == SlotGap.Leading) Spacer(Modifier.height(gap))
+                content()
+                if (side == SlotGap.Trailing) Spacer(Modifier.height(gap))
+            }
+        }
+    }
+}
+
+/**
+ * How far an arrow turns to say the thing it points at is open.
+ *
+ * A half turn, so the chevron ends up pointing back the way it came. Ninety
+ * degrees is the other convention and it is worse here: it leaves the arrow
+ * pointing sideways, which is a direction that means something else in a
+ * library with a `ChevronForward` in it.
+ *
+ * Public in effect through [io.kontour.ui.components.action.IconButton]'s
+ * `rotation`, which takes this as a *target* and springs to it.
+ */
+internal const val ChevronTurn = 180f
+
+/**
+ * The turn every "this opens" arrow in the library makes.
+ *
+ * There were six of these, hand-rolled, on three different springs. Three used
+ * `springBouncy` and three used `springDefault`, so a `Select` and an
+ * `Accordion` sitting one above the other on the same page opened their arrows
+ * at visibly different rates — and two more fed an already-animated angle into
+ * [io.kontour.ui.components.action.IconButton]'s `rotation`, which is a target
+ * and springs to it itself, so those turned through *two* springs in series and
+ * arrived last of all.
+ *
+ * One mechanism, one spring, and the bouncy one: an arrow that overshoots a few
+ * degrees and settles reads as something physically flipping over, where a
+ * critically damped one reads as a value being assigned.
+ *
+ * The angle is read in the draw phase, so a turning arrow does not recompose
+ * whatever it is attached to sixty times a second.
+ */
+@Composable
+internal fun Modifier.chevronTurn(expanded: Boolean, label: String = "chevronTurn"): Modifier {
+    val motion = Theme.motion
+    val turn = animateFloatAsState(
+        targetValue = if (expanded) ChevronTurn else 0f,
+        animationSpec = motion.springOrTween(motion.springBouncy),
+        label = label,
+    )
+    return graphicsLayer { rotationZ = turn.value }
 }

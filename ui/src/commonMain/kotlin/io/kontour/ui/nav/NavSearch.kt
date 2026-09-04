@@ -114,8 +114,8 @@ fun NavSearch(
      * magnifier glyph, because an icon set is the app's choice.
      */
     searchIcon: ImageVector? = null,
-    containerColor: Color = navSlotContainerColor(),
-    contentColor: Color = Theme.colors.content,
+    containerColour: Color = navSlotContainerColour(),
+    contentColour: Color = Theme.colours.content,
     onQuery: ((String) -> Unit)? = null,
     onSearch: ((String) -> Unit)? = null,
     results: (@Composable ColumnScope.() -> Unit)? = null,
@@ -150,8 +150,8 @@ fun NavSearch(
         modifier = modifier,
         enabled = enabled,
         placement = placement,
-        containerColor = containerColor,
-        contentColor = contentColor,
+        containerColour = containerColour,
+        contentColour = contentColour,
         expandedContent = {
             if (placement == NavExpandPlacement.AboveKeyboard) ResultsPanel(results)
 
@@ -179,7 +179,7 @@ fun NavSearch(
                 imageVector = searchIcon,
                 contentDescription = null,
                 size = Theme.sizing.iconMedium,
-                tint = if (enabled) Theme.colors.contentMuted else Theme.colors.contentDisabled,
+                tint = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled,
             )
         }
         // The last query once there has been one. A pill that goes back to
@@ -190,10 +190,10 @@ fun NavSearch(
             Text(
                 text = typed.ifEmpty { placeholder },
                 style = Theme.typography.bodyMedium,
-                color = when {
-                    !enabled -> Theme.colors.contentDisabled
-                    typed.isEmpty() -> Theme.colors.contentMuted
-                    else -> contentColor
+                colour = when {
+                    !enabled -> Theme.colours.contentDisabled
+                    typed.isEmpty() -> Theme.colours.contentMuted
+                    else -> contentColour
                 },
                 maxLines = 1,
             )
@@ -226,7 +226,7 @@ private fun ColumnScope.ResultsPanel(results: (@Composable ColumnScope.() -> Uni
     Surface(
         modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
         shape = Theme.shapes.panel,
-        color = Theme.colors.surface,
+        colour = Theme.colours.surface,
     ) {
         Column(
             modifier = Modifier.padding(Theme.spacing.md),

@@ -232,7 +232,7 @@ class PhoneWidthTest {
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .background(Theme.colors.background)
+                            .background(Theme.colours.background)
                             .verticalScroll(rememberScrollState())
                     ) {
                         content()

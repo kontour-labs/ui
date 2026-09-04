@@ -62,8 +62,8 @@ fun Scaffold(
     bottomBar: (@Composable () -> Unit)? = null,
     floatingActionButton: (@Composable () -> Unit)? = null,
     fabPosition: FabPosition = FabPosition.End,
-    containerColor: Color = Theme.colors.background,
-    contentColor: Color = Theme.colors.content,
+    containerColour: Color = Theme.colours.background,
+    contentColour: Color = Theme.colours.content,
     contentWindowInsets: WindowInsets = WindowInsets.safeDrawing,
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -75,7 +75,7 @@ fun Scaffold(
     val insetEnd = insets.calculateEndPadding(direction)
     val fabMargin = ScaffoldDefaults.FabMargin
 
-    Surface(modifier = modifier.fillMaxSize(), color = containerColor, contentColor = contentColor) {
+    Surface(modifier = modifier.fillMaxSize(), colour = containerColour, contentColour = contentColour) {
         SubcomposeLayout(Modifier.fillMaxSize()) { constraints ->
             val width = constraints.maxWidth
             val height = constraints.maxHeight

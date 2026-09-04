@@ -52,7 +52,7 @@ fun DialogBasics() {
         Text(
             "Give it a name you will recognise on the home screen.",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
         Button(onClick = { open = false }, modifier = Modifier.fillMaxWidth()) { +"Save" }
     }
@@ -93,7 +93,7 @@ fun PopoverBasics() {
             Text(
                 "Runs every 15 minutes until 11pm, then every 30 minutes overnight.",
                 style = Theme.typography.bodySmall,
-                color = Theme.colors.contentMuted,
+                colour = Theme.colours.contentMuted,
             )
         }
     }

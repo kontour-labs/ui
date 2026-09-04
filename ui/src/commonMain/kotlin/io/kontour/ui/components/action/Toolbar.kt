@@ -63,7 +63,7 @@ import io.kontour.ui.theme.Theme
 fun Toolbar(
     modifier: Modifier = Modifier,
     shape: Shape = ToolbarDefaults.Shape,
-    containerColor: Color = Theme.colors.surface,
+    containerColour: Color = Theme.colours.surface,
     shadow: Shadow = Theme.elevation.medium,
     contentPadding: Dp = ToolbarDefaults.ContentPadding,
     arrangement: Arrangement.Horizontal = Arrangement.spacedBy(Theme.spacing.xxs),
@@ -72,7 +72,7 @@ fun Toolbar(
     Surface(
         modifier = modifier.semantics { isTraversalGroup = true },
         shape = shape,
-        color = containerColor,
+        colour = containerColour,
         shadow = shadow,
         // An elevated surface over content is white on whatever is behind it
         // with a shadow for an edge, and a shadow does not change between

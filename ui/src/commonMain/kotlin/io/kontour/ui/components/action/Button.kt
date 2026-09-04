@@ -38,7 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Spinner
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
@@ -47,6 +47,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
+import androidx.compose.ui.graphics.graphicsLayer
 import io.kontour.ui.theme.Theme
 
 /**
@@ -87,7 +88,7 @@ fun Button(
     loading: Boolean = false,
     loadingLabel: String = Theme.strings.loading,
     shape: Shape = Theme.shapes.control,
-    colors: ButtonColors = ButtonDefaults.colors(variant),
+    colours: ButtonColours = ButtonDefaults.colours(variant),
     metrics: ButtonMetrics = ButtonDefaults.metrics(size),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit
@@ -98,16 +99,16 @@ fun Button(
     val feedback = Feedback
 
     val container by animateColorAsState(
-        targetValue = colors.container(enabled),
+        targetValue = colours.container(enabled),
         animationSpec = motion.tweenFast(),
         label = "buttonContainer",
     )
-    val contentColor by animateColorAsState(
-        targetValue = colors.content(enabled),
+    val contentColour by animateColorAsState(
+        targetValue = colours.content(enabled),
         animationSpec = motion.tweenFast(),
         label = "buttonContent",
     )
-    val borderColor = colors.border(enabled)
+    val borderColour = colours.border(enabled)
 
     Row(
         modifier = modifier
@@ -135,8 +136,8 @@ fun Button(
             .clip(shape)
             .background(container, shape)
             .then(
-                if (borderColor != null) {
-                    Modifier.border(BorderStroke(Theme.sizing.borderWidthStrong, borderColor), shape)
+                if (borderColour != null) {
+                    Modifier.border(BorderStroke(Theme.sizing.borderWidthStrong, borderColour), shape)
                 } else {
                     Modifier
                 }
@@ -161,7 +162,7 @@ fun Button(
         horizontalArrangement = Arrangement.spacedBy(metrics.gap, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) {
+        CompositionLocalProvider(LocalContentColour provides contentColour) {
             ProvideTextStyle(metrics.textStyle) {
                 ButtonContent(
                     loading = loading,
@@ -176,9 +177,8 @@ fun Button(
 /**
  * Swaps between the label and the spinner.
  *
- * The label stays composed but invisible underneath while loading, which is what
- * holds the button's width steady. Cross-fading alone would let the button
- * collapse to spinner width and shove its neighbours sideways.
+ * The arrangement of the label is this component's own; the exchange is
+ * [LoadingSwap], shared with every other control that can be `loading`.
  */
 @Composable
 private fun RowScope.ButtonContent(
@@ -186,44 +186,12 @@ private fun RowScope.ButtonContent(
     metrics: ButtonMetrics,
     content: @Composable RowContentScope.() -> Unit
 ) {
-    val motion = Theme.motion
-
-    Box(contentAlignment = Alignment.Center) {
-        val labelAlpha by animateFloatAsState(
-            targetValue = if (loading) 0f else 1f,
-            animationSpec = motion.tweenFast(),
-            label = "buttonLabelAlpha",
-        )
-
+    LoadingSwap(loading = loading, spinnerSize = metrics.iconSize) {
         Row(
-            modifier = Modifier
-                .alpha(labelAlpha)
-                .then(if (loading) Modifier.clearAndSetSemantics { } else Modifier),
             horizontalArrangement = Arrangement.spacedBy(metrics.gap, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             contentScope(iconSize = metrics.iconSize, content = content)
-        }
-
-        AnimatedContent(
-            targetState = loading,
-            transitionSpec = {
-                // The spinner pops in rather than fading — a slightly overscaled
-                // entrance is the difference between "something is happening"
-                // and "something appeared".
-                (fadeIn(motion.tweenFast()) + scaleIn(motion.tweenFast(), initialScale = 0.6f))
-                    .togetherWith(fadeOut(motion.tweenFast()) + scaleOut(motion.tweenFast(), targetScale = 0.6f))
-            },
-            label = "buttonSpinner",
-        ) { isLoading ->
-            if (isLoading) {
-                Spinner(
-                    modifier = Modifier.size(metrics.iconSize),
-                    color = LocalContentColor.current,
-                )
-            } else {
-                Box(Modifier.size(0.dp))
-            }
         }
     }
 }

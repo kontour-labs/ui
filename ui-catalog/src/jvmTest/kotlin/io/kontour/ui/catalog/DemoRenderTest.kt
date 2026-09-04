@@ -130,7 +130,7 @@ class DemoRenderTest {
                     // a bare harness does not.
                     WindowSizeClassProvider(Modifier.fillMaxWidth()) {
                         OverlayHost(Modifier.fillMaxWidth()) {
-                            Surface(Modifier.fillMaxWidth(), color = Theme.colors.background) {
+                            Surface(Modifier.fillMaxWidth(), colour = Theme.colours.background) {
                                 Box(Modifier.padding(16.dp)) {
                                     if (forced == null) {
                                         DemoCard(demo)

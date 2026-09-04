@@ -18,6 +18,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -103,7 +104,7 @@ fun SegmentedControl(
 ) {
     if (options.isEmpty()) return
 
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val outerShape = Theme.shapes.field
     // Concentric by construction rather than by picking the token one rung down
@@ -127,37 +128,34 @@ fun SegmentedControl(
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val ticker = rememberDetentTicker()
 
-    /** Where the finger is along the track, or `NaN` when there is none. */
+    /**
+     * Where the finger is along the track, or `NaN` before the first drag.
+     *
+     * Kept after the finger lifts rather than cleared, so the thumb relaxes back
+     * out of its lean instead of losing the number it was leaning by. [engaged]
+     * is what says whether there is a finger; this only says where it was.
+     */
     var fingerX by remember { mutableFloatStateOf(Float.NaN) }
+    var dragging by remember { mutableStateOf(false) }
 
     /**
-     * How far the thumb leans out of its segment toward the finger.
+     * How much of the lean toward the finger is applied — 1 while dragging, 0 at
+     * rest, and springing between the two.
      *
-     * The control was drag-*aware* already — a drag changed the selection as it
-     * crossed each boundary — but the thumb was not being carried by anything.
-     * It sprang after the finger from one segment to the next, which is a thumb
-     * *reacting* to a drag rather than a thumb being dragged, and it meant the
-     * only part of the gesture you could feel was the moment it ended.
+     * The lean itself is worked out in the thumb's `graphicsLayer` from the
+     * finger and from where the indicator has actually reached, because both of
+     * those change every frame and neither is worth a recomposition.
      *
-     * The same [SliderDefaults.DetentPull] the sliders use, for the same reason:
-     * far enough to read as the segment straining toward where you are going,
-     * never so far that the thumb is closer to the next segment than to its own.
-     * Clamped to the track, because at either end the wall is the answer.
+     * It leans by [SliderDefaults.DetentPull], the same fraction the sliders
+     * use and for the same reason: far enough to read as the thumb straining
+     * toward where you are going, never so far that it is closer to the next
+     * segment than to its own.
+     *
+     * Off under reduced motion, as the sliders' detent pull is. The thumb still
+     * travels to the segment you picked; it just stops reaching for you.
      */
-    val strain = run {
-        val segments = options.size
-        if (fingerX.isNaN() || trackWidth <= 0f || segments == 0) {
-            0f
-        } else {
-            val segment = trackWidth / segments
-            val drawnIndex = if (isRtl) segments - 1 - selected else selected
-            val centre = segment * (drawnIndex + 0.5f)
-            val pulled = (fingerX - centre) * SliderDefaults.DetentPull
-            pulled.coerceIn(-segment * drawnIndex, segment * (segments - 1 - drawnIndex))
-        }
-    }
-    val strainPx by animateFloatAsState(
-        targetValue = strain,
+    val engaged by animateFloatAsState(
+        targetValue = if (dragging && !motion.reduceMotion) 1f else 0f,
         animationSpec = motion.springOrTween(motion.springSnappy),
         label = "segmentStrain",
     )
@@ -172,7 +170,7 @@ fun SegmentedControl(
             .selectableGroup()
             .height(height)
             .clip(outerShape)
-            .background(colors.surfaceSunken, outerShape)
+            .background(colours.surfaceSunken, outerShape)
             .then(
                 contrastEdge()?.let { Modifier.border(it, outerShape) } ?: Modifier
             )
@@ -182,24 +180,54 @@ fun SegmentedControl(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        translationX = strainPx
+                        // Everything here is read inside the layer rather than
+                        // in composition: the finger moves every frame and so
+                        // does the indicator underneath, and neither of them
+                        // changes anything but this transform.
+                        val segments = options.size
+                        val here = indicator.drawn
+                        val lean = if (
+                            fingerX.isNaN() || trackWidth <= 0f ||
+                            segments == 0 || here.width <= 0f
+                        ) {
+                            0f
+                        } else {
+                            val segment = trackWidth / segments
+                            // From where the thumb *is*, not from where the
+                            // segment it belongs to would put it. Crossing a
+                            // boundary moves the selection and starts the
+                            // indicator travelling; measured from the new
+                            // segment's centre the lean would flip sign on that
+                            // same frame and throw the thumb backwards past the
+                            // segment it just left. See `drawn`.
+                            val base = here.center.x
+                            val pulled = (fingerX - base) * SliderDefaults.DetentPull * engaged
+                            // Never off the track: at either end the wall is the
+                            // answer.
+                            pulled.coerceIn(
+                                segment / 2f - base,
+                                (trackWidth - segment / 2f - base).coerceAtLeast(segment / 2f - base),
+                            )
+                        }
+
+                        translationX = lean
                         // Anchored on the edge it is leaving, so the thumb
                         // elongates toward the segment it is heading for rather
                         // than swelling in place. The slider's thumb does the
                         // same thing with the same signal.
                         transformOrigin = TransformOrigin(
-                            pivotFractionX = if (strainPx >= 0f) 0f else 1f,
+                            pivotFractionX = if (lean >= 0f) 0f else 1f,
                             pivotFractionY = 0.5f,
                         )
                         val reach = if (trackWidth <= 0f || options.isEmpty()) {
                             0f
                         } else {
-                            abs(strainPx) / (trackWidth / options.size)
+                            abs(lean) / (trackWidth / options.size)
                         }
                         scaleX = 1f + reach.coerceAtMost(MaxSegmentStretch)
                     },
                 shape = innerShape,
-                color = if (enabled) colors.surface else colors.surfaceSunken,
+                colour = if (enabled) colours.surface else colours.surfaceSunken,
                 border = contrastEdge(),
                 shadow = if (enabled) Theme.elevation.low else Shadow.None,
                 content = {},
@@ -245,6 +273,7 @@ fun SegmentedControl(
                             detectHorizontalDragGestures(
                                 onDragStart = { offset ->
                                     fingerX = offset.x
+                                    dragging = true
                                     selectAt(offset.x)
                                 },
                                 onHorizontalDrag = { change, _ ->
@@ -252,12 +281,12 @@ fun SegmentedControl(
                                     selectAt(change.position.x)
                                 },
                                 onDragEnd = {
-                                    fingerX = Float.NaN
+                                    dragging = false
                                     ticker.reset()
                                     feedback.perform(FeedbackIntent.GestureEnd)
                                 },
                                 onDragCancel = {
-                                    fingerX = Float.NaN
+                                    dragging = false
                                     ticker.reset()
                                 },
                             )
@@ -271,11 +300,11 @@ fun SegmentedControl(
                 val selected = index == selected
                 val interactions = remember { MutableInteractionSource() }
 
-                val labelColor by animateColorAsState(
+                val labelColour by animateColorAsState(
                     targetValue = when {
-                        !enabled -> colors.contentDisabled
-                        selected -> colors.content
-                        else -> colors.contentMuted
+                        !enabled -> colours.contentDisabled
+                        selected -> colours.content
+                        else -> colours.contentMuted
                     },
                     animationSpec = motion.tweenFast(),
                     label = "segmentLabel",
@@ -304,7 +333,7 @@ fun SegmentedControl(
                     contentAlignment = Alignment.Center,
                 ) {
                     ProvideTextStyle(Theme.typography.labelMedium) {
-                        Text(text = option, color = labelColor, maxLines = 1)
+                        Text(text = option, colour = labelColour, maxLines = 1)
                     }
                 }
             }

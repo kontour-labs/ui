@@ -47,7 +47,7 @@ class CoachmarkTourTest {
             val walk = rememberCoachmarkTour(First, Second)
             tour = walk
             OverlayHost(Modifier.fillMaxSize()) {
-                Box(Modifier.fillMaxSize().background(Theme.colors.background)) {
+                Box(Modifier.fillMaxSize().background(Theme.colours.background)) {
                     Target(
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -176,7 +176,7 @@ class CoachmarkTourTest {
     private fun Target(modifier: Modifier) {
         Surface(
             modifier = modifier.size(TargetSize.dp),
-            color = Theme.colors.surfaceSunken,
+            colour = Theme.colours.surfaceSunken,
             content = {},
         )
     }

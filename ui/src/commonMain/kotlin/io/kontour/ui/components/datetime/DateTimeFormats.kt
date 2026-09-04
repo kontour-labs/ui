@@ -79,19 +79,102 @@ data class DateTimeFormats(
 }
 
 /**
- * The formats in use.
+ * The formats in use, defaulting to the ones the platform says this user wants.
  *
- * Defaults to 24-hour, day-first, week starting Monday — Australian conventions,
- * since that is where the app ships. Override at the root from the platform's
- * own settings:
+ * The constructor's own defaults are Australian — 24-hour, day-first, weeks
+ * from Monday — because a data class needs *some* answer and that is where the
+ * app ships. Those defaults are not what a component gets, and that distinction
+ * is the whole of this: an app in the United States was being told 9 June 2026
+ * as "9 Jun", and "05/06" means two different days depending on who is reading
+ * it. So the local resolves from the platform's locale instead.
  *
- * ```
+ * Read once, outside composition, and cached for the life of the process — a
+ * `staticCompositionLocalOf`'s default is computed lazily on first read. A user
+ * who changes their region while the app is running keeps the old formats until
+ * it restarts, which is the same behaviour every platform's own date formatter
+ * has and is not worth an observer per format.
+ *
+ * ### Android's 24-hour switch
+ *
+ * Android has a *setting* for 24-hour time that overrides the locale, and
+ * reading it needs a `Context`, which nothing here has. So
+ * [DateTimeFormats.is24Hour] on Android follows the locale rather than the
+ * switch. An app that wants the switch
+ * honoured provides the local itself, which is a one-liner and the reason this
+ * is a composition local at all:
+ *
+ * ```kotlin
  * CompositionLocalProvider(
- *     LocalDateTimeFormats provides DateTimeFormats(is24Hour = DateFormat.is24HourFormat(context))
+ *     LocalDateTimeFormats provides LocalDateTimeFormats.current.copy(
+ *         is24Hour = DateFormat.is24HourFormat(context),
+ *     )
  * ) { … }
  * ```
  */
-val LocalDateTimeFormats = staticCompositionLocalOf { DateTimeFormats() }
+val LocalDateTimeFormats = staticCompositionLocalOf { platformDateTimeFormats() }
+
+/**
+ * What the platform says about this user's date and time conventions.
+ *
+ * Each target answers three questions from its own locale machinery — is time
+ * written on a 24-hour clock, does a short date lead with the day or the month,
+ * and which day starts a week — and they are the same three [DateTimeFormats]
+ * holds.
+ */
+internal expect fun platformDateTimeFormats(): DateTimeFormats
+
+/**
+ * Reads a locale's short-date pattern for whether the day comes first.
+ *
+ * Every platform here can produce a pattern in the same LDML-ish vocabulary —
+ * `d/M/y` against `M/d/y` — so the answer is the same string comparison
+ * everywhere and belongs in one place rather than in four.
+ *
+ * Quoted literals are skipped, because a pattern is allowed to contain them and
+ * a `'d'` inside one is a letter in somebody's word rather than a field. Danish
+ * writes `d. MMM y`; the full stop is fine but the quoting rule is the general
+ * case and cheap to honour.
+ */
+internal fun dayBeforeMonthIn(datePattern: String): Boolean {
+    var quoted = false
+    var day = -1
+    var month = -1
+    for ((index, char) in datePattern.withIndex()) {
+        if (char == '\'') {
+            quoted = !quoted
+            continue
+        }
+        if (quoted) continue
+        if (day < 0 && (char == 'd' || char == 'D')) day = index
+        if (month < 0 && (char == 'M' || char == 'L')) month = index
+    }
+    // A pattern with no month in it says nothing either way; keep the
+    // constructor's answer rather than inventing one.
+    if (day < 0 || month < 0) return DateTimeFormats().dayFirst
+    return day < month
+}
+
+/**
+ * Reads a locale's short-time pattern for whether the clock runs to 24.
+ *
+ * `h` and `K` are the two twelve-hour hour fields in LDML; `H` and `k` are the
+ * twenty-four-hour ones. Looking for the twelve-hour ones rather than the others
+ * means a pattern this does not understand comes out as 24-hour, which is the
+ * safer way to be wrong: a 24-hour clock read by somebody expecting twelve is
+ * unambiguous, and "1:00" where "13:00" was meant is not.
+ */
+internal fun is24HourIn(timePattern: String): Boolean {
+    var quoted = false
+    for (char in timePattern) {
+        if (char == '\'') {
+            quoted = !quoted
+            continue
+        }
+        if (quoted) continue
+        if (char == 'h' || char == 'K') return false
+    }
+    return true
+}
 
 private fun Int.padded(): String = if (this < 10) "0$this" else toString()
 

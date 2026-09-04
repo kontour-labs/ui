@@ -47,7 +47,7 @@ import io.kontour.ui.components.display.ErrorState
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.LinearProgress
 import io.kontour.ui.components.display.PageIndicator
-import io.kontour.ui.components.display.ProgressRing
+import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.SkeletonListItem
 import io.kontour.ui.components.display.SkeletonText
@@ -69,7 +69,7 @@ import kotlinx.coroutines.launch
 /** Every display component. Source for the display goldens. */
 @Composable
 fun DisplayShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Panels {
             Panel(width = 420.dp, spacing = Theme.spacing.md) {
                 Section("Cards") {
@@ -78,7 +78,7 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                         Text(
                             "Platform 3 — Armadale line",
                             style = Theme.typography.bodySmall,
-                            color = Theme.colors.contentMuted,
+                            colour = Theme.colours.contentMuted,
                         )
                     }
                     Card(variant = CardVariant.Outlined) {
@@ -106,9 +106,9 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                     ) {
                         // Colours a GTFS feed might hand us — the label colour
                         // is derived, not designed.
-                        Tag(color = Color(0xFF1B5E20)) { +"960" }
-                        Tag(color = Color(0xFFFFD54F)) { +"SPT" }
-                        Tag(color = Color(0xFFB3261E)) { +"RED" }
+                        Tag(colour = Color(0xFF1B5E20)) { +"960" }
+                        Tag(colour = Color(0xFFFFD54F)) { +"SPT" }
+                        Tag(colour = Color(0xFFB3261E)) { +"RED" }
                         BadgedBox(badge = { Badge(count = 3) }) {
                             Icon(Tabler.Outline.Bus, contentDescription = "Routes")
                         }
@@ -145,8 +145,8 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                     ) {
-                        ProgressRing(progress = 0.35f)
-                        ProgressRing(progress = 0.8f, size = 28.dp)
+                        CircularProgress(progress = 0.35f)
+                        CircularProgress(progress = 0.8f, size = 28.dp)
                         Spinner()
                         Spinner(size = 32.dp)
                     }
@@ -197,34 +197,34 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
 
                 Section("Timeline") {
                     Timeline {
-                        TimelineItem(nodeColor = Color(0xFF1B5E20)) {
+                        TimelineItem(nodeColour = Color(0xFF1B5E20)) {
                             Text("Perth Station", style = Theme.typography.titleSmall)
                             Text(
                                 "08:12 — Platform 3",
                                 style = Theme.typography.bodySmall,
-                                color = Theme.colors.contentMuted,
+                                colour = Theme.colours.contentMuted,
                             )
                         }
                         TimelineItem(
                             connector = ConnectorStyle.Dashed,
                             filled = false,
-                            nodeColor = Theme.colors.outlineStrong,
+                            nodeColour = Theme.colours.outlineStrong,
                         ) {
                             Text(
                                 "Walk 4 min",
                                 style = Theme.typography.bodySmall,
-                                color = Theme.colors.contentMuted,
+                                colour = Theme.colours.contentMuted,
                             )
                         }
                         TimelineItem(
                             connector = ConnectorStyle.None,
-                            nodeColor = Color(0xFF1B5E20),
+                            nodeColour = Color(0xFF1B5E20),
                         ) {
                             Text("Elizabeth Quay", style = Theme.typography.titleSmall)
                             Text(
                                 "08:31",
                                 style = Theme.typography.bodySmall,
-                                color = Theme.colors.contentMuted,
+                                colour = Theme.colours.contentMuted,
                             )
                         }
                     }
@@ -278,7 +278,7 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                             Text(
                                 "Expanded content sits here.",
                                 style = Theme.typography.bodySmall,
-                                color = Theme.colors.contentMuted,
+                                colour = Theme.colours.contentMuted,
                             )
                         }
                         // Seeded closed, so the pair still shows both states
@@ -293,7 +293,7 @@ fun DisplayShowcase(modifier: Modifier = Modifier) {
                             Text(
                                 "Delay alerts, service changes and trip reminders.",
                                 style = Theme.typography.bodySmall,
-                                color = Theme.colors.contentMuted,
+                                colour = Theme.colours.contentMuted,
                             )
                         }
                     }

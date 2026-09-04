@@ -78,7 +78,7 @@ fun Popover(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
-    val colors = Theme.colors
+    val colours = Theme.colours
     val key = remember { Any() }
     var anchor by remember { mutableStateOf<Rect?>(null) }
     val dismiss by rememberUpdatedState(onDismissRequest)
@@ -116,7 +116,7 @@ fun Popover(
                         gap = Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
                         arrow = if (showArrow) {
-                            ArrowSpec(color = colors.surfaceRaised)
+                            ArrowSpec(colour = colours.surfaceRaised)
                         } else {
                             null
                         },
@@ -225,7 +225,7 @@ fun LoadingOverlay(
                                     contentDescription = label
                                 },
                             shape = Theme.shapes.container,
-                            color = Theme.colors.surfaceRaised,
+                            colour = Theme.colours.surfaceRaised,
                             shadow = Theme.elevation.overlay,
                         ) {
                             Column(
@@ -238,7 +238,7 @@ fun LoadingOverlay(
                                     Text(
                                         text = label,
                                         style = Theme.typography.bodyMedium,
-                                        color = Theme.colors.contentMuted,
+                                        colour = Theme.colours.contentMuted,
                                     )
                                 }
                             }

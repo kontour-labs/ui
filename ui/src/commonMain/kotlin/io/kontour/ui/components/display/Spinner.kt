@@ -18,7 +18,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.foundation.LocalContentColor
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.theme.Theme
 import kotlin.math.PI
 import kotlin.math.cos
@@ -57,7 +57,7 @@ import kotlin.math.cos
  *
  * ```
  * Spinner()                                   // inherits content colour
- * Spinner(size = 32.dp, color = Theme.colors.accent.solid)
+ * Spinner(size = 32.dp, colour = Theme.colours.accent.solid)
  * ```
  *
  * @param contentDescription Announced by a screen reader. Pass `null` when the
@@ -69,7 +69,7 @@ import kotlin.math.cos
 fun Spinner(
     modifier: Modifier = Modifier,
     size: Dp = Theme.sizing.iconMedium,
-    color: Color = LocalContentColor.current,
+    colour: Color = LocalContentColour.current,
     strokeWidth: Dp = (size.value / 9f).dp.coerceAtLeast(1.5.dp),
     contentDescription: String? = null,
 ) {
@@ -116,7 +116,7 @@ fun Spinner(
         val stroke = strokeWidth.toPx()
         val inset = stroke / 2f
         drawArc(
-            color = color,
+            color = colour,
             // The head is at `rotation`; the tail trails it.
             startAngle = rotation - effectiveSweep,
             sweepAngle = effectiveSweep,

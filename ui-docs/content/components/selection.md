@@ -12,7 +12,7 @@ Controls that record a choice.
 | [`SelectionRow`](selection-row.md) | **Any of the four above, with a label** | A bare control beside a `Text` — never do this |
 | [`Chip`](chip.md) | One of a *set* of small choices | `Button`, when there is only one |
 | [`SegmentedControl`](segmented-control.md) | Two to four short options, switched often | `RadioGroup`, beyond four or with long labels |
-| [`ColorSwatchPicker`](color-swatch-picker.md) | A choice made by looking | `Select`, for anything nameable |
+| [`ColourSwatchPicker`](colour-swatch-picker.md) | A choice made by looking | `Select`, for anything nameable |
 | [`Slider`](slider.md) | A value in a continuous range | A `NumberField`, when the exact figure matters |
 | [`RangeSlider`](range-slider.md) | A band — two values on one track | Two `Slider`s, which cannot stop each other crossing |
 | [`Stepper`](stepper.md) | A small exact count | A `Slider`, when the number is approximate |

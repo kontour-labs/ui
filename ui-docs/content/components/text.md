@@ -13,7 +13,7 @@ Text("Perth Underground", style = Theme.typography.titleMedium)
 Text(
     "Platform 2 · Joondalup line",
     style = Theme.typography.bodySmall,
-    color = Theme.colors.contentMuted,
+    colour = Theme.colours.contentMuted,
 )
 
 // The `AnnotatedString` overload is why there are two: a route number in
@@ -22,7 +22,7 @@ Text(
 Text(
     buildAnnotatedString {
         append("The ")
-        withStyle(SpanStyle(color = Theme.colors.accent.solid)) { append("950") }
+        withStyle(SpanStyle(color = Theme.colours.accent.solid)) { append("950") }
         append(" leaves in 4 minutes.")
     },
 )
@@ -32,7 +32,7 @@ Two overloads, `String` and `AnnotatedString`. The second is what carries spans 
 a route number in the accent colour inside a sentence — without a second
 component or a second style.
 
-Colour comes from `LocalContentColor`, which [`Surface`](surface.md) sets. That
+Colour comes from `LocalContentColour`, which [`Surface`](surface.md) sets. That
 chain is the reason a component can be dropped on a dark card and stay legible
 without every child being told where it is.
 

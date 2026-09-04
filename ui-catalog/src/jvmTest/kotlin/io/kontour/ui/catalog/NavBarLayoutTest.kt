@@ -72,7 +72,7 @@ class NavBarLayoutTest {
                     showLabels = true,
                     // A stand-in for the selected item's circle, reported so the
                     // action can be compared against the line the icons sit on.
-                    indicatorColor = Color.Transparent,
+                    indicatorColour = Color.Transparent,
                     search = { Box(Modifier.size(1.dp).reportBounds { indicator = it }) },
                     searchIndex = null,
                     action = { Box(Modifier.size(40.dp).reportBounds { action = it }) },

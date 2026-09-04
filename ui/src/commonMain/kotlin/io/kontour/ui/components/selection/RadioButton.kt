@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -36,7 +38,9 @@ private val RadioSize = 20.dp
  * of 5". A bare `RadioButton` outside a group is announced without that context.
  *
  * The inner dot scales in with a spring rather than fading, so selection lands
- * with a small physical click rather than a dissolve.
+ * with a small physical click rather than a dissolve. Inside a [RadioGroup] the
+ * button that is *losing* the selection starts giving it up at the same moment,
+ * so the two halves of the change happen together under the finger.
  *
  * @param onClick Pass `null` when a parent row owns the click.
  */
@@ -49,7 +53,7 @@ fun RadioButton(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = Feedback
 
@@ -57,9 +61,9 @@ fun RadioButton(
 
     val ring by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.contentDisabled
-            selected -> colors.primary
-            else -> colors.outlineStrong
+            !enabled -> colours.contentDisabled
+            selected -> colours.primary
+            else -> colours.outlineStrong
         },
         animationSpec = motion.tweenFast(),
         label = "radioRing",
@@ -71,7 +75,24 @@ fun RadioButton(
     // passenger in a row. See `SelectionPressPreview`.
     val pressed by pressSourceFor(interactions, interactionSource, onClick != null)
         .collectIsPressedAsState()
-    val press = if (pressed && enabled) SelectionPressPreview else 0f
+
+    // Selecting is one change with two halves, and they should happen at the
+    // same time. While a sibling is being pressed, the button that currently
+    // holds the selection starts letting go of it by the same third — so the
+    // dot the user is leaving is already shrinking as the one they are choosing
+    // grows, rather than surviving at full size until the press is released and
+    // then disappearing. Only the selected button yields; the rest of the group
+    // has nothing to give up.
+    val group = LocalSelectionGroupPress.current
+    if (group != null) {
+        DisposableEffect(group, pressed) {
+            if (pressed) group.press()
+            onDispose { if (pressed) group.release() }
+        }
+    }
+    val yielding = selected && !pressed && group?.anyPressed == true
+
+    val press = if ((pressed || yielding) && enabled) SelectionPressPreview else 0f
     val dotScale by animateFloatAsState(
         targetValue = if (selected) 1f - press else press,
         animationSpec = motion.springOrTween(motion.springBouncy),
@@ -118,7 +139,7 @@ fun RadioButton(
 
         if (dotScale > 0f) {
             drawCircle(
-                color = if (enabled) colors.primary else colors.contentDisabled,
+                color = if (enabled) colours.primary else colours.contentDisabled,
                 radius = radius * 0.55f * dotScale,
             )
         }
@@ -155,26 +176,31 @@ fun <T> RadioGroup(
     label: (T) -> String,
     supporting: ((T) -> String?)? = null,
 ) {
-    Column(modifier.selectableGroup()) {
-        options.forEach { option ->
-            val isSelected = option == selected
-            val supportingText = supporting?.invoke(option)
-            SelectionRow(
-                selected = isSelected,
-                onSelectedChange = { onSelectedChange(option) },
-                enabled = enabled,
-                role = Role.RadioButton,
-            ) {
-                +label(option)
-                if (supportingText != null) supporting { +supportingText }
-                trailing {
-                    RadioButton(
-                        selected = isSelected,
-                        // The row owns the click; a nested clickable would give
-                        // a screen reader two targets for one choice.
-                        onClick = null,
-                        enabled = enabled,
-                    )
+    // See `SelectionGroupPress`: this is what lets the option losing the
+    // selection hear about the press on the one taking it.
+    val groupPress = remember { SelectionGroupPress() }
+    CompositionLocalProvider(LocalSelectionGroupPress provides groupPress) {
+        Column(modifier.selectableGroup()) {
+            options.forEach { option ->
+                val isSelected = option == selected
+                val supportingText = supporting?.invoke(option)
+                SelectionRow(
+                    selected = isSelected,
+                    onSelectedChange = { onSelectedChange(option) },
+                    enabled = enabled,
+                    role = Role.RadioButton,
+                ) {
+                    +label(option)
+                    if (supportingText != null) supporting { +supportingText }
+                    trailing {
+                        RadioButton(
+                            selected = isSelected,
+                            // The row owns the click; a nested clickable would
+                            // give a screen reader two targets for one choice.
+                            onClick = null,
+                            enabled = enabled,
+                        )
+                    }
                 }
             }
         }

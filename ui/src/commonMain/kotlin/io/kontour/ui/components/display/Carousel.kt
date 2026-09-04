@@ -1,7 +1,10 @@
 package io.kontour.ui.components.display
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
+import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,6 +38,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
@@ -45,6 +49,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Surface
+import io.kontour.ui.components.action.ButtonSize
+import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
 
@@ -216,7 +222,7 @@ fun Carousel(
         // Snapping rather than free scroll: a carousel that stops between two
         // pages is showing neither, and the indicator below it is then lying
         // whatever it says.
-        flingBehavior = rememberSnapFlingBehavior(state.listState),
+        flingBehavior = firmSnapFlingBehaviour(state.listState),
     ) {
         items(count) { page ->
             Box(Modifier.fillParentMaxWidth()) { content(page) }
@@ -251,9 +257,94 @@ fun PageIndicator(
     enabled: Boolean = true,
     onPageSelect: ((Int) -> Unit)? = null,
     style: PageIndicatorStyle = PageIndicatorStyle.Dots,
-    activeColor: Color = Theme.colors.primary,
-    inactiveColor: Color = Theme.colors.outlineStrong,
+    activeColour: Color = Theme.colours.primary,
+    inactiveColour: Color = Theme.colours.outlineStrong,
     label: (Int, Int) -> String = Theme.strings.pageOfCount,
+    /**
+     * Glyphs for a step-back and step-forward button either side of the dots.
+     *
+     * Both optional and independent, like every other icon in the library: the
+     * design system ships no icon set, so a component that draws one has chosen
+     * for you.
+     *
+     * They need [onPageSelect] — it is the only way this has of moving the
+     * carousel — and they disable themselves at the ends rather than wrapping
+     * around. A carousel is a row you can see the edges of; a "next" that jumps
+     * back to the first page is a different control.
+     *
+     * Worth adding wherever the carousel is not obviously swipeable: a desktop
+     * window, a page a mouse is driving, or a small set of pages where the dots
+     * are too fine a target to aim at one by one.
+     */
+    previousIcon: ImageVector? = null,
+    nextIcon: ImageVector? = null,
+    previousLabel: String = Theme.strings.previous,
+    nextLabel: String = Theme.strings.next,
+) {
+    if (previousIcon == null && nextIcon == null) {
+        PageDots(state, modifier, enabled, onPageSelect, style, activeColour, inactiveColour, label)
+        return
+    }
+
+    val count = state.count
+    val current = state.currentPage
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+    ) {
+        if (previousIcon != null) {
+            IconButton(
+                icon = previousIcon,
+                contentDescription = previousLabel,
+                onClick = { onPageSelect?.invoke(current - 1) },
+                enabled = enabled && onPageSelect != null && current > 0,
+                size = ButtonSize.Small,
+            )
+        }
+
+        PageDots(
+            state = state,
+            modifier = Modifier,
+            enabled = enabled,
+            onPageSelect = onPageSelect,
+            style = style,
+            activeColour = activeColour,
+            inactiveColour = inactiveColour,
+            label = label,
+        )
+
+        if (nextIcon != null) {
+            IconButton(
+                icon = nextIcon,
+                contentDescription = nextLabel,
+                onClick = { onPageSelect?.invoke(current + 1) },
+                enabled = enabled && onPageSelect != null && current < count - 1,
+                size = ButtonSize.Small,
+            )
+        }
+    }
+}
+
+/**
+ * The dots themselves, without the buttons.
+ *
+ * Its own composable because the worm is drawn from positions measured against
+ * *this* row — put the step buttons in the same row and every dot centre moves
+ * by the width of a button, which the worm would faithfully follow to the wrong
+ * place.
+ */
+@Composable
+private fun PageDots(
+    state: CarouselState,
+    modifier: Modifier,
+    enabled: Boolean,
+    onPageSelect: ((Int) -> Unit)?,
+    style: PageIndicatorStyle,
+    activeColour: Color,
+    inactiveColour: Color,
+    label: (Int, Int) -> String,
 ) {
     val count = state.count
     val current = state.currentPage
@@ -289,7 +380,7 @@ fun PageIndicator(
                         val trail = a + (b - a) * (fraction * 2f - 1f).coerceAtLeast(0f)
                         if (a == 0f && b == 0f) return@drawWithContent
                         drawRoundRect(
-                            color = activeColor,
+                            color = activeColour,
                             topLeft = Offset(
                                 minOf(lead, trail) - dotRadius,
                                 (size.height - dotRadius * 2f) / 2f,
@@ -337,7 +428,7 @@ fun PageIndicator(
                     shape = Theme.shapes.pill,
                     // Under a worm every dot is a track, and the pill on top is
                     // the only thing that says which page this is.
-                    color = if (active) activeColor else inactiveColor,
+                    colour = if (active) activeColour else inactiveColour,
                     content = {},
                 )
             }
@@ -409,3 +500,36 @@ object PageIndicatorDefaults {
 /** Records this dot's centre, relative to the indicator row, for the worm. */
 private fun Modifier.reportCentre(into: FloatArray, index: Int): Modifier =
     onGloballyPositioned { into[index] = it.positionInParent().x + it.size.width / 2f }
+
+/**
+ * A snap with no coast in it.
+ *
+ * `rememberSnapFlingBehavior`'s default lets a fling decay across as many pages
+ * as its velocity carries it and snaps wherever it runs out — which on a
+ * carousel of wide cards means a flick throws three pages past the one you were
+ * looking at and lands soft. Reported as the snapping not feeling strong enough,
+ * and the *approach* is the part that is loose rather than the snap.
+ *
+ * So the approach offset is zero: whatever the velocity, the fling decelerates
+ * straight into the nearest page rather than travelling first. One flick, one
+ * page, and the spring at the end is the library's snappy one rather than the
+ * platform default. A carousel is a stack of cards being turned over, not a list
+ * being scrolled.
+ *
+ * Everything else — where a page snaps to, what counts as nearest — is Compose's
+ * own provider, delegated to. The only thing worth changing here is how far it
+ * is allowed to drift before it starts.
+ */
+@Composable
+private fun firmSnapFlingBehaviour(listState: LazyListState): FlingBehavior {
+    val motion = Theme.motion
+    val snap = motion.springOrTween<Float>(motion.springSnappy)
+    val decay = remember { exponentialDecay<Float>() }
+    val provider = remember(listState) {
+        val base = SnapLayoutInfoProvider(listState)
+        object : SnapLayoutInfoProvider by base {
+            override fun calculateApproachOffset(velocity: Float, decayOffset: Float): Float = 0f
+        }
+    }
+    return remember(provider, decay, snap) { snapFlingBehavior(provider, decay, snap) }
+}

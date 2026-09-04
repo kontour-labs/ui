@@ -32,7 +32,7 @@ import kotlinx.datetime.LocalTime
 fun DateTimeShowcase(modifier: Modifier = Modifier) {
     val today = LocalDate(2026, 6, 12)
 
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Panels {
             Panel(width = 360.dp, spacing = Theme.spacing.md) {
                 Section("Date picker") {
@@ -74,12 +74,23 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
 
             Panel(width = 320.dp, spacing = Theme.spacing.md) {
                 Section("Time picker — 24h") {
-                    val at = seed(LocalTime(8, 15))
-                    TimePicker(
-                        value = at.value,
-                        onValueChange = { at.value = it },
-                        minuteStep = 5,
-                    )
+                    // Stated, not inherited. This section's whole job is to be
+                    // the 24-hour one beside the 12-hour one, and it used to
+                    // rely on `DateTimeFormats`' constructor default to say so
+                    // — which stopped being the ambient answer when the local
+                    // started resolving from the platform's locale, and en-AU
+                    // writes a 12-hour clock. Both pickers then showed the same
+                    // thing under two different headings.
+                    CompositionLocalProvider(
+                        LocalDateTimeFormats provides DateTimeFormats(is24Hour = true)
+                    ) {
+                        val at = seed(LocalTime(8, 15))
+                        TimePicker(
+                            value = at.value,
+                            onValueChange = { at.value = it },
+                            minuteStep = 5,
+                        )
+                    }
                 }
 
                 Section("Time picker — 12h") {
@@ -112,7 +123,7 @@ fun DateTimeShowcase(modifier: Modifier = Modifier) {
                     Text(
                         text = "Tapping opens a TimePicker in a sheet",
                         style = Theme.typography.bodySmall,
-                        color = Theme.colors.contentMuted,
+                        colour = Theme.colours.contentMuted,
                     )
 
                     ModalBottomSheet(

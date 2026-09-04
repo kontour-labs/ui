@@ -71,6 +71,12 @@ data class Strings(
     val next: String = "Next",
     val previousPage: String = "Previous page",
     val nextPage: String = "Next page",
+
+    /** The ellipsis in a pagination row, when it can be tapped to jump. */
+    val goToPage: String = "Go to page",
+
+    /** Confirms the page typed into that box. */
+    val goToPageConfirm: String = "Go",
     /**
      * A page indicator's position, which needs the numbers rather than a
      * constant — the one place here that is a format instead of a word.

@@ -31,7 +31,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from doctree import COMPONENTS, FAMILY, INDEXES, content_pages, page_path  # noqa: E402
+from doctree import (  # noqa: E402
+    COMPONENTS, FAMILY, GUIDES, INDEXES, content_pages, family_of, page_path,
+)
 
 
 def kotlin_string(text: str) -> str:
@@ -182,14 +184,21 @@ def main() -> int:
     out_dir = Path(sys.argv[1])
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Which family each component page belongs to, from the index that links it.
-    family_of = {}
-    for stem in INDEXES:
-        index = COMPONENTS / f"{stem}.md"
-        if not index.exists():
-            continue
-        for target in re.findall(r"\(([a-z0-9-]+\.md)(?:#[^)]*)?\)", index.read_text()):
-            family_of.setdefault(Path(target).stem, stem)
+    # Which family each component page belongs to, and where it sits in it —
+    # both from the index that links it, and from the order that index links it.
+    #
+    # The order is the half that used to be thrown away. The site sorted each
+    # family by the page's raw markdown title, which is a string beginning with
+    # a backtick: U+0060 sorts after the uppercase letters and before the
+    # lowercase ones, so `ButtonGroup` came out ahead of `Button`,
+    # `rememberImeChain` fell to the bottom of Text editing, and
+    # `NavigationSuiteScaffold` — which `navigation.md` introduces with **Start
+    # here.** — was fifth of eight. `DocModel.kt` warns against exactly that one
+    # line above where it did it: "a list sorted by a fact about spelling".
+    #
+    # These tables are already an editorial order, written by whoever knows
+    # which component a reader should meet first. Keeping it costs nothing.
+    claimed = family_of()
 
     pages = []
     bodies = []
@@ -210,11 +219,24 @@ def main() -> int:
         # of its components, and a guide is prose about the library.
         in_components = path.parent == COMPONENTS
         if in_components and path.stem in INDEXES:
-            kind, family = "DocKind.Family", FAMILY[path.stem]
+            # A family page is carried beside its family rather than inside it,
+            # so its order is never read. -1 says so rather than pretending.
+            kind, family, order = "DocKind.Family", FAMILY[path.stem], -1
         elif in_components:
-            kind, family = "DocKind.Component", FAMILY.get(family_of.get(path.stem, ""), "Other")
+            kind = "DocKind.Component"
+            # A page no index links falls to "Other" and to the end of it.
+            # `check-components.py` rule 3 is what stops that happening.
+            claim = claimed.get(path.stem)
+            family = FAMILY.get(claim[0], "Other") if claim else "Other"
+            order = claim[1] if claim else len(claimed)
         else:
+            # `GUIDES` has been written in reading order since it was added and
+            # nothing has ever read it — the map, then how to install it, then
+            # the tokens and the theme, and the cross-cutting reading last.
+            # Alphabetical filed the `+` DSL guide under S, its title being
+            # "Slots, and the `+` that keeps them short".
             kind, family = "DocKind.Guide", "Guides"
+            order = GUIDES.index(path.stem) if path.stem in GUIDES else len(GUIDES)
 
         page_blocks = blocks(lines, str(path))
         # One function per page, and one per 30 blocks inside it.
@@ -241,6 +263,7 @@ def main() -> int:
             f"    symbols = listOf({', '.join(kotlin_string(s) for s in symbols)}),\n"
             f"    family = {kotlin_string(family)},\n"
             f"    kind = {kind},\n"
+            f"    order = {order},\n"
             "    content = { " + " + ".join(f"{name}b{i}()" for i in range(len(chunks))) + " },\n"
             ")\n"
         )

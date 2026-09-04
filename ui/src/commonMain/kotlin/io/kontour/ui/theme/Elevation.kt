@@ -2,8 +2,11 @@ package io.kontour.ui.theme
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
+import kotlin.math.max
 
 /**
  * One shadow layer: colour, geometry, softness.
@@ -15,7 +18,7 @@ import androidx.compose.ui.unit.dp
  */
 @Immutable
 data class ShadowSpec(
-    val color: Color,
+    val colour: Color,
     val alpha: Float,
     val offsetY: Dp,
     val blurRadius: Dp,
@@ -80,7 +83,7 @@ data class Elevation(
 fun kontourElevation(dark: Boolean): Elevation {
     val ink = Color.Black
     fun spec(offsetY: Int, blur: Int, alpha: Float) =
-        ShadowSpec(color = ink, alpha = alpha, offsetY = offsetY.dp, blurRadius = blur.dp)
+        ShadowSpec(colour = ink, alpha = alpha, offsetY = offsetY.dp, blurRadius = blur.dp)
 
     val boost = if (dark) 2.4f else 1f
 
@@ -111,3 +114,67 @@ fun kontourElevation(dark: Boolean): Elevation {
         ),
     )
 }
+
+/**
+ * Every field of a shadow layer, interpolated.
+ *
+ * Geometry as well as colour: the two scales differ only in alpha today, but
+ * nothing stops a consumer's dark shadows from being tighter as well as
+ * stronger, and a fade that moved the alpha while the blur jumped would be worse
+ * than not fading at all.
+ */
+internal fun lerp(start: ShadowSpec, stop: ShadowSpec, fraction: Float): ShadowSpec =
+    ShadowSpec(
+        colour = lerp(start.colour, stop.colour, fraction),
+        alpha = start.alpha + (stop.alpha - start.alpha) * fraction,
+        offsetY = lerp(start.offsetY, stop.offsetY, fraction),
+        blurRadius = lerp(start.blurRadius, stop.blurRadius, fraction),
+        spread = lerp(start.spread, stop.spread, fraction),
+        offsetX = lerp(start.offsetX, stop.offsetX, fraction),
+    )
+
+/**
+ * Two shadows interpolated, whatever their layer counts.
+ *
+ * **A layer that does not exist is that layer at alpha zero.** That single rule
+ * is what makes this total rather than a crash waiting for the first consumer
+ * whose dark scale has a contact shadow their light scale does not: the lists are
+ * paired as far as the shorter one goes, and each unmatched layer is interpolated
+ * against a transparent copy of *itself*. So it fades in place, with its own blur
+ * and its own offset, instead of sliding in from a zero-sized shadow at the
+ * origin — which is what pairing it against a default [ShadowSpec] would have
+ * done.
+ *
+ * [Shadow.None] is an empty list, so a `flat` tier meeting a consumer's
+ * single-layer `flat` falls out of the same rule with nothing special-cased.
+ */
+internal fun lerp(start: Shadow, stop: Shadow, fraction: Float): Shadow {
+    if (start.layers.isEmpty() && stop.layers.isEmpty()) return Shadow.None
+    return Shadow(
+        List(max(start.layers.size, stop.layers.size)) { i ->
+            val from = start.layers.getOrNull(i)
+            val to = stop.layers.getOrNull(i)
+            when {
+                from != null && to != null -> lerp(from, to, fraction)
+                from != null -> lerp(from, from.copy(alpha = 0f), fraction)
+                else -> lerp(to!!.copy(alpha = 0f), to, fraction)
+            }
+        }
+    )
+}
+
+/**
+ * The whole scale, interpolated.
+ *
+ * Driven by the same fraction as the colour scheme — see `animatedTheme` — so a
+ * shadow and the surface it is cast on are never at different points of the same
+ * transition.
+ */
+internal fun lerp(start: Elevation, stop: Elevation, fraction: Float): Elevation =
+    Elevation(
+        flat = lerp(start.flat, stop.flat, fraction),
+        low = lerp(start.low, stop.low, fraction),
+        medium = lerp(start.medium, stop.medium, fraction),
+        high = lerp(start.high, stop.high, fraction),
+        overlay = lerp(start.overlay, stop.overlay, fraction),
+    )

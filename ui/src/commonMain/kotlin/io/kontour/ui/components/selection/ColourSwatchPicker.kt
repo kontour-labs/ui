@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
@@ -25,7 +26,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.contentColorFor
+import androidx.compose.ui.unit.lerp
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
@@ -34,17 +36,16 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
-import io.kontour.ui.theme.invisible
 
 /**
  * Picks a colour from a fixed set.
  *
  * ```kotlin
- * ColorSwatchPicker(
+ * ColourSwatchPicker(
  *     value = prefs.accent,
  *     options = AccentColour.entries,
  *     onValueChange = viewModel::updateAccent,
- *     swatchColor = { it.seed },
+ *     swatchColour = { it.seed },
  *     swatchLabel = { it.displayName },
  * )
  * ```
@@ -53,8 +54,13 @@ import io.kontour.ui.theme.invisible
  * being made is visual: "which of these do I like" is answered by looking, and a
  * list that shows one colour at a time makes the user open it six times.
  *
+ * Selection reads the way it does on a [RadioButton], because it is the same
+ * choice: the swatch's own outline takes the selected colour and thickens, and
+ * the tick springs in. Pressing previews a third of the way, as every other
+ * selection control in the library does.
+ *
  * **The tick is drawn in whatever colour is legible on the swatch**, resolved
- * through `contentColorFor()`. A fixed white tick vanishes on pale yellow and a
+ * through `contentColourFor()`. A fixed white tick vanishes on pale yellow and a
  * fixed black one vanishes on navy, and a picker whose selection is invisible on
  * two of its own options is a picker with a bug in it.
  *
@@ -63,16 +69,16 @@ import io.kontour.ui.theme.invisible
  * it — and to anyone who can, in a screenshot they are describing over the
  * phone.
  *
- * @param swatchColor The colour to draw. Return `null` for an option that is not
+ * @param swatchColour The colour to draw. Return `null` for an option that is not
  *   a colour — a "match the system" entry — which renders as an outlined swatch
  *   with [automaticIcon] instead.
  */
 @Composable
-fun <T> ColorSwatchPicker(
+fun <T> ColourSwatchPicker(
     value: T?,
     options: List<T>,
     onValueChange: (T) -> Unit,
-    swatchColor: (T) -> Color?,
+    swatchColour: (T) -> Color?,
     swatchLabel: (T) -> String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -88,7 +94,7 @@ fun <T> ColorSwatchPicker(
     ) {
         for (option in options) {
             Swatch(
-                color = swatchColor(option),
+                colour = swatchColour(option),
                 label = swatchLabel(option),
                 selected = option == value,
                 onSelectedChange = { onValueChange(option) },
@@ -102,7 +108,7 @@ fun <T> ColorSwatchPicker(
 
 @Composable
 private fun Swatch(
-    color: Color?,
+    colour: Color?,
     label: String,
     selected: Boolean,
     onSelectedChange: () -> Unit,
@@ -110,27 +116,43 @@ private fun Swatch(
     size: Dp,
     automaticIcon: ImageVector?,
 ) {
-    val scheme = Theme.colors
+    val scheme = Theme.colours
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.pill
 
-    val fill = color ?: scheme.surfaceSunken
-    val tick = if (color != null) contentColorFor(color) else scheme.content
+    val fill = colour ?: scheme.surfaceSunken
+    val tick = if (colour != null) contentColourFor(colour) else scheme.content
 
-    // The ring grows out of the swatch rather than fading in, so picking one
-    // feels like it clicked into place. It sits outside the fill, so it never
-    // eats into the colour being judged.
-    val ring by animateFloatAsState(
-        targetValue = if (selected) 1f else 0f,
+    // The swatch used to grow a second ring out of its own centre, at full size
+    // by the time it stopped — an animation nothing else in the library does,
+    // on the one control where the thing being judged is the colour that ring
+    // was expanding across. It is now the radio button's mechanism: the outline
+    // takes the selected colour and thickens, and the mark springs in.
+    val pressed by interactions.collectIsPressedAsState()
+    val press = if (pressed && enabled) SelectionPressPreview else 0f
+    val mark by animateFloatAsState(
+        targetValue = if (selected) 1f - press else press,
         animationSpec = motion.springOrTween(motion.springBouncy),
+        label = "swatchMark",
+    )
+
+    val ringColour by animateColorAsState(
+        targetValue = when {
+            !enabled -> scheme.contentDisabled
+            selected -> scheme.content
+            // A pale swatch on a pale ground needs an edge, or the user is
+            // picking from a row of invisible circles.
+            else -> scheme.outline
+        },
+        animationSpec = motion.tweenFast(),
         label = "swatchRing",
     )
-    val ringColor by animateColorAsState(
-        targetValue = if (selected) scheme.content else scheme.content.invisible(),
-        animationSpec = motion.tweenFast(),
-        label = "swatchRingColor",
+    val ringWidth = lerp(
+        Theme.sizing.borderWidth,
+        Theme.sizing.borderWidthStrong,
+        mark.coerceAtLeast(0f),
     )
 
     Box(
@@ -143,13 +165,7 @@ private fun Swatch(
             .size(size)
             .clip(shape)
             .background(if (enabled) fill else fill.copy(alpha = 0.5f), shape)
-            .border(
-                width = Theme.sizing.borderWidth,
-                // A pale swatch on a pale ground needs an edge, or the user is
-                // picking from a row of invisible circles.
-                color = if (selected) Color.Transparent else scheme.outline,
-                shape = shape,
-            )
+            .border(width = ringWidth, color = ringColour, shape = shape)
             .selectable(
                 selected = selected,
                 interactionSource = interactions,
@@ -163,28 +179,23 @@ private fun Swatch(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        if (ring > 0f) {
-            Box(
-                Modifier
-                    .scale(ring)
-                    .size(size)
-                    .border(Theme.sizing.borderWidthStrong, ringColor, shape)
-            )
-        }
-
-        when {
-            selected -> Icon(
-                imageVector = SystemIcons.Check,
-                contentDescription = null,
-                modifier = Modifier.scale(ring),
-                tint = tick,
-                size = Theme.sizing.iconMedium,
-            )
-
-            color == null && automaticIcon != null -> Icon(
+        // The two marks trade places on one number, so the automatic swatch does
+        // not cut from its icon to a tick with a blank frame in between.
+        if (colour == null && automaticIcon != null && mark < 1f) {
+            Icon(
                 imageVector = automaticIcon,
                 contentDescription = null,
+                modifier = Modifier.scale((1f - mark).coerceAtLeast(0f)),
                 tint = if (enabled) scheme.contentMuted else scheme.contentDisabled,
+                size = Theme.sizing.iconMedium,
+            )
+        }
+        if (mark > 0f) {
+            Icon(
+                imageVector = SystemIcons.Check,
+                contentDescription = null,
+                modifier = Modifier.scale(mark),
+                tint = tick,
                 size = Theme.sizing.iconMedium,
             )
         }

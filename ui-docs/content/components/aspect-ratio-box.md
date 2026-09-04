@@ -11,7 +11,7 @@ AspectRatioBox(
     modifier = Modifier
         .fillMaxWidth()
         .clip(Theme.shapes.medium)
-        .background(Theme.colors.surfaceSunken),
+        .background(Theme.colours.surfaceSunken),
 ) {
     Screen()
 }

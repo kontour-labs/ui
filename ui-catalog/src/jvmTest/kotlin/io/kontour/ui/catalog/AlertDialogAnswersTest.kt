@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
  *
  * ### Found by its fill, and by the *size* of it
  *
- * The confirm is the only filled button on the dialog. Matching `colors.primary`
+ * The confirm is the only filled button on the dialog. Matching `colours.primary`
  * alone is not enough to find it, though — in this theme that token is very
  * nearly black, so the first version of this matched every glyph on the dialog
  * and reported a button the size of the whole thing. What identifies a filled
@@ -44,7 +44,7 @@ class AlertDialogAnswersTest {
         var image: BufferedImage? = null
 
         Scene(width = 900, height = 700) {
-            primary = Theme.colors.primary.toArgb()
+            primary = Theme.colours.primary.toArgb()
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 OverlayHost(Modifier.fillMaxSize()) {
                     AlertDialog(
@@ -93,7 +93,7 @@ class AlertDialogAnswersTest {
         var image: BufferedImage? = null
 
         Scene(width = 900, height = 700) {
-            primary = Theme.colors.primary.toArgb()
+            primary = Theme.colours.primary.toArgb()
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 OverlayHost(Modifier.fillMaxSize()) {
                     AlertDialog(

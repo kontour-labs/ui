@@ -51,4 +51,4 @@ case, because it takes the actions away with it.
 
 ---
 
-← [Collections](collections.md) · [All components](../components.md)
+← [Sheets](sheets.md) · [All components](../components.md)

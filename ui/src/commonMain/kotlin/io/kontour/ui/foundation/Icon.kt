@@ -57,7 +57,7 @@ import io.kontour.ui.theme.Theme
  *   which is a claim worth making explicitly rather than by omission. Pass
  *   `null` when the icon sits beside a label that already says the same thing;
  *   pass a description when the icon is the only thing conveying meaning.
- * @param tint Defaults to [LocalContentColor], so an icon inside a [Surface]
+ * @param tint Defaults to [LocalContentColour], so an icon inside a [Surface]
  *   picks up a legible colour automatically. `Color.Unspecified` disables
  *   tinting entirely — for multi-colour artwork.
  * @param size The size of the square layout box. The glyph is fitted inside it.
@@ -67,7 +67,7 @@ fun Icon(
     imageVector: ImageVector,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    tint: Color = LocalContentColor.current,
+    tint: Color = LocalContentColour.current,
     size: Dp = Theme.sizing.iconMedium,
 ) {
     IconBox(
@@ -96,7 +96,7 @@ fun Icon(
     painter: Painter,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    tint: Color = LocalContentColor.current,
+    tint: Color = LocalContentColour.current,
     size: Dp = Theme.sizing.iconMedium,
 ) {
     val intrinsic = painter.intrinsicSize
@@ -127,8 +127,8 @@ private fun IconBox(
     boxSize: Dp,
     drawSize: DpSize,
 ) {
-    val resolvedTint = if (tint == Color.Unspecified) Theme.colors.content else tint
-    val colorFilter = if (tint == Color.Unspecified) null else ColorFilter.tint(resolvedTint)
+    val resolvedTint = if (tint == Color.Unspecified) Theme.colours.content else tint
+    val tintFilter = if (tint == Color.Unspecified) null else ColorFilter.tint(resolvedTint)
 
     val semantics = if (contentDescription != null) {
         Modifier.clearAndSetSemantics { this.contentDescription = contentDescription }
@@ -145,7 +145,7 @@ private fun IconBox(
         Image(
             painter = painter,
             contentDescription = null,
-            colorFilter = colorFilter,
+            colorFilter = tintFilter,
             // FillBounds, not Fit: the box has already been sized to the glyph's
             // true aspect ratio, so filling it scales both axes by the same
             // factor. Fit would letterbox a second time against the painter's

@@ -47,6 +47,50 @@ enum class FeedbackIntent {
 }
 
 /**
+ * How much physical feedback the theme asks for.
+ *
+ * Replacing [LocalFeedback] with your own dispatcher has always been possible
+ * and is still the way to retune the *mapping*. This is the other question —
+ * how much of it there should be — and it did not have an answer short of
+ * writing a dispatcher to answer it.
+ *
+ * It is a real setting rather than a debug switch. Continuous feedback is the
+ * kind most likely to be unwelcome: a slider ticking through forty detents is
+ * delightful once and wearing on a long form, and some users find it actively
+ * unpleasant. [Essential] keeps the feedback that reports an *outcome* and drops
+ * the feedback that reports *progress*.
+ */
+enum class HapticsLevel {
+    /** Every intent. The default. */
+    Full,
+
+    /**
+     * Outcomes only — a confirmation, a refusal, a threshold crossed, a long
+     * press. The continuous ones ([FeedbackIntent.Tick],
+     * [FeedbackIntent.Selection], [FeedbackIntent.KeyPress]) are dropped, so a
+     * drag still reports arriving somewhere without buzzing the whole way there.
+     */
+    Essential,
+
+    /** Nothing. For a kiosk, a test, or a user who has asked for silence. */
+    Off,
+    ;
+
+    internal fun allows(intent: FeedbackIntent): Boolean = when (this) {
+        Full -> true
+        Off -> false
+        Essential -> when (intent) {
+            FeedbackIntent.Tick,
+            FeedbackIntent.Selection,
+            FeedbackIntent.KeyPress,
+            -> false
+
+            else -> true
+        }
+    }
+}
+
+/**
  * Performs physical feedback for a [FeedbackIntent].
  *
  * Obtained from [LocalFeedback]; on platforms without haptics — desktop, web —
@@ -88,7 +132,9 @@ val Feedback: FeedbackDispatcher
  * that means it.
  */
 @Composable
-internal fun rememberDefaultFeedbackDispatcher(): FeedbackDispatcher {
+internal fun rememberDefaultFeedbackDispatcher(
+    level: HapticsLevel = HapticsLevel.Full,
+): FeedbackDispatcher {
     val haptics: HapticFeedback = LocalHapticFeedback.current
     // No `expect`/`actual` here, deliberately, and it is worth writing down
     // because the shape of the code invites one. `HapticFeedbackType` is a
@@ -100,8 +146,9 @@ internal fun rememberDefaultFeedbackDispatcher(): FeedbackDispatcher {
     // where the vocabulary came from, not because that is where it goes. A
     // platform seam added here would duplicate the toolkit's, and would be worse
     // than it.
-    return remember(haptics) {
+    return remember(haptics, level) {
         FeedbackDispatcher { intent ->
+            if (!level.allows(intent)) return@FeedbackDispatcher
             haptics.performHapticFeedback(
                 when (intent) {
                     FeedbackIntent.Selection -> HapticFeedbackType.SegmentTick

@@ -10,17 +10,19 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.layout.LayoutScopeMarker
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -31,36 +33,37 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.ui.graphics.vector.ImageVector
-import io.kontour.ui.foundation.IndicatorEdge
-import io.kontour.ui.foundation.IndicatorSizing
-import io.kontour.ui.foundation.SelectionIndicatorBox
-import io.kontour.ui.foundation.rememberSelectionIndicatorState
-import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.IndicatorEdge
+import io.kontour.ui.foundation.IndicatorSizing
+import io.kontour.ui.foundation.ProvideContentColour
+import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.foundation.RowContentScope
+import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.contentScope
+import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
-import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.kontourIndication
-import io.kontour.ui.foundation.RowContentScope
-import io.kontour.ui.foundation.contentScope
-import io.kontour.ui.foundation.ProvideContentColor
-import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
 
 object TabBarDefaults {
@@ -110,9 +113,18 @@ object TabBarDefaults {
 fun TabBar(
     modifier: Modifier = Modifier,
     scrollable: Boolean = false,
-    containerColor: Color = Color.Transparent,
-    indicatorColor: Color = Theme.colors.accent.container,
-    showDivider: Boolean = true,
+    containerColour: Color = Color.Transparent,
+    indicatorColour: Color = Theme.colours.accent.container,
+    /**
+     * A rule under the bar.
+     *
+     * Off, like [TopBar]'s. The travelling pill *is* the selection, and a
+     * full-width rule beneath it is the other half of the sliding-underline bar
+     * this deliberately is not — a tab row that draws both reads as a Material
+     * component with a pill bolted on, which is exactly how it was reported.
+     * Callers who need the bar separated from what is under it can still ask.
+     */
+    showDivider: Boolean = false,
     /**
      * Controls at the trailing edge — an overflow menu, a filter.
      *
@@ -127,10 +139,10 @@ fun TabBar(
     val indicator = rememberSelectionIndicatorState()
     // Through `Surface` rather than a bare `Modifier.background`, which is what
     // `NavBar`, `NavRail`, `NavDrawer` and `Scaffold` all do with their own
-    // container colour. The difference is `LocalContentColor`: a bar given a
+    // container colour. The difference is `LocalContentColour`: a bar given a
     // solid ground has to recolour the tabs sitting on it, and a background
     // modifier paints the colour and tells the content nothing.
-    Surface(modifier = modifier, color = containerColor) {
+    Surface(modifier = modifier, colour = containerColour) {
         Column {
             // The indicator box sits *inside* the scroll container, so the anchor
             // and the tabs scroll together and the scroll offset never enters the
@@ -153,13 +165,36 @@ fun TabBar(
                     // mechanism — the shared indicator box, the same anchor
                     // arithmetic — saying the same thing in the library's own
                     // vocabulary, which is already full of pills.
-                    sizing = IndicatorSizing.Inset(horizontal = 2.dp, vertical = 6.dp),
+                    // Inset by one grid step from the tab, which is the rail's
+                    // and the drawer's rule and now means something here: a tab
+                    // fills the bar's height, so the pill is 40dp inside a 48dp
+                    // bar on every platform.
+                    //
+                    // It used to be `Inset(2.dp, 6.dp)` from a tab that was
+                    // only as tall as its own label plus padding, or as tall as
+                    // `minimumTouchTarget()` made it — whichever is more. And
+                    // that floor is `platformMinTouchTarget`: 24dp on the JVM,
+                    // 44 on iOS and web, 48 on Android. So
+                    // the marker came out 24dp tall on desktop, 32 on a phone
+                    // browser and 36 on Android, in a bar that is 48dp on all
+                    // three. Measured on the desktop showcase: a 97×24dp
+                    // lozenge, four times as wide as it was tall, floating in
+                    // the middle of a bar twice its height, with barely 2dp of
+                    // it below the label's ink. Every other marker in the
+                    // library is either sized to a constant (the bar's
+                    // `Fixed(56, 32)`) or exactly the row it marks (the rail's
+                    // and drawer's `Inset(vertical = 0.dp)`); this was the only
+                    // one whose proportions were a platform constant.
+                    sizing = IndicatorSizing.Inset(
+                        horizontal = Theme.spacing.xxs,
+                        vertical = Theme.spacing.xxs,
+                    ),
                     indicator = {
                         Box(
                             Modifier
                                 .fillMaxSize()
                                 .clip(Theme.shapes.pill)
-                                .background(indicatorColor)
+                                .background(indicatorColour)
                         )
                     },
                 ) {
@@ -243,18 +278,18 @@ fun TabBarScope.Tab(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit,
 ) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
-    val contentColor by animateColorAsState(
+    val contentColour by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.contentDisabled
+            !enabled -> colours.contentDisabled
             // On the indicator pill rather than over a bare bar, so the tone's
             // own on-container colour rather than its solid one.
-            selected -> colors.accent.onContainer
-            else -> colors.contentMuted
+            selected -> colours.accent.onContainer
+            else -> colours.contentMuted
         },
         animationSpec = motion.tweenFast(),
         label = "tabContent",
@@ -263,7 +298,16 @@ fun TabBarScope.Tab(
     Row(
         modifier = modifier
             .then(if (fixed) with(row) { Modifier.weight(1f) } else Modifier)
+            // The bar's full height, and this is what makes the indicator a
+            // fixed size: the marker is inset from *this* node, and without the
+            // fill it was inset from whatever `minimumTouchTarget` happened to
+            // reserve on the platform — 24dp on the JVM, 48 on Android. It also
+            // makes the whole 48dp band tappable on desktop rather than the
+            // 36dp the label occupied.
+            .fillMaxHeight()
             .selectionIndicatorItem(key, selected)
+            // Kept for a tab measured outside the bar's fixed-height row, where
+            // the fill above has no bounded height to take.
             .minimumTouchTarget()
             .focusRing(interactions, Theme.shapes.control)
             .clip(Theme.shapes.control)
@@ -283,7 +327,9 @@ fun TabBarScope.Tab(
                     onClick()
                 },
             )
-            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.xs),
+            // Horizontal only: the tab's height is the bar's, and the label is
+            // centred in it by the arrangement below.
+            .tabPadding(Theme.spacing.md),
         // Centred, because a fixed tab is now as wide as its share of the bar
         // rather than as wide as its label: laid out from the start edge, three
         // tabs of one width each read as a row shoved to the left, with the
@@ -310,7 +356,7 @@ fun TabBarScope.Tab(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ProvideTextStyle(Theme.typography.labelLarge) {
-                ProvideContentColor(contentColor) {
+                ProvideContentColour(contentColour) {
                     // Ellipsis rather than the scope's default clip: a fixed
                     // bar divides its width evenly, so a long label on a narrow
                     // screen is *expected* to run out of room, and "Departures"
@@ -329,6 +375,32 @@ fun TabBarScope.Tab(
         // the last two letters of a word.
         // The gap the row's arrangement would normally provide — see above.
         if (badge != null) Badge(count = badge, modifier = Modifier.padding(start = Theme.spacing.xs))
+    }
+}
+
+/**
+ * Horizontal padding that gives way when the tab is narrower than its own air.
+ *
+ * A tab's `md` either side exists to give the travelling pill room around the
+ * label. Fixed, it is 32dp the label can never reclaim — and on a bar squeezed
+ * to 48dp that leaves 16dp, which is narrower than the ellipsis the label
+ * would truncate to, so **nothing was drawn at all**. `WidthSweepTest` asks
+ * every component to draw something from 48dp up, and this one did not; the
+ * hairline rule under the bar was the only ink, which is why turning that off
+ * by default is what exposed this rather than caused it.
+ *
+ * The rule is that **the padding never takes more than the label keeps**, which
+ * needs no number of its own and stops binding at 64dp — twice the padding —
+ * so every width anybody ships is untouched. Measured at 48dp: nothing at all
+ * with the full padding, the truncated label with this.
+ */
+private fun Modifier.tabPadding(each: Dp): Modifier = layout { measurable, constraints ->
+    val wanted = each.roundToPx() * 2
+    val taken = wanted.coerceAtMost((constraints.maxWidth - wanted).coerceAtLeast(0))
+    val placeable = measurable.measure(constraints.offset(horizontal = -taken))
+    val width = (placeable.width + taken).coerceIn(constraints.minWidth, constraints.maxWidth)
+    layout(width, placeable.height) {
+        placeable.place((width - placeable.width) / 2, 0)
     }
 }
 

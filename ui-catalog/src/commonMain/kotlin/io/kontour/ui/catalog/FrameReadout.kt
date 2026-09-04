@@ -80,14 +80,14 @@ internal fun FrameReadout(modifier: Modifier = Modifier) {
 
     Column(
         modifier = modifier
-            .background(Theme.colors.scrim, Theme.shapes.small)
+            .background(Theme.colours.scrim, Theme.shapes.small)
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
             text = "${mean.tenths()} ms  mean",
             style = Theme.typography.monoLabel,
-            color = Color.White,
+            colour = Color.White,
         )
         Text(
             text = "${worst.tenths()} ms  worst",
@@ -95,10 +95,10 @@ internal fun FrameReadout(modifier: Modifier = Modifier) {
             // Green while every frame in the window made sixty a second, amber
             // while they made thirty, red below that. The colour is the reading:
             // a number you have to interpret gets glanced at and forgotten.
-            color = when {
-                worst <= SixtyHz -> Theme.colors.success.solid
-                worst <= ThirtyHz -> Theme.colors.warning.solid
-                else -> Theme.colors.danger.solid
+            colour = when {
+                worst <= SixtyHz -> Theme.colours.success.solid
+                worst <= ThirtyHz -> Theme.colours.warning.solid
+                else -> Theme.colours.danger.solid
             },
         )
     }

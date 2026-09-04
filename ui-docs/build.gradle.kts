@@ -66,8 +66,14 @@ val generateDocPages = tasks.register<Exec>("generateDocPages") {
 
     val pages = layout.projectDirectory.dir("content")
     val script = rootProject.layout.projectDirectory.file("docs/generate-doc-pages.py")
+    // `doctree.py` is an input too, and it became a load-bearing one when the
+    // guides took their order from `GUIDES`: reordering that tuple with only the
+    // script declared leaves this task up to date, so the generated pages keep
+    // the old order until somebody happens to touch a markdown file.
+    val shape = rootProject.layout.projectDirectory.file("docs/doctree.py")
     inputs.dir(pages).withPropertyName("pages")
     inputs.file(script).withPropertyName("script")
+    inputs.file(shape).withPropertyName("doctree")
     outputs.dir(generatedDocs).withPropertyName("generated")
 
     workingDir = rootProject.layout.projectDirectory.asFile
@@ -210,3 +216,21 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 // which is what the `site` job in `.github/workflows/ci.yml` copies. That path
 // is a convention of the Kotlin plugin rather than a promise, so the workflow
 // asserts the files it expects are there rather than trusting the copy.
+
+// ---------------------------------------------------------------------------
+// One region for the tests
+// ---------------------------------------------------------------------------
+//
+// `DateTimeFormats` resolves from the platform's locale now — that is the whole
+// of the "dates are backwards in the US" fix — which makes every calendar and
+// every clock in the suite a function of the machine it runs on. A golden
+// recorded in one region is not a golden, and an assertion about "9 Jun" is a
+// different assertion in Chicago.
+//
+// So the tests get a region of their own: the one the screenshots were recorded
+// in, stated here rather than inherited. Nothing else pins it, and the library
+// itself goes on following whatever the user's device says.
+tasks.withType<Test>().configureEach {
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "AU")
+}

@@ -38,6 +38,8 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
+import io.kontour.ui.motion.AnimatedSlot
+import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
 
 /** How large a [FloatingActionButton] is. */
@@ -79,15 +81,21 @@ fun FloatingActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Swaps the icon for a spinner and blocks input. See [LoadingSwap]. */
+    loading: Boolean = false,
+    /** What a screen reader announces while [loading]. */
+    loadingLabel: String = Theme.strings.loading,
     size: FabSize = FabSize.Medium,
     shape: Shape = Theme.shapes.control,
-    containerColor: Color = Theme.colors.primary,
-    contentColor: Color = Theme.colors.onPrimary,
+    containerColour: Color = Theme.colours.primary,
+    contentColour: Color = Theme.colours.onPrimary,
     border: BorderStroke? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
+    val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
+    val interactive = enabled && !loading
 
     Surface(
         modifier = modifier
@@ -98,7 +106,7 @@ fun FloatingActionButton(
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
-                enabled = enabled,
+                enabled = interactive,
                 role = Role.Button,
                 onClick = {
                     feedback.perform(FeedbackIntent.Confirm)
@@ -106,16 +114,18 @@ fun FloatingActionButton(
                 },
             ),
         shape = shape,
-        color = containerColor,
-        contentColor = contentColor,
+        colour = fabColor,
+        contentColour = fabContent,
         border = border,
-        shadow = Theme.elevation.medium,
+        shadow = fabShadow,
         // `defaultMinSize` makes the surface larger than the icon inside it, so
         // without this the icon lands in the FAB's top-left corner rather than
         // its middle.
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = contentDescription, size = size.icon)
+        LoadingSwap(loading = loading, spinnerSize = size.icon) {
+            Icon(icon, contentDescription = contentDescription, size = size.icon)
+        }
     }
 }
 
@@ -147,16 +157,22 @@ fun FloatingActionButton(
     contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Swaps the icon for a spinner and blocks input. See [LoadingSwap]. */
+    loading: Boolean = false,
+    /** What a screen reader announces while [loading]. */
+    loadingLabel: String = Theme.strings.loading,
     size: FabSize = FabSize.Medium,
     shape: Shape = Theme.shapes.control,
-    containerColor: Color = Theme.colors.primary,
-    contentColor: Color = Theme.colors.onPrimary,
+    containerColour: Color = Theme.colours.primary,
+    contentColour: Color = Theme.colours.onPrimary,
     border: BorderStroke? = null,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = Feedback
+    val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
+    val interactive = enabled && !loading
 
     Surface(
         modifier = modifier
@@ -168,7 +184,7 @@ fun FloatingActionButton(
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
-                enabled = enabled,
+                enabled = interactive,
                 role = Role.Button,
                 onClick = {
                     feedback.perform(FeedbackIntent.Confirm)
@@ -176,12 +192,12 @@ fun FloatingActionButton(
                 },
             ),
         shape = shape,
-        color = containerColor,
-        contentColor = contentColor,
+        colour = fabColor,
+        contentColour = fabContent,
         border = border,
-        shadow = Theme.elevation.medium,
+        shadow = fabShadow,
         contentAlignment = Alignment.Center,
-        content = content,
+        content = { LoadingSwap(loading = loading, spinnerSize = size.icon) { content() } },
     )
 }
 
@@ -215,11 +231,15 @@ fun ExtendedFloatingActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Swaps the icon for a spinner and blocks input. See [LoadingSwap]. */
+    loading: Boolean = false,
+    /** What a screen reader announces while [loading]. */
+    loadingLabel: String = Theme.strings.loading,
     expanded: Boolean = true,
     size: FabSize = FabSize.Medium,
     shape: Shape = Theme.shapes.control,
-    containerColor: Color = Theme.colors.primary,
-    contentColor: Color = Theme.colors.onPrimary,
+    containerColour: Color = Theme.colours.primary,
+    contentColour: Color = Theme.colours.onPrimary,
     border: BorderStroke? = null,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit,
@@ -227,9 +247,17 @@ fun ExtendedFloatingActionButton(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val motion = Theme.motion
     val feedback = Feedback
+    val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
+    val interactive = enabled && !loading
 
+    // Collapsed, the padding is whatever makes the button as wide as it is tall,
+    // which is a different number at every size: the icon is the only content
+    // left, so the width is `padding + icon + padding` and it has to come out at
+    // `container`. It was a flat 16dp, which is `(56 - 24) / 2` — correct for
+    // `Medium` by arithmetic accident and wrong either side of it, so the
+    // collapsed button drew a circle at one size and a lozenge at the other two.
     val horizontalPadding by animateDpAsState(
-        targetValue = if (expanded) 20.dp else 16.dp,
+        targetValue = if (expanded) ExpandedPadding else (size.container - size.icon) / 2,
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "fabPadding",
     )
@@ -242,7 +270,7 @@ fun ExtendedFloatingActionButton(
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
-                enabled = enabled,
+                enabled = interactive,
                 role = Role.Button,
                 onClick = {
                     feedback.perform(FeedbackIntent.Confirm)
@@ -250,16 +278,21 @@ fun ExtendedFloatingActionButton(
                 },
             ),
         shape = shape,
-        color = containerColor,
-        contentColor = contentColor,
+        colour = fabColor,
+        contentColour = fabContent,
         border = border,
-        shadow = Theme.elevation.medium,
+        shadow = fabShadow,
     ) {
+        // The whole row swaps, icon and label together: a spinner beside a
+        // label that is still there would read as the label being the thing
+        // that is not loading.
+        LoadingSwap(loading = loading, spinnerSize = size.icon) {
         Row(
             modifier = Modifier
                 .height(size.container)
                 .padding(horizontal = horizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            // No `spacedBy`: the label's gap travels inside `AnimatedSlot`, or
+            // the row drops it in one frame when the label leaves composition.
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -267,8 +300,9 @@ fun ExtendedFloatingActionButton(
                 contentDescription = if (expanded) null else contentDescription,
                 size = size.icon,
             )
-            AnimatedVisibility(
+            AnimatedSlot(
                 visible = expanded,
+                gap = Theme.spacing.xs,
                 enter = expandHorizontally(motion.springOrTween(motion.springDefault)) +
                     fadeIn(motion.tweenFast()),
                 exit = shrinkHorizontally(motion.springOrTween(motion.springDefault)) +
@@ -281,8 +315,37 @@ fun ExtendedFloatingActionButton(
                 }
             }
         }
+        }
     }
 }
+
+/**
+ * A disabled FAB looks disabled.
+ *
+ * It did not: `containerColour` and `contentColour` were used whatever `enabled`
+ * said, so the only difference between a live FAB and a dead one was that
+ * tapping it did nothing. Every other control in the library resolves a disabled
+ * pair — see `ButtonColours.container(enabled)` — and a floating action is the
+ * one most likely to be the only affordance on a screen, so it is the worst
+ * place to leave the state invisible. It is also a WCAG 1.4.1 problem rather
+ * than a cosmetic one: "you cannot press this" was carried by behaviour alone.
+ *
+ * The shadow goes with it. A control that cannot be pressed should not be the
+ * thing floating highest off the page.
+ */
+@Composable
+private fun fabColours(
+    enabled: Boolean,
+    containerColour: Color,
+    contentColour: Color,
+): Triple<Color, Color, Shadow> = if (enabled) {
+    Triple(containerColour, contentColour, Theme.elevation.medium)
+} else {
+    Triple(Theme.colours.surfaceSunken, Theme.colours.contentDisabled, Theme.elevation.flat)
+}
+
+/** How much room the label gets either side of it once the button is open. */
+private val ExpandedPadding = 20.dp
 
 /** Metrics for a [FloatingActionButton] that are not on [FabSize] itself. */
 object FabDefaults {

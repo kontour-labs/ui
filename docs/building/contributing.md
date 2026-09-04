@@ -44,7 +44,7 @@ share a file.
  * ```
  *
  * @param enabled When false, the component is non-interactive and drawn in
- *   [ColorScheme.contentDisabled]. It stays in the accessibility tree.
+ *   [ColourScheme.contentDisabled]. It stays in the accessibility tree.
  */
 @Composable
 fun Button(
@@ -65,7 +65,7 @@ already knows it:
 2. `modifier` — **the first optional parameter, always**
 3. `enabled` — **directly after `modifier`, always**
 4. content (`label`, `supporting`, `leadingIcon`)
-5. appearance (`variant`, `size`, `colors`, `shape`)
+5. appearance (`variant`, `size`, `colours`, `shape`)
 6. `windowInsets`, where the component sits at the window's edge
 7. `interactionSource` — after every non-slot parameter
 8. slots — trailing lambda last
@@ -174,7 +174,7 @@ signature, so a caller can reference and override one value:
 ```kotlin
 object ButtonDefaults {
     @Composable
-    fun colors(variant: ButtonVariant): ButtonColors = …
+    fun colours(variant: ButtonVariant): ButtonColours = …
 }
 ```
 
@@ -227,7 +227,7 @@ Key it on *being a control*, not on being enabled, or the component changes
 height when it greys out and the layout around it jumps.
 
 **6. Tokens only.** No `Color(0xFF…)`, no `12.dp` radius, no `220` duration.
-`Theme.colors`, `Theme.shapes`, `Theme.motion`. If the value you need does not
+`Theme.colours`, `Theme.shapes`, `Theme.motion`. If the value you need does not
 exist, add a token — do not inline it "just this once".
 
 ---
@@ -244,7 +244,7 @@ Box(
         .minimumTouchTarget()
         .focusRing(interactions, shape)      // before clip
         .clip(shape)
-        .background(colors.container, shape)
+        .background(colours.container, shape)
         .clickable(
             interactionSource = interactions,
             indication = kontourIndication(shape),

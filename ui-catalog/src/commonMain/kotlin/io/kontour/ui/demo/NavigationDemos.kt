@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,24 +21,30 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.Calendar
 import com.composables.icons.tabler.outline.DotsVertical
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
+import com.composables.icons.tabler.outline.Pin
 import com.composables.icons.tabler.outline.Search
+import com.composables.icons.tabler.outline.Star
+import com.composables.icons.tabler.outline.Ticket
+import com.composables.icons.tabler.outline.Trash
 import com.composables.icons.tabler.outline.User
 import io.kontour.ui.adaptive.WindowSizeClassProvider
+import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.FabSize
 import io.kontour.ui.components.action.FloatingActionButton
-import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
-import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.ModalNavDrawer
+import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavRail
 import io.kontour.ui.nav.NavigationSuiteScaffold
@@ -46,6 +53,8 @@ import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
+import io.kontour.ui.overlay.DropdownMenu
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
 
@@ -66,11 +75,11 @@ private fun Frame(height: Dp, content: @Composable () -> Unit) {
             .height(height)
             .border(
                 width = Theme.sizing.borderWidth,
-                color = Theme.colors.outline,
+                color = Theme.colours.outline,
                 shape = Theme.shapes.medium,
             )
             .clip(Theme.shapes.medium)
-            .background(Theme.colors.surfaceSunken),
+            .background(Theme.colours.surfaceSunken),
     ) {
         OverlayHost(Modifier.fillMaxSize()) { content() }
     }
@@ -84,15 +93,46 @@ private fun destinations(selected: Int, onSelectedChange: (Int) -> Unit) = listO
     NavItem("Profile", Tabler.Outline.User, { onSelectedChange(3) }),
 )
 
+/**
+ * More destinations than the rail is tall enough for.
+ *
+ * Four fit in 300dp with room to spare, and a rail that fits is a rail that
+ * never scrolls — so the fix for the overflowing rail was demonstrated by a
+ * case that could not overflow. Nine is past the edge at this height, which is
+ * the point of it.
+ */
+@Composable
+private fun manyDestinations(selected: Int, onSelectedChange: (Int) -> Unit) = listOf(
+    NavItem("Home", Tabler.Outline.Home, { onSelectedChange(0) }),
+    NavItem("Map", Tabler.Outline.Map, { onSelectedChange(1) }),
+    NavItem("Plan", Tabler.Outline.Calendar, { onSelectedChange(2) }, badge = 2),
+    NavItem("Nearby", Tabler.Outline.Pin, { onSelectedChange(3) }),
+    NavItem("Search", Tabler.Outline.Search, { onSelectedChange(4) }),
+    NavItem("Alerts", Tabler.Outline.Bell, { onSelectedChange(5) }),
+    NavItem("Saved", Tabler.Outline.Star, { onSelectedChange(6) }),
+    NavItem("Tickets", Tabler.Outline.Ticket, { onSelectedChange(7) }),
+    NavItem("Profile", Tabler.Outline.User, { onSelectedChange(8) }),
+)
+
 private val barLabels = Knob.Flag("Labels", initial = true)
+
+/**
+ * Free, Docked or Floating.
+ *
+ * The bar arrived with three of these and the demo showed one, so two thirds of
+ * what the page describes could not be looked at. `NavBarDefaults.arrangementFor`
+ * reads the same value, so switching it moves the items as well as the surface.
+ */
+private val barStyle = Knob.Choice("Bar style", NavBarStyle.entries.toList(), NavBarStyle.Free)
 
 internal val NavSurfacesDemo = ComponentDemo(
     slug = "nav-surfaces",
-    knobs = listOf(barLabels),
+    knobs = listOf(barStyle, barLabels),
 ) {
     var selected by remember { mutableStateOf(1) }
     var expanded by remember { mutableStateOf(false) }
     val labels = this[barLabels]
+    val style = this[barStyle]
 
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
         Text("NavBar", style = Theme.typography.labelMedium)
@@ -100,7 +140,8 @@ internal val NavSurfacesDemo = ComponentDemo(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
                 NavBar(
                     items = destinations(selected) { selected = it },
-                    selectedIndex = selected,
+                    selectedIndex = selected.coerceAtMost(3),
+                    style = style,
                     showLabels = labels,
                     action = {
                         FloatingActionButton(
@@ -113,10 +154,10 @@ internal val NavSurfacesDemo = ComponentDemo(
                 )
             }
         }
-        Text("NavRail", style = Theme.typography.labelMedium)
+        Text("NavRail — nine destinations in 300dp", style = Theme.typography.labelMedium)
         Frame(height = 300.dp) {
             NavRail(
-                items = destinations(selected) { selected = it },
+                items = manyDestinations(selected) { selected = it },
                 selectedIndex = selected,
                 expanded = expanded,
                 onExpandedChange = { expanded = it },
@@ -157,7 +198,7 @@ internal val NavigationSuiteScaffoldDemo = ComponentDemo(slug = "navigation-suit
                     Text(
                         "content",
                         style = Theme.typography.monoLabel,
-                        color = Theme.colors.contentSubtle,
+                        colour = Theme.colours.contentSubtle,
                     )
                 }
             }
@@ -178,38 +219,92 @@ internal val TopBarDemo = ComponentDemo(
         style = style,
         onBack = if (back) ({ echo("Back") }) else null,
         showDivider = true,
-        actions = {
-            IconButton(
-                icon = Tabler.Outline.DotsVertical,
-                contentDescription = "More",
-                onClick = { echo("More") },
-                variant = ButtonVariant.Ghost,
-                size = ButtonSize.Small,
-            )
-        },
+        actions = { OverflowMenu(::echo) },
     ) {
         +"Perth Underground"
         supporting { +"Platform 2 · Joondalup line" }
     }
 }
 
-internal val TabBarDemo = ComponentDemo(slug = "tab-bar") {
+/**
+ * The overflow button both bars carry, and what it opens.
+ *
+ * A button labelled "More" that echoes the word "More" demonstrates nothing —
+ * the point of an overflow slot is the menu behind it, so this is the library's
+ * own [DropdownMenu] with rows a transit app would really put there.
+ */
+@Composable
+private fun OverflowMenu(echo: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            icon = Tabler.Outline.DotsVertical,
+            contentDescription = "More",
+            onClick = { open = !open },
+            variant = ButtonVariant.Ghost,
+            size = ButtonSize.Small,
+        )
+        DropdownMenu(
+            visible = open,
+            onDismissRequest = { open = false },
+            // Opened from the trailing edge, so it hangs back into the bar
+            // rather than off the side of it.
+            alignment = OverlayAlignment.End,
+        ) {
+            // The rows dismiss the menu themselves — see `MenuScopeImpl.item`.
+            item("Pin this stop", icon = Tabler.Outline.Pin) { echo("Pin this stop") }
+            item("Alert settings", icon = Tabler.Outline.Bell) { echo("Alert settings") }
+            divider()
+            item("Remove stop", icon = Tabler.Outline.Trash, destructive = true) {
+                echo("Remove stop")
+            }
+        }
+    }
+}
+
+/**
+ * The rule under the bar, which now defaults to off.
+ *
+ * A pill *and* a rule is the sliding-underline bar wearing a different hat, so
+ * the default flipped this round — and the demo never passed the parameter, so
+ * the arrangement it flipped away from became unreachable from the site.
+ */
+private val tabDivider = Knob.Flag("Divider")
+
+internal val TabBarDemo = ComponentDemo(slug = "tab-bar", knobs = listOf(tabDivider)) {
     var tab by remember { mutableStateOf(1) }
-    TabBar(
-        modifier = Modifier.fillMaxWidth(),
-        actions = {
-            IconButton(
-                icon = Tabler.Outline.DotsVertical,
-                contentDescription = "More",
-                onClick = { echo("More") },
-                variant = ButtonVariant.Ghost,
-                size = ButtonSize.Small,
+    var narrow by remember { mutableStateOf(0) }
+    val divider = this[tabDivider]
+
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+        TabBar(
+            modifier = Modifier.fillMaxWidth(),
+            showDivider = divider,
+            actions = { OverflowMenu(::echo) },
+        ) {
+            Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) { +"Departures" }
+            Tab(selected = tab == 1, onClick = { tab = 1 }, key = 1) { +"Route map" }
+            Tab(selected = tab == 2, onClick = { tab = 2 }, key = 2, badge = 2) { +"Alerts" }
+        }
+
+        // Deliberately too narrow for its labels.
+        //
+        // A tab's horizontal padding yields rather than pushing the label out of
+        // the bar, so a squeezed tab keeps its word and its marker. This is the
+        // only place that is visible: at any comfortable width the padding is
+        // simply there and nothing is being demonstrated.
+        Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+            Text(
+                "Squeezed to 220dp",
+                style = Theme.typography.labelSmall,
+                colour = Theme.colours.contentMuted,
             )
-        },
-    ) {
-        Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) { +"Departures" }
-        Tab(selected = tab == 1, onClick = { tab = 1 }, key = 1) { +"Route map" }
-        Tab(selected = tab == 2, onClick = { tab = 2 }, key = 2, badge = 2) { +"Alerts" }
+            TabBar(modifier = Modifier.width(220.dp), showDivider = divider) {
+                Tab(selected = narrow == 0, onClick = { narrow = 0 }, key = 0) { +"Departures" }
+                Tab(selected = narrow == 1, onClick = { narrow = 1 }, key = 1) { +"Route map" }
+                Tab(selected = narrow == 2, onClick = { narrow = 2 }, key = 2) { +"Alerts" }
+            }
+        }
     }
 }
 
@@ -225,15 +320,31 @@ internal val BreadcrumbsDemo = ComponentDemo(slug = "breadcrumbs") {
     )
 }
 
-internal val PaginationDemo = ComponentDemo(slug = "pagination") {
+/**
+ * Whether the elision is a button.
+ *
+ * Off, the run of numbers just has a gap in it. On, the gap is a control that
+ * opens a field to type a page number into — which is the answer to "page 3 of
+ * 40, and I want page 27". It is off by default and the demo never passed it,
+ * so the popover existed and could not be reached.
+ */
+private val paginationJump = Knob.Flag("Jump")
+
+internal val PaginationDemo = ComponentDemo(slug = "pagination", knobs = listOf(paginationJump)) {
     var page by remember { mutableStateOf(19) }
+    val allowJump = this[paginationJump]
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-        Pagination(value = page, pageCount = 40, onValueChange = { page = it })
+        Pagination(
+            value = page,
+            pageCount = 40,
+            onValueChange = { page = it },
+            allowJump = allowJump,
+        )
         Text(
             "Page ${page + 1} of 40 — the run of numbers collapses differently " +
                 "at each end.",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }

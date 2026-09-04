@@ -12,14 +12,14 @@ import kotlin.test.assertTrue
 /**
  * Renders the token showcase in all four built-in schemes.
  *
- * The visual counterpart to `ColorSchemeContrastTest`: that one proves a pairing
+ * The visual counterpart to `ColourSchemeContrastTest`: that one proves a pairing
  * is *legal*, this one lets a human see whether it is *right*. Both are needed —
  * a palette can clear every ratio and still look muddy.
  *
  * ### Why five of these render at high contrast too
  *
  * Because nothing ever had. `ContrastLevel` reached the UI through exactly one
- * mechanism — picking a different `ColorScheme` — and `LocalContrastLevel` was
+ * mechanism — picking a different `ColourScheme` — and `LocalContrastLevel` was
  * read by nothing in the repo. What that looked like on screen was `outline`
  * jumping while every filled and borderless container stayed exactly as it was,
  * and it went unnoticed for as long as it did because the high-contrast tier was
@@ -187,7 +187,11 @@ class ThemeShowcaseScreenshotTest {
         for ((name, dark, contrast) in variants.filter { it.contrast == ContrastLevel.Standard }) {
             val file = Screenshot.render(
                 name = name.replace("theme-", "sheets-"),
-                width = 2960,
+                // Five panels of 340dp at 2x, plus their gaps. Grown when the
+                // header-sizes panel arrived, and the harness is why: it measured
+                // the page at 3688 against a 2960 canvas and refused, rather than
+                // quietly clipping a panel off the edge and passing.
+                width = 3760,
                 height = 1280,
                 frames = 60,
             ) {

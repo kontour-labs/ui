@@ -147,7 +147,7 @@ internal val SwipeActionsDemo = ComponentDemo(slug = "swipe-actions") {
         Text(
             "Drag a row sideways.",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
         SwipeActions(
             end = listOf(
@@ -155,7 +155,7 @@ internal val SwipeActionsDemo = ComponentDemo(slug = "swipe-actions") {
                     label = "Remove",
                     icon = Tabler.Outline.Trash,
                     onAction = { echo("Removed") },
-                    background = Theme.colors.danger.solid,
+                    background = Theme.colours.danger.solid,
                     isFullSwipeAction = true,
                 ),
             ),
@@ -164,7 +164,7 @@ internal val SwipeActionsDemo = ComponentDemo(slug = "swipe-actions") {
                     label = "Favourite",
                     icon = Tabler.Outline.Star,
                     onAction = { echo("Favourited") },
-                    background = Theme.colors.success.solid,
+                    background = Theme.colours.success.solid,
                 ),
             ),
         ) {
@@ -303,7 +303,7 @@ internal val DragHandleDemo = ComponentDemo(slug = "drag-handle") {
         Text(
             "Drawn by a sheet, not draggable on its own",
             style = Theme.typography.labelSmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
     }
 }

@@ -83,7 +83,7 @@ class NavRailStillnessTest {
                     selectedIndex = 0,
                     expanded = expanded,
                     onExpandedChange = { expanded = it },
-                    indicatorColor = Color.Transparent,
+                    indicatorColour = Color.Transparent,
                 )
             }
         }.use { scene ->
@@ -140,14 +140,14 @@ class NavRailStillnessTest {
                     selectedIndex = 0,
                     expanded = true,
                     onExpandedChange = {},
-                    indicatorColor = Color.Transparent,
+                    indicatorColour = Color.Transparent,
                 )
             }
         }.use { scene -> rail = scene.frames(30).iconLeadingEdge() }
 
         Scene(width = 800, height = 700) {
             Box(Modifier.fillMaxSize().background(Color.Magenta)) {
-                NavDrawer(indicatorColor = Color.Transparent) {
+                NavDrawer(indicatorColour = Color.Transparent) {
                     items.forEachIndexed { index, destination ->
                         item(
                             label = destination.label,

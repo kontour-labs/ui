@@ -7,7 +7,7 @@ Card(variant = CardVariant.Outlined, onClick = { openStop("Perth Underground") }
     Text(
         "Platform 2 · Joondalup line",
         style = Theme.typography.bodySmall,
-        color = Theme.colors.contentMuted,
+        colour = Theme.colours.contentMuted,
     )
 }
 ```

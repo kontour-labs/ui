@@ -4,6 +4,7 @@ import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.runtime.Composable
@@ -102,6 +103,73 @@ class SheetState internal constructor(
 
     /** Container height in pixels. Set by the sheet's layout. */
     internal var containerHeight by mutableFloatStateOf(0f)
+
+    /**
+     * How far the sheet has been pulled **above** its tallest detent, in pixels.
+     *
+     * `anchoredDraggable` clamps to its anchor range, so without this a sheet at
+     * its top detent does not move at all under a finger still travelling
+     * upward. Measured rather than assumed: dragged 292px past the top, the
+     * offset stayed at 352.0 for every frame of the drag. That is the "too
+     * rigid" — the sheet stops dead at a boundary the finger cannot feel.
+     *
+     * Subtracted from the offset at layout, so it is a purely visual stretch:
+     * the anchors, the settled detent and everything derived from them are
+     * untouched, and letting go springs it back to zero rather than settling
+     * anywhere new.
+     */
+    internal var overshoot by mutableFloatStateOf(0f)
+
+    /**
+     * Whether there is anything above the top detent to stretch into.
+     *
+     * A sheet already as tall as its container has nowhere to go, and stretching
+     * one would pull its top edge off the screen and leave a band of background
+     * under it — which is the one thing a bottom sheet must never show.
+     */
+    internal val canOvershoot: Boolean
+        get() {
+            val tallest = allowedDetents.minOfOrNull { detent ->
+                anchoredState.anchors.positionOf(detent)
+            } ?: return false
+            return !tallest.isNaN() && tallest > 0.5f
+        }
+
+    /**
+     * How far above the top detent the sheet may be pulled.
+     *
+     * A twelfth of the container: far enough to feel like the sheet answered the
+     * finger, short enough that nobody mistakes it for a detent they have not
+     * found yet.
+     */
+    internal val maxOvershoot: Float get() = containerHeight * OvershootShare
+
+    /**
+     * Takes [by] pixels of upward pull and returns how much of it was absorbed.
+     *
+     * Diminishing returns rather than a shorter track: each pixel of finger
+     * moves the sheet less the further it has already been pulled, so the edge
+     * feels like it is resisting. A linear stretch with a hard stop is the same
+     * rigid boundary moved somewhere else.
+     */
+    internal fun stretch(by: Float): Float {
+        val max = maxOvershoot
+        if (max <= 0f || by <= 0f) return 0f
+        val resistance = 1f - (overshoot / max).coerceIn(0f, 1f)
+        val gained = by * resistance
+        overshoot = (overshoot + gained).coerceIn(0f, max)
+        return gained
+    }
+
+    /** Springs the stretch back to nothing. */
+    internal suspend fun releaseOvershoot(spec: AnimationSpec<Float>) {
+        if (overshoot == 0f) return
+        animate(
+            initialValue = overshoot,
+            targetValue = 0f,
+            animationSpec = spec,
+        ) { value, _ -> overshoot = value }
+    }
 
     /** The content's own full height in pixels, for [SheetDetent.Expanded]. */
     internal var sheetHeight by mutableFloatStateOf(0f)
@@ -552,3 +620,12 @@ fun Modifier.sheetPeekAnchor(): Modifier {
 
 /** The orientation every sheet in this library drags along. */
 internal val SheetOrientation = Orientation.Vertical
+
+/**
+ * How far above its top detent a sheet may be pulled, as a share of the window.
+ *
+ * A twelfth. Chosen against the two failures either side of it: much less and
+ * the stretch is indistinguishable from the rigid stop it replaces, much more
+ * and the gap reads as a detent the sheet forgot to settle at.
+ */
+private const val OvershootShare = 1f / 12f

@@ -34,6 +34,7 @@ import io.kontour.ui.sheet.BottomSheet
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetHeader
+import io.kontour.ui.sheet.SheetHeaderStyle
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.sheet.rememberSheetState
@@ -55,19 +56,19 @@ private fun Screen(content: @Composable BoxScope.() -> Unit) {
             .height(420.dp)
             .border(
                 width = Theme.sizing.borderWidth,
-                color = Theme.colors.outline,
+                color = Theme.colours.outline,
                 shape = Theme.shapes.medium,
             )
             .clip(Theme.shapes.medium),
-        color = Theme.colors.surface,
+        colour = Theme.colours.surface,
     ) {
         OverlayHost(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize().background(Theme.colors.surfaceSunken)) {
+            Box(Modifier.fillMaxSize().background(Theme.colours.surfaceSunken)) {
                 Text(
                     text = "map",
                     modifier = Modifier.align(Alignment.TopCenter).padding(Theme.spacing.lg),
                     style = Theme.typography.monoLabel,
-                    color = Theme.colors.contentSubtle,
+                    colour = Theme.colours.contentSubtle,
                 )
                 content()
             }
@@ -111,7 +112,7 @@ internal val BottomSheetDemo = ComponentDemo(slug = "bottom-sheet") {
     Screen {
         BottomSheet(
             state = sheet,
-            actions = {
+            floatingControls = {
                 IconButton(
                     icon = Tabler.Outline.CurrentLocation,
                     contentDescription = "Recentre",
@@ -138,8 +139,22 @@ internal val BottomSheetDemo = ComponentDemo(slug = "bottom-sheet") {
     }
 }
 
-internal val ModalBottomSheetDemo = ComponentDemo(slug = "modal-bottom-sheet") {
+/**
+ * Whether a press outside closes it.
+ *
+ * Off is the sheet you cannot leave by tapping the scrim — a rename that has to
+ * be finished or cancelled. Every demo carrying this knob keeps a button inside
+ * the sheet as well, because a reader who turns it off and finds no way back out
+ * has hit a trap rather than a demonstration.
+ */
+private val sheetDismissible = Knob.Flag("Dismissible", initial = true)
+
+internal val ModalBottomSheetDemo = ComponentDemo(
+    slug = "modal-bottom-sheet",
+    knobs = listOf(sheetDismissible),
+) {
     var open by remember { mutableStateOf(false) }
+    val dismissible = this[sheetDismissible]
     Screen {
         Button(
             onClick = { open = true },
@@ -147,7 +162,11 @@ internal val ModalBottomSheetDemo = ComponentDemo(slug = "modal-bottom-sheet") {
             modifier = Modifier.align(Alignment.Center),
         ) { +"Rename favourite" }
 
-        ModalBottomSheet(visible = open, onDismissRequest = { open = false }) {
+        ModalBottomSheet(
+            visible = open,
+            onDismissRequest = { open = false },
+            dismissible = dismissible,
+        ) {
             SheetHeader {
                 +"Rename favourite"
                 supporting { +"Perth Underground" }
@@ -163,7 +182,7 @@ internal val ModalBottomSheetDemo = ComponentDemo(slug = "modal-bottom-sheet") {
                 Text(
                     "Give it a name you will recognise on the home screen.",
                     style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentMuted,
+                    colour = Theme.colours.contentMuted,
                 )
                 Button(
                     onClick = { open = false; echo("Saved") },
@@ -176,9 +195,13 @@ internal val ModalBottomSheetDemo = ComponentDemo(slug = "modal-bottom-sheet") {
 
 private val sheetSide = Knob.Choice("Side", SheetSide.entries.toList(), SheetSide.Start)
 
-internal val SideSheetDemo = ComponentDemo(slug = "side-sheet", knobs = listOf(sheetSide)) {
+internal val SideSheetDemo = ComponentDemo(
+    slug = "side-sheet",
+    knobs = listOf(sheetSide, sheetDismissible),
+) {
     var open by remember { mutableStateOf(false) }
     val side = this[sheetSide]
+    val dismissible = this[sheetDismissible]
     Screen {
         Button(
             onClick = { open = true },
@@ -191,8 +214,11 @@ internal val SideSheetDemo = ComponentDemo(slug = "side-sheet", knobs = listOf(s
             onDismissRequest = { open = false },
             side = side,
             width = 240.dp,
+            dismissible = dismissible,
             onBack = { open = false },
         ) {
+            // The header's own close button is the way out when the scrim is
+            // not one — `onClose` defaults to `closeEnclosingSheet()`.
             SheetHeader { +"Filters" }
             Column(
                 modifier = Modifier.padding(horizontal = Theme.spacing.md),
@@ -202,15 +228,22 @@ internal val SideSheetDemo = ComponentDemo(slug = "side-sheet", knobs = listOf(s
                 Text(
                     "run in the next hour",
                     style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentMuted,
+                    colour = Theme.colours.contentMuted,
                 )
             }
         }
     }
 }
 
-internal val SheetHeaderDemo = ComponentDemo(slug = "sheet-header") {
+private val headerStyle =
+    Knob.Choice("Style", SheetHeaderStyle.entries.toList(), SheetHeaderStyle.Small)
+
+internal val SheetHeaderDemo = ComponentDemo(
+    slug = "sheet-header",
+    knobs = listOf(headerStyle),
+) {
     var open by remember { mutableStateOf(true) }
+    val style = this[headerStyle]
     Screen {
         if (!open) {
             Button(
@@ -222,6 +255,7 @@ internal val SheetHeaderDemo = ComponentDemo(slug = "sheet-header") {
         }
         ModalBottomSheet(visible = open, onDismissRequest = { open = false }) {
             SheetHeader(
+                style = style,
                 actions = {
                     IconButton(
                         icon = Tabler.Outline.Star,

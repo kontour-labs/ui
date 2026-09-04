@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.motion.PageTransition
+import io.kontour.ui.motion.sharedElement
 import io.kontour.ui.theme.Theme
 import java.awt.image.BufferedImage
 import kotlin.test.Test
@@ -149,7 +150,7 @@ class PageTransitionTest {
     @androidx.compose.runtime.Composable
     private fun Pages(page: MutableState<String>) {
         PageTransition(target = page.value, modifier = Modifier.fillMaxSize()) { current ->
-            Box(Modifier.fillMaxSize().background(Theme.colors.background)) {
+            Box(Modifier.fillMaxSize().background(Theme.colours.background)) {
                 if (current == Small) {
                     Box(
                         Modifier

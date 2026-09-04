@@ -30,7 +30,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.contentColorFor
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.Feedback
@@ -66,8 +66,8 @@ private const val ThumbStretch = 1.25f
  * and it is what stops the control feeling like a rectangle sliding in a slot.
  * Under reduced motion the thumb simply moves.
  *
- * The track is [io.kontour.ui.theme.ColorScheme.primary] when on and
- * [io.kontour.ui.theme.ColorScheme.outlineStrong] when off — **filled** in both
+ * The track is [io.kontour.ui.theme.ColourScheme.primary] when on and
+ * [io.kontour.ui.theme.ColourScheme.outlineStrong] when off — **filled** in both
  * states, and the thumb is the same colour throughout, so the only thing that
  * changes is the track behind it. That is a switch: one moving part.
  *
@@ -90,9 +90,9 @@ fun Switch(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
-    val shape = Theme.shapes.pill
+    val shape = Theme.shapes.control
     val feedback = Feedback
     val scope = rememberCoroutineScope()
 
@@ -106,11 +106,11 @@ fun Switch(
         if (onCheckedChange == null && interactionSource == null && row != null) row else interactions
     val pressed by pressSource.collectIsPressedAsState()
 
-    val trackColor by animateColorAsState(
+    val trackColour by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.contentDisabled
-            checked -> colors.primary
-            else -> colors.outlineStrong
+            !enabled -> colours.contentDisabled
+            checked -> colours.primary
+            else -> colours.outlineStrong
         },
         animationSpec = motion.tweenFast(),
         label = "switchTrack",
@@ -118,8 +118,8 @@ fun Switch(
     // The thumb does not change colour, in either direction. A switch has one
     // moving part and one thing that changes behind it; recolouring the thumb as
     // well makes the flip read as two events.
-    val thumbColor by animateColorAsState(
-        targetValue = if (enabled) colors.onPrimary else contentColorFor(colors.contentDisabled),
+    val thumbColour by animateColorAsState(
+        targetValue = if (enabled) colours.onPrimary else contentColourFor(colours.contentDisabled),
         animationSpec = motion.tweenFast(),
         label = "switchThumb",
     )
@@ -268,7 +268,7 @@ fun Switch(
         // would have to be a third colour to be visible at all, and a switch
         // does not need a third colour.
         drawRoundRect(
-            color = trackColor,
+            color = trackColour,
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackRadius),
         )
 
@@ -305,7 +305,7 @@ fun Switch(
         val top = (size.height - thumbPx).coerceAtLeast(0f) / 2f
 
         drawRoundRect(
-            color = thumbColor,
+            color = thumbColour,
             topLeft = Offset(left.coerceIn(0f, (size.width - stretchedWidth).coerceAtLeast(0f)), top),
             size = Size(stretchedWidth, thumbPx),
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(thumbPx / 2f),

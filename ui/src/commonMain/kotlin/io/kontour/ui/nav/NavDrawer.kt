@@ -2,7 +2,6 @@ package io.kontour.ui.nav
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
@@ -34,7 +33,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -43,13 +41,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorEdge
 import io.kontour.ui.foundation.IndicatorSizing
@@ -113,9 +112,9 @@ object NavDrawerDefaults {
 fun NavDrawer(
     modifier: Modifier = Modifier,
     width: Dp = NavDrawerDefaults.Width,
-    containerColor: Color = Theme.colors.surface,
-    contentColor: Color = Theme.colors.content,
-    indicatorColor: Color = Theme.colors.accent.container,
+    containerColour: Color = Theme.colours.surface,
+    contentColour: Color = Theme.colours.content,
+    indicatorColour: Color = Theme.colours.accent.container,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     /**
@@ -136,8 +135,8 @@ fun NavDrawer(
         modifier = modifier
             .width(width)
             .fillMaxHeight(),
-        color = containerColor,
-        contentColor = contentColor,
+        colour = containerColour,
+        contentColour = contentColour,
     ) {
         Column(
             modifier = Modifier
@@ -158,7 +157,7 @@ fun NavDrawer(
 
             DrawerItems(
                 modifier = Modifier.weight(1f),
-                indicatorColor = indicatorColor,
+                indicatorColour = indicatorColour,
                 content = content,
             )
 
@@ -196,7 +195,7 @@ fun ModalNavDrawer(
     width: Dp = NavDrawerDefaults.Width,
     dismissLabel: String = Theme.strings.closeNavigation,
     paneTitle: String = Theme.strings.navigation,
-    indicatorColor: Color = Theme.colors.accent.container,
+    indicatorColour: Color = Theme.colours.accent.container,
     header: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable NavDrawerScope.() -> Unit,
@@ -219,7 +218,7 @@ fun ModalNavDrawer(
             header?.invoke(this)
             DrawerItems(
                 modifier = Modifier.weight(1f),
-                indicatorColor = indicatorColor,
+                indicatorColour = indicatorColour,
                 content = content,
             )
             footer?.invoke(this)
@@ -240,7 +239,7 @@ fun ModalNavDrawer(
 @Composable
 private fun DrawerItems(
     modifier: Modifier,
-    indicatorColor: Color,
+    indicatorColour: Color,
     content: @Composable NavDrawerScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
@@ -262,7 +261,7 @@ private fun DrawerItems(
                     Modifier
                         .fillMaxSize()
                         .clip(Theme.shapes.pill)
-                        .background(indicatorColor)
+                        .background(indicatorColour)
                 )
             },
         ) {
@@ -305,7 +304,7 @@ fun NavDrawerItem(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -324,7 +323,7 @@ fun NavDrawerItem(
         Color.Transparent
     } else {
         val animated by animateColorAsState(
-            targetValue = if (selected) colors.accent.container else Color.Transparent,
+            targetValue = if (selected) colours.accent.container else Color.Transparent,
             animationSpec = motion.tweenFast(),
             label = "drawerItemContainer",
         )
@@ -332,12 +331,12 @@ fun NavDrawerItem(
     }
     val content by animateColorAsState(
         targetValue = when {
-            !enabled -> colors.contentDisabled
-            selected -> colors.accent.onContainer
+            !enabled -> colours.contentDisabled
+            selected -> colours.accent.onContainer
             // `contentMuted`, matching the bar and the rail. This used to be
             // `content`, which left the selected/unselected difference here
             // weaker than in either of its siblings.
-            else -> colors.contentMuted
+            else -> colours.contentMuted
         },
         animationSpec = motion.tweenFast(),
         label = "drawerItemContent",
@@ -370,7 +369,7 @@ fun NavDrawerItem(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ProvideContentColor(content) {
+        ProvideContentColour(content) {
             slots.leading?.let { leading ->
                 ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
             }
@@ -421,17 +420,11 @@ fun NavDrawerGroup(
     nestLevel: Int = 0,
     content: @Composable NavDrawerScope.() -> Unit,
 ) {
-    val colors = Theme.colors
+    val colours = Theme.colours
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.container
-
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = motion.springOrTween(motion.springDefault),
-        label = "drawerGroupChevron",
-    )
 
     Column(modifier.fillMaxWidth()) {
         Row(
@@ -463,7 +456,7 @@ fun NavDrawerGroup(
                     imageVector = icon,
                     contentDescription = null,
                     size = Theme.sizing.iconLarge,
-                    tint = colors.contentMuted,
+                    tint = colours.contentMuted,
                 )
             }
             Box(Modifier.weight(1f)) {
@@ -474,9 +467,9 @@ fun NavDrawerGroup(
             Icon(
                 imageVector = SystemIcons.ChevronDown,
                 contentDescription = null,
-                modifier = Modifier.graphicsLayer { rotationZ = rotation },
+                modifier = Modifier.chevronTurn(expanded, label = "drawerGroupChevron"),
                 size = Theme.sizing.iconMedium,
-                tint = colors.contentMuted,
+                tint = colours.contentMuted,
             )
         }
 
@@ -516,7 +509,7 @@ fun NavDrawerSection(
                 .semantics(mergeDescendants = true) { heading() }
         ) {
             ProvideTextStyle(Theme.typography.labelSmall) {
-                ProvideContentColor(Theme.colors.contentMuted) {
+                ProvideContentColour(Theme.colours.contentMuted) {
                     ContentSlot(iconSize = Theme.sizing.iconSmall, content = title)
                 }
             }

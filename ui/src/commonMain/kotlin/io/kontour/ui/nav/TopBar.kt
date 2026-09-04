@@ -26,9 +26,10 @@ import androidx.compose.foundation.lazy.LazyListState
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.CentredBar
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
-import io.kontour.ui.foundation.ProvideContentColor
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
@@ -96,8 +97,8 @@ fun TopBar(
     backLabel: String = Theme.strings.back,
     navigation: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
-    containerColor: Color = Theme.colors.background,
-    contentColor: Color = Theme.colors.content,
+    containerColour: Color = Theme.colours.background,
+    contentColour: Color = Theme.colours.content,
     showDivider: Boolean = false,
     /**
      * 0 when the content is at the top, 1 when it has scrolled far enough to
@@ -122,31 +123,53 @@ fun TopBar(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
-    Surface(modifier = modifier.fillMaxWidth(), color = containerColor, contentColor = contentColor) {
+    Surface(modifier = modifier.fillMaxWidth(), colour = containerColour, contentColour = contentColour) {
         // Inside the surface, so the container colour still reaches the top of the
         // window and the status bar sits on the bar rather than on a strip of
         // whatever is behind it.
         Column(Modifier.windowInsetsPadding(windowInsets)) {
             when (style) {
-                TopBarStyle.Small, TopBarStyle.Centred -> Row(
+                // `CentredBar` rather than a `Row`, and only it can do this: a
+                // weighted title is centred in the space its controls left over,
+                // which is the middle of the bar only when both sides are the
+                // same width. With a back button and no actions — or actions and
+                // no back button — the title sits off-centre, and it *moves* the
+                // moment the back button appears or goes.
+                TopBarStyle.Small, TopBarStyle.Centred -> CentredBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = TopBarDefaults.Height)
                         .padding(horizontal = Theme.spacing.xs),
-                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Leading(onBack, backLabel, navigation)
-                    TitleBlock(
-                        slots = slots,
-                        modifier = Modifier.weight(1f),
-                        centred = style == TopBarStyle.Centred,
-                    )
-                    actions?.invoke(this)
-                }
+                    centred = style == TopBarStyle.Centred,
+                    leading = { Leading(onBack, backLabel, navigation) },
+                    title = {
+                        TitleBlock(
+                            slots = slots,
+                            modifier = Modifier.padding(horizontal = Theme.spacing.xs),
+                            centred = style == TopBarStyle.Centred,
+                        )
+                    },
+                    trailing = {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            actions?.invoke(this)
+                        }
+                    },
+                )
 
                 TopBarStyle.Large -> Column(Modifier.fillMaxWidth()) {
-                    Row(
+                    // The controls row is skipped when it would be empty, so the
+                    // large title takes the space the back button would have
+                    // had. A bar with nothing to put on that line was drawing
+                    // 56dp of nothing above its own title.
+                    //
+                    // Only when it is *entirely* empty: with actions on it the
+                    // row still has a job, and the small title still has
+                    // somewhere to fade into as the large one leaves.
+                    val hasControls = onBack != null || navigation != null || actions != null
+                    if (hasControls) Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(TopBarDefaults.Height)
@@ -236,7 +259,7 @@ private fun TitleBlock(
             }
         }
         slots.supporting?.let { subtitle ->
-            ProvideContentColor(Theme.colors.contentMuted) {
+            ProvideContentColour(Theme.colours.contentMuted) {
                 ProvideTextStyle(Theme.typography.bodySmall.copy(textAlign = align)) {
                     ContentSlot(maxLines = 1, content = subtitle)
                 }

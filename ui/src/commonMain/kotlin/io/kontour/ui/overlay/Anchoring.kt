@@ -261,7 +261,7 @@ private val ArrowOverlap: Dp = 1.dp
 /** A pointer showing which element an overlay belongs to. */
 @Immutable
 data class ArrowSpec(
-    val color: Color,
+    val colour: Color,
     val width: Dp = 14.dp,
     val height: Dp = 7.dp,
 )
@@ -269,6 +269,23 @@ data class ArrowSpec(
 /** Carries the arrow geometry from the measure pass to the draw pass. */
 private class ArrowPath {
     var path: Path? = null
+}
+
+/**
+ * The last anchor the overlay was actually placed against.
+ *
+ * A caller whose anchor *is* the state that opens the overlay — `ContextMenuArea`
+ * holds a nullable `Rect` and clears it to dismiss — leaves this layout with
+ * nothing to measure against for the whole of the exit animation, and
+ * `Rect.Zero` is the window's top-left corner. So the menu spent its exit
+ * sliding to the corner of the screen.
+ *
+ * Not snapshot state: this is read during measure, and a `mutableStateOf`
+ * written in the pass that reads it invalidates that pass. Same reason
+ * [ArrowPath] is a plain holder.
+ */
+private class AnchorMemory {
+    var last: Rect? = null
 }
 
 /**
@@ -316,6 +333,7 @@ internal fun AnchoredOverlayLayout(
     val density = LocalDensity.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val geometry = remember { ArrowPath() }
+    val anchorMemory = remember { AnchorMemory() }
 
     val gapPx = with(density) { gap.roundToPx() }
     val marginPx = with(density) { margin.roundToPx() }
@@ -343,7 +361,7 @@ internal fun AnchoredOverlayLayout(
             .drawWithContent {
                 drawContent()
                 val path = geometry.path
-                if (path != null && arrow != null) drawPath(path, arrow.color)
+                if (path != null && arrow != null) drawPath(path, arrow.colour)
             },
         content = content,
     ) { measurables, constraints ->
@@ -360,7 +378,9 @@ internal fun AnchoredOverlayLayout(
             placeables.maxOfOrNull { it.height } ?: 0,
         )
 
-        val anchorRect = anchorInRoot()
+        // Falls back to the last real anchor rather than to the origin — see
+        // `AnchorMemory`.
+        val anchorRect = anchorInRoot()?.also { anchorMemory.last = it } ?: anchorMemory.last
         val anchorInHost = (anchorRect ?: Rect.Zero).translate(-host.originInRoot)
         val placement = positionAnchored(
             anchor = anchorInHost,
@@ -500,8 +520,8 @@ private fun arrowPath(
 internal fun OverlaySurface(
     modifier: Modifier = Modifier,
     shape: Shape = Theme.shapes.container,
-    color: Color = Theme.colors.surfaceRaised,
-    contentColor: Color = Theme.colors.content,
+    colour: Color = Theme.colours.surfaceRaised,
+    contentColour: Color = Theme.colours.content,
     border: Boolean = true,
     /**
      * Hands the panel's settled width down to its content.
@@ -517,10 +537,10 @@ internal fun OverlaySurface(
         modifier = modifier,
         shape = shape,
         propagateMinConstraints = propagateMinConstraints,
-        color = color,
-        contentColor = contentColor,
+        colour = colour,
+        contentColour = contentColour,
         border = if (border) {
-            BorderStroke(Theme.sizing.borderWidth, Theme.colors.outlineSubtle)
+            BorderStroke(Theme.sizing.borderWidth, Theme.colours.outlineSubtle)
         } else {
             null
         },

@@ -15,7 +15,6 @@ Rows, and the things that happen to them.
 | [`LoadMore`](load-more.md) | The paging row at the end | — |
 | [`Modifier.fadingEdges`](modifier-fading-edges.md) | Fading content at a scrollable edge | — |
 | [`Scrollbar`](scrollbar.md) | Where you are in a long list | — |
-| [`DragHandle`](drag-handle.md) | The grab bar at the top of a sheet | — |
 
 ---
 

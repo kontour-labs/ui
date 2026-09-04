@@ -19,7 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.theme.StatusColors
+import io.kontour.ui.theme.StatusColours
 import io.kontour.ui.theme.Theme
 
 /**
@@ -32,7 +32,7 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun ThemeShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = Theme.colors.background) {
+    Surface(modifier = modifier, colour = Theme.colours.background) {
         Column(
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -51,7 +51,7 @@ private fun SectionHeading(text: String) {
     Text(
         text = text.uppercase(),
         style = Theme.typography.monoLabel,
-        color = Theme.colors.accent.solid,
+        colour = Theme.colours.accent.solid,
     )
 }
 
@@ -67,28 +67,28 @@ private fun TypeScale() {
             "Body large — the all-in-one public transport companion. " +
                 "Real-time tracking for Perth and Melbourne.",
             style = Theme.typography.bodyLarge,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
         Text(
             "Body small, in the subtle tone used for placeholders and hints.",
             style = Theme.typography.bodySmall,
-            color = Theme.colors.contentSubtle,
+            colour = Theme.colours.contentSubtle,
         )
         Text("LABEL LARGE", style = Theme.typography.labelLarge)
     }
 }
 
 @Composable
-private fun Swatch(name: String, color: Color, onColor: Color, width: Int = 132) {
+private fun Swatch(name: String, colour: Color, onColor: Color, width: Int = 132) {
     Surface(
         modifier = Modifier.width(width.dp).height(56.dp),
         shape = Theme.shapes.small,
-        color = color,
-        contentColor = onColor,
+        colour = colour,
+        contentColour = onColor,
         // A hairline on every swatch, so the ones that match the page ground —
         // `surface` and `surfaceRaised` in light mode are both white — are still
         // visible as swatches rather than vanishing into the background.
-        border = BorderStroke(Theme.sizing.borderWidth, Theme.colors.outline),
+        border = BorderStroke(Theme.sizing.borderWidth, Theme.colours.outline),
     ) {
         Box(Modifier.padding(Theme.spacing.xs), contentAlignment = Alignment.BottomStart) {
             Text(
@@ -103,7 +103,7 @@ private fun Swatch(name: String, color: Color, onColor: Color, width: Int = 132)
 
 @Composable
 private fun ColourRamp() {
-    val c = Theme.colors
+    val c = Theme.colours
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         SectionHeading("Colour")
         FlowRow(
@@ -132,7 +132,7 @@ private fun ColourRamp() {
 }
 
 @Composable
-private fun StatusRow(name: String, tone: StatusColors) {
+private fun StatusRow(name: String, tone: StatusColours) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
@@ -141,8 +141,8 @@ private fun StatusRow(name: String, tone: StatusColors) {
         Surface(
             modifier = Modifier.width(260.dp).height(56.dp),
             shape = Theme.shapes.small,
-            color = tone.container,
-            contentColor = tone.onContainer,
+            colour = tone.container,
+            contentColour = tone.onContainer,
         ) {
             Box(Modifier.padding(Theme.spacing.sm), contentAlignment = Alignment.CenterStart) {
                 Text("$name container — banner and chip tint", style = Theme.typography.bodySmall)
@@ -153,7 +153,7 @@ private fun StatusRow(name: String, tone: StatusColors) {
 
 @Composable
 private fun StatusTones() {
-    val c = Theme.colors
+    val c = Theme.colours
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         SectionHeading("Status")
         StatusRow("success", c.success)
@@ -180,7 +180,7 @@ private fun SurfacesAndElevation() {
                     Surface(
                         modifier = Modifier.size(width = 120.dp, height = 72.dp),
                         shape = Theme.shapes.medium,
-                        color = Theme.colors.surface,
+                        colour = Theme.colours.surface,
                         shadow = shadow,
                     ) {
                         Box(Modifier.padding(Theme.spacing.sm), contentAlignment = Alignment.Center) {
@@ -213,8 +213,8 @@ private fun ShapeScale() {
                 Surface(
                     modifier = Modifier.size(width = 96.dp, height = 56.dp),
                     shape = shape,
-                    color = Theme.colors.surfaceSunken,
-                    border = BorderStroke(Theme.sizing.borderWidth, Theme.colors.outline),
+                    colour = Theme.colours.surfaceSunken,
+                    border = BorderStroke(Theme.sizing.borderWidth, Theme.colours.outline),
                 ) {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Text(name, style = Theme.typography.labelMedium)

@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.adaptive.sheetEdges
@@ -127,8 +128,8 @@ fun BottomSheet(
     state: SheetState,
     modifier: Modifier = Modifier,
     shape: Shape = Theme.shapes.sheet,
-    containerColor: Color = Theme.colors.surfaceRaised,
-    contentColor: Color = Theme.colors.content,
+    containerColour: Color = Theme.colours.surfaceRaised,
+    contentColour: Color = Theme.colours.content,
     paneTitle: String? = null,
     /**
      * Whether the sheet answers a drag.
@@ -153,15 +154,25 @@ fun BottomSheet(
      * Controls that ride *above* the sheet's top edge rather than inside it.
      *
      * For the things that must stay reachable while the content scrolls — a
-     * close button, a "recentre" on a map, a filter. Inside the sheet they would
+     * "recentre" on a map, a filter, a layer toggle. Inside the sheet they would
      * either scroll away or need a pinned header eating the sheet's height; here
      * they sit on whatever is behind it and move with the sheet as it is
      * dragged, which is the arrangement every maps app converges on.
      *
+     * **Not [SheetHeader]'s `actions`,** which is the row *inside* the sheet
+     * beside its title. This was called `actions` too, and one component family
+     * with two different `actions` meaning two different places is the reason
+     * nobody could tell which one they wanted. These float; those do not.
+     *
+     * They belong to the sheet, so they go when it goes: the row fades out over
+     * the last stretch of the sheet's travel and is not composed at all once it
+     * has settled hidden. It used to stay parked at the bottom of the window
+     * over a sheet that was no longer there.
+     *
      * End-aligned by default. The row is a `RowScope`, so `Arrangement` and
      * `Modifier.align` are how you say otherwise.
      */
-    actions: (@Composable RowScope.() -> Unit)? = null,
+    floatingControls: (@Composable RowScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val density = LocalDensity.current
@@ -176,6 +187,7 @@ fun BottomSheet(
     // the handle does.
     val settleSpec: FiniteAnimationSpec<Float> = motion.springOrTween(motion.springGentle)
 
+    val overscroll = rememberSheetOverscroll(state, settleSpec)
     val fling = AnchoredDraggableDefaults.flingBehavior(
         state = state.anchoredState,
         positionalThreshold = SheetDefaults.PositionalThreshold,
@@ -215,7 +227,10 @@ fun BottomSheet(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .widthIn(max = SheetDefaults.MaxWidth)
-                .offset { IntOffset(0, offsetOrHidden(state)) }
+                // Less whatever the sheet has been stretched above its top
+                // detent. Purely visual, and read in the layout phase so a
+                // stretch never recomposes the sheet's content.
+                .offset { IntOffset(0, offsetOrHidden(state) - state.overshoot.roundToInt()) }
                 .then(
                     if (draggable) {
                         Modifier
@@ -224,6 +239,9 @@ fun BottomSheet(
                                 state = state.anchoredState,
                                 orientation = SheetOrientation,
                                 flingBehavior = fling,
+                                // Lets the sheet be pulled above its top detent
+                                // and springs it back — see `SheetOverscroll`.
+                                overscrollEffect = overscroll,
                             )
                     } else {
                         // The nested-scroll connection goes with the drag. Its
@@ -243,8 +261,8 @@ fun BottomSheet(
                 state = state,
                 shape = shape,
                 windowInsets = windowInsets,
-                containerColor = containerColor,
-                contentColor = contentColor,
+                containerColour = containerColour,
+                contentColour = contentColour,
                 // A handle on a sheet that cannot be dragged is a lie.
                 dragHandle = dragHandle.takeIf { draggable },
                 density = density,
@@ -252,7 +270,10 @@ fun BottomSheet(
             )
         }
 
-        if (actions != null) {
+        // Not composed at all once the sheet has settled hidden. Alpha alone
+        // would not do: a node at zero alpha is still hit-tested, so the
+        // controls went on swallowing taps aimed at the page behind them.
+        if (floatingControls != null && state.isVisible) {
             var actionsHeight by remember { mutableIntStateOf(0) }
             Row(
                 modifier = Modifier
@@ -267,14 +288,31 @@ fun BottomSheet(
                     .offset {
                         IntOffset(
                             0,
-                            offsetOrHidden(state) - actionsHeight - actionsGap.roundToPx(),
+                            offsetOrHidden(state) -
+                                state.overshoot.roundToInt() -
+                                actionsHeight -
+                                actionsGap.roundToPx(),
                         )
+                    }
+                    .graphicsLayer {
+                        // Faded over exactly the distance the row occupies, so
+                        // it is gone by the time the sheet's top edge has passed
+                        // where it was sitting — and at full strength for the
+                        // whole of any travel between real detents, which a
+                        // fraction of the sheet's own height would not be.
+                        //
+                        // Read here rather than captured: `visibleHeight` moves
+                        // every frame of a drag, and reading it in composition
+                        // would recompose the row and everything in it for each
+                        // one.
+                        val over = (actionsHeight + actionsGap.toPx()).coerceAtLeast(1f)
+                        alpha = (state.visibleHeight / over).coerceIn(0f, 1f)
                     }
                     .windowInsetsPadding(windowInsets.only(WindowInsetsSides.Horizontal))
                     .padding(horizontal = Theme.spacing.md),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.Bottom,
-                content = actions,
+                content = floatingControls,
             )
         }
     }
@@ -309,9 +347,25 @@ fun ModalBottomSheet(
         initialDetent = SheetDetent.Hidden,
     ),
     shape: Shape = Theme.shapes.sheet,
-    containerColor: Color = Theme.colors.surfaceRaised,
-    contentColor: Color = Theme.colors.content,
-    dismissOnOutside: Boolean = true,
+    containerColour: Color = Theme.colours.surfaceRaised,
+    contentColour: Color = Theme.colours.content,
+    /**
+     * Whether the user can close this sheet without the app's help.
+     *
+     * `false` closes **every** route out: the tap outside, the back gesture, and
+     * the drag to the bottom — which springs back instead. For the sheet that
+     * must be answered rather than escaped: a required choice, a form with
+     * unsaved changes. The app can still close it by setting `visible` to false,
+     * and should offer some way to.
+     *
+     * Not the same as `draggable = false`, which stops the sheet moving at all
+     * and takes its handle with it. A sheet can be undismissable and still be
+     * dragged between its detents.
+     *
+     * Pair it with `onClose = null` on the [SheetHeader], or the sheet grows a
+     * close button that contradicts it.
+     */
+    dismissible: Boolean = true,
     dismissLabel: String = Theme.strings.close,
     paneTitle: String? = null,
     /** See [BottomSheet]. `false` removes the gesture and the handle with it. */
@@ -338,8 +392,8 @@ fun ModalBottomSheet(
     // this reason; the appearance was missed.
     val latestModifier by rememberUpdatedState(modifier)
     val latestShape by rememberUpdatedState(shape)
-    val latestContainerColor by rememberUpdatedState(containerColor)
-    val latestContentColor by rememberUpdatedState(contentColor)
+    val latestContainerColour by rememberUpdatedState(containerColour)
+    val latestContentColour by rememberUpdatedState(contentColour)
     val latestPaneTitle by rememberUpdatedState(paneTitle)
     val latestDragHandle by rememberUpdatedState(dragHandle)
     val latestDraggable by rememberUpdatedState(draggable)
@@ -349,8 +403,16 @@ fun ModalBottomSheet(
     // Drag it shut and the caller finds out, so `visible` and the sheet cannot
     // disagree about whether it is open.
     val showing by rememberUpdatedState(visible)
+    val canDismiss by rememberUpdatedState(dismissible)
     LaunchedEffect(state) {
-        snapshotOfHidden(state, stillVisible = { showing }) { dismiss() }
+        snapshotOfHidden(state, stillVisible = { showing }) {
+            // A sheet that cannot be dismissed does not pass the drag on as a
+            // request. `snapshotOfHidden` then finds the caller still wants it
+            // visible and puts it back — which is the whole of "it does not
+            // close", using the mechanism that was already there for a caller
+            // declining one.
+            if (canDismiss) dismiss()
+        }
     }
 
     LaunchedEffect(visible) {
@@ -365,7 +427,7 @@ fun ModalBottomSheet(
                     // well as blurring. That is what says "on top of this
                     // screen" rather than "a new screen".
                     backdrop = BackdropStyle.BlurAndScale,
-                    dismissOnOutside = dismissOnOutside,
+                    dismissOnOutside = dismissible,
                     dismissLabel = dismissLabel,
                     // The sheet slides itself down and hides the entry when it
                     // has landed — see the `else` branch below.
@@ -388,8 +450,8 @@ fun ModalBottomSheet(
                             state = state,
                             modifier = latestModifier,
                             shape = latestShape,
-                            containerColor = latestContainerColor,
-                            contentColor = latestContentColor,
+                            containerColour = latestContainerColour,
+                            contentColour = latestContentColour,
                             paneTitle = latestPaneTitle,
                             draggable = latestDraggable,
                             dragHandle = latestDragHandle,
@@ -414,8 +476,8 @@ private fun BoxScope.SheetSurface(
     state: SheetState,
     shape: Shape,
     windowInsets: WindowInsets,
-    containerColor: Color,
-    contentColor: Color,
+    containerColour: Color,
+    contentColour: Color,
     dragHandle: (@Composable () -> Unit)?,
     density: androidx.compose.ui.unit.Density,
     content: @Composable ColumnScope.() -> Unit,
@@ -464,8 +526,8 @@ private fun BoxScope.SheetSurface(
                 state.updateAnchors(density)
             },
         shape = shape,
-        color = containerColor,
-        contentColor = contentColor,
+        colour = containerColour,
+        contentColour = contentColour,
         border = contrastEdge(),
         shadow = Theme.elevation.overlay,
     ) {

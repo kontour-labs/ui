@@ -27,7 +27,7 @@ actual fun platformPrefersReducedMotion(): Boolean =
 
 /**
  * "Increase Contrast" in Settings › Accessibility › Display & Text Size. UIKit
- * exposes it as *darker system colors*.
+ * exposes it as *darker system colours*.
  */
 @Composable
 actual fun platformPrefersHighContrast(): Boolean =

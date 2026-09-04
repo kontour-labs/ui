@@ -42,6 +42,9 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
@@ -203,14 +206,29 @@ fun PullToRefresh(
     )
 
     Box(modifier.nestedScroll(connection)) {
-        content()
+        // The content itself comes down, and the indicator is revealed in the
+        // gap behind it.
+        //
+        // It used to stay put while a floating circle slid down over the top of
+        // it, which is a control appearing *in front of* the list rather than
+        // the list being pulled away from its top edge. Moving the content is
+        // what makes the gesture feel like it is moving the page — the thing
+        // your finger is actually on — and it is what iOS does.
+        //
+        // In a layer, so the list is not re-laid-out on every frame of a drag.
+        Box(Modifier.offsetY(indicatorOffset)) {
+            content()
+        }
 
         if (indicatorOffset > 0.5f || refreshing) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .offsetY(indicatorOffset)
-                    .padding(top = Theme.spacing.sm)
+                    // Centred in the gap it is revealed in rather than riding
+                    // the content's top edge: at rest there is no gap and no
+                    // indicator, and at full pull it sits in the middle of the
+                    // space the list has vacated.
+                    .offsetY((indicatorOffset - with(density) { IndicatorSize.toPx() }) / 2f)
                     .semantics {
                         liveRegion = LiveRegionMode.Polite
                         contentDescription = when {
@@ -223,36 +241,75 @@ fun PullToRefresh(
                 RefreshIndicator(
                     progress = state.progress,
                     refreshing = refreshing,
+                    reduceMotion = motion.reduceMotion,
                 )
             }
         }
     }
 }
 
+/** How big the indicator is once the pull is complete. */
+private val IndicatorSize = 40.dp
+
+/**
+ * The loader, which does not spin until it has something to say.
+ *
+ * ### Rotation is the pull, spinning is the work
+ *
+ * It span from the first pixel of the drag, which meant the control claimed to
+ * be loading while the user was still deciding whether to load anything — and
+ * left nothing to signal that the threshold had been crossed except a colour
+ * nobody was looking at.
+ *
+ * So the arc *grows and turns with the finger* while pulling: it is a progress
+ * indicator, and the progress it shows is how close the gesture is to
+ * committing. Only once the drag is released past the threshold does it become
+ * a [Spinner] and start spinning on its own clock, which is the moment the
+ * meaning changes from "keep pulling" to "I have it". Material gets this right
+ * and it is worth copying.
+ *
+ * Under reduced motion the pull arc does not rotate — it still fills, so the
+ * threshold is as visible as ever, without the spin.
+ */
 @Composable
-private fun RefreshIndicator(progress: Float, refreshing: Boolean) {
+private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion: Boolean) {
+    val pull = progress.coerceIn(0f, 1f)
+
     Surface(
         modifier = Modifier
-            .size(40.dp)
+            .size(IndicatorSize)
             .graphicsLayer {
                 // Grows in as the pull begins rather than appearing at full
                 // size, so a stray one-pixel drag does not flash a control.
-                val scale = if (refreshing) 1f else progress.coerceIn(0f, 1f)
+                val scale = if (refreshing) 1f else pull
                 scaleX = scale
                 scaleY = scale
                 alpha = scale
             },
         shape = Theme.shapes.pill,
-        color = Theme.colors.surfaceRaised,
+        colour = Theme.colours.surfaceRaised,
         shadow = Theme.elevation.high,
         contentAlignment = Alignment.Center,
     ) {
-        Spinner(
-            size = Theme.sizing.iconMedium,
-            contentDescription = null,
-        )
+        if (refreshing) {
+            Spinner(size = Theme.sizing.iconMedium, contentDescription = null)
+        } else {
+            CircularProgress(
+                progress = pull,
+                size = Theme.sizing.iconMedium,
+                trackColour = Color.Transparent,
+                strokeWidth = PullStroke,
+                modifier = Modifier.rotate(if (reduceMotion) 0f else pull * PullTurn),
+            )
+        }
     }
 }
+
+/** Matches [Spinner]'s stroke at the same size, so the swap is not a step. */
+private val PullStroke = 2.5.dp
+
+/** How far the arc turns over a full pull. Most of a revolution, not all of it. */
+private const val PullTurn = 300f
 
 private fun Modifier.offsetY(y: Float): Modifier =
     offset { IntOffset(0, y.roundToInt()) }
@@ -322,7 +379,7 @@ fun LoadMore(
                 Text(
                     text = errorLabel,
                     style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentMuted,
+                    colour = Theme.colours.contentMuted,
                 )
                 Button(onClick = onRetry, variant = ButtonVariant.Ghost) { +retryLabel }
             }
@@ -331,7 +388,7 @@ fun LoadMore(
                 Text(
                     text = endLabel,
                     style = Theme.typography.bodySmall,
-                    color = Theme.colors.contentSubtle,
+                    colour = Theme.colours.contentSubtle,
                 )
             }
         }

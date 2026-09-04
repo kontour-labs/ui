@@ -12,7 +12,7 @@ import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Check
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.ChipGroup
-import io.kontour.ui.components.selection.ColorSwatchPicker
+import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.RangeSlider
@@ -116,14 +116,14 @@ fun SegmentedControlBasics() {
 }
 
 @Composable
-fun ColorSwatchPickerBasics() {
+fun ColourSwatchPickerBasics() {
     var accent by remember { mutableStateOf(RouteColor.Red) }
 
-    ColorSwatchPicker(
+    ColourSwatchPicker(
         value = accent,
         options = RouteColor.entries,
         onValueChange = { accent = it },
-        swatchColor = { it.color },
+        swatchColour = { it.colour },
         swatchLabel = { it.displayName },
     )
 }
@@ -190,7 +190,7 @@ internal enum class Mode(val displayName: String, val explanation: String) {
     LeastWalking("Least walking", "Shortest distance on foot"),
 }
 
-internal enum class RouteColor(val displayName: String, val color: Color) {
+internal enum class RouteColor(val displayName: String, val colour: Color) {
     Red("Red", Color(0xFFDC2626)),
     Blue("Blue", Color(0xFF2563EB)),
     Green("Green", Color(0xFF16A34A)),

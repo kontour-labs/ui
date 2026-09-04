@@ -165,7 +165,7 @@ fun DemoCard(demo: ComponentDemo, modifier: Modifier = Modifier) {
             Text(
                 text = action,
                 style = Theme.typography.monoLabel,
-                color = Theme.colors.contentMuted,
+                colour = Theme.colours.contentMuted,
                 modifier = Modifier.padding(top = Theme.spacing.md),
             )
         }
@@ -247,7 +247,7 @@ private fun <T> ChoiceKnob(knob: Knob.Choice<T>, values: Knobs) {
         Text(
             text = knob.label,
             style = Theme.typography.labelSmall,
-            color = Theme.colors.contentMuted,
+            colour = Theme.colours.contentMuted,
         )
         if (labels.size <= SegmentedLimit && !compact) {
             SegmentedControl(

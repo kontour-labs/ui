@@ -153,7 +153,16 @@ class SiteRenderTest {
 
     /** Below the top bar, and past the index where one is drawn. */
     private val ChromeHeight = 72
-    private val IndexWidth = 300
+
+    /**
+     * A little past the site's own `IndexWidth`, and it has to stay that way.
+     *
+     * This is where the scan starts looking for the page's own ink. Let the
+     * index grow wider than it and the scan reads sidebar rows, so a page with
+     * an entirely empty content area would pass on the strength of its
+     * navigation. The site's index is 320dp; this is 340.
+     */
+    private val IndexWidth = 340
 
     /** An HTML page tiling every shot, because scrolling a directory of PNGs is not review. */
     private fun contactSheet(dir: File, widthName: String) {
@@ -170,7 +179,7 @@ class SiteRenderTest {
               main { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
               figure { margin: 0; }
               img { width: 100%; border: 1px solid #ddd; background: #fff; display: block; }
-              figcaption { padding-top: 6px; color: #555; }
+              figcaption { padding-top: 6px; colour: #555; }
             </style>
             <h1>$widthName — ${shots.size} pages</h1>
             <main>

@@ -209,9 +209,9 @@ class NavSearchTest {
             setContent {
                 KontourTheme(darkTheme = false, reduceMotion = true) {
                     val behind = if (onSurface) {
-                        Theme.colors.surface
+                        Theme.colours.surface
                     } else {
-                        Theme.colors.surfaceSunken
+                        Theme.colours.surfaceSunken
                     }
                     Box(Modifier.fillMaxSize().background(behind).testTag("page")) {
                         CompositionLocalProvider(

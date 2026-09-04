@@ -89,11 +89,11 @@ private fun Block(block: Block) {
             Box(
                 Modifier
                     .width(Theme.sizing.borderWidthStrong)
-                    .background(Theme.colors.outline)
+                    .background(Theme.colours.outline)
                     .padding(vertical = Theme.spacing.xs)
             ) { Text(" ", style = Theme.typography.bodyMedium) }
             Box(Modifier.padding(start = Theme.spacing.md)) {
-                Linkable(block.spans, Theme.typography.bodySmall, Theme.colors.contentMuted)
+                Linkable(block.spans, Theme.typography.bodySmall, Theme.colours.contentMuted)
             }
         }
 
@@ -105,7 +105,7 @@ private fun Block(block: Block) {
                     Text(
                         text = if (block.ordered) "${index + 1}." else "·",
                         style = Theme.typography.bodyMedium,
-                        color = Theme.colors.contentMuted,
+                        colour = Theme.colours.contentMuted,
                         modifier = Modifier.width(Theme.spacing.lg),
                     )
                     Linkable(item, Theme.typography.bodyMedium)
@@ -133,14 +133,14 @@ private fun CodeBlock(block: Block.Code) {
     Box(
         Modifier
             .fillMaxWidth()
-            .background(Theme.colors.surfaceSunken, Theme.shapes.small)
+            .background(Theme.colours.surfaceSunken, Theme.shapes.small)
             .padding(Theme.spacing.md)
             .horizontalScroll(rememberScrollState())
     ) {
         Text(
             text = block.code,
             style = Theme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-            color = Theme.colors.content,
+            colour = Theme.colours.content,
             softWrap = false,
         )
     }
@@ -192,7 +192,7 @@ private fun DocTableRows(
 ) {
     Column(
         modifier
-            .background(Theme.colors.surfaceSunken, Theme.shapes.small)
+            .background(Theme.colours.surfaceSunken, Theme.shapes.small)
             .padding(Theme.spacing.sm),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
     ) {
@@ -210,10 +210,10 @@ private fun DocTableRows(
                         Linkable(
                             spans = row.getOrNull(column).orEmpty(),
                             style = Theme.typography.bodySmall,
-                            color = if (index == 0) {
-                                Theme.colors.contentMuted
+                            colour = if (index == 0) {
+                                Theme.colours.contentMuted
                             } else {
-                                Theme.colors.content
+                                Theme.colours.content
                             },
                         )
                     }
@@ -241,9 +241,9 @@ private fun DocTableRows(
 private fun Linkable(
     spans: List<Span>,
     style: TextStyle,
-    color: androidx.compose.ui.graphics.Color = Theme.colors.content,
+    colour: androidx.compose.ui.graphics.Color = Theme.colours.content,
 ) {
-    Text(text = annotate(spans), style = style, color = color)
+    Text(text = annotate(spans), style = style, colour = colour)
 }
 
 /**
@@ -266,22 +266,22 @@ private fun Linkable(
 @Composable
 private fun annotate(spans: List<Span>, heading: Boolean = false): AnnotatedString {
     val from = LocalDocPath.current
-    val colors = Theme.colors
+    val colours = Theme.colours
     val listener = remember(from) { DocLinkListener(from) }
-    val code = remember(colors, heading) {
+    val code = remember(colours, heading) {
         SpanStyle(
             fontFamily = FontFamily.Monospace,
             background = if (heading) {
                 androidx.compose.ui.graphics.Color.Transparent
             } else {
-                colors.surfaceSunken
+                colours.surfaceSunken
             },
         )
     }
-    val link = remember(colors) {
+    val link = remember(colours) {
         TextLinkStyles(
             style = SpanStyle(
-                color = colors.accent.solid,
+                color = colours.accent.solid,
                 textDecoration = TextDecoration.Underline,
             )
         )

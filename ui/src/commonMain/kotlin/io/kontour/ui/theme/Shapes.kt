@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.min
 
 /**
  * The corner-radius scale.
@@ -16,35 +17,52 @@ import androidx.compose.ui.unit.dp
  * **One step, all the way up.** Every rung is 6dp above the one below it, and
  * that regularity is the point rather than a tidiness: the concentricity rule —
  * an inner radius is its container's radius minus the gap between them — only
- * holds if the scale it steps through is even. The old `4 / 4 / 4 / 8` ladder
- * broke at the top, so a control nested in a dialog was concentric and the same
- * control nested in a sheet was not. Use [inset] rather than picking the next
- * token down by eye.
+ * holds if the scale it steps through is even. Use [inset] rather than picking
+ * the next token down by eye.
  *
- * | Token | Radius | Corner | Used by |
- * |---|---|---|---|
- * | [extraSmall] | 8dp | circular | Badges, tags, inline code |
- * | [small] | 14dp | circular | Buttons, inputs, checkboxes |
- * | [medium] | 20dp | squircle | Cards, list groups, menus |
- * | [large] | 26dp | squircle | Dialogs, large cards |
- * | [extraLarge] | 32dp | squircle | Sheets, hero panels |
- * | [pill] | fully round | capsule | Nav bars, chips, avatars, FABs |
- * | [sheet] | 32dp top only | squircle | Bottom sheets |
- * | [sideSheet] | 32dp leading only | squircle | Side sheets |
+ * | Token | Radius | Used by |
+ * |---|---|---|
+ * | [extraSmall] | 10dp | Badges, tags, inline code |
+ * | [small] | 16dp | Small containers, swatches |
+ * | [medium] | 22dp | Cards, list groups, menus |
+ * | [large] | 28dp | Dialogs, large cards |
+ * | [extraLarge] | 34dp | Sheets, hero panels |
+ * | [control] | half its height, uncapped | Buttons, chips, FABs, switches |
+ * | [field] | half its height, up to 26dp | Text fields, selects, time fields |
+ * | [pill] | fully round | Avatars, scrollbars, indicators |
+ * | [sheet] | 34dp top only | Bottom sheets |
+ * | [sideSheet] | 34dp leading only | Side sheets |
  *
- * ### Why two kinds of corner
+ * ### The numbers line up on purpose
  *
- * From [medium] up the corners are [SquircleShape] — curvature eased in and out
- * rather than a quarter circle bolted between two straight edges. It reads as
- * softer at the same nominal radius, and it is what makes a large surface look
- * drawn rather than clipped.
+ * `22` is not an arbitrary middle rung: the medium control height is 44dp, so a
+ * medium button's corner is exactly half its height and the button is a capsule.
+ * The ladder is built around that number rather than the other way round, which
+ * is what lets a card sit next to a button and read as the same family.
  *
- * It is not free: a squircle is a generic path to clip, to border and to shadow.
- * Below about 12dp the smoothing is not visible, so [extraSmall] and [small] stay
- * circular and pay nothing for it. [pill] is a true capsule, where the corner is
- * a semicircle and there is no curvature discontinuity to remove in the first
- * place — which is also why it is the most-used token here and should stay that
- * way.
+ * [control] and [field] do not take a rung at all — they take
+ * [CapsuleCornerSize], half the shorter side. That is the only way a family stays
+ * consistent across its *own* size scale, and it is why a 44dp switch and a 44dp
+ * button agree without either of them naming a number.
+ *
+ * ### One kind of corner
+ *
+ * Every rung is a [SquircleShape] — curvature eased in and out rather than a
+ * quarter circle bolted between two straight edges. It reads as softer at the
+ * same nominal radius, and it is what makes a surface look drawn rather than
+ * clipped.
+ *
+ * The small rungs used to be circular on the grounds that the smoothing is not
+ * visible below about 12dp and a generic path costs more to clip, border and
+ * shadow than a rounded rectangle. True on both counts, and still the wrong
+ * trade: G2 continuity that stops partway up the scale is a discontinuity in the
+ * *scale*, which is more visible than the one it was avoiding — a badge on a card
+ * had a corner from a different design system to the card. The cost is bounded by
+ * [SquircleShape]'s path cache.
+ *
+ * [pill] survives as a true capsule for the things that are round because of what
+ * they are rather than how tall they are: an avatar, a scrollbar, a selection
+ * indicator.
  *
  * ### Ask for what a thing *is*
  *
@@ -58,13 +76,14 @@ import androidx.compose.ui.unit.dp
  * because it happens to be the right number today, it stops tracking the family
  * it belongs to, and that is exactly how a design system drifts.
  *
- * They are also the seam a consumer wants. Overriding `pill` to square off
- * buttons would square off avatars and scrollbars too; overriding [control]
- * moves the buttons and nothing else.
+ * They are also the seam a consumer wants. Overriding [pill] to square off
+ * buttons would not even work any more — a button reads [control] — and
+ * overriding [control] moves the buttons and leaves avatars and scrollbars
+ * alone.
  *
  * ### One number for sheets
  *
- * [sheet] and [sideSheet] are [extraLarge] with two corners zeroed, derived
+ * [sheet] and [sideSheet] are [extraLarge] — 34dp — with two corners zeroed, derived
  * rather than restated. A panel against the edge of the window should be square
  * where it meets that edge — a rounded corner there leaves a sliver of
  * background showing through — but it should be *the same radius* as a hero
@@ -72,35 +91,48 @@ import androidx.compose.ui.unit.dp
  */
 @Immutable
 data class Shapes(
-    val extraSmall: CornerBasedShape = RoundedCornerShape(8.dp),
-    val small: CornerBasedShape = RoundedCornerShape(14.dp),
-    val medium: CornerBasedShape = SquircleShape(20.dp),
-    val large: CornerBasedShape = SquircleShape(26.dp),
-    val extraLarge: CornerBasedShape = SquircleShape(32.dp),
+    val extraSmall: CornerBasedShape = SquircleShape(10.dp),
+    val small: CornerBasedShape = SquircleShape(16.dp),
+    val medium: CornerBasedShape = SquircleShape(22.dp),
+    val large: CornerBasedShape = SquircleShape(28.dp),
+    val extraLarge: CornerBasedShape = SquircleShape(34.dp),
     val pill: CornerBasedShape = RoundedCornerShape(percent = 50),
 
     /**
      * Anything you press, and anything that labels a thing you could press.
      *
      * Buttons, icon buttons, split buttons, button groups, chips, tags, floating
-     * actions, and the toolbar that holds them. A capsule, so a row of mixed
-     * actions has one corner regardless of what each one's height happens to be
-     * — which is the thing a fixed radius cannot do: at 14dp an `XSmall` button
-     * was nearly a pill already and an `XLarge` was nearly square, so one
-     * component disagreed with itself across its own size scale.
+     * actions, and the toolbar that holds them. Half its own height, so a row of
+     * mixed actions has one corner regardless of what each one's height happens
+     * to be — which is the thing a fixed radius cannot do: at 14dp an `XSmall`
+     * button was nearly a capsule already and an `XLarge` was nearly square, so
+     * one component disagreed with itself across its own size scale.
      */
-    val control: CornerBasedShape = pill,
+    val control: CornerBasedShape = SquircleShape(CapsuleCornerSize()),
 
     /**
      * Anything that holds a value the user typed or chose.
      *
-     * Text fields, selects, the segmented control's track, a time field. Not a
-     * capsule: a field is a box with content in it, and a capsule reads as
-     * something to press rather than something to fill in. A multi-line field
-     * makes that obvious — a text area shaped like a lozenge is nobody's idea of
-     * a text area.
+     * Text fields, selects, the segmented control's track, a time field.
+     *
+     * The same rule as [control], and it used to be a fixed 14dp on the argument
+     * that a capsule reads as something to press rather than something to fill
+     * in. The argument was half right. A single-line field *is* a control by
+     * every other measure — same height, same row, same press target — and
+     * giving it a different corner from the button beside it was the
+     * inconsistency, not the fix.
+     *
+     * What the old reasoning was actually protecting against is a multi-line
+     * field: a text area shaped like a lozenge is nobody's idea of a text area.
+     * [CapsuleCornerSize]'s cap handles that directly, so the box stays a box
+     * without the single-line case having to pay for it.
+     *
+     * The cap is 26dp — half [Sizing.controlHeightLarge], which is what a text
+     * field's `minHeight` resolves to. So the default single-line field lands
+     * *exactly* on a capsule and everything taller stops there, which is the
+     * narrowest place the line can be drawn while still drawing it.
      */
-    val field: CornerBasedShape = small,
+    val field: CornerBasedShape = SquircleShape(CapsuleCornerSize(cap = 26.dp)),
 
     /**
      * Anything that holds other components.
@@ -132,6 +164,64 @@ data class Shapes(
      * with [mirrorHorizontally] for a leading-edge sheet.
      */
     val sideSheet: CornerBasedShape = extraLarge.leadingCornersOnly(),
+)
+
+/**
+ * Half the shorter side, up to [cap]. What makes a control a capsule at any height.
+ *
+ * A fixed radius cannot keep a family consistent across its own size scale: at
+ * 14dp an `XSmall` button was nearly a capsule already and an `XLarge` was nearly
+ * square. A 50% corner fixes that but has the opposite failure — it has no idea
+ * how tall the thing is, so a multi-line text area becomes a lozenge.
+ *
+ * This is the rule that satisfies both. Anything up to [cap] × 2 tall is exactly
+ * a capsule, so **two components of the same height agree by construction** — a
+ * 44dp button and a 44dp switch have the same corner without either of them
+ * naming a number. Anything taller stops growing and stays a box.
+ *
+ * @param cap The radius to stop growing at. Uncapped by default, because a
+ *   *control* is a capsule at every height — that is the whole property, and a
+ *   72dp button with a 30dp corner is not a capsule. It is [Shapes.field] that
+ *   needs the cap, and only because a multi-line text area is the one thing here
+ *   that is tall without wanting to be round.
+ */
+@Immutable
+data class CapsuleCornerSize(val cap: Dp = Dp.Infinity) : CornerSize {
+    override fun toPx(shapeSize: Size, density: Density): Float =
+        min(shapeSize.minDimension / 2f, with(density) { cap.toPx() })
+}
+
+/**
+ * A corner part-way between two others.
+ *
+ * For a shape that has to *travel* between two resolutions rather than switch
+ * between them — an expanding list header whose bottom corners flatten as it
+ * opens, a card that squares off as it docks. Interpolating the resolved
+ * pixels rather than the [CornerSize]s is what lets the two ends be different
+ * kinds: a percentage on one side and a fixed radius on the other still meet in
+ * the middle.
+ *
+ * Deferred for the same reason [inset] is: a percentage has no value until there
+ * is a size to take it of.
+ */
+@Immutable
+data class LerpCornerSize(
+    val from: CornerSize,
+    val to: CornerSize,
+    val fraction: Float,
+) : CornerSize {
+    override fun toPx(shapeSize: Size, density: Density): Float {
+        val a = from.toPx(shapeSize, density)
+        return a + (to.toPx(shapeSize, density) - a) * fraction
+    }
+}
+
+/** Every corner of this shape, [fraction] of the way to [other]'s. */
+fun CornerBasedShape.lerpCorners(other: CornerBasedShape, fraction: Float): CornerBasedShape = copy(
+    topStart = LerpCornerSize(topStart, other.topStart, fraction),
+    topEnd = LerpCornerSize(topEnd, other.topEnd, fraction),
+    bottomEnd = LerpCornerSize(bottomEnd, other.bottomEnd, fraction),
+    bottomStart = LerpCornerSize(bottomStart, other.bottomStart, fraction),
 )
 
 /**

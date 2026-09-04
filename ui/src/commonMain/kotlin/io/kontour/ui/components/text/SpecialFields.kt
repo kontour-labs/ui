@@ -19,7 +19,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import io.kontour.ui.components.action.ButtonSize
-import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.theme.Theme
 
 /**
@@ -30,14 +30,20 @@ import io.kontour.ui.theme.Theme
  *     state = password,
  *     label = "Password",
  *     revealIcon = FontAwesome.Solid.Eye,
- *     hideIcon = FontAwesome.Solid.EyeSlash,
  * )
  * ```
  *
  * The reveal toggle is not a nicety — password fields with no way to check what
  * was typed are a major cause of failed sign-ins on phone keyboards. It
  * announces which state it will move *to*, so a screen-reader user knows what
- * pressing it does rather than what it currently is.
+ * pressing it does rather than what it currently is — and it is a toggle rather
+ * than a button, so assistive tech also reports which state that currently is.
+ *
+ * **Pass [revealIcon] alone and the slash draws itself across it.** A second,
+ * already-slashed glyph is still accepted as [hideIcon], and the two cross-fade;
+ * but the line arriving is the thing that reads as the password being covered
+ * up, and it is one icon to supply rather than two. See
+ * [IconToggleButton][io.kontour.ui.components.action.IconToggleButton].
  *
  * Sets the autofill content type so the platform offers a saved password, and
  * so a password manager can save a new one.
@@ -90,13 +96,21 @@ fun PasswordField(
         imeAction = imeAction,
         imeChain = imeChain,
         interactionSource = interactionSource,
-        trailing = if (revealIcon != null && hideIcon != null) {
+        trailing = if (revealIcon != null) {
             {
-                IconButton(
-                    icon = if (revealed) hideIcon else revealIcon,
+                IconToggleButton(
+                    icon = revealIcon,
+                    checkedIcon = hideIcon,
+                    // Only when the caller has not supplied a slashed glyph of
+                    // its own — two slashes on one eye is a mistake, not a
+                    // stronger signal.
+                    strikethrough = hideIcon == null,
+                    checked = revealed,
+                    onCheckedChange = { revealed = it },
                     // Describes the action, not the state: pressing it hides.
+                    // The toggle's own ticked/unticked is what says which state
+                    // it is in, so the two do not say the same thing twice.
                     contentDescription = if (revealed) hideLabel else revealLabel,
-                    onClick = { revealed = !revealed },
                     enabled = enabled,
                     size = ButtonSize.XSmall,
                 )

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -806,7 +807,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     Surface(
                         modifier = Modifier.fillMaxWidth().height(80.dp),
                         shape = Theme.shapes.small,
-                        color = Theme.colors.surfaceSunken,
+                        colour = Theme.colours.surfaceSunken,
                     ) {
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                             Text("Photo ${page + 1}")
@@ -1342,21 +1343,28 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     val listState = rememberLazyListState()
                     val reorder = rememberReorderableState(listState) { _, _ -> }
                     LaunchedEffect(Unit) { reorder.start(0) }
-                    ReorderableItem(
-                        state = reorder,
-                        index = 0,
-                        modifier = modifier,
-                        itemCount = 3,
-                    ) {
-                        ListItem { +"Perth Underground" }
+                    // In a lazy list, because that is the only place a
+                    // reorderable row means anything: it reads its position out
+                    // of a `LazyListState`, and it animates its neighbours
+                    // through `LazyItemScope`.
+                    LazyColumn(state = listState, modifier = modifier) {
+                        item {
+                            ReorderableItem(state = reorder, index = 0, itemCount = 3) {
+                                ListItem { +"Perth Underground" }
+                            }
+                        }
                     }
                 },
             ),
         ) { modifier, _, _ ->
             val listState = rememberLazyListState()
             val reorder = rememberReorderableState(listState) { _, _ -> }
-            ReorderableItem(state = reorder, index = 0, modifier = modifier, itemCount = 3) {
-                ListItem { +"Perth Underground" }
+            LazyColumn(state = listState, modifier = modifier) {
+                item {
+                    ReorderableItem(state = reorder, index = 0, itemCount = 3) {
+                        ListItem { +"Perth Underground" }
+                    }
+                }
             }
         }
     )
