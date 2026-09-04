@@ -1,8 +1,5 @@
 # `RadioButton`
 
-![RadioButton, unselected](../../../ui-catalog/screenshots/components/radiobutton-light.png)
-![RadioButton, selected](../../../ui-catalog/screenshots/components/radiobutton-selected-light.png)
-
 The control on its own. You almost never want this directly — see below.
 
 <!--sample:RadioButtonBasics-->
@@ -39,7 +36,3 @@ that gets this right.
 Under `Role.RadioButton` selection is one-way: a radio is turned on by pressing
 it and off by pressing another, so pressing the selected one does nothing rather
 than clearing it.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

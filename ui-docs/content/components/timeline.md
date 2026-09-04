@@ -43,7 +43,3 @@ itinerary; two rows saying only the platform do not.
 
 Where a step is complete or pending and that matters, put it in the words rather
 than in `filled` — the node's fill is colour and shape, and neither is announced.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

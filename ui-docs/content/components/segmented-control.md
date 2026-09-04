@@ -1,7 +1,5 @@
 # `SegmentedControl`
 
-![SegmentedControl](../../../ui-catalog/screenshots/components/segmentedcontrol-light.png)
-
 <!--sample:SegmentedControlBasics-->
 ```kotlin
 var selected by remember { mutableStateOf(0) }
@@ -59,7 +57,3 @@ what is on screen below them.
 Beyond four or five options the segments become unreadable slivers before they
 become inaccessible — but they become both. A [`Select`](select.md) is the answer
 for a long set.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

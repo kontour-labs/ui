@@ -1,7 +1,5 @@
 # `RadioGroup`
 
-![RadioGroup](../../../ui-catalog/screenshots/components/radiogroup-light.png)
-
 <!--sample:RadioGroupBasics-->
 ```kotlin
 var mode by remember { mutableStateOf(Mode.Fastest) }
@@ -44,7 +42,3 @@ there is exactly one of them.
 
 `supporting` is part of the option's announcement. Put the consequence of the
 choice there rather than in a footnote below the group.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

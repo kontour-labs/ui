@@ -1,7 +1,5 @@
 # `ExtendedFloatingActionButton`
 
-![ExtendedFloatingActionButton](../../../ui-catalog/screenshots/components/extendedfloatingactionbutton-light.png)
-
 <!--sample:ExtendedFloatingActionButtonCollapsing-->
 ```kotlin
 ExtendedFloatingActionButton(
@@ -37,7 +35,3 @@ other than scroll — but whatever drives it, the name has to stay stable.
 
 It floats over content. Anything scrolling underneath needs bottom padding to
 match, or the last row can never be read.
-
----
-
-← [Actions](actions.md) · [All components](../components.md)

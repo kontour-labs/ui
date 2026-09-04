@@ -23,15 +23,15 @@ row with a trailing chevron, and none of those needed a new parameter.
 
 ### Seven variants, chosen by importance rather than appearance
 
-| Variant | For | |
-|---|---|---|
-| `Primary` | The one action the screen exists for. At most one per screen. Solid, near-black | ![](../../../ui-catalog/screenshots/components/button-primary-light.png) |
-| `Accent` | The place the product should show up as itself — "Get started", "Plan a trip". Solid, in the accent tone | ![](../../../ui-catalog/screenshots/components/button-accent-light.png) |
-| `Secondary` | A real alternative to the primary action. Outlined | ![](../../../ui-catalog/screenshots/components/button-secondary-light.png) |
-| `Tertiary` | Supporting actions that should not compete. Filled with a soft ground | ![](../../../ui-catalog/screenshots/components/button-tertiary-light.png) |
-| `Ghost` | Lowest weight — toolbar actions, inline "edit". No ground until hovered | ![](../../../ui-catalog/screenshots/components/button-ghost-light.png) |
-| `Destructive` | Deletes, cancels a booking, ends a trip | ![](../../../ui-catalog/screenshots/components/button-destructive-light.png) |
-| `DestructiveGhost` | A destructive action that should not shout — inside a menu or row | ![](../../../ui-catalog/screenshots/components/button-destructiveghost-light.png) |
+| Variant | For |
+|---|---|
+| `Primary` | The one action the screen exists for. At most one per screen. Solid, near-black |
+| `Accent` | The place the product should show up as itself — "Get started", "Plan a trip". Solid, in the accent tone |
+| `Secondary` | A real alternative to the primary action. Outlined |
+| `Tertiary` | Supporting actions that should not compete. Filled with a soft ground |
+| `Ghost` | Lowest weight — toolbar actions, inline "edit". No ground until hovered |
+| `Destructive` | Deletes, cancels a booking, ends a trip |
+| `DestructiveGhost` | A destructive action that should not shout — inside a menu or row |
 
 `Primary` and `Accent` are **alternatives to each other, not companions**. Two
 solid buttons on one screen is still one too many.
@@ -85,7 +85,3 @@ press.
 
 `ButtonVariant.Destructive` changes the colour and nothing that is announced.
 Where the consequence matters, put it in the label: "Delete trip", not "Delete".
-
----
-
-← [Actions](actions.md) · [All components](../components.md)

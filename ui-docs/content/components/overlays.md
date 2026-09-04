@@ -21,7 +21,3 @@ mechanism, and the pages below are the components themselves.
 The rules that are easy to get wrong — a toast is not a banner, a popover is not
 a small dialog, `LoadingOverlay` should be rare — are set out in
 [the overlay guide](../overlays.md#picking-a-component).
-
----
-
-← [All components](../components.md)

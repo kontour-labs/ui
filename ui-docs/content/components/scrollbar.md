@@ -1,7 +1,5 @@
 # `Scrollbar`
 
-![Scrollbar](../../../ui-catalog/screenshots/components/scrollbar-light.png)
-
 Purely an indicator, and hidden from the accessibility tree since it conveys
 nothing the list does not already.
 
@@ -45,7 +43,3 @@ touch user nothing.
 
 `alwaysVisible` makes it permanent. That is a visual decision — it does not make
 anything reachable that was not.
-
----
-
-← [Collections](collections.md) · [All components](../components.md)

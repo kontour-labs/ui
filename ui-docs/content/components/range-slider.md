@@ -1,7 +1,5 @@
 # `RangeSlider`
 
-![RangeSlider](../../../ui-catalog/screenshots/components/rangeslider-light.png)
-
 <!--sample:RangeSliderBasics-->
 ```kotlin
 var window by remember { mutableStateOf(7f..19f) }
@@ -81,7 +79,3 @@ as one idea.
 
 Both thumbs are adjustable from a screen reader's increment and decrement
 actions, so the range is reachable without a drag.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

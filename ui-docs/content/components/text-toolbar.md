@@ -73,7 +73,3 @@ When you do pass actions, the drawn toolbar is built from `Button`, so each item
 is a real focus target with a real touch target and the ring every other control
 in the library has. Keep the list short — it sits between the user and the text
 they just selected, and every item added is one more to read past.
-
----
-
-← [Text editing](text-editing.md) · [All components](../components.md)

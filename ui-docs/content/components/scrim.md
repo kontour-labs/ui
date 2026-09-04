@@ -38,7 +38,3 @@ correct for a confirmation that must be answered.
 rather than an accessibility one, but it has an accessibility consequence worth
 knowing: the scrim does not recompose as it dims, so nothing is re-announced
 while a sheet is dragged.
-
----
-
-← [Foundation](foundation.md) · [All components](../components.md)

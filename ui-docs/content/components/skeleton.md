@@ -36,7 +36,3 @@ enough to notice, put a live region beside it, or use a
 Being shaped like the content is the accessibility feature: nothing moves when
 the real thing arrives, so a magnified or slowly-read page does not shift under
 the reader.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

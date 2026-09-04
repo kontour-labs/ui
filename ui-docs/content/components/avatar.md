@@ -33,7 +33,3 @@ name has one whether or not anybody remembered `contentDescription`.
 
 `AvatarGroup`'s overflow count is part of its description rather than a separate
 node — "+3" read on its own tells a screen-reader user nothing.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

@@ -59,7 +59,3 @@ is stuck, and the back gesture is the thing they will try first.
 
 Give each pane a heading at its top. Two panes side by side with no headings are
 one long run of content to anyone navigating by structure.
-
----
-
-← [Adaptive](adaptive.md) · [All components](../components.md)

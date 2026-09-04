@@ -32,7 +32,3 @@ thing a user landed on said "18, button" and nothing about which date that was.
 
 `isDateSelectable` disables a day rather than hiding it, so the shape of the
 month stays readable and an unavailable date is announced as unavailable.
-
----
-
-← [Date and time](date-time.md) · [All components](../components.md)

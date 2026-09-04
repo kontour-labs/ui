@@ -34,7 +34,3 @@ should say how many items it has.
 
 It draws with a blend mode over the content, and it adds no node to the
 accessibility tree at all.
-
----
-
-← [Collections](collections.md) · [All components](../components.md)

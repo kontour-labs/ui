@@ -1,7 +1,5 @@
 # `SettingRow`
 
-![SettingRow](../../../ui-catalog/screenshots/components/settingrow-light.png)
-
 The settings-screen shape: an icon, a label, and the current value on the right.
 `onClick` is optional — a row that only displays a value does not need one.
 
@@ -36,7 +34,3 @@ consequence there ("Uses more data") rather than in a tooltip.
 
 `position` is visual only; it rounds the corners and announces nothing. Grouping
 is expressed by [`ListSection`](list-section.md).
-
----
-
-← [Collections](collections.md) · [All components](../components.md)

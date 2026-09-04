@@ -43,7 +43,3 @@ with no way to tell which month they are in.
 be chosen by dragging cannot be chosen at all by some users. Provide the two
 end dates as taps as well, which is what
 [`DateRangePicker`](date-range-picker.md) does.
-
----
-
-← [Date and time](date-time.md) · [All components](../components.md)

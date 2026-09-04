@@ -1,14 +1,11 @@
 # `ReorderableItem`
 
-![ReorderableItem, at rest](../../../ui-catalog/screenshots/components/reorderableitem-light.png)
-![ReorderableItem, lifted mid-drag](../../../ui-catalog/screenshots/components/reorderableitem-dragging-light.png)
-
 Drag to reorder, with `rememberReorderableState`.
 
 The lift — shadow, scale, offset — is the whole of the feedback, and none of it
 exists at rest. `ReorderableState.start(index)`, `drag(delta)` and `stop()` are
-public so a drag can be begun without one: for a keyboard affordance, for a test,
-and for the second picture above.
+public so a drag can be begun without one: for a keyboard affordance, and for a
+test that needs a row already lifted.
 
 **Reordering happens live, under the finger.** `onMove` fires every time the
 dragged row passes another, so the caller's list stays the source of truth
@@ -46,7 +43,3 @@ reads better.
 
 Long-press-to-drag is a gesture and stays one. The actions are the equivalent,
 not a fallback.
-
----
-
-← [Collections](collections.md) · [All components](../components.md)

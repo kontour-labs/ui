@@ -1,7 +1,5 @@
 # `SearchField`
 
-![SearchField](../../../ui-catalog/screenshots/components/searchfield-light.png)
-
 A debounced query callback and an animated clear button. The debounce is the
 point: a field that fires per keystroke into a network call produces a request
 per letter and renders the results out of order.
@@ -40,7 +38,3 @@ announcement settle.
 Where the field filters a list, the list's own count should be announced when it
 settles — the field cannot do it, because it does not know what is being
 filtered.
-
----
-
-← [Text editing](text-editing.md) · [All components](../components.md)

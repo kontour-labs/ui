@@ -55,7 +55,3 @@ what makes it appear on keyboard focus, which a hover-only tooltip does not.
 The coach-mark form merges its title and body into one description
 (`"$title. $text"`) so it is announced as a sentence rather than as two
 unrelated nodes, and its dismiss button carries a real label.
-
----
-
-← [Overlays](overlays.md) · [All components](../components.md)

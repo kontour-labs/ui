@@ -60,7 +60,3 @@ and the items inside it are not reachable while it is collapsed, which is why a
 collapsed group should never hold the only route to something.
 
 `section` is a label for a run of items, not a control. It does not take focus.
-
----
-
-← [Navigation](navigation.md) · [All components](../components.md)

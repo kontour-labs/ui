@@ -1,7 +1,5 @@
 # `PullToRefresh`
 
-![PullToRefresh](../../../ui-catalog/screenshots/components/pulltorefresh-light.png)
-
 Pull at the top of a list to reload. The indicator appears past a threshold, so
 a list that is merely over-scrolled does not fire a request.
 
@@ -32,7 +30,3 @@ without a swipe.
 `pullLabel`, `releaseLabel` and `refreshingLabel` are the three things that
 region says, and they default from `Theme.strings`. Override them where "refresh"
 is not the word — a timetable is *reloaded*, a trip is *replanned*.
-
----
-
-← [Collections](collections.md) · [All components](../components.md)

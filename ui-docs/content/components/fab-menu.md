@@ -1,7 +1,5 @@
 # `FabMenu`
 
-![FabMenu](../../../ui-catalog/screenshots/components/fabmenu-vertical-light.png)
-
 <!--sample:FabMenuBasics-->
 ```kotlin
 var open by remember { mutableStateOf(false) }
@@ -26,11 +24,11 @@ a rotation does not usefully transform.
 
 **Three layouts, and none of them takes a direction.**
 
-| | | |
-|---|---|---|
-| `Vertical` | ![vertical](../../../ui-catalog/screenshots/components/fabmenu-vertical-light.png) | The default. Labelled, because a column has room. |
-| `Horizontal` | ![horizontal](../../../ui-catalog/screenshots/components/fabmenu-horizontal-light.png) | A row beside the button. |
-| `Fan` | ![fan](../../../ui-catalog/screenshots/components/fabmenu-fan-light.png) | An arc. Icons only — a diagonal leaves a label nowhere to go. |
+| | |
+|---|---|
+| `Vertical` | The default. Labelled, because a column has room. |
+| `Horizontal` | A row beside the button. |
+| `Fan` | An arc. Icons only — a diagonal leaves a label nowhere to go. |
 
 All three pick which way to open from where the button finds itself in the
 window: bottom-right opens up and to the left, top-left opens down and to the
@@ -95,7 +93,3 @@ is heard once.
 The menu is a set of buttons that appear on demand, so the same rule as a context
 menu applies: an action that lives only here is unreachable for anyone who does
 not find the trigger.
-
----
-
-← [Actions](actions.md) · [All components](../components.md)

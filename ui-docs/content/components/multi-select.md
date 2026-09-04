@@ -44,7 +44,3 @@ modes every time it took focus would be unusable.
 Where the exact set matters, show it as chips beside the field rather than
 lengthening the summary — chips can be reviewed one at a time and removed
 individually.
-
----
-
-← [Text editing](text-editing.md) · [All components](../components.md)

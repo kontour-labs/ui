@@ -33,7 +33,3 @@ content that has to be found again.
 
 Put it last in an [`ImeChain`](ime-chain.md), or don't put it in one: a
 multi-line field needs its return key for returns.
-
----
-
-← [Text editing](text-editing.md) · [All components](../components.md)

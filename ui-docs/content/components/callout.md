@@ -27,7 +27,3 @@ worth setting apart visually and no more urgent than its neighbours.
 
 `accent` and `container` change colour only. Do not use colour alone to carry
 severity — WCAG 1.4.1 — so if the distinction matters, say it in the words.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

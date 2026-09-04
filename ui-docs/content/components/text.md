@@ -53,7 +53,3 @@ rather than a tap handler that works out which range was hit.
 Never size type in `sp` computed from a `Dp`. `Theme.typography` scales with the
 user's text setting; a literal does not, and 200% is the setting the
 [accessibility page](../accessibility.md) promises to survive.
-
----
-
-← [Foundation](foundation.md) · [All components](../components.md)

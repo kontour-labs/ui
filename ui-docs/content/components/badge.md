@@ -35,7 +35,3 @@ unconnected things.
 
 Counts above `max` render as "9+" visually. Give the real number in the
 description where it matters.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

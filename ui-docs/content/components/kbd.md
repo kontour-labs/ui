@@ -1,7 +1,5 @@
 # `Kbd`
 
-![Kbd](../../../ui-catalog/screenshots/components/kbd-light.png)
-
 A keyboard shortcut rendered as a key. Used by `MenuScope.item(shortcut = …)`
 and available directly.
 
@@ -29,7 +27,3 @@ That means a shortcut shown with it is **not announced**. Where the shortcut is
 the only way to reach something, say so in the surrounding prose, and where it is
 attached to a menu item use `item(shortcut = …)`, which puts it in the item's own
 description rather than beside it.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

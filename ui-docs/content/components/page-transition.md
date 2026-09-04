@@ -129,7 +129,3 @@ focus to the new content's heading, or a screen-reader user is left reading a
 page that is no longer there.
 
 Give the incoming screen a heading. It is what makes the arrival findable.
-
----
-
-← [Adaptive layout and motion](adaptive.md) · [All components](../components.md)

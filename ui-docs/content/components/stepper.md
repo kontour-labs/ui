@@ -1,7 +1,5 @@
 # `Stepper`
 
-![Stepper](../../../ui-catalog/screenshots/components/stepper-light.png)
-
 <!--sample:StepperBasics-->
 ```kotlin
 var adults by remember { mutableStateOf(1) }
@@ -50,7 +48,3 @@ with no meaning of its own. The `−` and `+` remain real, separately reachable
 buttons carrying `decrementLabel` and `incrementLabel`.
 
 `format` is what gets announced as well as drawn — use it to say the unit.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

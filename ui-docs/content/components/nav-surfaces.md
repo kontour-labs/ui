@@ -2,17 +2,10 @@
 
 *Also on this page: `NavBarItem`, `NavRailItem`, `NavDrawerItem`, `NavDrawerSection`, `NavDrawerGroup` — the rows each surface draws.*
 
-![NavBarItem](../../../ui-catalog/screenshots/components/navbaritem-light.png)
-![NavRailItem](../../../ui-catalog/screenshots/components/navrailitem-light.png)
-![NavDrawerItem](../../../ui-catalog/screenshots/components/navdraweritem-light.png)
-
-The same three selected. Each surface draws the indicator its own way — a filled
-circle, a pill behind the icon, a pill across the whole row — and that indicator
-is the only thing distinguishing a destination you are on from one you are not:
-
-![NavBarItem, selected](../../../ui-catalog/screenshots/components/navbaritem-selected-light.png)
-![NavRailItem, selected](../../../ui-catalog/screenshots/components/navrailitem-selected-light.png)
-![NavDrawerItem, selected](../../../ui-catalog/screenshots/components/navdraweritem-selected-light.png)
+Each surface draws the selected indicator its own way — a filled circle in the
+bar, a pill behind the icon in the rail, a pill across the whole row in the
+drawer — and that indicator is the only thing distinguishing a destination you
+are on from one you are not.
 
 `NavBar` and `NavRail` take a `List<NavItem>`. **A drawer takes a slot, not a
 list**: a drawer is where destinations stop being a flat set of three, and a
@@ -152,9 +145,6 @@ round unlearning.
 and to the bar only — a rail and a drawer have a leading edge and room to spare,
 and how a wide window searches is a screen's decision.
 
-![NavDrawerSection](../../../ui-catalog/screenshots/components/navdrawersection-light.png)
-![NavDrawerGroup](../../../ui-catalog/screenshots/components/navdrawergroup-light.png)
-
 `NavDrawerSection` separates a titled run of destinations; `NavDrawerGroup`
 nests them behind a disclosure. The group's expansion is hoisted, so the app can
 open the group containing the current page — which is nearly always right and
@@ -279,7 +269,3 @@ rail's width is a state and not a mystery.
 
 `NavDrawer` sets `paneTitle`. All three take `NavItem`s, so a description written
 once is right on every surface.
-
----
-
-← [Navigation](navigation.md) · [All components](../components.md)

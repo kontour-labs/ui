@@ -41,7 +41,3 @@ That is why `colour` and `contentColour` travel together, and why passing a lite
 in one theme and not the other. The token pairs are asserted for contrast by a
 test over every combination — see
 [accessibility](../accessibility.md).
-
----
-
-← [Foundation](foundation.md) · [All components](../components.md)

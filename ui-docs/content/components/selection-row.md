@@ -1,8 +1,5 @@
 # `SelectionRow`
 
-![SelectionRow, unselected](../../../ui-catalog/screenshots/components/selectionrow-light.png)
-![SelectionRow, selected](../../../ui-catalog/screenshots/components/selectionrow-selected-light.png)
-
 <!--sample:SelectionRowBasics-->
 ```kotlin
 var notifyOnDelay by remember { mutableStateOf(false) }
@@ -46,7 +43,3 @@ flips it; under `Role.RadioButton` selection is one-way, because a radio is
 turned on by pressing it and off by pressing another.
 
 The label in the row is the accessible name. A row with only an icon has none.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

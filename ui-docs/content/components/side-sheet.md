@@ -49,7 +49,3 @@ everything.
 `side` is `SheetSide.Start` / `End`, not left and right, so the sheet follows the
 layout direction. A sheet pinned to the left is a sheet that slides in from the
 wrong edge in Arabic.
-
----
-
-← [Sheets](sheets.md) · [All components](../components.md)

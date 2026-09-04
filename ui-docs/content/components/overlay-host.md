@@ -48,7 +48,3 @@ The scrim is not decoration. Where an overlay is dismissible it carries an
 overlay passes — so "tap outside to close" exists for someone who cannot tap
 outside. Where it is not, the scrim still consumes input, so taps cannot reach
 content the user can no longer see.
-
----
-
-← [Overlays](overlays.md) · [All components](../components.md)

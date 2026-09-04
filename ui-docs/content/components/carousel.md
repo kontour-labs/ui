@@ -4,9 +4,6 @@
 stack of cards, and pulling one aside is the only gesture anybody tries; on
 desktop that used to leave the indicator dots as the sole route.
 
-
-![Carousel](../../../ui-catalog/screenshots/components/carousel-light.png)
-
 <!--sample:CarouselWithIndicator-->
 ```kotlin
 val scope = rememberCoroutineScope()
@@ -49,8 +46,6 @@ input method, and the app has four.
 single pill that stretches from the dot it is leaving to the one it is arriving
 at, then contracts.
 
-![The worm, halfway between two pages](../../../ui-catalog/screenshots/components/carousel-worm-light.png)
-
 It reads as one thing travelling rather than one dot going out and another coming
 on, and it is the only style that shows the *middle* of a swipe: the pill is at
 its longest exactly halfway between two pages. That needs a fractional page
@@ -77,7 +72,3 @@ That is the whole reason a carousel can be used without a pointer.
 A carousel hides content by default. Anything essential inside one is essential
 content behind a gesture, so give it a [`PageIndicator`](page-indicator.md) with
 `onPageSelect` — or reconsider the carousel.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

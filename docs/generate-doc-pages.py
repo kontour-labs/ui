@@ -124,8 +124,21 @@ def blocks(lines: list[str], where: str) -> list[str]:
             # show it, and the code fence it precedes is already the sample.
             i += 1
         elif stripped.startswith("!["):
-            # Dropped on purpose — the live specimen stands where this would.
-            i += 1
+            # These used to be dropped in silence. They were screenshots of the
+            # component, checked into `ui-catalog/screenshots/` and linked by a
+            # relative path that resolves in a repository browser and nowhere
+            # else — so every one of them was a picture only a GitHub reader
+            # ever saw, standing in for the live specimen the site draws two
+            # inches further down. Round 22 removed all 72 of them.
+            #
+            # Raising rather than skipping, because the site has no renderer for
+            # an image and swallowing one puts a hole in a page that nothing
+            # reports. If a page ever genuinely needs a picture, this is the
+            # place to teach the site how to draw it.
+            raise SystemExit(
+                f"{where}: line {i + 1} is an image, and the site cannot draw "
+                f"one: {stripped[:60]!r}"
+            )
         elif stripped.startswith("|"):
             rows = []
             while i < len(lines) and lines[i].strip().startswith("|"):
@@ -207,9 +220,13 @@ def main() -> int:
         title = re.search(r"^#\s+(.+)$", text, re.M)
         if not title:
             raise SystemExit(f"{path}: no title")
-        # The footer is navigation the site provides itself.
-        body = re.sub(r"\n---\n\n\u2190.*$", "\n", text, flags=re.S)
-        lines = body.split("\n")
+        # Every page used to end with "\u2190 [Family](family.md) \u00b7 [All
+        # components](../components.md)", stripped here because the site draws
+        # its own navigation \u2014 so, like the screenshots above, it was writing
+        # only a GitHub reader ever saw. Round 22 removed them; there is
+        # nothing left to strip, and a new one would now show up on the page as
+        # the stray line it is.
+        lines = text.split("\n")
         # Drop the title line; the site draws it from `title`.
         lines = lines[lines.index(title.group(0)) + 1:]
         symbols = re.findall(r"`([^`]+)`", title.group(1))

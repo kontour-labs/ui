@@ -1,7 +1,5 @@
 # `Rating`
 
-![Rating](../../../ui-catalog/screenshots/components/rating-light.png)
-
 <!--sample:RatingBasics-->
 ```kotlin
 var rating by remember { mutableStateOf(0f) }
@@ -55,7 +53,3 @@ each.
 `contentDescription` names the control and it matters here more than usual —
 "Your rating" and "Average rating" are the same five stars and completely
 different facts.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

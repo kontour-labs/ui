@@ -27,7 +27,3 @@ value rather than only that something scrolled.
 
 `minuteStep` is worth setting. At the default of 1 the minute wheel has sixty
 stops, which is sixty announcements to cross by swipe.
-
----
-
-← [Date and time](date-time.md) · [All components](../components.md)

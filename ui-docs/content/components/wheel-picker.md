@@ -17,7 +17,6 @@ WheelPicker(
 )
 ```
 
-
 The scrolling drum, for any list of values. `TimePicker` is three of these.
 
 **Reach for a [`Select`](select.md) instead** inside a form. A drum
@@ -37,7 +36,3 @@ component drawing the wheel should give it a spoken form.
 
 A wheel is a scroll gesture with a lot of stops. Where the set is long, a
 [`Select`](select.md) is reachable in one gesture and a wheel is not.
-
----
-
-← [Date and time](date-time.md) · [All components](../components.md)

@@ -1,8 +1,5 @@
 # `Checkbox`
 
-![Checkbox, unchecked](../../../ui-catalog/screenshots/components/checkbox-light.png)
-![Checkbox, checked](../../../ui-catalog/screenshots/components/checkbox-checked-light.png)
-
 <!--sample:CheckboxBasics-->
 ```kotlin
 var notify by remember { mutableStateOf(false) }
@@ -46,7 +43,3 @@ and there is one target rather than two.
 
 The touch target is the minimum regardless of the box's drawn size, which is why
 a checkbox in a dense list still meets it.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

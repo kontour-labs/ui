@@ -39,7 +39,3 @@ announcement inside the grid.
 `onRangeSelected` fires with a null end on the first tap. Show the half-picked
 range rather than waiting for both, or a screen reader user gets no confirmation
 that the first tap did anything.
-
----
-
-← [Date and time](date-time.md) · [All components](../components.md)

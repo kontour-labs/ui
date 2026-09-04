@@ -2,11 +2,6 @@
 
 *Also on this page: `ChipGroup`.*
 
-![Chip](../../../ui-catalog/screenshots/components/chip-light.png)
-![FilterChip, unselected](../../../ui-catalog/screenshots/components/filterchip-light.png)
-![FilterChip, selected](../../../ui-catalog/screenshots/components/filterchip-selected-light.png)
-![InputChip](../../../ui-catalog/screenshots/components/inputchip-light.png)
-
 Chips are for things that come in *sets*. A single chip on a screen is usually a
 small button wearing the wrong clothes.
 
@@ -36,8 +31,8 @@ ChipGroup {
 ```
 
 A selected `FilterChip` fills with the accent container and takes the accent for
-its label, dropping the outline it wears unselected — the two images above are
-the whole difference.
+its label, dropping the outline it wears unselected. That is the whole of the
+difference.
 
 **The tick is opt-in**, through `selectedIcon`. Pass one and it expands in and
 shoves the label across, which is what makes a filter bar feel responsive when
@@ -72,7 +67,3 @@ add and never take off.
 
 The selected tick is decorative and cleared; the state is announced by the role,
 not by the icon.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

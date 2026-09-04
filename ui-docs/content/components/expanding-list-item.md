@@ -1,7 +1,5 @@
 # `ExpandingListItem`
 
-![ExpandingListItem](../../../ui-catalog/screenshots/components/expandinglistitem-expanded-light.png)
-
 <!--sample:ExpandingListItemBasics-->
 ```kotlin
 var open by remember { mutableStateOf(false) }
@@ -61,7 +59,3 @@ so do not give every row the parameter "for consistency".
 
 Collapsed content is not composed and is not in the tree. The same rule as
 [`Accordion`](accordion.md): nothing essential inside one.
-
----
-
-← [Collections](collections.md) · [All components](../components.md)

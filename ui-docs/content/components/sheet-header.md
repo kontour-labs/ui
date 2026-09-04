@@ -70,7 +70,3 @@ genuinely cannot be closed from inside, which should be paired with
 
 Actions in the `actions` slot are ordinary buttons and need their own
 `contentDescription` when they are icons.
-
----
-
-← [Sheets](sheets.md) · [All components](../components.md)

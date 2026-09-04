@@ -44,7 +44,3 @@ which is a real defect and not a cosmetic one.
 The bars are ordinary composables and carry their own semantics; `TopBar` marks
 its title as a heading. Nothing here traps or reorders focus, so traversal
 follows the layout: bar, content, bottom bar.
-
----
-
-← [Adaptive](adaptive.md) · [All components](../components.md)

@@ -560,20 +560,19 @@ private fun DocPageView(path: String) {
             item {
                 Text(text = page.heading, style = Theme.typography.displaySmall)
             }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-                    page.referenceSymbol?.let { symbol ->
-                        Button(
-                            onClick = { openExternal(apiUrl(symbol)) },
-                            variant = ButtonVariant.Secondary,
-                            size = ButtonSize.Small,
-                        ) { +"API reference" }
-                    }
+            // No "Edit this page". The markdown behind these pages is a build
+            // input — the site's routing table, family tree and demo binding
+            // as much as its prose — and sending a reader to a file in a
+            // repository is the same mistake as the screenshots that used to
+            // sit at the top of every one of them: it treats the repository as
+            // a second place to read the documentation, and it is not one.
+            page.referenceSymbol?.let { symbol ->
+                item {
                     Button(
-                        onClick = { openExternal("$Repository/blob/main/$ContentRoot/${page.path}.md") },
-                        variant = ButtonVariant.Ghost,
+                        onClick = { openExternal(apiUrl(symbol)) },
+                        variant = ButtonVariant.Secondary,
                         size = ButtonSize.Small,
-                    ) { +"Edit this page" }
+                    ) { +"API reference" }
                 }
             }
 

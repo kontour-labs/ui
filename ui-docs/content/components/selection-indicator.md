@@ -44,7 +44,3 @@ being told about an indicator that has no meaning to it.
 That separation is also why the animation is safe: with reduced motion the pill
 stops travelling and appears in place, and nothing about what is announced
 changes.
-
----
-
-← [Foundation](foundation.md) · [All components](../components.md)

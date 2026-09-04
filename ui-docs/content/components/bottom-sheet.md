@@ -65,7 +65,3 @@ between the map and the sheet freely.
 The detents are reachable without the gesture: [`DragHandle`](drag-handle.md)
 exposes `expand` and `collapse` as semantic actions, so the sheet can be resized
 from a screen reader's rotor rather than only by dragging.
-
----
-
-← [Sheets](sheets.md) · [All components](../components.md)

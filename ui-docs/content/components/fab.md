@@ -1,7 +1,5 @@
 # `FloatingActionButton`
 
-![FloatingActionButton](../../../ui-catalog/screenshots/components/floatingactionbutton-light.png)
-
 <!--sample:FloatingActionButtonBasics-->
 ```kotlin
 FloatingActionButton(Tabler.Outline.Plus, "Add favourite", onClick = { add() })
@@ -26,7 +24,3 @@ A FAB floats over the content, which means it can cover it. `Scaffold` accounts
 for that in the padding it hands out; a FAB positioned by hand over a scrolling
 list needs the same bottom padding on the list, or the last row is permanently
 under it.
-
----
-
-← [Actions](actions.md) · [All components](../components.md)

@@ -38,7 +38,3 @@ twice.
 `tone` is colour and nothing else. A status carried only by tone is a status some
 users cannot read, so the word has to say it too — which is why these have words
 in them.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

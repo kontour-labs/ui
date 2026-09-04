@@ -44,7 +44,3 @@ has a bug in it.
 
 `swatchColour` returning `null` renders the "match the system" entry as an
 outlined swatch with an icon — still named, still one of the group.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

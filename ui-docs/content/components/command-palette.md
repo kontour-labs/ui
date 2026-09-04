@@ -36,7 +36,3 @@ Being keyboard-first is the point of the component, which makes the same warning
 as the context menu load-bearing: **a command reachable only from the palette is
 unreachable on a phone**, where there is no keyboard shortcut to open it. The
 palette is an accelerator over actions that already exist.
-
----
-
-← [Overlays](overlays.md) · [All components](../components.md)

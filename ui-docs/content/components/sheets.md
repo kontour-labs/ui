@@ -15,7 +15,3 @@ why those positions are values rather than an enum — is in
 `DragHandle` is a row affordance as much as a sheet one, and it is
 [drawn rather than draggable](../sheets.md#draghandle-is-drawn-not-draggable) —
 the sheet under it owns the gesture.
-
----
-
-← [All components](../components.md)

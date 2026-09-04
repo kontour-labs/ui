@@ -1,8 +1,5 @@
 # `Switch`
 
-![Switch, unchecked](../../../ui-catalog/screenshots/components/switch-light.png)
-![Switch, checked](../../../ui-catalog/screenshots/components/switch-checked-light.png)
-
 <!--sample:SwitchBasics-->
 ```kotlin
 var liveAlerts by remember { mutableStateOf(true) }
@@ -54,7 +51,3 @@ the row is the target — a bare switch has no name.
 
 The thumb stretches while it moves and does not under reduced motion. Nothing
 about the announcement changes.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

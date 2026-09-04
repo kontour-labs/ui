@@ -37,7 +37,3 @@ worse than either.
 It is not a locale. Wire it from the platform's own settings where you have them
 — guessing 24-hour from a language tag is how a user who prefers one clock gets
 the other.
-
----
-
-← [Date and time](date-time.md) · [All components](../components.md)

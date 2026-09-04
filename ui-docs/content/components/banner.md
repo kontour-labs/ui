@@ -1,7 +1,5 @@
 # `Banner` / `AnimatedBanner`
 
-![AnimatedBanner](../../../ui-catalog/screenshots/components/animatedbanner-light.png)
-
 An inline message, four severities. `AnimatedBanner` is the same thing that
 animates its own appearance and dismissal, for a banner whose presence is driven
 by state.
@@ -45,7 +43,3 @@ nothing.
 The dismiss button carries `dismissLabel`. A banner with an action should keep
 that action available elsewhere too — a banner the user dismissed by accident
 should not take a capability with it.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

@@ -33,9 +33,10 @@ Fourteen rules:
  10. Every name an accessibility section mentions exists in `:ui`.
  11. The radius scale is written down three times and executes once.
  12. Every component in the shape-families table really asks for that family.
- 13. Every page agrees about which family it is in — the map, the index that
-     links it, and the page's own footer. Three copies is three chances for one
-     to be a version behind.
+ 13. Every page agrees about which family it is in — the map and the index that
+     links it. Two copies is two chances for one to be a version behind. There
+     was a third, the page's own "← Family" footer, and it went with the rest
+     of the writing-for-GitHub in round 22.
  14. Every enum a component takes as a parameter is on some demo's knob.
 
 Rules 4, 6, 7 and 14 are **ratchets**: a ceiling that only goes down, rather
@@ -86,15 +87,6 @@ SYMBOL = re.compile(r"`([^`]+)`")
 # called "Not a `SegmentedControl`", and a page is not the owner of everything
 # it mentions.
 ALSO = re.compile(r"^\*Also on this page:\s*(.+?)\*$", re.MULTILINE)
-
-# The way back up, which every component page ends with:
-#
-#     ← [Navigation](navigation.md) · [All components](../components.md)
-#
-# The site never draws it — the generator cuts the footer and provides its own
-# navigation — so it is the copy of a page's family that only a GitHub reader
-# ever sees, and the one nothing was checking.
-FAMILY_FOOTER = re.compile(r"\n← \[[^\]]+\]\(([a-z0-9-]+)\.md\)")
 
 # The declaration line of a `@Composable`, with its annotations skipped: groups
 # are visibility, receiver and name. Shared by `public_composables` — which is
@@ -638,6 +630,11 @@ def main() -> int:
     # Sheets row while the Collections index owned the page, so the map and the
     # sidebar disagreed about where it lived.
     #
+    # This used to compare a third copy, the "← Family" footer at the bottom of
+    # every page. That footer only ever reached a GitHub reader — the site cuts
+    # it and draws its own navigation — and round 22 removed it along with the
+    # screenshots, for the same reason. Two independent copies is still two.
+    #
     # Asymmetric on purpose. A summary row is a summary — it should not have to
     # name `SkeletonText` and `BadgedBox` — so the second half asks only that
     # every page get *a* mention. The first half is strict, because a name on
@@ -684,27 +681,6 @@ def main() -> int:
                     f"— a component the map never mentions is one nobody finds "
                     f"from the map"
                 )
-
-    # And the third copy: each page's own "← Family" footer.
-    #
-    # The site strips it — `generate-doc-pages.py` cuts the footer because the
-    # site draws its own navigation — so this is invisible there and live on
-    # GitHub, which is the second audience every one of these pages is written
-    # for. Re-homing `Spinner` and `DragHandle` left both pointing back at the
-    # family they had just left, and nothing said so.
-    for page_stem, family in sorted(owner_family.items()):
-        footer = FAMILY_FOOTER.search((COMPONENTS / f"{page_stem}.md").read_text())
-        if footer is None:
-            problems.append(
-                f"{page_stem}.md has no “← [Family](family.md)” footer — on "
-                f"GitHub that page is a dead end"
-            )
-        elif footer.group(1) != family:
-            problems.append(
-                f"{page_stem}.md's footer points back at {footer.group(1)}.md "
-                f"but {family}.md is the index that links it — the page and the "
-                f"sidebar disagree about which family it is in"
-            )
 
     # Rule 14 — a component's choices are things a reader can press.
     #

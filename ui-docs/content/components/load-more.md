@@ -38,7 +38,3 @@ it is the one a user on a train actually meets. `onRetry` defaults to
 
 `endLabel` is worth setting. "That's everything" is the answer to "have I reached
 the bottom", which is otherwise unanswerable without sight.
-
----
-
-← [Collections](collections.md) · [All components](../components.md)

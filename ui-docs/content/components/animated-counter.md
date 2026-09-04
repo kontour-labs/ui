@@ -1,7 +1,5 @@
 # `AnimatedCounter`
 
-![AnimatedCounter](../../../ui-catalog/screenshots/components/animatedcounter-light.png)
-
 <!--sample:AnimatedCounterBasics-->
 ```kotlin
 AnimatedCounter(value = minutesAway, format = { "$it min" })
@@ -43,7 +41,3 @@ rather than "4".
 It is not a live region: it does not announce itself when it changes. Where the
 change is the point — a departure time counting down — that is
 [`RelativeTimeText`](relative-time-text.md), which is.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

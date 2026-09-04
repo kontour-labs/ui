@@ -1,7 +1,5 @@
 # `Stat`
 
-![Stat](../../../ui-catalog/screenshots/components/stat-light.png)
-
 <!--sample:StatBasics-->
 ```kotlin
 Stat {
@@ -45,7 +43,3 @@ announced as "8 minutes".
 
 A stat is not a control. If it opens something, it needs a role — put it in a
 [`Card`](card.md) with `onClick`.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

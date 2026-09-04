@@ -34,7 +34,3 @@ container with its own buttons — not both.
 
 Elevation and border are `CardVariant`, which is visual. Nothing about the
 variant changes what is announced.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

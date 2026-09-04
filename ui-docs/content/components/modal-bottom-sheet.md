@@ -53,7 +53,3 @@ gesture closes it.
 
 `dismissOnOutside = false` removes the scrim route. Where you use it, the content
 must offer its own way out.
-
----
-
-← [Sheets](sheets.md) · [All components](../components.md)
