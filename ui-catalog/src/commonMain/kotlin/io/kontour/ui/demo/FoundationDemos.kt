@@ -383,11 +383,15 @@ internal val ImeChainDemo = ComponentDemo(slug = "ime-chain") {
 /**
  * Whether there is an app action to add to the selection menu.
  *
- * This is the whole component. With no extra actions `TextSelectionToolbar`
- * returns its content untouched and the platform's own toolbar comes up — the
- * one that knows about the system clipboard, Look Up and Translate. Passing one
- * trades that surface for a drawn one, because the platforms give no way to
- * append to theirs.
+ * On a phone this is the whole component: with no extra actions
+ * `TextSelectionToolbar` returns its content untouched and the platform's own
+ * toolbar comes up — the one that knows about the system clipboard, Look Up and
+ * Translate — and passing one trades that surface for a drawn one, because
+ * neither platform gives any way to append to theirs.
+ *
+ * You are almost certainly reading this in a browser, where there is no such
+ * surface to trade. So here the drawn toolbar comes up either way, and the flag
+ * only decides whether "Plan a trip" is on it.
  */
 private val toolbarActions = Knob.Flag("App action", initial = true)
 
@@ -416,11 +420,14 @@ internal val TextToolbarDemo = ComponentDemo(
             text = if (extra) {
                 "Selecting text gives the library's toolbar: the verbs the " +
                     "framework offered, plus “Plan a trip”. A verb the platform " +
-                    "did not offer is absent rather than greyed out."
+                    "did not offer is absent rather than greyed out, and past " +
+                    "four items the rest go behind More."
             } else {
-                "With no actions it does nothing at all, and that is the point — " +
-                    "the field is handed straight back and the platform's own " +
-                    "selection menu comes up."
+                "On desktop and the web this still draws — there is no system " +
+                    "selection toolbar to defer to, and Compose's fallback is a " +
+                    "bare popup. On Android and iOS, with no actions to add, the " +
+                    "field is handed straight back and the system's own menu " +
+                    "comes up instead."
             },
             style = Theme.typography.bodySmall,
             colour = Theme.colours.contentMuted,

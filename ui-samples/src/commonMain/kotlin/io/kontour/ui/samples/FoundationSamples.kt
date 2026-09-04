@@ -224,8 +224,8 @@ fun ImeChainBasics() {
 @Composable
 fun TextToolbarBasics() {
     // Wrap the app once, with the items this app wants on a text selection.
-    // With no actions this does nothing at all and every platform keeps its own
-    // toolbar — which is the right default, and why the list is what you pass.
+    // With no actions, Android and iOS keep their own toolbar and this installs
+    // nothing; desktop and the web have none to keep, so it draws its own.
     TextSelectionToolbar(
         actions = listOf(
             TextToolbarAction("Plan a trip") { /* open the planner */ },

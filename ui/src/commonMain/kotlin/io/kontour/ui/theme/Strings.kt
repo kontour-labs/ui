@@ -109,6 +109,8 @@ data class Strings(
     val cut: String = "Cut",
     val paste: String = "Paste",
     val selectAll: String = "Select all",
+    /** The overflow control on a selection toolbar that has outgrown its row. */
+    val more: String = "More",
 
     // Navigation
     val navigation: String = "Navigation",
