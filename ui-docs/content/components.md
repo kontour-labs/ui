@@ -51,7 +51,7 @@ The comparisons that get made wrongly, and where each is argued:
 | `Stat` vs `KeyValueList` vs `SettingRow` | [`KeyValueList`](components/key-value-list.md) |
 | `EmptyState` vs `ErrorState` | [`EmptyState`](components/empty-state.md) |
 | `Pagination` vs `LoadMore` | [navigation](components/pagination.md) |
-| The five sheet entry points | [sheets](sheets.md) |
+| The five sheet entry points | [sheets](components/sheets.md) |
 
 ---
 

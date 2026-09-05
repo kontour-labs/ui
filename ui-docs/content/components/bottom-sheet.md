@@ -45,7 +45,7 @@ what makes it right for a stop list over a map and wrong for a form.
 
 Its resting positions come from a `rememberSheetState(detents = …)`. `Hidden`,
 `Half`, `Expanded`, `Full` and `peek(…)` are values rather than an enum entries
-list, so an app can add its own — [the sheet guide](../sheets.md#the-model)
+list, so an app can add its own — [the sheet guide](sheets.md#the-model)
 explains why that matters and what `peek` measures.
 
 **Both ends give.** Pulled above its tallest detent the sheet follows the finger

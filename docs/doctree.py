@@ -57,7 +57,17 @@ FAMILY = {
 # routes on the site like everything else — before this round they had none, and
 # 2,084 lines of the reasoning behind the library could only be read as raw
 # markdown on GitHub.
-GUIDES = ("components", "installing", "tokens", "theming", "accessibility", "dsls", "overlays", "sheets")
+# Getting started, then the patterns that run across the library, then the map.
+#
+# Reading order, and the site sorts the sidebar by it. It used to open on
+# `components` — the map of 114 pages — and close on "The detent model", which
+# put the most specific page in the tree last and the least useful first
+# reading. A reader arriving at a component library wants to install it, learn
+# what a component is allowed to look like, and only then meet 114 of them.
+#
+# "The detent model" is gone from here entirely: it was a guide about one
+# family, and it now opens that family's own index at `components/sheets.md`.
+GUIDES = ("installing", "tokens", "theming", "dsls", "accessibility", "overlays", "components")
 
 
 # A link to a page, as these files write them: `(button.md)`, `(chip.md#tone)`.

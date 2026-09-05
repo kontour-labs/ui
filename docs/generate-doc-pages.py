@@ -321,13 +321,23 @@ def main() -> int:
             family = FAMILY.get(claim[0], "Other") if claim else "Other"
             order = claim[1] if claim else len(claimed)
         else:
-            # `GUIDES` has been written in reading order since it was added and
-            # nothing has ever read it — the map, then how to install it, then
-            # the tokens and the theme, and the cross-cutting reading last.
-            # Alphabetical filed the `+` DSL guide under S, its title being
-            # "Slots, and the `+` that keeps them short".
+            # `GUIDES` is reading order — install it, learn what a component is
+            # allowed to look like, then meet them. Alphabetical filed the `+`
+            # DSL guide under S, its title being "Slots, and the `+` that keeps
+            # them short".
+            #
+            # A guide missing from the tuple used to sort to the end, which is
+            # a silent wrong answer for a page that has simply been forgotten —
+            # and reshuffling this tuple is exactly when that happens. It is an
+            # error now: `GUIDES` is the order, so a page it does not name has
+            # no place in it.
             kind, family = "DocKind.Guide", "Guides"
-            order = GUIDES.index(path.stem) if path.stem in GUIDES else len(GUIDES)
+            if path.stem not in GUIDES:
+                raise SystemExit(
+                    f"{path} is a guide and is not in doctree.GUIDES, which is "
+                    f"what orders them. Add it where a reader should meet it."
+                )
+            order = GUIDES.index(path.stem)
 
         page_blocks = blocks(lines, str(path))
         # One function per page, and one per 30 blocks inside it.

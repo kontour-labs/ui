@@ -18,7 +18,7 @@ without every child being told.
 
 `DragHandle` is the near miss — a primitive by shape, but it means one specific
 thing, so it is filed with the sheets and explained under
-[the detent model](../sheets.md#draghandle-is-drawn-not-draggable).
+[the detent model](sheets.md#draghandle-is-drawn-not-draggable).
 
 ---
 

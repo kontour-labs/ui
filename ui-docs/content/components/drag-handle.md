@@ -28,7 +28,7 @@ handle, which is why it is not marked decorative. It widens slightly on hover â€
 the one hint a pointer user gets that a sheet is draggable at all.
 
 `BottomSheet` and `ModalBottomSheet` draw one by default and take a `dragHandle`
-slot to replace or remove it. [Sheets](../sheets.md) is where the detents, the
+slot to replace or remove it. [Sheets](sheets.md) is where the detents, the
 nested scrolling and the rest of the sheet story live.
 
 ---
