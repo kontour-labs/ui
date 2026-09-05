@@ -345,7 +345,7 @@ def claimed_symbols() -> set[str]:
 # The other twelve are all reachable and all worth a knob: `LoadMoreState`'s
 # four states, `OverlaySide` and `OverlayAlignment` in every direction,
 # `ToastPosition` at both ends, `ReorderHandleSide` at either.
-MAX_UNSWEPT_ENUMS = 14
+MAX_UNSWEPT_ENUMS = 10
 
 # Only goes down. See rule 16.
 #
@@ -362,7 +362,7 @@ MAX_UNSWEPT_ENUMS = 14
 # switched off and stayed that way — the chip morph whose own KDoc carries the
 # worked example, the stepper's `AnimatedCounter` wired in and never turned on,
 # the range slider's tick marks. A reader could not press one of them.
-MAX_UNDEMOED_FLAGS = 5
+MAX_UNDEMOED_FLAGS = 4
 
 
 def undemoed_flags() -> list[str]:

@@ -44,6 +44,7 @@ import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.overlay.ToastHost
+import io.kontour.ui.overlay.ToastPosition
 import io.kontour.ui.overlay.ToastTone
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
@@ -298,11 +299,19 @@ internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
     }
 }
 
-internal val ToastDemo = ComponentDemo(slug = "toast") {
+// Which edge they come from. Bottom is the default and the one most apps want;
+// top is for a screen whose bottom edge is already busy — a map with a sheet
+// over it, say — and the stack recedes the other way to match.
+private val toastPosition = Knob.Choice("Position", ToastPosition.entries.toList())
+
+internal val ToastDemo = ComponentDemo(
+    slug = "toast",
+    knobs = listOf(toastPosition),
+) {
     val toasts = rememberToastHostState()
     val scope = rememberCoroutineScope()
     Stage {
-        ToastHost(toasts, showClose = true)
+        ToastHost(toasts, position = this@ComponentDemo[toastPosition], showClose = true)
         Column(
             modifier = Modifier.align(Alignment.Center),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),

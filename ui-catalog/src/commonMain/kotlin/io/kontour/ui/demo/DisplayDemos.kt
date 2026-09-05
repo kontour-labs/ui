@@ -232,7 +232,16 @@ internal val CalloutDemo = ComponentDemo(slug = "callout") {
     }
 }
 
-internal val TimelineDemo = ComponentDemo(slug = "timeline") {
+// The middle leg is the walk, and a dashed connector is how a journey planner
+// says "you are on your own for this bit". The knob is what shows that the
+// choice is per-item rather than per-timeline.
+private val timelineConnector =
+    Knob.Choice("Walk connector", ConnectorStyle.entries.toList(), ConnectorStyle.Dashed)
+
+internal val TimelineDemo = ComponentDemo(
+    slug = "timeline",
+    knobs = listOf(timelineConnector),
+) {
     Timeline(Modifier.fillMaxWidth()) {
         TimelineItem(nodeColour = Color(0xFF1B5E20)) {
             Text("Perth Station", style = Theme.typography.titleSmall)
@@ -243,7 +252,7 @@ internal val TimelineDemo = ComponentDemo(slug = "timeline") {
             )
         }
         TimelineItem(
-            connector = ConnectorStyle.Dashed,
+            connector = this@ComponentDemo[timelineConnector],
             filled = false,
             nodeColour = Theme.colours.outlineStrong,
         ) {

@@ -99,10 +99,16 @@ private val numberDecimal = Knob.Flag("Decimals")
 
 /** A leading minus, for a temperature or a balance rather than a distance. */
 private val numberNegative = Knob.Flag("Negatives")
+// Tells the platform's password manager to offer a *generated* password
+// rather than a saved one, and turns off autocorrect and suggestions. Nothing
+// about it is visible, which is exactly why it wants to be pressable: the
+// difference is what the keyboard and the manager do.
+private val passwordIsNew = Knob.Flag("Sign-up field")
+
 
 internal val SpecialisedFieldsDemo = ComponentDemo(
     slug = "specialised-fields",
-    knobs = listOf(numberDecimal, numberNegative),
+    knobs = listOf(numberDecimal, numberNegative, passwordIsNew),
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -110,7 +116,8 @@ internal val SpecialisedFieldsDemo = ComponentDemo(
     ) {
         PasswordField(
             state = rememberTextFieldState("hunter2"),
-            label = "Password",
+            label = if (this@ComponentDemo[passwordIsNew]) "Choose a password" else "Password",
+            isNewPassword = this@ComponentDemo[passwordIsNew],
             revealIcon = Tabler.Outline.Eye,
             modifier = Modifier.fillMaxWidth(),
         )

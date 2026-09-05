@@ -228,12 +228,18 @@ internal val SplitButtonDemo = ComponentDemo(
 
 private val fabMenuLayout = Knob.Choice("Layout", FabMenuLayout.entries.toList())
 
+// Follows the layout by default — a vertical stack has room beside it for a
+// label and a fan does not — so this is the knob that shows the default is a
+// default rather than a rule.
+private val fabMenuLabels = Knob.Flag("Labels", initial = true)
+
 internal val FabMenuDemo = ComponentDemo(
     slug = "fab-menu",
-    knobs = listOf(fabMenuLayout),
+    knobs = listOf(fabMenuLayout, fabMenuLabels),
 ) {
     var open by remember { mutableStateOf(false) }
     val layout = this[fabMenuLayout]
+    val labels = this[fabMenuLabels]
     val save: () -> Unit = { echo("Save stop"); open = false }
     val nearby: () -> Unit = { echo("Nearby"); open = false }
     val directions: () -> Unit = { echo("Directions"); open = false }
@@ -249,6 +255,7 @@ internal val FabMenuDemo = ComponentDemo(
             icon = Tabler.Outline.Plus,
             contentDescription = "Add",
             layout = layout,
+            showLabels = labels && layout == FabMenuLayout.Vertical,
             modifier = Modifier.align(Alignment.BottomEnd),
         ) {
             item(Tabler.Outline.Star, "Save stop", onClick = save)

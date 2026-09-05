@@ -57,18 +57,35 @@ private val stops = listOf(
     "McIver" to "Platform 1 · Midland line",
 )
 
-internal val ListItemDemo = ComponentDemo(slug = "list-item") {
+// `ListGroup` derives each row's position, which is the ordinary way to use
+// this and hides the parameter completely. The single row underneath is where
+// a reader can see what one `position` does on its own — `Only` is fully
+// rounded, `Middle` is nearly square, and the two ends round one way each.
+private val listItemPosition = Knob.Choice("Position", ListItemPosition.entries.toList())
+
+internal val ListItemDemo = ComponentDemo(
+    slug = "list-item",
+    knobs = listOf(listItemPosition),
+) {
     var current by remember { mutableStateOf(1) }
-    ListGroup(spacing = 2.dp, modifier = Modifier.fillMaxWidth()) {
-        stops.forEachIndexed { index, (name, detail) ->
-            item(
-                label = name,
-                supporting = detail,
-                icon = Tabler.Outline.Bus,
-                selected = index == current,
-                trailing = { Tag(tone = TagTone.Neutral) { +"${4 + index * 6} min" } },
-                onClick = { current = index },
-            )
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+    ) {
+        ListGroup(spacing = 2.dp, modifier = Modifier.fillMaxWidth()) {
+            stops.forEachIndexed { index, (name, detail) ->
+                item(
+                    label = name,
+                    supporting = detail,
+                    icon = Tabler.Outline.Bus,
+                    selected = index == current,
+                    trailing = { Tag(tone = TagTone.Neutral) { +"${4 + index * 6} min" } },
+                    onClick = { current = index },
+                )
+            }
+        }
+        ListItem(position = this@ComponentDemo[listItemPosition]) {
+            +"On its own, at ${this@ComponentDemo[listItemPosition]}"
         }
     }
 }
@@ -238,8 +255,18 @@ internal val PullToRefreshDemo = ComponentDemo(slug = "pull-to-refresh") {
     }
 }
 
-internal val LoadMoreDemo = ComponentDemo(slug = "load-more") {
-    var state by remember { mutableStateOf(LoadMoreState.Idle) }
+// Pressing it walks Idle → Loading → Error, which is the sequence worth
+// feeling; the knob is how a reader reaches `Done` and the end label without
+// having to guess that a fourth state exists.
+private val loadMoreState = Knob.Choice("State", LoadMoreState.entries.toList())
+
+internal val LoadMoreDemo = ComponentDemo(
+    slug = "load-more",
+    knobs = listOf(loadMoreState),
+) {
+    val picked = this[loadMoreState]
+    var state by remember { mutableStateOf(picked) }
+    LaunchedEffect(picked) { state = picked }
     LaunchedEffect(state) {
         if (state == LoadMoreState.Loading) {
             delay(1_200)
