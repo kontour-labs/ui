@@ -21,6 +21,12 @@ if (showing) {
 }
 ```
 
+The leading icon and the dismiss are both centred against the banner, so the two
+things flanking the text agree with each other. A tone icon says *this is a
+warning*, which is a fact about the whole message rather than about its first
+line — the same reason the dismiss does not sit up in the corner of a three-line
+banner.
+
 **`Banner` vs `Toast`.** A banner is about the screen you are on; a toast is
 about something you just did. A banner that appears in response to a tap is easy
 to miss, because the user is looking at their finger.

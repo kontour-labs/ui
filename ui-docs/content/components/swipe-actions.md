@@ -13,6 +13,12 @@ An action shows its label only where there is room for one. A single-line row is
 the label still reaches the screen reader through the row's custom action either
 way.
 
+The action's colour is at full strength from the first pixel. It used to darken
+while letting go would do nothing and lighten as the row crossed its threshold —
+an answer to a real question, delivered as a colour change on a box that is also
+sliding, growing and being tracked by a finger, which reads as a flicker partway
+through the swipe. The answer arrives better as the tick below.
+
 **The drag has detents you can feel.** A tick each time another action is
 uncovered, one distinct `DragThreshold` at the full-swipe point — the moment past
 which letting go commits — and a settle when the row comes to rest. This row has

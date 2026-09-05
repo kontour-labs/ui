@@ -46,6 +46,7 @@ import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.Kbd
+import io.kontour.ui.components.display.KbdIcons
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import io.kontour.ui.components.display.PageIndicator
@@ -1208,7 +1209,15 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     add(
         ComponentSpec("Kbd", role = null, underContract = false) { modifier, _, _ ->
-            Kbd(modifier = modifier) { +"⌘K" }
+            Kbd(modifier = modifier) {
+                // The icon rather than "⌘", which is the point of `KbdIcons`:
+                // a character sits where its font puts it and this sits in the
+                // middle of the cap. The golden is here to show the two
+                // together — a stroke icon beside a SemiBold letter — because
+                // that is the part of the trade a number cannot settle.
+                +KbdIcons.Command
+                +"K"
+            }
         }
     )
 

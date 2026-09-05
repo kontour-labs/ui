@@ -23,6 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -42,9 +47,12 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
-import io.kontour.ui.components.display.CircularProgress
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import io.kontour.ui.components.display.SpinnerDefaults
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
@@ -84,7 +92,15 @@ class PullToRefreshState internal constructor(
      */
     fun drag(delta: Float): Float {
         val previous = offset
-        val resisted = if (offset > thresholdPx) {
+        // Resistance on the way **out** only.
+        //
+        // Applied to a returning finger as well, it consumed four tenths of the
+        // upward movement and handed the other six to the list, which scrolled
+        // — so putting the indicator away slowly took the page with it, which is
+        // not something the gesture ever offered to do. Coming back closes the
+        // gap at full rate and consumes the whole of it, which is
+        // `RubberBand.payBack` under another name and for the same reason.
+        val resisted = if (delta > 0f && offset > thresholdPx) {
             delta * PullToRefreshDefaults.Resistance
         } else {
             delta
@@ -159,7 +175,54 @@ fun PullToRefresh(
         crossedThreshold = state.willRefresh
     }
 
-    val connection = remember(state, enabled) {
+    // Read through `State` rather than captured.
+    //
+    // The connection below is remembered, and an anonymous object takes a copy
+    // of the parameters it closes over — so a connection built while
+    // `refreshing` was false went on believing that for the whole of the
+    // refresh, and a scroll arriving mid-refresh started a second pull behind
+    // the spinner already on screen.
+    val pullable by rememberUpdatedState(enabled)
+    val busy by rememberUpdatedState(refreshing)
+
+    /**
+     * Whether the content still has its top edge showing.
+     *
+     * Only a gesture that starts at the top of the list is a pull, and the
+     * nested-scroll path never has to ask: a scroll only reaches [connection]
+     * unconsumed *because* the list had nowhere left to go. The drag path has no
+     * such luck — `PullToRefresh` holds its content as an opaque composable and
+     * cannot see how far down it is — so the answer is kept from what the scrolls
+     * say as they go past. The child taking a forward scroll means it is not at
+     * the top; the child declining a backward one means it is.
+     */
+    var atTop by remember { mutableStateOf(true) }
+
+    /**
+     * Whether a finger or a button is currently down.
+     *
+     * The gate on item 23d, and the enum is not it. `NestedScrollSource` does
+     * carry a distinct `Wheel`, and gating on `UserInput` reads like it settles
+     * the question — but measured, a wheel notch at the top of a list arrives
+     * here as `UserInput` all the same, and scrolling *down* a list and then
+     * back up past its top pulled the indicator to fifteen per cent of its
+     * threshold with that gate in place. The first version of this test started
+     * at the top, where a wheel is declined outright and nothing reaches nested
+     * scroll, so it passed against a component that had the bug.
+     *
+     * What actually separates the two is not where the scroll came from but
+     * whether anybody is holding on. A pull is a sustained gesture: you press,
+     * you drag, you decide, you let go. A wheel notch is a request to read what
+     * is further up, and at the top there is nothing further up, so the right
+     * answer is to do nothing.
+     *
+     * Watched on the **initial** pass, which runs parents first, so this sees
+     * the press whatever the list does with it afterwards. Nothing is consumed
+     * here.
+     */
+    var holding by remember { mutableStateOf(false) }
+
+    val connection = remember(state) {
         object : NestedScrollConnection {
             override fun onPreScroll(
                 available: Offset,
@@ -167,7 +230,7 @@ fun PullToRefresh(
             ): Offset {
                 // Pulling back down while the indicator is out belongs to the
                 // indicator, not to the list.
-                if (!enabled || refreshing) return Offset.Zero
+                if (!pullable || busy) return Offset.Zero
                 return if (available.y < 0 && state.offset > 0f) {
                     Offset(0f, state.drag(available.y))
                 } else {
@@ -180,8 +243,12 @@ fun PullToRefresh(
                 available: Offset,
                 source: NestedScrollSource,
             ): Offset {
-                if (!enabled || refreshing) return Offset.Zero
-                return if (available.y > 0 && source == NestedScrollSource.UserInput) {
+                if (consumed.y < 0f) atTop = false
+                if (available.y > 0f) atTop = true
+                if (!pullable || busy) return Offset.Zero
+                // A held pointer, not a source — see `holding` above for why
+                // the obvious `source == Wheel` test does not work.
+                return if (available.y > 0 && holding && source == NestedScrollSource.UserInput) {
                     Offset(0f, state.drag(available.y))
                 } else {
                     Offset.Zero
@@ -196,6 +263,20 @@ fun PullToRefresh(
         }
     }
 
+    /**
+     * A pull you can perform with a mouse.
+     *
+     * The gesture was nested-scroll and nothing else, and a `LazyColumn` does
+     * not drag with a mouse — desktops do not drag lists and Compose is right
+     * not to — so on desktop and the web pulling down did precisely nothing.
+     * The list is a child and claims the main pointer pass first, so this only
+     * ever sees a drag the list declined, which on a phone is none of them.
+     *
+     * Off unless the content is at its top, so a mouse drag halfway down a list
+     * is still a mouse drag halfway down a list.
+     */
+    val pullDrag = rememberDraggableState { delta -> state.drag(delta) }
+
     val indicatorOffset by animateFloatAsState(
         targetValue = when {
             refreshing -> with(density) { PullToRefreshDefaults.Threshold.toPx() }
@@ -205,7 +286,24 @@ fun PullToRefresh(
         label = "pullToRefresh",
     )
 
-    Box(modifier.nestedScroll(connection)) {
+    Box(
+        modifier
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        holding = event.changes.any { it.pressed }
+                    }
+                }
+            }
+            .nestedScroll(connection)
+            .draggable(
+                state = pullDrag,
+                orientation = Orientation.Vertical,
+                enabled = enabled && atTop && !refreshing,
+                onDragStopped = { if (state.release()) refresh() },
+            )
+    ) {
         // The content itself comes down, and the indicator is revealed in the
         // gap behind it.
         //
@@ -294,13 +392,36 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
         if (refreshing) {
             Spinner(size = Theme.sizing.iconMedium, contentDescription = null)
         } else {
-            CircularProgress(
-                progress = pull,
-                size = Theme.sizing.iconMedium,
-                trackColour = Color.Transparent,
-                strokeWidth = PullStroke,
-                modifier = Modifier.rotate(if (reduceMotion) 0f else pull * PullTurn),
-            )
+            // Drawn here rather than handed to `CircularProgress`, because a
+            // progress ring closes the circle and this one must not.
+            //
+            // At a full pull the ring was a complete circle and the [Spinner]
+            // that replaced it opens at `OpeningSweep` — a third of one — so the
+            // moment the gesture committed, the thing the user was watching fill
+            // up emptied. Reported as the ring filling rather than stopping at
+            // an arc and continuing from there.
+            //
+            // Same length, same stroke, same colour and the same head-and-tail
+            // construction as the spinner: `startAngle = head - sweep`, so the
+            // arc's leading end is what travels and the tail follows it, which
+            // is the one thing that makes a growing arc read as turning rather
+            // than as unrolling from a fixed point.
+            val colour = LocalContentColour.current
+            Canvas(Modifier.size(Theme.sizing.iconMedium)) {
+                val stroke = PullStroke.toPx()
+                val inset = stroke / 2f
+                val sweep = pull * SpinnerDefaults.OpeningSweep
+                val head = -90f + if (reduceMotion) 0f else pull * PullTurn
+                drawArc(
+                    color = colour,
+                    startAngle = head - sweep,
+                    sweepAngle = sweep,
+                    useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = Size(size.width - stroke, size.height - stroke),
+                    style = Stroke(width = stroke, cap = StrokeCap.Round),
+                )
+            }
         }
     }
 }

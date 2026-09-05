@@ -109,7 +109,21 @@ fun Banner(
     ) {
         CompositionLocalProvider(LocalContentColour provides colours.onContainer) {
             slots.leading?.let { leading ->
-                Box(Modifier.padding(top = 1.dp)) {
+                // Centred in the banner, like the dismiss on the other side.
+                //
+                // It used to sit at the top of the row, nudged down by a bare
+                // `1.dp` to land on the title's line. Two things were wrong with
+                // that. The nudge is a number with no derivation, so it is right
+                // for one type size and wrong for every other; and on a banner
+                // that is a single line — which most of them are — "level with
+                // the first line" and "centred" are meant to be the same place
+                // and the fudge made them differ.
+                //
+                // A tone icon belongs to the banner rather than to any line of
+                // it: it says *this is a warning*, which is a fact about the
+                // whole message. So it is centred against the whole message, and
+                // the two things flanking the text now agree with each other.
+                Box(Modifier.align(Alignment.CenterVertically)) {
                     ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
                 }
             }
@@ -137,13 +151,15 @@ fun Banner(
                     onClick = onDismissRequest,
                     // Centred in the banner, not sitting on the title's line.
                     //
-                    // The row aligns to the top because the *leading* icon has
-                    // to: an icon beside a paragraph belongs with its first
-                    // line, not floating in the middle of it. The dismiss is
-                    // the opposite case — it belongs to the banner rather than
-                    // to any line of it — and inheriting the row's alignment put
-                    // it up in the corner of a three-line banner, level with the
-                    // title and a long way from the middle of the box.
+                    // The row itself still aligns to the top, because the
+                    // *message* does: a title and its supporting line stack from
+                    // the top of the banner, and a body that centred itself
+                    // would drift as the text grew. The dismiss belongs to the
+                    // banner rather than to any line of it, and inheriting the
+                    // row's alignment put it up in the corner of a three-line
+                    // banner, level with the title and a long way from the
+                    // middle of the box. Same reasoning as the leading icon
+                    // above, and now the same answer.
                     modifier = Modifier.align(Alignment.CenterVertically),
                     size = ButtonSize.XSmall,
                 )

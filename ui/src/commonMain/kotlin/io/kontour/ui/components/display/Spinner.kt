@@ -92,8 +92,8 @@ fun Spinner(
         // Starts a quarter in, so the arc appears at half length rather than at
         // its shortest. A spinner that begins as a stub and grows reads as
         // popping in, and it is also what a screenshot catches on frame six.
-        initialValue = 0.25f,
-        targetValue = 1.25f,
+        initialValue = SpinnerDefaults.OpeningPhase,
+        targetValue = SpinnerDefaults.OpeningPhase + 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = SpinnerDefaults.BreatheMillis, easing = LinearEasing),
         ),
@@ -164,4 +164,21 @@ object SpinnerDefaults {
 
     /** The length it holds when the user has asked for less motion. */
     const val RestingSweep: Float = 90f
+
+    /**
+     * Where in the breathe cycle a spinner starts.
+     *
+     * A quarter in, so the arc appears at half its length rather than at its
+     * shortest: one that begins as a stub and grows reads as popping in.
+     *
+     * Named because a second thing depends on it. `PullToRefresh` grows an arc
+     * with the finger and swaps this in when the pull commits, and the swap is
+     * only invisible if the two are the same length at the moment it happens —
+     * so the pull stops at [OpeningSweep] rather than closing the circle, and
+     * neither number can drift from the other.
+     */
+    const val OpeningPhase: Float = 0.25f
+
+    /** The arc's length, in degrees, at the instant a spinner appears. */
+    val OpeningSweep: Float get() = spinnerSweep(OpeningPhase)
 }

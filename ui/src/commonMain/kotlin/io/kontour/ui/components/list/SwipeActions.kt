@@ -1,6 +1,5 @@
 package io.kontour.ui.components.list
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
@@ -41,7 +40,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -184,17 +182,6 @@ object SwipeActionsDefaults {
 
     /** Fraction of the row's width past which a full swipe fires. */
     const val FullSwipeThreshold: Float = 0.6f
-
-    /**
-     * How far the revealed colour is taken toward black before the swipe would
-     * commit.
-     *
-     * A fifth. Enough that the brightening at the threshold is unmistakable
-     * beside itself, not so much that the action's colour stops being
-     * recognisable on the way there — a red that has gone brown says something
-     * different from a red that is waiting.
-     */
-    const val DimBelowThreshold: Float = 0.2f
 
     /**
      * How many pixels of row one pixel of sideways scroll moves.
@@ -399,27 +386,20 @@ fun SwipeActions(
             else -> emptyList()
         }
         if (revealed.isNotEmpty()) {
-            /**
-             * How far the revealed side is dimmed, while letting go would do
-             * nothing.
-             *
-             * Two states rather than a ramp: the question the user is asking is
-             * "will letting go do the thing", and that has a yes and a no. A
-             * gradient answers "sort of", which is the one answer that is no
-             * help.
-             *
-             * Only while the row is still on its way *out of* rest. Once it has
-             * settled with the actions revealed, they are a destination the user
-             * is meant to tap rather than an unfinished gesture, and leaving them
-             * permanently darker would say the opposite.
-             */
-            val arming = state.anchoredState.settledValue == SwipeValue.Resting && !pastThreshold
-            val dim by animateFloatAsState(
-                targetValue = if (arming) SwipeActionsDefaults.DimBelowThreshold else 0f,
-                animationSpec = motion.tweenFast(),
-                label = "swipeDim",
-            )
-            val stripColour = lerp(revealed.last().background, Color.Black, dim)
+            // The action's own colour, at full strength, from the first pixel of
+            // the drag.
+            //
+            // It used to darken while letting go would do nothing and lighten as
+            // the row crossed its threshold, on the argument that the user is
+            // asking "will letting go do the thing" and that has a yes and a no.
+            // The answer arrives, but it arrives as a colour change on a box
+            // that is also sliding, growing and being tracked by a finger — so
+            // what it reads as is the box flickering partway through the swipe.
+            // Reported exactly that way, and the feedback it was carrying is
+            // already carried better: the threshold fires a distinct
+            // `DragThreshold` tick, felt rather than watched, on the frame it is
+            // crossed.
+            val stripColour = revealed.last().background
 
             // The area the row has vacated, plus just enough tucked under the
             // row to fill the wedge its rounded corner cuts away.
@@ -473,13 +453,7 @@ fun SwipeActions(
                 revealed.forEach { action ->
                     SwipeActionButton(
                         action = action,
-                        // The same dim as the strip, and this is the one that
-                        // can actually be seen: an action's own button covers
-                        // the whole revealed area, so the strip only ever shows
-                        // in the wedge tucked under the row. Dimming the strip
-                        // alone was a piece of feedback that existed in the code
-                        // and had never once been on screen.
-                        background = lerp(action.background, Color.Black, dim),
+                        background = action.background,
                         width = actionWidth,
                         onClick = {
                             action.onAction()

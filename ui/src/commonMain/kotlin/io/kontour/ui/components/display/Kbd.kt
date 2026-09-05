@@ -11,7 +11,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.ArrowBigUp
+import com.composables.icons.tabler.outline.Backspace
+import com.composables.icons.tabler.outline.Command
+import com.composables.icons.tabler.outline.CornerDownLeft
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.Dp
@@ -78,7 +84,7 @@ fun Kbd(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Centred on the glyph's own box, not on the font's line.
+        // Centred as closely as type metrics allow, which is not exactly.
         //
         // A monospace face has no ⌘ or ⇧ in it, so those come from whatever
         // fallback the platform picks — with its own ascent and descent, and a
@@ -86,9 +92,18 @@ fun Kbd(
         // Left to the default the cap centres the *line*, which puts a borrowed
         // glyph high in the box on one platform and low on another.
         //
-        // `Trim.Both` throws away the leading above and below, and `Center`
-        // shares what is left equally, so what ends up in the middle of the cap
-        // is the ink rather than the metrics of whichever font supplied it.
+        // `Trim.Both` throws away the leading above and below and `Center`
+        // shares what is left equally, which gets the *line box* centred. It
+        // does not get the **ink** centred, and the difference is measurable:
+        // rendered and compared against its own cap, ⌘ sits 1.0dp high, ⇧ 0.5dp
+        // low and a capital letter 0.75dp high — a 1.5dp spread that is simply
+        // where each font draws the symbol inside its em. Nothing here can
+        // correct it: common Compose exposes no ink bounds at all
+        // (`TextLayoutResult.getBoundingBox` is the advance box, not the ink),
+        // so there is no number to centre on.
+        //
+        // An [ImageVector] in the same cap lands within 0.25dp, because its
+        // bounds *are* its drawing. That is what [KbdIcons] is for.
         ProvideTextStyle(
             Theme.typography.labelSmall.copy(
                 fontFamily = FontFamily.Monospace,
@@ -103,6 +118,51 @@ fun Kbd(
             }
         }
     }
+}
+
+/**
+ * The modifier keys as icons, for the four a font gets wrong and Tabler draws.
+ *
+ * A key cap is a 20dp square and the glyph in it should sit in the middle. A
+ * *character* does not: rendered and measured against its own cap, ⌘ comes out
+ * 1.0dp high and ⇧ 0.5dp low, because that is where each fallback font places
+ * the symbol inside its em. There is no arithmetic that fixes it — common
+ * Compose exposes no ink bounds, only advance boxes — so the only way to centre
+ * one exactly is to draw it ourselves. These land within a quarter of a point.
+ *
+ * **Four, not sixteen.** These are the keys Tabler actually draws. There is no
+ * ⌥, ⌃, ⎋, ⇥, ⇪, ⌦, ⇞ or ⇟ in the set, and there is no point adding a
+ * hand-drawn one just to complete a table: the characters render, and the ones
+ * this covers are the ones that go wrong most visibly because they are the ones
+ * on every shortcut.
+ *
+ * ```kotlin
+ * Kbd { +KbdIcons.Command; +"K" }
+ * ```
+ *
+ * **The characters in [KbdDefaults] are not deprecated by this**, and are still
+ * the better answer in two cases: a platform whose own font sets the glyph well,
+ * and a cap sitting in running text, where a stroke icon at
+ * `Theme.sizing.iconSmall` is lighter than the type around it. Pick one and use
+ * it throughout — a row that mixes `KbdIcons.Command` with `"${KbdDefaults.Option}"`
+ * is two weights in one shortcut.
+ *
+ * Declared the same way as `SystemIcons`, one top-level `get()` each, so the
+ * ones an app never touches are dropped by R8 and by the JS and Wasm dead-code
+ * eliminators rather than travelling with the artifact.
+ */
+object KbdIcons {
+    /** ⌘ — command. The one this object exists for. */
+    val Command: ImageVector get() = Tabler.Outline.Command
+
+    /** ⇧ — shift. */
+    val Shift: ImageVector get() = Tabler.Outline.ArrowBigUp
+
+    /** ⏎ — return or enter. */
+    val Return: ImageVector get() = Tabler.Outline.CornerDownLeft
+
+    /** ⌫ — backspace, the one that deletes backwards. */
+    val Backspace: ImageVector get() = Tabler.Outline.Backspace
 }
 
 object KbdDefaults {

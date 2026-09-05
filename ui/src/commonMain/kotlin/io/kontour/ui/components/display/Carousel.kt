@@ -55,6 +55,35 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
 
+object CarouselDefaults {
+    /**
+     * How far into the next page a drag has to reach before letting go commits.
+     *
+     * A quarter, where Compose's own snapping is a half. A half is the right
+     * answer for a *list*, where the question is which item is mostly on screen;
+     * a carousel is a stack of cards being turned over, and half a full-width
+     * card is a long way to drag to find out whether the gesture took. Reported
+     * as the detent threshold being too high.
+     *
+     * Direction is read from the list rather than assumed, because position
+     * alone cannot tell you: a drum a third of the way between two pages is
+     * either a third forward from the first or two thirds back from the second,
+     * and which one it is decides which way a quarter counts.
+     *
+     * **It governs a trackpad too**, which is the other half of the same report
+     * and turned out not to need anything of its own. A sideways two-finger push
+     * already settles: traced, the offset sat at 73px for about ninety
+     * milliseconds after the last notch and then animated back to zero on its
+     * own, because the platform runs the fling behaviour once a wheel gesture
+     * goes quiet. Snapping *code* here was written, measured against its own
+     * removal, found to change nothing, and deleted. What a push actually
+     * inherits from this file is the threshold above — and a push that ends
+     * short of it lands back where it began, which is what reads as a carousel
+     * refusing to move.
+     */
+    const val SnapThreshold: Float = 0.25f
+}
+
 /**
  * Which page a [Carousel] is on, and how to get to another one.
  *
@@ -531,6 +560,48 @@ private fun firmSnapFlingBehaviour(listState: LazyListState): FlingBehavior {
         val base = SnapLayoutInfoProvider(listState)
         object : SnapLayoutInfoProvider by base {
             override fun calculateApproachOffset(velocity: Float, decayOffset: Float): Float = 0f
+
+            /**
+             * The same snap, committed a quarter of the way instead of half.
+             *
+             * `base` answers "which page is nearest", which is a list's
+             * question. A carousel's is "did that gesture turn the card", and a
+             * full-width card is a long way to drag before finding out.
+             *
+             * Derived from `base` rather than from the layout's own offsets,
+             * which is the part worth keeping: the platform already returns the
+             * distance to the nearest page edge, and the sign of it says which
+             * edge — negative to fall back to the page's start, positive to
+             * carry on to the next. From that one number and the pitch, both
+             * candidate distances are known without touching
+             * `viewportStartOffset`, `beforeContentPadding` or any of the other
+             * places an off-by-a-padding hides.
+             */
+            override fun calculateSnapOffset(velocity: Float): Float {
+                val nearest = base.calculateSnapOffset(velocity)
+                val visible = listState.layoutInfo.visibleItemsInfo
+                if (visible.size < 2) return nearest
+                val pitch = (visible[1].offset - visible[0].offset).toFloat()
+                if (pitch <= 0f) return nearest
+
+                // How far past the current page's start edge the drum sits, and
+                // how far short of the next one.
+                val past = if (nearest <= 0f) -nearest else pitch - nearest
+                val short = pitch - past
+                if (past <= 0f || short <= 0f) return nearest
+
+                // Which way the finger went. `past` on its own cannot say: a
+                // third of the way along is a third forward from this page or
+                // two thirds back from the next, and the threshold counts from
+                // wherever the gesture began.
+                val travelled = if (listState.lastScrolledBackward) short else past
+                return if (travelled >= pitch * CarouselDefaults.SnapThreshold) {
+                    if (listState.lastScrolledBackward) -past else short
+                } else {
+                    if (listState.lastScrolledBackward) short else -past
+                }
+            }
+
         }
     }
     return remember(provider, decay, snap) { snapFlingBehavior(provider, decay, snap) }

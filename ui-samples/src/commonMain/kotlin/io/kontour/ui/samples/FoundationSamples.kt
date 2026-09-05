@@ -33,6 +33,7 @@ import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.display.Kbd
+import io.kontour.ui.components.display.KbdIcons
 import io.kontour.ui.components.text.TextSelectionToolbar
 import io.kontour.ui.components.text.TextToolbarAction
 import io.kontour.ui.components.text.TextField
@@ -238,7 +239,10 @@ fun TextToolbarBasics() {
 @Composable
 fun KbdBasics() {
     Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-        Kbd { +"⌘" }
+        // The icon rather than the "⌘" character. A character lands wherever
+        // its font draws it inside the em — measurably a point high, for this
+        // one — and an icon lands in the middle of the cap.
+        Kbd { +KbdIcons.Command }
         Kbd { +"K" }
         Text("opens the command palette", style = Theme.typography.bodySmall)
     }
