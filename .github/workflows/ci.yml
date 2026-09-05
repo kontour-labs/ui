@@ -313,6 +313,17 @@ jobs:
       - name: Build the site
         run: ./gradlew --no-daemon :ui-docs:wasmJsBrowserDistribution
 
+      # What a reader downloads, against ceilings that only go down. Cheap — it
+      # gzips eleven files and prints a table — and it is the only assertion in
+      # the repository on the size of anything, which is why a bundle that had
+      # grown to 5.8 MB was never news to anybody.
+      #
+      # `docs/measure-web.mjs` is the other half and does not run here: it opens
+      # a browser, and a timing taken on a shared runner would be a number to
+      # ignore. This one is bytes, and bytes are the same everywhere.
+      - name: Check the bundle size
+        run: python3 docs/check-bundle-size.py
+
       # A gate, not a report: `failOnWarning` is on, so a malformed `@param` or a
       # `[Link]` to a symbol that no longer exists fails the build. That is a
       # class of KDoc defect nothing else here can see.
