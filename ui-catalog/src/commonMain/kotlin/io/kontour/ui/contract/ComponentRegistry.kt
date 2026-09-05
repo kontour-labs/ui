@@ -51,6 +51,7 @@ import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.datetime.WheelPicker
+import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.rememberToastHostState
 import kotlinx.datetime.LocalDate
@@ -1327,35 +1328,53 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "Toast",
             role = null,
             underContract = false,
-            // A card sizes itself to its message and neither wraps nor shrinks,
-            // so this is what "Trip saved to favourites." needs. A longer one
-            // needs more — at twice the type size it runs past a 320dp window —
-            // which is a thing about toasts worth knowing now that one is
-            // finally in a sweep at all, and which belongs to the toast stage.
-            minWidth = 260,
+            // **No `minWidth`, and that is the finding.**
+            //
+            // It carried 260 with a note saying a card "sizes itself to its
+            // message and neither wraps nor shrinks", and that a longer one runs
+            // past a 320dp window at twice the type size. Measured, both halves
+            // are wrong. A toast in a 320dp window at 200% type wraps to two
+            // lines and comes out 290dp wide; at 360dp, 330dp. It shrinks all
+            // the way down to 48dp.
+            //
+            // What was actually being measured was the specimen below, which
+            // used to raise its toast into the *ambient* host — the one the
+            // harness mounts across the whole scene. So the card was sized by
+            // the canvas while the sweep compared it against a box 60dp inside
+            // it, and 260 was the number that skipped the widths where that
+            // mismatch showed. Its own host fixes the specimen, and then the
+            // sweep can ask every width without an exemption.
         ) { modifier, _, _ ->
             val toasts = rememberToastHostState()
             LaunchedEffect(Unit) {
-                // **No action button**, and that is a finding rather than a
-                // preference. With an "Undo" beside the message the card is
-                // drawn 27% larger on a 48dp-touch-target platform than on a
-                // 24dp one — `TouchTargetOrderingTest` catches it — because the
-                // button reserves its target *inside* the card and the card
-                // sizes itself to its content. A chip had the same shape of
-                // problem and it was a modifier-order bug; whether a toast
-                // growing to hold a real tap target is the same bug or the
-                // correct answer is a question about toasts, and it is the
-                // toast stage's to settle. This specimen is the plain card so
-                // the picture is of the card.
+                // **With** its action, which it did not have for one round.
+                //
+                // An "Undo" beside the message used to draw the card 27% larger
+                // on a 48dp-touch-target platform than on a 24dp one, so the
+                // specimen was left plain to keep `TouchTargetOrderingTest`
+                // green and the finding was recorded here instead. The toast
+                // reserves that target itself now — one fixed row height on
+                // every platform — so the card is the same size everywhere and
+                // the action can come back. It is also the more useful picture:
+                // an actioned toast is the one with something to get wrong.
                 toasts.show(
                     message = "Trip saved to favourites.",
+                    actionLabel = "Undo",
+                    onAction = {},
                     // Long enough that the render is of a toast rather than of
                     // one halfway through leaving.
                     durationMillis = 60_000,
                 )
             }
             Box(modifier.fillMaxWidth().height(88.dp)) {
-                ToastHost(state = toasts)
+                // Its own host, so the toast is drawn inside the box this
+                // specimen was handed rather than wherever the surrounding
+                // harness happens to have mounted one. Every other specimen
+                // already draws inside its modifier; this is the one that did
+                // not, and `WidthSweepTest` was measuring the gap.
+                OverlayHost(Modifier.fillMaxSize()) {
+                    ToastHost(state = toasts)
+                }
             }
         }
     )

@@ -24,12 +24,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -60,6 +62,7 @@ import io.kontour.ui.components.action.ButtonColours
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
@@ -276,6 +279,18 @@ object ToastDefaults {
      * front does not also have to grow taller.
      */
     val PillHeight: Dp = 36.dp
+
+    /**
+     * How tall a toast's row of controls is, whatever the platform.
+     *
+     * 48dp, the target a finger wants, reserved by the toast rather than by
+     * each control inside it — see the note beside `LocalTouchTargetOwnedByParent`
+     * in `ToastSurface`. Fixed rather than read from `Theme.sizing.minTouchTarget`
+     * on purpose: a card that is one size on desktop and another on a phone for
+     * the same sentence is the thing being fixed, so the number cannot be the
+     * one that differs between them.
+     */
+    val ControlRowHeight: Dp = 48.dp
 
     /**
      * How much smaller each one behind the front one is drawn.
@@ -728,10 +743,47 @@ private fun ToastSurface(
             Box(Modifier.size(ToastDefaults.PillWidth, ToastDefaults.PillHeight))
             return@AnimatedContent
         }
+        // The toast reserves its controls' target itself, once, rather than
+        // letting the platform's minimum push the card around.
+        //
+        // `Button` is built correctly — `minimumTouchTarget` sits above its
+        // `height`, so its *visuals* stay 28dp on every platform. What grew was
+        // the layout node: expanded to `minTouchTarget` on a phone, it is a
+        // child of this row, the row sizes the surface, and the whole card grew
+        // with it. Measured, tapping for the hit area rather than reading the
+        // modifier chain, on "Trip saved to favourites." with an action and a
+        // close:
+        //
+        // |            | card       | close target |
+        // |------------|------------|--------------|
+        // | 24dp (mouse) | 274 x 52dp | 58 x 46dp  |
+        // | 48dp (finger)| 295 x 72dp | 47 x 47dp  |
+        //
+        // The same sentence, 21dp wider and 20dp taller on a phone, which is
+        // the 27% more ink `TouchTargetOrderingTest` was reporting.
+        //
+        // So the row takes the duty on — the same bargain `Toolbar` and
+        // `ButtonGroup` make — and guarantees the target by being that tall
+        // itself, on every platform. Both cases now measure 274 x 56dp with a
+        // 58 x 46dp close, so the card is one size everywhere and **no target
+        // got smaller**: the close is wider on a phone than it was, because a
+        // button that reserves its own 48dp box inside a row this size is
+        // crowding it rather than growing it. The reservation is a decision the
+        // component makes once, not one the platform makes for it.
+        //
+        // Only when there is something to press. A toast with nothing but a
+        // message reserves nothing, because there is nothing to hit.
+        val hasControls = toast.actionLabel != null || showClose
+        val reserved = if (hasControls) {
+            Modifier.defaultMinSize(minHeight = ToastDefaults.ControlRowHeight)
+        } else {
+            Modifier
+        }
+        CompositionLocalProvider(LocalTouchTargetOwnedByParent provides hasControls) {
         Row(
-            modifier = Modifier.padding(
+            modifier = reserved.padding(
                 start = Theme.spacing.md,
-                end = if (toast.actionLabel != null || showClose) Theme.spacing.xs else Theme.spacing.md,
+                end = if (hasControls) Theme.spacing.xs else Theme.spacing.md,
                 top = Theme.spacing.xs,
                 bottom = Theme.spacing.xs,
             ),
@@ -783,6 +835,7 @@ private fun ToastSurface(
                     size = ButtonSize.XSmall,
                 )
             }
+        }
         }
         }
     }
