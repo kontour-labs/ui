@@ -72,6 +72,17 @@ object ScrollbarDefaults {
  * the point where it competes with the content. It is also hidden from the
  * accessibility tree: it conveys nothing a screen reader cannot already get from
  * the list itself.
+ *
+ * @param cornerInset How far the container's rounded corner intrudes on the
+ *   track, taken off both ends. A scrollbar measures itself, not its container,
+ *   so it cannot discover this — inside a menu or a dialog the track otherwise
+ *   runs the full height and its ends disappear behind the curve.
+ *
+ *   A `Dp` rather than the container's shape, because a corner size needs a size
+ *   to resolve against and the only size here is the scrollbar's own. Every
+ *   rounded host in the library uses a fixed-`Dp` corner — `container` is 22dp,
+ *   `panel` 28 — so a length is exact for all of them; a proportional corner
+ *   could not be expressed, and no scrollbar host has one.
  */
 @Composable
 fun Scrollbar(
@@ -82,6 +93,7 @@ fun Scrollbar(
     thickness: Dp = ScrollbarDefaults.Thickness,
     hoveredThickness: Dp = ScrollbarDefaults.HoveredThickness,
     minThumbLength: Dp = ScrollbarDefaults.MinThumbLength,
+    cornerInset: Dp = 0.dp,
     alwaysVisible: Boolean = false,
 ) {
     val modality = LocalInputModality.current
@@ -127,6 +139,17 @@ fun Scrollbar(
                 }
             )
             .padding(Theme.spacing.xxs)
+            // Clear the container's corner, if it has one. Applied here rather
+            // than in the arithmetic above: `onSizeChanged` reports whatever is
+            // left after the padding, so the track length, the thumb length, its
+            // travel and its origin all follow from this one modifier.
+            .then(
+                if (orientation == Orientation.Vertical) {
+                    Modifier.padding(vertical = cornerInset)
+                } else {
+                    Modifier.padding(horizontal = cornerInset)
+                }
+            )
             .onSizeChanged {
                 trackLength = if (orientation == Orientation.Vertical) {
                     it.height.toFloat()
