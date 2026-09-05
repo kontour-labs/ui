@@ -96,7 +96,7 @@ That is what the rest of this directory is.
 | [`building/contributing.md`](building/contributing.md) | The shape of a component, the naming rules, the checklist |
 | [`building/testing.md`](building/testing.md) | Every gate, what each one asks, and what they have caught |
 | [`check-links.py`](check-links.py) | Every link in the repository resolves |
-| [`check-components.py`](check-components.py) | Eight rules over the pages: a page per component, an example, a demo, an index entry |
+| [`check-components.py`](check-components.py) | Seventeen rules over the pages: a page per component, an example, a demo, an index entry, a parameter explained |
 | [`check-api-links.py`](check-api-links.py) | Every "API reference" link points at a page the reference published |
 | [`sync-samples.py`](sync-samples.py) | The examples on the pages are the code `:ui-samples` compiles |
 | [`generate-doc-pages.py`](generate-doc-pages.py) | The content, turned into the Kotlin the site renders |

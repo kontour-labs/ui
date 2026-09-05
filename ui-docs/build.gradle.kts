@@ -126,11 +126,20 @@ val generateApiTables = tasks.register("generateApiTables") {
         // a search box.
         val referencePaths = sortedMapOf<String, MutableSet<String>>()
 
+        // The KDoc for each declaration, keyed the way the declaration is.
+        // Sliced out of the original text at the line the commentless parse
+        // reported — see `KotlinSignatures.parameterDocs`.
+        val described = mutableMapOf<KotlinSignatures.Declaration, Map<String, String>>()
+
         for (file in files) {
             val text = file.readText()
             val declared = KotlinSignatures.declarations(text)
             declarations += declared
             enumValues += KotlinSignatures.enums(text)
+            for (declaration in declared) {
+                val docs = KotlinSignatures.parameterDocs(text, declaration.line)
+                if (docs.isNotEmpty()) described[declaration] = docs
+            }
 
             val pkg = KotlinSignatures.packageName(text) ?: continue
             // A function is a file; a type is a directory with an index in it.
@@ -169,6 +178,33 @@ val generateApiTables = tasks.register("generateApiTables") {
             for (type in KotlinSignatures.types(text)) {
                 if (type.isPublic && type.isTopLevel) {
                     claim(type.name, "$pkg/${dokkaSlug(type.name)}/index.html")
+                }
+            }
+            // Builder-scope members get one too, keyed `MenuScope.item`,
+            // because half of what a builder page documents is members rather
+            // than the component itself.
+            //
+            // **Scopes only**, and that restriction was measured rather than
+            // chosen. Derived for every enclosing type, 26 of the paths named
+            // pages the reference does not publish: a companion's `of`, an
+            // interface property like `SheetDetent.fraction`, an override such
+            // as `PullToRefreshState.onPreScroll` — all folded into their
+            // parent's page — and nested types like `IndicatorSizing.Edge`,
+            // which get a directory rather than a file. A `…Scope` member is a
+            // plain function on a plain interface, which is the one shape that
+            // reliably gets a page of its own, and it is the shape the tables
+            // are full of. `check-api-links.py` reported all 26.
+            val scopes = KotlinSignatures.types(text)
+                .filter { it.isPublic && it.isTopLevel && it.name.endsWith("Scope") }
+                .map { it.name }
+                .toSet()
+            for (declaration in declared) {
+                val owner = declaration.enclosing ?: continue
+                if (declaration.isPublic && owner in scopes) {
+                    claim(
+                        "$owner.${declaration.name}",
+                        "$pkg/${dokkaSlug(owner)}/${dokkaSlug(declaration.name)}.html",
+                    )
                 }
             }
         }
@@ -211,6 +247,39 @@ val generateApiTables = tasks.register("generateApiTables") {
             else -> text.take(71).trimEnd() + "…"
         }
 
+        // A row of a parameter table wants one line, and a KDoc `@param` is not
+        // written to that brief: the median is 136 characters, the longest 1,707
+        // with a `###` heading inside it. The *first sentence* is written to it
+        // almost exactly — median 43, and 95% of them fit in 140 — because that
+        // is the sentence that says what the parameter is before the KDoc goes
+        // on to say why. The rest is a link away, now that the link works.
+        fun sentence(text: String?): String? {
+            if (text == null) return null
+            val end = Regex("""(?<=[.!?])\s+(?=[A-Z*`\[#])""").find(text)
+            val first = (end?.let { text.take(it.range.first) } ?: text).trim()
+
+            // KDoc is markup and this cell is not. `[loading]` rendered as
+            // literal brackets in the first version of this — a symbol
+            // reference is a link everywhere it is read except here, and square
+            // brackets around a word read as a mistake rather than as a
+            // reference. Links first, so `[label](url)` loses the target rather
+            // than becoming `label (url)`.
+            val plain = first
+                .replace(Regex("""\[([^\]]+)\]\([^)]*\)"""), "$1")
+                .replace(Regex("""\[([^\]]+)\]"""), "$1")
+                .replace(Regex("""\*\*([^*]+)\*\*"""), "$1")
+                .replace(Regex("""(?<!\w)\*([^*]+)\*(?!\w)"""), "$1")
+                .replace("`", "")
+                .replace(Regex("""\s+"""), " ")
+                .trim()
+
+            return when {
+                plain.isEmpty() -> null
+                plain.length <= 160 -> plain
+                else -> plain.take(159).trimEnd().trimEnd(',', ';', '—', '-') + "…"
+            }
+        }
+
         val body = StringBuilder()
         body.append("package io.kontour.ui.docs\n\n")
         body.append("// Generated by :ui-docs:generateApiTables. Do not edit.\n\n")
@@ -218,7 +287,10 @@ val generateApiTables = tasks.register("generateApiTables") {
         for ((symbol, group) in bySymbol) {
             body.append("    ").append(literal(symbol)).append(" to {\n        listOf(\n")
             for (declaration in group.sortedWith(compareBy({ it.enclosing != null }, { it.line }))) {
-                val parameters = declaration.parameters.map { it.copy(type = tidy(it.type), default = short(it.default?.let(::tidy))) }
+                val docs = described[declaration].orEmpty()
+                val parameters = declaration.parameters.map {
+                    it.copy(type = tidy(it.type), default = short(it.default?.let(::tidy)))
+                }
                 val named = parameters.flatMap { parameter ->
                     enumValues.keys.filter { Regex("\\b" + Regex.escape(it) + "\\b").containsMatchIn(parameter.type) }
                 }.distinct().sorted()
@@ -235,7 +307,8 @@ val generateApiTables = tasks.register("generateApiTables") {
                         body.append("                    ApiParameter(")
                             .append(literal(parameter.name)).append(", ")
                             .append(literal(parameter.type)).append(", ")
-                            .append(literal(parameter.default)).append("),\n")
+                            .append(literal(parameter.default)).append(", ")
+                            .append(literal(sentence(docs[parameter.name]))).append("),\n")
                     }
                     body.append("                ),\n")
                 }

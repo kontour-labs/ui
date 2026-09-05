@@ -480,8 +480,10 @@ private const val SummaryLength = 130
  * NavDrawer" is better than "Nav surfaces". A guide is named by its title, with
  * the markdown taken out: `dsls.md` is called "Slots, and the `+` that keeps
  * them short", whose only backticked run is `+`, so reading symbols off it gave
- * a page headed "+" with an *API reference* button that searched Dokka for a
- * plus sign.
+ * a page headed "+" — and, while there was a page-level *API reference* button,
+ * one that searched Dokka for a plus sign. The button is gone, replaced by a
+ * link beside each entry in the table, but the heading rule it exposed is the
+ * same rule and is still what stops a guide being titled after its punctuation.
  */
 private val DocPage.heading: String
     get() = when (kind) {
@@ -499,10 +501,6 @@ private val DocPage.heading: String
  */
 private val DocPage.indexLabel: String
     get() = if (kind == DocKind.Component) symbols.firstOrNull() ?: plainTitle else plainTitle
-
-/** The symbol the API reference button looks up, where there is one. */
-private val DocPage.referenceSymbol: String?
-    get() = if (kind == DocKind.Component) symbols.firstOrNull() else null
 
 /** The title with its markdown removed, for the places that draw it as text. */
 private val DocPage.plainTitle: String get() = title.replace("`", "")
@@ -566,16 +564,6 @@ private fun DocPageView(path: String) {
             // repository is the same mistake as the screenshots that used to
             // sit at the top of every one of them: it treats the repository as
             // a second place to read the documentation, and it is not one.
-            page.referenceSymbol?.let { symbol ->
-                item {
-                    Button(
-                        onClick = { openExternal(apiUrl(symbol)) },
-                        variant = ButtonVariant.Secondary,
-                        size = ButtonSize.Small,
-                    ) { +"API reference" }
-                }
-            }
-
             item { Specimens(page) }
 
             // `widthIn` outside `fillMaxWidth`, and the order is the whole fix.
@@ -675,26 +663,6 @@ private fun Specimens(page: DocPage) {
     }
 }
 
-/**
- * The reference page for a symbol, or the reference's index when there is none.
- *
- * It used to be `api/index.html?query=Button`, which lands on the front page
- * every time. **Dokka does not read `?query=`.** The one occurrence of that
- * parameter in its own JavaScript is the search widget *appending* it after it
- * has already navigated, so the site had copied the decorative half of the
- * mechanism and left the half that moves.
- *
- * The real location is a path, and [apiReferencePaths] carries it — derived at
- * build time from each declaration's package and name, and checked against a
- * real Dokka run by `docs/check-api-links.py`.
- *
- * The fallback is the index rather than a guess. A guessed path is a 404, and a
- * 404 is worse than the front page: the front page has a search box.
- */
-private fun apiUrl(symbol: String): String =
-    apiReferencePaths[symbol.substringAfterLast('.')]
-        ?.let { "api/kontour-ui/$it" }
-        ?: "api/index.html"
 
 /**
  * 320, not the 280 it was, and the collapsible index is why.

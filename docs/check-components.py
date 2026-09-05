@@ -12,7 +12,7 @@ missing: a section that lands in two files, a component whose page was never
 made, a page nothing links to. So the arrangement is checked rather than
 trusted.
 
-Sixteen rules:
+Seventeen rules:
 
   1. Every component in `componentRegistry` has a page whose title names it.
      The registry is the library's own list, so this cannot drift from what
@@ -40,8 +40,9 @@ Sixteen rules:
  14. Every enum a component takes as a parameter is on some demo's knob.
  15. Every click target sets a mouse cursor.
  16. Every boolean a component takes as a parameter is on some demo's knob.
+ 17. Every component page explains at least one of its parameters.
 
-Rules 4, 6, 7, 14 and 16 are **ratchets**: a ceiling that only goes down, rather
+Rules 4, 6, 7, 14, 16 and 17 are **ratchets**: a ceiling that only goes down, rather
 than a list of exempted names. You cannot exempt *your* page, only make the total
 worse, and that is the difference that matters — a list of names in a test is
 how a defect becomes a permanent exemption.
@@ -185,6 +186,88 @@ def public_composables() -> dict[str, Path]:
                 continue
             found[f"{receiver}.{name}" if receiver else name] = path
     return found
+
+
+KDOC_PARAM = re.compile(r"^\s*\*\s*@(?:param|property)\s+\w+", re.MULTILINE)
+
+# `fun`, `class` or a primary constructor, with its indent and any receiver.
+DOCUMENTED_HEADER = re.compile(
+    r"^([ \t]*)(?:(?:public|internal|private|abstract|open|sealed|data|value|inner|expect|actual)\s+)*"
+    r"(?:fun|class)\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?([A-Za-z_]\w*)"
+)
+
+TOP_LEVEL_TYPE = re.compile(
+    r"^(?:public\s+)?(?:(?:abstract|open|sealed|data|value|expect|actual|enum|annotation)\s+)*"
+    r"(?:class|interface|object)\s+([A-Za-z_]\w*)"
+)
+
+
+def symbols_explaining_a_parameter() -> set[str]:
+    """Every symbol whose KDoc says what at least one of its parameters is for.
+
+    Attributed the way `:ui-docs:generateApiTables` attributes a declaration to
+    a page — a member of `ListItemScope` belongs to `ListItem` — so that this
+    counts the same thing the reader sees in the table rather than something
+    adjacent to it.
+    """
+    found: set[str] = set()
+    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+        lines = path.read_text().split("\n")
+        enclosing: str | None = None
+        for index, line in enumerate(lines):
+            top = TOP_LEVEL_TYPE.match(line)
+            if top:
+                enclosing = top.group(1)
+                continue
+            if not line.lstrip().startswith("*/"):
+                continue
+            # Walk back to the `/**` this closes, and only count a KDoc that
+            # actually documents a parameter.
+            start = index
+            while start >= 0 and not lines[start].lstrip().startswith("/**"):
+                start -= 1
+            if start < 0 or not KDOC_PARAM.search("\n".join(lines[start:index])):
+                continue
+            # Then forward over the annotations to the declaration itself.
+            after = index + 1
+            while after < len(lines) and (
+                not lines[after].strip() or lines[after].lstrip().startswith("@")
+            ):
+                after += 1
+            if after >= len(lines):
+                continue
+            header = DOCUMENTED_HEADER.match(lines[after])
+            if not header:
+                continue
+            indent, receiver, name = len(header.group(1)), header.group(2), header.group(3)
+            owner = receiver or (enclosing if indent > 0 else None)
+            if owner is None:
+                found.add(name)
+            elif owner.endswith("Scope"):
+                found.add(owner[: -len("Scope")])
+            else:
+                found.add(f"{owner}.{name}")
+                found.add(name)
+    return found
+
+
+# Only goes down. See rule 17.
+#
+# Thirty-two of 103, and the two thirds already on the right side of it are
+# why this is a ratchet and not a sweep. `@param` in this library is selective
+# on purpose: `Button` explains three of its twelve because the other nine are
+# `modifier`, `enabled`, `onClick` and their like, and a sentence restating a
+# parameter's name teaches nobody anything. Demanding all 1,101 would produce
+# 966 of those sentences.
+#
+# What a page owes is *one* — the parameter a reader would otherwise have to
+# guess at, which every component has. Below the line the table is three columns
+# of names, types and defaults with nothing saying what any of it is for.
+#
+# The count is here rather than on the page deliberately. A coverage figure is a
+# fact about this library's maintenance; a reader looking at `Chip` is owed the
+# sentences, not the percentage of them that exist.
+MAX_PAGES_WITHOUT_PARAMETER_HELP = 32
 
 
 def claimed_symbols() -> set[str]:
@@ -851,6 +934,33 @@ def main() -> int:
             f"puts one in front of a reader and under `DemoRenderTest`"
         )
 
+    # Rule 17 — a page explains at least one of the parameters it lists.
+    #
+    # The table under every component page is generated from `:ui`'s own
+    # signatures, so it cannot drift — but for a round it was three columns of
+    # names, types and defaults with nothing anywhere saying what any of them
+    # was *for*. The KDoc has that sentence for 138 of the library's 1,214
+    # parameters, and the site now shows it; this counts the pages where there
+    # is not one to show.
+    explained = symbols_explaining_a_parameter()
+    unexplained = sorted(
+        page.stem
+        for page in component_pages
+        if not any(
+            symbol in explained or symbol.split(".")[-1] in explained
+            for symbol in page_symbols(page)
+        )
+    )
+    if len(unexplained) > MAX_PAGES_WITHOUT_PARAMETER_HELP:
+        problems.append(
+            f"{len(unexplained)} component pages explain none of their "
+            f"parameters, and the ceiling is "
+            f"{MAX_PAGES_WITHOUT_PARAMETER_HELP}. One `@param` sentence on the "
+            f"parameter a reader would otherwise guess at is what clears a page; "
+            f"the table picks it up on the next build. Without: "
+            f"{', '.join(unexplained)}"
+        )
+
     unswept = unswept_enums()
     if len(unswept) > MAX_UNSWEPT_ENUMS:
         problems.append(
@@ -874,6 +984,7 @@ def main() -> int:
         f"{len(component_pages) - len(without_sample)} compiled examples, "
         f"{len(component_pages) - len(without_a11y)} accessibility sections, "
         f"{len(unswept)} parameter enums and {len(undemoed)} booleans on no knob, "
+        f"{len(component_pages) - len(unexplained)} pages explaining a parameter, "
         f"all accounted for."
     )
     return 0

@@ -245,6 +245,8 @@ object KotlinSignatures {
      * Comments are blanked before matching, so a `fun` written inside one — in
      * a KDoc sample, most often — is not read as a declaration.
      */
+    private val parameterTag = Regex("""^@(?:param|property)\s+(\w+)\s*(.*)$""")
+
     private val packageHeader = Regex("""^package\s+([\w.]+)""", RegexOption.MULTILINE)
 
     private val typeHeader = Regex(
@@ -266,6 +268,61 @@ object KotlinSignatures {
 
         /** Declared at the top of a file, rather than inside another type. */
         val isTopLevel: Boolean get() = indent == 0
+    }
+
+    /**
+     * The `@param` and `@property` descriptions in the KDoc above the
+     * declaration that starts on [line], keyed by the name each documents.
+     *
+     * [line] comes from a [Declaration], which is found in the *commentless*
+     * text — and that is exactly why this can work at all: [withoutComments]
+     * replaces a comment with spaces rather than removing it, so the two texts
+     * agree on every line number and a declaration found in one can be located
+     * in the other.
+     *
+     * Returned whole. Whether a table wants the first sentence, all of it, or
+     * none is a question about that table, and one `@param` in this library is
+     * 1,707 characters with a `###` heading in it.
+     */
+    fun parameterDocs(text: String, line: Int): Map<String, String> {
+        val lines = text.split("\n")
+
+        // Annotations sit between the KDoc and the declaration, and a blank
+        // line is legal there too.
+        var last = line - 2
+        while (last >= 0 && (lines[last].isBlank() || lines[last].trimStart().startsWith("@"))) last--
+        if (last < 0 || !lines[last].trimEnd().endsWith("*/")) return emptyMap()
+
+        var first = last
+        while (first >= 0 && !lines[first].trimStart().startsWith("/**")) {
+            // A plain `/* … */` above a declaration is not its documentation,
+            // and walking past one would attach the *previous* declaration's
+            // KDoc to this one.
+            if (lines[first].trimStart().startsWith("/*")) return emptyMap()
+            first--
+        }
+        if (first < 0) return emptyMap()
+
+        val found = linkedMapOf<String, MutableList<String>>()
+        var current: String? = null
+        for (raw in lines.subList(first, last + 1)) {
+            val body = raw.trim().removePrefix("/**").removePrefix("*/").removePrefix("*").trim()
+            val tag = parameterTag.matchEntire(body)
+            when {
+                tag != null -> {
+                    current = tag.groupValues[1]
+                    found[current] = mutableListOf(tag.groupValues[2])
+                }
+                // Any other tag ends the one being read: `@param` descriptions
+                // run on across lines, so only a new tag can stop them.
+                body.startsWith("@") -> current = null
+                current != null -> found.getValue(current) += body
+            }
+        }
+
+        return found
+            .mapValues { (_, parts) -> parts.joinToString(" ").replace(Regex("\\s+"), " ").trim() }
+            .filterValues { it.isNotEmpty() }
     }
 
     /**
