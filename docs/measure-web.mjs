@@ -73,6 +73,24 @@ function arg(name, fallback) {
 const DIST = resolve(arg('dist', 'ui-docs/build/dist/wasmJs/productionExecutable'))
 const IDLE_SECONDS = Number(arg('seconds', '3'))
 
+/**
+ * Link speeds, because a loopback server is not a network.
+ *
+ * Unthrottled, this whole site arrives in under a second and the reported figure
+ * describes a reader who does not exist. The complaint that started this round was
+ * three to seven seconds, and reproducing that needs the bandwidth it was measured
+ * over: 5.7 MB is 5 seconds at 9 Mbit/s and 29 at 1.6, whatever the code does.
+ *
+ * Chrome's own DevTools presets, so a number here can be compared to one somebody
+ * takes by hand in a browser.
+ */
+const NETWORKS = {
+  none: null,
+  fast4g: { download: 9000e3 / 8, upload: 1500e3 / 8, latency: 20 },
+  slow4g: { download: 1600e3 / 8, upload: 750e3 / 8, latency: 150 },
+}
+const NETWORK = arg('network', 'none')
+
 async function serve(root) {
   const cache = new Map()
   const server = createServer(async (req, res) => {
@@ -260,6 +278,19 @@ async function main() {
   await cdp.send('Network.enable', {}, sessionId)
   await cdp.send('Runtime.enable', {}, sessionId)
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: true }, sessionId)
+  if (!(NETWORK in NETWORKS)) {
+    console.error(`unknown --network ${NETWORK}; pick one of ${Object.keys(NETWORKS).join(', ')}`)
+    process.exit(2)
+  }
+  const link = NETWORKS[NETWORK]
+  if (link) {
+    await cdp.send('Network.emulateNetworkConditions', {
+      offline: false,
+      latency: link.latency,
+      downloadThroughput: link.download,
+      uploadThroughput: link.upload,
+    }, sessionId)
+  }
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE }, sessionId)
 
   const evaluate = async (expression) => {
@@ -346,7 +377,11 @@ async function main() {
   const duplicates = [...responses.entries()].filter(([, hits]) => hits.length > 1)
 
   console.log(`\n  ${DIST}`)
-  console.log(`  chromium ${version.Browser}, software WebGL, cache disabled, gzip on\n`)
+  console.log(
+    `  chromium ${version.Browser}, software WebGL, cache disabled, gzip on, ` +
+      (link ? `${NETWORK} (${(link.download * 8 / 1e6).toFixed(1)} Mbit/s, ${link.latency}ms)` : 'unthrottled'),
+  )
+  console.log('')
   console.log('  LOAD')
   console.log(`    boot screen painted      ${(paints['first-contentful-paint'] ?? NaN).toFixed(0).padStart(7)} ms   (static markup in index.html)`)
   console.log(`    DOMContentLoaded         ${(timing.domContentLoaded ?? NaN).toFixed(0).padStart(7)} ms`)
@@ -394,7 +429,7 @@ async function main() {
   const out = arg('json', null)
   if (out) {
     await writeFile(out, JSON.stringify({
-      dist: DIST, paints, probe, timing, resources, transferred,
+      dist: DIST, network: NETWORK, paints, probe, timing, resources, transferred,
       duplicates: duplicates.map(([url, hits]) => ({ url, count: hits.length })),
       idle: { ...idleStats, appFrames, seconds: IDLE_SECONDS },
       interaction: interaction ? stats(interaction.deltas) : null,
