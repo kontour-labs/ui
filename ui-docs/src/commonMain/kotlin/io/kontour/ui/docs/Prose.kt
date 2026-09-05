@@ -3,6 +3,7 @@ package io.kontour.ui.docs
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.list.Scrollbar
+import io.kontour.ui.components.list.ScrollbarDefaults
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import androidx.compose.ui.unit.Dp
@@ -126,22 +129,37 @@ private fun Block(block: Block) {
  *
  * Wrapped Kotlin is Kotlin that has lost its indentation, and indentation is
  * most of how a nested builder reads. A scrollbar is the honest answer on a
- * narrow window.
+ * narrow window — and until now this comment was the only place one existed.
+ * The block scrolled with nothing to say that it did, so a line running past
+ * the right edge looked like a line that had been cut off.
  */
 @Composable
 private fun CodeBlock(block: Block.Code) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .background(Theme.colours.surfaceSunken, Theme.shapes.small)
-            .padding(Theme.spacing.md)
-            .horizontalScroll(rememberScrollState())
-    ) {
-        Text(
-            text = block.code,
-            style = Theme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-            colour = Theme.colours.content,
-            softWrap = false,
+    val scroll = rememberScrollState()
+    val shape = Theme.shapes.small
+    Box(Modifier.fillMaxWidth().background(Theme.colours.surfaceSunken, shape)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(Theme.spacing.md)
+                .horizontalScroll(scroll)
+        ) {
+            Text(
+                text = block.code,
+                style = Theme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                colour = Theme.colours.content,
+                softWrap = false,
+            )
+        }
+        // It draws nothing when there is nothing to scroll and nothing at all
+        // for a finger, both of which are `Scrollbar`'s own rules rather than
+        // this page's — a short block is unchanged, and a phone still gets the
+        // whole width for the code.
+        Scrollbar(
+            state = scroll,
+            orientation = Orientation.Horizontal,
+            modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
+            cornerInset = ScrollbarDefaults.cornerInset(shape),
         )
     }
 }

@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.Scrollbar
+import io.kontour.ui.components.list.ScrollbarDefaults
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.AnimatedCheckMark
 import io.kontour.ui.foundation.ContentScope
@@ -332,7 +333,7 @@ private fun MenuPanel(
                 // every rounded host here uses — ignores the size it is given.
                 // A proportional corner answers zero instead, which is the right
                 // degenerate: no inset, exactly as if the panel were square.
-                cornerInset = panelCorner(shape),
+                cornerInset = ScrollbarDefaults.cornerInset(shape),
             )
         }
     }
@@ -696,21 +697,3 @@ fun ContextMenuArea(
 }
 
 
-/**
- * The panel's trailing corner as a length, for anything that has to clear it.
- *
- * `Shape` says nothing about corners, and `CornerSize` cannot be resolved
- * without a size — but the sizes that matter here are all fixed `Dp`, and a
- * fixed corner ignores the size it is handed. So `Size.Zero` is enough to read
- * one, and anything proportional answers zero, which is the safe degenerate.
- *
- * Trailing rather than leading because that is the edge a scrollbar sits on.
- */
-@Composable
-private fun panelCorner(shape: Shape): Dp {
-    val density = LocalDensity.current
-    return remember(shape, density) {
-        val corners = shape as? CornerBasedShape ?: return@remember 0.dp
-        with(density) { corners.topEnd.toPx(Size.Zero, density).toDp() }
-    }
-}
