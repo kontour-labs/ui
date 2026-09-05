@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -38,6 +39,20 @@ import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.components.datetime.RelativeTimeText
+import io.kontour.ui.components.display.CircularProgress
+import io.kontour.ui.components.display.LinearProgress
+import io.kontour.ui.components.display.Spinner
+import io.kontour.ui.components.display.StepProgress
+import io.kontour.ui.components.datetime.CalendarMonth
+import io.kontour.ui.components.datetime.DatePicker
+import io.kontour.ui.components.datetime.DateRangePicker
+import io.kontour.ui.components.datetime.TimeField
+import io.kontour.ui.components.datetime.TimePicker
+import io.kontour.ui.components.datetime.WheelPicker
+import io.kontour.ui.overlay.ToastHost
+import io.kontour.ui.overlay.rememberToastHostState
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
 import io.kontour.ui.components.display.Accordion
 import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.AnimatedBanner
@@ -83,6 +98,7 @@ import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.TextField
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.marquee
@@ -1235,6 +1251,212 @@ val componentRegistry: List<ComponentSpec> = buildList {
         }
     )
 
+    // --- Four families that had no picture at all --------------------------
+    //
+    // Rules 1 and 5 in `check-components.py` run registry→page and
+    // composable→page. Neither runs composable→*golden*, so a component could be
+    // documented, demoed and swept for width while never once being
+    // photographed — and `Progress`, `Spinner`, `Toast` and the whole date
+    // family were exactly that. Three of this round's remaining items land on
+    // them, so they get their pictures before anything moves underneath.
+
+    add(
+        ComponentSpec("LinearProgress", role = null, underContract = false) { modifier, _, _ ->
+            // Determinate, and at a fraction that is unmistakably a fraction:
+            // a bar at 0.5 is symmetrical and a bar at 0.9 reads as full.
+            LinearProgress(progress = 0.4f, modifier = modifier.fillMaxWidth())
+        }
+    )
+
+    add(
+        ComponentSpec("CircularProgress", role = null, underContract = false) { modifier, _, _ ->
+            CircularProgress(progress = 0.4f, modifier = modifier)
+        }
+    )
+
+    add(
+        ComponentSpec("StepProgress", role = null, underContract = false) { modifier, _, _ ->
+            StepProgress(current = 2, total = 5, modifier = modifier.fillMaxWidth())
+        }
+    )
+
+    add(
+        ComponentSpec("Spinner", role = null, underContract = false) { modifier, _, _ ->
+            // Its arc breathes and turns, so this is one frame of something
+            // that never stands still — and the frame the render sweep lands on
+            // catches it near its shortest, about a 40° stub rather than the
+            // half-circle it spends most of its cycle at. Faithful, and an
+            // unflattering picture of a spinner.
+            //
+            // Left as it is rather than staged, because the alternative is a
+            // golden that lies about what the component looks like at an
+            // arbitrary moment, and because the two properties that actually
+            // matter — that the arc never reaches zero and that its tail never
+            // runs backwards — are not visible in any single frame. They are
+            // `spinnerSweep`'s own unit tests, which is why that function is
+            // pulled out of the composable at all.
+            Spinner(modifier = modifier)
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "Toast",
+            role = null,
+            underContract = false,
+            // A card sizes itself to its message and neither wraps nor shrinks,
+            // so this is what "Trip saved to favourites." needs. A longer one
+            // needs more — at twice the type size it runs past a 320dp window —
+            // which is a thing about toasts worth knowing now that one is
+            // finally in a sweep at all, and which belongs to the toast stage.
+            minWidth = 260,
+        ) { modifier, _, _ ->
+            val toasts = rememberToastHostState()
+            LaunchedEffect(Unit) {
+                // **No action button**, and that is a finding rather than a
+                // preference. With an "Undo" beside the message the card is
+                // drawn 27% larger on a 48dp-touch-target platform than on a
+                // 24dp one — `TouchTargetOrderingTest` catches it — because the
+                // button reserves its target *inside* the card and the card
+                // sizes itself to its content. A chip had the same shape of
+                // problem and it was a modifier-order bug; whether a toast
+                // growing to hold a real tap target is the same bug or the
+                // correct answer is a question about toasts, and it is the
+                // toast stage's to settle. This specimen is the plain card so
+                // the picture is of the card.
+                toasts.show(
+                    message = "Trip saved to favourites.",
+                    // Long enough that the render is of a toast rather than of
+                    // one halfway through leaving.
+                    durationMillis = 60_000,
+                )
+            }
+            Box(modifier.fillMaxWidth().height(88.dp)) {
+                ToastHost(state = toasts)
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "CalendarMonth",
+            role = null,
+            underContract = false,
+            renderHeight = 320,
+        ) { modifier, _, _ ->
+            CalendarMonth(
+                month = SpecimenMonth,
+                isSelected = { it == SpecimenDate },
+                onSelectedChange = {},
+                today = SpecimenToday,
+                // A phone's worth of width. Unbounded, a calendar takes
+                // `CalendarMonthDefaults.MaxWidth` — 511dp, which is correct and
+                // does not fit a specimen card. `widthIn` rather than `width`,
+                // so the width sweep can still squeeze it.
+                modifier = modifier.widthIn(max = SpecimenGridWidth),
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DatePicker",
+            role = null,
+            underContract = false,
+            renderHeight = 380,
+            // Seven columns of day numbers that only ever grow — `grownFor`
+            // scales a cell's digit up and never down — so below about this the
+            // grid is wider than its box by construction. A fact about the
+            // component, declared beside it.
+            minWidth = 200,
+        ) { modifier, _, _ ->
+            DatePicker(
+                selected = SpecimenDate,
+                onSelectedChange = {},
+                today = SpecimenToday,
+                previousIcon = SystemIcons.ChevronLeft,
+                nextIcon = SystemIcons.ChevronRight,
+                modifier = modifier.widthIn(max = SpecimenGridWidth),
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DateRangePicker",
+            role = null,
+            underContract = false,
+            renderHeight = 380,
+            // Seven columns of day numbers that only ever grow — `grownFor`
+            // scales a cell's digit up and never down — so below about this the
+            // grid is wider than its box by construction. A fact about the
+            // component, declared beside it.
+            minWidth = 200,
+        ) { modifier, _, _ ->
+            // A range that spans a week boundary, so the picture shows both the
+            // capped ends and the square-edged middle that makes a run read as
+            // continuous rather than as a row of separate pills.
+            DateRangePicker(
+                start = SpecimenDate,
+                end = LocalDate(2026, 6, 24),
+                onRangeSelected = { _, _ -> },
+                today = SpecimenToday,
+                previousIcon = SystemIcons.ChevronLeft,
+                nextIcon = SystemIcons.ChevronRight,
+                modifier = modifier.widthIn(max = SpecimenGridWidth),
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "TimePicker",
+            role = null,
+            underContract = false,
+            renderHeight = 240,
+        ) { modifier, _, _ ->
+            TimePicker(value = SpecimenTime, onValueChange = {}, modifier = modifier)
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "WheelPicker",
+            role = null,
+            underContract = false,
+            renderHeight = 220,
+        ) { modifier, _, _ ->
+            WheelPicker(
+                items = (0..9).map { "Platform $it" },
+                selected = 3,
+                onSelectedChange = {},
+                label = { it },
+                modifier = modifier,
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "TimeField",
+            role = Role.Button,
+            // The field is a `Column` — its label above, the tappable surface
+            // below — so the role, the name and the disabled state live on the
+            // surface rather than on the node a caller's modifier lands on.
+            // Same shape as every text field here, and the same locator.
+            control = ControlLocator.Clickable,
+            accessibleName = "Departure",
+        ) { modifier, enabled, onClick ->
+            TimeField(
+                value = SpecimenTime,
+                onClick = onClick,
+                modifier = modifier,
+                enabled = enabled,
+                label = "Departure",
+            )
+        }
+    )
+
     add(
         ComponentSpec("Scrollbar", role = null, underContract = false) { modifier, _, _ ->
             // `alwaysVisible`, because a scrollbar hides itself unless the input
@@ -1460,3 +1682,19 @@ private fun SplitButtonSpecimen(
         +"Save"
     }
 }
+
+/**
+ * One fixed date, time and month for every specimen that needs one.
+ *
+ * Not the real clock. These are drawn by the render sweep as well as read in a
+ * browser, and a calendar that moves with the wall clock produces a different
+ * image every day — which is a golden that fails once a night and teaches
+ * everyone to re-record without looking.
+ */
+private val SpecimenToday = LocalDate(2026, 6, 12)
+private val SpecimenMonth = LocalDate(2026, 6, 1)
+private val SpecimenDate = LocalDate(2026, 6, 18)
+private val SpecimenTime = LocalTime(8, 31)
+
+/** A phone's worth of width, for the specimens that would otherwise take 511dp. */
+private val SpecimenGridWidth = 256.dp
