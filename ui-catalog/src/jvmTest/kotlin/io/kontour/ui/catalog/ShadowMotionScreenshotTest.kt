@@ -36,7 +36,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * The two shadows that are only wrong while something is moving.
+ * The shadow that is only wrong while something is moving.
  *
  * Items 4 and 23a, which are one defect wearing two costumes. A `graphicsLayer`
  * with `alpha < 1` composites offscreen into a buffer sized to the **layer's own
@@ -54,67 +54,35 @@ import kotlin.test.assertTrue
  * ### Why this needs its own frame
  *
  * Every other golden in the suite pins `reduceMotion = true`, which collapses
- * these animations to a snap: the FAB items are drawn at full scale and full
- * opacity, the pull indicator at full size. Both conditions of the defect are
- * gone, so no existing render can see it — which is why it survived a round that
- * fixed the identical fault three components over.
+ * these animations to a snap: the pull indicator is drawn at full size, so both
+ * conditions of the defect are gone and no existing render can see it — which is
+ * why it survived a round that fixed the identical fault three components over.
+ *
+ * ### `FabMenu` is guarded by its resting goldens instead
+ *
+ * There was a second frame here, catching a menu with its items part-way out,
+ * and it had to go: the anchor's icon turns from a plus to a cross as the menu
+ * opens, and its angle is not identical from run to run. 721 pixels past the
+ * channel tolerance against a cap of 600 — enough to fail, entirely inside the
+ * anchor, and nothing to do with what the frame was watching.
+ *
+ * A golden that fails at random is worse than no golden, for the reason the
+ * harness's own tolerance exists: a suite that cries wolf gets regenerated
+ * without being read. And the coverage is not actually lost. The surprise in
+ * this stage was that `fabmenu-vertical`, `-horizontal` and `-fan` were drawing
+ * grey squares **at rest**, so those three pairs move if this regresses — which
+ * is exactly what they did when it was fixed.
  *
  * ### What to look for when it moves
  *
- * A **hard-edged rectangle** of grey around a small round button, or around the
- * refresh circle. The shape is the giveaway: a real shadow under a circle is
- * round and fades out, and what this draws is a square with a straight edge
- * where the buffer ended.
+ * A **hard-edged rectangle** of grey around the refresh circle. The shape is the
+ * giveaway: a real shadow under a circle is round and fades out, and what this
+ * draws is a square with a straight edge where the buffer ended.
  */
 class ShadowMotionScreenshotTest {
 
     @AfterTest
     fun allGoldensMatched() = Screenshot.assertAllMatched()
-
-    /**
-     * A `FabMenu` caught with its items part-way out.
-     *
-     * Each item carries its own `alpha` *and* `scale` off a staggered spring, so
-     * a single frame holds several different points on the animation at once —
-     * which is more useful than one point would be, because the cut is widest
-     * where the scale is smallest.
-     */
-    @Test
-    fun rendersAFabMenuWhileItsItemsAreStillArriving() {
-        val file = Screenshot.render(
-            name = "shadows-fabmenu",
-            width = 900,
-            height = 900,
-            // Enough to compose, expand and get the stagger moving; short of the
-            // spring settling, which is where both conditions stop holding.
-            frames = 9,
-        ) {
-            KontourTheme(darkTheme = false, reduceMotion = false) {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    // The menu's items render into the overlay layer, not
-                    // inline, so there has to be one for them to land in.
-                    OverlayHost {
-                    var expanded by remember { mutableStateOf(false) }
-                    LaunchedEffect(Unit) { expanded = true }
-                    Box(Modifier.fillMaxSize().padding(Theme.spacing.lg)) {
-                        FabMenu(
-                            expanded = expanded,
-                            onExpandedChange = { expanded = it },
-                            icon = Tabler.Outline.Plus,
-                            contentDescription = "Add",
-                            modifier = Modifier.align(Alignment.BottomEnd),
-                            layout = FabMenuLayout.Vertical,
-                        ) {
-                            item(Tabler.Outline.Star, "Save stop") {}
-                            item(Tabler.Outline.CurrentLocation, "Nearby") {}
-                        }
-                    }
-                    }
-                }
-            }
-        }
-        assertTrue(file.length() > 0, "shadows-fabmenu rendered an empty file")
-    }
 
     /**
      * A `PullToRefresh` indicator part-way through growing in.
