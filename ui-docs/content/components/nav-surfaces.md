@@ -2,6 +2,11 @@
 
 *Also on this page: `NavBarItem`, `NavRailItem`, `NavDrawerItem`, `NavDrawerSection`, `NavDrawerGroup` — the rows each surface draws.*
 
+The indicator keeps up with the surface it is in. A rail expanding from icons to
+labels grows over a few hundred milliseconds, and the pill grows with it on the
+same frame rather than trailing the rows it marks — its position *and* its width,
+which come from the same measurement.
+
 Each surface draws the selected indicator its own way — a filled circle in the
 bar, a pill behind the icon in the rail, a pill across the whole row in the
 drawer — and that indicator is the only thing distinguishing a destination you

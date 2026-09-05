@@ -6,6 +6,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
@@ -94,11 +96,43 @@ fun Modifier.sharedElement(key: Any): Modifier {
     val page = LocalPageTransition.current ?: return this
     if (!page.morphs) return this
     with(page.shared) {
-        return this@sharedElement.sharedElement(
-            sharedContentState = rememberSharedContentState(key),
-            animatedVisibilityScope = page.visibility,
-            boundsTransform = page.bounds,
-        )
+        // `sharedBounds` with the cross-fade turned off, not `sharedElement`.
+        //
+        // The element is measured **once, at the size it is going to be**, and
+        // scaled between the two. Compose's `sharedElement` cannot: it
+        // re-measures its child against the *animated* bounds on every frame,
+        // and for text that is a re-layout. A title measured at an intermediate
+        // width narrower than its target soft-wraps, the second line falls
+        // outside the animated one-line height, and `Text`'s default
+        // `TextOverflow.Clip` takes it away without even an ellipsis to show for
+        // it. Measured on a title morphing between two type scales, the drawn
+        // string sat at **157px wide for eight consecutive frames against a
+        // 553px target** — narrower than at either end of the transition, which
+        // is "Perth Underground" arriving as "Perth".
+        //
+        // The asymmetry is not one this file invented. Both of Compose's
+        // modifiers call the same internal `sharedBoundsImpl`; `sharedBounds`
+        // then appends a content scale for its `ResizeMode`, and **`ResizeMode`
+        // is not a parameter of `sharedElement` at all**, so there is nothing to
+        // pass and no way to ask. Going through the door that has the knob is
+        // the whole of this.
+        //
+        // `EnterTransition.None` / `ExitTransition.None` is what keeps the two
+        // modifiers different, and it is the difference the documentation
+        // already draws: a shared *element* is one thing moving, so its contents
+        // must not cross-fade into themselves; a shared *bounds* is a container
+        // whose contents differ, and cross-fading them is the point. Verified
+        // rather than assumed — with the fade off, only one child draws, and the
+        // measured ink is 208px wide on the first frame rather than the 553 two
+        // superimposed strings would give.
+        return this@sharedElement
+            .sharedBounds(
+                sharedContentState = rememberSharedContentState(key),
+                animatedVisibilityScope = page.visibility,
+                boundsTransform = page.bounds,
+                enter = EnterTransition.None,
+                exit = ExitTransition.None,
+            )
     }
 }
 

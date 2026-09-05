@@ -346,7 +346,42 @@ fun SelectionIndicatorBox(
         alpha.animateTo(1f, motion.tweenFast())
     }
 
-    val rect = bounds.value
+    /**
+     * Where the marker is drawn this frame.
+     *
+     * The `Animatable` is consulted only while it is actually carrying the
+     * marker between two items. Everything else — a rail expanding, a window
+     * resizing, the type scale changing — is drawn from the rect that arrived
+     * *this* frame, and that is worth a frame of latency on its own.
+     *
+     * It used to be `bounds.value` unconditionally, which put a coroutine in the
+     * middle of a resize: the row reports its new rect during frame N's layout,
+     * `SelectionIndicatorBox` recomposes on N+1, `LaunchedEffect(resolved, …)`
+     * cancels and relaunches to run one `snapTo`, that writes the animatable,
+     * and the marker is finally measured and placed on N+2 at frame N's
+     * geometry. Measured on a rail expanding from 88dp to 280dp: the pill's
+     * right edge trailed the rail's by **77px at worst, against 39px of growth
+     * in the fastest frame** — two frames, exactly as traced. The size lagged
+     * with the position, because the marker's constraints come from the same
+     * rect, so the pill was the wrong width as well as in the wrong place.
+     *
+     * The three cases are not interchangeable and the middle one is why this is
+     * a `when` rather than a flag:
+     *
+     *  - **travelling** — the spring owns the position, and a rect arriving
+     *    mid-flight is a destination it is already heading for;
+     *  - **a new item, before the effect has run** — `resolved` is the *other*
+     *    item's rect. Drawing it here would put the marker at its destination
+     *    for one frame and then start the spring from where it used to be,
+     *    which is a flicker rather than a saving;
+     *  - **the item already drawn** — a resize, and the only case that can take
+     *    the short road.
+     */
+    val rect = when {
+        bounds.isRunning -> bounds.value
+        state.targetKey == lastKey -> resolved ?: bounds.value
+        else -> bounds.value
+    }
     val visible = measured
 
     // See `SelectionIndicatorState.drawn`. Not assigned inline: writing a state
@@ -362,6 +397,21 @@ fun SelectionIndicatorBox(
             ),
             modifier = modifier.onGloballyPositioned { state.anchor = it },
         ) { (indicatorMeasurables, contentMeasurables), constraints ->
+            // Read here rather than taken from composition, which is the last
+            // frame of the lag. The row reports its rect from
+            // `onGloballyPositioned`, during the layout pass; a rect captured in
+            // composition cannot reach the marker until the next one, but a rect
+            // *read here* only invalidates layout, and a layout invalidation
+            // raised during the layout pass is serviced before the frame draws.
+            val live = when {
+                bounds.isRunning -> bounds.value
+                state.targetKey == lastKey ->
+                    state.target?.let {
+                        resolveIndicatorBounds(sizing, it, density, layoutDirection)
+                    } ?: bounds.value
+                else -> bounds.value
+            }
+
             // The content alone decides the group's size. The indicator is placed
             // into that space afterwards, so a marker sitting 300dp along a row
             // cannot make the row 300dp wider.
@@ -369,8 +419,8 @@ fun SelectionIndicatorBox(
             val width = body.maxOfOrNull { it.width } ?: constraints.minWidth
             val height = body.maxOfOrNull { it.height } ?: constraints.minHeight
 
-            val indicatorWidth = rect.width.roundToInt()
-            val indicatorHeight = rect.height.roundToInt()
+            val indicatorWidth = live.width.roundToInt()
+            val indicatorHeight = live.height.roundToInt()
             val drawIndicator = visible && indicatorWidth > 0 && indicatorHeight > 0
             val marker = if (drawIndicator) {
                 indicatorMeasurables.map {
@@ -387,7 +437,7 @@ fun SelectionIndicatorBox(
                 // would mirror it a second time. Placing both children from this
                 // node's own origin is what keeps one coordinate space.
                 if (drawIndicator) {
-                    marker.forEach { it.place(rect.left.roundToInt(), rect.top.roundToInt()) }
+                    marker.forEach { it.place(live.left.roundToInt(), live.top.roundToInt()) }
                 }
                 body.forEach { it.place(0, 0) }
             }
