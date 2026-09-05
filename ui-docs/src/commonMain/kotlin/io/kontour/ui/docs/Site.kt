@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AdjustmentsHorizontal
+import com.composables.icons.tabler.outline.FileOff
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.LayoutGrid
 import com.composables.icons.tabler.outline.Menu2
@@ -40,6 +41,9 @@ import io.kontour.ui.catalog.Catalog
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
+import io.kontour.ui.components.display.EmptyState
+import io.kontour.ui.components.display.Tag
+import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
@@ -55,7 +59,9 @@ import io.kontour.ui.nav.ModalNavDrawer
 import io.kontour.ui.nav.NavDrawer
 import io.kontour.ui.nav.NavDrawerScope
 import io.kontour.ui.nav.TopBar
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.Popover
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
@@ -181,11 +187,33 @@ private fun Shell(settings: DisplaySettings, systemDark: Boolean, route: Route) 
                             ButtonVariant.Ghost
                         },
                     )
-                    IconButton(
-                        icon = Tabler.Outline.AdjustmentsHorizontal,
-                        contentDescription = "Display settings",
-                        onClick = { settingsOpen = !settingsOpen },
-                    )
+                    // A `Popover` anchored on its own button, which is what
+                    // this always wanted to be. It used to be a `Card` inside a
+                    // full-size `Box` laid over the content area, and that had
+                    // three faults: the comment said "dismissed by pressing
+                    // anywhere else" and the Box carried no click handler, so
+                    // only "Done" closed it; it was drawn *inside* the content
+                    // pane rather than over the whole window, so it appeared
+                    // below the bar it belongs to; and nothing connected it to
+                    // the control that opened it.
+                    //
+                    // `Popover` is the library's answer to all three and the
+                    // site was already mounting the `OverlayHost` it needs.
+                    Box {
+                        IconButton(
+                            icon = Tabler.Outline.AdjustmentsHorizontal,
+                            contentDescription = "Display settings",
+                            onClick = { settingsOpen = !settingsOpen },
+                        )
+                        Popover(
+                            visible = settingsOpen,
+                            onDismissRequest = { settingsOpen = false },
+                            alignment = OverlayAlignment.End,
+                        ) {
+                            Text("Display", style = Theme.typography.titleSmall)
+                            SettingsPanel(settings, systemDark)
+                        }
+                    }
                 },
                 showDivider = true,
             ) {
@@ -204,12 +232,7 @@ private fun Shell(settings: DisplaySettings, systemDark: Boolean, route: Route) 
                 }
                 VerticalDivider(Modifier.fillMaxHeight())
             }
-            Box(Modifier.weight(1f).fillMaxHeight()) {
-                Content(route)
-                if (settingsOpen) {
-                    SettingsCard(settings, systemDark) { settingsOpen = false }
-                }
-            }
+            Box(Modifier.weight(1f).fillMaxHeight()) { Content(route) }
         }
     }
 
@@ -362,35 +385,6 @@ private fun DocPage.matches(query: String): Boolean =
     symbols.any { it.contains(query, ignoreCase = true) } ||
         title.contains(query, ignoreCase = true)
 
-/** The display switches, over the content, dismissed by pressing anywhere else. */
-@Composable
-private fun SettingsCard(
-    settings: DisplaySettings,
-    systemDark: Boolean,
-    onDismissRequest: () -> Unit,
-) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
-        Card(
-            variant = CardVariant.Elevated,
-            modifier = Modifier.padding(Theme.spacing.md).widthIn(max = 320.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Display", style = Theme.typography.titleSmall)
-                Button(
-                    onClick = onDismissRequest,
-                    variant = ButtonVariant.Ghost,
-                    size = ButtonSize.Small,
-                ) { +"Done" }
-            }
-            SettingsPanel(settings, systemDark)
-        }
-    }
-}
-
 @Composable
 private fun Home() {
     // Counted, not claimed. This said `docPages.size` and meant "components",
@@ -470,6 +464,19 @@ private val DocPage.summary: String
         }
     }
 
+/**
+ * "LIVE", on the card holding a component a reader can actually press.
+ *
+ * A [Tag] rather than accent-coloured text, which is what it was. The label is
+ * a badge in everything but implementation — it names a *state* of the thing
+ * beneath it — and drawing it as a bare coloured word left it with no ground,
+ * no shape and no relationship to the `Tag` on any page that documents one.
+ */
+@Composable
+private fun LiveTag() {
+    Tag(tone = TagTone.Accent) { +"LIVE" }
+}
+
 /** Two lines of supporting text at the narrowest width the index is drawn at. */
 private const val SummaryLength = 130
 
@@ -526,11 +533,23 @@ private fun PagePadding(): PaddingValues =
 private fun DocPageView(path: String) {
     val page = docPagesByPath[path]
     if (page == null) {
+        // `EmptyState` rather than a Box, a Column and two children arranged by
+        // hand. It is the component the library ships for exactly this — a
+        // title, a line saying how to get out of it, and one action — and the
+        // site drawing its own was the site not eating its own cooking.
+        //
+        // Its KDoc's rule applies here too: the message says how to leave,
+        // rather than restating the title. "No page called x" followed by
+        // "that page does not exist" would tell a reader nothing.
         Box(Modifier.fillMaxSize(), Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("No page called “$path”.", style = Theme.typography.titleMedium)
-                Button(onClick = { navigate(Route.Home) }, variant = ButtonVariant.Ghost) {
-                    +"Back to the index"
+            EmptyState {
+                +"No page called “$path”"
+                supporting { +"It may have been renamed. The index lists every page." }
+                leading { +Tabler.Outline.FileOff }
+                action {
+                    Button(onClick = { navigate(Route.Home) }, variant = ButtonVariant.Secondary) {
+                        +"Back to the index"
+                    }
                 }
             }
         }
@@ -614,11 +633,7 @@ private fun Specimens(page: DocPage) {
             modifier = Modifier.widthIn(max = ProseWidth).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {
-            Text(
-                text = "LIVE",
-                style = Theme.typography.monoLabel,
-                colour = Theme.colours.accent.solid,
-            )
+            LiveTag()
             DemoCard(demo)
         }
         return
@@ -638,11 +653,7 @@ private fun Specimens(page: DocPage) {
     if (specimens.isEmpty()) return
 
     Card(variant = CardVariant.Outlined, modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "LIVE",
-            style = Theme.typography.monoLabel,
-            colour = Theme.colours.accent.solid,
-        )
+        LiveTag()
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),

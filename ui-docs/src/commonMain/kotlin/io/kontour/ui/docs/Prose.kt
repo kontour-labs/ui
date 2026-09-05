@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.ScrollbarDefaults
 import io.kontour.ui.foundation.HorizontalDivider
@@ -85,19 +86,17 @@ private fun Block(block: Block) {
 
         is Block.Paragraph -> Linkable(block.spans, Theme.typography.bodyMedium)
 
-        is Block.Quote -> Row(Modifier.fillMaxWidth()) {
-            // A rule down the side rather than an indent, so the quoted passage
-            // is visibly an aside at any width — an indent alone reads as a
-            // paragraph that happens to start late.
-            Box(
-                Modifier
-                    .width(Theme.sizing.borderWidthStrong)
-                    .background(Theme.colours.outline)
-                    .padding(vertical = Theme.spacing.xs)
-            ) { Text(" ", style = Theme.typography.bodyMedium) }
-            Box(Modifier.padding(start = Theme.spacing.md)) {
-                Linkable(block.spans, Theme.typography.bodySmall, Theme.colours.contentMuted)
-            }
+        // `Callout`, whose own KDoc describes it as "a quoted aside, in the
+        // shape the marketing site's markdown already uses" — and which this
+        // site then did not use, drawing its own rule out of a `Box` with a
+        // background and a space in it to give the rule a height.
+        //
+        // The rule was the right idea for the reason the old comment gave: an
+        // indent alone reads as a paragraph that happens to start late. It is
+        // also exactly what `Callout` draws, with a container tint behind it
+        // and a radius the rest of the page shares.
+        is Block.Quote -> Callout {
+            Linkable(block.spans, Theme.typography.bodySmall, Theme.colours.content)
         }
 
         is Block.Bullets -> Column(

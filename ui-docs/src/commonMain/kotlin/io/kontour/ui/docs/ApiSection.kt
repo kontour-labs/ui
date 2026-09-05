@@ -17,6 +17,8 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.display.Tag
+import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
@@ -68,12 +70,12 @@ private fun EntryBlock(entry: ApiEntry) {
                 text = listOfNotNull(entry.owner, entry.name).joinToString("."),
                 style = Theme.typography.titleSmall.copy(fontFamily = FontFamily.Monospace),
             )
+            // A `Tag`, not accent-coloured text. It marks a *kind* of thing,
+            // which is what a tag is for, and the page beside it documents
+            // `Tag` — a site that draws its own version of a component it is
+            // explaining is arguing against itself.
             if (entry.isComposable) {
-                Text(
-                    text = "@Composable",
-                    style = Theme.typography.monoLabel,
-                    colour = Theme.colours.accent.solid,
-                )
+                Tag(tone = TagTone.Accent) { +"@Composable" }
             }
             // Beside the entry rather than at the top of the page, which is
             // what it replaces. A page documents up to a dozen declarations and
