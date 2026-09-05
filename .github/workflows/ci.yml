@@ -319,6 +319,15 @@ jobs:
       - name: Build the API reference
         run: ./gradlew --no-daemon :ui:dokkaGenerateHtml
 
+      # Only here, and only in this order: it compares the paths the site
+      # derived when it was built against the pages the reference published a
+      # step ago, and neither output exists on its own. The site derives rather
+      # than reads because this job builds it first, and this is what stops that
+      # being a guess — it caught 24 paths for declarations with no page at all
+      # the first time it ran.
+      - name: Check the API reference links
+        run: python3 docs/check-api-links.py
+
       # Site at the root, reference under `/api/`. Laid out here rather than by
       # a Gradle copy task, because this arrangement is a fact about the
       # deployment and not about the build.

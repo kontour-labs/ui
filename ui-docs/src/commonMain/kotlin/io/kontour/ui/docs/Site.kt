@@ -675,9 +675,26 @@ private fun Specimens(page: DocPage) {
     }
 }
 
-/** Dokka puts a symbol at a path derived from its package and name. */
+/**
+ * The reference page for a symbol, or the reference's index when there is none.
+ *
+ * It used to be `api/index.html?query=Button`, which lands on the front page
+ * every time. **Dokka does not read `?query=`.** The one occurrence of that
+ * parameter in its own JavaScript is the search widget *appending* it after it
+ * has already navigated, so the site had copied the decorative half of the
+ * mechanism and left the half that moves.
+ *
+ * The real location is a path, and [apiReferencePaths] carries it — derived at
+ * build time from each declaration's package and name, and checked against a
+ * real Dokka run by `docs/check-api-links.py`.
+ *
+ * The fallback is the index rather than a guess. A guessed path is a 404, and a
+ * 404 is worse than the front page: the front page has a search box.
+ */
 private fun apiUrl(symbol: String): String =
-    "api/index.html?query=${symbol.substringAfterLast('.')}"
+    apiReferencePaths[symbol.substringAfterLast('.')]
+        ?.let { "api/kontour-ui/$it" }
+        ?: "api/index.html"
 
 /**
  * 320, not the 280 it was, and the collapsible index is why.

@@ -245,6 +245,8 @@ object KotlinSignatures {
      * Comments are blanked before matching, so a `fun` written inside one — in
      * a KDoc sample, most often — is not read as a declaration.
      */
+    private val packageHeader = Regex("""^package\s+([\w.]+)""", RegexOption.MULTILINE)
+
     private val typeHeader = Regex(
         """^([ \t]*)(?:(?:public|internal|private|abstract|open|sealed|data|value|inner|expect|actual|enum|annotation)\s+)*""" +
             """(?:class|interface|object)\s+([A-Za-z_]\w*)""",
@@ -257,9 +259,24 @@ object KotlinSignatures {
         val visibility: String,
         val annotations: List<String>,
         val line: Int,
+        /** Leading whitespace, so a nested type can be told from a top-level one. */
+        val indent: Int = 0,
     ) {
         val isPublic: Boolean get() = visibility == "public"
+
+        /** Declared at the top of a file, rather than inside another type. */
+        val isTopLevel: Boolean get() = indent == 0
     }
+
+    /**
+     * The package a file declares, or `null` for one that declares none.
+     *
+     * Read through [withoutComments] like everything else here, so a `package`
+     * line inside a KDoc sample is not mistaken for the file's own — the same
+     * class of mistake that made a `fun` in a comment read as a declaration.
+     */
+    fun packageName(text: String): String? =
+        packageHeader.find(withoutComments(text))?.groupValues?.get(1)?.trim()
 
     /** Every class, interface and object in a file, at any indent. */
     fun types(text: String): List<DeclaredType> {
@@ -275,6 +292,7 @@ object KotlinSignatures {
                     .takeWhile { it.trimStart().startsWith("@") }
                     .map { it.trim() },
                 line = head.count { it == '\n' } + 1,
+                indent = match.groupValues[1].length,
             )
         }.toList()
     }
