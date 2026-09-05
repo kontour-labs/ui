@@ -302,9 +302,9 @@ private data class InsetCornerSize(val base: CornerSize, val gap: Dp) : CornerSi
  *
  * An outset shape is drawn on the **outer** box, so the size it is handed is the
  * wrong one to resolve against — and a *proportional* corner is where that shows.
- * [pill] on a 52dp component is 26dp and the ring 3dp outside it wants 29;
- * resolve it against the 58dp ring instead and it answers 29 before the gap is
- * added, so the ring is drawn at 32 — over-rounded by exactly the gap, every
+ * [Shapes.pill] on a 52dp component is 26dp, and the ring 3dp outside it wants
+ * 29; resolve it against the 58dp ring instead and it answers 29 before the gap
+ * is added, so the ring is drawn at 32 — over-rounded by exactly the gap, every
  * time.
  *
  * A fixed radius is immune to that, and so is a capped capsule once it is at its
