@@ -139,6 +139,15 @@ fun RangeSlider(
         label = "rangeSliderThumb",
     )
 
+    // A circle at rest that lengthens into a capsule while it is held. Shares
+    // `active` and the spring with the scale above, so the thumb grows and
+    // stretches as one gesture rather than two overlapping ones.
+    val thumbAspect by animateFloatAsState(
+        targetValue = if (active && !motion.reduceMotion) SliderDefaults.ThumbAspect else 1f,
+        animationSpec = motion.springOrTween(motion.springBouncy),
+        label = "rangeSliderThumbAspect",
+    )
+
     val span = valueRange.endInclusive - valueRange.start
 
     /**
@@ -630,6 +639,7 @@ fun RangeSlider(
                                     centreY = centreY,
                                     radiusPx = thumbRadiusPx,
                                     scale = thumbScale,
+                                    aspect = thumbAspect,
                                     reachPx = reachPx,
                                     ringColour = colours.surface,
                                     fillColour = activeColour,

@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -26,7 +27,6 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlin.math.abs
 import io.kontour.ui.theme.Theme
 
 /**
@@ -63,7 +63,7 @@ fun LinearProgress(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1400, easing = LinearEasing),
+            animation = tween(durationMillis = BandTravel, easing = LinearEasing),
         ),
         label = "linearSweep",
     )
@@ -106,7 +106,7 @@ fun LinearProgress(
         } else {
             // A fixed-width band travelling the full track, entering and leaving
             // off the ends so it never appears to bounce.
-            val bandWidth = size.width * 0.35f
+            val bandWidth = size.width * BandFraction
             val travel = size.width + bandWidth
             val left = -bandWidth + travel * sweep
             drawRoundRect(
@@ -210,6 +210,17 @@ fun CircularProgress(
  *
  * Segments rather than a continuous bar, because the user can count them and
  * know how much is left — which a percentage does not tell them as directly.
+ *
+ * @param current Which step is in progress, counting from one, or `null` for
+ *   "somewhere in this sequence, not yet known" — a wizard restoring a session,
+ *   a checkout waiting on a server that has not said where it got to. `null`
+ *   walks one lit segment along the row rather than claiming a position; it is
+ *   not the same as `1`, which says the first step is under way.
+ * @param working Whether [current] is *itself* still going. The step's position
+ *   is known and its progress within that step is not, so the segment carries a
+ *   travelling band instead of a fill — the same band [LinearProgress] runs
+ *   indeterminate, at the width of one segment. Ignored when [current] is
+ *   `null`, which is already animating.
  */
 @Composable
 fun StepProgress(
@@ -217,6 +228,7 @@ fun StepProgress(
     total: Int,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
+    working: Boolean = false,
     colour: Color = Theme.colours.primary,
     trackColour: Color = Theme.colours.outline,
     height: Dp = 4.dp,
@@ -232,33 +244,48 @@ fun StepProgress(
         label = "stepProgress",
     )
 
-    // Indeterminate walks one lit segment along the track.
+    // Two different unknowns, and they animate differently.
     //
-    // "How many steps there are, but not which one you are on" is a real state —
-    // a wizard restoring a session, a checkout waiting on a server that has not
-    // said where it got to — and the alternative was to pass `0`, which claims
-    // you are at the start rather than that nobody knows.
+    // `current == null` is "how many steps there are, but not which one you are
+    // on" — a wizard restoring a session, a checkout waiting on a server that
+    // has not said where it got to. The alternative was to pass `0`, which
+    // claims you are at the start rather than that nobody knows.
     //
-    // Under reduced motion it stops on the first segment: the travel is what
-    // says "working", and a looping animation is exactly what that setting is
-    // asking to be spared.
+    // `working` is the other one: the step *is* known and it is the step that is
+    // busy. That wants a band travelling inside one segment, the way
+    // [LinearProgress] indeterminate does, and it shares that arithmetic below
+    // rather than restating it.
+    //
+    // The walk used to light several segments at once through a triangular
+    // falloff, which read as a glow crossing the row rather than as one step
+    // working. It lights one at a time now.
+    //
+    // Under reduced motion both stop: the travel is what says "working", and a
+    // looping animation is exactly what that setting is asking to be spared.
+    val animating = (indeterminate || working) && !motion.reduceMotion
     val sweep by rememberInfiniteTransition(label = "stepSweep").animateFloat(
         initialValue = 0f,
-        targetValue = total.toFloat(),
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 320 * total, easing = LinearEasing),
+            animation = tween(
+                durationMillis = if (indeterminate) StepWalkPerSegment * total else BandTravel,
+                easing = LinearEasing,
+            ),
         ),
         label = "stepSweepValue",
     )
-    val lit = if (motion.reduceMotion) 0f else sweep
+    val phase = if (animating) sweep else 0f
 
     Canvas(
         modifier
             .fillMaxWidth()
             .height(height)
             .semantics {
-                this.contentDescription = contentDescription
-                    ?: if (indeterminate) "In progress" else "Step $current of $total"
+                this.contentDescription = contentDescription ?: when {
+                    indeterminate -> "In progress"
+                    working -> "Step $current of $total, in progress"
+                    else -> "Step $current of $total"
+                }
                 // `Indeterminate` rather than a made-up position: a screen reader
                 // saying "step 0 of 4" would be stating something the caller
                 // explicitly said it does not know.
@@ -285,13 +312,23 @@ fun StepProgress(
                 size = Size(segmentWidth, size.height),
                 cornerRadius = radius,
             )
+            // The step that is working shows a travelling band instead of a
+            // fill: a segment that is both solid and animated says two things.
+            val busy = working && !indeterminate && index == current.coerceIn(1, total) - 1
+
             // Partial fill on the segment currently in progress, so a step that
-            // is halfway does not read as not started. Indeterminate lights one
-            // segment at a time instead, walking it along.
-            val fill = if (indeterminate) {
-                (1f - abs(lit - index - 0.5f)).coerceIn(0f, 1f)
-            } else {
-                (animated - index).coerceIn(0f, 1f)
+            // is halfway does not read as not started.
+            val fill = when {
+                // One segment at a time, walking. `phase` runs 0..1 across the
+                // whole row, so scaling by `total` gives the segment it is on.
+                indeterminate ->
+                    if ((phase * total).toInt().coerceAtMost(total - 1) == index) 1f else 0f
+                // Static under reduced motion, so a busy step still reads as
+                // working without the travel — the same answer `LinearProgress`
+                // gives, and for the same reason. Without it the segment would
+                // be neither filled nor animated, which is to say invisible.
+                busy -> if (animating) 0f else BandFraction
+                else -> (animated - index).coerceIn(0f, 1f)
             }
             if (fill > 0f) {
                 drawRoundRect(
@@ -301,6 +338,44 @@ fun StepProgress(
                     cornerRadius = radius,
                 )
             }
+
+            // The busy step gets a band travelling inside it, on top of whatever
+            // it is filled to. Same construction as `LinearProgress` — a band
+            // 35% as wide as its container, entering one end as it leaves the
+            // other — confined to this segment instead of the whole track.
+            if (busy && animating) {
+                val bandWidth = segmentWidth * BandFraction
+                val bandLeft = left - bandWidth + (segmentWidth + bandWidth) * phase
+                clipRect(
+                    left = left,
+                    right = left + segmentWidth,
+                    top = 0f,
+                    bottom = size.height,
+                ) {
+                    drawRoundRect(
+                        color = colour,
+                        topLeft = Offset(bandLeft, 0f),
+                        size = Size(bandWidth, size.height),
+                        cornerRadius = radius,
+                    )
+                }
+            }
         }
     }
 }
+
+/**
+ * How wide the travelling indeterminate band is, as a fraction of what it runs
+ * inside.
+ *
+ * Shared by [LinearProgress], which runs it across the whole track, and by
+ * [StepProgress]'s `working`, which confines it to one segment. One number
+ * because they are meant to read as the same animation at two scales.
+ */
+private const val BandFraction = 0.35f
+
+/** How long that band takes to cross, whatever it is crossing. */
+private const val BandTravel = 1400
+
+/** How long the indeterminate walk rests on each step. */
+private const val StepWalkPerSegment = 320

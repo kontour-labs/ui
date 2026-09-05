@@ -137,6 +137,15 @@ fun Slider(
         label = "sliderThumb",
     )
 
+    // A circle at rest that lengthens into a capsule while it is held. Shares
+    // `active` and the spring with the scale above, so the thumb grows and
+    // stretches as one gesture rather than two overlapping ones.
+    val thumbAspect by animateFloatAsState(
+        targetValue = if (active && !motion.reduceMotion) SliderDefaults.ThumbAspect else 1f,
+        animationSpec = motion.springOrTween(motion.springBouncy),
+        label = "sliderThumbAspect",
+    )
+
 
     val range = valueRange.endInclusive - valueRange.start
     val fraction = if (range == 0f) 0f else ((value - valueRange.start) / range).coerceIn(0f, 1f)
@@ -458,6 +467,7 @@ fun Slider(
                             centreY = centreY,
                             radiusPx = thumbRadiusPx,
                             scale = thumbScale,
+                            aspect = thumbAspect,
                             reachPx = thumbReach * trackWidth,
                             // A ring of the page colour keeps the thumb legible
                             // where it overlaps the filled track.

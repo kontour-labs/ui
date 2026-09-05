@@ -1279,7 +1279,26 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("StepProgress", role = null, underContract = false) { modifier, _, _ ->
+        ComponentSpec(
+            "StepProgress",
+            role = null,
+            underContract = false,
+            states = listOf(
+                // Step 2 known and still going. Under the screenshot theme's
+                // reduced motion the travelling band is a static part-fill, so
+                // this is a picture of a real state rather than one frame of an
+                // animation — and it is the state that has to differ visibly
+                // from step 2 being *done*, which the resting render shows.
+                RenderState("working") { modifier ->
+                    StepProgress(
+                        current = 2,
+                        total = 5,
+                        working = true,
+                        modifier = modifier.fillMaxWidth(),
+                    )
+                },
+            ),
+        ) { modifier, _, _ ->
             StepProgress(current = 2, total = 5, modifier = modifier.fillMaxWidth())
         }
     )
