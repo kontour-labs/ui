@@ -203,8 +203,8 @@ swapped a stacked column for an inline row on the first frame, the rail's own
 alignment flipped from centred to leading at the halfway mark, and the labels
 appeared with it. Collapsing was worse: the layout flipped back while the rail
 was still 240dp wide, so every icon jumped to the centre of that and slid home.
-`NavRailStillnessTest` measures the selected icon's leading edge across the whole
-animation, in both directions, and fails if it moves by more than a pixel.
+The selected icon's leading edge is measured across the whole animation, in
+both directions, and a movement of more than a pixel fails the build.
 
 A drawer puts its icons at the same x as the rail it replaces, so the swap the
 window size class makes at 840dp — which is not animated, and cannot be — has

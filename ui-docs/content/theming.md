@@ -179,10 +179,10 @@ fun OceanApp(content: @Composable () -> Unit) {
 }
 ```
 
-**Verify its contrast.** The built-in schemes are covered by
-`ColourSchemeContrastTest`; a new scheme is not, until you add it. Copy the test
-and point it at your scheme — the whole value of that suite is that it runs on
-palettes nobody has eyeballed yet.
+**Verify its contrast.** The built-in schemes are checked on every build; a
+scheme of your own is not, until you check it. The library's own contrast test
+is a good template — the whole value of it is that it runs on palettes nobody
+has eyeballed yet.
 
 Remember the `brand` / `accent` split when authoring: `brand` may be any brand
 colour at all, including one that fails contrast, because it is only ever

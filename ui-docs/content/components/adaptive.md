@@ -30,8 +30,8 @@ scroll *under* a translucent bar.
 
 The padding is the **larger** of the bar and the inset on each edge, never their
 sum — a bar has already padded itself for the inset it sits under, and adding
-both insets the content twice. `ScaffoldGeometryTest` renders a real scaffold and
-measures it, because a double-inset looks like a slightly generous gap rather
+both insets the content twice. A real scaffold is rendered and measured on
+every build, because a double-inset looks like a slightly generous gap rather
 than a bug.
 
 **A pane scaffold decides layout, not state.** The caller keeps the selection,

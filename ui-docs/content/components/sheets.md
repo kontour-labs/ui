@@ -236,5 +236,5 @@ name, is now on `Dialog`, `AlertDialog`, `SideSheet` and `CommandPalette` — th
 palette had never had one.
 
 Pair it with `onClose = null` on the `SheetHeader`, or the sheet grows a close
-button that contradicts it. `SheetDraggableTest` covers the tap, the drag and the
-spring back.
+button that contradicts it. The tap, the drag and the spring back are all
+checked.

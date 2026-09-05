@@ -17,9 +17,9 @@ control at all** — no role, no touch target, no click action, one node saying
 
 That is the case that gets built wrong. Most ratings on any screen are
 *averages*, and shipping those as five silent radio buttons gives a
-screen-reader user five things to activate that do nothing —
-[`EverythingRespondsTest`](../../../docs/building/testing.md#everythingrespondstest)
-exists to catch exactly that.
+screen-reader user five things to activate that do nothing. Pass
+`onValueChange = null` and it becomes one node saying "Average rating, 4.3 out
+of 5", which is what an average is.
 
 Interactive, it is a `selectableGroup` of `Role.RadioButton` marks, because
 picking one of five is what that is. Each announces its own value, so "3 out of

@@ -92,8 +92,8 @@ purple selected-state and the signature said nothing about it.
 reaches only 2.1:1 — it cannot carry text, a fill label, or a focus ring in light
 mode. (The marketing site's `.button.primary:hover` does exactly this today and
 fails.) So the palette splits the job: `brand` is the literal brand colour for
-decoration, and `accent.solid` is a purple dark enough to be read. `BrandIsDecorativeOnlyTest`
-pins that contract so nobody quietly promotes `brand` to a text colour.
+decoration, and `accent.solid` is a purple dark enough to be read. That split
+is checked, so `brand` cannot quietly become a text colour.
 
 ### Status
 
@@ -366,8 +366,8 @@ to `clickable`, which is past `.background()`, scaled the label inside a button
 whose silhouette never moved. And ghost variants opted out of the scale
 altogether, which is right for a ghost *text* button (a shrinking label reads as
 the text jumping) and wrong for the icon buttons that make up most of the
-library. Both are fixed; `PressScaleTest` measures the ink rather than trusting
-the claim.
+library. Both are fixed, and the check measures the ink rather than trusting the
+claim.
 
 **How far it moves** now follows the control's size, because one constant
 serving a 28dp icon button and a full-width one is invisible on the first and a

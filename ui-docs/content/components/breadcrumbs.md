@@ -1,7 +1,8 @@
 # `Breadcrumbs`
 
-Where you are in a hierarchy, and the way back up. No caller in Anyways today —
-it is here for the admin panel.
+Where you are in a hierarchy, and the way back up. For a console or an
+admin tool with real nesting — on a phone-shaped app there is usually one level
+and a back button, which is a `TopBar`'s job rather than this.
 
 <!--sample:BreadcrumbsBasics-->
 ```kotlin

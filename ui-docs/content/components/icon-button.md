@@ -34,7 +34,8 @@ over. It used to be `iconSize + iconOnlyPadding * 2`, which is a second way of
 saying how tall a control is, and it disagreed with the first at three of the
 five sizes. That made every `ButtonGroup` mixing an icon action with a labelled
 one ragged, and the trailing half of a [`SplitButton`](split-button.md) 4dp
-short of the half beside it. `ControlHeightTest` holds the two together now.
+short of the half beside it. The two are held together by a check now, so a
+row of mixed actions lines up.
 
 ---
 

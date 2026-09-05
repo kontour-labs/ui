@@ -12,7 +12,7 @@ missing: a section that lands in two files, a component whose page was never
 made, a page nothing links to. So the arrangement is checked rather than
 trusted.
 
-Seventeen rules:
+Eighteen rules:
 
   1. Every component in `componentRegistry` has a page whose title names it.
      The registry is the library's own list, so this cannot drift from what
@@ -41,6 +41,7 @@ Seventeen rules:
  15. Every click target sets a mouse cursor.
  16. Every boolean a component takes as a parameter is on some demo's knob.
  17. Every component page explains at least one of its parameters.
+ 18. No page talks to a maintainer instead of to a reader.
 
 Rules 4, 6, 7, 14, 16 and 17 are **ratchets**: a ceiling that only goes down, rather
 than a list of exempted names. You cannot exempt *your* page, only make the total
@@ -200,6 +201,42 @@ TOP_LEVEL_TYPE = re.compile(
     r"^(?:public\s+)?(?:(?:abstract|open|sealed|data|value|expect|actual|enum|annotation)\s+)*"
     r"(?:class|interface|object)\s+([A-Za-z_]\w*)"
 )
+
+
+# Only goes down, and it is already at zero. See rule 18.
+#
+# Three things a reader cannot use, and each was on a real page:
+#
+#   * a **round number**. "It did not have one until Round 16 — writing this
+#     page is what found it" is a fact about this repository's history, and
+#     there is no round 16 anywhere a reader can look.
+#   * an **internal test class**. "Enforced by `ColourSchemeContrastTest`" is
+#     the right *claim* — this is checked, not hoped for — attached to an
+#     identifier that means nothing to somebody who cannot run it. "Checked on
+#     every build" says the same thing and says it to them.
+#   * a **product they have not heard of**. `Breadcrumbs` opened with "No
+#     caller in Anyways today — it is here for the admin panel", which tells a
+#     reader nothing about when to reach for it.
+#
+# Twenty-two passages across fifteen pages, all rewritten in the round this
+# rule arrived in. Zero is therefore a fact rather than an aspiration, and the
+# rule exists so the next one is caught while it is being written.
+MAX_INTERNAL_FACING = 0
+
+# A development round, an internal test class, or the product this library was
+# extracted from. Deliberately narrow: "used to" and "this page" are ordinary
+# English and appear on plenty of pages that read perfectly well.
+INTERNAL_FACING = re.compile(r"\bRound \d+\b|`[A-Z]\w*Test`|\bAnyways\b|\badmin panel\b")
+
+
+def internal_facing() -> list[str]:
+    """Every `page:line` that addresses a maintainer rather than a reader."""
+    found: list[str] = []
+    for path in sorted(CONTENT.rglob("*.md")):
+        for number, line in enumerate(path.read_text().split("\n"), start=1):
+            if INTERNAL_FACING.search(line):
+                found.append(f"{path.relative_to(CONTENT)}:{number}")
+    return found
 
 
 def symbols_explaining_a_parameter() -> set[str]:
@@ -961,6 +998,22 @@ def main() -> int:
             f"{', '.join(unexplained)}"
         )
 
+    # Rule 18 — the pages are written for the person reading them.
+    #
+    # The documentation grew alongside the library, so a good deal of it was
+    # written by somebody holding both in their head at once. That shows up as
+    # prose which is true, useful to a maintainer, and unusable by anybody
+    # else — see the note above `MAX_INTERNAL_FACING`.
+    internal = internal_facing()
+    if len(internal) > MAX_INTERNAL_FACING:
+        problems.append(
+            f"{len(internal)} passage(s) address a maintainer rather than a "
+            f"reader, and the ceiling is {MAX_INTERNAL_FACING}. Keep the claim "
+            f"and drop the identifier — \"checked on every build\" says what a "
+            f"test class name says, to somebody who cannot run it. At: "
+            f"{', '.join(internal)}"
+        )
+
     unswept = unswept_enums()
     if len(unswept) > MAX_UNSWEPT_ENUMS:
         problems.append(
@@ -985,6 +1038,7 @@ def main() -> int:
         f"{len(component_pages) - len(without_a11y)} accessibility sections, "
         f"{len(unswept)} parameter enums and {len(undemoed)} booleans on no knob, "
         f"{len(component_pages) - len(unexplained)} pages explaining a parameter, "
+        f"{len(internal)} written for a maintainer, "
         f"all accounted for."
     )
     return 0

@@ -19,8 +19,8 @@ unavailable.
 Inert still means it announces `Role.Checkbox` and its tick. That matters inside
 a [`SettingRow`](setting-row.md), which is `clickable` rather than
 `toggleable` and so publishes no checked state of its own; without the control
-saying it, the row announces as a button with a name and no on or off.
-`InertControlPublishesStateTest` covers all three controls.
+saying it, the row announces as a button with a name and no on or off. All
+three controls are checked for it.
 
 **The box answers the press, not the release.** The tick starts being drawn under
 the finger and starts being rubbed out under a press on a ticked box — a third of

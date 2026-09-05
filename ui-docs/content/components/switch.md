@@ -32,8 +32,7 @@ that a grey track sits too close in tone to the surfaces it is toggled on top of
 to read as a distinct control. The reasoning was right and the conclusion was
 not — the answer is not *no* fill but a fill dark enough. It is
 `outlineStrong`, the token that exists to bound an interactive control at the 3:1
-WCAG asks for, and `ColourSchemeContrastTest` holds it there against every ground
-a switch can land on.
+WCAG asks for, and it is checked against every ground a switch can land on.
 
 ---
 

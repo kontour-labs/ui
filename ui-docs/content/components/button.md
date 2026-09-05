@@ -73,9 +73,9 @@ not look like two different controls.
 
 The content slot is the accessible name, so a button whose content is only an
 icon has no name — that is what `IconButton` is for, and why its
-`contentDescription` is required. `ComponentContractTest` fails a registered
-component that announces nothing, which is what replaced the guarantee the old
-`label: String` parameter gave.
+`contentDescription` is required. A component that announces nothing fails
+the build, which is what replaced the guarantee the old `label: String`
+parameter gave.
 
 `loading = true` sets `stateDescription = loadingLabel` on the button and clears
 the semantics of the spinner inside it, so a screen reader hears "Save this trip,

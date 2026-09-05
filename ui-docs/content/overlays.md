@@ -163,10 +163,10 @@ Each overlay gets a `traversalIndex` above the content, in stack order.
 The stack is wrong for a specific, common situation: several unrelated overlays
 that all want to appear on launch, of which exactly one may.
 
-The Anyways Android app has six — force-update, onboarding, legal-update,
-what's-new, review-prompt, paywall — encoded today as an `ActiveOverlay` enum and
-a `when` in `GlobalOverlays.kt`. `OverlayQueue` generalises that, so adding a
-seventh does not mean editing a conditional:
+A launch sequence typically has several — a forced update, onboarding, a
+legal notice, a what's-new, a review prompt — and the usual encoding is an enum
+and a `when` that has to be edited every time one is added. `OverlayQueue` takes
+them as a list instead:
 
 ```kotlin
 val queue = rememberOverlayQueue(sessionCount = prefs.launches)
@@ -276,8 +276,8 @@ leftward in an RTL locale without the caller doing anything.
 **It is tested directly rather than through a rendered component.** The cases
 that break anchored overlays are geometric — a menu in the far corner, an overlay
 taller than the window, an RTL submenu, a container smaller than its content —
-and each is one line to assert but a fiddly interaction to reproduce on a screen.
-`AnchoringTest` covers all of them.
+and each is one line to assert but a fiddly interaction to reproduce on a
+screen. All of them are covered.
 
 ### Getting an anchor
 
@@ -575,7 +575,7 @@ Two things there are easy to get wrong and invisible when they are:
   keystroke — after typing, the user is looking at the top of the results, not
   at wherever they had arrowed to before the list changed under them.
 
-`CommandPaletteKeyboardTest` covers both, each verified by reverting.
+Both are covered.
 
 It sits near the **top** of the window rather than centred, because the list
 grows downward as the user types and a centred palette jumps up the screen on
