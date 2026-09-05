@@ -5,6 +5,10 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.size
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -252,6 +256,28 @@ object ToastDefaults {
     val Peek: Dp = 16.dp
 
     /**
+     * How wide a toast waiting behind the front one is drawn.
+     *
+     * A fixed number, and that is the whole of why this works. A pill carries no
+     * message, so it has no width of its own to want and nothing to re-wrap when
+     * it is given one — which is what let the shared width and its ratchet go.
+     *
+     * Wide enough to read as a toast rather than as a chip: at 48dp the thing
+     * peeking out above the card looked like a badge that had come off it.
+     */
+    val PillWidth: Dp = 72.dp
+
+    /**
+     * How tall it is drawn.
+     *
+     * Mostly hidden — [Peek] of it shows above the card in front — so this is
+     * about what the visible band's corners look like rather than about the
+     * shape as a whole. A one-line toast's own height, so a pill promoted to the
+     * front does not also have to grow taller.
+     */
+    val PillHeight: Dp = 36.dp
+
+    /**
      * How much smaller each one behind the front one is drawn.
      *
      * Enough to be visible at the sides of the one in front, which is the other
@@ -415,38 +441,40 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     val visible = state.toasts.takeLast(config.maxVisible)
     val density = LocalDensity.current
 
-    /**
-     * One size for the whole stack: the widest and tallest any card needs.
-     *
-     * **One silhouette is what makes a stack read as a stack.** Every card used
-     * to size to its own message, so "Saved" arriving in front of "Couldn't
-     * reach the server" left the older, wider card sticking out at both sides:
-     * three pills of three widths, which is a pile rather than a deck. Matching
-     * them leaves depth — offset and scale — as the only thing telling them
-     * apart, which is the thing depth is supposed to say.
-     *
-     * The **widest**, and not the front one's, because a width is a floor rather
-     * than a value here. Narrowing a card re-wraps the message inside it: the
-     * first version of this imposed the front card's width and turned "Couldn't
-     * reach the server just now" behind a "Saved" into a five-line tower. Only
-     * ever widening cannot re-wrap anything.
-     *
-     * Height for the same reason and a sharper one. The cards are bottom-aligned
-     * and then lifted by [ToastDefaults.Peek] each, so the peek is measured from
-     * the front card's *top* — and a two-line message in front of a one-line one
-     * swallowed the whole stack. Three toasts, and the picture was of one.
-     *
-     * It ratchets, and only within one stack: a card that has been grown reports
-     * its grown size, so the maximum never comes back down while toasts keep
-     * arriving. That is the behaviour worth having anyway — a stack that resizes
-     * under the message being read is worse than one slightly larger than it
-     * needs — and it resets when the stack empties, which is when the host drops
-     * the entry this lives in.
-     */
-    var stackWidthPx by remember { mutableIntStateOf(0) }
-    var stackHeightPx by remember { mutableIntStateOf(0) }
-    val stackWidth = if (stackWidthPx > 0) with(density) { stackWidthPx.toDp() } else Dp.Unspecified
-    val stackHeight = if (stackHeightPx > 0) with(density) { stackHeightPx.toDp() } else Dp.Unspecified
+    // No shared size any more, and the ratchet that kept one is gone with it.
+    //
+    // It held every card at the stack's widest and tallest — `maxOf(…)` fed by
+    // each card's own measurement, applied as a `widthIn(min = …)`. The argument
+    // was that one silhouette is what makes a stack read as a stack, and it was
+    // self-sustaining by construction: `onSizeChanged` wrapped the min-width
+    // node, so a card that had been stretched reported its stretched size back
+    // in and the maximum could never fall.
+    //
+    // What it produced was the reported defect. A `Surface` aligns its content
+    // to the start and does not propagate its minimum constraints, so a
+    // stretched card does not re-flow — the message stays where it is and the
+    // extra width is dead space on the right. "Saved" behind a longer toast grew
+    // a blank half. The height half was worse and went unreported: one toast
+    // carrying an action raised the floor for every plain toast behind it, for
+    // as long as the stack lived.
+    //
+    // Only the front toast is a card now, and the ones behind it are plain
+    // pills, so there is no second card for a width to be shared with.
+    //
+    // One number does survive, and it is not a ratchet. The cards are
+    // bottom-aligned and then lifted by `Peek` each, so where a pill's top edge
+    // lands depends on how much *shorter* it is than the card in front — and a
+    // 36dp pill behind a 56dp card is hidden by it completely. That is the same
+    // fault the height ratchet existed to prevent, restated for pills, and I
+    // reproduced it exactly on the way here: the first version of this drew no
+    // pill at all.
+    //
+    // So the pills are placed against the front card's height. The *front*
+    // card's, measured now — not the tallest any card has ever been. It falls
+    // when the front toast is replaced by a shorter one, which is the whole
+    // difference between this and what it replaces.
+    var frontHeightPx by remember { mutableIntStateOf(0) }
+    val frontHeight = with(density) { frontHeightPx.toDp() }
 
     Box(
         Modifier.fillMaxSize().windowInsetsPadding(config.windowInsets),
@@ -463,12 +491,8 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     towardEdge = towardEdge,
                     showClose = config.showClose,
                     closeLabel = config.closeLabel,
-                    stackWidth = stackWidth,
-                    stackHeight = stackHeight,
-                    onMeasured = { size ->
-                        stackWidthPx = maxOf(stackWidthPx, size.width)
-                        stackHeightPx = maxOf(stackHeightPx, size.height)
-                    },
+                    frontHeight = frontHeight,
+                    onFrontMeasured = { frontHeightPx = it },
                     modifier = config.modifier,
                 )
             }
@@ -484,10 +508,9 @@ private fun ToastCard(
     towardEdge: Boolean,
     showClose: Boolean,
     closeLabel: String,
-    /** The stack's shared size — see `ToastStack`. Unspecified before it has one. */
-    stackWidth: Dp,
-    stackHeight: Dp,
-    onMeasured: (IntSize) -> Unit,
+    /** How tall the card in front is — see `ToastStack`. Zero until it reports. */
+    frontHeight: Dp,
+    onFrontMeasured: (Int) -> Unit,
     modifier: Modifier,
 ) {
     val motion = Theme.motion
@@ -514,8 +537,15 @@ private fun ToastCard(
         if (toast.presence.isIdle && !toast.presence.currentState) state.remove(toast)
     }
 
+    // Measured from the front card's edge rather than from the pill's own, so a
+    // pill shorter than the card still clears it by `Peek`.
+    val towards = if (towardEdge) -1 else 1
     val depthOffset by animateDpAsState(
-        targetValue = ToastDefaults.Peek * depth * (if (towardEdge) -1 else 1),
+        targetValue = if (depth == 0) {
+            0.dp
+        } else {
+            (ToastDefaults.Peek * depth + (frontHeight - ToastDefaults.PillHeight)) * towards
+        },
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "toastDepthOffset",
     )
@@ -525,29 +555,6 @@ private fun ToastCard(
         label = "toastDepthScale",
     )
 
-    /**
-     * The message on the cards behind, which is not for reading.
-     *
-     * All three cards are the same width and offset by [ToastDefaults.Peek], so
-     * what shows of the ones behind is a band along their top edge — and the
-     * text sat right in it. Three messages at once, each sliced through the
-     * middle by the card in front, which is worse than the mismatched widths
-     * this stack started with.
-     *
-     * Not the same thing as fading the *card*, which was tried and is in the
-     * `graphicsLayer` below as a note: a translucent card lets the one in front
-     * show through it and smears the two together. The card stays opaque and
-     * only what is written on it goes, so the band behind is a clean plate of
-     * colour.
-     *
-     * Animated so a card coming forward brings its message with it rather than
-     * having it appear, on the same spring as the movement that brings it.
-     */
-    val contentAlpha by animateFloatAsState(
-        targetValue = if (depth == 0) 1f else 0f,
-        animationSpec = motion.springOrTween(motion.springDefault),
-        label = "toastContentAlpha",
-    )
     /** How far the front toast has been dragged toward the edge. */
     var swipe by remember { mutableFloatStateOf(0f) }
     var height by remember { mutableFloatStateOf(0f) }
@@ -563,9 +570,9 @@ private fun ToastCard(
     ) {
         ToastSurface(
             toast = toast,
+            depth = depth,
             showClose = showClose && depth == 0,
             closeLabel = closeLabel,
-            contentAlpha = contentAlpha,
             modifier = modifier
                 // The gesture is the outermost thing, above the padding — and
                 // that is the point. Below it the swipe area was exactly the
@@ -621,7 +628,7 @@ private fun ToastCard(
                 // draw, and the recomposition it schedules can loop.
                 .onSizeChanged {
                     height = it.height.toFloat()
-                    onMeasured(it)
+                    if (depth == 0) onFrontMeasured(it.height)
                 }
                 // Inside the padding, so the depth scale shrinks the *card* and
                 // not the card plus its slop — the stack's geometry is tuned to
@@ -637,21 +644,7 @@ private fun ToastCard(
                     // a smear. Offset and scale already say "behind", and they
                     // say it without letting anything show through.
                 }
-                // Every card at the stack's width — see `ToastStack`. A
-                // minimum rather than an exact size, because narrowing a card
-                // re-wraps the message inside it and widening one cannot.
-                //
-                // Below the `graphicsLayer`, so the depth scale still applies on
-                // top: the cards behind are the same width *before* being pushed
-                // back, which is what makes them read as further away rather
-                // than merely narrower.
-                .then(
-                    if (stackWidth != Dp.Unspecified) {
-                        Modifier.widthIn(min = stackWidth).heightIn(min = stackHeight)
-                    } else {
-                        Modifier
-                    }
-                ),
+                ,
             onAction = {
                 toast.onAction?.invoke()
                 state.dismiss(toast.id)
@@ -666,12 +659,13 @@ private fun ToastSurface(
     toast: Toast,
     showClose: Boolean,
     closeLabel: String,
-    /** How much of the message is drawn — see `ToastCard`. */
-    contentAlpha: Float,
+    /** Zero is the front one. Anything behind it is drawn as a bare pill. */
+    depth: Int,
     modifier: Modifier,
     onAction: () -> Unit,
     onClose: () -> Unit,
 ) {
+    val motion = Theme.motion
     val colours = Theme.colours
     val container = when (toast.tone) {
         ToastTone.Neutral -> colours.surfaceInverse
@@ -705,8 +699,37 @@ private fun ToastSurface(
         contentColour = content,
         shadow = Theme.elevation.high,
     ) {
+        // A card in front; behind it, a plain capsule of the same colour and
+        // nothing else at all.
+        //
+        // The cards behind used to be full-size cards with their contents faded
+        // to nothing — which is why they had to share the front one's width, and
+        // why a stretched card showed a blank half. A pill has no content to
+        // fade and no message to re-wrap, so the trap that governed this whole
+        // component's layout does not apply to it: `AnimatedContent` may animate
+        // freely between the two sizes in both directions.
+        //
+        // Nothing is readable behind the front toast now, which is the point.
+        // Dismiss the one in front to see the next.
+        AnimatedContent(
+            targetState = depth == 0,
+            transitionSpec = {
+                (fadeIn(motion.springOrTween(motion.springDefault)) togetherWith
+                    fadeOut(motion.tweenFast()))
+                    // Unclipped, so the message is laid out at the size it is
+                    // going to be rather than re-wrapped at every intermediate
+                    // width on the way there. The same `SizeTransform` a text
+                    // field's error uses, for the same reason.
+                    .using(SizeTransform(clip = false))
+            },
+            label = "toastPresentation",
+        ) { front ->
+        if (!front) {
+            Box(Modifier.size(ToastDefaults.PillWidth, ToastDefaults.PillHeight))
+            return@AnimatedContent
+        }
         Row(
-            modifier = Modifier.alpha(contentAlpha).padding(
+            modifier = Modifier.padding(
                 start = Theme.spacing.md,
                 end = if (toast.actionLabel != null || showClose) Theme.spacing.xs else Theme.spacing.md,
                 top = Theme.spacing.xs,
@@ -760,6 +783,7 @@ private fun ToastSurface(
                     size = ButtonSize.XSmall,
                 )
             }
+        }
         }
     }
 }

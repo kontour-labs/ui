@@ -264,6 +264,93 @@ class ToastStackTest {
         return ink
     }
 
+    /**
+     * The toast behind is a pill, not a card the same width as the one in front.
+     *
+     * Item 25. Every card used to be held at the stack's widest — a ratchet in
+     * `ToastStack`, `stackWidthPx = maxOf(stackWidthPx, size.width)`, applied as
+     * `widthIn(min = …)` — so a short toast grew the moment a longer one arrived
+     * behind it. The file argued for that: one silhouette is what makes a stack
+     * read as a stack. The answer is that a stack of one card with plain pills
+     * behind it reads better, and does not need every card to be the same shape.
+     *
+     * ### Measured as two widths in one frame, not one width across two frames
+     *
+     * Comparing "before the long one arrived" against "after" would pass on a
+     * stack that was always wide, and it would have to hold a frame from an
+     * animation still in flight. Both cards are on screen at once here, so the
+     * question is answerable from a single settled frame: how wide is the band
+     * peeking out at the top, against how wide is the card at the bottom?
+     *
+     * Under the old model those are the same number by construction. The pill is
+     * a fixed width and the card sizes to a long message, so any real gap between
+     * them is the fix.
+     */
+    @Test
+    fun theToastBehindIsAPillRatherThanACardOfTheSameWidth() {
+        var peek = 0
+        var card = 0
+
+        Scene(width = 600, height = SceneHeight) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) {
+                    // Pinned, so the frame is settled rather than mid-timer, and
+                    // short-then-long because that is the reported order: the
+                    // short one is the one that used to stretch.
+                    toasts.show("Saved", durationMillis = 0)
+                    toasts.show(
+                        "Couldn't reach the timetable service just now",
+                        durationMillis = 0,
+                    )
+                }
+            }
+        }.use { scene ->
+            val image = scene.frames(40)
+            val rows = image.surfaceRows()
+            assertNotNull(rows, "no toast surface was drawn at all")
+            peek = image.widthAtRow(rows.first + Probe)
+            card = image.widthAtRow(rows.last - Probe)
+        }
+
+        assertTrue(card > 0 && peek > 0, "peek=$peek card=$card — one band drew nothing")
+        assertTrue(
+            peek < card * PillShare,
+            "the toast behind is ${peek}px wide against the front card's ${card}px. " +
+                "They are within ${((peek.toFloat() / card) * 100).toInt()}% of each " +
+                "other, which is a stack of cards holding one width between them " +
+                "rather than a card with a pill behind it.",
+        )
+    }
+
+    /** The first and last rows holding any toast surface. */
+    private fun BufferedImage.surfaceRows(): IntRange? {
+        var first = -1
+        var last = -1
+        for (y in 0 until height) {
+            val any = (0 until width).any { isSurface(getRGB(it, y)) }
+            if (!any) continue
+            if (first < 0) first = y
+            last = y
+        }
+        return if (first < 0) null else first..last
+    }
+
+    /** How wide the run of toast surface is on one row. */
+    private fun BufferedImage.widthAtRow(y: Int): Int {
+        if (y !in 0 until height) return 0
+        var left = width
+        var right = -1
+        for (x in 0 until width) {
+            if (!isSurface(getRGB(x, y))) continue
+            if (x < left) left = x
+            if (x > right) right = x
+        }
+        return if (right < 0) 0 else right - left + 1
+    }
+
     /** Renders a stack and measures how wide the front toast ended up. */
     private fun widthAfter(showClose: Boolean = false, shown: (ToastHostState) -> Unit): Int {
         var width = 0
@@ -332,6 +419,19 @@ class ToastStackTest {
 
         /** Antialiasing and a pixel of shadow. */
         const val Slack = 4
+
+        /** Far enough into a band to be past its rounded corner. */
+        const val Probe = 12
+
+        /**
+         * How much of the front card's width a pill behind it may take.
+         *
+         * Generous: the pill is a fixed width and the card is holding a long
+         * sentence, so the real gap is much larger than this. The number is a
+         * line between "these are two shapes" and "these are one silhouette",
+         * not a measurement of the design.
+         */
+        const val PillShare = 0.75f
     }
 
     private fun isSurface(rgb: Int): Boolean {
