@@ -285,3 +285,59 @@ private data class InsetCornerSize(val base: CornerSize, val gap: Dp) : CornerSi
     override fun toPx(shapeSize: Size, density: Density): Float =
         (base.toPx(shapeSize, density) - with(density) { gap.toPx() }).coerceAtLeast(0f)
 }
+
+/**
+ * The radius a box drawn [gap] *outside* this shape should use to stay
+ * concentric with it.
+ *
+ * [inset]'s other half, and the one a focus ring needs: the ring is a larger box
+ * around a component, so it wants the component's radius plus the distance
+ * between them. Same rule as [inset], read in the other direction.
+ *
+ * ### Why this is not [inset] with the sign flipped
+ *
+ * [InsetCornerSize] resolves its base against the size it is handed, and that is
+ * right for an inset, because the inner shape is drawn *on* the inner box — the
+ * size the corner should resolve against is the size it is given.
+ *
+ * An outset shape is drawn on the **outer** box, so the size it is handed is the
+ * wrong one to resolve against — and a *proportional* corner is where that shows.
+ * [pill] on a 52dp component is 26dp and the ring 3dp outside it wants 29;
+ * resolve it against the 58dp ring instead and it answers 29 before the gap is
+ * added, so the ring is drawn at 32 — over-rounded by exactly the gap, every
+ * time.
+ *
+ * A fixed radius is immune to that, and so is a capped capsule once it is at its
+ * cap: `CapsuleCornerSize(cap = 26.dp)` reads 26 on a 52dp field and 26 on the
+ * 58dp ring around it. So the fault would be invisible on every text field in the
+ * library and plain on every avatar — the reverse of the bug this replaced, where
+ * a percentage corner was the one thing that came out right. Worth knowing before
+ * "it looks fine on a field" is taken as evidence.
+ *
+ * So [OutsetCornerSize] reconstructs the inner box by subtracting the gap it knows
+ * it added, resolves there, and only then grows.
+ */
+fun CornerBasedShape.outset(gap: Dp): CornerBasedShape = copy(
+    topStart = OutsetCornerSize(topStart, gap),
+    topEnd = OutsetCornerSize(topEnd, gap),
+    bottomEnd = OutsetCornerSize(bottomEnd, gap),
+    bottomStart = OutsetCornerSize(bottomStart, gap),
+)
+
+/**
+ * A [CornerSize] that resolves to another one, plus [gap].
+ *
+ * Deferred for the same reason [InsetCornerSize] is, and resolved against the
+ * *inner* box rather than the one it is asked about — see [outset].
+ */
+@Immutable
+private data class OutsetCornerSize(val base: CornerSize, val gap: Dp) : CornerSize {
+    override fun toPx(shapeSize: Size, density: Density): Float {
+        val grow = with(density) { gap.toPx() }
+        val inner = Size(
+            (shapeSize.width - grow * 2f).coerceAtLeast(0f),
+            (shapeSize.height - grow * 2f).coerceAtLeast(0f),
+        )
+        return base.toPx(inner, density) + grow
+    }
+}
