@@ -22,12 +22,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Stack
 import com.composables.icons.tabler.outline.Star
+import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonGroup
 import io.kontour.ui.components.action.ButtonVariant
@@ -56,7 +58,9 @@ import kotlinx.datetime.LocalTime
 import io.kontour.ui.components.display.Accordion
 import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.AnimatedBanner
+import io.kontour.ui.components.display.Banner
 import io.kontour.ui.components.display.BannerTone
+import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.display.Carousel
@@ -1476,6 +1480,61 @@ val componentRegistry: List<ComponentSpec> = buildList {
         }
     )
 
+    // `Banner` and `Callout` had no picture, and `AnimatedBanner` — which is a
+    // `Banner` with a visibility animation around it — did. So the family's
+    // photographed member was the one that adds the least, and the two that
+    // carry the shape work went unprotected.
+    add(
+        ComponentSpec(
+            name = "Banner",
+            role = null,
+            underContract = false,
+            renderHeight = 140,
+        ) { modifier, _, _ ->
+            // Title, message, leading icon and a dismiss — all four, because a
+            // banner with only a message is an `AnimatedBanner` and the two
+            // pictures would not tell them apart. The leading icon earns its
+            // place twice over: it is what Round 22 centred, and the dismiss on
+            // the other side is what it is centred against.
+            Banner(
+                modifier = modifier.widthIn(max = SpecimenProseWidth),
+                tone = BannerTone.Warning,
+                onDismissRequest = {},
+                dismissIcon = Tabler.Outline.X,
+            ) {
+                +"Services are running up to 12 minutes late."
+                title { +"Delays on the Armadale line" }
+                leading { +Tabler.Outline.AlertTriangle }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "Callout",
+            role = null,
+            underContract = false,
+            renderHeight = 120,
+            minWidth = 200,
+        ) { modifier, _, _ ->
+            // Long enough to wrap, because the whole of this component is the
+            // rule down its leading edge and a rule needs height to be a rule.
+            // A one-line callout is almost entirely corner, which is exactly
+            // the part that is about to change.
+            //
+            // Bounded, because `Callout` is `fillMaxWidth` and the render
+            // measures unbounded: left to itself the message takes one 991px
+            // line and overflows a 600px canvas.
+            Callout(modifier.widthIn(max = SpecimenProseWidth)) {
+                Text(
+                    "Melbourne, Sydney and Canberra do not currently support " +
+                        "journey planning.",
+                    style = Theme.typography.bodySmall,
+                )
+            }
+        }
+    )
+
     add(
         ComponentSpec("AnimatedBanner", role = null, underContract = false) { modifier, _, _ ->
             AnimatedBanner(visible = true, modifier = modifier, tone = BannerTone.Warning) {
@@ -1698,3 +1757,13 @@ private val SpecimenTime = LocalTime(8, 31)
 
 /** A phone's worth of width, for the specimens that would otherwise take 511dp. */
 private val SpecimenGridWidth = 256.dp
+
+/**
+ * A width for the components that hold a sentence and fill whatever they are in.
+ *
+ * `Banner` and `Callout` are both `fillMaxWidth`, and the render measures them
+ * unbounded — so left alone their message takes one very long line and runs off
+ * a canvas that is only 300dp wide. Bounding them is also the more honest
+ * picture: a banner that never wraps is not a banner anyone will see.
+ */
+private val SpecimenProseWidth = 260.dp
