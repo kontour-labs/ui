@@ -66,6 +66,32 @@ class Scene(
     }
 
     /**
+     * Renders the next frame and throws the pixels away.
+     *
+     * [frame] encodes every frame to PNG and decodes it back through `ImageIO`,
+     * which is the right trade when a test is going to *look* at the pixels: it
+     * is the only way to get a `BufferedImage` out of Skia here, and a golden
+     * that costs a few tens of milliseconds to take is still a golden.
+     *
+     * It is the wrong trade when the time **is** the measurement. Encoding and
+     * decoding a full-screen PNG is far more work than drawing the frame was, so
+     * a stopwatch around [frame] measures `ImageIO` with a rendering somewhere
+     * inside it, and any ratio taken that way is dragged towards 1 by a large
+     * constant that has nothing to do with what is being compared.
+     * `BackdropCostDiagnostic` reported its blur cost that way, and the figure it
+     * printed was the blur diluted by two image codecs.
+     */
+    fun advance() {
+        nanos += FrameNanos
+        scene.render(nanos).close()
+    }
+
+    /** Renders [count] frames, discarding each. */
+    fun advance(count: Int) {
+        repeat(count) { advance() }
+    }
+
+    /**
      * Renders until [until] holds, or until [timeoutMillis] of **real** time has
      * passed. Returns the frame that satisfied it, or null if none did.
      *
