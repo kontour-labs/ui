@@ -105,6 +105,21 @@ class SheetState internal constructor(
     internal var containerHeight by mutableFloatStateOf(0f)
 
     /**
+     * Whether the user may put this sheet away themselves.
+     *
+     * Set by `ModalBottomSheet` from its `dismissible` parameter, and about the
+     * *user* rather than the app: [hide] still works, because closing a sheet
+     * the user must answer is exactly what the app does once they have answered
+     * it. So [SheetDetent.Hidden] stays in the anchors and only [dragFloor]
+     * knows the difference.
+     *
+     * It has to live here rather than in the sheet composable because the two
+     * things that need it — the drag and the list inside it — both reach the
+     * sheet through this object.
+     */
+    internal var userDismissible by mutableStateOf(true)
+
+    /**
      * How far the sheet has been pulled **above** its tallest detent, in pixels.
      *
      * `anchoredDraggable` clamps to its anchor range, so without this a sheet at
@@ -136,6 +151,57 @@ class SheetState internal constructor(
         }
 
     /**
+     * The furthest down a *drag* may take the sheet, in pixels of offset.
+     *
+     * `NaN` when there is nothing to stop at — which is the ordinary case, where
+     * [SheetDetent.Hidden] is the bottom of the anchor range and a sheet dragged
+     * to it is a sheet being put away.
+     *
+     * An undismissable sheet is the case this exists for. Hidden stays in the
+     * anchors so [hide] still works, so `anchoredDraggable` will happily drag
+     * the sheet to it — and what happened then is the whole of the report: the
+     * sheet went all the way down, settled hidden, declined to tell the caller
+     * because it is not dismissable, and was put back about a second later. Its
+     * scrim faded out on the way, because the scrim follows [visibleFraction]
+     * and the sheet really had gone. Measured: `vf` fell 1.0 → 0.36 across the
+     * drag, reached 0.00005, reported `hidden`, and was back at 1.0 twenty
+     * frames later without `onDismissRequest` ever being called.
+     *
+     * So the floor is the lowest detent a drag is *allowed* to settle at, and
+     * past it the sheet stretches like it does above its top — same arithmetic,
+     * other end.
+     */
+    internal val dragFloor: Float
+        get() {
+            if (userDismissible) return Float.NaN
+            // Already away: nothing to hold it up, and a sheet mid-open would
+            // otherwise be floored at wherever it happens to be.
+            if (anchoredState.settledValue == SheetDetent.Hidden) return Float.NaN
+            val lowest = allowedDetents
+                .filter { it != SheetDetent.Hidden }
+                .maxOfOrNull { anchoredState.anchors.positionOf(it) }
+                ?: return Float.NaN
+            return if (lowest.isNaN()) Float.NaN else lowest
+        }
+
+    /**
+     * How much of a downward [delta] the sheet itself may take before [dragFloor].
+     *
+     * The rest is the caller's to stretch. Both the drag and the nested-scroll
+     * connection ask, because a sheet with a form in it is dragged by its
+     * content as often as by its handle and a floor only one of them respects is
+     * not a floor.
+     */
+    internal fun roomBeforeFloor(delta: Float): Float {
+        if (delta <= 0f) return delta
+        val floor = dragFloor
+        if (floor.isNaN()) return delta
+        val current = anchoredState.offset
+        if (current.isNaN()) return delta
+        return minOf(delta, (floor - current).coerceAtLeast(0f))
+    }
+
+    /**
      * How far above the top detent the sheet may be pulled.
      *
      * A twelfth of the container: far enough to feel like the sheet answered the
@@ -155,10 +221,43 @@ class SheetState internal constructor(
     internal fun stretch(by: Float): Float {
         val max = maxOvershoot
         if (max <= 0f || by <= 0f) return 0f
-        val resistance = 1f - (overshoot / max).coerceIn(0f, 1f)
+        val resistance = 1f - (abs(overshoot) / max).coerceIn(0f, 1f)
         val gained = by * resistance
-        overshoot = (overshoot + gained).coerceIn(0f, max)
+        overshoot = (overshoot + gained).coerceIn(-max, max)
         return gained
+    }
+
+    /**
+     * The same, downward: [by] pixels of push below [dragFloor].
+     *
+     * [overshoot] is signed, and the layout subtracts it — so a negative one
+     * moves the sheet down by exactly as much as a positive one moves it up, and
+     * both ends spring back through the same [releaseOvershoot].
+     */
+    internal fun stretchDown(by: Float): Float {
+        val max = maxOvershoot
+        if (max <= 0f || by <= 0f) return 0f
+        val resistance = 1f - (abs(overshoot) / max).coerceIn(0f, 1f)
+        val gained = by * resistance
+        overshoot = (overshoot - gained).coerceIn(-max, max)
+        return gained
+    }
+
+    /**
+     * Closes an open stretch at full rate, and returns how much of [by] it used.
+     *
+     * A finger coming back closes the gap it opened before the sheet itself
+     * starts moving again; the other order slides the sheet away with the gap
+     * still open, and one gesture produces two motions. Signed the way the
+     * finger is: positive is downward.
+     */
+    internal fun payBackOvershoot(by: Float): Float {
+        if (overshoot == 0f || by == 0f) return 0f
+        // Same sign means the finger is opening the gap wider, not closing it.
+        if ((overshoot > 0f) == (by < 0f)) return 0f
+        val paid = minOf(abs(overshoot), abs(by))
+        overshoot += paid * if (overshoot > 0f) -1f else 1f
+        return paid * if (by > 0f) 1f else -1f
     }
 
     /** Springs the stretch back to nothing. */
@@ -452,12 +551,13 @@ class SheetState internal constructor(
 
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
+                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                // A stretch the finger opened closes before anything else moves.
+                val paid = payBackOvershoot(delta)
+                val offered = delta - paid
                 // Dragging up, sheet not yet expanded: the sheet takes it first.
-                return if (delta < 0 && source == NestedScrollSource.UserInput) {
-                    anchoredState.dispatchRawDelta(delta).toOffset()
-                } else {
-                    Offset.Zero
-                }
+                val taken = if (offered < 0f) anchoredState.dispatchRawDelta(offered) else 0f
+                return (paid + taken).toOffset()
             }
 
             override fun onPostScroll(
@@ -467,11 +567,16 @@ class SheetState internal constructor(
             ): Offset {
                 // Dragging down and the list had nothing left to give: the sheet
                 // takes the remainder and starts to close.
-                return if (source == NestedScrollSource.UserInput) {
-                    anchoredState.dispatchRawDelta(available.y).toOffset()
-                } else {
-                    Offset.Zero
-                }
+                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                val offered = available.y
+                // ...as far as it is allowed to go, and no further. A sheet with
+                // a form in it is dragged by its content as often as by its
+                // handle, so the floor has to hold here too.
+                val toSheet = roomBeforeFloor(offered)
+                val taken = anchoredState.dispatchRawDelta(toSheet)
+                val leftOver = offered - taken
+                val stretched = if (leftOver > 0f) stretchDown(leftOver) else 0f
+                return (taken + stretched).toOffset()
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {

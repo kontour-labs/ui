@@ -25,6 +25,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -404,6 +405,13 @@ fun ModalBottomSheet(
     // disagree about whether it is open.
     val showing by rememberUpdatedState(visible)
     val canDismiss by rememberUpdatedState(dismissible)
+
+    // The state has to know, because the two things that enforce it — the drag
+    // and the list inside the sheet — both reach the sheet through it. In a
+    // `SideEffect` rather than written straight out: this is publishing a
+    // composition's value to an object that lives outside it, and a gesture
+    // cannot arrive before the composition it belongs to has finished.
+    SideEffect { state.userDismissible = dismissible }
     LaunchedEffect(state) {
         snapshotOfHidden(state, stillVisible = { showing }) {
             // A sheet that cannot be dismissed does not pass the drag on as a

@@ -38,6 +38,27 @@ sheet has one meaningful position and the state object exists to describe
 several. Reach for [`BottomSheet`](bottom-sheet.md) when what is behind the sheet
 is still the point.
 
+### `dismissible = false` closes the drag too
+
+For the sheet that has to be answered rather than escaped — a required choice, a
+form with unsaved changes. It shuts every route out the user has: the tap
+outside, the back gesture, and the drag downward, which now **stretches and
+springs back** rather than following the finger off the bottom of the window.
+
+That last one matters more than it sounds. A sheet dragged all the way down
+settles hidden, and a sheet that is hidden has no scrim to speak of — so the
+screen behind it brightened as the user dragged, and then the sheet came back a
+moment later, having gone nowhere it was allowed to go. Held at its lowest
+detent, none of that happens: the sheet gives a little, the scrim stays where it
+is, and letting go puts it back.
+
+The app can still close it by setting `visible` to false, and should offer some
+way to. This is about what the *user* can do on their own.
+
+Not the same as `draggable = false`, which stops the sheet moving at all and
+takes its handle with it. An undismissable sheet can still be dragged between its
+detents.
+
 ---
 
 ## Accessibility
