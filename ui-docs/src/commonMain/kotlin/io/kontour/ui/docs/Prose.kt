@@ -145,9 +145,9 @@ private fun CodeBlock(block: Block.Code) {
                 .horizontalScroll(scroll)
         ) {
             Text(
-                text = block.code,
+                text = highlighted(block),
                 style = Theme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                colour = Theme.colours.content,
+                colour = Theme.colours.code.plain,
                 softWrap = false,
             )
         }
@@ -161,6 +161,54 @@ private fun CodeBlock(block: Block.Code) {
             modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
             cornerInset = ScrollbarDefaults.cornerInset(shape),
         )
+    }
+}
+
+/**
+ * The block's code, coloured from the run-length map beside it.
+ *
+ * The decoder knows nothing about Kotlin — it reads a count, reads the letter
+ * that count applies to, and paints that many characters. Everything about the
+ * language was decided by `docs/generate-doc-pages.py` at build time, which is
+ * what keeps the promise that the bundle a reader downloads carries content
+ * rather than a program for producing it.
+ *
+ * An empty map is the ordinary case for anything that is not Kotlin, and gives
+ * back the plain string.
+ *
+ * Highlighting is decorative and the KDoc on [CodeColours] says so: the code
+ * reads identically in one colour, and nothing here is the only way to know
+ * anything. That is the reason the four colours are only ever checked against
+ * the ground they sit on, and not against each other.
+ */
+@Composable
+private fun highlighted(block: Block.Code): AnnotatedString {
+    val colours = Theme.colours.code
+    return remember(block, colours) {
+        if (block.spans.isEmpty()) return@remember AnnotatedString(block.code)
+        buildAnnotatedString {
+            append(block.code)
+            var at = 0
+            var run = 0
+            for (character in block.spans) {
+                if (character.isDigit()) {
+                    run = run * 10 + (character - '0')
+                    continue
+                }
+                val end = minOf(at + run, block.code.length)
+                if (end > at) {
+                    val colour = when (character) {
+                        'k' -> colours.keyword
+                        's' -> colours.literal
+                        'c' -> colours.comment
+                        else -> colours.plain
+                    }
+                    addStyle(SpanStyle(color = colour), at, end)
+                }
+                at = end
+                run = 0
+            }
+        }
     }
 }
 

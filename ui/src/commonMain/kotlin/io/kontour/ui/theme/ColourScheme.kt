@@ -17,6 +17,37 @@ import androidx.compose.ui.graphics.Color
 enum class ContrastLevel { Standard, High }
 
 /**
+ * The four colours source code is drawn in, on the documentation site.
+ *
+ * Highlighting is **decorative**: the code says exactly the same thing in one
+ * colour, and nothing here carries information the characters do not. That is
+ * why there are four classes and not the fifteen an editor uses — a page of
+ * documentation is read once, and a reader picking out `fun` from a string
+ * literal at a glance is the whole benefit.
+ *
+ * [plain] and [comment] are ordinarily the scheme's own [ColourScheme.content]
+ * and [ColourScheme.contentMuted], and are named separately so a consumer
+ * theming the site can move them without moving its body text.
+ *
+ * All four are drawn on [ColourScheme.surfaceSunken] and all four are checked
+ * against it by `ColourSchemeContrastTest` at the scheme's own tier — 4.5:1
+ * standard, 7:1 high contrast. That check is the reason these can be palette
+ * values shared with the status tones rather than colours of their own:
+ * retuning one to suit a banner fails here.
+ */
+@Immutable
+data class CodeColours(
+    /** Identifiers, punctuation, everything with no special meaning. */
+    val plain: Color,
+    /** `fun`, `val`, `when`, and annotations. */
+    val keyword: Color,
+    /** Strings, characters and numbers. */
+    val literal: Color,
+    /** `//` and `/* */`. */
+    val comment: Color,
+)
+
+/**
  * The colours of one status tone — success, warning, danger or info.
  *
  * The split mirrors how the web properties already use them: a [solid] fill for
@@ -158,6 +189,9 @@ data class ColourScheme(
     /** Tonal wash applied while an element is being dragged. */
     val overlayDragged: Color,
 
+    /** How source code is drawn on the documentation site. See [CodeColours]. */
+    val code: CodeColours,
+
     /** Whether this scheme reads as dark. Drives status-bar icons and image scrims. */
     val isDark: Boolean,
 )
@@ -227,6 +261,15 @@ fun lightColourScheme(
     overlayHover: Color = Color(0x0F121212),
     overlayPressed: Color = Color(0x1F121212),
     overlayDragged: Color = Color(0x29121212),
+    // Blue and green off the ramps above rather than colours of their own —
+    // they already clear 4.5:1 on `surfaceSunken`, which is the only ground
+    // code is ever drawn on, and `ColourSchemeContrastTest` now says so.
+    code: CodeColours = CodeColours(
+        plain = content,
+        keyword = Palette.BlueDeep,
+        literal = Palette.GreenDeep,
+        comment = contentMuted,
+    ),
 ): ColourScheme = ColourScheme(
     background = background,
     surface = surface,
@@ -254,6 +297,7 @@ fun lightColourScheme(
     overlayHover = overlayHover,
     overlayPressed = overlayPressed,
     overlayDragged = overlayDragged,
+    code = code,
     isDark = false,
 )
 
@@ -315,6 +359,12 @@ fun darkColourScheme(
     overlayHover: Color = Color(0x14FFFFFF),
     overlayPressed: Color = Color(0x29FFFFFF),
     overlayDragged: Color = Color(0x33FFFFFF),
+    code: CodeColours = CodeColours(
+        plain = content,
+        keyword = Palette.BlueLight,
+        literal = Palette.GreenLight,
+        comment = contentMuted,
+    ),
 ): ColourScheme = ColourScheme(
     background = background,
     surface = surface,
@@ -342,6 +392,7 @@ fun darkColourScheme(
     overlayHover = overlayHover,
     overlayPressed = overlayPressed,
     overlayDragged = overlayDragged,
+    code = code,
     isDark = true,
 )
 
@@ -377,6 +428,15 @@ fun highContrastLightColourScheme(
     overlayHover = Color(0x1F000000),
     overlayPressed = Color(0x3D000000),
     overlayDragged = Color(0x4D000000),
+    // Deeper, because 7:1 on a near-white ground leaves no room for the
+    // standard pair — and still 45 and 18 ΔE from each other and from black,
+    // which is what stops high contrast collapsing into one colour.
+    code = CodeColours(
+        plain = Palette.Black,
+        keyword = Palette.BlueDeeper,
+        literal = Palette.GreenOnLight,
+        comment = Palette.GreyHcMuted,
+    ),
     surfaceSunken = Palette.GreyHcSunken,
     surfaceInverse = Palette.Black,
     content = Palette.Black,
@@ -442,6 +502,12 @@ fun highContrastDarkColourScheme(
     overlayHover = Color(0x24FFFFFF),
     overlayPressed = Color(0x47FFFFFF),
     overlayDragged = Color(0x54FFFFFF),
+    code = CodeColours(
+        plain = Palette.White,
+        keyword = Palette.BlueLightHc,
+        literal = Palette.GreenPale,
+        comment = Palette.SlateHcMuted,
+    ),
     background = Palette.Black,
     surface = Palette.InkHcSurface,
     surfaceSunken = Palette.InkHcSunken,
