@@ -373,9 +373,25 @@ private val IndicatorSize = 40.dp
 private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion: Boolean) {
     val pull = progress.coerceIn(0f, 1f)
 
-    Surface(
+    // The fade needs room around the circle, or it cuts the circle's own shadow
+    // into a square.
+    //
+    // `alpha < 1` composites offscreen into a buffer sized to the layer's own
+    // rectangle. This layer used to sit on the `Surface` itself — exactly
+    // `IndicatorSize` — while `elevation.high` reaches 28dp further out, so
+    // every frame of the pull drew a hard-edged grey rectangle around a round
+    // indicator. `scale < 1` is what made it obvious, shrinking the white circle
+    // inside bounds that had not moved.
+    //
+    // So the layer goes on a box that is bigger by exactly the shadow's reach,
+    // and the negative offset puts the circle back where it was — the growth is
+    // for the buffer, not for the layout. Same fix as `overlayAppearance`, and
+    // `Shadow.bleed` is where the two get the number from.
+    val room = Theme.elevation.high.bleed
+
+    Box(
         modifier = Modifier
-            .size(IndicatorSize)
+            .offset(y = -room)
             .graphicsLayer {
                 // Grows in as the pull begins rather than appearing at full
                 // size, so a stray one-pixel drag does not flash a control.
@@ -383,7 +399,11 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
                 scaleX = scale
                 scaleY = scale
                 alpha = scale
-            },
+            }
+            .padding(room),
+    ) {
+    Surface(
+        modifier = Modifier.size(IndicatorSize),
         shape = Theme.shapes.pill,
         colour = Theme.colours.surfaceRaised,
         shadow = Theme.elevation.high,
@@ -423,6 +443,7 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
                 )
             }
         }
+    }
     }
 }
 

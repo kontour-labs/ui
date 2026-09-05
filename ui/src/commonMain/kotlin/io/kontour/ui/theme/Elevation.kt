@@ -37,6 +37,28 @@ data class ShadowSpec(
  */
 @Immutable
 data class Shadow(val layers: List<ShadowSpec>) {
+
+    /**
+     * How far outside its shape this shadow can reach.
+     *
+     * The room a compositing layer has to leave if it is going to fade or scale
+     * the thing casting the shadow. `alpha < 1` composites offscreen into a
+     * buffer sized to the **layer's own rectangle**, so a layer wrapped tightly
+     * around a shape cuts that shape's shadow off at a hard, straight edge —
+     * which is what put a square of grey around every appearing menu, every FAB
+     * menu item and the pull-to-refresh circle. The analysis is written out at
+     * `io.kontour.ui.overlay.overlayAppearance`.
+     *
+     * Derived rather than restated, so a shadow token and the room its animation
+     * needs cannot drift apart. Taken across every layer and in the worst
+     * direction: a blur reaches out on all sides, an offset shifts the whole
+     * thing, and the two add up on whichever side the offset points.
+     */
+    val bleed: Dp
+        get() = layers.maxOfOrNull { layer ->
+            maxOf(layer.offsetY, layer.offsetX) + layer.blurRadius + layer.spread
+        } ?: 0.dp
+
     companion object {
         val None = Shadow(emptyList())
     }
