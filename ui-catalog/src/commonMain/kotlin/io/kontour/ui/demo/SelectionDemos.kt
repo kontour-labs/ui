@@ -168,10 +168,22 @@ internal val SelectionRowDemo = ComponentDemo(slug = "selection-row") {
     }
 }
 
-internal val ChipDemo = ComponentDemo(slug = "chip") {
+/**
+ * Whether the chip that changes its label morphs or cuts.
+ *
+ * The knob passes `contentKey` or `null`, which is the whole of the parameter:
+ * with a key the label cross-fades and the chip resizes to it, without one the
+ * two labels swap between frames. Worth being able to see both, because the cut
+ * is what every chip in the library did until this was wired up.
+ */
+private val chipMorph = Knob.Flag("Morph", initial = true)
+
+internal val ChipDemo = ComponentDemo(slug = "chip", knobs = listOf(chipMorph)) {
     var buses by remember { mutableStateOf(true) }
     var trains by remember { mutableStateOf(false) }
+    var cleared by remember { mutableStateOf(false) }
     var place by remember { mutableStateOf(true) }
+    val morph = this[chipMorph]
 
     ChipGroup {
         FilterChip(
@@ -187,15 +199,30 @@ internal val ChipDemo = ComponentDemo(slug = "chip") {
             +Tabler.Outline.Bus
             +"Trains"
         }
-        Chip(onClick = { echo("Share") }) { +"Share" }
+        // One chip changing its mind, not one leaving and another arriving —
+        // which is why both states are the same `Chip` rather than an
+        // `InputChip` swapped for a plain one. `AnimatedContent` cannot span two
+        // different composables, so written that way the morph could not happen
+        // however the key was set, which is why it read as missing.
+        Chip(
+            onClick = { cleared = !cleared },
+            contentKey = if (morph) cleared else null,
+        ) {
+            if (cleared) {
+                +"Undo"
+            } else {
+                +Tabler.Outline.Bus
+                +"Perth Station"
+            }
+        }
         if (place) {
             InputChip(
                 onRemove = { place = false },
                 removeIcon = Tabler.Outline.X,
-                removeLabel = "Remove Perth Station",
-            ) { +"Perth Station" }
+                removeLabel = "Remove Elizabeth Quay",
+            ) { +"Elizabeth Quay" }
         } else {
-            Chip(onClick = { place = true }) { +"Undo" }
+            Chip(onClick = { place = true }) { +"Restore" }
         }
     }
 }
@@ -211,15 +238,25 @@ internal val SegmentedControlDemo = ComponentDemo(slug = "segmented-control") {
 }
 
 private val sliderSteps = Knob.Flag("Stepped")
+
+/**
+ * Dots along the bar at each step.
+ *
+ * Only means anything on a stepped slider, which is why it sits beside
+ * [sliderSteps] rather than alone: `showTicks` on a continuous range has no
+ * steps to mark and the component draws nothing.
+ */
+private val sliderTicks = Knob.Flag("Ticks", initial = true)
 private val sliderEnabled = Knob.Flag("Enabled", initial = true)
 
 internal val SliderDemo = ComponentDemo(
     slug = "slider",
-    knobs = listOf(sliderSteps, sliderEnabled),
+    knobs = listOf(sliderSteps, sliderTicks, sliderEnabled),
 ) {
     var amount by remember { mutableStateOf(0.35f) }
     var stepped by remember { mutableStateOf(3f) }
     val enabled = this[sliderEnabled]
+    val ticks = this[sliderTicks]
     if (this[sliderSteps]) {
         Column(Modifier.fillMaxWidth()) {
             Slider(
@@ -227,6 +264,7 @@ internal val SliderDemo = ComponentDemo(
                 onValueChange = { stepped = it },
                 valueRange = 1f..5f,
                 steps = 3,
+                showTicks = ticks,
                 enabled = enabled,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -246,36 +284,67 @@ internal val SliderDemo = ComponentDemo(
     }
 }
 
+private val rangeSliderSteps = Knob.Flag("Stepped")
+private val rangeSliderTicks = Knob.Flag("Ticks", initial = true)
 private val rangeSliderEnabled = Knob.Flag("Enabled", initial = true)
 
 internal val RangeSliderDemo = ComponentDemo(
     slug = "range-slider",
-    knobs = listOf(rangeSliderEnabled),
+    knobs = listOf(rangeSliderSteps, rangeSliderTicks, rangeSliderEnabled),
 ) {
     var window by remember { mutableStateOf(0.25f..0.7f) }
-    RangeSlider(
-        value = window,
-        onValueChange = { window = it },
-        enabled = this[rangeSliderEnabled],
-        modifier = Modifier.fillMaxWidth(),
-    )
+    var hours by remember { mutableStateOf(8f..17f) }
+    val enabled = this[rangeSliderEnabled]
+    val ticks = this[rangeSliderTicks]
+    if (this[rangeSliderSteps]) {
+        // A departure window in whole hours, which is the shape `minDistance`
+        // and the tick marks were both built for.
+        RangeSlider(
+            value = hours,
+            onValueChange = { hours = it },
+            valueRange = 6f..20f,
+            steps = 13,
+            showTicks = ticks,
+            minDistance = 1f,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else {
+        RangeSlider(
+            value = window,
+            onValueChange = { window = it },
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
+/**
+ * Whether the number rolls or is replaced.
+ *
+ * On by default here, which is the opposite of the component's own default — a
+ * demo exists to show what something can do, and `AnimatedCounter` has been
+ * wired into `Stepper` since it was written with nothing anywhere turning it
+ * on. Off is still one press away, and that is the comparison worth having.
+ */
+private val stepperAnimate = Knob.Flag("Animate", initial = true)
 private val stepperEnabled = Knob.Flag("Enabled", initial = true)
 
 internal val StepperDemo = ComponentDemo(
     slug = "stepper",
-    knobs = listOf(stepperEnabled),
+    knobs = listOf(stepperAnimate, stepperEnabled),
 ) {
     var adults by remember { mutableStateOf(2) }
     var bags by remember { mutableStateOf(0) }
     val enabled = this[stepperEnabled]
+    val animate = this[stepperAnimate]
     Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
         Stepper(
             value = adults,
             onValueChange = { adults = it },
             contentDescription = "Adults",
             range = 1..9,
+            animateValue = animate,
             enabled = enabled,
         )
         Stepper(
@@ -284,6 +353,7 @@ internal val StepperDemo = ComponentDemo(
             contentDescription = "Bags",
             range = 0..4,
             format = { if (it == 1) "1 bag" else "$it bags" },
+            animateValue = animate,
             enabled = enabled,
         )
     }

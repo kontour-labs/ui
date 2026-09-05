@@ -60,6 +60,7 @@ import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -311,6 +312,7 @@ fun TabBarScope.Tab(
             .minimumTouchTarget()
             .focusRing(interactions, Theme.shapes.control)
             .clip(Theme.shapes.control)
+            .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,
                 interactionSource = interactions,

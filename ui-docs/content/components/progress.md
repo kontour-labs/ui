@@ -42,7 +42,3 @@ long enough to worry about wants a message beside it. The same goes for
 
 `StepProgress` is for a known number of steps, and the count is the story — give
 it "Step 2 of 4" rather than a percentage.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

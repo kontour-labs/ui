@@ -23,7 +23,10 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -31,6 +34,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
@@ -44,6 +48,32 @@ object ScrollbarDefaults {
     val Thickness: Dp = 6.dp
     val HoveredThickness: Dp = 10.dp
     val MinThumbLength: Dp = 32.dp
+
+    /**
+     * A container's corner as a length, for [Scrollbar]'s `cornerInset`.
+     *
+     * `Shape` says nothing about corners, and a `CornerSize` cannot be resolved
+     * without a size — but the corners that matter here are fixed `Dp`, and a
+     * fixed corner ignores the size it is handed. So `Size.Zero` is enough to
+     * read one, and anything proportional answers zero, which is the safe
+     * degenerate: a track that clears nothing, exactly as before this existed.
+     *
+     * Trailing rather than leading, because that is the edge a vertical
+     * scrollbar sits on and the two are equal on every shape in the scale.
+     *
+     * Lives here rather than beside a caller because both callers want the same
+     * answer: a menu's panel and a documentation page's code block are the same
+     * problem, and a scrollbar cannot work this out for itself — it measures
+     * itself, not the container around it.
+     */
+    @Composable
+    fun cornerInset(shape: Shape): Dp {
+        val density = LocalDensity.current
+        return remember(shape, density) {
+            val corners = shape as? CornerBasedShape ?: return@remember 0.dp
+            with(density) { corners.topEnd.toPx(Size.Zero, density).toDp() }
+        }
+    }
 }
 
 /**
@@ -71,6 +101,17 @@ object ScrollbarDefaults {
  * the point where it competes with the content. It is also hidden from the
  * accessibility tree: it conveys nothing a screen reader cannot already get from
  * the list itself.
+ *
+ * @param cornerInset How far the container's rounded corner intrudes on the
+ *   track, taken off both ends. A scrollbar measures itself, not its container,
+ *   so it cannot discover this — inside a menu or a dialog the track otherwise
+ *   runs the full height and its ends disappear behind the curve.
+ *
+ *   A `Dp` rather than the container's shape, because a corner size needs a size
+ *   to resolve against and the only size here is the scrollbar's own. Every
+ *   rounded host in the library uses a fixed-`Dp` corner — `container` is 22dp,
+ *   `panel` 28 — so a length is exact for all of them; a proportional corner
+ *   could not be expressed, and no scrollbar host has one.
  */
 @Composable
 fun Scrollbar(
@@ -81,6 +122,7 @@ fun Scrollbar(
     thickness: Dp = ScrollbarDefaults.Thickness,
     hoveredThickness: Dp = ScrollbarDefaults.HoveredThickness,
     minThumbLength: Dp = ScrollbarDefaults.MinThumbLength,
+    cornerInset: Dp = 0.dp,
     alwaysVisible: Boolean = false,
 ) {
     val modality = LocalInputModality.current
@@ -116,6 +158,7 @@ fun Scrollbar(
         modifier = modifier
             // Nothing to announce: the list already conveys its own position.
             .clearAndSetSemantics {}
+            .pointerCursor()
             .hoverable(interactions)
             .then(
                 if (orientation == Orientation.Vertical) {
@@ -125,6 +168,17 @@ fun Scrollbar(
                 }
             )
             .padding(Theme.spacing.xxs)
+            // Clear the container's corner, if it has one. Applied here rather
+            // than in the arithmetic above: `onSizeChanged` reports whatever is
+            // left after the padding, so the track length, the thumb length, its
+            // travel and its origin all follow from this one modifier.
+            .then(
+                if (orientation == Orientation.Vertical) {
+                    Modifier.padding(vertical = cornerInset)
+                } else {
+                    Modifier.padding(horizontal = cornerInset)
+                }
+            )
             .onSizeChanged {
                 trackLength = if (orientation == Orientation.Vertical) {
                     it.height.toFloat()

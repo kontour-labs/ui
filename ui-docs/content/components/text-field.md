@@ -1,7 +1,5 @@
 # `TextField`
 
-![TextField](../../../ui-catalog/screenshots/components/textfield-light.png)
-
 Label, placeholder, supporting text, error, and leading/trailing slots.
 
 <!--sample:TextFieldSlots-->
@@ -62,7 +60,3 @@ stops accepting input without marking it, so a screen reader went on offering
 
 Helper and error share one slot and animate in place, so a form does not jump a
 line height every time validation flips.
-
----
-
-← [Text editing](text-editing.md) · [All components](../components.md)

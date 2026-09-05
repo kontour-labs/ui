@@ -44,7 +44,3 @@ description is the button's name.
 `tint` defaults to `LocalContentColour`, so an icon inside a `Surface` is legible
 against whatever that surface painted without anyone choosing a colour. Overriding
 it with a literal is how an icon ends up invisible in the high-contrast scheme.
-
----
-
-← [Foundation](foundation.md) · [All components](../components.md)

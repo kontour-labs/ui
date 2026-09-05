@@ -51,16 +51,19 @@ import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.Scrollbar
+import io.kontour.ui.components.list.ScrollbarDefaults
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.AnimatedCheckMark
 import io.kontour.ui.foundation.ContentScope
@@ -72,6 +75,7 @@ import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -321,6 +325,15 @@ private fun MenuPanel(
             Scrollbar(
                 state = scroll,
                 modifier = Modifier.align(Alignment.CenterEnd),
+                // Start below the panel's own corner. Derived from the shape
+                // rather than restated as a number, so a consumer who overrides
+                // `Theme.shapes.container` gets a scrollbar that still clears it.
+                //
+                // Resolved against `Size.Zero` because a fixed-`Dp` corner — what
+                // every rounded host here uses — ignores the size it is given.
+                // A proportional corner answers zero instead, which is the right
+                // degenerate: no inset, exactly as if the panel were square.
+                cornerInset = ScrollbarDefaults.cornerInset(shape),
             )
         }
     }
@@ -382,6 +395,7 @@ fun MenuItem(
             .minimumTouchTarget()
             .padding(horizontal = Theme.spacing.xxs)
             .clip(Theme.shapes.container.inset(Theme.spacing.xxs))
+            .pointerCursor(enabled = enabled)
             .clickable(
                 interactionSource = interactions,
                 // A menu row is a big target; scaling it makes the whole menu
@@ -681,4 +695,5 @@ fun ContextMenuArea(
         content = menu,
     )
 }
+
 

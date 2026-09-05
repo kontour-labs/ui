@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AdjustmentsHorizontal
+import com.composables.icons.tabler.outline.FileOff
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.LayoutGrid
 import com.composables.icons.tabler.outline.Menu2
@@ -40,6 +41,9 @@ import io.kontour.ui.catalog.Catalog
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
+import io.kontour.ui.components.display.EmptyState
+import io.kontour.ui.components.display.Tag
+import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
@@ -55,7 +59,9 @@ import io.kontour.ui.nav.ModalNavDrawer
 import io.kontour.ui.nav.NavDrawer
 import io.kontour.ui.nav.NavDrawerScope
 import io.kontour.ui.nav.TopBar
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.Popover
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
@@ -181,11 +187,33 @@ private fun Shell(settings: DisplaySettings, systemDark: Boolean, route: Route) 
                             ButtonVariant.Ghost
                         },
                     )
-                    IconButton(
-                        icon = Tabler.Outline.AdjustmentsHorizontal,
-                        contentDescription = "Display settings",
-                        onClick = { settingsOpen = !settingsOpen },
-                    )
+                    // A `Popover` anchored on its own button, which is what
+                    // this always wanted to be. It used to be a `Card` inside a
+                    // full-size `Box` laid over the content area, and that had
+                    // three faults: the comment said "dismissed by pressing
+                    // anywhere else" and the Box carried no click handler, so
+                    // only "Done" closed it; it was drawn *inside* the content
+                    // pane rather than over the whole window, so it appeared
+                    // below the bar it belongs to; and nothing connected it to
+                    // the control that opened it.
+                    //
+                    // `Popover` is the library's answer to all three and the
+                    // site was already mounting the `OverlayHost` it needs.
+                    Box {
+                        IconButton(
+                            icon = Tabler.Outline.AdjustmentsHorizontal,
+                            contentDescription = "Display settings",
+                            onClick = { settingsOpen = !settingsOpen },
+                        )
+                        Popover(
+                            visible = settingsOpen,
+                            onDismissRequest = { settingsOpen = false },
+                            alignment = OverlayAlignment.End,
+                        ) {
+                            Text("Display", style = Theme.typography.titleSmall)
+                            SettingsPanel(settings, systemDark)
+                        }
+                    }
                 },
                 showDivider = true,
             ) {
@@ -204,12 +232,7 @@ private fun Shell(settings: DisplaySettings, systemDark: Boolean, route: Route) 
                 }
                 VerticalDivider(Modifier.fillMaxHeight())
             }
-            Box(Modifier.weight(1f).fillMaxHeight()) {
-                Content(route)
-                if (settingsOpen) {
-                    SettingsCard(settings, systemDark) { settingsOpen = false }
-                }
-            }
+            Box(Modifier.weight(1f).fillMaxHeight()) { Content(route) }
         }
     }
 
@@ -362,35 +385,6 @@ private fun DocPage.matches(query: String): Boolean =
     symbols.any { it.contains(query, ignoreCase = true) } ||
         title.contains(query, ignoreCase = true)
 
-/** The display switches, over the content, dismissed by pressing anywhere else. */
-@Composable
-private fun SettingsCard(
-    settings: DisplaySettings,
-    systemDark: Boolean,
-    onDismissRequest: () -> Unit,
-) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
-        Card(
-            variant = CardVariant.Elevated,
-            modifier = Modifier.padding(Theme.spacing.md).widthIn(max = 320.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Display", style = Theme.typography.titleSmall)
-                Button(
-                    onClick = onDismissRequest,
-                    variant = ButtonVariant.Ghost,
-                    size = ButtonSize.Small,
-                ) { +"Done" }
-            }
-            SettingsPanel(settings, systemDark)
-        }
-    }
-}
-
 @Composable
 private fun Home() {
     // Counted, not claimed. This said `docPages.size` and meant "components",
@@ -470,6 +464,19 @@ private val DocPage.summary: String
         }
     }
 
+/**
+ * "LIVE", on the card holding a component a reader can actually press.
+ *
+ * A [Tag] rather than accent-coloured text, which is what it was. The label is
+ * a badge in everything but implementation — it names a *state* of the thing
+ * beneath it — and drawing it as a bare coloured word left it with no ground,
+ * no shape and no relationship to the `Tag` on any page that documents one.
+ */
+@Composable
+private fun LiveTag() {
+    Tag(tone = TagTone.Accent) { +"LIVE" }
+}
+
 /** Two lines of supporting text at the narrowest width the index is drawn at. */
 private const val SummaryLength = 130
 
@@ -480,8 +487,10 @@ private const val SummaryLength = 130
  * NavDrawer" is better than "Nav surfaces". A guide is named by its title, with
  * the markdown taken out: `dsls.md` is called "Slots, and the `+` that keeps
  * them short", whose only backticked run is `+`, so reading symbols off it gave
- * a page headed "+" with an *API reference* button that searched Dokka for a
- * plus sign.
+ * a page headed "+" — and, while there was a page-level *API reference* button,
+ * one that searched Dokka for a plus sign. The button is gone, replaced by a
+ * link beside each entry in the table, but the heading rule it exposed is the
+ * same rule and is still what stops a guide being titled after its punctuation.
  */
 private val DocPage.heading: String
     get() = when (kind) {
@@ -499,10 +508,6 @@ private val DocPage.heading: String
  */
 private val DocPage.indexLabel: String
     get() = if (kind == DocKind.Component) symbols.firstOrNull() ?: plainTitle else plainTitle
-
-/** The symbol the API reference button looks up, where there is one. */
-private val DocPage.referenceSymbol: String?
-    get() = if (kind == DocKind.Component) symbols.firstOrNull() else null
 
 /** The title with its markdown removed, for the places that draw it as text. */
 private val DocPage.plainTitle: String get() = title.replace("`", "")
@@ -528,11 +533,23 @@ private fun PagePadding(): PaddingValues =
 private fun DocPageView(path: String) {
     val page = docPagesByPath[path]
     if (page == null) {
+        // `EmptyState` rather than a Box, a Column and two children arranged by
+        // hand. It is the component the library ships for exactly this — a
+        // title, a line saying how to get out of it, and one action — and the
+        // site drawing its own was the site not eating its own cooking.
+        //
+        // Its KDoc's rule applies here too: the message says how to leave,
+        // rather than restating the title. "No page called x" followed by
+        // "that page does not exist" would tell a reader nothing.
         Box(Modifier.fillMaxSize(), Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("No page called “$path”.", style = Theme.typography.titleMedium)
-                Button(onClick = { navigate(Route.Home) }, variant = ButtonVariant.Ghost) {
-                    +"Back to the index"
+            EmptyState {
+                +"No page called “$path”"
+                supporting { +"It may have been renamed. The index lists every page." }
+                leading { +Tabler.Outline.FileOff }
+                action {
+                    Button(onClick = { navigate(Route.Home) }, variant = ButtonVariant.Secondary) {
+                        +"Back to the index"
+                    }
                 }
             }
         }
@@ -560,23 +577,12 @@ private fun DocPageView(path: String) {
             item {
                 Text(text = page.heading, style = Theme.typography.displaySmall)
             }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-                    page.referenceSymbol?.let { symbol ->
-                        Button(
-                            onClick = { openExternal(apiUrl(symbol)) },
-                            variant = ButtonVariant.Secondary,
-                            size = ButtonSize.Small,
-                        ) { +"API reference" }
-                    }
-                    Button(
-                        onClick = { openExternal("$Repository/blob/main/$ContentRoot/${page.path}.md") },
-                        variant = ButtonVariant.Ghost,
-                        size = ButtonSize.Small,
-                    ) { +"Edit this page" }
-                }
-            }
-
+            // No "Edit this page". The markdown behind these pages is a build
+            // input — the site's routing table, family tree and demo binding
+            // as much as its prose — and sending a reader to a file in a
+            // repository is the same mistake as the screenshots that used to
+            // sit at the top of every one of them: it treats the repository as
+            // a second place to read the documentation, and it is not one.
             item { Specimens(page) }
 
             // `widthIn` outside `fillMaxWidth`, and the order is the whole fix.
@@ -627,11 +633,7 @@ private fun Specimens(page: DocPage) {
             modifier = Modifier.widthIn(max = ProseWidth).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {
-            Text(
-                text = "LIVE",
-                style = Theme.typography.monoLabel,
-                colour = Theme.colours.accent.solid,
-            )
+            LiveTag()
             DemoCard(demo)
         }
         return
@@ -651,11 +653,7 @@ private fun Specimens(page: DocPage) {
     if (specimens.isEmpty()) return
 
     Card(variant = CardVariant.Outlined, modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "LIVE",
-            style = Theme.typography.monoLabel,
-            colour = Theme.colours.accent.solid,
-        )
+        LiveTag()
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -676,9 +674,6 @@ private fun Specimens(page: DocPage) {
     }
 }
 
-/** Dokka puts a symbol at a path derived from its package and name. */
-private fun apiUrl(symbol: String): String =
-    "api/index.html?query=${symbol.substringAfterLast('.')}"
 
 /**
  * 320, not the 280 it was, and the collapsible index is why.

@@ -1,8 +1,5 @@
 # `Switch`
 
-![Switch, unchecked](../../../ui-catalog/screenshots/components/switch-light.png)
-![Switch, checked](../../../ui-catalog/screenshots/components/switch-checked-light.png)
-
 <!--sample:SwitchBasics-->
 ```kotlin
 var liveAlerts by remember { mutableStateOf(true) }
@@ -20,6 +17,13 @@ its 2dp of clearance on both sides the whole way, growing into whichever side ha
 the room. At either end that is all behind it, so the stretch trails the way give
 should.
 
+**The stretch is the travel, not a second animation about it.** It is taken from
+how fast the thumb is going, so it grows as the thumb sets off, is widest where
+the thumb is quickest, and is gone by the time it arrives — one movement. Driven
+instead by a flag saying *the position is animating*, it could only ever start
+after the thumb had and finish after it stopped, which is a flip that expands,
+then moves, then contracts.
+
 **The track is filled in both states and the thumb never changes colour.** Only
 the track behind it does, because a switch has one moving part and one thing that
 changes behind it; recolouring the thumb as well makes the flip read as two
@@ -28,8 +32,7 @@ that a grey track sits too close in tone to the surfaces it is toggled on top of
 to read as a distinct control. The reasoning was right and the conclusion was
 not — the answer is not *no* fill but a fill dark enough. It is
 `outlineStrong`, the token that exists to bound an interactive control at the 3:1
-WCAG asks for, and `ColourSchemeContrastTest` holds it there against every ground
-a switch can land on.
+WCAG asks for, and it is checked against every ground a switch can land on.
 
 ---
 
@@ -54,7 +57,3 @@ the row is the target — a bare switch has no name.
 
 The thumb stretches while it moves and does not under reduced motion. Nothing
 about the announcement changes.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

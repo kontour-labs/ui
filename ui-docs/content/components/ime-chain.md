@@ -49,7 +49,3 @@ wrong the first time somebody reorders the form.
 A chain overrides both `imeAction` and a specialised field's own default:
 `PasswordField` defaults to Done, which is wrong for a password halfway down a
 form.
-
----
-
-← [Text editing](text-editing.md) · [All components](../components.md)

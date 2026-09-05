@@ -1,6 +1,7 @@
 package io.kontour.ui.docs
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -12,11 +13,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.display.Tag
+import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 
 /**
@@ -65,11 +70,32 @@ private fun EntryBlock(entry: ApiEntry) {
                 text = listOfNotNull(entry.owner, entry.name).joinToString("."),
                 style = Theme.typography.titleSmall.copy(fontFamily = FontFamily.Monospace),
             )
+            // A `Tag`, not accent-coloured text. It marks a *kind* of thing,
+            // which is what a tag is for, and the page beside it documents
+            // `Tag` — a site that draws its own version of a component it is
+            // explaining is arguing against itself.
             if (entry.isComposable) {
+                Tag(tone = TagTone.Accent) { +"@Composable" }
+            }
+            // Beside the entry rather than at the top of the page, which is
+            // what it replaces. A page documents up to a dozen declarations and
+            // one button at the top could only ever point at the first of them,
+            // so on a builder page it was a link to the component from a table
+            // about its scope's members.
+            //
+            // Only where there is somewhere to go. A symbol with no published
+            // page, or one whose simple name is ambiguous, gets no link at all
+            // rather than a link to the reference's front door: a link that
+            // does not go where it says is worse than no link, and the reader
+            // has no way to tell the two apart until they have followed it.
+            entry.reference?.let { url ->
                 Text(
-                    text = "@Composable",
+                    text = "reference",
                     style = Theme.typography.monoLabel,
                     colour = Theme.colours.accent.solid,
+                    modifier = Modifier
+                        .pointerCursor(PointerIcon.Hand)
+                        .clickable { openExternal(url) },
                 )
             }
         }
@@ -127,8 +153,33 @@ private fun WideTable(entry: ApiEntry) {
                 Box(Modifier.weight(TypeWeight)) { Mono(parameter.type) }
                 Box(Modifier.weight(DefaultWeight)) { Default(parameter) }
             }
+            Description(parameter)
         }
     }
+}
+
+/**
+ * What the parameter is for, under the row rather than beside it.
+ *
+ * A fourth column would have to come out of the three that are there, and the
+ * type column is already the tight one — `@Composable RowContentScope.() -> Unit`
+ * is an ordinary type here. Under the row it gets the whole width, which is
+ * what a sentence wants, and it costs the rows nothing on the nine in ten
+ * parameters that have nothing to say.
+ *
+ * Nothing at all when there is no description, rather than an empty cell. An
+ * empty cell is a claim that something is missing; a row that is simply three
+ * columns wide is not.
+ */
+@Composable
+private fun Description(parameter: ApiParameter) {
+    val description = parameter.description ?: return
+    Text(
+        text = description,
+        style = Theme.typography.bodySmall,
+        colour = Theme.colours.contentMuted,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+    )
 }
 
 /**
@@ -156,6 +207,7 @@ private fun StackedList(entry: ApiEntry) {
                 Mono(parameter.name, FontWeight.SemiBold)
                 Mono(parameter.type)
                 Default(parameter)
+                Description(parameter)
             }
         }
     }

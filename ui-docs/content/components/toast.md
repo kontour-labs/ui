@@ -63,7 +63,3 @@ window for someone reading at their own pace.
 
 `showClose` adds a close button with `closeLabel` on it, which is worth turning
 on wherever a toast can carry an action.
-
----
-
-← [Overlays](overlays.md) · [All components](../components.md)

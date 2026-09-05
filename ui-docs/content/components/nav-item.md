@@ -37,7 +37,3 @@ so "Alerts, 3" is one destination rather than two things next to each other.
 Because one list feeds `NavBar`, `NavRail`, `NavDrawer` and
 `NavigationSuiteScaffold`, a description written once is right on every surface —
 which is most of the reason the type exists.
-
----
-
-← [Navigation](navigation.md) · [All components](../components.md)

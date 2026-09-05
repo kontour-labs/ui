@@ -1,7 +1,5 @@
 # `Modifier.marquee`
 
-![Marquee](../../../ui-catalog/screenshots/components/modifier-marquee-light.png)
-
 <!--sample:MarqueeBasics-->
 ```kotlin
 Text(
@@ -23,7 +21,7 @@ else in this library softens — a spring becomes a tween, a slide becomes a fad
 This one stops entirely, because it is the one animation here that never ends,
 and perpetual motion at the edge of vision is the specific thing that preference
 exists to stop. The text truncates instead, which is what it would have done
-without the modifier at all. The picture above is that state.
+without the modifier at all.
 
 `iterations` defaults to three passes. `Int.MAX_VALUE` gives a ticker that never
 stops — right for a live status line, wrong for a list, where a dozen rows all
@@ -50,7 +48,3 @@ either way, so a screen reader gets all of it without waiting.
 
 `iterations = Int.MAX_VALUE` is for a single live status line. A dozen rows all
 scrolling at once is a screen nobody can read, with or without a preference set.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

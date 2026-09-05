@@ -57,6 +57,19 @@ said to reach for `SharedTransitionLayout` since it was written.
 | `Modifier.sharedElement(key)` | The same *kind* of thing — an image, a title |
 | `Modifier.sharedBounds(key)` | A **container** whose contents differ between the pages |
 
+The difference is what happens to the *contents*. A shared element is one thing
+moving, so it is measured once at the size it is going to be and scaled between
+the two; its contents do not cross-fade into themselves. A shared bounds is a
+container holding different things on each page, so it cross-fades what is
+inside while its outline travels.
+
+That is why a **title** belongs in `sharedElement`. Text measured afresh at every
+intermediate width is text being laid out again at every intermediate width: a
+long one wraps somewhere in the middle of the journey, the line that no longer
+fits is cut, and "Perth Underground" arrives as "Perth" — with no ellipsis,
+because a shared element is not overflowing, it is being re-measured. Measured
+once, it cannot happen.
+
 Keys are matched across pages, so they identify the subject rather than the
 position: `"stop-${stop.id}"`, never `"card"`.
 
@@ -129,7 +142,3 @@ focus to the new content's heading, or a screen-reader user is left reading a
 page that is no longer there.
 
 Give the incoming screen a heading. It is what makes the arrival findable.
-
----
-
-← [Adaptive layout and motion](adaptive.md) · [All components](../components.md)

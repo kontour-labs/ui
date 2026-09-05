@@ -41,6 +41,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
  *
  * @param scale The uniform grow-while-touched, applied to the radius. The stretch
  *   is on top of it and along one axis only.
+ * @param aspect How much wider than tall the thumb is: 1 at rest, growing
+ *   towards [SliderDefaults.ThumbAspect] while it is held.
  * @param ringPx The page-coloured ring that keeps the thumb legible where it
  *   overlaps the filled track. A constant width rather than a scaled one: a
  *   border that thickens as the thumb grows reads as the thumb changing weight.
@@ -50,6 +52,7 @@ internal fun DrawScope.sliderThumb(
     centreY: Float,
     radiusPx: Float,
     scale: Float,
+    aspect: Float,
     reachPx: Float,
     ringColour: Color,
     fillColour: Color,
@@ -59,13 +62,20 @@ internal fun DrawScope.sliderThumb(
     val limit = r * SliderDefaults.MaxStretch
     val reach = reachPx.coerceIn(-limit, limit)
 
-    // Wider than it is tall, before any stretch. A circle is what every slider
-    // ships and it reads as a dot sitting *on* the track rather than as a handle
-    // *for* it; a horizontal capsule reads as something to grab and points along
-    // the axis it moves on. The corner stays half the height, so it is a capsule
-    // at every size and there is no curvature discontinuity to smooth — the same
-    // rule `Shapes.control` uses, arrived at from the drawing side.
-    val halfWidth = r * SliderDefaults.ThumbAspect
+    // A circle at rest, a capsule while it is being dragged.
+    //
+    // It used to be a capsule always, at a fixed 1.5, on the argument that a
+    // round thumb reads as a dot sitting *on* the track rather than as a handle
+    // *for* it. That is true of a thumb you are holding and not of one you are
+    // only looking at: at rest the slider is showing a value, and a circle is
+    // the quieter mark for that. Lengthening it on touch says *now* it is a
+    // handle, and says it at the moment the claim is true.
+    //
+    // The corner stays half the height whatever the aspect is, so it is a
+    // capsule at every point along the way and there is no curvature
+    // discontinuity to smooth — the same rule `Shapes.control` uses, arrived at
+    // from the drawing side.
+    val halfWidth = r * aspect
 
     val left = centreX - halfWidth + minOf(reach, 0f)
     val right = centreX + halfWidth + maxOf(reach, 0f)

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -35,6 +36,8 @@ import io.kontour.ui.foundation.elevation
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.Shadow
+import io.kontour.ui.adaptive.LocalWindowSizeClass
+import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.theme.Theme
 
 object NavBarDefaults {
@@ -67,25 +70,41 @@ object NavBarDefaults {
      * spread: a docked bar's shape already says where the navigation is, so the
      * items can sit together and read as one group.
      */
-    val ItemGap: Dp = 4.dp
+    val ItemGap: Dp = 12.dp
 
     /**
-     * How a bar in [style] distributes its children, unless the caller says
-     * otherwise.
+     * How a bar distributes its children, unless the caller says otherwise.
      *
-     * [NavBarStyle.Free] spreads, because free-standing circles with nothing
-     * behind them need the window's width to read as a bar at all. The other two
-     * group in the middle, because their surface has already done that job — and
-     * spreading them is what made the buttons feel too far apart.
+     * **Width, not style.** This used to be a function of [NavBarStyle] alone —
+     * `Free` spread and the other two grouped — and both halves were wrong at
+     * one end of the size range. Spreading three circles across a 1200dp window
+     * put them so far apart they stopped reading as one bar; grouping them at
+     * 4dp on a phone left a row of buttons huddled in the middle of an empty
+     * strip. The complaint was that `Free` was too loose and the other two too
+     * tight, which is the same complaint twice, from opposite directions.
+     *
+     * A phone has one sensible answer for all three styles: use the width, space
+     * the destinations evenly across it. Anything wider has the opposite one:
+     * take only the room you need and sit in the middle. So the deciding input
+     * is [spans], not the style.
+     *
+     * It stays *derived* rather than becoming a parameter of the style, because
+     * [NavBarStyle]'s own documentation records why this component has one enum
+     * and not two — and a measured width is not something a caller should have
+     * to restate.
      *
      * Moot the moment a weighted slot is in the row: the slot takes the slack,
      * so there is none left for an arrangement to distribute.
+     *
+     * @param spans Whether the bar is using the window's full width, which is
+     *   what a [WindowWidthClass.Compact] window gets.
      */
-    fun arrangementFor(style: NavBarStyle): Arrangement.Horizontal = when (style) {
-        NavBarStyle.Free -> Arrangement.SpaceEvenly
-        NavBarStyle.Docked, NavBarStyle.Floating ->
+    fun arrangementFor(style: NavBarStyle, spans: Boolean): Arrangement.Horizontal =
+        if (spans) {
+            Arrangement.SpaceEvenly
+        } else {
             Arrangement.spacedBy(ItemGap, Alignment.CenterHorizontally)
-    }
+        }
 
     /**
      * How tall the fade behind the bar is.
@@ -273,7 +292,7 @@ fun NavBar(
      */
     searchIndex: Int? = null,
     action: (@Composable () -> Unit)? = null,
-    arrangement: Arrangement.Horizontal = NavBarDefaults.arrangementFor(style),
+    arrangement: Arrangement.Horizontal? = null,
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
 ) {
     NavBar(
@@ -326,8 +345,10 @@ fun NavBar(
  * @param backdrop A vertical fade from transparent to the page colour behind the
  *   whole row. A [NavBarStyle.Free] concern only: the other two styles have a
  *   surface, which is what a backdrop is standing in for.
- * @param arrangement How the row distributes its children. Defaults per style —
- *   see [NavBarDefaults.arrangementFor].
+ * @param arrangement How the row distributes its children. Null — the default —
+ *   derives it from the window's width: see [NavBarDefaults.arrangementFor]. It
+ *   cannot be a default *value*, because the answer depends on a measurement
+ *   that is not in scope where a default is written.
  */
 @Composable
 fun NavBar(
@@ -342,7 +363,7 @@ fun NavBar(
     backdropColour: Color = Theme.colours.background,
     indicatorSize: DpSize = NavItemDefaults.CircleSize,
     labelGap: Dp = Theme.spacing.xxs,
-    arrangement: Arrangement.Horizontal = NavBarDefaults.arrangementFor(style),
+    arrangement: Arrangement.Horizontal? = null,
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
     content: NavBarScope.() -> Unit,
 ) {
@@ -386,6 +407,29 @@ fun NavBar(
     // travelling marker.
     val itemContainer = if (style == NavBarStyle.Free) containerColour else Color.Transparent
 
+
+    // A phone spans; anything wider takes only the room it needs.
+    //
+    // `Compact` is the line because it is the same line the rest of the library
+    // draws — below it there is no room for a rail beside the content, which is
+    // exactly the case where the bar is the whole of the navigation and should
+    // use the whole of the width.
+    val spans = LocalWindowSizeClass.current.width == WindowWidthClass.Compact
+    val rowArrangement = arrangement ?: NavBarDefaults.arrangementFor(style, spans)
+    // Only the floating pill's *width* changes. Everywhere else the row still
+    // fills and the arrangement decides: `SpaceEvenly` spreads across the window
+    // on a phone, `spacedBy(…, CenterHorizontally)` gathers the destinations in
+    // the middle on anything wider. Both need the slack, so taking `fillMaxWidth`
+    // away is what makes an arrangement do nothing at all — the first attempt at
+    // this bunched every bar against its leading edge.
+    val hug = if (spans) Modifier.fillMaxWidth() else Modifier.wrapContentWidth()
+
+    // Only the floating pill's row wraps. `wrapContentWidth` on the surface is
+    // not enough on its own — it does not *constrain* its child, so a row still
+    // asking to fill expands to the incoming maximum and the pill goes with it.
+    // The row is where the width has to be decided.
+    val rowWidth = if (style == NavBarStyle.Floating) hug else Modifier.fillMaxWidth()
+
     @Composable
     fun BarRow(rowModifier: Modifier) {
         SelectionIndicatorBox(
@@ -413,8 +457,8 @@ fun NavBar(
             },
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().selectableGroup(),
-                horizontalArrangement = arrangement,
+                modifier = rowWidth.selectableGroup(),
+                horizontalArrangement = rowArrangement,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 var ordinal = 0
@@ -478,7 +522,10 @@ fun NavBar(
     when (style) {
         // No surface at all: shapes with air around them, so the row moves *up*
         // by the inset rather than growing into it.
-        NavBarStyle.Free -> Box(modifier.fillMaxWidth()) {
+        NavBarStyle.Free -> Box(
+            modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+        ) {
             BarRow(
                 Modifier
                     .fillMaxWidth()
@@ -521,19 +568,21 @@ fun NavBar(
             modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(windowInsets)
-                .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs)
+                .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs),
+            contentAlignment = Alignment.Center,
         ) {
+            // The pill itself hugs, not just the row inside it — a floating bar
+            // stretched to the window's width is a docked bar with a gap under
+            // it, and the shape is the whole point of the style.
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = hug,
                 shape = Theme.shapes.control,
                 colour = containerColour,
                 contentColour = contentColour,
                 shadow = Theme.elevation.high,
             ) {
                 BarRow(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs)
+                    rowWidth.padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs)
                 )
             }
         }

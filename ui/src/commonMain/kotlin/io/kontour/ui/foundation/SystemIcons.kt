@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Dots
 import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.ChevronLeft
@@ -65,6 +66,16 @@ object SystemIcons {
 
     /** Dismiss. */
     val Close: ImageVector get() = Tabler.Outline.X
+
+    /**
+     * Whatever did not fit.
+     *
+     * Horizontal, not vertical: this marks an overflow at the end of a *row* —
+     * a toolbar, a bar of actions — and the dots run the way the things they
+     * stand for would have. A vertical version belongs at the end of a list row,
+     * and a screen that wants one can reach for the icon set directly.
+     */
+    val More: ImageVector get() = Tabler.Outline.Dots
 
     /** Expands downward — accordions, selects, dropdown triggers. */
     val ChevronDown: ImageVector get() = Tabler.Outline.ChevronDown

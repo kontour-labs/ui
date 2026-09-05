@@ -12,7 +12,7 @@ missing: a section that lands in two files, a component whose page was never
 made, a page nothing links to. So the arrangement is checked rather than
 trusted.
 
-Fourteen rules:
+Eighteen rules:
 
   1. Every component in `componentRegistry` has a page whose title names it.
      The registry is the library's own list, so this cannot drift from what
@@ -33,15 +33,25 @@ Fourteen rules:
  10. Every name an accessibility section mentions exists in `:ui`.
  11. The radius scale is written down three times and executes once.
  12. Every component in the shape-families table really asks for that family.
- 13. Every page agrees about which family it is in — the map, the index that
-     links it, and the page's own footer. Three copies is three chances for one
-     to be a version behind.
+ 13. Every page agrees about which family it is in — the map and the index that
+     links it. Two copies is two chances for one to be a version behind. There
+     was a third, the page's own "← Family" footer, and it went with the rest
+     of the writing-for-GitHub in round 22.
  14. Every enum a component takes as a parameter is on some demo's knob.
+ 15. Every click target sets a mouse cursor.
+ 16. Every boolean a component takes as a parameter is on some demo's knob.
+ 17. Every component page explains at least one of its parameters.
+ 18. No page talks to a maintainer instead of to a reader.
 
-Rules 4, 6, 7 and 14 are **ratchets**: a ceiling that only goes down, rather
+Rules 4, 6, 7, 14, 16 and 17 are **ratchets**: a ceiling that only goes down, rather
 than a list of exempted names. You cannot exempt *your* page, only make the total
 worse, and that is the difference that matters — a list of names in a test is
 how a defect becomes a permanent exemption.
+
+Rule 15 is a ratchet whose ceiling has already reached zero, which is what a
+ratchet is for. It stays written as one rather than as a flat `if any` so that
+the number in the message is the honest cost of a regression, the same way rule
+6's is.
 
 Run:  python3 docs/check-components.py
 """
@@ -86,15 +96,6 @@ SYMBOL = re.compile(r"`([^`]+)`")
 # called "Not a `SegmentedControl`", and a page is not the owner of everything
 # it mentions.
 ALSO = re.compile(r"^\*Also on this page:\s*(.+?)\*$", re.MULTILINE)
-
-# The way back up, which every component page ends with:
-#
-#     ← [Navigation](navigation.md) · [All components](../components.md)
-#
-# The site never draws it — the generator cuts the footer and provides its own
-# navigation — so it is the copy of a page's family that only a GitHub reader
-# ever sees, and the one nothing was checking.
-FAMILY_FOOTER = re.compile(r"\n← \[[^\]]+\]\(([a-z0-9-]+)\.md\)")
 
 # The declaration line of a `@Composable`, with its annotations skipped: groups
 # are visibility, receiver and name. Shared by `public_composables` — which is
@@ -188,6 +189,124 @@ def public_composables() -> dict[str, Path]:
     return found
 
 
+KDOC_PARAM = re.compile(r"^\s*\*\s*@(?:param|property)\s+\w+", re.MULTILINE)
+
+# `fun`, `class` or a primary constructor, with its indent and any receiver.
+DOCUMENTED_HEADER = re.compile(
+    r"^([ \t]*)(?:(?:public|internal|private|abstract|open|sealed|data|value|inner|expect|actual)\s+)*"
+    r"(?:fun|class)\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?([A-Za-z_]\w*)"
+)
+
+TOP_LEVEL_TYPE = re.compile(
+    r"^(?:public\s+)?(?:(?:abstract|open|sealed|data|value|expect|actual|enum|annotation)\s+)*"
+    r"(?:class|interface|object)\s+([A-Za-z_]\w*)"
+)
+
+
+# Only goes down, and it is already at zero. See rule 18.
+#
+# Three things a reader cannot use, and each was on a real page:
+#
+#   * a **round number**. "It did not have one until Round 16 — writing this
+#     page is what found it" is a fact about this repository's history, and
+#     there is no round 16 anywhere a reader can look.
+#   * an **internal test class**. "Enforced by `ColourSchemeContrastTest`" is
+#     the right *claim* — this is checked, not hoped for — attached to an
+#     identifier that means nothing to somebody who cannot run it. "Checked on
+#     every build" says the same thing and says it to them.
+#   * a **product they have not heard of**. `Breadcrumbs` opened with "No
+#     caller in Anyways today — it is here for the admin panel", which tells a
+#     reader nothing about when to reach for it.
+#
+# Twenty-two passages across fifteen pages, all rewritten in the round this
+# rule arrived in. Zero is therefore a fact rather than an aspiration, and the
+# rule exists so the next one is caught while it is being written.
+MAX_INTERNAL_FACING = 0
+
+# A development round, an internal test class, or the product this library was
+# extracted from. Deliberately narrow: "used to" and "this page" are ordinary
+# English and appear on plenty of pages that read perfectly well.
+INTERNAL_FACING = re.compile(r"\bRound \d+\b|`[A-Z]\w*Test`|\bAnyways\b|\badmin panel\b")
+
+
+def internal_facing() -> list[str]:
+    """Every `page:line` that addresses a maintainer rather than a reader."""
+    found: list[str] = []
+    for path in sorted(CONTENT.rglob("*.md")):
+        for number, line in enumerate(path.read_text().split("\n"), start=1):
+            if INTERNAL_FACING.search(line):
+                found.append(f"{path.relative_to(CONTENT)}:{number}")
+    return found
+
+
+def symbols_explaining_a_parameter() -> set[str]:
+    """Every symbol whose KDoc says what at least one of its parameters is for.
+
+    Attributed the way `:ui-docs:generateApiTables` attributes a declaration to
+    a page — a member of `ListItemScope` belongs to `ListItem` — so that this
+    counts the same thing the reader sees in the table rather than something
+    adjacent to it.
+    """
+    found: set[str] = set()
+    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+        lines = path.read_text().split("\n")
+        enclosing: str | None = None
+        for index, line in enumerate(lines):
+            top = TOP_LEVEL_TYPE.match(line)
+            if top:
+                enclosing = top.group(1)
+                continue
+            if not line.lstrip().startswith("*/"):
+                continue
+            # Walk back to the `/**` this closes, and only count a KDoc that
+            # actually documents a parameter.
+            start = index
+            while start >= 0 and not lines[start].lstrip().startswith("/**"):
+                start -= 1
+            if start < 0 or not KDOC_PARAM.search("\n".join(lines[start:index])):
+                continue
+            # Then forward over the annotations to the declaration itself.
+            after = index + 1
+            while after < len(lines) and (
+                not lines[after].strip() or lines[after].lstrip().startswith("@")
+            ):
+                after += 1
+            if after >= len(lines):
+                continue
+            header = DOCUMENTED_HEADER.match(lines[after])
+            if not header:
+                continue
+            indent, receiver, name = len(header.group(1)), header.group(2), header.group(3)
+            owner = receiver or (enclosing if indent > 0 else None)
+            if owner is None:
+                found.add(name)
+            elif owner.endswith("Scope"):
+                found.add(owner[: -len("Scope")])
+            else:
+                found.add(f"{owner}.{name}")
+                found.add(name)
+    return found
+
+
+# Only goes down. See rule 17.
+#
+# Thirty-two of 103, and the two thirds already on the right side of it are
+# why this is a ratchet and not a sweep. `@param` in this library is selective
+# on purpose: `Button` explains three of its twelve because the other nine are
+# `modifier`, `enabled`, `onClick` and their like, and a sentence restating a
+# parameter's name teaches nobody anything. Demanding all 1,101 would produce
+# 966 of those sentences.
+#
+# What a page owes is *one* — the parameter a reader would otherwise have to
+# guess at, which every component has. Below the line the table is three columns
+# of names, types and defaults with nothing saying what any of it is for.
+#
+# The count is here rather than on the page deliberately. A coverage figure is a
+# fact about this library's maintenance; a reader looking at `Chip` is owed the
+# sentences, not the percentage of them that exist.
+MAX_PAGES_WITHOUT_PARAMETER_HELP = 32
+
+
 def claimed_symbols() -> set[str]:
     """Every symbol any documentation page says it is about.
 
@@ -226,7 +345,122 @@ def claimed_symbols() -> set[str]:
 # The other twelve are all reachable and all worth a knob: `LoadMoreState`'s
 # four states, `OverlaySide` and `OverlayAlignment` in every direction,
 # `ToastPosition` at both ends, `ReorderHandleSide` at either.
-MAX_UNSWEPT_ENUMS = 14
+MAX_UNSWEPT_ENUMS = 10
+
+# Only goes down. See rule 16.
+#
+# Five, and the criterion earns every one of them. `isNewPassword` is an
+# autofill hint with nothing to render; `matchHeightConstraintsFirst` and
+# `propagateMinConstraints` are layout escape hatches on `AspectRatioBox` and
+# `Surface`, pressed by nobody because there is nothing to look at;
+# `MenuItem.multiple` changes what a screen reader announces and is set by
+# `MultiSelect` at `Select.kt:233`, so it is exercised without being named; and
+# `NavBarItem.showLabel` is handed down from `NavBar.showLabels`, which the
+# nav-surfaces demo *does* sweep.
+#
+# It was sixteen before round 22. Twelve of those were features that shipped
+# switched off and stayed that way — the chip morph whose own KDoc carries the
+# worked example, the stepper's `AnimatedCounter` wired in and never turned on,
+# the range slider's tick marks. A reader could not press one of them.
+MAX_UNDEMOED_FLAGS = 4
+
+
+def undemoed_flags() -> list[str]:
+    """Boolean parameters of public components that no demo names.
+
+    The mirror of `unswept_enums`, and it cannot be built the same way. A
+    `Knob.Choice(…, X.entries)` names the *type*, so a regex can tie a knob to
+    an enum; `Knob.Flag("Ticks")` names a human label with no mechanical link to
+    the parameter it drives. So the criterion is the call site instead: the flag
+    appears as a named argument somewhere in a `*Demos.kt`.
+
+    Which means this measures exactly what rule 14 measures — that a reader can
+    press it — and nothing about whether the knob is any good. That is the right
+    trade: the failure it exists to catch is a parameter no call site anywhere
+    passes, which is a feature that was written, documented and never once run.
+    """
+    flags: dict[str, set[str]] = {}
+    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+        text = path.read_text()
+        for match in COMPOSABLE_HEADER.finditer(text):
+            visibility, name = match.group(1).strip(), match.group(3)
+            if visibility in ("internal", "private") or not name[0].isupper():
+                continue
+            at, depth = match.end() - 1, 0
+            while at < len(text):
+                if text[at] == "(":
+                    depth += 1
+                elif text[at] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                at += 1
+            for flag in BOOLEAN_FLAG.findall(text[match.end() - 1:at]):
+                flags.setdefault(flag, set()).add(name)
+
+    demos = "\n".join(
+        path.read_text()
+        for path in Path("ui-catalog/src").rglob("*Demos.kt")
+        if "build" not in path.parts
+    )
+    return sorted(
+        flag for flag in flags
+        if not re.search(rf"\b{re.escape(flag)}\s*=", demos)
+    )
+
+
+# A parameter that ships a feature switched off. `= true` is a feature switched
+# *on*, which a demo turning it off is a nicety rather than a gap.
+BOOLEAN_FLAG = re.compile(r"^\s*(\w+): Boolean = false,?\s*$", re.M)
+
+
+# Only goes down, and it is already at the floor. See rule 15.
+#
+# Zero, measured: every one of the 25 files in `:ui` that installs a click,
+# selection or toggle handler sets at least as many cursors as it has handlers.
+#
+# A ceiling on the *count* rather than a per-site pairing, because pairing a
+# cursor to the handler it belongs to needs a Kotlin parser and this is Python
+# — the same wall `MAX_WITHOUT_DEMO` and `unswept_enums` both name. Counting
+# per file is enough for the thing that actually happens: someone adds a
+# thirty-sixth clickable and forgets, and the file's totals stop matching.
+MAX_UNCURSORED_CLICKS = 0
+
+
+# A click handler and a cursor, ignoring anything inside a comment — every
+# modifier chain in this library's KDoc is a worked example and none of them is
+# a call site. The lookbehind on `//` keeps a `https://` in a string from
+# swallowing the rest of its line.
+CLICK_HANDLER = re.compile(r"\.(?:clickable|selectable|toggleable|combinedClickable)\(")
+CURSOR_CALL = re.compile(r"pointerCursor\(")
+BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+LINE_COMMENT = re.compile(r"(?<!:)//[^\n]*")
+
+
+def uncursored_clicks() -> list[str]:
+    """Files with more click handlers than mouse cursors.
+
+    A cursor is the one affordance in this library with nothing to render into a
+    golden — `ImageComposeScene` draws no pointer — so thirty-five call sites
+    were about to be verified by reading. This is what replaces the reading.
+
+    Counted per file rather than matched per site: `Modifier.pointerCursor` sits
+    directly above the handler it belongs to at every call site here, and
+    proving that mechanically needs a Kotlin parser. What the count does catch
+    is the failure that will actually happen — a new clickable added to a file
+    that already had cursors, where a per-file "does it mention one" check would
+    pass and a reader would see an arrow over a button.
+    """
+    behind: list[str] = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        clicks = len(CLICK_HANDLER.findall(text))
+        if clicks == 0:
+            continue
+        cursors = len(CURSOR_CALL.findall(text))
+        if cursors < clicks:
+            behind.append(f"{path.name} ({clicks - cursors} short)")
+    return behind
 
 
 def unswept_enums() -> list[str]:
@@ -638,6 +872,11 @@ def main() -> int:
     # Sheets row while the Collections index owned the page, so the map and the
     # sidebar disagreed about where it lived.
     #
+    # This used to compare a third copy, the "← Family" footer at the bottom of
+    # every page. That footer only ever reached a GitHub reader — the site cuts
+    # it and draws its own navigation — and round 22 removed it along with the
+    # screenshots, for the same reason. Two independent copies is still two.
+    #
     # Asymmetric on purpose. A summary row is a summary — it should not have to
     # name `SkeletonText` and `BadgedBox` — so the second half asks only that
     # every page get *a* mention. The first half is strict, because a name on
@@ -685,27 +924,6 @@ def main() -> int:
                     f"from the map"
                 )
 
-    # And the third copy: each page's own "← Family" footer.
-    #
-    # The site strips it — `generate-doc-pages.py` cuts the footer because the
-    # site draws its own navigation — so this is invisible there and live on
-    # GitHub, which is the second audience every one of these pages is written
-    # for. Re-homing `Spinner` and `DragHandle` left both pointing back at the
-    # family they had just left, and nothing said so.
-    for page_stem, family in sorted(owner_family.items()):
-        footer = FAMILY_FOOTER.search((COMPONENTS / f"{page_stem}.md").read_text())
-        if footer is None:
-            problems.append(
-                f"{page_stem}.md has no “← [Family](family.md)” footer — on "
-                f"GitHub that page is a dead end"
-            )
-        elif footer.group(1) != family:
-            problems.append(
-                f"{page_stem}.md's footer points back at {footer.group(1)}.md "
-                f"but {family}.md is the index that links it — the page and the "
-                f"sidebar disagree about which family it is in"
-            )
-
     # Rule 14 — a component's choices are things a reader can press.
     #
     # Rule 4 counts demos per page; nothing looked inside one. So Round 20 could
@@ -717,6 +935,85 @@ def main() -> int:
     # A ratchet, like rules 4, 6 and 7, and named rather than only counted: the
     # point of a ceiling is that lowering it is the fix, and nobody can lower it
     # without knowing what is inside.
+    # Rule 15 — a click target sets a mouse cursor.
+    #
+    # An arrow over a button is the oldest tell that something is not really a
+    # button, and every one of the thirty-five call sites this round touched had
+    # one. The reason it went unnoticed for twenty-one rounds is the reason it
+    # needs a rule rather than a review: `ImageComposeScene` draws no pointer, so
+    # not one of the 204 goldens could show it, and there is no frame anywhere in
+    # this repository in which a cursor appears.
+    #
+    # So the check is structural. See `uncursored_clicks` for why it counts per
+    # file rather than pairing each handler with its own cursor.
+    uncursored = uncursored_clicks()
+    if uncursored:
+        short = sum(int(entry.split("(")[1].split()[0]) for entry in uncursored)
+        problems.append(
+            f"{short} click handler(s) in :ui set no mouse cursor, over the "
+            f"ceiling of {MAX_UNCURSORED_CLICKS}: {', '.join(uncursored)} — a "
+            f"`Modifier.pointerCursor()` above the handler is the fix, and "
+            f"nothing renders a pointer so no golden will tell you"
+        )
+
+    # Rule 16 — a component's booleans are things a reader can press.
+    #
+    # Rule 14 does this for enums, and the gap it left was the larger one: an
+    # enum at least renders one of its values, while a `Boolean = false` nobody
+    # sets renders nothing at all. Twelve features were in that state — written,
+    # documented, and never run by anything in this repository.
+    undemoed = undemoed_flags()
+    if len(undemoed) > MAX_UNDEMOED_FLAGS:
+        problems.append(
+            f"{len(undemoed)} component boolean parameters are on no demo's "
+            f"knob, over the ceiling of {MAX_UNDEMOED_FLAGS}: "
+            f"{', '.join(undemoed)} — a `Knob.Flag` passed at the call site "
+            f"puts one in front of a reader and under `DemoRenderTest`"
+        )
+
+    # Rule 17 — a page explains at least one of the parameters it lists.
+    #
+    # The table under every component page is generated from `:ui`'s own
+    # signatures, so it cannot drift — but for a round it was three columns of
+    # names, types and defaults with nothing anywhere saying what any of them
+    # was *for*. The KDoc has that sentence for 138 of the library's 1,214
+    # parameters, and the site now shows it; this counts the pages where there
+    # is not one to show.
+    explained = symbols_explaining_a_parameter()
+    unexplained = sorted(
+        page.stem
+        for page in component_pages
+        if not any(
+            symbol in explained or symbol.split(".")[-1] in explained
+            for symbol in page_symbols(page)
+        )
+    )
+    if len(unexplained) > MAX_PAGES_WITHOUT_PARAMETER_HELP:
+        problems.append(
+            f"{len(unexplained)} component pages explain none of their "
+            f"parameters, and the ceiling is "
+            f"{MAX_PAGES_WITHOUT_PARAMETER_HELP}. One `@param` sentence on the "
+            f"parameter a reader would otherwise guess at is what clears a page; "
+            f"the table picks it up on the next build. Without: "
+            f"{', '.join(unexplained)}"
+        )
+
+    # Rule 18 — the pages are written for the person reading them.
+    #
+    # The documentation grew alongside the library, so a good deal of it was
+    # written by somebody holding both in their head at once. That shows up as
+    # prose which is true, useful to a maintainer, and unusable by anybody
+    # else — see the note above `MAX_INTERNAL_FACING`.
+    internal = internal_facing()
+    if len(internal) > MAX_INTERNAL_FACING:
+        problems.append(
+            f"{len(internal)} passage(s) address a maintainer rather than a "
+            f"reader, and the ceiling is {MAX_INTERNAL_FACING}. Keep the claim "
+            f"and drop the identifier — \"checked on every build\" says what a "
+            f"test class name says, to somebody who cannot run it. At: "
+            f"{', '.join(internal)}"
+        )
+
     unswept = unswept_enums()
     if len(unswept) > MAX_UNSWEPT_ENUMS:
         problems.append(
@@ -739,7 +1036,9 @@ def main() -> int:
         f"{len(demos)} demos ({len(without)} pages still without one), "
         f"{len(component_pages) - len(without_sample)} compiled examples, "
         f"{len(component_pages) - len(without_a11y)} accessibility sections, "
-        f"{len(unswept)} parameter enums on no knob, "
+        f"{len(unswept)} parameter enums and {len(undemoed)} booleans on no knob, "
+        f"{len(component_pages) - len(unexplained)} pages explaining a parameter, "
+        f"{len(internal)} written for a maintainer, "
         f"all accounted for."
     )
     return 0

@@ -53,7 +53,3 @@ announces "2 of 4" rather than four unrelated buttons.
 `search` and `action` sit **outside** that group deliberately. Inside it, a
 search field would be counted as a destination — "1 of 5" for four destinations —
 which is the bug the separation exists to prevent.
-
----
-
-← [Navigation](navigation.md) · [All components](../components.md)

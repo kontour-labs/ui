@@ -1,11 +1,8 @@
 # `IconToggleButton`
 
-![IconToggleButton, unchecked](../../../ui-catalog/screenshots/components/icontogglebutton-light.png)
-![IconToggleButton, checked](../../../ui-catalog/screenshots/components/icontogglebutton-checked-light.png)
-
-The first of those is pixel-for-pixel an [`IconButton`](icon-button.md), and that is
-not a mistake in the picture: unchecked, it *is* one. The accent ground in the
-second is the entire visible difference between the two components.
+Unchecked, this is pixel-for-pixel an [`IconButton`](icon-button.md) — not close
+to one, the same drawing. The accent ground it takes when checked is the entire
+visible difference between the two components.
 
 <!--sample:IconToggleButtonBasics-->
 ```kotlin
@@ -46,7 +43,3 @@ still.
 `contentDescription` names the control and must not change with the state: a
 button called "Mute" that becomes "Unmute" is two controls to anyone navigating
 by name.
-
----
-
-← [Actions](actions.md) · [All components](../components.md)

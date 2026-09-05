@@ -32,6 +32,7 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -166,6 +167,7 @@ private fun Swatch(
             .clip(shape)
             .background(if (enabled) fill else fill.copy(alpha = 0.5f), shape)
             .border(width = ringWidth, color = ringColour, shape = shape)
+            .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,
                 interactionSource = interactions,

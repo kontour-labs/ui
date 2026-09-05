@@ -29,10 +29,14 @@ import androidx.compose.ui.unit.Velocity
  *
  * ### The three things it does
  *
- * **Pays back before it scrolls.** A finger coming back down closes the gap it
- * opened before the sheet itself starts moving. Without that ordering the sheet
- * slides away while the stretch is still open, and one gesture produces two
- * motions.
+ * **Pays back before it scrolls.** A finger coming back closes the gap it opened
+ * before the sheet itself starts moving. Without that ordering the sheet slides
+ * away while the stretch is still open, and one gesture produces two motions.
+ *
+ * **Holds the floor.** A sheet the user is not allowed to put away has a bottom
+ * as well as a top — see [SheetState.dragFloor] — and past it the sheet stretches
+ * downward on the same arithmetic rather than sliding all the way off the
+ * bottom, settling hidden and being put back a second later.
  *
  * **Stretches with diminishing returns.** See [SheetState.stretch]: a linear
  * stretch with a hard stop is the same rigid boundary moved somewhere else.
@@ -68,26 +72,25 @@ internal class SheetOverscroll(
         // an accessibility action — should land exactly where it was told to.
         if (source != NestedScrollSource.UserInput) return performScroll(delta)
 
-        val paidBack = if (state.overshoot > 0f && delta.y > 0f) {
-            val paid = minOf(state.overshoot, delta.y)
-            state.overshoot -= paid
-            paid
-        } else {
-            0f
-        }
-
+        val paidBack = state.payBackOvershoot(delta.y)
         val offered = delta.y - paidBack
-        val consumed = performScroll(Offset(delta.x, offered)).y
+
+        // As far down as the sheet is allowed to go, and no further. Ordinarily
+        // that is all of it — `dragFloor` is `NaN` for a sheet the user may put
+        // away, because hidden is then a real place for a drag to end.
+        val toSheet = state.roomBeforeFloor(offered)
+        val consumed = performScroll(Offset(delta.x, toSheet)).y
         val leftOver = offered - consumed
 
-        // Upward, and the sheet had nowhere left to go.
-        val stretched = if (leftOver < 0f && state.canOvershoot) {
-            state.stretch(-leftOver)
-        } else {
-            0f
+        val stretched = when {
+            // Upward, and the sheet had nowhere left to go.
+            leftOver < 0f && state.canOvershoot -> -state.stretch(-leftOver)
+            // Downward, and the floor is holding it.
+            leftOver > 0f -> state.stretchDown(leftOver)
+            else -> 0f
         }
 
-        return Offset(delta.x, paidBack + consumed - stretched)
+        return Offset(delta.x, paidBack + consumed + stretched)
     }
 
     override suspend fun applyToFling(

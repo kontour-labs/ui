@@ -33,6 +33,7 @@ import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.display.Kbd
+import io.kontour.ui.components.display.KbdIcons
 import io.kontour.ui.components.text.TextSelectionToolbar
 import io.kontour.ui.components.text.TextToolbarAction
 import io.kontour.ui.components.text.TextField
@@ -224,8 +225,8 @@ fun ImeChainBasics() {
 @Composable
 fun TextToolbarBasics() {
     // Wrap the app once, with the items this app wants on a text selection.
-    // With no actions this does nothing at all and every platform keeps its own
-    // toolbar — which is the right default, and why the list is what you pass.
+    // With no actions, Android and iOS keep their own toolbar and this installs
+    // nothing; desktop and the web have none to keep, so it draws its own.
     TextSelectionToolbar(
         actions = listOf(
             TextToolbarAction("Plan a trip") { /* open the planner */ },
@@ -238,7 +239,10 @@ fun TextToolbarBasics() {
 @Composable
 fun KbdBasics() {
     Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-        Kbd { +"⌘" }
+        // The icon rather than the "⌘" character. A character lands wherever
+        // its font draws it inside the em — measurably a point high, for this
+        // one — and an icon lands in the middle of the cap.
+        Kbd { +KbdIcons.Command }
         Kbd { +"K" }
         Text("opens the command palette", style = Theme.typography.bodySmall)
     }

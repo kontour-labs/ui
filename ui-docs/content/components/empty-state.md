@@ -34,7 +34,3 @@ were, with nothing to move to. Give it somewhere to go.
 
 The `leading` icon is decorative and cleared. Whatever it depicts should be in
 the words.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

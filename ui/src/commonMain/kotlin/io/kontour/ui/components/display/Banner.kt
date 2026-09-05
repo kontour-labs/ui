@@ -34,9 +34,11 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.addOutline
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
@@ -109,7 +111,21 @@ fun Banner(
     ) {
         CompositionLocalProvider(LocalContentColour provides colours.onContainer) {
             slots.leading?.let { leading ->
-                Box(Modifier.padding(top = 1.dp)) {
+                // Centred in the banner, like the dismiss on the other side.
+                //
+                // It used to sit at the top of the row, nudged down by a bare
+                // `1.dp` to land on the title's line. Two things were wrong with
+                // that. The nudge is a number with no derivation, so it is right
+                // for one type size and wrong for every other; and on a banner
+                // that is a single line — which most of them are — "level with
+                // the first line" and "centred" are meant to be the same place
+                // and the fudge made them differ.
+                //
+                // A tone icon belongs to the banner rather than to any line of
+                // it: it says *this is a warning*, which is a fact about the
+                // whole message. So it is centred against the whole message, and
+                // the two things flanking the text now agree with each other.
+                Box(Modifier.align(Alignment.CenterVertically)) {
                     ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
                 }
             }
@@ -137,13 +153,15 @@ fun Banner(
                     onClick = onDismissRequest,
                     // Centred in the banner, not sitting on the title's line.
                     //
-                    // The row aligns to the top because the *leading* icon has
-                    // to: an icon beside a paragraph belongs with its first
-                    // line, not floating in the middle of it. The dismiss is
-                    // the opposite case — it belongs to the banner rather than
-                    // to any line of it — and inheriting the row's alignment put
-                    // it up in the corner of a three-line banner, level with the
-                    // title and a long way from the middle of the box.
+                    // The row itself still aligns to the top, because the
+                    // *message* does: a title and its supporting line stack from
+                    // the top of the banner, and a body that centred itself
+                    // would drift as the text grew. The dismiss belongs to the
+                    // banner rather than to any line of it, and inheriting the
+                    // row's alignment put it up in the corner of a three-line
+                    // banner, level with the title and a long way from the
+                    // middle of the box. Same reasoning as the leading icon
+                    // above, and now the same answer.
                     modifier = Modifier.align(Alignment.CenterVertically),
                     size = ButtonSize.XSmall,
                 )
@@ -208,38 +226,64 @@ fun Callout(
             .height(IntrinsicSize.Min)
             .clip(shape)
             .background(container, shape)
-            // The rule follows the box's own outline rather than standing beside
-            // it.
+            // A rule down the leading edge, with a corner of its own.
             //
-            // It was a 3dp `Box` down the leading edge, and a straight bar inside
-            // a rounded container fails at exactly the corners: the clip eats it
-            // where the curve turns, so a rule that is supposed to run the full
-            // height stops short at both ends and tapers away. The rounder the
-            // corner the worse it reads, and the shape scale just got rounder.
+            // Two earlier attempts, and the fault they share is worth stating
+            // because it is the reason this looks like more code than a 3dp
+            // `Box`. A plain bar inside a rounded container is eaten by the clip
+            // where the curve turns, so a rule meant to run the full height
+            // tapers away at both ends. Stroking the *container's* path instead
+            // fixes that by construction — the band is the outline, so it curves
+            // with it — but it curves with it all the way, and a 22dp corner
+            // carries the rule a good 25dp along the top and bottom edges. The
+            // result reads as a "C" bracketing the text rather than a rule
+            // beside it.
             //
-            // Stroking the container's own path fixes it by construction — the
-            // band *is* the outline, so it curves with it — and clipping to the
-            // leading corner's width is what keeps it a rule down one edge
-            // rather than a border all the way round. Stroked at twice the width
-            // because a stroke straddles the path and the outer half is clipped.
+            // So: the rule is its own rounded rect at its own much smaller
+            // radius, and it is *indented* from the leading edge rather than
+            // flush against it.
+            //
+            // The indent is what makes it a rule rather than a stub, and that is
+            // arithmetic rather than taste. A bar flush at x=0 is inside a 22dp
+            // corner only where the container's edge has finished curving — 22dp
+            // down from the top and 22dp up from the bottom — so on a two-line
+            // callout there is almost nothing left to draw. Set it 8dp in and
+            // the edge clears it 5dp from the top instead, so the rule can run
+            // the height of the text it is marking. Which is also the right
+            // thing for it to measure: `CalloutRuleInset` matches the content's
+            // own padding, so the rule spans the words rather than the box.
             .drawWithCache {
                 val outline = shape.createOutline(size, layoutDirection, this)
                 val path = Path().apply { addOutline(outline) }
                 val width = CalloutRuleWidth.toPx()
-                val corner = shape.topStart.toPx(size, this)
-                val stroke = Stroke(width = width * 2f)
-                val extent = corner + width
+
+                val indent = CalloutRuleIndent.toPx()
+                val inset = CalloutRuleInset.toPx()
+                val height = (size.height - inset * 2f).coerceAtLeast(0f)
+
+                // Draw coordinates do not flip, but the spacer that reserves this
+                // strip is a `Row` child and does. Mirror by hand or the rule is
+                // painted under the text in RTL.
+                val left = if (layoutDirection == LayoutDirection.Rtl) {
+                    size.width - indent - width
+                } else {
+                    indent
+                }
+
                 onDrawWithContent {
                     drawContent()
                     clipPath(path) {
-                        clipRect(right = extent) {
-                            drawPath(path, accent, style = stroke)
-                        }
+                        drawRoundRect(
+                            color = accent,
+                            topLeft = Offset(left, inset),
+                            size = Size(width, height),
+                            cornerRadius = CornerRadius(width / 2f),
+                        )
                     }
                 }
             },
     ) {
-        Box(Modifier.width(CalloutRuleWidth))
+        Box(Modifier.width(CalloutRuleIndent + CalloutRuleWidth))
         Box(Modifier.padding(Theme.spacing.sm)) {
             CompositionLocalProvider(
                 LocalContentColour provides Theme.colours.accent.onContainer,
@@ -252,6 +296,18 @@ fun Callout(
 
 /** How wide the accent rule down a [Callout]'s leading edge is. */
 private val CalloutRuleWidth = 3.dp
+
+/**
+ * How far in from the leading edge the rule sits.
+ *
+ * Not decoration: a bar flush against the edge is inside the container's own
+ * 22dp corner only over the straight part of that edge, which on a short callout
+ * is almost none of it. See the drawing comment in [Callout].
+ */
+private val CalloutRuleIndent = 8.dp
+
+/** The rule spans the padded content rather than the whole box. */
+private val CalloutRuleInset = 12.dp
 
 @Composable
 private fun bannerColoursFor(tone: BannerTone): StatusColours = when (tone) {

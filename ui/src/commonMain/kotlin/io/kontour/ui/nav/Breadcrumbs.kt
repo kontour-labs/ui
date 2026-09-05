@@ -22,6 +22,7 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -114,6 +115,7 @@ private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
             .minimumTouchTarget()
             .focusRing(interactions, shape)
             .clip(shape)
+            .pointerCursor()
             .clickable(
                 interactionSource = interactions,
                 // A crumb is a link-sized button; nothing else here answers the tap.

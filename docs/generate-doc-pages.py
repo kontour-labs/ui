@@ -41,6 +41,76 @@ def kotlin_string(text: str) -> str:
     return '"' + out.replace("\n", "\\n") + '"'
 
 
+# Kotlin's hard keywords, plus the soft ones that read as keywords in a
+# signature. `it` is here because every lambda in these samples uses it, and a
+# reader scanning a block for the receiver is looking for exactly that word.
+KEYWORDS = {
+    "as", "break", "by", "catch", "class", "companion", "const", "continue", "crossinline",
+    "data", "do", "else", "enum", "false", "finally", "for", "fun", "get", "if", "import",
+    "in", "infix", "init", "inline", "interface", "internal", "is", "it", "lateinit",
+    "noinline", "null", "object", "open", "operator", "out", "override", "package",
+    "private", "protected", "public", "reified", "return", "sealed", "set", "super",
+    "suspend", "this", "throw", "true", "try", "typealias", "val", "var", "vararg",
+    "when", "while",
+}
+
+# One pass, in precedence order, and the order is the correctness argument: a
+# `//` inside a string does not open a comment and a `"` inside a comment does
+# not open a string, so whichever starts first takes its whole run.
+CODE_TOKEN = re.compile(
+    r"(?P<comment>//[^\n]*|/\*.*?\*/)"
+    r"|(?P<string>\"\"\"(?:.|\n)*?\"\"\"|\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*')"
+    r"|(?P<annotation>@[A-Za-z_]\w*)"
+    r"|(?P<number>\b0[xXbB][0-9a-fA-F_]+[uUlL]*\b"
+    r"|\b\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d+)?[fFdDuUlL]*\b)"
+    r"|(?P<word>[A-Za-z_]\w*)",
+    re.S,
+)
+
+# Which kind each capture paints. An annotation reads as a keyword because
+# `@Composable` is a declaration's most important word, not a decoration.
+TOKEN_KIND = {"comment": "c", "string": "s", "number": "s", "annotation": "k"}
+
+
+def highlight(code: str, language: str) -> str:
+    """Run-length highlighting for a fenced block — see `Block.Code.spans`.
+
+    Kotlin only, which is not a limitation worth apologising for: of the 167
+    fenced blocks in this tree, 163 are Kotlin, two are bare, one is
+    `properties` and one is `yaml`. Anything else gets an empty string and is
+    drawn in one colour, exactly as everything was before this existed.
+
+    Done here rather than in the browser because the site ships no parser: a
+    reader downloads content, not a program for turning text into content.
+    """
+    if language != "kotlin" or not code:
+        return ""
+
+    kinds = ["p"] * len(code)
+    for match in CODE_TOKEN.finditer(code):
+        kind = TOKEN_KIND.get(match.lastgroup)
+        if kind is None:
+            if match.lastgroup != "word" or match.group() not in KEYWORDS:
+                continue
+            kind = "k"
+        for index in range(match.start(), match.end()):
+            kinds[index] = kind
+
+    # Nothing worth colouring is worth no string at all.
+    if set(kinds) == {"p"}:
+        return ""
+
+    runs = []
+    start = 0
+    while start < len(kinds):
+        end = start
+        while end < len(kinds) and kinds[end] == kinds[start]:
+            end += 1
+        runs.append(f"{end - start}{kinds[start]}")
+        start = end
+    return "".join(runs)
+
+
 # `strong` and `em` come first, and their bodies are re-scanned by `spans`.
 #
 # Before that they came last, so `**Reach for a [`Chip`](chip.md) instead**` was
@@ -111,7 +181,11 @@ def blocks(lines: list[str], where: str) -> list[str]:
                 code.append(lines[i])
                 i += 1
             i += 1
-            out.append(f"Block.Code({kotlin_string(language)}, {kotlin_string(chr(10).join(code))})")
+            body = chr(10).join(code)
+            out.append(
+                f"Block.Code({kotlin_string(language)}, {kotlin_string(body)}, "
+                f"{kotlin_string(highlight(body, language))})"
+            )
         elif stripped.startswith("#"):
             level = len(stripped) - len(stripped.lstrip("#"))
             out.append(f"Block.Heading({level}, {spans(stripped[level:].strip())})")
@@ -124,8 +198,21 @@ def blocks(lines: list[str], where: str) -> list[str]:
             # show it, and the code fence it precedes is already the sample.
             i += 1
         elif stripped.startswith("!["):
-            # Dropped on purpose — the live specimen stands where this would.
-            i += 1
+            # These used to be dropped in silence. They were screenshots of the
+            # component, checked into `ui-catalog/screenshots/` and linked by a
+            # relative path that resolves in a repository browser and nowhere
+            # else — so every one of them was a picture only a GitHub reader
+            # ever saw, standing in for the live specimen the site draws two
+            # inches further down. Round 22 removed all 72 of them.
+            #
+            # Raising rather than skipping, because the site has no renderer for
+            # an image and swallowing one puts a hole in a page that nothing
+            # reports. If a page ever genuinely needs a picture, this is the
+            # place to teach the site how to draw it.
+            raise SystemExit(
+                f"{where}: line {i + 1} is an image, and the site cannot draw "
+                f"one: {stripped[:60]!r}"
+            )
         elif stripped.startswith("|"):
             rows = []
             while i < len(lines) and lines[i].strip().startswith("|"):
@@ -207,9 +294,13 @@ def main() -> int:
         title = re.search(r"^#\s+(.+)$", text, re.M)
         if not title:
             raise SystemExit(f"{path}: no title")
-        # The footer is navigation the site provides itself.
-        body = re.sub(r"\n---\n\n\u2190.*$", "\n", text, flags=re.S)
-        lines = body.split("\n")
+        # Every page used to end with "\u2190 [Family](family.md) \u00b7 [All
+        # components](../components.md)", stripped here because the site draws
+        # its own navigation \u2014 so, like the screenshots above, it was writing
+        # only a GitHub reader ever saw. Round 22 removed them; there is
+        # nothing left to strip, and a new one would now show up on the page as
+        # the stray line it is.
+        lines = text.split("\n")
         # Drop the title line; the site draws it from `title`.
         lines = lines[lines.index(title.group(0)) + 1:]
         symbols = re.findall(r"`([^`]+)`", title.group(1))
@@ -230,13 +321,23 @@ def main() -> int:
             family = FAMILY.get(claim[0], "Other") if claim else "Other"
             order = claim[1] if claim else len(claimed)
         else:
-            # `GUIDES` has been written in reading order since it was added and
-            # nothing has ever read it — the map, then how to install it, then
-            # the tokens and the theme, and the cross-cutting reading last.
-            # Alphabetical filed the `+` DSL guide under S, its title being
-            # "Slots, and the `+` that keeps them short".
+            # `GUIDES` is reading order — install it, learn what a component is
+            # allowed to look like, then meet them. Alphabetical filed the `+`
+            # DSL guide under S, its title being "Slots, and the `+` that keeps
+            # them short".
+            #
+            # A guide missing from the tuple used to sort to the end, which is
+            # a silent wrong answer for a page that has simply been forgotten —
+            # and reshuffling this tuple is exactly when that happens. It is an
+            # error now: `GUIDES` is the order, so a page it does not name has
+            # no place in it.
             kind, family = "DocKind.Guide", "Guides"
-            order = GUIDES.index(path.stem) if path.stem in GUIDES else len(GUIDES)
+            if path.stem not in GUIDES:
+                raise SystemExit(
+                    f"{path} is a guide and is not in doctree.GUIDES, which is "
+                    f"what orders them. Add it where a reader should meet it."
+                )
+            order = GUIDES.index(path.stem)
 
         page_blocks = blocks(lines, str(path))
         # One function per page, and one per 30 blocks inside it.

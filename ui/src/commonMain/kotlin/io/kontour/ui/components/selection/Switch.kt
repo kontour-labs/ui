@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalRowInteractionSource
@@ -40,6 +41,7 @@ import io.kontour.ui.interaction.LocalRowToggle
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 private val TrackWidth = 48.dp
 private val TrackHeight = 28.dp
@@ -48,6 +50,20 @@ private val ThumbPadding = 2.dp
 
 /** How much wider than round the thumb gets while it is moving. */
 private const val ThumbStretch = 1.25f
+
+/**
+ * The speed, in track-fractions per second, at which the stretch is full.
+ *
+ * `springSnappy` carries the thumb across its whole travel in about a fifth of
+ * a second, so it peaks somewhere near six fractions per second — this is a
+ * little under that, so the stretch reaches its full extent for the middle of
+ * a flip rather than only grazing it, and is proportional either side.
+ *
+ * A number rather than a token because it is not a design decision anybody
+ * would tune independently: it is the units conversion between the position
+ * spring already chosen above and [ThumbStretch] already chosen here.
+ */
+private const val StretchAtSpeed = 5f
 
 /**
  * A switch.
@@ -182,13 +198,17 @@ fun Switch(
         }
     }
 
-    // Squash-and-stretch: the thumb elongates while pressed or in transit —
-    // including during the release spring, which is most of the transit.
-    val moving = dragging || fraction.isRunning
-    val thumbStretch by animateFloatAsState(
-        targetValue = if ((pressed || moving) && !motion.reduceMotion) ThumbStretch else 1f,
+    /**
+     * The half of the stretch that a *press* is responsible for.
+     *
+     * A press is a discrete event with no velocity of its own, so this half is
+     * still a spring. It covers a finger resting on the thumb and a drag, where
+     * the position is snapped rather than animated and has no velocity to read.
+     */
+    val pressStretch by animateFloatAsState(
+        targetValue = if ((pressed || dragging) && !motion.reduceMotion) ThumbStretch else 1f,
         animationSpec = motion.springOrTween(motion.springBouncy),
-        label = "switchThumbStretch",
+        label = "switchThumbPress",
     )
 
     Canvas(
@@ -197,7 +217,7 @@ fun Switch(
             .focusRing(interactions, shape)
             .then(
                 if (onCheckedChange != null) {
-                    Modifier.toggleable(
+                    Modifier.pointerCursor(enabled = enabled).toggleable(
                         value = checked,
                         onValueChange = {
                             feedback.perform(FeedbackIntent.Selection)
@@ -285,6 +305,28 @@ fun Switch(
         val interior = (size.width - paddingPx * 2f).coerceAtLeast(0f)
         val room = (interior - thumbPx).coerceAtLeast(0f)
         val f = fraction.value.coerceIn(0f, 1f)
+
+        /**
+         * The other half of the stretch, read from the thumb's own speed.
+         *
+         * It used to be a second spring driven by `dragging ||
+         * fraction.isRunning` — a boolean about whether the position was
+         * animating, which structurally cannot overlap the animation it
+         * describes. So a tap played three separate movements: the stretch
+         * spring grew the thumb, *then* the position spring carried it across,
+         * *then* the stretch spring shrank it back. Three phases for one
+         * gesture, and the middle one is the only one anybody asked for.
+         *
+         * Taken from the velocity instead, the stretch **is** the travel: it
+         * grows as the thumb accelerates away, peaks where the thumb is moving
+         * fastest, and is back to nothing as it arrives — one movement, with no
+         * second animation to get out of step with. Read here rather than in
+         * composition because `fraction.value` is already read here and changes
+         * every frame the thumb moves, so this costs no invalidation of its own.
+         */
+        val speed = (abs(fraction.velocity) / StretchAtSpeed).coerceIn(0f, 1f)
+        val travelStretch = if (motion.reduceMotion) 1f else 1f + (ThumbStretch - 1f) * speed
+        val thumbStretch = maxOf(pressStretch, travelStretch)
 
         // The stretch grows *into the padding it has room for*, split between
         // the two sides in proportion to how much room each has.

@@ -40,6 +40,8 @@ import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
+import androidx.compose.animation.core.Animatable
+import io.kontour.ui.theme.lerpCorners
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -214,11 +216,18 @@ enum class ReorderHandleSide { Start, End }
  * makes a whole feature unreachable. Pass [itemCount] so "move down" can be
  * withheld on the last row.
  *
- * @param shape The row's own shape, for the shadow it casts while lifted. A
- *   `graphicsLayer` shadow is drawn to the *layer's* shape, which is a rectangle
- *   unless it is told otherwise — so a rounded row, or the rounded top and
- *   bottom of a grouped list, cast a square shadow with corners sticking out
- *   past the row. Pass whatever the content is clipped to.
+ * @param shape The row's own shape, for the shadow it casts while lifted.
+ *   Null — the default — derives it from [index] and [itemCount], which is what
+ *   decides a row's corners everywhere else here: a first row is rounded on top,
+ *   a middle row is square, and the shape morphs between them when a drag
+ *   changes the row's position.
+ *
+ *   Worth knowing why this is not simply a shape you pass. A `graphicsLayer`
+ *   shadow is drawn to the *layer's* shape, a rectangle unless told otherwise,
+ *   so a rounded row casts a square shadow with corners sticking out past it.
+ *   That was the default, and no caller anywhere passed anything else — a
+ *   parameter a component needs in order to look right is a parameter that will
+ *   not be supplied. Pass one only to override.
  * @param handleIcon A grip to drag from. Null leaves the whole row draggable,
  *   which is the better default on touch and the worse one anywhere a row also
  *   has a tap action of its own.
@@ -233,7 +242,7 @@ fun LazyItemScope.ReorderableItem(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     itemCount: Int = Int.MAX_VALUE,
-    shape: Shape = RectangleShape,
+    shape: Shape? = null,
     handleIcon: ImageVector? = null,
     handleSide: ReorderHandleSide = ReorderHandleSide.End,
     handleLabel: String = Theme.strings.moveUp,
@@ -243,6 +252,35 @@ fun LazyItemScope.ReorderableItem(
 ) {
     val feedback = LocalFeedback.current
     val motion = Theme.motion
+
+    // The shadow's shape, derived from where the row sits rather than passed in.
+    //
+    // It was `RectangleShape` by default and **no call site passed anything**, so
+    // every reorderable list drew a square shadow under rows whose top and bottom
+    // corners are rounded. A parameter that has to be supplied for the component
+    // to look right is a parameter that will not be supplied; `index` and
+    // `itemCount` are already here, and they are what decides a row's corners
+    // everywhere else in the library.
+    //
+    // Animated across a position change, which is the other half of the report:
+    // dragging the second row to the top has to *become* a first row, and the row
+    // it displaced has to lose its rounding as it becomes a middle one. Morphing
+    // from the last settled shape rather than snapping is what makes the two read
+    // as one movement.
+    val base = ListItemDefaults.Shape
+    val inner = ListItemDefaults.InnerCorner
+    val position = ListItemPosition.of(index, itemCount)
+    var settled by remember { mutableStateOf(position) }
+    val morph = remember { Animatable(1f) }
+    LaunchedEffect(position) {
+        if (position != settled) {
+            morph.snapTo(0f)
+            morph.animateTo(1f, motion.springOrTween(motion.springDefault))
+            settled = position
+        }
+    }
+    val shadowShape = shape ?: settled.shape(base, inner)
+        .lerpCorners(position.shape(base, inner), morph.value)
     val modality = LocalInputModality.current
     val dragging = state.draggingIndex == index
 
@@ -287,9 +325,8 @@ fun LazyItemScope.ReorderableItem(
                 scaleX = 1f + 0.02f * lift
                 scaleY = 1f + 0.02f * lift
                 shadowElevation = 8f * lift
-                // See `shape`: without this the shadow is a rectangle whatever
-                // the row is.
-                this.shape = shape
+                // Without this the shadow is a rectangle whatever the row is.
+                this.shape = shadowShape
                 clip = false
             }
             .semantics {

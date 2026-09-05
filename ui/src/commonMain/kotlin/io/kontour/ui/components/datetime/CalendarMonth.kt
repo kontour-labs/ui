@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,11 +42,13 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
@@ -100,6 +103,22 @@ object CalendarMonthDefaults {
      * proportion; smaller ones leave it alone. See `DayCell`.
      */
     val ReferenceCell: Dp = 44.dp
+
+    /**
+     * How wide a month grid is worth making.
+     *
+     * Derived, not chosen — which is why it is spelled as its derivation. A day
+     * cell grows its digit in proportion to the cell and stops at
+     * `MaxDayGrowth`, so seven cells at that limit is the width past which the
+     * numbers are already as large as they will ever get and every further pixel
+     * buys a bigger empty circle around the same digit. That is the point where
+     * a calendar stops becoming more legible and starts only becoming larger.
+     *
+     * It needs saying because uncapped, `fillMaxWidth` means "as wide as the
+     * container", and a desktop window is a container. A calendar is not a thing
+     * that wants a whole window, and a picker handed one filled it.
+     */
+    val MaxWidth: Dp = ReferenceCell * 7 * MaxDayGrowth
 }
 
 @Composable
@@ -152,8 +171,17 @@ fun CalendarMonth(
     // for every cell at once. A `BoxWithConstraints` per cell would be
     // forty-two subcompositions to derive one number that is the same number
     // every time.
-    BoxWithConstraints(modifier.fillMaxWidth()) {
+    //
+    // `widthIn` outside `fillMaxWidth`, and the order is the whole thing:
+    // `fillMaxWidth` fixes the constraints at [W, W] first, and a cap then
+    // coerces [0, max] against a minimum of W — so on any container wider than
+    // the cap, written the other way round, the cap is silently discarded.
+    BoxWithConstraints(modifier.widthIn(max = CalendarMonthDefaults.MaxWidth).fillMaxWidth()) {
         val cellSize = maxWidth / 7
+        // The same growth the day numbers get, from the same cell size. A
+        // heading that stays put while what it heads grows stops reading as one.
+        val weekdayBase = Theme.typography.labelSmall
+        val weekdayStyle = remember(weekdayBase, cellSize) { weekdayBase.grownFor(cellSize) }
         Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth()) {
             formats.weekdayInitials().forEachIndexed { index, initial ->
@@ -168,7 +196,7 @@ fun CalendarMonth(
                 ) {
                     Text(
                         text = initial,
-                        style = Theme.typography.labelSmall,
+                        style = weekdayStyle,
                         colour = Theme.colours.contentMuted,
                         modifier = Modifier.padding(vertical = Theme.spacing.xs),
                     )
@@ -419,14 +447,28 @@ private fun DayCell(
      * So while a drag is in progress the cap grows along the track instead, out
      * of the edge the range is coming from, on a spring with no overshoot in it.
      * The band extends and its end slides; nothing arrives.
+     *
+     * ### Only a *cap* slides
+     *
+     * This used to be every cell in the range, and a cell in the middle of a
+     * band is not an edge that is moving — it is band. So each cell the finger
+     * passed over stopped being an endpoint, became `Middle`, and scaled its
+     * container along the track to **nothing**: the range emptied out behind
+     * the drag and came back only when the finger lifted. Reported as "they
+     * revert to the background colour until the finger lifts", and as the
+     * reason a drag animated each date separately rather than extending one
+     * strip — fourteen cells each running their own spring to zero.
      */
-    val sliding = dragging && rangePosition != RangePosition.None &&
-        rangePosition != RangePosition.StartAndEnd
+    val sliding = dragging && isEndpoint && rangePosition != RangePosition.StartAndEnd
 
     val fillScale by animateFloatAsState(
         targetValue = when {
             filled -> 1f
-            sliding -> 0f
+            // A cell not yet in the range sits at zero while a drag is out, so
+            // that becoming the cap is a sweep along the track rather than a
+            // step from most of the way there. Unused while it is not a cap:
+            // nothing below applies a scale to a cell that is neither.
+            dragging -> 0f
             else -> 0.7f
         },
         animationSpec = if (sliding) {
@@ -452,21 +494,7 @@ private fun DayCell(
      * shrinking the digit below the type scale is not the fix for any of them.
      */
     val baseStyle = if (isToday) Theme.typography.labelMedium else Theme.typography.bodyMedium
-    val dayStyle = remember(baseStyle, cellSize) {
-        val growth = (cellSize / CalendarMonthDefaults.ReferenceCell).coerceIn(1f, MaxDayGrowth)
-        if (growth <= 1f) {
-            baseStyle
-        } else {
-            baseStyle.copy(
-                fontSize = baseStyle.fontSize * growth,
-                lineHeight = if (baseStyle.lineHeight.isSpecified) {
-                    baseStyle.lineHeight * growth
-                } else {
-                    baseStyle.lineHeight
-                },
-            )
-        }
-    }
+    val dayStyle = remember(baseStyle, cellSize) { baseStyle.grownFor(cellSize) }
 
     Box(
         modifier = modifier
@@ -537,6 +565,7 @@ private fun DayCell(
                 // one of a set of choices, and this is the modifier that says so
                 // and carries the state with the action.
                 .semantics { stateDescription = formats.dateFull(date) }
+                .pointerCursor(enabled = enabled)
                 .selectable(
                     selected = filled,
                     interactionSource = interactions,
@@ -600,3 +629,26 @@ private fun Modifier.markerSize(): Modifier = size(4.dp)
  * as a marked date.
  */
 private const val MaxDayGrowth = 1.66f
+
+/**
+ * This style, grown in proportion to a calendar cell wider than the reference.
+ *
+ * Scaled against the *style*, not computed in dp: the base size is in `sp` and
+ * multiplying it keeps the user's own text size in the answer, where deriving a
+ * dp from the cell and converting back would quietly throw it away. And it only
+ * grows — a cramped calendar has other problems, and shrinking the text below
+ * the type scale is not the fix for any of them.
+ *
+ * Shared by the day numbers and the weekday initials above them, which is the
+ * whole reason it is a function. The numbers grew with their cells and the
+ * initials did not, so a calendar at any width past a phone's was large digits
+ * under a row of small letters that no longer looked like a heading for them.
+ */
+internal fun TextStyle.grownFor(cellSize: Dp): TextStyle {
+    val growth = (cellSize / CalendarMonthDefaults.ReferenceCell).coerceIn(1f, MaxDayGrowth)
+    if (growth <= 1f) return this
+    return copy(
+        fontSize = fontSize * growth,
+        lineHeight = if (lineHeight.isSpecified) lineHeight * growth else lineHeight,
+    )
+}

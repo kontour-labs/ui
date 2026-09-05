@@ -54,7 +54,3 @@ its own way out.
 
 `dismissLabel` is what the scrim announces. The default is `Theme.strings.dismiss`;
 override it when "dismiss" is ambiguous about what is being dismissed.
-
----
-
-← [Overlays](overlays.md) · [All components](../components.md)

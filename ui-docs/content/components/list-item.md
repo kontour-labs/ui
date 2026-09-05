@@ -2,8 +2,6 @@
 
 *Also on this page: `ListGroup`.*
 
-![ListItem](../../../ui-catalog/screenshots/components/listitem-light.png)
-
 <!--sample:ListItemBasics-->
 ```kotlin
 LazyColumn {
@@ -63,7 +61,3 @@ one is the control. That is the rule that runs through
 `label`, `supporting` and `overline` merge into one announcement in reading
 order. `leading` and `trailing` icons take `null` unless they carry meaning the
 text does not.
-
----
-
-← [Collections](collections.md) · [All components](../components.md)

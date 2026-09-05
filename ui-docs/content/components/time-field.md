@@ -28,7 +28,3 @@ The formatted time is the field's `stateDescription`, so what is announced is
 It is a button, not an editable field, and deliberately: typing a time into a
 text field is how you get 25:61. Pressing it opens a
 [`TimePicker`](time-picker.md).
-
----
-
-← [Date and time](date-time.md) · [All components](../components.md)

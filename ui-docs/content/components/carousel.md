@@ -4,9 +4,6 @@
 stack of cards, and pulling one aside is the only gesture anybody tries; on
 desktop that used to leave the indicator dots as the sole route.
 
-
-![Carousel](../../../ui-catalog/screenshots/components/carousel-light.png)
-
 <!--sample:CarouselWithIndicator-->
 ```kotlin
 val scope = rememberCoroutineScope()
@@ -20,6 +17,22 @@ PageIndicator(carousel, onPageSelect = { scope.launch { carousel.scrollToPage(it
 
 It snaps. A carousel that stops between two pages is showing neither, and the
 indicator under it is then lying whatever it says.
+
+**A quarter of a page turns it.** Compose's own snapping asks which page is
+nearest, which is a list's question — with items smaller than the viewport,
+nearest is the one you are mostly looking at. A carousel's page *is* the
+viewport, so nearest meant dragging a full-width card past its own middle before
+the gesture took, and anything less slid all the way back having done nothing.
+`CarouselDefaults.SnapThreshold` is a quarter, counted from wherever the gesture
+began rather than from a fixed edge: a third of the way along is a third forward
+from one page or two thirds back from the next, and which it is decides which way
+a quarter counts.
+
+That number is also what a **trackpad** inherits. A two-finger sideways push
+already settles on its own — the platform runs the snap once the gesture goes
+quiet — but a push moves a little at a time, so against a half-page threshold it
+landed back where it started every time, which reads as a carousel refusing to
+move rather than as one snapping to the wrong end.
 
 `currentPage` is derived from the scroll **offset**, not from
 `firstVisibleItemIndex`. That index changes the instant a single pixel of the
@@ -49,8 +62,6 @@ input method, and the app has four.
 single pill that stretches from the dot it is leaving to the one it is arriving
 at, then contracts.
 
-![The worm, halfway between two pages](../../../ui-catalog/screenshots/components/carousel-worm-light.png)
-
 It reads as one thing travelling rather than one dot going out and another coming
 on, and it is the only style that shows the *middle* of a swipe: the pill is at
 its longest exactly halfway between two pages. That needs a fractional page
@@ -77,7 +88,3 @@ That is the whole reason a carousel can be used without a pointer.
 A carousel hides content by default. Anything essential inside one is essential
 content behind a gesture, so give it a [`PageIndicator`](page-indicator.md) with
 `onPageSelect` — or reconsider the carousel.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

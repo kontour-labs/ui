@@ -1,7 +1,5 @@
 # `TriStateCheckbox`
 
-![TriStateCheckbox](../../../ui-catalog/screenshots/components/tristatecheckbox-light.png)
-
 <!--sample:TriStateCheckboxBasics-->
 ```kotlin
 var routes by remember { mutableStateOf(listOf(true, false, false)) }
@@ -36,7 +34,3 @@ something the *children* produce, which is what it means.
 
 The label still belongs on the row. Put it in a
 [`SelectionRow`](selection-row.md).
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

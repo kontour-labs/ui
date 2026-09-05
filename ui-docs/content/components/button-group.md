@@ -1,7 +1,5 @@
 # `ButtonGroup`
 
-![ButtonGroup](../../../ui-catalog/screenshots/components/buttongroup-light.png)
-
 <!--sample:ButtonGroupBasics-->
 ```kotlin
 ButtonGroup {
@@ -64,7 +62,3 @@ row of controls with no text in it. "Zoom out", "Recentre", "Zoom in" — not
 The group reserves `minTouchTarget` in height once, rather than each button
 reserving it and centring inside — which is what keeps the buttons flush against
 each other without any of them shrinking below the minimum.
-
----
-
-← [Actions](actions.md) · [All components](../components.md)

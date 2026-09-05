@@ -2,6 +2,7 @@ package io.kontour.ui.components.text
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
@@ -218,10 +219,22 @@ internal fun FieldScaffold(
             // field that was showing a hint and then failed validation replaced
             // one sentence with another between frames — the one moment in the
             // form where the user most needs to notice something changed.
+            //
+            // `SizeTransform(clip = false)`, and without it the message arrived
+            // from two directions at once. The slot above expands it downward,
+            // which is right and is the whole of the motion this wants; but
+            // `AnimatedContent`'s default size transform *clips* to a box
+            // animating between the two messages' widths, so a longer error
+            // replacing a shorter hint was also revealed left to right. Two
+            // sentences of different lengths is the common case, which is why
+            // it looked intermittent. `Chip` learned this first — see
+            // `KeyedChipContent`, which has carried the same call since it was
+            // written.
             AnimatedContent(
                 targetState = errorMessage ?: supporting.orEmpty(),
                 transitionSpec = {
-                    fadeIn(motion.tweenFast()) togetherWith fadeOut(motion.tweenFast())
+                    (fadeIn(motion.tweenFast()) togetherWith fadeOut(motion.tweenFast()))
+                        .using(SizeTransform(clip = false))
                 },
                 label = "fieldMessage",
             ) { message ->

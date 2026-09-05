@@ -1,7 +1,5 @@
 # `SplitButton`
 
-![SplitButton](../../../ui-catalog/screenshots/components/splitbutton-expanded-light.png)
-
 <!--sample:SplitButtonBasics-->
 ```kotlin
 var open by remember { mutableStateOf(false) }
@@ -56,7 +54,3 @@ full-size target however narrow it looks.
 
 Where the menu holds the *only* copy of an action, that action is unreachable for
 anyone who does not open menus. Keep the main action in the main half.
-
----
-
-← [Actions](actions.md) · [All components](../components.md)

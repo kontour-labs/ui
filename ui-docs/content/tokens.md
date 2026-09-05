@@ -92,8 +92,8 @@ purple selected-state and the signature said nothing about it.
 reaches only 2.1:1 — it cannot carry text, a fill label, or a focus ring in light
 mode. (The marketing site's `.button.primary:hover` does exactly this today and
 fails.) So the palette splits the job: `brand` is the literal brand colour for
-decoration, and `accent.solid` is a purple dark enough to be read. `BrandIsDecorativeOnlyTest`
-pins that contract so nobody quietly promotes `brand` to a text colour.
+decoration, and `accent.solid` is a purple dark enough to be read. That split
+is checked, so `brand` cannot quietly become a text colour.
 
 ### Status
 
@@ -119,6 +119,34 @@ fields, matching how the web properties already use them:
 |---|---|
 | `scrim` | Dims content behind a modal, which also [blurs it](overlays.md#the-backdrop) |
 | `overlayHover` / `overlayPressed` / `overlayDragged` | The tonal washes `KontourIndication` composites over a control |
+
+### Source code
+
+`code` is a `CodeColours` with four fields, and this documentation site is what
+draws them — a fenced block on any page is coloured from these.
+
+| Field | For |
+|---|---|
+| `plain` | Identifiers, punctuation, everything with no special meaning |
+| `keyword` | `fun`, `val`, `when`, and annotations |
+| `literal` | Strings, characters and numbers |
+| `comment` | `//` and `/* */` |
+
+| Field | Light | Dark |
+|---|---|---|
+| `keyword` | `#1E3A8A` | `#93C5FD` |
+| `literal` | `#1B5E20` | `#7BE08A` |
+
+`plain` and `comment` follow `content` and `contentMuted` unless a theme moves
+them.
+
+All four are drawn on `surfaceSunken` and all four are checked against it at the
+scheme's own tier — 4.5:1 standard, 7:1 high contrast. **Highlighting is
+decorative**: the code says the same thing in one colour, and nothing here is
+the only way to know anything. That is why the four are held to being *readable*
+and not to being far apart from one another — on the high-contrast light scheme
+they are all necessarily close to black, which is what 7:1 on a near-white
+ground means.
 
 ---
 
@@ -338,8 +366,8 @@ to `clickable`, which is past `.background()`, scaled the label inside a button
 whose silhouette never moved. And ghost variants opted out of the scale
 altogether, which is right for a ghost *text* button (a shrinking label reads as
 the text jumping) and wrong for the icon buttons that make up most of the
-library. Both are fixed; `PressScaleTest` measures the ink rather than trusting
-the claim.
+library. Both are fixed, and the check measures the ink rather than trusting the
+claim.
 
 **How far it moves** now follows the control's size, because one constant
 serving a 28dp icon button and a full-width one is invisible on the first and a

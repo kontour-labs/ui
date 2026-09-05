@@ -38,6 +38,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.elevation
 import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -215,6 +216,7 @@ internal fun NavDestinationItem(
         .selectionIndicatorItem(indicatorKey, selected)
         .minimumTouchTarget()
         .focusRing(interactions, shape, enabled = item.enabled)
+        .pointerCursor(enabled = item.enabled)
         .selectable(
             selected = selected,
             interactionSource = interactions,

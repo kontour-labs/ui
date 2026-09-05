@@ -1,21 +1,23 @@
 # `SwipeActions` / `SwipeToDismiss`
 
-![SwipeToDismiss, at rest](../../../ui-catalog/screenshots/components/swipetodismiss-light.png)
-![SwipeToDismiss, with the action revealed](../../../ui-catalog/screenshots/components/swipetodismiss-revealed-light.png)
-
 Actions revealed by a sideways drag. `SwipeActions` reveals buttons;
 `SwipeToDismiss` removes the row.
 
-At rest it is a row and nothing else, which is the honest picture and a useless
-one — so the second image is a row driven open. Do that in your own code with
-`rememberSwipeActionsState(initialValue = SwipeValue.End)` to start there, or
-`state.animateTo(SwipeValue.End)` to move an already-drawn row, which is how you
-would hint at the gesture on first run.
+At rest it is a row and nothing else, so nothing about it announces that the
+gesture exists. `rememberSwipeActionsState(initialValue = SwipeValue.End)` starts
+a row already open, and `state.animateTo(SwipeValue.End)` moves an already-drawn
+one — which is how you would hint at the gesture on first run.
 
 An action shows its label only where there is room for one. A single-line row is
 48dp and an icon above a label wants 59, so on short rows the icon stands alone —
 the label still reaches the screen reader through the row's custom action either
 way.
+
+The action's colour is at full strength from the first pixel. It used to darken
+while letting go would do nothing and lighten as the row crossed its threshold —
+an answer to a real question, delivered as a colour change on a box that is also
+sliding, growing and being tracked by a finger, which reads as a flicker partway
+through the swipe. The answer arrives better as the tick below.
 
 **The drag has detents you can feel.** A tick each time another action is
 uncovered, one distinct `DragThreshold` at the full-swipe point — the moment past
@@ -58,7 +60,3 @@ an icon plus a separate description, a caller can write a background that says
 
 The background icons are decorative and cleared; the row's own content is
 unchanged by the swipe.
-
----
-
-← [Collections](collections.md) · [All components](../components.md)

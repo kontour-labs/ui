@@ -37,6 +37,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 
 /**
@@ -149,6 +151,15 @@ fun TextField(
                 )
             }
         },
+        // The one control in the library where the exactly right cursor is
+        // available: editable text is what `PointerIcon.Text` is for.
+        //
+        // On the frame rather than on the input, because the whole field takes
+        // the caret when it is clicked — a beam over the middle of a field and
+        // an arrow over its padding would say the two halves do different
+        // things. The trailing slot's own controls set a hand over themselves,
+        // which is right: a reveal toggle is a button sitting in a text field.
+        frameModifier = Modifier.pointerCursor(PointerIcon.Text, enabled = enabled),
     ) {
         val contentColour = if (enabled) colours.content else colours.contentDisabled
 

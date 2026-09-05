@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -238,7 +239,14 @@ private fun CalendarFrame(
     val todayMonth = today?.let { LocalDate(it.year, it.month, 1) }
     val awayFromToday = todayMonth != null && todayMonth != navigation.visibleMonth
 
-    Column(modifier.fillMaxWidth()) {
+    Column(
+        modifier
+            // The header and the buttons are the grid's, so they stop where it
+            // does — see `CalendarMonthDefaults.MaxWidth`, and the note there
+            // about why the cap goes outside `fillMaxWidth` rather than after.
+            .widthIn(max = CalendarMonthDefaults.MaxWidth)
+            .fillMaxWidth()
+    ) {
         Row(
             Modifier.fillMaxWidth().padding(vertical = Theme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,

@@ -421,6 +421,21 @@ private fun FabMenuItems(
     val host = LocalOverlayHost.current
     val density = LocalDensity.current
 
+    // Room for each item's fade to composite in without cutting its own shadow.
+    //
+    // `alpha < 1` composites offscreen into a buffer sized to the layer's own
+    // rectangle, and every item here carries `alpha` — the buttons carry `scale`
+    // with it. A layer wrapped tight around a 40dp circle whose shadow reaches
+    // 24dp further out draws a hard-edged grey square, widest at the smallest
+    // scale, on every frame of the menu opening. Exactly the fault
+    // `overlayAppearance` documents and fixes for menus and dialogs.
+    //
+    // One number for buttons and labels alike, taken from the larger of the two
+    // shadows: padding a label by more than its own shadow needs costs nothing,
+    // and one constant is one thing for `placeLabel` to subtract back out.
+    val itemRoom = Theme.elevation.medium.bleed
+    val roomPx = with(density) { itemRoom.toPx() }
+
     val gapPx = with(density) { FabMenuDefaults.Gap.toPx() }
     val labelGapPx = with(density) { FabMenuDefaults.LabelGap.toPx() }
     val marginPx = with(density) { FabMenuDefaults.ScreenMargin.toPx() }
@@ -438,13 +453,17 @@ private fun FabMenuItems(
                 // interleaving holds and the index arithmetic below stays a fact
                 // about the list rather than about this frame's settings.
                 if (showLabels) {
+                    Box(
+                        Modifier
+                            .graphicsLayer { alpha = fractions[index].value }
+                            .padding(itemRoom)
+                    ) {
                     Surface(
                         modifier = Modifier
                             // Named by the button beside it. Two nodes carrying
                             // the same words is the "label next to a control"
                             // fault the contract suite exists to catch.
-                            .clearAndSetSemantics { }
-                            .graphicsLayer { alpha = fractions[index].value },
+                            .clearAndSetSemantics { },
                         shape = Theme.shapes.control,
                         colour = Theme.colours.surfaceRaised,
                         contentColour = Theme.colours.content,
@@ -464,24 +483,29 @@ private fun FabMenuItems(
                             )
                         }
                     }
+                    }
                 } else {
                     Box(Modifier)
                 }
 
+                Box(
+                    Modifier
+                        .graphicsLayer {
+                            val fraction = fractions[index].value
+                            alpha = fraction
+                            val scale = FabMenuDefaults.FromScale +
+                                (1f - FabMenuDefaults.FromScale) * fraction
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .padding(itemRoom)
+                ) {
                 FloatingActionButton(
                     icon = item.icon,
                     contentDescription = item.label,
                     onClick = {
                         item.onClick()
                         onDismissRequest()
-                    },
-                    modifier = Modifier.graphicsLayer {
-                        val fraction = fractions[index].value
-                        alpha = fraction
-                        val scale = FabMenuDefaults.FromScale +
-                            (1f - FabMenuDefaults.FromScale) * fraction
-                        scaleX = scale
-                        scaleY = scale
                     },
                     enabled = item.enabled,
                     size = itemSize,
@@ -490,6 +514,7 @@ private fun FabMenuItems(
                     contentColour = contentColour,
                     border = border,
                 )
+                }
             }
         },
         // The items come out from *behind* the anchor.
@@ -577,7 +602,10 @@ private fun FabMenuItems(
                 )
 
                 if (label.width > 0 && label.height > 0) {
-                    placeLabel(label, button, point, geometry.labelOnLeft, labelGapPx, container, marginPx)
+                    placeLabel(
+                        label, button, point, geometry.labelOnLeft,
+                        labelGapPx, container, marginPx, roomPx,
+                    )
                 }
             }
         }
@@ -593,9 +621,15 @@ private fun Placeable.PlacementScope.placeLabel(
     gap: Float,
     container: IntSize,
     margin: Float,
+    room: Float,
 ) {
-    val edge = button.width / 2f + gap
-    val x = if (onLeft) point.x - edge - label.width else point.x + edge
+    // Both placeables are `room` larger on every side than the thing drawn
+    // inside them — see `itemRoom`, which buys the fade a buffer big enough to
+    // hold each item's shadow. The gap is between the *drawn* edges, so the
+    // padding comes back off here; leave it in and every label sits 24dp
+    // further from its button than it is supposed to.
+    val edge = button.width / 2f - room + gap
+    val x = if (onLeft) point.x - edge - label.width + room else point.x + edge - room
     label.place(
         x = x.coerceIn(margin, (container.width - margin - label.width).coerceAtLeast(margin)).toInt(),
         y = (point.y - label.height / 2f).toInt(),

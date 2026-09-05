@@ -3,6 +3,7 @@ package io.kontour.ui.docs
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.display.Callout
+import io.kontour.ui.components.list.Scrollbar
+import io.kontour.ui.components.list.ScrollbarDefaults
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import androidx.compose.ui.unit.Dp
@@ -82,19 +86,17 @@ private fun Block(block: Block) {
 
         is Block.Paragraph -> Linkable(block.spans, Theme.typography.bodyMedium)
 
-        is Block.Quote -> Row(Modifier.fillMaxWidth()) {
-            // A rule down the side rather than an indent, so the quoted passage
-            // is visibly an aside at any width — an indent alone reads as a
-            // paragraph that happens to start late.
-            Box(
-                Modifier
-                    .width(Theme.sizing.borderWidthStrong)
-                    .background(Theme.colours.outline)
-                    .padding(vertical = Theme.spacing.xs)
-            ) { Text(" ", style = Theme.typography.bodyMedium) }
-            Box(Modifier.padding(start = Theme.spacing.md)) {
-                Linkable(block.spans, Theme.typography.bodySmall, Theme.colours.contentMuted)
-            }
+        // `Callout`, whose own KDoc describes it as "a quoted aside, in the
+        // shape the marketing site's markdown already uses" — and which this
+        // site then did not use, drawing its own rule out of a `Box` with a
+        // background and a space in it to give the rule a height.
+        //
+        // The rule was the right idea for the reason the old comment gave: an
+        // indent alone reads as a paragraph that happens to start late. It is
+        // also exactly what `Callout` draws, with a container tint behind it
+        // and a radius the rest of the page shares.
+        is Block.Quote -> Callout {
+            Linkable(block.spans, Theme.typography.bodySmall, Theme.colours.content)
         }
 
         is Block.Bullets -> Column(
@@ -126,23 +128,86 @@ private fun Block(block: Block) {
  *
  * Wrapped Kotlin is Kotlin that has lost its indentation, and indentation is
  * most of how a nested builder reads. A scrollbar is the honest answer on a
- * narrow window.
+ * narrow window — and until now this comment was the only place one existed.
+ * The block scrolled with nothing to say that it did, so a line running past
+ * the right edge looked like a line that had been cut off.
  */
 @Composable
 private fun CodeBlock(block: Block.Code) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .background(Theme.colours.surfaceSunken, Theme.shapes.small)
-            .padding(Theme.spacing.md)
-            .horizontalScroll(rememberScrollState())
-    ) {
-        Text(
-            text = block.code,
-            style = Theme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-            colour = Theme.colours.content,
-            softWrap = false,
+    val scroll = rememberScrollState()
+    val shape = Theme.shapes.small
+    Box(Modifier.fillMaxWidth().background(Theme.colours.surfaceSunken, shape)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(Theme.spacing.md)
+                .horizontalScroll(scroll)
+        ) {
+            Text(
+                text = highlighted(block),
+                style = Theme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                colour = Theme.colours.code.plain,
+                softWrap = false,
+            )
+        }
+        // It draws nothing when there is nothing to scroll and nothing at all
+        // for a finger, both of which are `Scrollbar`'s own rules rather than
+        // this page's — a short block is unchanged, and a phone still gets the
+        // whole width for the code.
+        Scrollbar(
+            state = scroll,
+            orientation = Orientation.Horizontal,
+            modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
+            cornerInset = ScrollbarDefaults.cornerInset(shape),
         )
+    }
+}
+
+/**
+ * The block's code, coloured from the run-length map beside it.
+ *
+ * The decoder knows nothing about Kotlin — it reads a count, reads the letter
+ * that count applies to, and paints that many characters. Everything about the
+ * language was decided by `docs/generate-doc-pages.py` at build time, which is
+ * what keeps the promise that the bundle a reader downloads carries content
+ * rather than a program for producing it.
+ *
+ * An empty map is the ordinary case for anything that is not Kotlin, and gives
+ * back the plain string.
+ *
+ * Highlighting is decorative and the KDoc on [CodeColours] says so: the code
+ * reads identically in one colour, and nothing here is the only way to know
+ * anything. That is the reason the four colours are only ever checked against
+ * the ground they sit on, and not against each other.
+ */
+@Composable
+private fun highlighted(block: Block.Code): AnnotatedString {
+    val colours = Theme.colours.code
+    return remember(block, colours) {
+        if (block.spans.isEmpty()) return@remember AnnotatedString(block.code)
+        buildAnnotatedString {
+            append(block.code)
+            var at = 0
+            var run = 0
+            for (character in block.spans) {
+                if (character.isDigit()) {
+                    run = run * 10 + (character - '0')
+                    continue
+                }
+                val end = minOf(at + run, block.code.length)
+                if (end > at) {
+                    val colour = when (character) {
+                        'k' -> colours.keyword
+                        's' -> colours.literal
+                        'c' -> colours.comment
+                        else -> colours.plain
+                    }
+                    addStyle(SpanStyle(color = colour), at, end)
+                }
+                at = end
+                run = 0
+            }
+        }
     }
 }
 

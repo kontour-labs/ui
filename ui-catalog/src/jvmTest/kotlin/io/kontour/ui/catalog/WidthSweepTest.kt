@@ -257,8 +257,16 @@ class WidthSweepTest {
          * answer available to it.
          *
          * A component may raise its own floor with `ComponentSpec.minWidth`,
-         * which is a declaration that it has parts too big to shrink. Exactly one
-         * does.
+         * which is a declaration that it has parts too big to shrink. Four do.
+         *
+         * It is a declaration, not a place to put a number that makes the sweep
+         * quiet, and `Toast` is the cautionary tale: it carried 260 on the
+         * strength of a card that "neither wraps nor shrinks", and the card
+         * wraps. What it could not do was be measured, because the specimen
+         * raised its toast into the harness's own scene-wide overlay host
+         * instead of into the box under test. The floor was hiding a specimen
+         * bug. Before adding one, check that the thing being measured is
+         * actually inside the box.
          */
         const val DrawsFrom = 48
 

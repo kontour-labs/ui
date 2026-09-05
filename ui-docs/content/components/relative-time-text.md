@@ -1,7 +1,5 @@
 # `RelativeTimeText`
 
-![RelativeTimeText](../../../ui-catalog/screenshots/components/relativetimetext-light.png)
-
 **It re-renders at the resolution it is displaying** — every second under a
 minute, every twenty above — rather than on a fixed timer that is either
 wasteful or stale.
@@ -35,7 +33,3 @@ listen to.
 `until` is a `Duration`, so the caller owns the clock: what is announced is
 derived from a value under test rather than from a time source inside the
 component.
-
----
-
-← [Date and time](date-time.md) · [All components](../components.md)

@@ -33,6 +33,23 @@ class ApiParameter(
     val type: String,
     /** The default expression as written, or `null` when the parameter is required. */
     val default: String?,
+    /**
+     * The first sentence of the parameter's KDoc, or `null` where it has none.
+     *
+     * **Null is the common case and the table does not pretend otherwise.**
+     * 138 of the library's 1,214 public parameters carry a `@param` at all —
+     * eleven per cent — and that is a deliberate style rather than neglect:
+     * `Button` documents three of its twelve because the other nine are
+     * `modifier`, `enabled`, `onClick` and their like, and a sentence restating
+     * a name teaches nobody anything.
+     *
+     * So a described parameter gets a line and an undescribed one gets nothing,
+     * rather than every row getting a column that is empty on nine in ten. What
+     * keeps the number moving is `check-components.py`, where a coverage figure
+     * belongs — it is a fact about the library's maintenance, not about the
+     * component the reader is looking at.
+     */
+    val description: String? = null,
 ) {
     val required: Boolean get() = default == null
 }
@@ -55,7 +72,27 @@ class ApiEntry(
     val isClass: Boolean,
     val parameters: List<ApiParameter>,
     val enums: List<String>,
-)
+) {
+    /**
+     * This declaration's page in the API reference, or `null` for one that has
+     * none the site can name with confidence.
+     *
+     * Qualified first, then bare, and both steps matter. `ListItemScope.leading`
+     * is filed under its owner; `Modifier.marquee` is a top-level extension and
+     * is filed under its own name, with `Modifier` being a receiver rather than
+     * a place. Asking for the qualified form first and falling back covers both
+     * without the site having to know which it is looking at.
+     *
+     * `null` where [apiReferencePaths] has neither — a symbol the reference does
+     * not publish, or a simple name that means two different things in two
+     * packages. The alternative was a link to the reference's index, and a link
+     * that goes somewhere other than where it says is worse than no link: the
+     * reader cannot tell the two apart until after they have followed it.
+     */
+    val reference: String?
+        get() = (owner?.let { apiReferencePaths["$it.$name"] } ?: apiReferencePaths[name])
+            ?.let { "api/kontour-ui/$it" }
+}
 
 /** An enum and its entries, for the values note under a table. */
 @Immutable

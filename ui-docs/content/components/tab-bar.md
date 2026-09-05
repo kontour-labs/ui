@@ -1,7 +1,5 @@
 # `TabBar` / `Tab`
 
-![TabBar, with the first tab selected](../../../ui-catalog/screenshots/components/tab-selected-light.png)
-
 <!--sample:TabBarBasics-->
 ```kotlin
 var selected by remember { mutableStateOf("departures") }
@@ -132,7 +130,3 @@ three.
 A tab bar changes what is below it. Where that content is a separate scrolling
 region, give it a heading so a user who has switched tabs can find where they
 have arrived.
-
----
-
-← [Navigation](navigation.md) · [All components](../components.md)

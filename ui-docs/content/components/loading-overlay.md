@@ -33,7 +33,3 @@ with nothing announced is a screen that has stopped responding.
 This is the reason the component should be rare. A [`Skeleton`](skeleton.md) or
 an inline [`Spinner`](spinner.md) leaves the rest of the page navigable while one
 part of it loads.
-
----
-
-← [Overlays](overlays.md) · [All components](../components.md)

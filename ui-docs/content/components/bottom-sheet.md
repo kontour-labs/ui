@@ -45,8 +45,16 @@ what makes it right for a stop list over a map and wrong for a form.
 
 Its resting positions come from a `rememberSheetState(detents = …)`. `Hidden`,
 `Half`, `Expanded`, `Full` and `peek(…)` are values rather than an enum entries
-list, so an app can add its own — [the sheet guide](../sheets.md#the-model)
+list, so an app can add its own — [the sheet guide](sheets.md#the-model)
 explains why that matters and what `peek` measures.
+
+**Both ends give.** Pulled above its tallest detent the sheet follows the finger
+a little way, each pixel buying less than the last, and springs back when the
+finger lifts — a sheet that stops dead at a boundary is a gesture that has
+stopped answering. A sheet whose bottom is held rather than open, which is what
+[`ModalBottomSheet`](modal-bottom-sheet.md)'s `dismissible = false` produces,
+does the same thing downward. The stretch is drawn and nothing else: no anchor,
+no detent and nothing the caller sees knows it happened.
 
 ---
 
@@ -65,7 +73,3 @@ between the map and the sheet freely.
 The detents are reachable without the gesture: [`DragHandle`](drag-handle.md)
 exposes `expand` and `collapse` as semantic actions, so the sheet can be resized
 from a screen reader's rotor rather than only by dragging.
-
----
-
-← [Sheets](sheets.md) · [All components](../components.md)

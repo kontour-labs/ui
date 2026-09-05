@@ -10,13 +10,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.CornerBasedShape
-import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.outset
 
 /**
  * Draws the keyboard focus indicator around this component.
@@ -78,23 +78,14 @@ fun Modifier.focusRing(
         // The gap read wider at the corners than along the edges, which is the
         // tell that two shapes are not concentric.
         //
-        // Resolved in pixels against the component's *own* size, so a
-        // percentage corner comes out right too: `pill` on a 40px box resolves
-        // to 20, plus 3 is 23 — exactly half of the 46px ring. Which is why
-        // `pill` never looked wrong and everything else did.
-        //
-        // Grown through `copy` rather than rebuilt as a RoundedCornerShape, so a
-        // ring around a squircle is a squircle. Rebuilding it silently returned
-        // every smoothed corner in the library to a circular arc at the one
-        // moment it is under a spotlight.
-        val ringShape = (shape as? CornerBasedShape)?.let { corners ->
-            corners.copy(
-                topStart = CornerSize(corners.topStart.toPx(size, this) + grow),
-                topEnd = CornerSize(corners.topEnd.toPx(size, this) + grow),
-                bottomEnd = CornerSize(corners.bottomEnd.toPx(size, this) + grow),
-                bottomStart = CornerSize(corners.bottomStart.toPx(size, this) + grow),
-            )
-        } ?: shape
+        // `outset` is the library's name for that rule, and this is its second
+        // caller: it resolves the corner against the *component's* box rather
+        // than the ring's — see its own KDoc for why that distinction is not
+        // pedantry — and grows through `copy`, so a ring around a squircle is
+        // still a squircle. Rebuilding it as a RoundedCornerShape silently
+        // returned every smoothed corner in the library to a circular arc at
+        // the one moment it is under a spotlight.
+        val ringShape = (shape as? CornerBasedShape)?.outset(grow.toDp()) ?: shape
         val outline = ringShape.createOutline(ringSize, layoutDirection, this)
 
         onDrawWithContent {

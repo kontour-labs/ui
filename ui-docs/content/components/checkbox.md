@@ -1,8 +1,5 @@
 # `Checkbox`
 
-![Checkbox, unchecked](../../../ui-catalog/screenshots/components/checkbox-light.png)
-![Checkbox, checked](../../../ui-catalog/screenshots/components/checkbox-checked-light.png)
-
 <!--sample:CheckboxBasics-->
 ```kotlin
 var notify by remember { mutableStateOf(false) }
@@ -22,8 +19,8 @@ unavailable.
 Inert still means it announces `Role.Checkbox` and its tick. That matters inside
 a [`SettingRow`](setting-row.md), which is `clickable` rather than
 `toggleable` and so publishes no checked state of its own; without the control
-saying it, the row announces as a button with a name and no on or off.
-`InertControlPublishesStateTest` covers all three controls.
+saying it, the row announces as a button with a name and no on or off. All
+three controls are checked for it.
 
 **The box answers the press, not the release.** The tick starts being drawn under
 the finger and starts being rubbed out under a press on a ticked box — a third of
@@ -46,7 +43,3 @@ and there is one target rather than two.
 
 The touch target is the minimum regardless of the box's drawn size, which is why
 a checkbox in a dense list still meets it.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

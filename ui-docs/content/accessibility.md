@@ -11,7 +11,8 @@ that has no unsafe value to pick.
 
 ## Contrast
 
-**Enforced by** `ColourSchemeContrastTest`, which runs in `:ui:jvmTest`.
+**Enforced**, not aspired to: every built-in scheme is checked on every
+build, and one that slips fails it.
 
 The test walks every foreground/background pairing a component can produce, in
 all four built-in schemes, and asserts WCAG:
@@ -28,9 +29,9 @@ purely decorative rules; holding dividers to a ratio would force them so dark
 they read as borders.
 
 Also exempt, and specifically so: `brand`. It exists *because* it cannot pass in
-light mode — see [tokens.md](tokens.md#actions). `BrandIsDecorativeOnlyTest`
-pins that, and will fail if someone changes `brand` to something readable
-without also updating the contract.
+light mode — see [tokens.md](tokens.md#actions). That exemption is
+itself checked, so making `brand` readable without also saying it may now carry
+text fails the build.
 
 This is not theatre. Three values in the original palette looked fine and failed
 by a tenth of a point against `surfaceSunken`; the test found them before a
@@ -85,10 +86,10 @@ light tier, against the 3:1 WCAG 1.4.11 asks of a control's boundary.
 read by nothing in the repo for most of the project's life, and it went
 unnoticed because the tier had only ever been screenshotted as a *palette* —
 `theme-light-high-contrast` and its dark twin — and never as components. There
-are ten component goldens at high contrast now, and
-`ContrastLevelReachesComponentsTest` asserts both remaining halves: one reads
-the tokens through `KontourTheme` so it covers the wiring rather than the
-table, and the other samples across a card's edge, because the card is in the
+are ten component goldens at high contrast now, and two further checks cover the
+rest: one reads the tokens through `KontourTheme`, so it covers the wiring
+rather than the table, and the other samples across a card's edge, because the
+card is in the
 semantics tree either way.
 
 ---
@@ -146,6 +147,7 @@ tracks the last used input instead:
 |---|---|---|---|---|
 | Minimum target | 44–48dp | 24dp | n/a | 44–48dp |
 | Hover states | off | on | off | off |
+| Mouse cursor | n/a | shown | n/a | n/a |
 | Focus ring | hidden | hidden | **shown** | hidden |
 | Tooltips | long-press | hover | on focus | long-press |
 | Scrollbars | not drawn | persistent | persistent | not drawn |
@@ -157,6 +159,24 @@ letter is noise.
 
 The default is `Touch`: assuming touch only costs a mouse user some padding,
 whereas assuming mouse gives a touch user targets too small to hit.
+
+### The mouse cursor
+
+`Modifier.pointerCursor` puts a hand over anything that answers a click, a text
+beam over an editable field, and it takes the component's own `enabled` so a
+disabled control does not promise a click it will not answer. Every clickable
+component in the library sets one; you only need it for a target of your own.
+
+It is a separate modifier rather than part of `focusRing`, which would have been
+tidier to write and wrong: a focus ring is drawn when the keyboard reaches an
+element and a cursor is about what the mouse is over, so folding them together
+would show a cursor only on things you had already tabbed to.
+
+**There are four cursors and no more.** Compose Multiplatform's `PointerIcon`
+offers `Default`, `Crosshair`, `Text` and `Hand` across the platforms this
+library builds for. There is no resize cursor for a pane splitter and no grab
+cursor for a scrollbar thumb, so those get a hand — the closest of the four to
+"you can take hold of this".
 
 ---
 
@@ -205,8 +225,8 @@ where visual order and composition order disagree.
 
 ## The per-component contract
 
-Everything on this page is asserted, not aspired to. `ComponentContractTest`
-runs seven rules over every component in the system — a role, an accessible
+Everything on this page is asserted, not aspired to. Seven rules run over
+every component in the system on every build — a role, an accessible
 name, a disabled state that is announced as well as enforced, a touch target,
 and survival at 200% type in RTL.
 

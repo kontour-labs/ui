@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.horizontalDragOwning
@@ -134,6 +135,15 @@ fun Slider(
         targetValue = if (active && !motion.reduceMotion) 1.25f else 1f,
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "sliderThumb",
+    )
+
+    // A circle at rest that lengthens into a capsule while it is held. Shares
+    // `active` and the spring with the scale above, so the thumb grows and
+    // stretches as one gesture rather than two overlapping ones.
+    val thumbAspect by animateFloatAsState(
+        targetValue = if (active && !motion.reduceMotion) SliderDefaults.ThumbAspect else 1f,
+        animationSpec = motion.springOrTween(motion.springBouncy),
+        label = "sliderThumbAspect",
     )
 
 
@@ -363,6 +373,7 @@ fun Slider(
                 //
                 // A tap falls out of the same gesture: pressing emits a value
                 // and letting go finishes, with no movement in between.
+                .pointerCursor(enabled = enabled)
                 .horizontalDragOwning(
                     enabled = enabled,
                     interactionSource = interactions,
@@ -456,6 +467,7 @@ fun Slider(
                             centreY = centreY,
                             radiusPx = thumbRadiusPx,
                             scale = thumbScale,
+                            aspect = thumbAspect,
                             reachPx = thumbReach * trackWidth,
                             // A ring of the page colour keeps the thumb legible
                             // where it overlaps the filled track.

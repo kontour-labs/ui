@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
@@ -85,9 +86,22 @@ fun RadioButton(
     // has nothing to give up.
     val group = LocalSelectionGroupPress.current
     if (group != null) {
-        DisposableEffect(group, pressed) {
-            if (pressed) group.press()
-            onDispose { if (pressed) group.release() }
+        // Held in the effect's own value rather than read back through the
+        // delegate, and that is the whole of it.
+        //
+        // `onDispose` runs when the keys change, which is *after* the state it
+        // would re-read has already flipped. So letting go of a press disposed
+        // the effect that had taken it, found `pressed` already false, and
+        // returned without giving the count back: the group's counter went up
+        // on the first press and never came down again. `anyPressed` then
+        // stayed true for the life of the screen, and every button that held
+        // the selection sat permanently at the two thirds it yields while a
+        // sibling is being pressed — which is why the dot never grew to full
+        // size after choosing an option.
+        val holding = pressed
+        DisposableEffect(group, holding) {
+            if (holding) group.press()
+            onDispose { if (holding) group.release() }
         }
     }
     val yielding = selected && !pressed && group?.anyPressed == true
@@ -105,7 +119,7 @@ fun RadioButton(
             .focusRing(interactions, Theme.shapes.pill)
             .then(
                 if (onClick != null) {
-                    Modifier.selectable(
+                    Modifier.pointerCursor(enabled = enabled).selectable(
                         selected = selected,
                         onClick = {
                             feedback.perform(FeedbackIntent.Selection)

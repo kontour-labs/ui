@@ -1,7 +1,8 @@
 # `Breadcrumbs`
 
-Where you are in a hierarchy, and the way back up. No caller in Anyways today —
-it is here for the admin panel.
+Where you are in a hierarchy, and the way back up. For a console or an
+admin tool with real nesting — on a phone-shaped app there is usually one level
+and a back button, which is a `TopBar`'s job rather than this.
 
 <!--sample:BreadcrumbsBasics-->
 ```kotlin
@@ -28,7 +29,3 @@ The separators are drawn and not announced.
 On a narrow window the trail is what tells a user where they are, and it is also
 the first thing to overflow. Where it does, keep the last two: the current page
 and its parent are the pair that answer "where am I and how do I get out".
-
----
-
-← [Navigation](navigation.md) · [All components](../components.md)

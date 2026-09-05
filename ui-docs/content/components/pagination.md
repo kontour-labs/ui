@@ -66,7 +66,3 @@ page is now shown.
 
 For a feed with no known end, [`LoadMore`](load-more.md) is the component —
 pagination implies a countable set.
-
----
-
-← [Navigation](navigation.md) · [All components](../components.md)

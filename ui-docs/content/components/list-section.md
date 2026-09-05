@@ -37,7 +37,3 @@ looks like a group and is not one.
 `footer` is announced after the rows, in reading order. Put the caveat there
 rather than in the last row's `supporting`, where it reads as being about that
 row.
-
----
-
-← [Collections](collections.md) · [All components](../components.md)

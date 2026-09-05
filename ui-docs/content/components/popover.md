@@ -52,7 +52,3 @@ the overlay stack. If what you have is urgent enough to interrupt, that is a
 The scrim defaults to `ScrimStyle.Transparent`, which blocks input without
 dimming — and still carries the labelled dismiss action, so tapping away has an
 equivalent for someone who cannot.
-
----
-
-← [Overlays](overlays.md) · [All components](../components.md)

@@ -139,11 +139,21 @@ internal fun lerpColourScheme(start: ColourScheme, stop: ColourScheme, fraction:
     overlayHover = lerp(start.overlayHover, stop.overlayHover, fraction),
     overlayPressed = lerp(start.overlayPressed, stop.overlayPressed, fraction),
     overlayDragged = lerp(start.overlayDragged, stop.overlayDragged, fraction),
+    code = lerp(start.code, stop.code, fraction),
     accent = lerp(start.accent, stop.accent, fraction),
     success = lerp(start.success, stop.success, fraction),
     warning = lerp(start.warning, stop.warning, fraction),
     danger = lerp(start.danger, stop.danger, fraction),
     info = lerp(start.info, stop.info, fraction),
+    )
+
+/** [CodeColours] is four colours and interpolates as four colours. */
+internal fun lerp(start: CodeColours, stop: CodeColours, fraction: Float): CodeColours =
+    CodeColours(
+        plain = lerp(start.plain, stop.plain, fraction),
+        keyword = lerp(start.keyword, stop.keyword, fraction),
+        literal = lerp(start.literal, stop.literal, fraction),
+        comment = lerp(start.comment, stop.comment, fraction),
     )
 
 /** [StatusColours] is five colours and interpolates as five colours. */

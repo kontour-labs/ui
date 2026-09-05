@@ -1,7 +1,5 @@
 # `IconButton`
 
-![IconButton](../../../ui-catalog/screenshots/components/iconbutton-light.png)
-
 <!--sample:IconButtonBasics-->
 ```kotlin
 IconButton(Tabler.Outline.X, contentDescription = "Close", onClick = { dismiss() })
@@ -36,7 +34,8 @@ over. It used to be `iconSize + iconOnlyPadding * 2`, which is a second way of
 saying how tall a control is, and it disagreed with the first at three of the
 five sizes. That made every `ButtonGroup` mixing an icon action with a labelled
 one ragged, and the trailing half of a [`SplitButton`](split-button.md) 4dp
-short of the half beside it. `ControlHeightTest` holds the two together now.
+short of the half beside it. The two are held together by a check now, so a
+row of mixed actions lines up.
 
 ---
 
@@ -53,7 +52,3 @@ vocabulary — "muted"/"unmuted" reads better than "on"/"off".
 The touch target is `Theme.sizing.minTouchTarget` regardless of the icon size, so
 a small icon button is still a full-size target. That is enforced by a modifier
 rather than by remembering, and asserted by the contract suite.
-
----
-
-← [Actions](actions.md) · [All components](../components.md)

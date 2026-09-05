@@ -38,6 +38,7 @@ import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
@@ -116,6 +117,7 @@ fun Chip(
             .focusRing(interactions, shape)
             .clip(shape)
             .background(if (enabled) colours.surfaceSunken else Color.Transparent, shape)
+            .pointerCursor(enabled = enabled)
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(shape),
@@ -232,6 +234,7 @@ fun FilterChip(
             .clip(shape)
             .background(container, shape)
             .border(BorderStroke(Theme.sizing.borderWidth, borderColour), shape)
+            .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,
                 onClick = {
@@ -331,7 +334,7 @@ fun InputChip(
             .background(colours.surfaceSunken, shape)
             .then(
                 if (onClick != null) {
-                    Modifier.clickable(
+                    Modifier.pointerCursor(enabled = enabled).clickable(
                         interactionSource = interactions,
                         indication = kontourIndication(shape),
                         enabled = enabled,
@@ -360,6 +363,7 @@ fun InputChip(
                 Row(
                     Modifier
                         .clip(Theme.shapes.control)
+                        .pointerCursor(enabled = enabled)
                         .clickable(
                             enabled = enabled,
                             role = Role.Button,

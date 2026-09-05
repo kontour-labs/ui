@@ -75,6 +75,32 @@ class ColourSchemeContrastTest {
                 check("focusRing", c.focusRing, groundName, ground, nonText)
             }
 
+            // Source code, on the one ground it is ever drawn on.
+            //
+            // Written out rather than left to the sweep above, and the reason
+            // is that a role added to `ColourScheme` owes this test **nothing
+            // automatically**: the lists here are written by hand, so a new
+            // colour arrives untested and passing. `lerpColourScheme` catches a
+            // role that is forgotten entirely — it will not compile — and
+            // nothing catches one that is merely never checked.
+            //
+            // Highlighting is decorative, so these are held to body text on the
+            // ground rather than to any separation from each other: a reader who
+            // cannot tell a keyword from a literal has lost nothing the
+            // characters do not still say. What would be a real defect is a
+            // literal that is hard to read at all.
+            run {
+                val code = c.code
+                for ((role, colour) in listOf(
+                    "code.plain" to code.plain,
+                    "code.keyword" to code.keyword,
+                    "code.literal" to code.literal,
+                    "code.comment" to code.comment,
+                )) {
+                    check(role, colour, "surfaceSunken", c.surfaceSunken, bodyText)
+                }
+            }
+
             // Labels on solid fills, and the fills themselves against the page.
             val solids = listOf(
                 Triple("primary", c.primary, c.onPrimary),

@@ -39,7 +39,3 @@ each character arrives is very hard to follow without sight.
 
 `emptyLabel` is what the menu says when nothing matches. It is announced, so make
 it say what to do next rather than "No matches".
-
----
-
-← [Text editing](text-editing.md) · [All components](../components.md)

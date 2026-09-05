@@ -37,7 +37,3 @@ Without `onPageSelect` it is a read-out and carries nothing: the
 
 `PageIndicatorStyle.Worm` animates the pill between dots and changes nothing
 about what is announced. Under reduced motion it stops travelling.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

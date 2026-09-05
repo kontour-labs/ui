@@ -39,6 +39,7 @@ import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.LocalRowInteractionSource
@@ -96,7 +97,10 @@ enum class ListItemPosition {
  * fine on a three-item list in the catalog and wrong on every one-item list in
  * the app.
  */
-fun ListItemPosition.shape(shape: CornerBasedShape, square: Dp = 4.dp): CornerBasedShape {
+fun ListItemPosition.shape(
+    shape: CornerBasedShape,
+    square: Dp = ListItemDefaults.InnerCorner,
+): CornerBasedShape {
     val flat = androidx.compose.foundation.shape.CornerSize(square)
     return when (this) {
         ListItemPosition.Only -> shape
@@ -122,13 +126,22 @@ object ListItemDefaults {
     /**
      * The rounding on the two corners that face each other across a seam.
      *
-     * Derived from [Spacing] rather than set beside it, because the two are one
-     * decision: the notch between two rows should be as deep as the gap between
-     * them. At 4dp against a 2dp gap it read deeper than the gap it was
-     * describing, which is the same near-miss that makes any two nested shapes
-     * look mismatched.
+     * This used to be `= Spacing`, on the argument that the two were one
+     * decision: a notch as deep as the gap it describes. That is a real
+     * relationship and it is not the only one — a seam also has to be *visible*,
+     * and at 2dp on a row 300dp wide it was a rounding error rather than a
+     * corner. A group of rows read as one uncut slab.
+     *
+     * 4dp is the smallest value where the notch reads as deliberate at this
+     * width, and it is deliberately no longer derived: tying it back to [Spacing]
+     * would mean widening every gap in every list to buy a corner, which is a
+     * much larger change than the one being asked for. The two are related, not
+     * equal, and the KDoc is the place that says so.
+     *
+     * `ButtonGroupDefaults.InnerCorner` is the same decision at a different size
+     * and lands on a different number — see its own note.
      */
-    val InnerCorner: Dp = Spacing
+    val InnerCorner: Dp = 4.dp
 
     /**
      * The floor for a one-line row, and for a two-line one.
@@ -229,21 +242,22 @@ fun ListItem(
     // no role and no "disabled", and a screen-reader user would keep trying it.
     val clickModifier = when {
         onClick == null -> Modifier
-        selected || role == Role.RadioButton -> Modifier.selectable(
-            selected = selected,
-            interactionSource = interactions,
-            // A whole row flinching is too much movement; the tonal wash is the
-            // feedback here.
-            indication = kontourIndication(shape, pressScale = 1f),
-            enabled = enabled,
-            role = role,
-            onClick = {
-                feedback.perform(FeedbackIntent.Selection)
-                onClick()
-            },
-        )
+        selected || role == Role.RadioButton -> Modifier.pointerCursor(enabled = enabled)
+            .selectable(
+                selected = selected,
+                interactionSource = interactions,
+                // A whole row flinching is too much movement; the tonal wash is the
+                // feedback here.
+                indication = kontourIndication(shape, pressScale = 1f),
+                enabled = enabled,
+                role = role,
+                onClick = {
+                    feedback.perform(FeedbackIntent.Selection)
+                    onClick()
+                },
+            )
 
-        else -> Modifier.clickable(
+        else -> Modifier.pointerCursor(enabled = enabled).clickable(
             interactionSource = interactions,
             indication = kontourIndication(shape, pressScale = 1f),
             enabled = enabled,

@@ -123,7 +123,35 @@ sealed interface Span {
 sealed interface Block {
     data class Heading(val level: Int, val spans: List<Span>) : Block
     data class Paragraph(val spans: List<Span>) : Block
-    data class Code(val language: String, val code: String) : Block
+    /**
+     * A fenced block, with its highlighting alongside rather than inside it.
+     *
+     * [spans] is a run-length map over [code], one entry per run, written as a
+     * count and the kind it covers — `"11k1p3k17p"` is eleven keyword
+     * characters, one plain, three keyword, seventeen plain. `p` plain, `k`
+     * keyword, `s` literal, `c` comment; anything the map does not reach is
+     * plain, and an empty string means no highlighting at all, which is what
+     * every block that is not Kotlin gets.
+     *
+     * ### Why an encoding rather than a list of tokens
+     *
+     * The site ships no parser — the reader downloads content, not a program
+     * for turning text into content — so the highlighting is worked out by
+     * `docs/generate-doc-pages.py` at build time. That leaves the question of
+     * how to carry it, and a `List<CodeToken>` is the obvious answer and the
+     * wrong one: `DocPages.kt` is already chunked at thirty blocks per function
+     * because of the JVM's 64 KB method limit, and a few thousand constructor
+     * calls would push against it for no benefit.
+     *
+     * A string costs one constant. Measured over the whole corpus it is 5,793
+     * characters against 53,435 of code — eleven per cent — and the decoder is
+     * a dozen lines that know nothing about Kotlin.
+     */
+    data class Code(
+        val language: String,
+        val code: String,
+        val spans: String = "",
+    ) : Block
     data class Table(val rows: List<List<List<Span>>>) : Block
     data class Quote(val spans: List<Span>) : Block
     data class Bullets(val ordered: Boolean, val items: List<List<Span>>) : Block

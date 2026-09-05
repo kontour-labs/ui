@@ -174,6 +174,77 @@ class ShapeScaleTest {
     }
 
     @Test
+    fun outsetAddsTheGapAndKeepsTheShapeItIsCalledOn() {
+        // Measured on the *outer* box, which is how an outset shape is used: the
+        // ring is the bigger rectangle, so the size it is handed is the grown one.
+        val inner = Size(1000f, 1000f)
+        val outer = Size(1012f, 1012f)
+
+        assertEquals(
+            shapes.large.topStart.toPx(inner, density) + 6f,
+            shapes.large.outset(6.dp).topStart.toPx(outer, density),
+        )
+        assertTrue(
+            shapes.large.outset(6.dp) is SquircleShape,
+            "a ring around a squircle is a squircle — rebuilding it as a rounded " +
+                "rectangle returns every smoothed corner in the library to a " +
+                "circular arc at the one moment it is under a spotlight",
+        )
+    }
+
+    @Test
+    fun outsetResolvesAgainstTheBoxItWrapsRatherThanTheOneItDraws() {
+        // The whole reason `outset` is not `inset` with the sign flipped, and the
+        // case that decides it is a *proportional* corner.
+        //
+        // `pill` on a 52px-tall component is 26, and the ring 3px outside it wants
+        // 29. Resolve it against the 58px ring instead and it answers 29 before
+        // the gap is added, so the ring gets drawn at 32 — over-rounded by exactly
+        // the gap.
+        val grow = 3f
+        val inner = Size(200f, 52f)
+        val outer = Size(inner.width + grow * 2f, inner.height + grow * 2f)
+
+        assertEquals(
+            inner.height / 2f + grow,
+            shapes.pill.outset(3.dp).topStart.toPx(outer, density),
+            "a proportional corner has to resolve against the component it wraps, " +
+                "not against the ring it is drawn on",
+        )
+
+        // And the case that would have let it through, kept so the two are read
+        // together. A capped capsule reads the same 26 on both boxes once it is at
+        // its cap, so every text field in the library would look right whichever
+        // box was used — which is why "it looks fine on a field" is not evidence.
+        assertEquals(
+            26f + grow,
+            SquircleShape(CapsuleCornerSize(cap = 26.dp))
+                .outset(3.dp)
+                .topStart
+                .toPx(outer, density),
+        )
+    }
+
+    @Test
+    fun outsetUndoesInset() {
+        // Concentricity is symmetric, so the two have to agree on the same pair of
+        // boxes: inset the outer shape by the gap and outset the inner one by it,
+        // and the same radius has to come back.
+        val gap = 8.dp
+        val outer = Size(400f, 400f)
+        val inner = Size(400f - 16f, 400f - 16f)
+
+        assertEquals(
+            shapes.large.inset(gap).topStart.toPx(inner, density),
+            shapes.large.topStart.toPx(inner, density) - 8f,
+        )
+        assertEquals(
+            shapes.large.inset(gap).outset(gap).topStart.toPx(outer, density),
+            shapes.large.topStart.toPx(inner, density),
+        )
+    }
+
+    @Test
     fun aSquircleIsAGenericOutlineInsideItsBounds() {
         val size = Size(200f, 120f)
         val outline = SquircleShape(24.dp).createOutline(size, LayoutDirection.Ltr, density)

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -21,12 +22,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Stack
 import com.composables.icons.tabler.outline.Star
+import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonGroup
 import io.kontour.ui.components.action.ButtonVariant
@@ -38,14 +41,32 @@ import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.components.datetime.RelativeTimeText
+import io.kontour.ui.components.display.CircularProgress
+import io.kontour.ui.components.display.LinearProgress
+import io.kontour.ui.components.display.Spinner
+import io.kontour.ui.components.display.StepProgress
+import io.kontour.ui.components.datetime.CalendarMonth
+import io.kontour.ui.components.datetime.DatePicker
+import io.kontour.ui.components.datetime.DateRangePicker
+import io.kontour.ui.components.datetime.TimeField
+import io.kontour.ui.components.datetime.TimePicker
+import io.kontour.ui.components.datetime.WheelPicker
+import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.ToastHost
+import io.kontour.ui.overlay.rememberToastHostState
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
 import io.kontour.ui.components.display.Accordion
 import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.AnimatedBanner
+import io.kontour.ui.components.display.Banner
 import io.kontour.ui.components.display.BannerTone
+import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.Kbd
+import io.kontour.ui.components.display.KbdIcons
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import io.kontour.ui.components.display.PageIndicator
@@ -82,6 +103,7 @@ import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.TextField
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.marquee
@@ -1208,7 +1230,15 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     add(
         ComponentSpec("Kbd", role = null, underContract = false) { modifier, _, _ ->
-            Kbd(modifier = modifier) { +"⌘K" }
+            Kbd(modifier = modifier) {
+                // The icon rather than "⌘", which is the point of `KbdIcons`:
+                // a character sits where its font puts it and this sits in the
+                // middle of the cap. The golden is here to show the two
+                // together — a stroke icon beside a SemiBold letter — because
+                // that is the part of the trade a number cannot settle.
+                +KbdIcons.Command
+                +"K"
+            }
         }
     )
 
@@ -1226,6 +1256,249 @@ val componentRegistry: List<ComponentSpec> = buildList {
         }
     )
 
+    // --- Four families that had no picture at all --------------------------
+    //
+    // Rules 1 and 5 in `check-components.py` run registry→page and
+    // composable→page. Neither runs composable→*golden*, so a component could be
+    // documented, demoed and swept for width while never once being
+    // photographed — and `Progress`, `Spinner`, `Toast` and the whole date
+    // family were exactly that. Three of this round's remaining items land on
+    // them, so they get their pictures before anything moves underneath.
+
+    add(
+        ComponentSpec("LinearProgress", role = null, underContract = false) { modifier, _, _ ->
+            // Determinate, and at a fraction that is unmistakably a fraction:
+            // a bar at 0.5 is symmetrical and a bar at 0.9 reads as full.
+            LinearProgress(progress = 0.4f, modifier = modifier.fillMaxWidth())
+        }
+    )
+
+    add(
+        ComponentSpec("CircularProgress", role = null, underContract = false) { modifier, _, _ ->
+            CircularProgress(progress = 0.4f, modifier = modifier)
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "StepProgress",
+            role = null,
+            underContract = false,
+            states = listOf(
+                // Step 2 known and still going. Under the screenshot theme's
+                // reduced motion the travelling band is a static part-fill, so
+                // this is a picture of a real state rather than one frame of an
+                // animation — and it is the state that has to differ visibly
+                // from step 2 being *done*, which the resting render shows.
+                RenderState("working") { modifier ->
+                    StepProgress(
+                        current = 2,
+                        total = 5,
+                        working = true,
+                        modifier = modifier.fillMaxWidth(),
+                    )
+                },
+            ),
+        ) { modifier, _, _ ->
+            StepProgress(current = 2, total = 5, modifier = modifier.fillMaxWidth())
+        }
+    )
+
+    add(
+        ComponentSpec("Spinner", role = null, underContract = false) { modifier, _, _ ->
+            // Its arc breathes and turns, so this is one frame of something
+            // that never stands still — and the frame the render sweep lands on
+            // catches it near its shortest, about a 40° stub rather than the
+            // half-circle it spends most of its cycle at. Faithful, and an
+            // unflattering picture of a spinner.
+            //
+            // Left as it is rather than staged, because the alternative is a
+            // golden that lies about what the component looks like at an
+            // arbitrary moment, and because the two properties that actually
+            // matter — that the arc never reaches zero and that its tail never
+            // runs backwards — are not visible in any single frame. They are
+            // `spinnerSweep`'s own unit tests, which is why that function is
+            // pulled out of the composable at all.
+            Spinner(modifier = modifier)
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "Toast",
+            role = null,
+            underContract = false,
+            // **No `minWidth`, and that is the finding.**
+            //
+            // It carried 260 with a note saying a card "sizes itself to its
+            // message and neither wraps nor shrinks", and that a longer one runs
+            // past a 320dp window at twice the type size. Measured, both halves
+            // are wrong. A toast in a 320dp window at 200% type wraps to two
+            // lines and comes out 290dp wide; at 360dp, 330dp. It shrinks all
+            // the way down to 48dp.
+            //
+            // What was actually being measured was the specimen below, which
+            // used to raise its toast into the *ambient* host — the one the
+            // harness mounts across the whole scene. So the card was sized by
+            // the canvas while the sweep compared it against a box 60dp inside
+            // it, and 260 was the number that skipped the widths where that
+            // mismatch showed. Its own host fixes the specimen, and then the
+            // sweep can ask every width without an exemption.
+        ) { modifier, _, _ ->
+            val toasts = rememberToastHostState()
+            LaunchedEffect(Unit) {
+                // **With** its action, which it did not have for one round.
+                //
+                // An "Undo" beside the message used to draw the card 27% larger
+                // on a 48dp-touch-target platform than on a 24dp one, so the
+                // specimen was left plain to keep `TouchTargetOrderingTest`
+                // green and the finding was recorded here instead. The toast
+                // reserves that target itself now — one fixed row height on
+                // every platform — so the card is the same size everywhere and
+                // the action can come back. It is also the more useful picture:
+                // an actioned toast is the one with something to get wrong.
+                toasts.show(
+                    message = "Trip saved to favourites.",
+                    actionLabel = "Undo",
+                    onAction = {},
+                    // Long enough that the render is of a toast rather than of
+                    // one halfway through leaving.
+                    durationMillis = 60_000,
+                )
+            }
+            Box(modifier.fillMaxWidth().height(88.dp)) {
+                // Its own host, so the toast is drawn inside the box this
+                // specimen was handed rather than wherever the surrounding
+                // harness happens to have mounted one. Every other specimen
+                // already draws inside its modifier; this is the one that did
+                // not, and `WidthSweepTest` was measuring the gap.
+                OverlayHost(Modifier.fillMaxSize()) {
+                    ToastHost(state = toasts)
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "CalendarMonth",
+            role = null,
+            underContract = false,
+            renderHeight = 320,
+        ) { modifier, _, _ ->
+            CalendarMonth(
+                month = SpecimenMonth,
+                isSelected = { it == SpecimenDate },
+                onSelectedChange = {},
+                today = SpecimenToday,
+                // A phone's worth of width. Unbounded, a calendar takes
+                // `CalendarMonthDefaults.MaxWidth` — 511dp, which is correct and
+                // does not fit a specimen card. `widthIn` rather than `width`,
+                // so the width sweep can still squeeze it.
+                modifier = modifier.widthIn(max = SpecimenGridWidth),
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DatePicker",
+            role = null,
+            underContract = false,
+            renderHeight = 380,
+            // Seven columns of day numbers that only ever grow — `grownFor`
+            // scales a cell's digit up and never down — so below about this the
+            // grid is wider than its box by construction. A fact about the
+            // component, declared beside it.
+            minWidth = 200,
+        ) { modifier, _, _ ->
+            DatePicker(
+                selected = SpecimenDate,
+                onSelectedChange = {},
+                today = SpecimenToday,
+                previousIcon = SystemIcons.ChevronLeft,
+                nextIcon = SystemIcons.ChevronRight,
+                modifier = modifier.widthIn(max = SpecimenGridWidth),
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DateRangePicker",
+            role = null,
+            underContract = false,
+            renderHeight = 380,
+            // Seven columns of day numbers that only ever grow — `grownFor`
+            // scales a cell's digit up and never down — so below about this the
+            // grid is wider than its box by construction. A fact about the
+            // component, declared beside it.
+            minWidth = 200,
+        ) { modifier, _, _ ->
+            // A range that spans a week boundary, so the picture shows both the
+            // capped ends and the square-edged middle that makes a run read as
+            // continuous rather than as a row of separate pills.
+            DateRangePicker(
+                start = SpecimenDate,
+                end = LocalDate(2026, 6, 24),
+                onRangeSelected = { _, _ -> },
+                today = SpecimenToday,
+                previousIcon = SystemIcons.ChevronLeft,
+                nextIcon = SystemIcons.ChevronRight,
+                modifier = modifier.widthIn(max = SpecimenGridWidth),
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "TimePicker",
+            role = null,
+            underContract = false,
+            renderHeight = 240,
+        ) { modifier, _, _ ->
+            TimePicker(value = SpecimenTime, onValueChange = {}, modifier = modifier)
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "WheelPicker",
+            role = null,
+            underContract = false,
+            renderHeight = 220,
+        ) { modifier, _, _ ->
+            WheelPicker(
+                items = (0..9).map { "Platform $it" },
+                selected = 3,
+                onSelectedChange = {},
+                label = { it },
+                modifier = modifier,
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "TimeField",
+            role = Role.Button,
+            // The field is a `Column` — its label above, the tappable surface
+            // below — so the role, the name and the disabled state live on the
+            // surface rather than on the node a caller's modifier lands on.
+            // Same shape as every text field here, and the same locator.
+            control = ControlLocator.Clickable,
+            accessibleName = "Departure",
+        ) { modifier, enabled, onClick ->
+            TimeField(
+                value = SpecimenTime,
+                onClick = onClick,
+                modifier = modifier,
+                enabled = enabled,
+                label = "Departure",
+            )
+        }
+    )
+
     add(
         ComponentSpec("Scrollbar", role = null, underContract = false) { modifier, _, _ ->
             // `alwaysVisible`, because a scrollbar hides itself unless the input
@@ -1240,6 +1513,61 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     state = scroll,
                     modifier = Modifier.align(Alignment.CenterEnd),
                     alwaysVisible = true,
+                )
+            }
+        }
+    )
+
+    // `Banner` and `Callout` had no picture, and `AnimatedBanner` — which is a
+    // `Banner` with a visibility animation around it — did. So the family's
+    // photographed member was the one that adds the least, and the two that
+    // carry the shape work went unprotected.
+    add(
+        ComponentSpec(
+            name = "Banner",
+            role = null,
+            underContract = false,
+            renderHeight = 140,
+        ) { modifier, _, _ ->
+            // Title, message, leading icon and a dismiss — all four, because a
+            // banner with only a message is an `AnimatedBanner` and the two
+            // pictures would not tell them apart. The leading icon earns its
+            // place twice over: it is what Round 22 centred, and the dismiss on
+            // the other side is what it is centred against.
+            Banner(
+                modifier = modifier.widthIn(max = SpecimenProseWidth),
+                tone = BannerTone.Warning,
+                onDismissRequest = {},
+                dismissIcon = Tabler.Outline.X,
+            ) {
+                +"Services are running up to 12 minutes late."
+                title { +"Delays on the Armadale line" }
+                leading { +Tabler.Outline.AlertTriangle }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "Callout",
+            role = null,
+            underContract = false,
+            renderHeight = 120,
+            minWidth = 200,
+        ) { modifier, _, _ ->
+            // Long enough to wrap, because the whole of this component is the
+            // rule down its leading edge and a rule needs height to be a rule.
+            // A one-line callout is almost entirely corner, which is exactly
+            // the part that is about to change.
+            //
+            // Bounded, because `Callout` is `fillMaxWidth` and the render
+            // measures unbounded: left to itself the message takes one 991px
+            // line and overflows a 600px canvas.
+            Callout(modifier.widthIn(max = SpecimenProseWidth)) {
+                Text(
+                    "Melbourne, Sydney and Canberra do not currently support " +
+                        "journey planning.",
+                    style = Theme.typography.bodySmall,
                 )
             }
         }
@@ -1451,3 +1779,29 @@ private fun SplitButtonSpecimen(
         +"Save"
     }
 }
+
+/**
+ * One fixed date, time and month for every specimen that needs one.
+ *
+ * Not the real clock. These are drawn by the render sweep as well as read in a
+ * browser, and a calendar that moves with the wall clock produces a different
+ * image every day — which is a golden that fails once a night and teaches
+ * everyone to re-record without looking.
+ */
+private val SpecimenToday = LocalDate(2026, 6, 12)
+private val SpecimenMonth = LocalDate(2026, 6, 1)
+private val SpecimenDate = LocalDate(2026, 6, 18)
+private val SpecimenTime = LocalTime(8, 31)
+
+/** A phone's worth of width, for the specimens that would otherwise take 511dp. */
+private val SpecimenGridWidth = 256.dp
+
+/**
+ * A width for the components that hold a sentence and fill whatever they are in.
+ *
+ * `Banner` and `Callout` are both `fillMaxWidth`, and the render measures them
+ * unbounded — so left alone their message takes one very long line and runs off
+ * a canvas that is only 300dp wide. Bounding them is also the more honest
+ * picture: a banner that never wraps is not a banner anyone will see.
+ */
+private val SpecimenProseWidth = 260.dp

@@ -37,6 +37,7 @@ import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -115,6 +116,18 @@ fun Pagination(
             value = value,
             pageCount = pageCount,
             button = maxOf(PageButtonSize, Theme.sizing.minTouchTarget),
+            // A jumpable gap is a control, and a control reserves a touch
+            // target: `JumpGap` carries `minimumTouchTarget`, which is 48dp on
+            // Android against the 24dp an ellipsis costs. Priced at [GapWidth]
+            // either way, the arithmetic under-counted a long row by 24dp per
+            // gap and the component came out wider than the space it was
+            // measuring against — which is why `allowJump` appeared to add
+            // padding from nowhere.
+            ellipsis = if (allowJump) {
+                maxOf(GapWidth, Theme.sizing.minTouchTarget)
+            } else {
+                GapWidth
+            },
             gap = Theme.spacing.xxs,
         )
 
@@ -144,9 +157,20 @@ fun Pagination(
 
                     PaginationSlot.Gap -> if (allowJump) {
                         gapOrdinal++
+                        // Into a `val` before the callback closes over it.
+                        //
+                        // Kotlin captures a `var` by reference, so the two
+                        // `onOpenChange` lambdas both read `gapOrdinal` at the
+                        // moment they are *invoked* — long after the loop has
+                        // run to its end and left the variable at the last
+                        // gap's index. Clicking either ellipsis therefore set
+                        // `openGap` to 1, and the popover opened on the second
+                        // one. `open` was right all along, because that is read
+                        // during the loop.
+                        val ordinal = gapOrdinal
                         JumpGap(
-                            open = openGap == gapOrdinal,
-                            onOpenChange = { open -> openGap = if (open) gapOrdinal else -1 },
+                            open = openGap == ordinal,
+                            onOpenChange = { open -> openGap = if (open) ordinal else -1 },
                             pageCount = pageCount,
                             onValueChange = onValueChange,
                             label = jumpLabel,
@@ -217,6 +241,7 @@ private fun JumpGap(
                 .minimumTouchTarget()
                 .focusRing(interactions, shape)
                 .clip(shape)
+                .pointerCursor()
                 .clickable(interactionSource = interactions, indication = null) {
                     onOpenChange(!open)
                 }
@@ -258,7 +283,10 @@ private val JumpFieldWidth: Dp = 96.dp
  *
  * Arithmetic rather than a measure pass, because the row's width is a sum of
  * known parts: every page and arrow is a [button] square, every gap is an
- * ellipsis with [GapWidth] to itself, and there is a [gap] between each pair.
+ * [ellipsis] wide, and there is a [gap] between each pair. [ellipsis] is passed
+ * rather than taken from [GapWidth] because a jumpable gap is a control and
+ * reserves a touch target, which on Android is twice the width of the "…" the
+ * constant describes.
  * The estimate is deliberately a little generous — erring towards a narrower
  * window costs one page number, while erring the other way puts the last page
  * off the edge of the screen, which is the failure this exists to stop.
@@ -272,6 +300,7 @@ private fun widestWindowThatFits(
     value: Int,
     pageCount: Int,
     button: Dp,
+    ellipsis: Dp,
     gap: Dp,
 ): Int {
     for (window in requested downTo 1) {
@@ -280,7 +309,7 @@ private fun widestWindowThatFits(
         // The two arrows are buttons the slot list does not know about.
         val buttons = slots.size - gaps + 2
         val width =
-            button * buttons + GapWidth * gaps + gap * (buttons + gaps - 1)
+            button * buttons + ellipsis * gaps + gap * (buttons + gaps - 1)
         if (width <= available) return window
     }
     return 0
@@ -306,6 +335,7 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
                 if (selected) colours.accent.container else androidx.compose.ui.graphics.Color.Transparent,
                 shape,
             )
+            .pointerCursor()
             .selectable(
                 selected = selected,
                 interactionSource = interactions,

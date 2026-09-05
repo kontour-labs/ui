@@ -2,11 +2,6 @@
 
 *Also on this page: `ChipGroup`.*
 
-![Chip](../../../ui-catalog/screenshots/components/chip-light.png)
-![FilterChip, unselected](../../../ui-catalog/screenshots/components/filterchip-light.png)
-![FilterChip, selected](../../../ui-catalog/screenshots/components/filterchip-selected-light.png)
-![InputChip](../../../ui-catalog/screenshots/components/inputchip-light.png)
-
 Chips are for things that come in *sets*. A single chip on a screen is usually a
 small button wearing the wrong clothes.
 
@@ -36,8 +31,8 @@ ChipGroup {
 ```
 
 A selected `FilterChip` fills with the accent container and takes the accent for
-its label, dropping the outline it wears unselected — the two images above are
-the whole difference.
+its label, dropping the outline it wears unselected. That is the whole of the
+difference.
 
 **The tick is opt-in**, through `selectedIcon`. Pass one and it expands in and
 shoves the label across, which is what makes a filter bar feel responsive when
@@ -47,6 +42,18 @@ glyphs at all — the icon set is yours — so there is no tick here to reach fo
 Pass one when it matters which chips are on. Without it selection is carried by
 colour alone, which is legible but is a single channel, and a filter bar is
 exactly the place someone scans rather than reads.
+
+**A chip whose label is replaced can change its mind rather than cut.** Give
+`contentKey` whatever the label is derived from — "Perth Station" becoming
+"Undo" once the filter is cleared — and the two cross-fade while the chip
+resizes between them. Without a key there is nothing to compare, because the
+label arrives through a slot and a slot has no identity, so the swap happens
+between frames.
+
+It has to be **the same chip** on both sides of the change. Two different
+components — an `InputChip` swapped for a plain `Chip` — cannot morph into each
+other however the key is set: what animates is one chip's content, not one
+component becoming another.
 
 `InputChip`'s `removeLabel` is **required** and announces the remove button —
 "Remove Perth Station", not "Remove". It used to default to `"Remove $label"`;
@@ -72,7 +79,3 @@ add and never take off.
 
 The selected tick is decorative and cleared; the state is announced by the role,
 not by the icon.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

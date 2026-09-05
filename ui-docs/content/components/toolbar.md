@@ -2,8 +2,6 @@
 
 *Also on this page: `ToolbarDivider`.*
 
-![Toolbar](../../../ui-catalog/screenshots/components/toolbar-light.png)
-
 <!--sample:ToolbarBasics-->
 ```kotlin
 Toolbar {
@@ -63,7 +61,3 @@ Every item is an icon button and needs its own `contentDescription`.
 
 A floating toolbar sits over content. Where it is over something scrollable, that
 content needs padding to match, or the rows underneath it can never be read.
-
----
-
-← [Actions](actions.md) · [All components](../components.md)

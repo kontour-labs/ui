@@ -35,7 +35,3 @@ and puts the state on the button instead, so nothing is announced twice.
 Under reduced motion the arc stops breathing and holds a constant length. It
 still turns — an indicator that stopped moving is an indicator that looks stuck,
 which is a worse answer than a calmer one.
-
----
-
-← [Display](display.md) · [All components](../components.md)

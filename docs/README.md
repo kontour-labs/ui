@@ -96,7 +96,8 @@ That is what the rest of this directory is.
 | [`building/contributing.md`](building/contributing.md) | The shape of a component, the naming rules, the checklist |
 | [`building/testing.md`](building/testing.md) | Every gate, what each one asks, and what they have caught |
 | [`check-links.py`](check-links.py) | Every link in the repository resolves |
-| [`check-components.py`](check-components.py) | Eight rules over the pages: a page per component, an example, a demo, an index entry |
+| [`check-components.py`](check-components.py) | Eighteen rules over the pages: a page per component, an example, a demo, an index entry, a parameter explained, and prose written for a reader |
+| [`check-api-links.py`](check-api-links.py) | Every "API reference" link points at a page the reference published |
 | [`sync-samples.py`](sync-samples.py) | The examples on the pages are the code `:ui-samples` compiles |
 | [`generate-doc-pages.py`](generate-doc-pages.py) | The content, turned into the Kotlin the site renders |
 | [`doctree.py`](doctree.py) | Where the pages live and what families there are — imported by the three above |
@@ -141,6 +142,7 @@ longer works fails the build.
           :ui:dokkaGenerateHtml
 python3 docs/check-links.py
 python3 docs/check-components.py
+python3 docs/check-api-links.py   # after the two builds above, and only then
 ```
 
 All on the JVM without an emulator or a simulator — the contract suite,

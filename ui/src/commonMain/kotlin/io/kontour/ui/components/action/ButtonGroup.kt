@@ -247,11 +247,18 @@ object ButtonGroupDefaults {
     /**
      * The radius on a corner facing a neighbour.
      *
-     * `ListItemPosition` uses 4dp for the same job and it is wrong here. A list
-     * row is 300dp wide, so 4dp of round on its inside corners is a hairline; a
-     * 40dp icon button with 4dp on both sides of a seam is a rounded rectangle,
-     * and three of them in a row read as three separate buttons — which is the
-     * one thing this component exists not to look like. Found by rendering it.
+     * `ListItemDefaults.InnerCorner` is 4dp for the same job and it is wrong
+     * here. A list row is 300dp wide, so 4dp of round on its inside corners is a
+     * hairline; a 40dp icon button with 4dp on both sides of a seam is a rounded
+     * rectangle, and three of them in a row read as three separate buttons —
+     * which is the one thing this component exists not to look like. Found by
+     * rendering it.
+     *
+     * 2dp, up from 1dp, is as far as that finding allows. The seam should be
+     * *visible* as a notch rather than inferred from a hairline, and at this size
+     * the distance between "visible" and "three separate buttons" is about two
+     * dp wide. Proportion is what differs between the two components, not taste:
+     * 4dp is 1.3% of a list row and 10% of an icon button.
      */
-    val InnerCorner: Dp = 1.dp
+    val InnerCorner: Dp = 2.dp
 }

@@ -30,12 +30,10 @@ Everything on [`Select`](select.md), except the one thing that makes it a
 different component: its options report **`Role.Checkbox`**, because any number
 of them can be on.
 
-They did not until Round 16. `MenuItem` had a single notion of "selected" and
-reported `Role.RadioButton` for it, so a screen reader told every user of this
-component that choosing a second mode of transport would clear the first —
-which is the opposite of what it does. `MenuItem(multiple = true)` — in
-`Menu.kt`, which is where the menu rows and their roles actually live — is the
-distinction, and it changes what is announced and nothing that is drawn.
+The distinction is `MenuItem(multiple = true)`, and it changes what is
+announced and nothing that is drawn. Get it wrong and a screen reader tells the
+reader that choosing a second option will clear the first — the opposite of what
+a multi-select does.
 
 The closed field announces `summary`, which by default lists up to three and then
 says how many. That is a deliberate ceiling: a field that read out nine selected
@@ -44,7 +42,3 @@ modes every time it took focus would be unusable.
 Where the exact set matters, show it as chips beside the field rather than
 lengthening the summary — chips can be reviewed one at a time and removed
 individually.
-
----
-
-← [Text editing](text-editing.md) · [All components](../components.md)

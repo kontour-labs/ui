@@ -51,7 +51,3 @@ pressed by muscle memory.
 The `StateScope` content is the accessible description. Give it a message that
 says what will happen, not "Are you sure?" — which is the sentence a screen
 reader user hears with no title on screen to give it a subject.
-
----
-
-← [Overlays](overlays.md) · [All components](../components.md)

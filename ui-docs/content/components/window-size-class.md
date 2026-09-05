@@ -45,7 +45,3 @@ reach, whatever the reason for hiding it.
 The class describes the **container**, not the device. A pane 380dp wide inside a
 1400dp window is `Compact`, and a layout that asked the window would put a
 two-column grid into it — which at 200% text is a column of single words.
-
----
-
-← [Adaptive](adaptive.md) · [All components](../components.md)

@@ -1,7 +1,5 @@
 # `DragHandle`
 
-![DragHandle](../../../ui-catalog/screenshots/components/draghandle-light.png)
-
 The grab bar at the top of a sheet.
 
 <!--sample:DragHandleBasics-->
@@ -30,7 +28,7 @@ handle, which is why it is not marked decorative. It widens slightly on hover �
 the one hint a pointer user gets that a sheet is draggable at all.
 
 `BottomSheet` and `ModalBottomSheet` draw one by default and take a `dragHandle`
-slot to replace or remove it. [Sheets](../sheets.md) is where the detents, the
+slot to replace or remove it. [Sheets](sheets.md) is where the detents, the
 nested scrolling and the rest of the sheet story live.
 
 ---
@@ -48,7 +46,3 @@ always announced "expand" would be lying half the time.
 `dragHandle = null` removes it. That is correct with `draggable = false` — a
 sheet should not advertise a gesture it does not have — and wrong in every other
 case, because it takes the actions away with it.
-
----
-
-← [Sheets](sheets.md) · [All components](../components.md)

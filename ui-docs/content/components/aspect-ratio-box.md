@@ -34,7 +34,3 @@ with a motor impairment and worst again for anyone using a screen magnifier.
 
 The box itself adds no semantics. Whatever goes inside it — an image, a map —
 carries its own `contentDescription`.
-
----
-
-← [Adaptive](adaptive.md) · [All components](../components.md)

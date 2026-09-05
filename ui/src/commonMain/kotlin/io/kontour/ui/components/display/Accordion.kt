@@ -34,6 +34,7 @@ import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
@@ -101,6 +102,7 @@ fun Accordion(
                 .minimumTouchTarget()
                 .focusRing(interactions, shape)
                 .clip(shape)
+                .pointerCursor(enabled = enabled)
                 .clickable(
                     interactionSource = interactions,
                     // A header spanning the screen should not shrink on press.

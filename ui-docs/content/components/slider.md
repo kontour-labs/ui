@@ -1,7 +1,5 @@
 # `Slider`
 
-![Slider](../../../ui-catalog/screenshots/components/slider-light.png)
-
 <!--sample:SliderBasics-->
 ```kotlin
 var walkSpeed by remember { mutableStateOf(4f) }
@@ -77,7 +75,3 @@ always are: "Speed" is what it is, "62 km/h" is what it says.
 Increment and decrement come from `ProgressBarRangeInfo` and `setProgress`, so
 the slider is adjustable without a drag. `steps` makes those increments
 meaningful — a continuous slider moves by an arbitrary fraction.
-
----
-
-← [Selection](selection.md) · [All components](../components.md)

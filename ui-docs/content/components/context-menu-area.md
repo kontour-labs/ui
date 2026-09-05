@@ -34,7 +34,3 @@ exist elsewhere rather than be the only place they live.
 
 The menu itself is a [`DropdownMenu`](dropdown-menu.md) and behaves as one once
 open: focus, arrow keys, typeahead, Escape.
-
----
-
-← [Overlays](overlays.md) · [All components](../components.md)

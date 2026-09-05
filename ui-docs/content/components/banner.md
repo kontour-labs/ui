@@ -1,7 +1,5 @@
 # `Banner` / `AnimatedBanner`
 
-![AnimatedBanner](../../../ui-catalog/screenshots/components/animatedbanner-light.png)
-
 An inline message, four severities. `AnimatedBanner` is the same thing that
 animates its own appearance and dismissal, for a banner whose presence is driven
 by state.
@@ -22,6 +20,12 @@ if (showing) {
     }
 }
 ```
+
+The leading icon and the dismiss are both centred against the banner, so the two
+things flanking the text agree with each other. A tone icon says *this is a
+warning*, which is a fact about the whole message rather than about its first
+line — the same reason the dismiss does not sit up in the corner of a three-line
+banner.
 
 **`Banner` vs `Toast`.** A banner is about the screen you are on; a toast is
 about something you just did. A banner that appears in response to a tap is easy
@@ -45,7 +49,3 @@ nothing.
 The dismiss button carries `dismissLabel`. A banner with an action should keep
 that action available elsewhere too — a banner the user dismissed by accident
 should not take a capability with it.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

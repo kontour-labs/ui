@@ -56,7 +56,3 @@ appears.
 
 All four take an `imeChain`, and a chain overrides their defaults —
 `PasswordField` defaults to Done, which is wrong halfway down a form.
-
----
-
-← [Text editing](text-editing.md) · [All components](../components.md)

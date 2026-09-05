@@ -153,9 +153,14 @@ internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSi
 }
 
 private val progressIndeterminate = Knob.Flag("Indeterminate")
+private val progressWorking = Knob.Flag("Step working")
 
-internal val ProgressDemo = ComponentDemo(slug = "progress", knobs = listOf(progressIndeterminate)) {
+internal val ProgressDemo = ComponentDemo(
+    slug = "progress",
+    knobs = listOf(progressIndeterminate, progressWorking),
+) {
     val indeterminate = this[progressIndeterminate]
+    val working = this[progressWorking]
     var step by remember { mutableStateOf(2) }
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -175,9 +180,15 @@ internal val ProgressDemo = ComponentDemo(slug = "progress", knobs = listOf(prog
             // the knob reaches all three, and the third of them is a different
             // component drawn in the ring's place.
             CircularProgress(progress = if (indeterminate) null else 0.35f)
-            // And a step count with no current step is the row of steps with
-            // none of them filled — "somewhere in this sequence, not yet known".
-            StepProgress(current = if (indeterminate) null else step, total = 4)
+            // Two unknowns, and the knobs show they are different. No current
+            // step walks one lit segment along the row — "somewhere in this
+            // sequence, not yet known". `working` keeps the step and animates
+            // inside it: the position is known, the progress within it is not.
+            StepProgress(
+                current = if (indeterminate) null else step,
+                total = 4,
+                working = working,
+            )
             Button(
                 onClick = { step = step % 4 + 1 },
                 variant = ButtonVariant.Secondary,
@@ -221,7 +232,16 @@ internal val CalloutDemo = ComponentDemo(slug = "callout") {
     }
 }
 
-internal val TimelineDemo = ComponentDemo(slug = "timeline") {
+// The middle leg is the walk, and a dashed connector is how a journey planner
+// says "you are on your own for this bit". The knob is what shows that the
+// choice is per-item rather than per-timeline.
+private val timelineConnector =
+    Knob.Choice("Walk connector", ConnectorStyle.entries.toList(), ConnectorStyle.Dashed)
+
+internal val TimelineDemo = ComponentDemo(
+    slug = "timeline",
+    knobs = listOf(timelineConnector),
+) {
     Timeline(Modifier.fillMaxWidth()) {
         TimelineItem(nodeColour = Color(0xFF1B5E20)) {
             Text("Perth Station", style = Theme.typography.titleSmall)
@@ -232,7 +252,7 @@ internal val TimelineDemo = ComponentDemo(slug = "timeline") {
             )
         }
         TimelineItem(
-            connector = ConnectorStyle.Dashed,
+            connector = this@ComponentDemo[timelineConnector],
             filled = false,
             nodeColour = Theme.colours.outlineStrong,
         ) {

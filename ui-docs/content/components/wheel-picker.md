@@ -17,8 +17,19 @@ WheelPicker(
 )
 ```
 
-
 The scrolling drum, for any list of values. `TimePicker` is three of these.
+
+**The ends give.** A list of hours has a first and a last, and a drum that stops
+dead at either one is a boundary the finger cannot feel — the gesture simply
+stops answering and the control reads as broken rather than as finished. Pushed
+past an end, the drum follows the finger a row or so further, each pixel buying
+less than the last, and springs back when the finger lifts. Nothing is selected
+by it: the stretch is drawn and no index, no settled value and nothing the caller
+sees knows it happened.
+
+Set `infinite = true` and there are no ends to feel. That is a decision about
+whether the *values* wrap — hours and months do, a list of countries does not —
+rather than about how the ends behave.
 
 **Reach for a [`Select`](select.md) instead** inside a form. A drum
 is right when the value is one of a long ordered run and the user is adjusting
@@ -37,7 +48,3 @@ component drawing the wheel should give it a spoken form.
 
 A wheel is a scroll gesture with a lot of stops. Where the set is long, a
 [`Select`](select.md) is reachable in one gesture and a wheel is not.
-
----
-
-← [Date and time](date-time.md) · [All components](../components.md)

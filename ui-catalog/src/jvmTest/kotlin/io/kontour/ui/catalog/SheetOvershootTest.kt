@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.sheet.BottomSheet
@@ -106,5 +107,104 @@ class SheetOvershootTest {
             "the stretch is visual, so the sheet must still be at the detent it " +
                 "started from — it settled at ${sheet.currentDetent}",
         )
+    }
+
+    /**
+     * And it returns to its *own* detent, whatever else is in the list.
+     *
+     * Round 22 reported a sheet dragged above its top detent settling at the
+     * **lowest** one on release, and the reading that produced that plan was
+     * `updateAnchors`' `positions.keys.first()` fallback — which is the lowest,
+     * because `resolveAnchors` returns its map in detent order. It is not
+     * reachable from a release: that branch is guarded on the offset being
+     * `NaN`, which it only is before the first layout.
+     *
+     * So the report did not reproduce, in any of the four shapes below or in the
+     * two-detent one above. Each stretches by roughly the cap and settles back
+     * where it started. This exists so that stays true — a non-reproduction is
+     * worth exactly as much as the test that keeps it one, and each of these was
+     * a hypothesis about how the sheet could pick the wrong end:
+     *
+     *  - three detents, so there is a middle one to fall into;
+     *  - a `peek`, whose anchor is resolved from a measured position and so can
+     *    move underneath a drag;
+     *  - one visible detent, where the only other anchor *is* the lowest;
+     *  - a vetoed tallest, so `allowedDetents` is shorter than `detents`.
+     */
+    @Test
+    fun itReturnsToItsOwnDetentWhateverElseIsInTheList() {
+        val wrong = buildList {
+            shapes().forEach { shape ->
+                val settled = stretchAndRelease(shape)
+                if (settled != shape.initial) add("${shape.name}: settled at $settled")
+            }
+        }
+        assertTrue(
+            wrong.isEmpty(),
+            "a sheet dragged above its top detent and released landed somewhere " +
+                "else:\n" + wrong.joinToString("\n") { "  · $it" },
+        )
+    }
+
+    private class Shape(
+        val name: String,
+        val detents: List<SheetDetent>,
+        val initial: SheetDetent,
+        val confirm: (SheetDetent) -> Boolean = { true },
+    )
+
+    private fun shapes(): List<Shape> {
+        val peek = SheetDetent.peek(120.dp)
+        return listOf(
+            Shape(
+                "three detents",
+                listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Expanded),
+                SheetDetent.Expanded,
+            ),
+            Shape(
+                "with a peek",
+                listOf(SheetDetent.Hidden, peek, SheetDetent.Half, SheetDetent.Expanded),
+                SheetDetent.Expanded,
+            ),
+            Shape("one visible detent", listOf(SheetDetent.Hidden, peek), peek),
+            Shape(
+                "tallest vetoed",
+                listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Expanded),
+                SheetDetent.Half,
+            ) { it != SheetDetent.Expanded },
+        )
+    }
+
+    /** Drags [shape]'s sheet above its top detent, lets go, and reports where it lands. */
+    private fun stretchAndRelease(shape: Shape): SheetDetent {
+        var state: SheetState? = null
+        var body = Rect.Zero
+
+        Scene(width = 600, height = 800) {
+            val sheet = rememberSheetState(
+                detents = shape.detents,
+                initialDetent = shape.initial,
+                confirmDetentChange = shape.confirm,
+            )
+            state = sheet
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                BottomSheet(state = sheet) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .background(Color.LightGray)
+                            .reportBounds { body = it }
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(20)
+            val grab = Offset(300f, body.top + 20f)
+            scene.drag(from = grab, to = Offset(300f, grab.y - 260f), steps = 20)
+            scene.frames(120)
+        }
+
+        return requireNotNull(state).currentDetent
     }
 }

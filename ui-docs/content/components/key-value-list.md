@@ -1,7 +1,5 @@
 # `KeyValueList`
 
-![KeyValueList](../../../ui-catalog/screenshots/components/keyvaluelist-light.png)
-
 <!--sample:KeyValueListBasics-->
 ```kotlin
 KeyValueList {
@@ -58,7 +56,3 @@ read aloud: "8m" announced as "8 minutes", "PLT 2" as "Platform 2".
 A row is **not** a control. It has no role, no touch target and no press — that
 is [`SettingRow`](setting-row.md), and the distinction is why a key-value list
 does not appear as a list of buttons a user has to try.
-
----
-
-← [Display and content](display.md) · [All components](../components.md)

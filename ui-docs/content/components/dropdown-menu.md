@@ -70,7 +70,3 @@ unselected item is `Role.Button`.
 Items are collected by a builder rather than composed as children, which is why
 the menu can own the roles and the keyboard traversal instead of each caller
 rebuilding them.
-
----
-
-← [Overlays](overlays.md) · [All components](../components.md)

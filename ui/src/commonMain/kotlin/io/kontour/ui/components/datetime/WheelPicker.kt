@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.floor
@@ -117,6 +119,22 @@ fun <T> WheelPicker(
     }
 
     val edgeItems = visibleItems / 2
+
+    val wheelMotion = Theme.motion
+
+    // The drum's give at either end.
+    //
+    // A finite list of hours has a first and a last, and a list clamps at both
+    // and drops what it could not use — so the drum stopped dead under a finger
+    // still travelling, which is a boundary the finger cannot feel. Not the
+    // same thing as `infinite`: wrapping is a decision about whether the
+    // *values* have ends, and this is about what the ends feel like when they
+    // do.
+    //
+    // Shared arithmetic with the sheet, whose own overshoot was measured and
+    // written first — see `RubberBand`.
+    val band = rememberRubberBand()
+    val bandLimit = with(LocalDensity.current) { (itemHeight * WheelOverscrollRows).toPx() }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = selected)
     val flingBehavior = rememberSnapFlingBehavior(listState)
     val feedback = Feedback
@@ -163,7 +181,7 @@ fun <T> WheelPicker(
     val scope = rememberCoroutineScope()
 
     /**
-     * Keeps the drum's scrolling to the drum.
+     * Keeps the drum's scrolling to the drum, and gives it its ends.
      *
      * A `LazyColumn` is a nested-scroll child by default: whatever its fling
      * behaviour does not consume is handed up to the nearest scrollable
@@ -173,25 +191,61 @@ fun <T> WheelPicker(
      * the sheet the picker was sitting in. Reported as "when I finish scrolling
      * a wheel, the velocity continues into the lazy list".
      *
-     * Nothing here moves the wheel. Both overrides claim what they are given and
-     * do nothing with it, which is the whole intent: a spinning drum is a
-     * self-contained gesture, and a page that scrolls because a drum ran out of
-     * numbers is a page nobody asked to scroll.
+     * Which is also where the give at either end belongs, and the reason it is
+     * here rather than beside the drag below. A touch drag never reaches that
+     * drag: the list is a child and claims the main pointer pass first, so the
+     * `draggable` only ever sees a *mouse* the list declined. The scroll the
+     * list could not use, on the other hand, arrives here whoever produced it.
+     *
+     * Nothing here moves the wheel's *value*. The stretch is drawn and nothing
+     * else, and everything the drum could not use is still swallowed: a page
+     * that scrolls because a drum ran out of numbers is a page nobody asked to
+     * scroll.
      */
-    val containment = remember {
+    val containment = remember(band, bandLimit, wheelMotion) {
         object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // Before the drum is offered anything. A finger coming back
+                // closes the stretch it opened before the rows start moving
+                // again; the other order slides the drum away with the gap
+                // still open, and one gesture produces two motions.
+                //
+                // A finger only, for the same reason the pull below is: once it
+                // has lifted the band is being sprung back by an animation that
+                // owns the offset, and a settling drum reaching into it is two
+                // things writing the same number.
+                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                return Offset(0f, band.payBack(available.y))
+            }
+
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource,
-            ): Offset =
-                // Over-scroll at either end, from a finger or from the drum's
-                // own settling animation. Swallowed either way: the settle is
-                // the wheel putting *itself* straight, and a page that scrolls
+            ): Offset {
+                // What the drum declined is what it has run out of, so this is
+                // the end of the list arriving under a finger still travelling.
+                // A finger only: a settling animation running out of list is
+                // the drum putting itself straight, not something to stretch.
+                if (source == NestedScrollSource.UserInput) band.pull(available.y, bandLimit)
+
+                // Swallowed whoever it came from, which is a separate question
+                // from who gets to stretch the band. A page that scrolls
                 // because a drum snapped to the nearest row is a page nobody
-                // asked to scroll. Filtering to `UserInput` here left thirty
-                // pixels of it escaping.
-                available
+                // asked to scroll, and narrowing *this* to `UserInput` left
+                // thirty pixels of it escaping.
+                return available
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                // The stretch belongs to the finger, so it goes back the moment
+                // the finger does — not when the list has finished snapping.
+                // Launched rather than awaited for that reason: this function
+                // suspends until the whole settle is over, and a band that
+                // waits for it is a band that hangs open for half a second.
+                scope.launch { band.release(wheelMotion.springOrTween(wheelMotion.springGentle)) }
+                return Velocity.Zero
+            }
 
             override suspend fun onPostFling(
                 consumed: Velocity,
@@ -234,11 +288,27 @@ fun <T> WheelPicker(
             // declined and the page above sees neither.
             .nestedScroll(containment)
             .draggable(
-                state = rememberDraggableState { delta -> listState.dispatchRawDelta(-delta) },
+                state = rememberDraggableState { delta ->
+                    // Paid back, then offered, then what is left stretches —
+                    // the same three steps and the same order as
+                    // `SheetOverscroll.applyToScroll`, which is where this
+                    // arithmetic was measured.
+                    //
+                    // The list counts the opposite way to the finger, so a
+                    // delta is negated on the way in and the leftover on the
+                    // way back out.
+                    val offered = delta - band.payBack(delta)
+                    val consumed = -listState.dispatchRawDelta(-offered)
+                    val leftOver = offered - consumed
+                    if (leftOver != 0f) band.pull(leftOver, bandLimit)
+                },
                 orientation = Orientation.Vertical,
                 // The list's own fling snaps; a raw drag has to be given back
                 // to the nearest row itself, or the drum is left between two.
-                onDragStopped = { scope.launch { listState.animateScrollToItem(centredIndex) } },
+                onDragStopped = {
+                    scope.launch { band.release(wheelMotion.springOrTween(wheelMotion.springGentle)) }
+                    scope.launch { listState.animateScrollToItem(centredIndex) }
+                },
             ),
         contentAlignment = Alignment.Center,
     ) {
@@ -258,7 +328,12 @@ fun <T> WheelPicker(
             state = listState,
             flingBehavior = flingBehavior,
             contentPadding = PaddingValues(vertical = itemHeight * edgeItems),
-            modifier = Modifier.fillMaxWidth(),
+            // Purely visual: the band moves the drawn drum and no index, no
+            // settled value and nothing the caller sees knows it happened, so
+            // letting go returns exactly where it started.
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer { translationY = band.offset },
         ) {
             items(items.size) { index ->
                 val distance = abs(index - centredIndex).toFloat()
@@ -489,3 +564,12 @@ internal fun wheelShrink(distance: Float): Float = when {
 
 private fun lerp(start: Float, stop: Float, fraction: Float): Float =
     start + (stop - start) * fraction.coerceIn(0f, 1f)
+
+/**
+ * How far past its ends the drum may be pulled, in rows.
+ *
+ * A row and a half: far enough that the end answers the finger, short enough
+ * that nobody mistakes the gap for another value they have not reached. The
+ * same judgement the sheet makes with a twelfth of its container.
+ */
+private const val WheelOverscrollRows = 1.5f

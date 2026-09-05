@@ -1,7 +1,5 @@
 # `Select`
 
-![Select](../../../ui-catalog/screenshots/components/select-light.png)
-
 **A select is a field, not a button.** It shares `FieldScaffold` with
 `TextField` rather than resembling it by hand — same frame, same label, same
 helper and error slot — because in a form it *is* one of the fields, and a
@@ -44,7 +42,3 @@ announcing "button" tells a screen reader user nothing about which is in force.
 
 The closed field announces the selected option, so `optionLabel` is what gets
 spoken. The default `toString()` is right only for a `List<String>`.
-
----
-
-← [Text editing](text-editing.md) · [All components](../components.md)

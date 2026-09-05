@@ -18,7 +18,7 @@ without every child being told.
 
 `DragHandle` is the near miss — a primitive by shape, but it means one specific
 thing, so it is filed with the sheets and explained under
-[the detent model](../sheets.md#draghandle-is-drawn-not-draggable).
+[the detent model](sheets.md#draghandle-is-drawn-not-draggable).
 
 ---
 
@@ -70,6 +70,7 @@ page:
 |---|---|
 | `Modifier.minimumTouchTarget` | [Touch targets](../accessibility.md#touch-targets) |
 | `Modifier.focusRing` | [Focus](../accessibility.md#focus) |
+| `Modifier.pointerCursor` | [The mouse cursor](../accessibility.md#the-mouse-cursor) |
 | `LocalInputModality` | [Input modality](../accessibility.md#input-modality) |
 | `kontourIndication` | [Interaction](../../../docs/building/contributing.md#interaction) |
 | `Feedback` / `FeedbackIntent` | [Interaction](../../../docs/building/contributing.md#interaction) |
