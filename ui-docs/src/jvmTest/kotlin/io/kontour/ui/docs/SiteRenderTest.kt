@@ -46,20 +46,7 @@ import kotlin.test.fail
  * round was "most components don't have live previews", which no assertion in
  * this file would have phrased for you.
  */
-class SiteRenderTest {
-
-    /**
-     * One per [WindowWidthClass][io.kontour.ui.adaptive.WindowWidthClass] bucket,
-     * not one per marketing device. The library's own breakpoints are the thing
-     * under test, so the widths are chosen to land inside each of them: 600 and
-     * 840 and 1200 are the boundaries.
-     */
-    private val widths = listOf(
-        "compact" to 390,
-        "medium" to 700,
-        "expanded" to 1024,
-        "large" to 1440,
-    )
+abstract class SiteRenderTest(private val widthName: String, private val width: Int) {
 
     /**
      * Density 1, not the 2 the goldens use.
@@ -73,7 +60,7 @@ class SiteRenderTest {
     private val height = 1400
 
     @Test
-    fun `every page renders at every width`() {
+    fun `every page renders`() {
         val root = File(System.getProperty("kontour.siteShots") ?: "build/site-shots")
         val failures = mutableListOf<String>()
 
@@ -86,20 +73,18 @@ class SiteRenderTest {
             listOf("home" to Route.Home) +
                 docPages.map { it.path.replace('/', '-') to Route.Doc(it.path) }
 
-        for ((widthName, width) in widths) {
-            val dir = File(root, widthName).apply { mkdirs() }
-            for ((name, route) in routes) {
-                navigate(route)
-                val result = runCatching { shoot(width, File(dir, "$name.png")) }
-                result.onFailure { failures += "$widthName/$name threw ${it::class.simpleName}: ${it.message}" }
-                result.onSuccess { flat -> if (flat) failures += "$widthName/$name drew nothing — the image is one colour" }
-            }
-            contactSheet(dir, widthName)
+        val dir = File(root, widthName).apply { mkdirs() }
+        for ((name, route) in routes) {
+            navigate(route)
+            val result = runCatching { shoot(width, File(dir, "$name.png")) }
+            result.onFailure { failures += "$widthName/$name threw ${it::class.simpleName}: ${it.message}" }
+            result.onSuccess { flat -> if (flat) failures += "$widthName/$name drew nothing — the image is one colour" }
         }
+        contactSheet(dir, widthName)
 
         navigate(Route.Home)
         if (failures.isNotEmpty()) {
-            fail("${failures.size} page renders failed:\n\n" + failures.joinToString("\n"))
+            fail("${failures.size} page renders failed at $widthName:\n\n" + failures.joinToString("\n"))
         }
     }
 
@@ -115,7 +100,10 @@ class SiteRenderTest {
                 "Skia failed to encode ${file.name}"
             }.bytes
             file.writeBytes(bytes)
-            return isUniform(file, width)
+            // Decoded from what is already in memory rather than read back off
+            // the disk it was just written to. Same pixels, one fewer round trip
+            // through the filesystem per shot, and there are 122 of them here.
+            return isUniform(ImageIO.read(bytes.inputStream()), width)
         }
     }
 
@@ -130,8 +118,8 @@ class SiteRenderTest {
      * So it starts below the bar and to the right of the index, and the ink it
      * is looking for is the page's own.
      */
-    private fun isUniform(file: File, width: Int): Boolean {
-        val image = ImageIO.read(file) ?: return true
+    private fun isUniform(image: java.awt.image.BufferedImage?, width: Int): Boolean {
+        if (image == null) return true
         val top = ChromeHeight
         val left = if (width >= 600) IndexWidth else 0
         if (top >= image.height || left >= image.width) return true
@@ -196,3 +184,33 @@ class SiteRenderTest {
             close()
         }
 }
+
+/**
+ * One class per width, because that is the unit Gradle can parallelise.
+ *
+ * This was a single test method looping over four widths, which meant one fork
+ * however many were allowed: `maxParallelForks` distributes **classes**, not
+ * methods. Four classes can be spread.
+ *
+ * Measured, cold, `--no-daemon`, all 488 renders: **1m 40s in one fork, 1m 20s
+ * across four.** Worth having and not worth much — the sweep was never the
+ * expensive thing it was briefly believed to be, and the note that used to sit
+ * here claiming it was 90% of a CI job was reading Gradle's `> Task` headers as
+ * if they were execution times. They are flush times; forty of them share a
+ * 0.3-second window in the same log.
+ *
+ * The coverage is unchanged by the split. What it costs is four JVMs' worth of
+ * memory instead of one, which is why the fork count is capped.
+ *
+ * They are named for the [WindowWidthClass][io.kontour.ui.adaptive.WindowWidthClass]
+ * bucket rather than for a device: the library's own breakpoints are what is
+ * under test, so each width lands inside one of them. 600, 840 and 1200 are the
+ * boundaries.
+ */
+class CompactSiteRenderTest : SiteRenderTest("compact", 390)
+
+class MediumSiteRenderTest : SiteRenderTest("medium", 700)
+
+class ExpandedSiteRenderTest : SiteRenderTest("expanded", 1024)
+
+class LargeSiteRenderTest : SiteRenderTest("large", 1440)

@@ -36,6 +36,14 @@ on:
           `GITHUB_REF_NAME` is a branch name and the build refuses it.
         required: false
         default: ''
+      renders:
+        description: >-
+          Draw every page of the site at four widths and upload the contact
+          sheets. Off by default and never runs on a pull request: it is 488
+          renders and it used to be 90% of this workflow's bill.
+        type: boolean
+        required: false
+        default: false
 
 # Read-only by default. The two jobs that write say so themselves, which is
 # tighter than the arrangement this replaced: `pages.yml` granted `pages: write`
@@ -146,6 +154,15 @@ jobs:
       # work, and explains why. `check` would reach `kotlinNpmInstall` and set up
       # a browser test environment for tests this suite does not run, which is a
       # minute of runner time for nothing. This list is the same work without it.
+      # One invocation, not two. This was split in half, and the second half
+      # spent 27 seconds to do 13 seconds of work: `--no-daemon` forks a fresh
+      # JVM per invocation, and with no configuration cache to restore it
+      # recalculates the task graph from scratch each time.
+      #
+      # `:ui-samples` answers a different question from the rest — `compileKotlinJvm`
+      # asks whether the documentation examples still work against the real API,
+      # `checkDocSamples` whether the copy on the page is still the code that was
+      # compiled — but nothing about that needs its own process.
       - name: Test
         run: |
           ./gradlew --no-daemon \
@@ -154,15 +171,7 @@ jobs:
             :ui:checkApiConventions \
             :ui:checkKdocSamples \
             :ui-catalog:jvmTest \
-            :ui-docs:jvmTest
-
-      # The examples on the documentation pages, compiled. `compileKotlinJvm`
-      # answers "does this still work against the real API"; `checkDocSamples`
-      # answers "is the copy on the page still the code that was compiled".
-      # Neither is much use without the other.
-      - name: Compile the documentation examples
-        run: |
-          ./gradlew --no-daemon \
+            :ui-docs:jvmTest \
             :ui-samples:compileKotlinJvm \
             :ui-samples:checkDocSamples
 
@@ -174,20 +183,6 @@ jobs:
       # a README whose component count is the tree's.
       - name: Check every component has a page
         run: python3 docs/check-components.py
-
-      # Every page of the site at four window widths, with a contact sheet per
-      # width. Uploaded on success as well as on failure, because the point of
-      # these is that somebody looks at them: `SiteRenderTest` asserts a page
-      # renders and drew something, and no assertion it could carry would say
-      # "this page reads badly on a phone" — which is what the complaint that
-      # started Round 16 actually was.
-      - name: Upload the site renders
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: site-shots
-          path: ui-docs/build/site-shots/
-          if-no-files-found: ignore
 
       # Without this a golden failure is a percentage in a log. With it you can
       # download the render and the highlighted diff and see what moved.
@@ -249,6 +244,47 @@ jobs:
             :ui-catalog:compileKotlinIosArm64 \
             :showcase:android:assembleDebug \
             :ui:assemble
+
+  # Contact sheets, when somebody asks for them.
+  #
+  # This used to run on every pull request as part of `test`. What it produces is
+  # a picture of every page for a person to scroll through — a review artefact,
+  # not a gate — and a review artefact nobody has asked for is one nobody reads.
+  #
+  # It is worth being straight about the size of this: the sweep is about a
+  # minute and a half, measured. It was moved out on the strength of a figure
+  # that said 23, which came from reading Gradle's `> Task` headers as execution
+  # times when they are flush times.
+  #
+  # So what is given up is not bought back in minutes. The sweep also asserted
+  # that every page renders without throwing and that every page drew something,
+  # and both have caught shipped defects — a landing page that threw below 600dp,
+  # and half the site rendering empty. `SiteRenderTest`'s KDoc has the history.
+  renders:
+    name: Site contact sheets
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.renders }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Draw every page
+        run: ./gradlew --no-daemon :ui-docs:siteRenders
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-shots
+          path: ui-docs/build/site-shots/
+          if-no-files-found: error
+          # 76 MB a run, and the point of them is that somebody scrolls through
+          # them while the change is fresh.
+          retention-days: 7
 
   # The documentation site, and the API reference it serves under `/api/`.
   #
