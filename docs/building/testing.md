@@ -338,6 +338,7 @@ Counts are therefore the gates.
 | `SheetState.anchorRebuilds` | `:ui`, production code | anchor rebuilds per frame |
 | `IdleAnimationTest` + `Scene.stillAnimating` | `:ui-catalog` | whether a still screen wants another frame |
 | `BackdropCostDiagnostic` | `:ui-catalog` | *times* frames — diagnostic only |
+| `ShadowCostDiagnostic` | `:ui-catalog` | *times* frames at 0, 1 and 2 shadow layers — diagnostic only |
 | `FrameReadout` | `:ui-catalog`, on screen | real frames, on a real device |
 | `docs/check-bundle-size.py` | CI | gzip bytes a reader downloads |
 | `docs/measure-web.mjs` | local only | a real browser on the built site |
