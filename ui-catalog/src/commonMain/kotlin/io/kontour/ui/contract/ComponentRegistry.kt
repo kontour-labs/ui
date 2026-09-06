@@ -535,7 +535,23 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("Chip", Role.Button) { modifier, enabled, onClick ->
+        ComponentSpec(
+            "Chip",
+            Role.Button,
+            states = listOf(
+                // Morph mode — an icon and a label under one `contentKey`, which
+                // is the arrangement that drew them on top of each other. It had
+                // no render at all: `contentKey` is a demo knob and every
+                // specimen left it null, so the one path with a layout of its
+                // own was the one path nothing photographed.
+                RenderState("morph") { modifier ->
+                    Chip(onClick = {}, modifier = modifier, contentKey = "bus") {
+                        icon(Tabler.Outline.Star, contentDescription = "Favourite")
+                        +"Bus"
+                    }
+                },
+            ),
+        ) { modifier, enabled, onClick ->
             Chip(onClick = onClick, modifier = modifier, enabled = enabled) { +"Bus" }
         }
     )
@@ -630,7 +646,24 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         // Dragged, not tapped. The other four rules still apply, and the disabled
         // one still applies in its "says so" half.
-        ComponentSpec("Slider", role = null, activatedByClick = false) { modifier, enabled, _ ->
+        ComponentSpec(
+            "Slider",
+            role = null,
+            activatedByClick = false,
+            states = listOf(
+                // Stepped, which is the case the ticks are for and which nothing
+                // rendered. `showTicks` defaults from `steps` now, and a default
+                // with no picture behind it is a default that drifts.
+                RenderState("stepped") { modifier ->
+                    Slider(
+                        value = 0.5f,
+                        onValueChange = {},
+                        steps = 4,
+                        modifier = modifier,
+                    )
+                },
+            ),
+        ) { modifier, enabled, _ ->
             Slider(
                 value = 0.5f,
                 onValueChange = {},
@@ -644,7 +677,21 @@ val componentRegistry: List<ComponentSpec> = buildList {
         // Same as `Slider`, and for the same reason. Its own two thumbs are
         // separate semantic nodes inside it, which is what `RangeSliderTest`
         // covers; here it is one specimen with one outermost node.
-        ComponentSpec("RangeSlider", role = null, activatedByClick = false) { modifier, enabled, _ ->
+        ComponentSpec(
+            "RangeSlider",
+            role = null,
+            activatedByClick = false,
+            states = listOf(
+                RenderState("stepped") { modifier ->
+                    RangeSlider(
+                        value = 0.25f..0.75f,
+                        onValueChange = {},
+                        steps = 4,
+                        modifier = modifier,
+                    )
+                },
+            ),
+        ) { modifier, enabled, _ ->
             RangeSlider(
                 value = 0.25f..0.75f,
                 onValueChange = {},
@@ -668,6 +715,23 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // with the default `valueWidth`; below that something has to give
             // and every candidate is worse than overflowing.
             minWidth = 144,
+            states = listOf(
+                // With the counter on, which is where the value stopped being
+                // centred in the column the stepper reserves for it. At rest the
+                // two branches draw the same digits, so this is a *position*
+                // golden rather than a motion one — which is the only kind a
+                // still frame can hold, and enough for the defect it covers.
+                RenderState("animated") { modifier ->
+                    Stepper(
+                        value = 2,
+                        onValueChange = {},
+                        contentDescription = "Adults",
+                        animateValue = true,
+                        modifier = modifier,
+                        range = 1..9,
+                    )
+                },
+            ),
         ) { modifier, enabled, _ ->
             Stepper(
                 value = 2,
