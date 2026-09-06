@@ -277,8 +277,9 @@ because it is the right number today stops tracking the family it belongs to, an
 that is exactly how a design system drifts.
 
 They are also the seam a consumer wants. Overriding `pill` to square off buttons
-would square off the avatars and the scrollbar too; overriding `control` moves
-the buttons and nothing else.
+would not even reach them — a button reads `control` — and it would square off
+the avatars and the scrollbar instead; overriding `control` moves the buttons and
+nothing else.
 
 ### Two kinds of corner
 
@@ -291,9 +292,49 @@ turns all at once. That earlier, gentler departure is the whole of the effect,
 and it is why a large surface reads as drawn rather than clipped.
 
 It is not free: a squircle is a generic path to clip, to border and to shadow.
-Below about 12dp the smoothing is invisible, so `extraSmall` and `small` stay
-circular and pay nothing. `pill` is a true capsule, where the corner is a
-semicircle and there is no curvature discontinuity to remove in the first place.
+Every rung pays it, the two small ones included — see above for why a scale that
+stops being continuous partway up is worse than the cost it saves.
+
+**A capsule is a squircle too, and for a long time it silently was not.**
+`control` is half the shorter side, so on any button, chip, tag, toolbar or tab
+the two corners at one end meet in the middle of that end with nothing between
+them: the short edge is *saturated*, exactly and always. Smoothing needs room
+past the radius to put its blend in, and the rule used to take the tighter of a
+corner's two edges and apply it to both — so one full edge dropped the smoothing
+on the other, and every control in the library drew a plain circular arc while
+naming a squircle and paying a generic path for it.
+
+Each edge is asked separately now. The end keeps its full arc where it meets its
+neighbour and eases into the long edge where there is room, so a control is
+exactly as round at its ends as it was and no longer steps from arc to straight
+line. Measured against a plain arc, a 200×52 button now deviates by up to 1.9px —
+the same order as a `Card`, which is not saturated and has always smoothed
+freely.
+
+The exceptions fall out of the same rule rather than a list. A square box at
+capsule radius is saturated on *both* edges, so it has nothing to ease onto in
+either direction and stays a true circle: an `IconButton`, an `Avatar`, a status
+dot, the ring round a `RadioButton`. `pill` remains for those, and `capsule` —
+the squircle of the same silhouette — is what a lozenge asks for: a chip, a
+toast, a nav indicator, a skeleton line, a day cell.
+
+**What is still drawn as a plain rounded rect, and why.** Seventeen places paint
+a corner with `drawRoundRect` rather than clipping to a shape, and a
+`CornerRadius` on a `RoundRect` cannot carry smoothing at all. Two reasons, both
+measurable:
+
+- Fifteen of them are **3–8dp in the short dimension** — a progress track, a
+  slider track, the `Callout` rule, a page-indicator dot. The blend scales with
+  the radius, so where a 26dp button deviates from a plain arc by 1.9px a 4dp
+  track deviates by 0.29px. Below half a pixel there is nothing to see and a
+  generic path to pay for.
+- The other two are the **slider thumb and the switch thumb**, which change size
+  on every frame of a gesture — the thumb stretches to 1.25× and leans toward the
+  finger. A shape caches its path on the size it was last built at, so an element
+  whose size is different every frame misses that cache every frame, and building
+  one is four corners of trigonometry and twelve cubic segments. Sixty times a
+  second, under a finger, is the one place in this library where the generic path
+  is the wrong trade.
 
 `sheet` and `sideSheet` are `extraLarge` with two corners squared off, derived
 rather than restated — a panel against the edge of the window should be square

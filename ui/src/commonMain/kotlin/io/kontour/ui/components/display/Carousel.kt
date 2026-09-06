@@ -466,8 +466,8 @@ private fun PageDots(
                     modifier = Modifier
                         .width(width)
                         .height(PageIndicatorDefaults.DotSize)
-                        .clip(Theme.shapes.pill),
-                    shape = Theme.shapes.pill,
+                        .clip(Theme.shapes.capsule),
+                    shape = Theme.shapes.capsule,
                     // Under a worm every dot is a track, and the pill on top is
                     // the only thing that says which page this is.
                     colour = if (active) activeColour else inactiveColour,

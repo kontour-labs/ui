@@ -181,7 +181,7 @@ fun SkeletonText(
                         }
                     )
                     .height(lineHeight),
-                shape = Theme.shapes.pill,
+                shape = Theme.shapes.capsule,
             )
         }
     }
@@ -213,9 +213,9 @@ fun SkeletonListItem(
             Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Skeleton(Modifier.fillMaxWidth(0.55f).height(14.dp), shape = Theme.shapes.pill)
+            Skeleton(Modifier.fillMaxWidth(0.55f).height(14.dp), shape = Theme.shapes.capsule)
             if (supportingLine) {
-                Skeleton(Modifier.fillMaxWidth(0.8f).height(12.dp), shape = Theme.shapes.pill)
+                Skeleton(Modifier.fillMaxWidth(0.8f).height(12.dp), shape = Theme.shapes.capsule)
             }
         }
     }

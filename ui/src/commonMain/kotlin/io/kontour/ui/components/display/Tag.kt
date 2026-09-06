@@ -179,7 +179,7 @@ fun Badge(
             modifier = modifier
                 .semantics { this.contentDescription = announcement }
                 .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
-                .clip(Theme.shapes.pill)
+                .clip(Theme.shapes.capsule)
                 .background(colour)
                 .padding(horizontal = 5.dp),
             contentAlignment = Alignment.Center,

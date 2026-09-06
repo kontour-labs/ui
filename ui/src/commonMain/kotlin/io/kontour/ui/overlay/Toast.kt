@@ -709,7 +709,7 @@ private fun ToastSurface(
                     LiveRegionMode.Polite
                 }
             },
-        shape = Theme.shapes.pill,
+        shape = Theme.shapes.capsule,
         colour = container,
         contentColour = content,
         shadow = Theme.elevation.high,

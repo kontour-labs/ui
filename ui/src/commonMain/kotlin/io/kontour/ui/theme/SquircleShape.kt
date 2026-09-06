@@ -37,10 +37,12 @@ import kotlin.math.tan
  *
  * `createOutline` returns [Outline.Generic], not [Outline.Rounded]. A generic
  * outline clips through a path rather than a fast rounded-rect path, and the
- * same is true of the border and the shadow. That is why the token scale spends
- * it only from `medium` up — below about 12dp the smoothing is not visible and
- * the cost buys nothing, and [Shapes.pill] is a true capsule where there is no
- * curvature discontinuity to remove in the first place.
+ * same is true of the border and the shadow. Every rung of the token scale pays
+ * it, the two small ones included: continuity that stops partway up a scale is a
+ * discontinuity *in* the scale, and a badge with a corner from a different
+ * design system to the card under it is more visible than the cost. What does
+ * not pay it is [Shapes.pill], which is a circle by intent rather than by
+ * saturation — an avatar, a status dot, a scrollbar thumb.
  *
  * The path is cached on the size, the four resolved radii and the layout
  * direction, so a shape that draws every frame at a steady size builds its path
@@ -149,12 +151,27 @@ class SquircleShape(
         val br = bottomRight.coerceIn(0f, ceiling)
         val bl = bottomLeft.coerceIn(0f, ceiling)
 
+        // Budgets in travel order: the edge this corner is entered along, then
+        // the one it leaves along. Top-left is entered up the left edge, which it
+        // shares with bottom-left, and left along the top edge, shared with
+        // top-right.
         val corners = listOf(
-            // corner point, incoming direction, outgoing direction, radius, budget
-            Corner(Offset(0f, 0f), Offset(0f, -1f), Offset(1f, 0f), tl, budget(tl, bl, h, tr, w)),
-            Corner(Offset(w, 0f), Offset(1f, 0f), Offset(0f, 1f), tr, budget(tr, tl, w, br, h)),
-            Corner(Offset(w, h), Offset(0f, 1f), Offset(-1f, 0f), br, budget(br, tr, h, bl, w)),
-            Corner(Offset(0f, h), Offset(-1f, 0f), Offset(0f, -1f), bl, budget(bl, br, w, tl, h)),
+            Corner(
+                Offset(0f, 0f), Offset(0f, -1f), Offset(1f, 0f), tl,
+                share(tl, bl, h), share(tl, tr, w),
+            ),
+            Corner(
+                Offset(w, 0f), Offset(1f, 0f), Offset(0f, 1f), tr,
+                share(tr, tl, w), share(tr, br, h),
+            ),
+            Corner(
+                Offset(w, h), Offset(0f, 1f), Offset(-1f, 0f), br,
+                share(br, tr, h), share(br, bl, w),
+            ),
+            Corner(
+                Offset(0f, h), Offset(-1f, 0f), Offset(0f, -1f), bl,
+                share(bl, br, w), share(bl, tl, h),
+            ),
         )
 
         val path = Path()
@@ -165,8 +182,8 @@ class SquircleShape(
         // so the only explicit line is the one closing each edge.
         val first = corners[0]
         path.moveTo(
-            first.point.x + first.outgoing.x * params[0].p,
-            first.point.y + first.outgoing.y * params[0].p,
+            first.point.x + first.outgoing.x * params[0].outgoing.p,
+            first.point.y + first.outgoing.y * params[0].outgoing.p,
         )
 
         for (i in 1..3) appendCorner(path, corners[i], params[i])
@@ -177,49 +194,95 @@ class SquircleShape(
     }
 
     /**
-     * How much of the two adjacent edges this corner may spend.
+     * How much of **one** edge this corner may spend.
      *
-     * Split with the other corner on each edge in proportion to the two radii, so
+     * Split with the other corner on that edge in proportion to the two radii, so
      * a large corner beside a small one gets most of the edge rather than half of
-     * it, and take the tighter of the two.
+     * it.
      */
-    private fun budget(
-        radius: Float,
-        otherOnFirstEdge: Float,
-        firstEdgeLength: Float,
-        otherOnSecondEdge: Float,
-        secondEdgeLength: Float,
-    ): Float {
+    private fun share(radius: Float, otherOnEdge: Float, edgeLength: Float): Float {
         if (radius == 0f) return 0f
-        val first = radius / (radius + otherOnFirstEdge) * firstEdgeLength
-        val second = radius / (radius + otherOnSecondEdge) * secondEdgeLength
-        return min(first, second)
+        return radius / (radius + otherOnEdge) * edgeLength
     }
 
+    /**
+     * The corner's geometry, with **each side smoothed as far as its own edge
+     * allows**.
+     *
+     * ### Why the two sides are not asked the same question
+     *
+     * Smoothing needs room past the radius to put its blend in — `(1 + s)` times
+     * the radius along the edge — so a corner that has spent its whole share of
+     * an edge on the arc has none left on that side. That much was always true.
+     * What was wrong was taking the *tighter* of the two edges and applying it to
+     * both, because it makes one saturated edge silently square off the other.
+     *
+     * A capsule is where that bites, and a capsule is most of this library.
+     * `Shapes.control` is half the short side, so on any button the two corners
+     * at one end meet in the middle of that end with nothing between them: the
+     * short edge is saturated, exactly and always. Under the old rule that
+     * dropped the smoothing on the *long* edge too, and the result is a plain
+     * circular arc — so every `Button`, `IconButton`, `Chip`, `Tag`, `FAB`,
+     * `Toolbar`, `Tab` and `Switch` in the library drew a rounded rectangle while
+     * naming a squircle and paying [Outline.Generic] for it. Against a `Card`,
+     * which is not saturated and does smooth, the two read as corners from
+     * different design systems, which is the entire complaint the shape scale
+     * exists to answer.
+     *
+     * Per-edge, the same corner keeps its full arc where the end meets its
+     * neighbour and eases into the long edge where there is room. The extent does
+     * not change — a button is still exactly as round at its ends, within a
+     * fifth of a percent of area — but the curvature no longer steps from the arc
+     * to the straight edge.
+     *
+     * It also settles the exceptions by construction rather than by a list. A
+     * square box at capsule radius saturates on *both* edges, so an `IconButton`,
+     * an `Avatar`, a status dot and a radio ring stay true circles with nothing
+     * opting them out.
+     */
     private fun params(corner: Corner): CornerParams {
-        val budget = corner.budget
-        val radius = min(corner.radius, budget)
+        // The arc has to fit on both edges before either side can smooth.
+        val radius = min(corner.radius, min(corner.budgetIn, corner.budgetOut))
         if (radius <= 0f) return CornerParams.Square
 
-        // Smoothing needs room past the radius to put the blends in. Once the
-        // corner has spent its whole budget on the arc there is none left, and the
-        // ceiling here goes to zero of its own accord.
-        val ceiling = (budget / radius - 1f).coerceIn(0f, 1f)
-        val s = min(smoothing, ceiling)
+        val sIn = min(smoothing, (corner.budgetIn / radius - 1f).coerceIn(0f, 1f))
+        val sOut = min(smoothing, (corner.budgetOut / radius - 1f).coerceIn(0f, 1f))
 
-        val arcDegrees = 90f * (1f - s)
-        val arcChord = sin(arcDegrees / 2f * DEG).toFloat() * radius * SQRT2
-        val alpha = (90f - arcDegrees) / 2f
-        val handle = radius * tan(alpha / 2f * DEG).toFloat()
-        val beta = 45f * s
-        val c = handle * cos(beta * DEG).toFloat()
-        val d = c * tan(beta * DEG).toFloat()
+        return CornerParams(
+            radius = radius,
+            incoming = side(radius, sIn, corner.budgetIn),
+            outgoing = side(radius, sOut, corner.budgetOut),
+            // Each side gives up `45 * s` degrees of the quarter to its blend.
+            arcStartDegrees = 45f * sIn,
+            arcDegrees = 90f - 45f * (sIn + sOut),
+        )
+    }
 
+    /**
+     * One side of a corner: how far it reaches along its edge, and the cubic that
+     * gets it there.
+     *
+     * [CornerSide.projection] is where the arc ends, measured from the corner
+     * point along the edge, and [CornerSide.offset] is how far that point sits
+     * off the edge — `r(1 - sin 45s)` and `r(1 - cos 45s)`, which is just the arc
+     * endpoint written in the edge's own axes. The rest of the reach is the
+     * blend: [CornerSide.c] and the offset set the tangent at the arc, in the
+     * ratio `tan 45s` so the cubic arrives along it, and [CornerSide.a] and
+     * [CornerSide.b] run along the straight edge so it leaves with no curvature
+     * at all.
+     *
+     * The projection used to be derived from the arc's chord, which is the same
+     * number only while both sides are smoothed equally — the chord lies at 45°
+     * to the edges exactly then and not otherwise.
+     */
+    private fun side(radius: Float, s: Float, budget: Float): CornerSide {
+        val half = 45f * s
+        val projection = radius * (1f - sin(half * DEG).toFloat())
+        val offset = radius * (1f - cos(half * DEG).toFloat())
+        val c = radius * tan(half / 2f * DEG).toFloat() * cos(half * DEG).toFloat()
         val p = min((1f + s) * radius, budget)
-        val b = ((p - arcChord - c - d) / 3f).coerceAtLeast(0f)
-        val a = 2f * b
-
-        return CornerParams(radius, a, b, c, d, p, arcDegrees)
+        val b = ((p - projection - c) / 3f).coerceAtLeast(0f)
+        return CornerSide(a = 2f * b, b = b, c = c, offset = offset, p = p, projection = projection)
     }
 
     private fun appendCorner(path: Path, corner: Corner, param: CornerParams) {
@@ -232,22 +295,31 @@ class SquircleShape(
             return
         }
 
-        val start = Offset(point.x - u.x * param.p, point.y - u.y * param.p)
+        val into = param.incoming
+        val away = param.outgoing
+
+        val start = Offset(point.x - u.x * into.p, point.y - u.y * into.p)
         path.lineTo(start.x, start.y)
 
-        val a = param.a
-        val b = param.b
-        val c = param.c
-        val d = param.d
-
+        // Two control points still on the straight edge, so the curve leaves it
+        // with no curvature at all, and a third that *is* the arc's start —
+        // `projection` along the edge, `offset` off it. The gap between the last
+        // two sets the tangent there, so the cubic meets the arc going the way
+        // the arc goes.
+        val a = into.a
+        val b = into.b
         path.cubicTo(
             start.x + u.x * a, start.y + u.y * a,
             start.x + u.x * (a + b), start.y + u.y * (a + b),
-            start.x + u.x * (a + b + c) + v.x * d, start.y + u.y * (a + b + c) + v.y * d,
+            point.x - u.x * into.projection + v.x * into.offset,
+            point.y - u.y * into.projection + v.y * into.offset,
         )
 
-        val centre = Offset(point.x - u.x * param.radius + v.x * param.radius, point.y - u.y * param.radius + v.y * param.radius)
-        val sweepStart = atan2(-v.y.toDouble(), -v.x.toDouble()) * RAD + (90f - param.arcDegrees) / 2f
+        val centre = Offset(
+            point.x - u.x * param.radius + v.x * param.radius,
+            point.y - u.y * param.radius + v.y * param.radius,
+        )
+        val sweepStart = atan2(-v.y.toDouble(), -v.x.toDouble()) * RAD + param.arcStartDegrees
         path.arcTo(
             rect = Rect(
                 centre.x - param.radius,
@@ -268,10 +340,19 @@ class SquircleShape(
             centre.y + param.radius * sin(arcEndAngle).toFloat(),
         )
 
+        // The same three mirrored, anchored on `end` and using the outgoing
+        // side's own blend: `offset` back onto the edge line, then `c`, `b`, `a`
+        // along it.
+        val outA = away.a
+        val outB = away.b
+        val outC = away.c
         path.cubicTo(
-            end.x + u.x * d + v.x * c, end.y + u.y * d + v.y * c,
-            end.x + u.x * d + v.x * (b + c), end.y + u.y * d + v.y * (b + c),
-            end.x + u.x * d + v.x * (a + b + c), end.y + u.y * d + v.y * (a + b + c),
+            end.x + u.x * away.offset + v.x * outC,
+            end.y + u.y * away.offset + v.y * outC,
+            end.x + u.x * away.offset + v.x * (outB + outC),
+            end.y + u.y * away.offset + v.y * (outB + outC),
+            end.x + u.x * away.offset + v.x * (outA + outB + outC),
+            end.y + u.y * away.offset + v.y * (outA + outB + outC),
         )
     }
 
@@ -348,7 +429,6 @@ fun SquircleShape(
     smoothing,
 )
 
-private const val SQRT2 = 1.4142135f
 private const val DEG = PI / 180.0
 private const val RAD = 180.0 / PI
 
@@ -357,20 +437,48 @@ private class Corner(
     val incoming: Offset,
     val outgoing: Offset,
     val radius: Float,
-    val budget: Float,
+    /** This corner's share of the edge it is entered along. */
+    val budgetIn: Float,
+    /** Its share of the edge it leaves along. */
+    val budgetOut: Float,
 )
 
-private class CornerParams(
-    val radius: Float,
+/**
+ * One half of a corner: the reach along its edge, and the cubic that gets there.
+ *
+ * @param a How far the blend runs straight along the edge before it starts to
+ *   turn. Twice [b], so the curvature leaves the edge at zero.
+ * @param b The second straight run.
+ * @param c Toward the corner point along the edge, and [offset] away from it, in
+ *   the ratio that puts the cubic's last leg on the arc's tangent.
+ * @param offset How far the arc's endpoint sits off this edge.
+ * @param p Total reach along the edge, from the corner point.
+ * @param projection Where the arc's endpoint sits along the edge, from the
+ *   corner point. `p - projection` is what the blend spends.
+ */
+private class CornerSide(
     val a: Float,
     val b: Float,
     val c: Float,
-    val d: Float,
+    val offset: Float,
     val p: Float,
+    val projection: Float,
+) {
+    companion object {
+        val None = CornerSide(0f, 0f, 0f, 0f, 0f, 0f)
+    }
+}
+
+private class CornerParams(
+    val radius: Float,
+    val incoming: CornerSide,
+    val outgoing: CornerSide,
+    /** How far past the edge-perpendicular the arc starts, in degrees. */
+    val arcStartDegrees: Float,
     val arcDegrees: Float,
 ) {
     companion object {
-        val Square = CornerParams(0f, 0f, 0f, 0f, 0f, 0f, 0f)
+        val Square = CornerParams(0f, CornerSide.None, CornerSide.None, 0f, 0f)
     }
 }
 

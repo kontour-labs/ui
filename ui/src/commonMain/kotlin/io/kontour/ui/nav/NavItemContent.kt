@@ -165,7 +165,7 @@ internal fun NavDestinationItem(
     val colours = Theme.colours
     val motion = Theme.motion
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val shape = Theme.shapes.pill
+    val shape = Theme.shapes.capsule
 
     // Null when this item is not inside an indicator group, which is what decides
     // whether it draws its own pill or lets the shared one travel to it.

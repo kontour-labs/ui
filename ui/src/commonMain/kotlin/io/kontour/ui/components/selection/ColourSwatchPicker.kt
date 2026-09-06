@@ -118,7 +118,7 @@ private fun Swatch(
     val scheme = Theme.colours
     val motion = Theme.motion
     val interactions = remember { MutableInteractionSource() }
-    val shape = Theme.shapes.pill
+    val shape = Theme.shapes.capsule
 
     val fill = colour ?: scheme.surfaceSunken
     val tick = if (colour != null) contentColourFor(colour) else scheme.content

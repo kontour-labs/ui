@@ -155,7 +155,7 @@ fun DragHandle(
             Modifier
                 .width(width)
                 .height(4.dp)
-                .background(colour, Theme.shapes.pill)
+                .background(colour, Theme.shapes.capsule)
         )
     }
 }

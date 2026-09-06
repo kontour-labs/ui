@@ -501,6 +501,65 @@ def haptic_sites() -> list[str]:
     return sites
 
 
+MAX_CIRCLES = 11
+MAX_ROUNDED_RECT_SHAPES = 0
+
+
+PILL_USE = re.compile(r"shapes\.pill\b")
+ROUNDED_RECT = re.compile(r"\bRoundedCornerShape\s*\(")
+
+
+def circles() -> list[str]:
+    """Files still asking for `Shapes.pill`, and files hand-rolling a rounded rect.
+
+    Two ceilings for one rule: **a corner in this library is a squircle unless
+    the thing it is on is a circle.**
+
+    `pill` is the circle. It is a true arc and it is right for an avatar, a
+    status dot, the ring round a radio button, a scrollbar thumb — things that
+    are round because of what they *are*. Eleven sites qualify. Everything else
+    that was reaching for it wanted a *lozenge*, and a lozenge with circular ends
+    beside a family of squircles is the mismatch the shape scale exists to
+    remove; `Shapes.capsule` is the same silhouette with the family's curvature,
+    and twenty-three sites moved onto it.
+
+    The second count is stricter and is a ban rather than a ratchet.
+    `RoundedCornerShape` appears exactly once in `:ui`, to define `pill` itself.
+    A literal anywhere else is a component that has stopped tracking the scale —
+    which is how the last drift started, one reasonable-looking call site at a
+    time.
+
+    Not counted, and worth naming so the gap is deliberate rather than missed:
+    the seventeen `drawRoundRect` calls. A `CornerRadius` on a `RoundRect` cannot
+    carry smoothing at all, so those are round-rects by construction. All but two
+    are on something 3-8dp in its short dimension, where the smoothing works out
+    under half a pixel; the two that are not — the slider thumb and the switch
+    thumb — change size on every frame of a gesture, so a generic path there is a
+    path rebuilt sixty times a second. Both are written up under "Two kinds of
+    corner" in `ui-docs/content/tokens.md`.
+    """
+    problems: list[str] = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        pills = len(PILL_USE.findall(text))
+        if pills:
+            problems.append(f"{path.name} ({pills})")
+    return problems
+
+
+def hand_rolled_rounded_rects() -> list[str]:
+    """`RoundedCornerShape` literals outside the one that defines `pill`."""
+    offenders: list[str] = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        if path.name == "Shapes.kt":
+            continue
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        count = len(ROUNDED_RECT.findall(text))
+        if count:
+            offenders.append(f"{path.name} ({count})")
+    return offenders
+
+
 def unswept_enums() -> list[str]:
     """Enums a component takes as a parameter and no demo's knob sweeps.
 
@@ -1068,6 +1127,30 @@ def main() -> int:
             f"of them"
         )
 
+    # Rule 20 — a corner is a squircle unless the thing it is on is a circle.
+    #
+    # See `circles`. `pill` survives for the eleven places that are genuinely
+    # round; a `RoundedCornerShape` literal anywhere but the token that defines
+    # it is a component that has stopped tracking the scale.
+    round_shapes = circles()
+    circular = sum(int(e.rsplit("(", 1)[1].rstrip(")")) for e in round_shapes)
+    if circular > MAX_CIRCLES:
+        problems.append(
+            f"{circular} uses of `Shapes.pill` in :ui, over the ceiling of "
+            f"{MAX_CIRCLES}: {', '.join(round_shapes)} — `pill` is a true "
+            f"circular arc and belongs on things that are round because of what "
+            f"they are. A lozenge wants `Shapes.capsule`, which is the same "
+            f"silhouette with the family's own curvature"
+        )
+
+    literals = hand_rolled_rounded_rects()
+    if len(literals) > MAX_ROUNDED_RECT_SHAPES:
+        problems.append(
+            f"{len(literals)} file(s) build a `RoundedCornerShape` by hand: "
+            f"{', '.join(literals)} — the only one in :ui defines `Shapes.pill`. "
+            f"A literal elsewhere is a corner that has stopped tracking the scale"
+        )
+
     unswept = unswept_enums()
     if len(unswept) > MAX_UNSWEPT_ENUMS:
         problems.append(
@@ -1094,6 +1177,7 @@ def main() -> int:
         f"{len(component_pages) - len(unexplained)} pages explaining a parameter, "
         f"{len(internal)} written for a maintainer, "
         f"{felt} haptic call sites, "
+        f"{circular} deliberate circles, "
         f"all accounted for."
     )
     return 0

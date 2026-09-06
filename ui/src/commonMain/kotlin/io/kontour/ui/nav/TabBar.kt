@@ -194,7 +194,7 @@ fun TabBar(
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                .clip(Theme.shapes.pill)
+                                .clip(Theme.shapes.capsule)
                                 .background(indicatorColour)
                         )
                     },

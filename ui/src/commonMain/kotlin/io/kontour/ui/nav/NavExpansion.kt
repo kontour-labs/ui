@@ -232,7 +232,7 @@ private fun CollapsedControl(
     content: @Composable RowScope.() -> Unit,
 ) {
     val interactions = remember { MutableInteractionSource() }
-    val shape = Theme.shapes.pill
+    val shape = Theme.shapes.capsule
 
     Surface(
         modifier = modifier
