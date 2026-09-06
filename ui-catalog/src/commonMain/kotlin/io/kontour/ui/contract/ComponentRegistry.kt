@@ -1224,6 +1224,21 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         Tab(selected = false, onClick = {}, key = "arrivals") { +"Arrivals" }
                     }
                 },
+                // The scrollable bar has its own picture because it shipped
+                // drawing nothing and no golden had ever looked at it: a weight
+                // inside the unbounded row a `horizontalScroll` creates measures
+                // to zero, so every label vanished and every tab came out as its
+                // own padding. Four tabs, so it is plainly the scrolling kind.
+                RenderState("scrollable") { modifier ->
+                    TabBar(scrollable = true) {
+                        Tab(selected = true, onClick = {}, key = "departures", modifier = modifier) {
+                            +"Departures"
+                        }
+                        Tab(selected = false, onClick = {}, key = "arrivals") { +"Arrivals" }
+                        Tab(selected = false, onClick = {}, key = "map") { +"Route map" }
+                        Tab(selected = false, onClick = {}, key = "alerts") { +"Alerts" }
+                    }
+                },
             ),
         ) { modifier, enabled, onClick ->
             // A `Tab` only exists inside a `TabBar` — it reports its width to the

@@ -11,6 +11,7 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
@@ -298,21 +299,44 @@ fun <T> PageTransition(
 }
 
 /**
- * The pages' own arrival and departure: a cross-fade, and nothing else.
+ * The pages' own arrival and departure: a fade through, and nothing else.
  *
  * The shared elements carry the movement, so the pages beneath them should get
  * out of each other's way quietly. A slide underneath a morphing card is two
  * animations disagreeing about which direction the change is in.
  *
- * `using(null)` drops the size transform. Without it `AnimatedContent` animates
- * the *container* between the two pages' sizes, which for two pages that both
- * fill the window is an animation between identical numbers on every change —
- * free, until one page is a different size and the whole screen resizes for a
- * fifth of a second.
+ * ### Through, not across
+ *
+ * The old page finishes leaving before the new one starts arriving, and the
+ * delay on the enter is what makes that true. As a *cross*-fade the two pages
+ * were painted at once for the whole of the transition, and two pages of the
+ * same app are mostly the same furniture a few pixels apart — a title, a bar, a
+ * row of tabs. Each was drawn twice, offset, at partial opacity, and two half-
+ * opaque copies of dark text over a light ground cover about three quarters of
+ * it. Reported as text appearing doubled and reading as bolder mid-transition,
+ * which is exactly what that is.
+ *
+ * Nothing is lost by sequencing them. A cross-fade's overlap is what sells a
+ * change of *content* in one place; here the change is the whole screen, and the
+ * shared elements — which are not affected by this, having their own bounds
+ * animation — are the continuity.
+ *
+ * `sizeTransform = null` drops the size transform. Without it `AnimatedContent`
+ * animates the *container* between the two pages' sizes, which for two pages
+ * that both fill the window is an animation between identical numbers on every
+ * change — free, until one page is a different size and the whole screen resizes
+ * for a fifth of a second.
  */
 private fun pageCrossFade(motion: Motion): ContentTransform =
     ContentTransform(
-        targetContentEnter = fadeIn(motion.tweenDefault()),
+        targetContentEnter = fadeIn(
+            tween(
+                durationMillis = if (motion.reduceMotion) motion.fast else motion.default,
+                // Exactly the exit's own duration: `tweenExit` runs at `fast`.
+                delayMillis = motion.fast,
+                easing = motion.standard,
+            )
+        ),
         initialContentExit = fadeOut(motion.tweenExit()),
         sizeTransform = null,
     )

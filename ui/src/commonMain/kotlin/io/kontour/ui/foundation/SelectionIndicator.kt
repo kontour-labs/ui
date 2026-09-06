@@ -316,9 +316,24 @@ fun SelectionIndicatorBox(
         val movedItem = state.targetKey != lastKey
         lastKey = state.targetKey
 
+        // A marker that is not on screen has no position worth keeping.
+        //
+        // Two of the three things reported about a collapsing list come from
+        // treating one that is faded out as though it were still standing
+        // somewhere. It travels from wherever it happened to be when it went —
+        // which after a group closed over it is a rect the list no longer
+        // contains, hence a pill "flying far above the list" — and because the
+        // travel is awaited before the fade, it arrives invisibly and only then
+        // fades in, which is the "appears a split second late".
+        //
+        // Faded out is the same situation as never drawn, so it takes the same
+        // branch: put it where it is going and fade it up there.
+        val hidden = alpha.value < 1f
+
         when {
-            // First appearance. Nothing should slide in from the origin.
-            !measured -> {
+            // First appearance, or a return from nothing. Neither should slide
+            // in from somewhere the user was not looking.
+            !measured || hidden -> {
                 bounds.snapTo(target)
                 measured = true
             }

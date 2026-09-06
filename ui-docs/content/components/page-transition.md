@@ -121,9 +121,19 @@ change is the "background disappears before the sheet does" problem in a
 different costume. Switch its own off, wrap the content in a `PageTransition`
 keyed on `backStack.last()`, and one thing is in charge.
 
+### The pages fade through, not across
+
+The old page finishes leaving before the new one starts arriving. Two pages of
+the same app are mostly the same furniture a few pixels apart — a title, a bar, a
+row of tabs — and fading them across each other draws every one of those twice,
+offset, at partial opacity. Two half-opaque copies of dark text cover about three
+quarters of the ground, which reads as the text having gone bold for a moment.
+The shared elements are unaffected: they have their own bounds animation, and
+they are the continuity a cross-fade's overlap would otherwise be providing.
+
 ### Reduced motion
 
-Degrades to a cross-fade with **no bounds morph at all** — `sharedElement` and
+Degrades to a fade through with **no bounds morph at all** — `sharedElement` and
 `sharedBounds` both become plain modifiers. Unlike the presets above, this is not
 a softening: an element flying across the screen is the clearest case that
 preference covers, and half a morph is still a thing travelling a long way.
