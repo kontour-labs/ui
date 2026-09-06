@@ -41,4 +41,8 @@ long enough to worry about wants a message beside it. The same goes for
 `StepProgress` at `current = null`.
 
 `StepProgress` is for a known number of steps, and the count is the story — give
-it "Step 2 of 4" rather than a percentage.
+it "Step 2 of 4" rather than a percentage. At `current = null` it shows a band
+travelling the length of the row, occluded where it crosses the gaps between
+segments — the same motion `LinearProgress` makes, at the scale of the row. It
+used to light one whole segment at a time, which is a stepped animation for a
+state whose whole meaning is that there are no steps to report.

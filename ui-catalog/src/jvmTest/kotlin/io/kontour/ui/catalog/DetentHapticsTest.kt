@@ -457,7 +457,18 @@ class DetentHapticsTest {
             scene.frames(3)
             // Long press, then down past two rows, then let go.
             scene.press(bounds.center)
-            scene.frames(45)
+            // Held on the *wall* clock, not on a frame count.
+            //
+            // Compose's long-press timeout is a `delay`, and a `delay` in this
+            // harness is real time — `Scene` advances 16ms of frame time per
+            // render and nothing ties the two together. Forty-five frames is
+            // 720ms of frame time and was however long forty-five renders
+            // happened to take, which on a warm JVM in the middle of a full run
+            // is under the 500ms the press has to survive. It passed on its own
+            // and failed inside the suite, which is the signature of exactly
+            // that. Most of a second, so a slow frame either side cannot eat
+            // the margin.
+            scene.renderUntil(timeoutMillis = 900L) { false }
             scene.move(bounds.center + Offset(0f, bounds.height * 2.2f))
             scene.frames(6)
             scene.release(bounds.center + Offset(0f, bounds.height * 2.2f))

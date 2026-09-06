@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -69,6 +70,30 @@ class SpinnerMotionTest {
             worst >= -Tolerance,
             "the tail went backwards by ${-worst}° at ${worstAt}ms — the breathe " +
                 "amplitude outruns the rotation rate, so the arc eats itself",
+        )
+    }
+
+    /**
+     * A spinner opens at its longest, which is where a pull hands over to it.
+     *
+     * `PullToRefresh` grows an arc under the finger and swaps a [Spinner] in
+     * when the pull commits, and it grows to [SpinnerDefaults.OpeningSweep] so
+     * the swap is not a step in length. The report is that the arc the gesture
+     * finishes on should be the biggest one the spinner ever draws — so the two
+     * are the same number, and this is what says so.
+     *
+     * It reads as a restatement of [SpinnerDefaults.OpeningPhase] and it is not
+     * one: the phase is a position on a cosine, and that it lands on the peak
+     * rather than three degrees off it is the thing worth pinning.
+     */
+    @Test
+    fun aSpinnerOpensAtItsLongest() {
+        assertTrue(
+            abs(SpinnerDefaults.OpeningSweep - SpinnerDefaults.MaxSweep) < Tolerance,
+            "a spinner opens at ${SpinnerDefaults.OpeningSweep}° against a " +
+                "maximum of ${SpinnerDefaults.MaxSweep}°. A pull grows its arc " +
+                "to the opening length, so the arc the gesture finishes on is " +
+                "not the longest the spinner draws and the handover shortens it.",
         )
     }
 

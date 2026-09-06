@@ -28,6 +28,11 @@ thing in all three. That is the point of the slot vocabulary — see
 to be: the sheet measures the anchored node rather than taking a number, so a
 two-line title peeks taller than a one-line one without anybody computing it.
 
+The title and its supporting line **start where the sheet's own content starts**.
+They used to carry 8dp of their own on top of the header bar's, so the words sat
+in from everything under them while the trailing controls — which never had the
+extra — lined up correctly.
+
 ---
 
 ## Three sizes

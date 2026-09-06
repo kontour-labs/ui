@@ -95,10 +95,11 @@ fun AnimatedCounter(
      * Where the digits sit when the caller gives them more room than they need.
      *
      * `Start` is right for a counter that is simply as wide as its number.
-     * `Center` is what a caller reserving a *fixed* width wants — [Stepper]
-     * holds a column wide enough for the longest value it can reach, so that the
-     * buttons either side do not shuffle as the number grows, and without this
-     * the digits packed against the leading edge of that column while the static
+     * `Center` is what a caller reserving a *fixed* width wants —
+     * [io.kontour.ui.components.selection.Stepper] holds a column wide enough
+     * for the longest value it can reach, so that the buttons either side do
+     * not shuffle as the number grows, and without this the digits packed
+     * against the leading edge of that column while the static
      * `Text` beside them was centred. Same component, same width, two different
      * places for the number depending on whether it animated.
      */

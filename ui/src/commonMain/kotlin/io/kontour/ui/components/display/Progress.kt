@@ -339,21 +339,32 @@ fun StepProgress(
                 size = Size(segmentWidth, size.height),
                 cornerRadius = radius,
             )
-            // The step that is working shows a travelling band instead of a
-            // fill: a segment that is both solid and animated says two things.
-            val busy = working && !indeterminate && index == current.coerceIn(1, total) - 1
+            // A band travels: across the whole row when the row is
+            // indeterminate, inside one segment when a known step is working. A
+            // segment that is both solid and animated says two things at once,
+            // so a band replaces the fill rather than sitting on top of it.
+            val busy = current != null && working && index == current.coerceIn(1, total) - 1
 
             // Partial fill on the segment currently in progress, so a step that
             // is halfway does not read as not started.
             val fill = when {
-                // One segment at a time, walking. `phase` runs 0..1 across the
-                // whole row, so scaling by `total` gives the segment it is on.
-                indeterminate ->
-                    if ((phase * total).toInt().coerceAtMost(total - 1) == index) 1f else 0f
+                // Nothing, unless there is no band to draw it.
+                //
+                // It used to light one whole segment at a time — `(phase *
+                // total).toInt()`, which takes a continuous phase and throws all
+                // of it away but the integer part. What that draws is a segment
+                // snapping on, holding, and snapping to the next: a stepped
+                // animation for a state whose whole meaning is "this has no
+                // steps, it is just going". The band was already right here for
+                // the `working` case below, and had been since it was written.
+                //
+                // Under reduced motion nothing travels, so the first segment
+                // carries a static stub instead — the same answer
+                // `LinearProgress` gives, and for the same reason: neither
+                // filled nor animated is invisible.
+                indeterminate -> if (animating || index != 0) 0f else BandFraction
                 // Static under reduced motion, so a busy step still reads as
-                // working without the travel — the same answer `LinearProgress`
-                // gives, and for the same reason. Without it the segment would
-                // be neither filled nor animated, which is to say invisible.
+                // working without the travel.
                 busy -> if (animating) 0f else BandFraction
                 else -> (animated - index).coerceIn(0f, 1f)
             }
@@ -366,13 +377,22 @@ fun StepProgress(
                 )
             }
 
-            // The busy step gets a band travelling inside it, on top of whatever
-            // it is filled to. Same construction as `LinearProgress` — a band
-            // 35% as wide as its container, entering one end as it leaves the
-            // other — confined to this segment instead of the whole track.
-            if (busy && animating) {
+            // Same construction as `LinearProgress` — a band 35% as wide as a
+            // segment, entering one end as it leaves the other — clipped to this
+            // segment so it cannot spill into the gaps.
+            if (animating && (indeterminate || busy)) {
                 val bandWidth = segmentWidth * BandFraction
-                val bandLeft = left - bandWidth + (segmentWidth + bandWidth) * phase
+                val bandLeft = if (indeterminate) {
+                    // One band crossing the whole row, occluded where it passes
+                    // over a gap. Not one band per segment: a band confined to
+                    // a segment is off the end of it at both ends of its
+                    // travel, so the row went dark for a frame or two at every
+                    // segment boundary — four blinks a cycle rather than the
+                    // one at the end of it that `LinearProgress` also has.
+                    -bandWidth + (size.width + bandWidth) * phase
+                } else {
+                    left - bandWidth + (segmentWidth + bandWidth) * phase
+                }
                 clipRect(
                     left = left,
                     right = left + segmentWidth,

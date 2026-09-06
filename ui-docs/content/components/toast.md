@@ -41,10 +41,17 @@ missed by anyone who looked away.
 control in one that is not also available elsewhere. An action that vanishes
 after a few seconds is unusable for anyone who reads slowly.
 
-**At most three at once.** Past that the stack is taller than the thing it is
-reporting on and the ones at the back are a stripe of colour rather than a
-message, so `ToastDefaults.MaxVisible` caps it and the rest wait their turn while
-their own timers run. How long each stays, and why they appear at the top on a
+**At most four at once** — one card and three pills behind it, tapering. Past
+that the stack is taller than the thing it is reporting on and the ones at the
+back are a stripe of colour rather than a message, so `ToastDefaults.MaxVisible`
+caps it and the rest wait their turn.
+
+**Every toast runs its own clock whether or not it is on screen.** A toast queued
+behind the visible ones is counting down from the moment it was shown, so a burst
+of confirmations clears in one round of the timer rather than in as many rounds
+as there are toasts. One that runs out while it is still waiting for room never
+appears at all — a confirmation of something the user did ten seconds ago is not
+worth showing late. How long each stays, and why they appear at the top on a
 phone, is in [the overlay guide](../overlays.md#toasts).
 
 ---

@@ -5,7 +5,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.overlay.OverlayHost
@@ -16,6 +19,7 @@ import io.kontour.ui.overlay.ToastTone
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -325,6 +329,195 @@ class ToastStackTest {
         )
     }
 
+    /**
+     * A toast that never reached the screen still expires.
+     *
+     * The clock lived in `ToastCard`, and a card is only composed for the
+     * `maxVisible` toasts at the front of the stack. So a toast queued behind
+     * them had no `LaunchedEffect` running at all: its timer did not start until
+     * the ones in front had gone, at which point it ran its *full* duration from
+     * the beginning. Four confirmations in a burst took two rounds of the clock
+     * to clear rather than one, which is the jank in the report — and
+     * `ToastHost`'s own KDoc claimed the opposite ("their timers run either
+     * way").
+     *
+     * ### Measured by widening the window, not by timing the stack
+     *
+     * The obvious test — show five, time how long the stack takes to empty — is
+     * a wall-clock race, and this harness renders a frame of 16ms in about 45ms
+     * of real time, so the animations cost more than their nominal duration and
+     * the margin between one round of the clock and two is not safe. The
+     * question here is asked as a single settled frame instead: give the hidden
+     * toast plenty of time to expire, then raise `maxVisible` and ask whether it
+     * appears. If its clock ran, there is nothing left to appear.
+     */
+    @Test
+    fun aToastBehindTheVisibleWindowStillRunsItsClock() {
+        var maxVisible by mutableStateOf(1)
+        var narrow = 0
+        var grew: BufferedImage? = null
+
+        Scene(width = 600, height = SceneHeight) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts, maxVisible = maxVisible)
+                LaunchedEffect(Unit) {
+                    toasts.show("Saved for offline", durationMillis = 2_500)
+                    // Pinned and newest, so it is the one card the window has
+                    // room for, and the stack never empties out from under the
+                    // measurement.
+                    toasts.show("Couldn't reach the timetable", durationMillis = 0)
+                }
+            }
+        }.use { scene ->
+            // Twice the hidden toast's duration, so a clock that started at all
+            // has finished. `until = { false }` is "render until the deadline".
+            scene.renderUntil(timeoutMillis = 5_000) { false }
+            narrow = scene.frame().stackHeight()
+            maxVisible = 3
+            grew = scene.renderUntil(timeoutMillis = 2_000) { it.stackHeight() > narrow + 10 }
+        }
+
+        assertTrue(narrow > 0, "no toast was drawn at all")
+        assertNull(
+            grew,
+            "the stack was ${narrow}px with room for one toast and grew to " +
+                "${grew?.stackHeight()}px the moment there was room for two — the " +
+                "toast queued behind was still there five seconds after its " +
+                "2,500ms timer should have taken it, because its clock only " +
+                "starts when it is drawn",
+        )
+    }
+
+    /**
+     * The toasts waiting behind step in at the sides, visibly.
+     *
+     * They always shrank a little — `1 - 0.07 * depth`, so 134px then 124px at
+     * this scene's density — and five pixels a side across a 32px overlap is not
+     * a step you can see. The stack rendered as one lumpy silhouette with a
+     * wobble in it, which is the report: they should get *gradually smaller*,
+     * and the size they were is the largest they should be.
+     *
+     * Measured as the narrowest pill against the widest, both taken from the
+     * band above the front card. Both numbers are in the same frame, so this
+     * cannot be satisfied by a stack that is uniformly narrow.
+     */
+    @Test
+    fun theToastsBehindTaper() {
+        val stack = stackOfFive()
+        val profile = stack.widthProfile()
+        val cardTop = stack.cardTop(profile)
+        // The deepest pill is the only one whose straight midsection is not
+        // covered by something in front, so it is the only one with a plateau —
+        // and the first one from the top is therefore its own width.
+        val deepest = profile.firstPlateau()
+        assertNotNull(deepest, "no pill was drawn above the front card at all")
+        val nearest = profile[cardTop - 2]
+
+        assertTrue(
+            nearest - deepest >= TaperStep,
+            "the pill at the back of the stack is ${deepest}px wide and the one " +
+                "at the front of it is ${nearest}px — ${nearest - deepest}px " +
+                "between them across three toasts. They are all the same size; " +
+                "nothing tapers.",
+        )
+    }
+
+    /**
+     * Three toasts wait behind the front one, and you can tell them apart.
+     *
+     * Two things at once, because they are the same measurement. The stack shows
+     * four now rather than three — one card and three pills — and every pill
+     * carries a hairline in its own content colour so the boundary between two
+     * of them is visible.
+     *
+     * That rim is the "shadows for separation" in the report, arrived at the
+     * long way round: the shadow is black and so is the toast, so
+     * `Theme.elevation.high` puts 10% black over an almost-black pill and draws
+     * nothing. See the note in `ToastSurface`.
+     *
+     * Counted down the middle of the stack, where every pill's boundary crosses
+     * and nothing else does.
+     */
+    @Test
+    fun threeToastsWaitBehindTheFrontOneAndEachIsSeparate() {
+        val stack = stackOfFive()
+        val profile = stack.widthProfile()
+        val top = profile.indexOfFirst { it > 0 }
+        val cardTop = stack.cardTop(profile)
+
+        val body = stack.luminance(stack.width / 2, cardTop - 6)
+        var runs = 0
+        var inRun = false
+        for (y in top until cardTop) {
+            val lit = stack.luminance(stack.width / 2, y) >= body + RimContrast
+            if (lit && !inRun) runs++
+            inRun = lit
+        }
+
+        assertTrue(
+            runs == 3,
+            "counted $runs lit edges down the middle of the stack between the " +
+                "top of it and the front card, where three pills should each " +
+                "contribute one. Zero means they are one undivided silhouette " +
+                "of the same colour; fewer than three means fewer than three " +
+                "are being drawn.",
+        )
+    }
+
+    /** A settled stack with five toasts queued and none of them expiring. */
+    private fun stackOfFive(): BufferedImage {
+        var image: BufferedImage? = null
+        Scene(width = 600, height = SceneHeight) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) {
+                    repeat(4) { toasts.show("Saved for offline", durationMillis = 0) }
+                    toasts.show("Couldn't reach the timetable service", durationMillis = 0)
+                }
+            }
+        }.use { scene -> image = scene.frames(60) }
+        return requireNotNull(image)
+    }
+
+    /** How wide the run of toast surface is on every row, top to bottom. */
+    private fun BufferedImage.widthProfile(): List<Int> =
+        (0 until height).map { widthAtRow(it) }
+
+    /**
+     * The first row belonging to the front card.
+     *
+     * The card is several times wider than any pill, so "most of the widest
+     * thing on screen" finds it without needing to know what any of the pills
+     * measure.
+     */
+    private fun BufferedImage.cardTop(profile: List<Int>): Int {
+        val widest = profile.max()
+        return profile.indexOfFirst { it > widest * 7 / 10 }
+    }
+
+    /** The width of the first run of rows that hold still, or null if none do. */
+    private fun List<Int>.firstPlateau(): Int? {
+        var run = 1
+        for (i in 1 until size) {
+            if (this[i] == this[i - 1] && this[i] > 0) {
+                run++
+                if (run >= PlateauRows) return this[i]
+            } else {
+                run = 1
+            }
+        }
+        return null
+    }
+
+    private fun BufferedImage.luminance(x: Int, y: Int): Int {
+        val rgb = getRGB(x, y)
+        return (((rgb shr 16) and 0xFF) + ((rgb shr 8) and 0xFF) + (rgb and 0xFF)) / 3
+    }
+
     /** The first and last rows holding any toast surface. */
     private fun BufferedImage.surfaceRows(): IntRange? {
         var first = -1
@@ -413,6 +606,29 @@ class ToastStackTest {
      */
     private companion object {
         const val SceneHeight = 400
+
+        /**
+         * How much narrower the back of the stack has to be than the front of
+         * it, in this scene's pixels.
+         *
+         * The taper is 12% of a 72dp pill per step, over two steps, at density
+         * two: 35px if it is working. The old 7% managed ten. Twenty-four sits
+         * between them with room on both sides for antialiasing and for the
+         * nearest pill being sampled part-way up its cap.
+         */
+        const val TaperStep = 24
+
+        /**
+         * How much lighter than the pill's own body a rim has to be to count.
+         *
+         * The rim measures about 70 against a body of 18 here. Twenty-five is
+         * comfortably past the antialiasing on the pill's own outline and
+         * nowhere near the rim itself.
+         */
+        const val RimContrast = 25
+
+        /** How many rows of identical width count as a pill's straight side. */
+        const val PlateauRows = 4
 
         /** A plausible status bar in this scene's pixels. */
         const val StatusBar = 72

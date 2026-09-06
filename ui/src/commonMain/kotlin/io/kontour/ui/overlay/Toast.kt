@@ -15,6 +15,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -243,20 +244,29 @@ object ToastDefaults {
     /**
      * How many toasts are on screen at once.
      *
-     * Three. Past that the stack is taller than the thing it is reporting on,
-     * and the ones at the back are a stripe of colour rather than a message.
+     * Four: one card and three pills behind it. It was three, and the ones
+     * behind used to be near enough the same size as each other that a fourth
+     * would have read as a thicker edge rather than as another toast. They taper
+     * now — see [DepthScale] — so the fourth is plainly a fourth, and it costs
+     * less height than the third one used to because they also [Peek] less.
      */
-    const val MaxVisible: Int = 3
+    const val MaxVisible: Int = 4
 
     /**
      * How far each toast behind the front one peeks out.
      *
-     * Bigger than it first looks like it should be, because a toast is a *pill*.
-     * At 10dp the card behind added eighteen pixels of rounded top to a shape
-     * that was already round, and the stack read as one toast with a thick edge
-     * rather than as two. The gap has to clear the curve.
+     * This was 16dp, and the note here argued for it: a toast is a *pill*, and
+     * at 10dp the one behind added eighteen pixels of rounded top to a shape
+     * that was already round, so the stack read as one toast with a thick edge
+     * rather than as two. That was true while every pill was the same width,
+     * because the gap was the *only* thing separating them and it had to do all
+     * the work on its own.
+     *
+     * The pills step in at the sides now, so the silhouette says where one ends
+     * and the next begins and the gap does not have to. Twelve, which fits three
+     * behind the card in slightly less height than two used to take.
      */
-    val Peek: Dp = 16.dp
+    val Peek: Dp = 12.dp
 
     /**
      * How wide a toast waiting behind the front one is drawn.
@@ -293,13 +303,40 @@ object ToastDefaults {
     val ControlRowHeight: Dp = 48.dp
 
     /**
-     * How much smaller each one behind the front one is drawn.
+     * How big the *first* pill behind the card is drawn.
      *
-     * Enough to be visible at the sides of the one in front, which is the other
-     * half of reading as a stack: same width and it is a silhouette, narrower
-     * and it is a card behind a card.
+     * The size every pill used to be, near enough — the old rule was
+     * `1 - 0.07 * depth`, so the first one landed here and the second one three
+     * dp behind it. Kept as the ceiling deliberately: the report is that the
+     * ones behind should get gradually smaller and that the size they are today
+     * is the *largest* of them, so nothing here grows.
      */
-    const val DepthScale: Float = 0.07f
+    const val FirstPillScale: Float = 0.93f
+
+    /**
+     * How much smaller each pill is than the one in front of it.
+     *
+     * Twelve per cent, and it was five. At five a stack of pills was a single
+     * lumpy silhouette: 134px, then 124px, with 32px of overlap between them, so
+     * the step at the sides was five pixels on each side and read as a wobble in
+     * one shape rather than as two shapes. At twelve the widths are 134, 117 and
+     * 99 — a taper you can count.
+     *
+     * This is what does the separating now, which is why [Peek] could come down
+     * rather than up to make room for a fourth toast.
+     */
+    const val DepthScale: Float = 0.12f
+
+    /**
+     * How much of a waiting toast's own content colour outlines it.
+     *
+     * Enough to see where one pill ends and the next begins, faint enough that
+     * it reads as an edge catching the light rather than as a drawn border —
+     * these are the toasts nobody is being asked to look at. See the note beside
+     * it in `ToastSurface` for why this is a rim and not the shadow the report
+     * asked for.
+     */
+    const val PillRim: Float = 0.22f
 
     /** How much of the screen's width a toast may take, at most. */
     val MaxWidth: Dp = 420.dp
@@ -378,7 +415,10 @@ object ToastDefaults {
  *
  * @param maxVisible How many are drawn. Extras stay in the state and take their
  *   turn as the ones in front expire; their timers run either way, which is what
- *   stops a backlog from outliving its usefulness.
+ *   stops a backlog from outliving its usefulness. One that runs out while it is
+ *   still waiting for room simply never appears — there is nothing to animate
+ *   away, and a confirmation of something the user did ten seconds ago is not
+ *   worth showing late.
  * @param showClose Puts a close control on every toast. Off by default, because
  *   a toast that dismisses itself in four seconds does not need one — turn it on
  *   where toasts are pinned, or where they carry an action worth reading twice.
@@ -491,6 +531,31 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     var frontHeightPx by remember { mutableIntStateOf(0) }
     val frontHeight = with(density) { frontHeightPx.toDp() }
 
+    // Every toast runs its clock, including the ones with no room to be drawn.
+    //
+    // This used to live in `ToastCard`, and a card is only composed for the
+    // front `maxVisible` toasts — so a toast queued behind them was not counting
+    // at all, and began its full duration over from the beginning once there was
+    // room for it. `ToastHost`'s KDoc has always claimed the opposite, and the
+    // report is the difference between the two: a burst of confirmations took
+    // two rounds of the clock to clear rather than one, which is the jank.
+    //
+    // A toast that expires while it is off screen is *removed* rather than
+    // dismissed. Dismissal is a request to animate away, and there is no card
+    // composed to run that animation or to take it off the list when it ends —
+    // so a dismissed-but-unremoved toast would sit in the stack for ever,
+    // holding a place that nothing can see.
+    state.toasts.forEach { toast ->
+        key(toast.id) {
+            val onScreen by rememberUpdatedState(visible.any { it === toast })
+            LaunchedEffect(toast.id) {
+                if (toast.durationMillis <= 0) return@LaunchedEffect
+                delay(toast.durationMillis)
+                if (onScreen) state.dismiss(toast.id) else state.remove(toast)
+            }
+        }
+    }
+
     Box(
         Modifier.fillMaxSize().windowInsetsPadding(config.windowInsets),
         contentAlignment = config.position.alignment,
@@ -530,13 +595,8 @@ private fun ToastCard(
 ) {
     val motion = Theme.motion
 
-    // Its own clock. The whole point of the stack: a toast pinned for an answer
-    // used to stop every later one from being shown at all.
-    LaunchedEffect(toast.id) {
-        if (toast.durationMillis <= 0) return@LaunchedEffect
-        delay(toast.durationMillis)
-        state.dismiss(toast.id)
-    }
+    // The clock is not here. It is in `ToastStack`, which composes it for every
+    // toast rather than for the ones that fit on screen — see the comment there.
 
     // Gone for real once it has finished leaving, which is what lets it leave at
     // all — see `Toast.presence`.
@@ -565,7 +625,13 @@ private fun ToastCard(
         label = "toastDepthOffset",
     )
     val depthScale by animateFloatAsState(
-        targetValue = 1f - ToastDefaults.DepthScale * depth,
+        // The front one is full size; the first pill behind it is the biggest a
+        // pill gets, and they taper from there.
+        targetValue = if (depth == 0) {
+            1f
+        } else {
+            ToastDefaults.FirstPillScale - ToastDefaults.DepthScale * (depth - 1)
+        },
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "toastDepthScale",
     )
@@ -712,6 +778,26 @@ private fun ToastSurface(
         shape = Theme.shapes.capsule,
         colour = container,
         contentColour = content,
+        // A rim on the ones behind, and this is the "shadows for separation" in
+        // the report done the only way that works.
+        //
+        // Every toast in the stack is the same colour, and the shadow is black:
+        // `Theme.elevation.high` puts black at 10% over a `surfaceInverse` pill
+        // that is already almost black, which is nothing at all. The offsets
+        // point downward too, so the card's shadow falls away from the pill
+        // above it and the pill's own falls under the card, where the card is
+        // drawn over it. There is no arrangement of these shadows that draws a
+        // line between two stacked pills in a light theme.
+        //
+        // A hairline in the toast's *content* colour does, and does it in both
+        // themes without being told which one it is in: near-white on a dark
+        // pill, near-dark on a light one. It is opaque, so nothing shows through
+        // the way the old alpha fade did.
+        border = if (depth == 0) {
+            null
+        } else {
+            BorderStroke(Theme.sizing.borderWidth, content.copy(alpha = ToastDefaults.PillRim))
+        },
         shadow = Theme.elevation.high,
     ) {
         // A card in front; behind it, a plain capsule of the same colour and

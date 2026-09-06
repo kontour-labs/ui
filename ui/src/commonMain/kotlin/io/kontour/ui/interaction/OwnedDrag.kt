@@ -60,9 +60,9 @@ import kotlinx.coroutines.launch
  *
  * So the three handlers go through [rememberUpdatedState] and are read at call
  * time. The node still never restarts, and it still calls the current lambdas.
- * A control whose handlers only touch snapshot state — the plain [Slider] is one
- * — was never affected, which is exactly why this went unnoticed for as long as
- * it did.
+ * A control whose handlers only touch snapshot state — the plain
+ * [io.kontour.ui.components.selection.Slider] is one — was never affected,
+ * which is exactly why this went unnoticed for as long as it did.
  *
  * @param onStart Called with the down position, in this node's coordinates.
  * @param onDelta Called with the horizontal movement since the last change.

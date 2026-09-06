@@ -226,64 +226,56 @@ fun Callout(
             .height(IntrinsicSize.Min)
             .clip(shape)
             .background(container, shape)
-            // A rule down the leading edge, with a corner of its own.
+            // The leading *edge* is the accent, not a bar floating near it.
             //
-            // Two earlier attempts, and the fault they share is worth stating
-            // because it is the reason this looks like more code than a 3dp
-            // `Box`. A plain bar inside a rounded container is eaten by the clip
-            // where the curve turns, so a rule meant to run the full height
-            // tapers away at both ends. Stroking the *container's* path instead
-            // fixes that by construction — the band is the outline, so it curves
-            // with it — but it curves with it all the way, and a 22dp corner
-            // carries the rule a good 25dp along the top and bottom edges. The
-            // result reads as a "C" bracketing the text rather than a rule
-            // beside it.
+            // Third attempt, and the first two are worth keeping because the
+            // third is the answer to both. A plain bar inside a rounded
+            // container is eaten by the clip where the curve turns, so a rule
+            // meant to run the full height tapers away at each end; stroking
+            // the container's whole outline instead curves with it all the way,
+            // and a 22dp corner carries the rule 25dp along the top and bottom
+            // edges, which reads as a "C" bracketing the text. The version that
+            // shipped dodged both by indenting the bar 8dp from the edge — and
+            // an 8dp gap is exactly enough to stop it reading as an edge at
+            // all. It looked like a tally mark left in the box, which is the
+            // report.
             //
-            // So: the rule is its own rounded rect at its own much smaller
-            // radius, and it is *indented* from the leading edge rather than
-            // flush against it.
-            //
-            // The indent is what makes it a rule rather than a stub, and that is
-            // arithmetic rather than taste. A bar flush at x=0 is inside a 22dp
-            // corner only where the container's edge has finished curving — 22dp
-            // down from the top and 22dp up from the bottom — so on a two-line
-            // callout there is almost nothing left to draw. Set it 8dp in and
-            // the edge clears it 5dp from the top instead, so the rule can run
-            // the height of the text it is marking. Which is also the right
-            // thing for it to measure: `CalloutRuleInset` matches the content's
-            // own padding, so the rule spans the words rather than the box.
+            // So the taper is not the fault; it is the effect. A band flush
+            // against the leading edge, clipped to the container's own path,
+            // narrows to nothing exactly where the corner turns away from it —
+            // which is what an edge catching the light does. The squircle is
+            // what makes this work rather than merely tolerable: its curvature
+            // is spread along the edge instead of concentrated in a quarter
+            // circle, so the band thins over most of a corner's length rather
+            // than being cut off in a couple of pixels.
             .drawWithCache {
                 val outline = shape.createOutline(size, layoutDirection, this)
                 val path = Path().apply { addOutline(outline) }
                 val width = CalloutRuleWidth.toPx()
 
-                val indent = CalloutRuleIndent.toPx()
-                val inset = CalloutRuleInset.toPx()
-                val height = (size.height - inset * 2f).coerceAtLeast(0f)
-
-                // Draw coordinates do not flip, but the spacer that reserves this
-                // strip is a `Row` child and does. Mirror by hand or the rule is
-                // painted under the text in RTL.
+                // Draw coordinates do not flip, but the spacer that reserves
+                // this strip is a `Row` child and does. Mirror by hand or the
+                // rule is painted under the text in RTL.
                 val left = if (layoutDirection == LayoutDirection.Rtl) {
-                    size.width - indent - width
+                    size.width - width
                 } else {
-                    indent
+                    0f
                 }
 
                 onDrawWithContent {
                     drawContent()
                     clipPath(path) {
-                        drawRoundRect(
+                        drawRect(
                             color = accent,
-                            topLeft = Offset(left, inset),
-                            size = Size(width, height),
-                            cornerRadius = CornerRadius(width / 2f),
+                            topLeft = Offset(left, 0f),
+                            size = Size(width, size.height),
                         )
                     }
                 }
             },
     ) {
-        Box(Modifier.width(CalloutRuleIndent + CalloutRuleWidth))
+        // The rule plus a hair of air; the content's own padding does the rest.
+        Box(Modifier.width(CalloutRuleWidth + Theme.spacing.xs))
         Box(Modifier.padding(Theme.spacing.sm)) {
             CompositionLocalProvider(
                 LocalContentColour provides Theme.colours.accent.onContainer,
@@ -296,18 +288,6 @@ fun Callout(
 
 /** How wide the accent rule down a [Callout]'s leading edge is. */
 private val CalloutRuleWidth = 3.dp
-
-/**
- * How far in from the leading edge the rule sits.
- *
- * Not decoration: a bar flush against the edge is inside the container's own
- * 22dp corner only over the straight part of that edge, which on a short callout
- * is almost none of it. See the drawing comment in [Callout].
- */
-private val CalloutRuleIndent = 8.dp
-
-/** The rule spans the padded content rather than the whole box. */
-private val CalloutRuleInset = 12.dp
 
 @Composable
 private fun bannerColoursFor(tone: BannerTone): StatusColours = when (tone) {

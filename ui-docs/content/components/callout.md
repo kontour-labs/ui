@@ -12,6 +12,12 @@ Callout {
 }
 ```
 
+**The accent is the leading edge, not a bar near it.** It is drawn flush against
+the container and clipped to the container's own outline, so it narrows to
+nothing where the corner turns away — an edge catching the light rather than a
+rule standing beside the text. It used to be a rounded bar set in from the edge,
+which read as a tally mark someone had left in the box.
+
 ---
 
 ## Accessibility

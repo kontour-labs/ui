@@ -410,7 +410,15 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
         contentAlignment = Alignment.Center,
     ) {
         if (refreshing) {
-            Spinner(size = Theme.sizing.iconMedium, contentDescription = null)
+            Spinner(
+                size = Theme.sizing.iconMedium,
+                contentDescription = null,
+                // Opens where the pull finished rather than at three o'clock.
+                // The arc grew all the way round to seven under the finger and
+                // then teleported back to three the instant the gesture
+                // committed, which is the reported jump.
+                initialAngle = PullHead + if (reduceMotion) 0f else PullTurn,
+            )
         } else {
             // Drawn here rather than handed to `CircularProgress`, because a
             // progress ring closes the circle and this one must not.
@@ -430,8 +438,18 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
             Canvas(Modifier.size(Theme.sizing.iconMedium)) {
                 val stroke = PullStroke.toPx()
                 val inset = stroke / 2f
-                val sweep = pull * SpinnerDefaults.OpeningSweep
-                val head = -90f + if (reduceMotion) 0f else pull * PullTurn
+                // The length the spinner will open at, so the swap is not a
+                // step. Under reduced motion the spinner holds `RestingSweep`
+                // and never breathes, so that is the length to grow to instead
+                // — matching `OpeningSweep` there would have handed a 190°
+                // arc over to a 90° one.
+                val full = if (reduceMotion) {
+                    SpinnerDefaults.RestingSweep
+                } else {
+                    SpinnerDefaults.OpeningSweep
+                }
+                val sweep = pull * full
+                val head = PullHead + if (reduceMotion) 0f else pull * PullTurn
                 drawArc(
                     color = colour,
                     startAngle = head - sweep,
@@ -449,6 +467,9 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
 
 /** Matches [Spinner]'s stroke at the same size, so the swap is not a step. */
 private val PullStroke = 2.5.dp
+
+/** Where the pull arc's head sits before the finger moves: twelve o'clock. */
+private const val PullHead = -90f
 
 /** How far the arc turns over a full pull. Most of a revolution, not all of it. */
 private const val PullTurn = 300f
