@@ -102,7 +102,19 @@ fun <T> WheelPicker(
     itemHeight: Dp = 40.dp,
     infinite: Boolean = false,
 ) {
-    require(visibleItems % 2 == 1) { "visibleItems must be odd so a row can sit in the centre" }
+    require(visibleItems % 2 == 1) {
+        "WheelPicker's visibleItems must be odd so a row can sit in the centre, not $visibleItems"
+    }
+    // The quiet neighbour of the loud one above. `visibleItems` has rejected even
+    // numbers since it was written; `itemHeight` is divided by in four places and
+    // accepted `0.dp`, which produces NaN — no exception, no drawing, and a drum
+    // that is permanently stuck. One bad argument shouted and the one beside it
+    // went silent.
+    require(itemHeight > 0.dp) {
+        "WheelPicker's itemHeight must be greater than zero, not $itemHeight. Every " +
+            "position on the drum is derived by dividing by it, so zero gives NaN and a " +
+            "picker that renders nothing and cannot be scrolled."
+    }
     if (items.isEmpty()) return
 
     if (infinite) {

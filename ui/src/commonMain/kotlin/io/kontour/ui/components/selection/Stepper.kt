@@ -99,6 +99,17 @@ fun Stepper(
     animateValue: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    // `0 until seatsAvailable` is empty on a full flight, and `coerceIn` throws
+    // on an empty range from composition, where nothing can catch it and the
+    // message is about coercion rather than about a stepper. The most ordinary
+    // empty state a counter has, so it gets the loudest possible answer.
+    require(!range.isEmpty()) {
+        "Stepper was given an empty range ($range). A stepper needs at least one value " +
+            "it can show; a range computed as `0 until count` is empty whenever the " +
+            "count is zero, which is usually a sign the control should not be on screen " +
+            "at all."
+    }
+
     val shown = value.coerceIn(range)
     val canDecrement = enabled && shown - step >= range.first
     val canIncrement = enabled && shown + step <= range.last

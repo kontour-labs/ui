@@ -121,6 +121,18 @@ fun RangeSlider(
     onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    // An inverted range has no reading, and the failure it used to cause was
+    // invisible: `coerceIn` throws on one, and the call that reached it first was
+    // inside the `setProgress` **semantics action** — so no screenshot could see
+    // it, no gesture could reach it, and the first person to find it would be
+    // using a screen reader or an automated accessibility check.
+    require(valueRange.start <= valueRange.endInclusive) {
+        "RangeSlider was given an inverted valueRange " +
+            "(${valueRange.start}..${valueRange.endInclusive}). The start has to be at " +
+            "or below the end; a range built from two computed bounds can invert when " +
+            "the data behind them is empty or out of order."
+    }
+
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion

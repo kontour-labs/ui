@@ -41,6 +41,17 @@ by one or two; nobody taps `+` thirty times.
 
 ---
 
+## What it refuses
+
+`range` must not be empty. A range written as `0 until count` is empty whenever
+the count is zero — a full flight, an out-of-stock line, a basket with nothing in
+it — and that is the most ordinary empty state a counter has, so it is worth
+saying what happens: the stepper throws, naming itself and the range.
+
+It throws rather than drawing a disabled zero because a stepper over no values is
+a control with nothing to do. If the count can be zero, decide at the call site
+whether to show the stepper at all.
+
 ## Accessibility
 
 `contentDescription` names the whole control and is required, because `+` and `−`

@@ -82,6 +82,18 @@ it off when they are only there to keep the value tidy.
 
 ---
 
+## What it refuses
+
+`valueRange.start` must be at or below `valueRange.endInclusive`, for the same
+reason and with the same history as [`Slider`](slider.md): the crash it used to
+cause came out of the `setProgress` semantics action, which is a path only
+assistive technology takes.
+
+`minDistance` is not in that category — it is clamped to what the track can hold
+rather than refused, because a caller asking for more separation than the range
+contains has said something meaningful, and giving them the whole track is a
+reasonable reading of it.
+
 ## Accessibility
 
 Two thumbs, two nodes, each with its own `contentDescription` —

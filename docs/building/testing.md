@@ -325,20 +325,54 @@ is a bit generous".
 
 ## How performance is measured
 
-**Counted, not timed.** A stopwatch here measures this container: a software
-rasteriser, no GPU, and a harness that PNG-encodes and re-decodes every frame.
-A count of measures, layouts, draws or recompositions is CPU-bound Kotlin running
-the identical code on a JVM and on a phone — the number taken here is the number
-a phone sees. So counts are the gates, and the two timing instruments that exist
-are diagnostics that print a number without failing a build.
+**Counted, not timed — with two exceptions that earned it.** A stopwatch here
+measures this container: a software rasteriser and no GPU. A count of measures,
+layouts, draws or recompositions is CPU-bound Kotlin running the identical code
+on a JVM and on a phone, so the number taken here is the number a phone sees.
+Counts are therefore the gates.
 
 | Instrument | Where | Counts |
 |---|---|---|
 | `PhaseCounts` + `Modifier.countPhases` | `ui/src/commonTest/…/PhaseCounts.kt` | measures, placements, draws |
 | the `Counted` pattern | `OverlayRecompositionTest` | recompositions |
 | `SheetState.anchorRebuilds` | `:ui`, production code | anchor rebuilds per frame |
+| `IdleAnimationTest` + `Scene.stillAnimating` | `:ui-catalog` | whether a still screen wants another frame |
 | `BackdropCostDiagnostic` | `:ui-catalog` | *times* frames — diagnostic only |
 | `FrameReadout` | `:ui-catalog`, on screen | real frames, on a real device |
+| `docs/check-bundle-size.py` | CI | gzip bytes a reader downloads |
+| `docs/measure-web.mjs` | local only | a real browser on the built site |
+
+### The two things a count cannot see
+
+**An animation that runs without being read.** `rememberInfiniteTransition`
+subscribes to the frame clock when it is composed and asks for frames forever;
+reading its value only decides whether the picture changes. So a component can
+gate the read, draw a still image, pass every golden, produce no recompositions —
+the value is read in a draw scope — and still wake the thread sixty times a
+second. Four components did. `ComposeScene.hasInvalidations`, wrapped as
+`Scene.stillAnimating`, is the only thing in the harness that can see it, and
+`IdleAnimationTest` asserts both directions: that a determinate progress bar
+settles, and that an indeterminate one does not.
+
+**Anything about the web.** Every count above is taken on JVM Skia, and both of
+the symptoms that started Round 23 — a site that takes seconds to appear, and
+animation that is rough on web specifically — are properties of a browser.
+`docs/measure-web.mjs` opens one: it serves the laid-out site, gzipping as Pages
+does, and drives Chromium over the DevTools Protocol with no dependencies. It
+reports when the application actually starts (the first animation frame Compose
+asks for, not `first-contentful-paint`, which fires for the static boot screen),
+every asset's transfer size, anything fetched twice, and how many frames the page
+asks for when nothing is moving.
+
+It stays a local diagnostic and out of CI, because there is no GPU in a container
+and no meaning in a millisecond taken on a shared runner. What *is* meaningful is
+comparing two runs of it with one variable changed, and `--network fast4g` makes
+that comparison resemble a reader: unthrottled the whole site arrives in about a
+second, which describes nobody.
+
+`docs/check-bundle-size.py` is the half that does run in CI, because bytes are the
+same everywhere. Skia is ratcheted separately from the application binary — at
+roughly two thirds of the payload it would swamp any total that mixed them.
 
 `countPhases` has to be applied through a component's **real public content
 slot**. A replica assembled by the test is the easiest way to write a performance
