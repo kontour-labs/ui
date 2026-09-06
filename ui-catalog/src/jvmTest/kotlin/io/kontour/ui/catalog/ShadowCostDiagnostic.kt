@@ -86,6 +86,15 @@ import kotlin.test.assertTrue
  * So this file exists to hold the number, not to have caused a change. A
  * **diagnostic, not a gate**: the assertion is a catastrophe bound no reasonable
  * machine trips, and the useful output is the table it prints.
+ *
+ * Which is a claim the code has to earn rather than assert. It did not, for one
+ * round: the ratio was taken whenever the first layer cost more than 0.01ms,
+ * and the noise on one of these samples is a few tenths of a millisecond — so a
+ * scheduling hiccup could put a 0.05ms denominator under a 1ms numerator and
+ * report that the second shadow layer cost twenty times the first. It failed a
+ * build that way, on a tree where nothing about shadows had changed. The floor
+ * is a real one now, and a row under it is skipped and said so rather than
+ * scored.
  */
 class ShadowCostDiagnostic {
 
@@ -100,13 +109,46 @@ class ShadowCostDiagnostic {
 
             val first = one - none
             val second = two - one
-            ratios += if (first > 0.01) second / first else 0.0
+
+            // Only divide by a denominator big enough to mean something.
+            //
+            // This guard used to be `first > 0.01`, which is not a floor at all:
+            // the noise on one of these samples is a few tenths of a
+            // millisecond, so a scheduling hiccup between the no-shadow and
+            // one-layer scenes can leave `first` at 0.05ms with `second` at a
+            // full millisecond, and the ratio comes out at twenty. That is
+            // exactly what happened — this failed a gate at 19.25 while the
+            // shadows themselves had not changed at all, on a file whose own
+            // documentation calls it a catastrophe bound no reasonable machine
+            // trips.
+            //
+            // A row below the floor is *reported and skipped* rather than scored
+            // zero. Skipping is honest — the machine was too busy to measure
+            // that row — and scoring it zero would have quietly dragged the
+            // maximum down on exactly the runs where the number is least
+            // trustworthy.
+            val measurable = first >= MinimumMeasurableMillis
+            if (measurable) ratios += second / first
 
             println(
                 ("%3d cards — no shadow %6.2fms · one layer %6.2f (+%.2f) · " +
-                    "two layers %6.2f (+%.2f).  second/first %.2f")
-                    .format(cards, none, one, first, two, second, ratios.last())
+                    "two layers %6.2f (+%.2f).  second/first %s")
+                    .format(
+                        cards, none, one, first, two, second,
+                        if (measurable) "%.2f".format(second / first)
+                        else "not measurable (first layer under %.2fms)"
+                            .format(MinimumMeasurableMillis),
+                    )
             )
+        }
+
+        if (ratios.isEmpty()) {
+            println(
+                "every row came out under the floor, so this run measured nothing. " +
+                    "That is a fact about the machine rather than about the shadows, " +
+                    "and it is not something to fail a build over."
+            )
+            return
         }
 
         // Both layers blur the same shape over the same bounds, so the second
@@ -167,5 +209,33 @@ class ShadowCostDiagnostic {
 
         const val WarmUpFrames = 10
         const val Samples = 30
+
+        /**
+         * How much the first shadow layer has to cost before its cost can be a
+         * denominator.
+         *
+         * Set from the table this test prints rather than guessed. One run of
+         * it, on the container this was written on:
+         *
+         * ```
+         *  5 cards — one layer +0.27ms · two layers +0.55.  second/first 2.02
+         * 20 cards — one layer +2.08ms · two layers +2.49.  second/first 1.20
+         * 60 cards — one layer +6.38ms · two layers +7.48.  second/first 1.17
+         * ```
+         *
+         * The two large rows agree with each other and with the figure this file
+         * exists to hold. The five-card row does not, and it is not a finding —
+         * it is a quarter of a millisecond of work being timed on a machine whose
+         * scheduling noise is about that size, and it is the row that failed a
+         * build at 19.25.
+         *
+         * Set well clear of it — the same row came out at 0.27ms on one run and
+         * 0.53ms on the next, a twofold swing on one machine, which is the
+         * argument in one number. So five cards is always excluded here, and
+         * always included on a machine slow enough for five cards to be real
+         * work. The table still prints all three rows: this floor decides what
+         * may be divided, not what gets measured.
+         */
+        const val MinimumMeasurableMillis = 1.0
     }
 }
