@@ -154,7 +154,13 @@ fun <T> WheelPicker(
 
     // The item under the centre line is the first visible one, because the list
     // is padded by exactly `edgeItems` rows at each end.
-    val centredIndex by remember {
+    // Keyed on the list, like `InfiniteWheel`'s version two hundred lines below
+    // and unlike this one until now. An unkeyed `remember` holds the *first*
+    // lambda, so this clamped against the `items` it was composed with while
+    // everything else read the current one — a list of five filtered down to one
+    // still produced a centred index of four, and the next `items[centredIndex]`
+    // threw. The two were written together and only one of them got the key.
+    val centredIndex by remember(items.size) {
         derivedStateOf {
             (listState.firstVisibleItemIndex +
                 if (listState.firstVisibleItemScrollOffset > 0) 1 else 0)
