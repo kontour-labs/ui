@@ -440,17 +440,12 @@ val siteRenders by tasks.registering(Test::class) {
     classpath = jvmTest.classpath
 
     filter { includeTestsMatching("*SiteRenderTest") }
+    // The only difference between this task and what `jvmTest` already does:
+    // whether the pictures are kept.
+    systemProperty("kontour.contactSheets", "true")
     // Nothing about a contact sheet is worth caching: the point is a fresh
     // picture of the site as it is right now.
     outputs.upToDateWhen { false }
 }
 
-tasks.named<Test>("jvmTest") {
-    // Excluded rather than deleted. See [siteRenders].
-    filter {
-        excludeTestsMatching("*SiteRenderTest")
-        // A filter that matches nothing is an error by default, and `jvmTest`
-        // legitimately runs with only two classes left in this module.
-        isFailOnNoMatchingTests = false
-    }
-}
+

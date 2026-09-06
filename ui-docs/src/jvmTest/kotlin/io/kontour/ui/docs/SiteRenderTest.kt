@@ -3,8 +3,8 @@ package io.kontour.ui.docs
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
 import org.jetbrains.skia.EncodedImageFormat
+import org.jetbrains.skia.Image
 import java.io.File
-import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.fail
 
@@ -59,6 +59,20 @@ abstract class SiteRenderTest(private val widthName: String, private val width: 
     /** Tall enough to show a page's shape. Overflow below this is expected. */
     private val height = 1400
 
+    /**
+     * Whether to write the pictures, as opposed to only checking them.
+     *
+     * Two jobs live in this file and they want running at different times. The
+     * **gate** — every page renders without throwing, every page drew something —
+     * is worth a minute on every change; both halves of it have caught shipped
+     * defects. The **contact sheets** are 84 MB of PNGs for a person to scroll
+     * through, and that is something somebody asks for.
+     *
+     * So the sweep runs either way and only the writing is conditional. Off by
+     * default; `:ui-docs:siteRenders` turns it on.
+     */
+    private val writing = System.getProperty("kontour.contactSheets") == "true"
+
     @Test
     fun `every page renders`() {
         val root = File(System.getProperty("kontour.siteShots") ?: "build/site-shots")
@@ -73,14 +87,14 @@ abstract class SiteRenderTest(private val widthName: String, private val width: 
             listOf("home" to Route.Home) +
                 docPages.map { it.path.replace('/', '-') to Route.Doc(it.path) }
 
-        val dir = File(root, widthName).apply { mkdirs() }
+        val dir = File(root, widthName).takeIf { writing }?.apply { mkdirs() }
         for ((name, route) in routes) {
             navigate(route)
-            val result = runCatching { shoot(width, File(dir, "$name.png")) }
+            val result = runCatching { shoot(width, dir?.let { File(it, "$name.png") }) }
             result.onFailure { failures += "$widthName/$name threw ${it::class.simpleName}: ${it.message}" }
             result.onSuccess { flat -> if (flat) failures += "$widthName/$name drew nothing — the image is one colour" }
         }
-        contactSheet(dir, widthName)
+        if (dir != null) contactSheet(dir, widthName)
 
         navigate(Route.Home)
         if (failures.isNotEmpty()) {
@@ -88,22 +102,31 @@ abstract class SiteRenderTest(private val widthName: String, private val width: 
         }
     }
 
-    /** Renders the site at [width] into [file]. Returns true if the image is one flat colour. */
-    private fun shoot(width: Int, file: File): Boolean {
+    /**
+     * Renders the site at [width], writing to [file] if there is one.
+     *
+     * Returns true if the image is one flat colour.
+     *
+     * The flatness check reads Skia's own pixels rather than a PNG. It used to
+     * encode the image, write it, and read the file straight back to look at it
+     * — three round trips to answer a question the pixels in hand could answer,
+     * and with `writing` off there is no file to read at all.
+     */
+    private fun shoot(width: Int, file: File?): Boolean {
         ImageComposeScene(
             width = width,
             height = height,
             density = Density(density),
             content = { Site() },
         ).use { scene ->
-            val bytes = requireNotNull(scene.render(0L).encodeToData(EncodedImageFormat.PNG)) {
-                "Skia failed to encode ${file.name}"
-            }.bytes
-            file.writeBytes(bytes)
-            // Decoded from what is already in memory rather than read back off
-            // the disk it was just written to. Same pixels, one fewer round trip
-            // through the filesystem per shot, and there are 122 of them here.
-            return isUniform(ImageIO.read(bytes.inputStream()), width)
+            val image = scene.render(0L)
+            if (file != null) {
+                val bytes = requireNotNull(image.encodeToData(EncodedImageFormat.PNG)) {
+                    "Skia failed to encode ${file.name}"
+                }.bytes
+                file.writeBytes(bytes)
+            }
+            return isUniform(image, width)
         }
     }
 
@@ -118,12 +141,12 @@ abstract class SiteRenderTest(private val widthName: String, private val width: 
      * So it starts below the bar and to the right of the index, and the ink it
      * is looking for is the page's own.
      */
-    private fun isUniform(image: java.awt.image.BufferedImage?, width: Int): Boolean {
-        if (image == null) return true
+    private fun isUniform(image: Image, width: Int): Boolean {
+        val pixels = image.peekPixels() ?: return true
         val top = ChromeHeight
         val left = if (width >= 600) IndexWidth else 0
         if (top >= image.height || left >= image.width) return true
-        val first = image.getRGB(left, top)
+        val first = pixels.getColor(left, top)
         // Every 7th pixel on both axes. A page with content fails this within a
         // few rows; a blank one has to be walked to be sure, and at 1440×1400
         // that is two million calls per image times hundreds of images.
@@ -131,7 +154,7 @@ abstract class SiteRenderTest(private val widthName: String, private val width: 
         while (x < image.width) {
             var y = top
             while (y < image.height) {
-                if (image.getRGB(x, y) != first) return false
+                if (pixels.getColor(x, y) != first) return false
                 y += 7
             }
             x += 7

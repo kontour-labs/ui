@@ -51,14 +51,22 @@ import kotlin.test.fail
  * supposed to get taller — text wraps, rows become columns — and calling that a
  * failure would be asking every component to be as short as its widest form.
  */
-class WidthSweepTest {
+abstract class WidthSweepTest(private val shard: Int) {
 
-    @Test
-    fun everyComponentSurvivesEveryWidth() {
+    /**
+     * This shard's slice of the registry, striped rather than sliced.
+     *
+     * `filterIndexed { i, _ -> i % Shards == shard }` takes every fourth
+     * component, so each shard gets a mix of cheap and expensive ones. Four
+     * contiguous quarters would put the registry's heaviest run in one fork.
+     */
+    private val mine = componentRegistry.filterIndexed { index, _ -> index % Shards == shard }
+
+    protected fun sweepWidths(widths: List<Int>) {
         val failures = mutableListOf<String>()
 
-        for (spec in componentRegistry) {
-            for (width in Widths) {
+        for (spec in mine) {
+            for (width in widths) {
                 val complaint = try {
                     check(spec, width)
                 } catch (error: Throwable) {
@@ -71,7 +79,7 @@ class WidthSweepTest {
 
         if (failures.isNotEmpty()) {
             fail(
-                "${failures.size} width failures across ${componentRegistry.size} " +
+                "${failures.size} width failures across ${mine.size} " +
                     "components:\n" + failures.joinToString("\n") { "  · $it" }
             )
         }
@@ -90,11 +98,10 @@ class WidthSweepTest {
      * type size on is the case, and a component that survives 200% at 600dp has
      * not been asked anything.
      */
-    @Test
-    fun everyComponentSurvivesLargeType() {
+    protected fun sweepTypeScales() {
         val failures = mutableListOf<String>()
 
-        for (spec in componentRegistry) {
+        for (spec in mine) {
             for (scale in FontScales) {
                 val complaint = try {
                     check(spec, NarrowWindow, scale)
@@ -215,7 +222,7 @@ class WidthSweepTest {
             kotlin.math.abs((a shr 8 and 0xFF) - (b shr 8 and 0xFF)) > 12 ||
             kotlin.math.abs((a and 0xFF) - (b and 0xFF)) > 12
 
-    private companion object {
+    internal companion object {
         /**
          * The ladder.
          *
@@ -226,6 +233,34 @@ class WidthSweepTest {
          * `1200` where `WindowSizeClass` calls it Large.
          */
         val Widths = listOf(0, 48, 120, 200, 320, 360, 600, 1200)
+
+        /**
+         * How many ways the registry is split.
+         *
+         * A test **class** is a fork — `maxParallelForks` hands out classes, not
+         * methods — and 62 components at eight widths inside one method was 833
+         * of this module's 2,046 seconds of test time pinned to a single core
+         * while the other three finished and waited.
+         *
+         * Sharded by component rather than by width, which was tried first and
+         * measured: grouping the ladder into "squeezed", "phone" and "roomy"
+         * gave classes of 80, 217 and 357 seconds, because a render costs what
+         * its area costs and 1200dp is an order of magnitude more pixels than
+         * 48. Width groups read better and cannot balance. Components can: every
+         * shard does the whole ladder, so each is the same slice of the work.
+         *
+         * Four, one per fork. The split gives classes of 229, 214, 207 and 207
+         * seconds, which is as even as this is going to get.
+         *
+         * Eight was tried, on the theory that these sort last alphabetically and
+         * so are dealt out after everything else, leaving three forks waiting on
+         * a long tail. Measured: 12m 51s against 12m 41s. No. What is left is not
+         * scheduling — the module is 2,067 seconds of test time and four forks
+         * divide it by about three in practice, so the floor is what the suite
+         * *does*, and getting under it means doing less rather than spreading it
+         * further.
+         */
+        const val Shards = 4
 
         /**
          * 100%, and the two the accessibility settings actually offer.
@@ -279,4 +314,38 @@ class WidthSweepTest {
          */
         const val Tolerance = 12
     }
+}
+
+/**
+ * One quarter of the registry, at every width and every type scale.
+ *
+ * Four classes rather than one, because forks are handed classes. They are
+ * numbered rather than named for anything, which is the honest description: the
+ * split is a quarter of an alphabetical list and carries no meaning beyond
+ * "some of the components". A failure names the component it happened to, and
+ * that is what a reader needs.
+ *
+ * Both sweeps are declared here rather than inherited. An abstract base carrying
+ * the `@Test` methods would have every subclass inherit every test, so the type
+ * sweep would run four times — four forks doing identical work and calling it
+ * parallelism.
+ */
+class WidthSweepTest1 : WidthSweepTest(0) {
+    @Test fun everyComponentSurvivesEveryWidth() = sweepWidths(Widths)
+    @Test fun everyComponentSurvivesLargeType() = sweepTypeScales()
+}
+
+class WidthSweepTest2 : WidthSweepTest(1) {
+    @Test fun everyComponentSurvivesEveryWidth() = sweepWidths(Widths)
+    @Test fun everyComponentSurvivesLargeType() = sweepTypeScales()
+}
+
+class WidthSweepTest3 : WidthSweepTest(2) {
+    @Test fun everyComponentSurvivesEveryWidth() = sweepWidths(Widths)
+    @Test fun everyComponentSurvivesLargeType() = sweepTypeScales()
+}
+
+class WidthSweepTest4 : WidthSweepTest(3) {
+    @Test fun everyComponentSurvivesEveryWidth() = sweepWidths(Widths)
+    @Test fun everyComponentSurvivesLargeType() = sweepTypeScales()
 }
