@@ -337,3 +337,98 @@ class OverlayQueueTest {
         assertNull(q.current)
     }
 }
+
+/**
+ * Which overlays take focus away from the app behind them.
+ *
+ * `OverlayEntry.trapFocus` defaults to `true` and `OverlayHost` ORs it across
+ * the whole visible stack before applying `focusProperties { canFocus = false }`
+ * to its content. Two consequences, and both of them bit:
+ *
+ * **One trapping entry disables focus for everything.** That is right — a dialog
+ * over a menu must not leave the menu reachable by keyboard — and it means an
+ * overlay cannot opt *itself* out of a trap somebody else set. It can only
+ * decline to set one.
+ *
+ * **A silent entry sets one.** The selection toolbar said nothing and got the
+ * dialog's answer. It floats over a field the user is still selecting in, so
+ * taking focus collapsed the selection, which made Compose call `hide()`, which
+ * tore the toolbar down before the button they had just pressed could run. The
+ * component could not be used at all.
+ *
+ * ### Why this is a state test rather than a focus test
+ *
+ * The obvious test is to focus something, publish an overlay and see whether
+ * focus survived. It cannot be written here: `runDesktopComposeUiTest` drops
+ * focus a frame or two after granting it, with no overlay involved and with no
+ * `OverlayHost` in the tree at all — measured, three modes and a bare control,
+ * all `[false, true, false]`. A test built on it would have passed for the wrong
+ * reason, which is exactly what the first draft of it did.
+ *
+ * So this asserts the decision instead of its consequence. `trapping` below is
+ * the expression `OverlayHost` itself evaluates, one line from where it is used,
+ * and `docs/check-components.py` rule 21 covers the other half by refusing any
+ * entry that does not state its answer.
+ */
+class OverlayFocusTrapTest {
+
+    private fun trapping(host: OverlayHostState) = host.visible.any { it.trapFocus }
+
+    @Test
+    fun anEntryTrapsFocusUnlessItSaysOtherwise() {
+        val host = OverlayHostState()
+        host.show(entry("silent", OverlayLayer.Menu))
+
+        assertTrue(
+            trapping(host),
+            "the default stopped being `true`. That is a fine thing to change, " +
+                "but every entry that relies on it — dialog, sheet, menu — has to " +
+                "be revisited in the same commit, because they would all silently " +
+                "stop trapping.",
+        )
+    }
+
+    @Test
+    fun anOverlayThatFloatsOverAControlDoesNotTrap() {
+        val host = OverlayHostState()
+        // The selection toolbar's entry: menu layer, transparent scrim — and it
+        // must not take focus, because the thing it is for is still in use.
+        host.show(
+            OverlayEntry(
+                key = "toolbar",
+                layer = OverlayLayer.Menu,
+                scrim = ScrimStyle.Transparent,
+                trapFocus = false,
+                content = {},
+            )
+        )
+
+        assertFalse(
+            trapping(host),
+            "an entry declaring `trapFocus = false` still trapped, so the flag " +
+                "has stopped reaching the host's decision",
+        )
+    }
+
+    @Test
+    fun oneTrappingEntryTrapsForTheWholeStack() {
+        val host = OverlayHostState()
+        host.show(
+            OverlayEntry(
+                key = "toolbar",
+                layer = OverlayLayer.Menu,
+                scrim = ScrimStyle.Transparent,
+                trapFocus = false,
+                content = {},
+            )
+        )
+        host.show(entry("dialog", OverlayLayer.Dialog))
+
+        assertTrue(
+            trapping(host),
+            "a dialog opened over a non-trapping overlay left the app behind it " +
+                "focusable. The OR is deliberate: an overlay can decline to set a " +
+                "trap and cannot escape one.",
+        )
+    }
+}

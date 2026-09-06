@@ -430,6 +430,8 @@ fun ModalBottomSheet(
                     key = key,
                     layer = OverlayLayer.Sheet,
                     scrim = ScrimStyle.Dimmed,
+                    // Always dimmed, so always modal, so always trapping.
+                    trapFocus = true,
                     // A sheet covers part of the screen rather than floating in
                     // the middle of it, so the presenting content recedes as
                     // well as blurring. That is what says "on top of this

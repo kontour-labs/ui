@@ -101,6 +101,9 @@ fun Dialog(
                 OverlayEntry(
                     key = key,
                     layer = OverlayLayer.Dialog,
+                    // A dialog owns the screen: focus must not wander back to
+                    // the form behind it. The default, said out loud.
+                    trapFocus = true,
                     dismissOnOutside = dismissible,
                     dismissLabel = dismissLabel,
                     onDismiss = onDismissRequest,

@@ -560,6 +560,62 @@ def hand_rolled_rounded_rects() -> list[str]:
     return offenders
 
 
+MAX_SILENT_FOCUS_TRAPS = 0
+
+
+# `OverlayEntry(` and everything up to the matching close, so `trapFocus` can be
+# looked for among *this* entry's arguments rather than anywhere in the file.
+OVERLAY_ENTRY = re.compile(r"\bOverlayEntry\s*\(")
+
+
+def silent_focus_traps() -> list[str]:
+    """`OverlayEntry` sites that never say whether they trap focus.
+
+    `OverlayEntry.trapFocus` defaults to `true`, and the host ORs it across every
+    visible entry — one trapping overlay makes the whole tree behind it
+    unfocusable. That is right for a dialog and catastrophic for something that
+    floats *over* a control the user is still using.
+
+    The selection toolbar was the second kind and took the first kind's default.
+    It published a `Menu`-layer entry over a focused text field, the field lost
+    focus, its selection collapsed, Compose called `hide()`, and the entry was
+    torn down before the button the user had just pressed could run its
+    `onClick`. The toolbar destroyed itself by existing, and it did it by saying
+    nothing.
+
+    Seven of the library's fourteen entries were silent when this was written.
+    Six of them wanted the default; that is exactly what makes a default like
+    this dangerous, because it is right often enough to be adopted without
+    thought.
+
+    So the rule is **state it**, not "compute it". Deriving from `scrim` looks
+    tempting and does not work: `Menu` and the selection toolbar are both
+    `ScrimStyle.Transparent` and want opposite answers.
+    """
+    silent: list[str] = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        # Block comments are blanked *keeping their newlines*, so the line
+        # number below is the one in the file rather than the one in a string
+        # this function invented. A line comment cannot contain a newline, so
+        # deleting those outright is safe.
+        text = LINE_COMMENT.sub(
+            "",
+            BLOCK_COMMENT.sub(lambda m: "\n" * m.group(0).count("\n"), path.read_text()),
+        )
+        for match in OVERLAY_ENTRY.finditer(text):
+            depth, i = 1, match.end()
+            while i < len(text) and depth:
+                if text[i] == "(":
+                    depth += 1
+                elif text[i] == ")":
+                    depth -= 1
+                i += 1
+            if "trapFocus" not in text[match.end():i]:
+                line = text.count("\n", 0, match.start()) + 1
+                silent.append(f"{path.name}:{line}")
+    return silent
+
+
 def unswept_enums() -> list[str]:
     """Enums a component takes as a parameter and no demo's knob sweeps.
 
@@ -1151,6 +1207,21 @@ def main() -> int:
             f"A literal elsewhere is a corner that has stopped tracking the scale"
         )
 
+    # Rule 21 — an overlay says whether it takes focus away from the app.
+    #
+    # See `silent_focus_traps`. A default that is right six times in seven, and
+    # whose seventh was a component that could not be used at all.
+    silent = silent_focus_traps()
+    if len(silent) > MAX_SILENT_FOCUS_TRAPS:
+        problems.append(
+            f"{len(silent)} `OverlayEntry` site(s) do not say whether they trap "
+            f"focus: {', '.join(silent)} — the default is `true`, and the host "
+            f"applies it to everything behind *every* visible entry. An overlay "
+            f"that floats over a control the user is still using has to say "
+            f"`trapFocus = false`, and one that owns the screen has to say it "
+            f"means to"
+        )
+
     unswept = unswept_enums()
     if len(unswept) > MAX_UNSWEPT_ENUMS:
         problems.append(
@@ -1178,6 +1249,7 @@ def main() -> int:
         f"{len(internal)} written for a maintainer, "
         f"{felt} haptic call sites, "
         f"{circular} deliberate circles, "
+        f"{len(silent)} silent focus traps, "
         f"all accounted for."
     )
     return 0

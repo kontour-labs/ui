@@ -300,6 +300,9 @@ fun FabMenu(
                     key = key,
                     layer = OverlayLayer.Menu,
                     scrim = scrim,
+                    // A menu of actions, and the keyboard has to be able to walk
+                    // into it. Same answer as `Menu`, for the same reason.
+                    trapFocus = true,
                     dismissLabel = dismissLabel,
                     // The items spring out and fold back on their own clock, so
                     // the entry stays until they have landed and the scrim

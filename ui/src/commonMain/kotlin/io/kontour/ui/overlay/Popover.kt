@@ -105,6 +105,14 @@ fun Popover(
                 key = key,
                 layer = OverlayLayer.Menu,
                 scrim = scrim,
+                // Derived, and only in the one direction that is sound.
+                // `ScrimStyle.None` means this overlay lets pointer events
+                // through to what is behind it, and something you can still
+                // click is something you must still be able to focus. The other
+                // two scrims say nothing either way — `Menu` and the selection
+                // toolbar are both `Transparent` and want opposite answers — so
+                // anything with a scrim traps, deliberately.
+                trapFocus = scrim != ScrimStyle.None,
                 dismissLabel = "Close",
                 onDismiss = { dismiss() },
                 content = {
@@ -214,6 +222,9 @@ fun LoadingOverlay(
                 key = key,
                 layer = OverlayLayer.Critical,
                 scrim = ScrimStyle.Dimmed,
+                // Dimmed, undismissable, on the critical layer: this is as modal
+                // as the library gets.
+                trapFocus = true,
                 dismissOnOutside = false,
                 dismissOnBack = false,
                 content = {
