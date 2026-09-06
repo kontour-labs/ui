@@ -1,12 +1,16 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
+import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.scene.ComposeScenePointer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.Density
@@ -184,6 +188,52 @@ class Scene(
             scrollDelta = delta,
             timeMillis = nanos / 1_000_000L,
             type = PointerType.Mouse,
+        )
+    }
+
+    /**
+     * One finger in a gesture that has more than one.
+     *
+     * [down] is what makes a list of these an event rather than a snapshot: a
+     * second finger arriving is one event in which the first is still pressed and
+     * the second has just become so, and a finger lifting is one in which it has
+     * not.
+     */
+    class Touch(val id: Long, val at: Offset, val down: Boolean = true)
+
+    /**
+     * Sends one event carrying every finger currently on the screen.
+     *
+     * The single-pointer helpers above go through `sendPointerEvent`'s
+     * one-pointer overload, which is all this harness could do and is why nothing
+     * in the suite had ever put two fingers on a component. A drag handler that
+     * assumes one pointer is a drag handler nothing had asked.
+     *
+     * The whole set goes in every event, because that is what a pointer event is
+     * — a description of the screen, not a delta. Sending only the finger that
+     * moved is how a test convinces itself the other one was lifted.
+     *
+     * `ComposeScenePointer` is marked internal-between-modules and experimental,
+     * hence the opt-in. It is the only way to express two fingers to a
+     * `ComposeScene`, the alternative is not testing two fingers, and this is a
+     * test source set — the annotation is a promise about source compatibility
+     * across versions, which a test in the same repository as its dependency
+     * pin can take.
+     */
+    @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
+    fun touch(type: PointerEventType, fingers: List<Touch>) {
+        nanos += FrameNanos
+        scene.sendPointerEvent(
+            eventType = type,
+            pointers = fingers.map {
+                ComposeScenePointer(
+                    id = PointerId(it.id),
+                    position = it.at,
+                    pressed = it.down,
+                    type = PointerType.Touch,
+                )
+            },
+            timeMillis = nanos / 1_000_000L,
         )
     }
 
