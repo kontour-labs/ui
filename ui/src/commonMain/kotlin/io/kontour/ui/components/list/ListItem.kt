@@ -40,8 +40,6 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
@@ -220,7 +218,6 @@ fun ListItem(
 ) {
     val slots = listItemSlots(content)
     val colours = Theme.colours
-    val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
     val container = when {
@@ -251,10 +248,7 @@ fun ListItem(
                 indication = kontourIndication(shape, pressScale = 1f),
                 enabled = enabled,
                 role = role,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
             )
 
         else -> Modifier.pointerCursor(enabled = enabled).clickable(
@@ -262,10 +256,7 @@ fun ListItem(
             indication = kontourIndication(shape, pressScale = 1f),
             enabled = enabled,
             role = role,
-            onClick = {
-                feedback.perform(FeedbackIntent.Selection)
-                onClick()
-            },
+            onClick = onClick,
         )
     }
 

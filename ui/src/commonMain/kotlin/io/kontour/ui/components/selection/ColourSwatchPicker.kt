@@ -33,8 +33,6 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 
@@ -119,7 +117,6 @@ private fun Swatch(
 ) {
     val scheme = Theme.colours
     val motion = Theme.motion
-    val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.pill
 
@@ -175,7 +172,6 @@ private fun Swatch(
                 enabled = enabled,
                 role = Role.RadioButton,
                 onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
                     onSelectedChange()
                 },
             ),

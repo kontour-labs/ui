@@ -463,6 +463,44 @@ def uncursored_clicks() -> list[str]:
     return behind
 
 
+MAX_HAPTIC_SITES = 11
+
+
+HAPTIC_CALL = re.compile(r"feedback\.perform\(")
+
+
+def haptic_sites() -> list[str]:
+    """Every place in `:ui` that asks for physical feedback, by file.
+
+    A ceiling rather than a ban, and a ratchet like rules 4, 6 and 7 — the
+    number is allowed to go down and nothing else.
+
+    It exists because this drifted once, quietly and in one direction. "Make it
+    tactile" was a good instruction; fifty-seven call sites was the result of
+    following it one component at a time, with nobody in a position to see the
+    total. Every `clickable` fired. Every `toggleable` fired. A stepped slider
+    fired on the press and again on the release, a swipe row fired four
+    different intents in one gesture, and a wheel picker fired the moment it was
+    composed. Each of those was defensible on its own and the sum was a
+    component set that buzzes when you look at it.
+
+    No single test could have caught that, because every one of them was
+    *working*. What catches it is the count, which is why this is a count.
+
+    The policy the survivors have to meet is written out under "Physical
+    feedback" in `ui-docs/content/theming.md`, and `DetentHapticsTest` holds the
+    individual components to it. Raising this number means arguing with that
+    section first.
+    """
+    sites: list[str] = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        count = len(HAPTIC_CALL.findall(text))
+        if count:
+            sites.append(f"{path.name} ({count})")
+    return sites
+
+
 def unswept_enums() -> list[str]:
     """Enums a component takes as a parameter and no demo's knob sweeps.
 
@@ -1014,6 +1052,22 @@ def main() -> int:
             f"{', '.join(internal)}"
         )
 
+    # Rule 19 — the library buzzes for eleven things, and no more.
+    #
+    # See `haptic_sites`. A ratchet on a total nobody was in a position to see
+    # while it grew from a good instruction to fifty-seven call sites.
+    haptics = haptic_sites()
+    felt = sum(int(entry.rsplit("(", 1)[1].rstrip(")")) for entry in haptics)
+    if felt > MAX_HAPTIC_SITES:
+        problems.append(
+            f"{felt} haptic call sites in :ui, over the ceiling of "
+            f"{MAX_HAPTIC_SITES}: {', '.join(haptics)} — a haptic reports "
+            f"something the user could not otherwise tell, and the four cases "
+            f"that qualify are listed under \"Physical feedback\" in "
+            f"ui-docs/content/theming.md. A press they are watching is not one "
+            f"of them"
+        )
+
     unswept = unswept_enums()
     if len(unswept) > MAX_UNSWEPT_ENUMS:
         problems.append(
@@ -1039,6 +1093,7 @@ def main() -> int:
         f"{len(unswept)} parameter enums and {len(undemoed)} booleans on no knob, "
         f"{len(component_pages) - len(unexplained)} pages explaining a parameter, "
         f"{len(internal)} written for a maintainer, "
+        f"{felt} haptic call sites, "
         f"all accounted for."
     )
     return 0

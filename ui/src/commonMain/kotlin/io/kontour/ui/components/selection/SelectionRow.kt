@@ -106,7 +106,6 @@ fun SelectionRow(
         Role.RadioButton -> Modifier.pointerCursor(enabled = enabled).selectable(
             selected = selected,
             onClick = {
-                feedback.perform(FeedbackIntent.Selection)
                 onSelectedChange(true)
             },
             enabled = enabled,
@@ -120,7 +119,6 @@ fun SelectionRow(
         else -> Modifier.pointerCursor(enabled = enabled).toggleable(
             value = selected,
             onValueChange = { now ->
-                feedback.perform(FeedbackIntent.Selection)
                 onSelectedChange(now)
             },
             enabled = enabled,
@@ -141,7 +139,6 @@ fun SelectionRow(
     val rowToggle: ((Boolean) -> Unit)? = when {
         onSelectedChange == null || role == Role.RadioButton -> null
         else -> { now ->
-            feedback.perform(FeedbackIntent.Selection)
             onSelectedChange(now)
         }
     }

@@ -32,8 +32,6 @@ import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.OverlayEntry
@@ -233,7 +231,6 @@ private fun CollapsedControl(
     shadow: io.kontour.ui.theme.Shadow,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.pill
 
@@ -250,10 +247,7 @@ private fun CollapsedControl(
                 indication = kontourIndication(shape, io.kontour.ui.interaction.DefaultPressScale),
                 enabled = enabled,
                 role = Role.Button,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
             ),
         shape = shape,
         colour = containerColour,

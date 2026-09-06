@@ -44,8 +44,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
@@ -62,7 +61,7 @@ import kotlinx.coroutines.launch
  *
  * Items away from the centre fade and shrink, which is what makes the flat list
  * read as a curved drum rather than a scrolling list with a box drawn on it.
- * Each item passing the centre fires a tick haptic, so the control can be
+ * Each item **dragged** past the centre fires a tick haptic, so the control can be
  * operated by feel.
  *
  * ```
@@ -149,7 +148,7 @@ fun <T> WheelPicker(
     val bandLimit = with(LocalDensity.current) { (itemHeight * WheelOverscrollRows).toPx() }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = selected)
     val flingBehavior = rememberSnapFlingBehavior(listState)
-    val feedback = Feedback
+    val ticker = rememberDetentTicker()
     val currentOnSelect by rememberUpdatedState(onSelectedChange)
 
     // The item under the centre line is the first visible one, because the list
@@ -168,15 +167,28 @@ fun <T> WheelPicker(
         }
     }
 
+    // A detent crossed, not a value observed.
+    //
+    // This fired the dispatcher directly on every emission, and `snapshotFlow`
+    // emits the *current* value first — so every wheel buzzed the moment it
+    // appeared, before anything had been touched. A `TimePicker` is three of
+    // these, so opening one was three haptics for arriving at a screen.
+    // `DetentTicker` arms on the first value and fires on the ones after it,
+    // which is the same guard six other components already share.
     LaunchedEffect(listState) {
         snapshotFlow { centredIndex }.collect { index ->
-            feedback.perform(FeedbackIntent.Tick)
+            ticker.at(index)
             currentOnSelect(index)
         }
     }
 
     LaunchedEffect(selected) {
         if (selected != centredIndex && !listState.isScrollInProgress) {
+            // Re-armed rather than left ticking: the drum is being turned by the
+            // caller, and a value set from code is not a detent a finger crossed.
+            // `scrollToItem` jumps, so exactly one emission follows and the
+            // re-arm swallows exactly it.
+            ticker.reset()
             listState.scrollToItem(selected)
         }
     }
@@ -416,7 +428,6 @@ private fun <T> InfiniteWheel(
 ) {
     val density = LocalDensity.current
     val itemPx = with(density) { itemHeight.toPx() }
-    val feedback = Feedback
     val motion = Theme.motion
     val currentOnSelect by rememberUpdatedState(onSelectedChange)
     val scope = rememberCoroutineScope()
@@ -436,13 +447,6 @@ private fun <T> InfiniteWheel(
         derivedStateOf { wrap((offset.value / itemPx).roundToInt(), items.size) }
     }
 
-    LaunchedEffect(items.size) {
-        snapshotFlow { centredIndex }.collect { index ->
-            feedback.perform(FeedbackIntent.Tick)
-            currentOnSelect(index)
-        }
-    }
-
     // A caller setting the value moves the drum by the *short* way round, which
     // on a wheel that wraps is a thing that has to be chosen rather than
     // falling out of the arithmetic: 23:00 to 00:00 is one row forward, not
@@ -457,6 +461,23 @@ private fun <T> InfiniteWheel(
         }
     }
 
+    val ticker = rememberDetentTicker()
+
+    /**
+     * A detent crossed by a finger, and by nothing else.
+     *
+     * Three things move this drum and only one of them is a gesture. It appears
+     * — and `snapshotFlow` emits its current value first, so the wheel buzzed on
+     * arrival. A caller sets the value — and the spring below crosses every row
+     * between here and there, so `selected = 23` was twenty-three haptics for a
+     * line of code. It settles after a fling — half a row, after the finger has
+     * gone. Only the middle of a real drag is a detent anyone felt.
+     *
+     * `isScrollInProgress` is exactly that distinction on this drum: it is the
+     * `scrollable` below, which is the finger and the fling it threw, and it is
+     * false for both animations. Re-arming rather than ignoring is what keeps
+     * the next real drag from firing for the row it starts on.
+     */
     val scrollState = rememberScrollableState { delta ->
         // Every pixel, always. There is no end to over-scroll past, so nothing
         // is ever left over for a parent to take — which is the other half of
@@ -464,6 +485,13 @@ private fun <T> InfiniteWheel(
         // nested-scroll connection that has to catch it.
         scope.launch { offset.snapTo(offset.value - delta) }
         delta
+    }
+
+    LaunchedEffect(items.size) {
+        snapshotFlow { centredIndex }.collect { index ->
+            if (scrollState.isScrollInProgress) ticker.at(index) else ticker.reset()
+            currentOnSelect(index)
+        }
     }
 
     // Settle onto a row when the finger and the fling are both done. The drum

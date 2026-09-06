@@ -49,8 +49,6 @@ import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 import kotlinx.datetime.DateTimeUnit
@@ -352,7 +350,6 @@ private fun DayCell(
 ) {
     val colours = Theme.colours
     val motion = Theme.motion
-    val feedback = Feedback
     val interactions = remember { MutableInteractionSource() }
 
     val inRange = rangePosition != RangePosition.None
@@ -573,7 +570,6 @@ private fun DayCell(
                     enabled = enabled,
                     role = Role.Button,
                     onClick = {
-                        feedback.perform(FeedbackIntent.Selection)
                         onSelectedChange(date)
                     },
                 ),

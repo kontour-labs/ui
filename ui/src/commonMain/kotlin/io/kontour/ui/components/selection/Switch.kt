@@ -34,8 +34,6 @@ import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.LocalRowToggle
 import io.kontour.ui.theme.Theme
@@ -109,7 +107,6 @@ fun Switch(
     val colours = Theme.colours
     val motion = Theme.motion
     val shape = Theme.shapes.control
-    val feedback = Feedback
     val scope = rememberCoroutineScope()
 
     // A switch inside a `SelectionRow` has no callback of its own — the row owns
@@ -220,7 +217,6 @@ fun Switch(
                     Modifier.pointerCursor(enabled = enabled).toggleable(
                         value = checked,
                         onValueChange = {
-                            feedback.perform(FeedbackIntent.Selection)
                             onCheckedChange(it)
                         },
                         enabled = enabled,
@@ -271,7 +267,6 @@ fun Switch(
                             val now = fraction.value >= 0.5f
                             dragging = false
                             if (now != checked) {
-                                feedback.perform(FeedbackIntent.Selection)
                                 dragTarget(now)
                             }
                         },

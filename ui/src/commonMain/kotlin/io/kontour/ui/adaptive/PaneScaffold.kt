@@ -39,8 +39,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.VerticalDivider
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.theme.Theme
 
 /** Which pane a single-pane window is showing. */
@@ -257,7 +255,6 @@ private fun TwoPane(
 private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
     val colours = Theme.colours
     val motion = Theme.motion
-    val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val hovered by interactions.collectIsHoveredAsState()
 
@@ -283,8 +280,6 @@ private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
             }
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDragStart = { feedback.perform(FeedbackIntent.DragThreshold) },
-                    onDragEnd = { feedback.perform(FeedbackIntent.GestureEnd) },
                 ) { change, amount ->
                     change.consume()
                     onDelta(amount.x)

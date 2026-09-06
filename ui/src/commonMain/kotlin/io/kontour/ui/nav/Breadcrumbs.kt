@@ -23,8 +23,6 @@ import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 
@@ -92,7 +90,6 @@ fun Breadcrumbs(
 @Composable
 private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
     val colours = Theme.colours
-    val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.control
     val onClick = crumb.onClick
@@ -123,10 +120,7 @@ private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
                     shape,
                     io.kontour.ui.components.action.ButtonDefaults.SmallPressScale,
                 ),
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
             )
             .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs),
         style = Theme.typography.bodySmall,

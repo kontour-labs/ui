@@ -34,8 +34,6 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
@@ -94,7 +92,6 @@ fun FloatingActionButton(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val feedback = Feedback
     val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
     val interactive = enabled && !loading
 
@@ -110,10 +107,7 @@ fun FloatingActionButton(
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Confirm)
-                    onClick()
-                },
+                onClick = onClick,
             ),
         shape = shape,
         colour = fabColor,
@@ -172,7 +166,6 @@ fun FloatingActionButton(
     content: @Composable () -> Unit,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val feedback = Feedback
     val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
     val interactive = enabled && !loading
 
@@ -189,10 +182,7 @@ fun FloatingActionButton(
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Confirm)
-                    onClick()
-                },
+                onClick = onClick,
             ),
         shape = shape,
         colour = fabColor,
@@ -249,7 +239,6 @@ fun ExtendedFloatingActionButton(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val motion = Theme.motion
-    val feedback = Feedback
     val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
     val interactive = enabled && !loading
 
@@ -276,10 +265,7 @@ fun ExtendedFloatingActionButton(
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Confirm)
-                    onClick()
-                },
+                onClick = onClick,
             ),
         shape = shape,
         colour = fabColor,

@@ -63,8 +63,6 @@ import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.sheet.SideSheet
@@ -364,7 +362,6 @@ fun NavDrawerItem(
     val slots = listItemSlots(content)
     val colours = Theme.colours
     val motion = Theme.motion
-    val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.container
     // Inside a group the travelling marker carries selection; on its own the row
@@ -419,10 +416,7 @@ fun NavDrawerItem(
                 indication = kontourIndication(shape, pressScale = 1f),
                 enabled = enabled,
                 role = Role.Tab,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
             )
             .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
@@ -481,7 +475,6 @@ fun NavDrawerGroup(
 ) {
     val colours = Theme.colours
     val motion = Theme.motion
-    val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.container
 
@@ -503,7 +496,6 @@ fun NavDrawerGroup(
                     // reader user has to act on to discover.
                     role = Role.Button,
                     onClick = {
-                        feedback.perform(FeedbackIntent.Selection)
                         onExpandedChange(!expanded)
                     },
                 )

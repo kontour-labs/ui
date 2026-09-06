@@ -43,8 +43,6 @@ import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.a11y.contrastEdge
@@ -111,7 +109,6 @@ fun SegmentedControl(
     // Concentric by construction rather than by picking the token one rung down
     // and trusting the padding to match the step.
     val innerShape = outerShape.inset(SegmentedControlDefaults.TrackPadding)
-    val feedback = Feedback
     // At least a fingertip tall, whatever the control height token says.
     //
     // A segmented control is one control made of parts, so it owns the touch
@@ -284,7 +281,6 @@ fun SegmentedControl(
                                 onDragEnd = {
                                     dragging = false
                                     ticker.reset()
-                                    feedback.perform(FeedbackIntent.GestureEnd)
                                 },
                                 onDragCancel = {
                                     dragging = false
@@ -322,7 +318,6 @@ fun SegmentedControl(
                         .selectable(
                             selected = selected,
                             onClick = {
-                                feedback.perform(FeedbackIntent.Selection)
                                 onSelectedChange(index)
                             },
                             enabled = enabled,

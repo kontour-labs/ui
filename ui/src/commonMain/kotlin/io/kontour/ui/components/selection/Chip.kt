@@ -39,8 +39,6 @@ import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.motion.SlotGap
@@ -106,7 +104,6 @@ fun Chip(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val shape = Theme.shapes.control
-    val feedback = Feedback
 
     ChipSurface(
         modifier = modifier
@@ -123,10 +120,7 @@ fun Chip(
                 indication = kontourIndication(shape),
                 enabled = enabled,
                 role = Role.Button,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
             ),
         contentColour = if (enabled) colours.content else colours.contentDisabled,
         content = { KeyedChipContent(contentKey, content) },
@@ -196,7 +190,6 @@ fun FilterChip(
     val colours = Theme.colours
     val motion = Theme.motion
     val shape = Theme.shapes.control
-    val feedback = Feedback
 
     val container by animateColorAsState(
         targetValue = when {
@@ -237,10 +230,7 @@ fun FilterChip(
             .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
                 enabled = enabled,
                 role = Role.Checkbox,
                 interactionSource = interactions,
@@ -323,7 +313,6 @@ fun InputChip(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val shape = Theme.shapes.control
-    val feedback = Feedback
 
     Row(
         modifier = modifier
@@ -371,7 +360,6 @@ fun InputChip(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = kontourIndication(Theme.shapes.control),
                             onClick = {
-                                feedback.perform(FeedbackIntent.Selection)
                                 onRemove()
                             },
                         )

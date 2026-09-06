@@ -35,8 +35,6 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 
@@ -88,7 +86,6 @@ fun Accordion(
     val slots = listItemSlots(header)
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val motion = Theme.motion
-    val feedback = Feedback
     val shape = Theme.shapes.container
 
     Column(modifier.fillMaxWidth()) {
@@ -109,7 +106,6 @@ fun Accordion(
                     indication = kontourIndication(shape, pressScale = 1f),
                     enabled = enabled,
                     onClick = {
-                        feedback.perform(FeedbackIntent.Selection)
                         onExpandedChange(!expanded)
                     },
                 )

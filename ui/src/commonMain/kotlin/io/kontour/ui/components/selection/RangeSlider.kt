@@ -222,11 +222,23 @@ fun RangeSlider(
         return valueRange.start + snapped * span
     }
 
+    /**
+     * The detent tick, if a **drag** just crossed one.
+     *
+     * `carrying` is the whole of the condition — see [Slider]'s `emit`, which
+     * carries the reasoning. Here the tap case is even plainer: a press that
+     * never moved emits from `onEnd`, so a stepped range slider fired once on
+     * touch and once on release for a gesture that crossed nothing. Both are the
+     * same non-event, and both are gone.
+     *
+     * The index is still recorded either way, so the first pixel of a drag that
+     * follows a tap does not tick for the detent the thumb is already on.
+     */
     fun tick(next: Float) {
         if (steps <= 0) return
         val index = ((next - valueRange.start) / span * (steps + 1)).roundToInt().toFloat()
         if (lastStepIndex.isNaN() || abs(index - lastStepIndex) >= 1f) {
-            feedback.perform(FeedbackIntent.Tick)
+            if (carrying) feedback.perform(FeedbackIntent.Tick)
             lastStepIndex = index
         }
     }
@@ -586,7 +598,6 @@ fun RangeSlider(
                                     pressFraction,
                                 )
                             }
-                            feedback.perform(FeedbackIntent.GestureEnd)
                             lastStepIndex = Float.NaN
                             dragFraction = Float.NaN
                             pressFraction = Float.NaN

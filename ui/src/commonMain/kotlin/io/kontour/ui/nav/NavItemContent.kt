@@ -39,8 +39,6 @@ import io.kontour.ui.foundation.elevation
 import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
@@ -166,7 +164,6 @@ internal fun NavDestinationItem(
 ) {
     val colours = Theme.colours
     val motion = Theme.motion
-    val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.pill
 
@@ -228,7 +225,6 @@ internal fun NavDestinationItem(
             enabled = item.enabled,
             role = Role.Tab,
             onClick = {
-                feedback.perform(FeedbackIntent.Selection)
                 item.onClick()
             },
         )

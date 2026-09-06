@@ -23,8 +23,6 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.theme.Theme
 
@@ -113,7 +111,6 @@ fun Stepper(
     val shown = value.coerceIn(range)
     val canDecrement = enabled && shown - step >= range.first
     val canIncrement = enabled && shown + step <= range.last
-    val feedback = Feedback
 
     // The value cell is as wide as the *widest value this stepper can show*,
     // not as wide as the value it is showing.
@@ -162,7 +159,6 @@ fun Stepper(
             icon = SystemIcons.Dash,
             contentDescription = decrementLabel,
             onClick = {
-                feedback.perform(FeedbackIntent.Tick)
                 onValueChange((shown - step).coerceIn(range))
             },
             enabled = canDecrement,
@@ -198,7 +194,6 @@ fun Stepper(
             icon = SystemIcons.Plus,
             contentDescription = incrementLabel,
             onClick = {
-                feedback.perform(FeedbackIntent.Tick)
                 onValueChange((shown + step).coerceIn(range))
             },
             enabled = canIncrement,

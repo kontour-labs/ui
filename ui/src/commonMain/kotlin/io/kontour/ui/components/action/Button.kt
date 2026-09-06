@@ -45,8 +45,6 @@ import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import androidx.compose.ui.graphics.graphicsLayer
 import io.kontour.ui.theme.Theme
@@ -97,7 +95,6 @@ fun Button(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val interactive = enabled && !loading
     val motion = Theme.motion
-    val feedback = Feedback
 
     val container by animateColorAsState(
         targetValue = colours.container(enabled),
@@ -149,16 +146,7 @@ fun Button(
                 indication = null,
                 enabled = interactive,
                 role = Role.Button,
-                onClick = {
-                    feedback.perform(
-                        if (variant == ButtonVariant.Destructive) {
-                            FeedbackIntent.Reject
-                        } else {
-                            FeedbackIntent.Selection
-                        }
-                    )
-                    onClick()
-                },
+                onClick = onClick,
             )
             .padding(horizontal = metrics.horizontalPadding),
         horizontalArrangement = Arrangement.spacedBy(metrics.gap, Alignment.CenterHorizontally),

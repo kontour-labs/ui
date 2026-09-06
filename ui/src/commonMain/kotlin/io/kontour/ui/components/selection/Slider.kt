@@ -72,7 +72,7 @@ internal val SliderHeight = 44.dp
  * ```
  *
  * The thumb grows while dragged and settles back with a bounce on release. Each
- * step crossed on a stepped slider fires a tick haptic, so a user changing a
+ * step **dragged** across on a stepped slider fires a tick haptic, so a user changing a
  * value without looking can feel the detents — which is most of the point of
  * having steps at all.
  *
@@ -165,7 +165,7 @@ fun Slider(
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val currentFinished by rememberUpdatedState(onValueChangeFinished)
 
-    // Remembered so the tick haptic fires once per step crossed, not once per
+    // Remembered so the tick haptic fires once per step dragged across, not once per
     // frame while the thumb sits on a step.
     var lastStepIndex by remember { mutableFloatStateOf(Float.NaN) }
 
@@ -298,12 +298,27 @@ fun Slider(
     val thumbReach =
         if (carrying) dragFraction - drawnFraction else thumbTarget - drawnFraction
 
+    /**
+     * The value, snapped, with a detent tick if a drag just crossed one.
+     *
+     * `carrying` is the whole of the condition, and it is the difference between
+     * a slider that reports *travel* and one that reports *touch*. Pressing a
+     * stepped track lands on a detent, and that used to fire — so did letting go
+     * on the next one, from `onEnd`'s reset. Two buzzes for a gesture that
+     * crossed nothing. A tap is a tap: the value it sets is not a step the finger
+     * felt on the way past.
+     *
+     * The index is still recorded on a tap, and has to be. Without it
+     * `lastStepIndex` would still be `NaN` when the drag began, and the first
+     * pixel of movement would fire a tick for the detent the finger is already
+     * standing on.
+     */
     fun emit(newFraction: Float) {
         val next = snap(newFraction)
         if (steps > 0) {
             val index = ((next - valueRange.start) / range * (steps + 1)).roundToInt().toFloat()
             if (lastStepIndex.isNaN() || abs(index - lastStepIndex) >= 1f) {
-                feedback.perform(FeedbackIntent.Tick)
+                if (carrying) feedback.perform(FeedbackIntent.Tick)
                 lastStepIndex = index
             }
         }
@@ -417,7 +432,6 @@ fun Slider(
                         emit(dragFraction)
                     },
                     onEnd = {
-                        feedback.perform(FeedbackIntent.GestureEnd)
                         lastStepIndex = Float.NaN
                         // Releasing hands the thumb back to the settled value, so
                         // it springs the last of the way onto the detent rather

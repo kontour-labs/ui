@@ -25,8 +25,6 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.drawCheckMark
 import io.kontour.ui.input.focusRing
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
@@ -106,7 +104,6 @@ fun TriStateCheckbox(
     val colours = Theme.colours
     val motion = Theme.motion
     val shape = CheckboxShape
-    val feedback = Feedback
 
     val selected = state != ToggleableState.Off
 
@@ -181,10 +178,7 @@ fun TriStateCheckbox(
                 if (onClick != null) {
                     Modifier.triStateToggleable(
                         state = state,
-                        onClick = {
-                            feedback.perform(FeedbackIntent.Selection)
-                            onClick()
-                        },
+                        onClick = onClick,
                         enabled = enabled,
                         role = Role.Checkbox,
                         interactionSource = interactions,

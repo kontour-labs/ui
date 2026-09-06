@@ -324,10 +324,7 @@ fun TabBarScope.Tab(
                 indication = kontourIndication(Theme.shapes.control, pressScale = 1f),
                 enabled = enabled,
                 role = Role.Tab,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
             )
             // Horizontal only: the tab's height is the bar's, and the label is
             // centred in it by the arrangement below.
@@ -512,7 +509,6 @@ fun Modifier.tabSwipe(
                 ticker.reset()
                 // Once, at the end — the thing a `Selection` was being spent on
                 // per step now marks the gesture actually finishing.
-                feedback.perform(FeedbackIntent.Selection)
             },
         )
 }

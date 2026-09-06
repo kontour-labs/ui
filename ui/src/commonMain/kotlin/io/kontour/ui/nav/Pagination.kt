@@ -38,8 +38,6 @@ import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.theme.Theme
@@ -318,7 +316,6 @@ private fun widestWindowThatFits(
 @Composable
 private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
     val colours = Theme.colours
-    val feedback = LocalFeedback.current
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.control
 
@@ -345,10 +342,7 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
                     io.kontour.ui.components.action.ButtonDefaults.SmallPressScale,
                 ),
                 role = Role.Button,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
             ),
         contentAlignment = Alignment.Center,
     ) {

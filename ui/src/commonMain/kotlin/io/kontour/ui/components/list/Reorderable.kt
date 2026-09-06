@@ -170,7 +170,13 @@ fun rememberReorderableState(
             // A reorder is a discrete event happening under a finger that is
             // not looking for it — the user is watching the row they are
             // holding, not the gap it just left.
-            onReorder = { feedback.perform(FeedbackIntent.Tick) },
+            //
+            // `Selection` rather than `Tick`, so that the drop can be `Tick` and
+            // be *lighter* than this. Those two are the only weights the
+            // vocabulary has below a thud — `SegmentTick` against
+            // `SegmentFrequentTick` — and this is the one that should be felt:
+            // the list changed, and letting go did not.
+            onReorder = { feedback.perform(FeedbackIntent.Selection) },
         )
     }
 }
@@ -418,7 +424,11 @@ private fun Modifier.reorderDrag(
     // see `currentIndex`.
     this.pointerInput(state, immediate) {
         val onStart: (Offset) -> Unit = {
-            feedback.perform(FeedbackIntent.LongPress)
+            // Only where a long press is what started it. `LongPress` announces
+            // that a threshold was reached and the row is now yours to move —
+            // on the [immediate] path there is no threshold to announce, and
+            // firing it there was a haptic for a mouse-down on a grip.
+            if (!immediate) feedback.perform(FeedbackIntent.LongPress)
             state.start(currentIndex())
         }
         val onDrag: (PointerInputChange, Offset) -> Unit = { change, amount ->
@@ -426,7 +436,13 @@ private fun Modifier.reorderDrag(
             state.drag(amount.y)
         }
         val onEnd: () -> Unit = {
-            feedback.perform(FeedbackIntent.GestureEnd)
+            // Lighter than the reorders it follows: `SegmentFrequentTick`
+            // against their `SegmentTick`. A drop is a confirmation that the row
+            // has landed, not news — the news already happened, once per gap the
+            // row crossed. `GestureEnd`, which this used to be, is a thud, and a
+            // thud at the end of a run of clicks reads as the gesture having
+            // gone wrong.
+            feedback.perform(FeedbackIntent.Tick)
             state.stop()
         }
         if (immediate) {
