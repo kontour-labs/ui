@@ -99,9 +99,21 @@ object Theme {
  * @param backdropBlur Whether a modal blurs the content behind it as well as
  *   dimming it. On by default. Turning it off costs the app a texture and
  *   nothing else — the shapes, the scrim, the motion and the layout are the same
- *   either way — so it is a performance dial rather than a design choice. Worth
- *   reaching for over a live map, where the whole screen is redrawing anyway,
- *   and worth measuring before you do.
+ *   either way — so it is a performance dial rather than a design choice.
+ *
+ *   What it is worth, measured. A side sheet opening in Chromium on a software
+ *   rasteriser, frame times over the animation:
+ *
+ *   ```
+ *   blur on    p95 250-267ms, 35 frames delivered in 1.5s
+ *   blur off   p95 100-117ms, 46-50 frames delivered
+ *   ```
+ *
+ *   So on a machine with no GPU it is roughly a third of the frames and double
+ *   the worst ones. On a machine with one it is a shader pass and will cost far
+ *   less — which is exactly why this stays on by default and why the honest
+ *   advice is to measure your own target rather than take either number.
+ *   `docs/measure-web.mjs` is the instrument, and it takes a `--click`.
  */
 @Composable
 fun KontourTheme(

@@ -34,6 +34,30 @@
 // page keeps asking for animation frames when nothing is moving is a property of
 // the code, not of the renderer, and it is measured by counting the application's
 // own `requestAnimationFrame` calls rather than by timing anything.
+//
+// ### Driving an interaction
+//
+// `--click X,Y` presses at a point and then samples 1.5 seconds of frames, which
+// is how the one symptom that started this — "big animations are rough, opening a
+// side sheet" — gets a number at all. Take a `--screenshot` first to find the
+// coordinate; pass both and the shot is taken after the click, which is how you
+// check the thing you meant to press was pressed.
+//
+//   node docs/measure-web.mjs --dist site --path '#/components/side-sheet' \
+//     --click 733,576 --screenshot after.png
+//
+// What that reports for the side sheet, on this software rasteriser:
+//
+//   blur on    median 16.7ms, p95 250-267ms, 35 frames in 1.5s
+//   blur off   median 16.7ms, p95 100-117ms, 46-50 frames in 1.5s
+//
+//   first six frames, blur on:   82, 17, 250, 17, 250, 267 ms
+//   first six frames, blur off:  68, 17, 317, 17, 217,  17 ms
+//
+// The median is a lie in both — the animation is a handful of very long frames
+// at the start and then sixty hertz. That shape is the finding: it is not a
+// uniformly slow animation, it is about six frames that cost most of a second
+// between them, and the blur roughly doubles them without being all of them.
 import { createServer } from 'node:http'
 import { readFile, stat, readdir, writeFile } from 'node:fs/promises'
 import { gzipSync } from 'node:zlib'
@@ -367,6 +391,7 @@ async function main() {
   let interaction = null
   if (clickAt) {
     const [x, y] = clickAt.split(',').map(Number)
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
     for (const type of ['mousePressed', 'mouseReleased']) {
       await cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 }, sessionId)
     }
@@ -388,6 +413,11 @@ async function main() {
       p95: sorted[Math.floor(sorted.length * 0.95)],
       worst: sorted[sorted.length - 1],
       over16: deltas.filter((d) => d > 16.7).length,
+      // Where the bad frames fall matters as much as how bad they are. A hitch
+      // in the first two frames is composition; one spread through the run is
+      // the animation itself.
+      worstAt: deltas.indexOf(Math.max(...deltas)),
+      first: deltas.slice(0, 6).map((d) => Math.round(d)),
     }
   }
 
@@ -440,9 +470,10 @@ async function main() {
   )
 
   if (interaction) {
-    const s = stats(interaction.deltas)
+    const s = stats(interaction)
     console.log(`\n  AFTER CLICKING ${clickAt}`)
-    console.log(`    median ${s.median.toFixed(1)}ms · p95 ${s.p95.toFixed(1)} · worst ${s.worst.toFixed(1)} · ${s.over16}/${s.frames} over 16.7ms`)
+    console.log(`    median ${s.median.toFixed(1)}ms · p95 ${s.p95.toFixed(1)} · worst ${s.worst.toFixed(1)} at frame ${s.worstAt} · ${s.over16}/${s.frames} over 16.7ms`)
+    console.log(`    first six frames: ${s.first.join(', ')} ms`)
   }
 
   const out = arg('json', null)
@@ -451,7 +482,7 @@ async function main() {
       dist: DIST, network: NETWORK, paints, probe, timing, resources, transferred,
       duplicates: duplicates.map(([url, hits]) => ({ url, count: hits.length })),
       idle: { ...idleStats, appFrames, seconds: IDLE_SECONDS },
-      interaction: interaction ? stats(interaction.deltas) : null,
+      interaction: interaction ? stats(interaction) : null,
     }, null, 2))
     console.log(`\n  wrote ${out}`)
   }
