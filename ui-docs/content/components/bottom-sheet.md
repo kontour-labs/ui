@@ -56,6 +56,14 @@ stopped answering. A sheet whose bottom is held rather than open, which is what
 does the same thing downward. The stretch is drawn and nothing else: no anchor,
 no detent and nothing the caller sees knows it happened.
 
+A sheet at [`SheetDetent.Full`](sheets.md) is the exception, and only to the
+*drawing*: it already fills its container, so moving it up would lift its bottom
+edge off the bottom of the screen and show a band of background under it. It
+still absorbs the pull, which it did not used to — a full-height sheet that did
+nothing with an upward drag left the gesture live, so the couple of dozen pixels
+a finger travels back down as it leaves the glass read as a flick and dropped the
+sheet a detent.
+
 ---
 
 ## Accessibility

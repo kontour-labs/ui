@@ -1,7 +1,7 @@
 # `Scrollbar`
 
-Purely an indicator, and hidden from the accessibility tree since it conveys
-nothing the list does not already.
+A position indicator you can also drag, and hidden from the accessibility tree
+since it conveys nothing the list does not already.
 
 <!--sample:ScrollbarBasics-->
 ```kotlin
@@ -17,14 +17,21 @@ Box {
 
 **Its visibility follows input modality, not platform.** Under an input that can
 hover it is drawn; under touch it is **not drawn at all**, and the component
-returns before laying anything out. A permanent scrollbar on a touchscreen is
-wrong twice over — not draggable with a finger at any sensible width, and taking
-space from the screens with least of it. On desktop and web the opposite holds:
-a long list with no scrollbar reads as broken. Pass `alwaysVisible = true` to
-override.
+returns before laying anything out. A permanent scrollbar on a touchscreen takes
+space from the screens with least of it, and a finger has better ways to scroll.
+On desktop and web the opposite holds: a long list with no scrollbar reads as
+broken. Pass `alwaysVisible = true` to override.
 
 Hovering it thickens the thumb and takes it to full opacity, so it is a target
 before you have to aim at it.
+
+**Dragging it scrolls the container**, which it used to refuse on the grounds
+that a 6dp target is not draggable and widening it would make it compete with the
+content. Both halves were about the wrong device: it is only ever drawn where
+there is a pointer, 6dp is what every scrollbar on such a machine measures, and
+the drag is on the whole bar rather than on the thumb, so there is nothing to
+widen. It scrolls raw rather than flinging — a scrollbar is a position control,
+and letting go of one should leave the list where the thumb is.
 
 The full modality table is in
 [`accessibility.md`](../accessibility.md#input-modality).

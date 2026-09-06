@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -40,7 +43,20 @@ import kotlin.math.roundToInt
 
 /** How much of the track the thumb covers, and where it sits. 0 to 1. */
 @Immutable
-data class ScrollbarGeometry(val fraction: Float, val position: Float) {
+data class ScrollbarGeometry(
+    val fraction: Float,
+    val position: Float,
+    /**
+     * How far the container can still travel, in **content** pixels.
+     *
+     * The other two are proportions of the track; this is the number that turns
+     * a distance dragged along the track into a distance to scroll, and it is
+     * here because only the code that built the other two knows it. Zero when
+     * there is nothing to scroll, which is also the degenerate a caller that
+     * omits it gets.
+     */
+    val scrollable: Float = 0f,
+) {
     val isUseful: Boolean get() = fraction < 1f && fraction > 0f
 }
 
@@ -96,11 +112,22 @@ object ScrollbarDefaults {
  * poor proxy, since a Chromebook is Android with a trackpad and a phone browser
  * is "web" but touch-first.
  *
- * Purely an indicator — it does not consume input. Dragging a 6dp target is not
- * how anyone scrolls a list, and making it draggable would mean widening it to
- * the point where it competes with the content. It is also hidden from the
- * accessibility tree: it conveys nothing a screen reader cannot already get from
- * the list itself.
+ * **Dragging it scrolls the container**, which this used to refuse. The argument
+ * was that a 6dp target is not how anyone scrolls a list and that making it
+ * draggable would mean widening it until it competed with the content — and
+ * both halves were wrong about which device this is for. It is drawn only where
+ * there is a pointer, a 6dp target is what every scrollbar on that machine is,
+ * and the drag is on the whole bar rather than on the thumb alone, so there is
+ * nothing to widen: grab it anywhere and the list follows, at the rate the
+ * track's length says it should.
+ *
+ * Raw rather than a fling — `dispatchRawDelta`, not `scrollBy` — because a
+ * scrollbar is a position control. Letting go of one should leave the list where
+ * the thumb is, not somewhere it coasted to afterwards.
+ *
+ * It is hidden from the accessibility tree: it conveys nothing a screen reader
+ * cannot already get from the list itself, and the drag is not an action anyone
+ * can take without a pointer.
  *
  * @param cornerInset How far the container's rounded corner intrudes on the
  *   track, taken off both ends. A scrollbar measures itself, not its container,
@@ -131,17 +158,22 @@ fun Scrollbar(
     val motion = Theme.motion
     val interactions = remember { MutableInteractionSource() }
     val hovered by interactions.collectIsHoveredAsState()
+    val dragged by interactions.collectIsDraggedAsState()
+    // A drag that has wandered off the bar is still a drag on it, and a
+    // scrollbar that thinned out halfway through one would be reporting that
+    // the grip had been lost.
+    val active = hovered || dragged
 
     val geometry = scrollbarGeometry(state)
     if (!geometry.isUseful) return
 
     val width by animateFloatAsState(
-        targetValue = if (hovered) hoveredThickness.value else thickness.value,
+        targetValue = if (active) hoveredThickness.value else thickness.value,
         animationSpec = motion.tweenFast(),
         label = "scrollbarThickness",
     )
     val alpha by animateFloatAsState(
-        targetValue = if (hovered) 1f else 0.5f,
+        targetValue = if (active) 1f else 0.5f,
         animationSpec = motion.tweenFast(),
         label = "scrollbarAlpha",
     )
@@ -154,12 +186,30 @@ fun Scrollbar(
     val travel = (trackLength - thumbLength).coerceAtLeast(0f)
     val thumbOffset = travel * geometry.position
 
+    // A pixel along the track is `scrollable / travel` pixels of content: the
+    // thumb crosses its whole travel exactly as the list crosses all of its.
+    // Read live rather than captured — `rememberDraggableState` keeps the
+    // current lambda, and both numbers change as the list is scrolled.
+    val drag = rememberDraggableState { delta ->
+        if (travel > 0f) state.dispatchRawDelta(delta * geometry.scrollable / travel)
+    }
+
     Box(
         modifier = modifier
             // Nothing to announce: the list already conveys its own position.
             .clearAndSetSemantics {}
             .pointerCursor()
             .hoverable(interactions)
+            // The whole bar, not the thumb. Grabbing a thumb means hitting a
+            // 32dp-tall target inside a 6dp-wide one; grabbing the bar means
+            // hitting the bar. A drag that starts on the track moves the list by
+            // the same rate rather than jumping to where it was pressed, which
+            // is forgiving in the direction that costs nothing.
+            .draggable(
+                state = drag,
+                orientation = orientation,
+                interactionSource = interactions,
+            )
             .then(
                 if (orientation == Orientation.Vertical) {
                     Modifier.fillMaxHeight().width(hoveredThickness)
@@ -286,5 +336,6 @@ internal fun scrollbarGeometry(
     return ScrollbarGeometry(
         fraction = (viewport / contentLength).coerceIn(0f, 1f),
         position = if (scrollable <= 0f) 0f else (scrolled / scrollable).coerceIn(0f, 1f),
+        scrollable = scrollable,
     )
 }

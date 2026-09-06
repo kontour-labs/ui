@@ -149,11 +149,33 @@ class SheetState internal constructor(
     internal var overshoot by mutableFloatStateOf(0f)
 
     /**
-     * Whether there is anything above the top detent to stretch into.
+     * How far the sheet is *drawn* above its detent, in pixels.
      *
-     * A sheet already as tall as its container has nowhere to go, and stretching
-     * one would pull its top edge off the screen and leave a band of background
-     * under it — which is the one thing a bottom sheet must never show.
+     * [overshoot] is what the finger has pulled past the stop; this is how much
+     * of that the sheet is allowed to show. They differ for a sheet that already
+     * fills its container, which absorbs the pull and does not move — see
+     * [canOvershoot].
+     */
+    internal val drawnOvershoot: Float get() = if (canOvershoot) overshoot else 0f
+
+    /**
+     * Whether a stretch above the top detent can be *seen*.
+     *
+     * A sheet already as tall as its container has nowhere to go: moving it up
+     * lifts its bottom edge off the bottom of the screen and leaves a band of
+     * background under it, which is the one thing a bottom sheet must never
+     * show.
+     *
+     * It still absorbs the pull. This used to gate the absorbing as well as the
+     * drawing, and the difference is the reported defect: a full-height sheet
+     * dragged upward did nothing with the drag at all, so the gesture stayed
+     * live, and the few pixels a finger travels back down as it leaves the glass
+     * were a downward flick of several hundred pixels a second — enough to clear
+     * `anchoredDraggable`'s velocity threshold and settle the sheet a detent
+     * lower. Measured: a `Full` sheet dragged 660px up and released with 24px of
+     * roll-off went to `half`, where the same 24px on its own left it exactly
+     * where it was, and an `Expanded` sheet — which can stretch, and therefore
+     * had a stretch to pay back — was unmoved by twice that.
      */
     internal val canOvershoot: Boolean
         get() {

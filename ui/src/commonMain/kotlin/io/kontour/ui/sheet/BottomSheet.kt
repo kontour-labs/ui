@@ -231,7 +231,7 @@ fun BottomSheet(
                 // Less whatever the sheet has been stretched above its top
                 // detent. Purely visual, and read in the layout phase so a
                 // stretch never recomposes the sheet's content.
-                .offset { IntOffset(0, offsetOrHidden(state) - state.overshoot.roundToInt()) }
+                .offset { IntOffset(0, offsetOrHidden(state) - state.drawnOvershoot.roundToInt()) }
                 .then(
                     if (draggable) {
                         Modifier
@@ -290,7 +290,7 @@ fun BottomSheet(
                         IntOffset(
                             0,
                             offsetOrHidden(state) -
-                                state.overshoot.roundToInt() -
+                                state.drawnOvershoot.roundToInt() -
                                 actionsHeight -
                                 actionsGap.roundToPx(),
                         )

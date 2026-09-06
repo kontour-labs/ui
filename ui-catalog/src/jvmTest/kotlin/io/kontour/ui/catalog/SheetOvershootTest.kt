@@ -10,7 +10,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
+import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetState
 import io.kontour.ui.sheet.rememberSheetState
@@ -146,6 +148,110 @@ class SheetOvershootTest {
         )
     }
 
+    /**
+     * A full-height sheet dragged upward does not fall a detent when let go.
+     *
+     * The same report as the one above, made again a round later, and this is
+     * the shape that produces it — which none of the four in `shapes()` does,
+     * because every one of them can stretch.
+     *
+     * A sheet at [SheetDetent.Full] is already the height of its container, so
+     * there is nowhere above it to stretch into: moving it up lifts its bottom
+     * edge off the bottom of the screen. `canOvershoot` was false there, and it
+     * gated the *absorbing* as well as the drawing — so an upward drag did
+     * nothing with the gesture at all and left it live. A finger does not leave
+     * the glass cleanly; it rolls off, and two dozen pixels of roll-off over
+     * three frames is several hundred pixels a second downward, which clears
+     * `anchoredDraggable`'s velocity threshold and settles the sheet a detent
+     * lower.
+     *
+     * Three measurements, because one of them alone proves nothing:
+     *
+     *  - the roll-off **after an upward drag** must leave the sheet where it is
+     *    — this is the defect;
+     *  - the same roll-off **on its own** must also leave it there, or the first
+     *    result is only "24px does nothing";
+     *  - a genuinely large downward drag **must still move it**, or the fix has
+     *    turned a full-height sheet into one that cannot be dragged down.
+     */
+    @Test
+    fun aFullHeightSheetHeldUpDoesNotFallOnRelease() {
+        val detents = listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Full)
+
+        val afterPull = dragAndRollOff(detents, up = true, rollOffSteps = 3)
+        val rollOffAlone = dragAndRollOff(detents, up = false, rollOffSteps = 3)
+        val realDragDown = dragAndRollOff(detents, up = false, rollOffSteps = 24)
+
+        assertEquals(
+            SheetDetent.Full, rollOffAlone,
+            "the control moved: ${RollOffStep.toInt() * 3}px of downward travel " +
+                "took the sheet to $rollOffAlone on its own, so the case below " +
+                "would prove nothing",
+        )
+        assertEquals(
+            SheetDetent.Full, afterPull,
+            "the sheet was dragged up against its top, where it cannot move, and " +
+                "then let go — and settled at $afterPull. The upward drag is the " +
+                "only difference from the control, so the pull left the gesture " +
+                "live and the finger's roll-off became a flick downward.",
+        )
+        assertTrue(
+            realDragDown != SheetDetent.Full,
+            "a ${RollOffStep.toInt() * 24}px drag downward left the sheet at " +
+                "$realDragDown — absorbing the upward pull has made a full-height " +
+                "sheet undraggable, which is worse than the defect",
+        )
+    }
+
+    /**
+     * Optionally drags the sheet up against its stop, then travels back down
+     * [rollOffSteps] × [RollOffStep] pixels a frame at a time before releasing.
+     *
+     * A frame per move, so the velocity tracker sees the travel as a gesture
+     * rather than as one teleport. `ModalBottomSheet` over a host, because that
+     * is the shape the defect appears in: a bare `BottomSheet` at `Full`
+     * survives the same roll-off, and a first draft built on one passed against
+     * the unfixed code.
+     */
+    private fun dragAndRollOff(
+        detents: List<SheetDetent>,
+        up: Boolean,
+        rollOffSteps: Int,
+    ): SheetDetent {
+        var state: SheetState? = null
+
+        Scene(width = 600, height = 800) {
+            val sheet = rememberSheetState(detents = detents, initialDetent = SheetDetent.Full)
+            state = sheet
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ModalBottomSheet(visible = true, onDismissRequest = {}, state = sheet) {
+                    Box(Modifier.fillMaxWidth().height(200.dp).background(Color.LightGray))
+                }
+            }
+        }.use { scene ->
+            scene.frames(40)
+            val start = 800f - 120f
+            scene.press(Offset(300f, start))
+            if (up) {
+                val span = start - 60f
+                repeat(20) { i ->
+                    scene.move(Offset(300f, start - span * (i + 1) / 20))
+                    scene.frame()
+                }
+            }
+            val from = if (up) 60f else start
+            repeat(rollOffSteps) { i ->
+                scene.move(Offset(300f, from + (i + 1) * RollOffStep))
+                scene.frame()
+            }
+            scene.release(Offset(300f, from + rollOffSteps * RollOffStep))
+            scene.frames(80)
+        }
+
+        return requireNotNull(state).currentDetent
+    }
+
     private class Shape(
         val name: String,
         val detents: List<SheetDetent>,
@@ -206,5 +312,10 @@ class SheetOvershootTest {
         }
 
         return requireNotNull(state).currentDetent
+    }
+
+    private companion object {
+        /** How far a rolling finger travels between two frames. */
+        const val RollOffStep = 8f
     }
 }

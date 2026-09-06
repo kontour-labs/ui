@@ -43,3 +43,11 @@ reads better.
 
 Long-press-to-drag is a gesture and stays one. The actions are the equivalent,
 not a fallback.
+
+**The hold tolerates a finger.** Compose's own long press gives up the moment
+the pointer leaves `touchSlop`, which is the threshold for "this is a scroll" and
+the wrong question to ask of a finger that has not gone anywhere yet — a
+fingertip is a centimetre wide and rolls as it presses. The row allows a
+fingertip's worth of wander during the hold instead, which is well inside what
+any gesture that meant to scroll would have crossed by then. Reported from a
+phone browser, where frames are slower and holding still is a skill.
