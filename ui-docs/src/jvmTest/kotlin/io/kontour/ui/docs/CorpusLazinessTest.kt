@@ -47,6 +47,7 @@ class CorpusLazinessTest {
             // other caller is the generator, and a default would let a real page
             // silently take position zero the day it stopped emitting one.
             order = 0,
+            summary = "A page for a test to hold.",
         ) {
             builds++
             emptyList()
@@ -84,6 +85,80 @@ class CorpusLazinessTest {
             before,
             built(),
             "building the site index read page prose. The index shows titles.",
+        )
+    }
+
+    /**
+     * The landing page shows seven guides. It must not read seven guides.
+     *
+     * `Home` lists the guides with `supporting = page.summary`, and `summary`
+     * was derived from the page's first paragraph — so displaying the index
+     * built the prose of every guide on it, on the first frame, which is the
+     * exact work `DocPage.blocks` exists to defer and the reason it exists.
+     *
+     * Not a delta test. The others here measure a change because `docPages` is a
+     * singleton this file shares with the render sweep, and a delta cannot catch
+     * eagerness once everything is already built. This owns its page, counts its
+     * own builds, and is therefore true whatever order the runner picks — the
+     * same shape as [blocksAreBuiltOnceOnFirstRead], and for the same reason.
+     */
+    @Test
+    fun theLandingPageSummaryBuildsNothing() {
+        var builds = 0
+        val page = DocPage(
+            path = "guides/tokens",
+            title = "Tokens",
+            symbols = emptyList(),
+            family = "guides",
+            kind = DocKind.Guide,
+            order = 0,
+            summary = "Every colour, size and duration the library draws with.",
+            content = {
+                builds++
+                listOf(Block.Paragraph(listOf(Span.Plain("Every colour, size and duration."))))
+            },
+        )
+
+        assertTrue(page.shortSummary.isNotEmpty(), "the summary came out empty")
+        assertEquals(
+            0,
+            builds,
+            "reading a page's summary built its blocks. The landing page shows one " +
+                "for every guide, so that is seven pages of prose constructed to draw " +
+                "seven lines of it — which is what `DocPage.blocks` was made lazy to stop.",
+        )
+    }
+
+    /**
+     * The generated summary is what the blocks say, for every page.
+     *
+     * The extraction lives in `docs/generate-doc-pages.py` now, and its `plain`
+     * is a hand-written mirror of the same file's `spans` — code keeps its
+     * contents, a link keeps its label, an image is dropped, emphasis unwraps.
+     * Two implementations of one rule is exactly the "summary written twice"
+     * that deriving it was meant to avoid, so this is the thing that stops them
+     * drifting: the Python answer has to equal the Kotlin one on all 121 pages.
+     *
+     * This builds the whole corpus, deliberately and in a test, which is the one
+     * place that is free.
+     */
+    @Test
+    fun everyGeneratedSummaryMatchesItsProse() {
+        val wrong = docPages.mapNotNull { page ->
+            val fromBlocks = page.blocks.asSequence()
+                .filterIsInstance<Block.Paragraph>()
+                .map { paragraph -> paragraph.spans.joinToString("") { it.text } }
+                .firstOrNull { !it.startsWith("Also on this page") }
+                .orEmpty()
+            if (page.summary == fromBlocks) null else "${page.path}\n  generated: ${page.summary}\n  prose:     $fromBlocks"
+        }
+
+        assertTrue(
+            wrong.isEmpty(),
+            "${wrong.size} of ${docPages.size} pages have a summary that is not their " +
+                "opening paragraph. `summary_of`/`plain` in docs/generate-doc-pages.py " +
+                "and `spans` in the same file have to agree, and one of them has been " +
+                "changed without the other:\n\n" + wrong.take(5).joinToString("\n"),
         )
     }
 

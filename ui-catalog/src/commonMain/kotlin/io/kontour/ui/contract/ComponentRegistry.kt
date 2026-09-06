@@ -273,7 +273,7 @@ class ComponentSpec(
         .map { if (it.isLetterOrDigit()) it else '-' }
         .joinToString("")
         .trim('-')
-        .replace(Regex("-+"), "-")
+        .replace(Runs, "-")
 }
 
 /**
@@ -339,6 +339,16 @@ sealed interface ControlLocator {
  * A non-interactive component sets [ComponentSpec.underContract] to false and
  * joins the second consumer only. It is here to be drawn.
  */
+/**
+ * Two or more of whatever [ComponentSpec.slug] turned into a dash.
+ *
+ * Compiled once rather than once per specimen. It was an inline `Regex("-+")`
+ * inside a `val` initialiser, so the registry compiled the same pattern
+ * sixty-eight times on its way to being built — cheap each, and pointless
+ * sixty-eight times over.
+ */
+private val Runs = Regex("-+")
+
 val componentRegistry: List<ComponentSpec> = buildList {
     // --- Actions ---------------------------------------------------------
     for (variant in ButtonVariant.entries) {

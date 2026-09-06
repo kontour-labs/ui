@@ -164,6 +164,87 @@ def spans(text: str) -> str:
     return "listOf(" + ", ".join(out) + ")"
 
 
+def plain(text: str) -> str:
+    """The same characters `spans` puts on the page, without the markup.
+
+    A mirror of `spans` — code keeps its contents, a link keeps its label, an
+    image is dropped, emphasis unwraps — and the only reason the rule exists
+    twice. The summary has to be known *before* the blocks, and the blocks are
+    built as Kotlin source strings rather than into anything Python can read
+    back, so it cannot be recovered from them.
+
+    Duplication guarded rather than tolerated: `CorpusLazinessTest` asserts that
+    every page's generated summary is exactly what its blocks produce, so a
+    change made to one of these and not the other fails the build.
+    """
+    out = []
+    pos = 0
+    for m in INLINE.finditer(text):
+        if m.start() > pos:
+            out.append(text[pos:m.start()])
+        if m.group("code"):
+            out.append(m.group("code")[1:-1])
+        elif m.group("image"):
+            pass
+        elif m.group("link"):
+            label, _ = re.match(r"\[([^\]]+)\]\(([^)]+)\)", m.group("link")).groups()
+            out.append(plain(label))
+        elif m.group("strong"):
+            out.append(plain(m.group("strong")[2:-2]))
+        else:
+            out.append(plain(m.group("em")[1:-1]))
+        pos = m.end()
+    if pos < len(text):
+        out.append(text[pos:])
+    return "".join(out)
+
+
+# The prefixes `blocks` treats as "not a paragraph". Named once so the summary
+# scan and the block scan cannot disagree about where a paragraph begins.
+NOT_PROSE = ("#", "|", "```", ">", "- ", "* ", "![", "<!--", "---")
+
+
+def summary_of(lines: list[str]) -> str:
+    """A page's opening line, for the index.
+
+    Its first paragraph rather than a field somebody has to remember to fill in:
+    a summary written twice is a summary that disagrees with itself, and every
+    one of these pages already opens by saying what it is.
+
+    Computed here rather than read off `DocPage.blocks`, which is where it used
+    to come from. That made showing seven guides on the landing page build seven
+    pages of prose on the first frame — the exact work the blocks were made lazy
+    to defer, reintroduced through the index that laziness was for.
+
+    The exception is the `*Also on this page: …*` line, which several pages put
+    first and which is a list of symbols rather than a description —
+    `theming.md` summarised itself as "Also on this page: `KontourTheme`" until
+    this skipped it.
+    """
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].strip()
+        if stripped.startswith("```"):
+            # Past the fence and its contents, which are not prose however much
+            # they look like it once the backticks are behind them.
+            i += 1
+            while i < len(lines) and not lines[i].strip().startswith("```"):
+                i += 1
+            i += 1
+            continue
+        if not stripped or stripped.startswith(NOT_PROSE):
+            i += 1
+            continue
+        paragraph = []
+        while i < len(lines) and lines[i].strip() and not lines[i].strip().startswith(NOT_PROSE):
+            paragraph.append(lines[i].strip())
+            i += 1
+        opening = plain(" ".join(paragraph))
+        if not opening.startswith("Also on this page"):
+            return opening
+    return ""
+
+
 def blocks(lines: list[str], where: str) -> list[str]:
     out = []
     i = 0
@@ -365,6 +446,7 @@ def main() -> int:
             f"    family = {kotlin_string(family)},\n"
             f"    kind = {kind},\n"
             f"    order = {order},\n"
+            f"    summary = {kotlin_string(summary_of(lines))},\n"
             "    content = { " + " + ".join(f"{name}b{i}()" for i in range(len(chunks))) + " },\n"
             ")\n"
         )
