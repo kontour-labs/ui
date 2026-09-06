@@ -419,6 +419,56 @@ Judging performance from a debug build is judging the wrong thing.
 
 ---
 
+## The four sweeps that vary what nothing else varies
+
+Every other sweep in this repository drives `ComponentSpec.content`, which is a
+fixed specimen with hard-coded literals inside it. Between them they cover width,
+density and type size, and they cannot vary a single argument, a second pointer,
+an accessibility action, or a frame after the first. These four do.
+
+| Sweep | Varies | Found |
+|---|---|---|
+| `DegenerateInputTest` | the arguments a real app produces on a bad day | seven crashes |
+| `StateLifecycleTest` | state changing after the component has drawn | one crash |
+| `SemanticsActionSweepTest` | actions only assistive technology can reach | nothing yet; the surface the slider crash hid in |
+| `TwoFingerTest` | a second pointer | nothing yet |
+
+### Every one of them has a control, and two of them needed it
+
+A sweep whose assertion is "nothing threw" passes just as well when nothing
+happened. That is not a hypothetical:
+
+* **`StateLifecycleTest` was built on `Scene` and could not see its own subject.**
+  `ImageComposeScene.render` does not propagate an exception thrown during
+  *recomposition* — only the initial composition, which happens in its
+  constructor. Six tests passed while catching nothing. `runDesktopComposeUiTest`
+  rethrows from `waitForIdle`, and one of the six failed immediately.
+* **`SemanticsActionSweepTest` walked the merged tree** and reported zero actions
+  on nine of eleven pages. Unmerged finds 31.
+
+So each carries a test that asserts something *should* break:
+`aMutationThatShouldFailDoes` drives a page count to −1, which the library
+refuses by name; `theHarnessReallySendsTwoFingers` counts pressed pointers in one
+event and requires two. If those pass while the sweep is broken, nothing else in
+the file can tell you.
+
+The same idea, in the same words, as the control in front of
+`SheetFramePressureTest` — whose first draft passed with every counter at zero on
+a sheet that never moved.
+
+### What "passing" means in a stability sweep
+
+Two shapes, and the difference is the whole design:
+
+* **survives** — the input has a sensible reading, so the component renders it. An
+  empty carousel is a carousel with nothing in it.
+* **refuses** — the input has no sensible reading, so the component throws
+  `IllegalArgumentException` naming **both itself and the parameter**. Both halves
+  matter: the first version of `DegenerateInputTest` only asked for the parameter
+  name, and `Stepper(range = 0 until 0)` passed it, because the standard library's
+  own "Cannot coerce value to an empty range" contains the word "range". A
+  precondition has to be distinguishable from the failure it replaces.
+
 ## The documentation is checked too
 
 ```sh
