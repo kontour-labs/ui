@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
@@ -52,6 +53,7 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
@@ -143,13 +145,37 @@ fun CalendarMonth(
     markerFor: ((LocalDate) -> Color?)? = null,
     rangePositionOf: ((LocalDate) -> RangePosition)? = null,
     formats: DateTimeFormats = LocalDateTimeFormats.current,
+    /**
+     * Where the week starts.
+     *
+     * Monday by default, which is Australia, most of Europe and the ISO week.
+     * North America starts on Sunday and a few calendars start on Saturday.
+     *
+     * A shortcut, not a second source of truth: it defaults from
+     * [DateTimeFormats.firstDayOfWeek], which is where the answer has always
+     * lived, and setting it derives a `formats` for the week arithmetic rather
+     * than being consulted separately. So an app-wide choice is one field on the
+     * token group and a one-off is one argument here — the same arrangement
+     * `Theme.strings` and every component's own string parameter already use.
+     */
+    firstDayOfWeek: DayOfWeek = formats.firstDayOfWeek,
 ) {
+    // One object downstream, so nothing can read the week's start from two
+    // places and disagree.
+    val weekFormats = remember(formats, firstDayOfWeek) {
+        if (firstDayOfWeek == formats.firstDayOfWeek) {
+            formats
+        } else {
+            formats.copy(firstDayOfWeek = firstDayOfWeek)
+        }
+    }
+
     val firstOfMonth = remember(month) { LocalDate(month.year, month.month, 1) }
     val daysInMonth = remember(firstOfMonth) {
         firstOfMonth.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).day
     }
-    val leadingBlanks = remember(firstOfMonth, formats) {
-        formats.columnOf(firstOfMonth.dayOfWeek)
+    val leadingBlanks = remember(firstOfMonth, weekFormats) {
+        weekFormats.columnOf(firstOfMonth.dayOfWeek)
     }
 
     /**
@@ -178,11 +204,23 @@ fun CalendarMonth(
         val cellSize = maxWidth / 7
         // The same growth the day numbers get, from the same cell size. A
         // heading that stays put while what it heads grows stops reading as one.
-        val weekdayBase = Theme.typography.labelSmall
+        //
+        // Normal weight, which `labelSmall` is not. It was reported that the
+        // initials need to be smaller than the dates, and by *size* they already
+        // were — 12sp against `bodyMedium`'s 15. What they were not is lighter:
+        // `labelSmall` is SemiBold, and semibold at 12 carries about as much ink
+        // as normal at 15, so a row that is numerically subordinate read as
+        // competing with the numbers under it. The weight is the difference the
+        // eye was actually seeing.
+        //
+        // Overridden here rather than in the scale, because `labelSmall` is
+        // shared and its weight is right everywhere it is a *label*. This is a
+        // column heading.
+        val weekdayBase = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal)
         val weekdayStyle = remember(weekdayBase, cellSize) { weekdayBase.grownFor(cellSize) }
         Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth()) {
-            formats.weekdayInitials().forEachIndexed { index, initial ->
+            weekFormats.weekdayInitials().forEachIndexed { index, initial ->
                 Box(
                     Modifier
                         .weight(1f)

@@ -1,7 +1,7 @@
 package io.kontour.ui.components.datetime
 
-import androidx.compose.foundation.background
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -25,17 +26,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -483,7 +485,14 @@ private fun <T> InfiniteWheel(
         // is ever left over for a parent to take — which is the other half of
         // the wheel-escaping report, answered by construction rather than by a
         // nested-scroll connection that has to catch it.
-        scope.launch { offset.snapTo(offset.value - delta) }
+        //
+        // Added, not subtracted. `reverseDirection = true` on the `scrollable`
+        // below already turns a drag upward into a positive delta, which is the
+        // whole of the "dragging up rolls the drum forward" convention; negating
+        // it again here undid it and the drum ran backwards. Two negations, one
+        // in a modifier with a comment explaining itself and one in the
+        // arithmetic without — only the unexplained one survived review.
+        scope.launch { offset.snapTo(offset.value + delta) }
         delta
     }
 
@@ -511,6 +520,12 @@ private fun <T> InfiniteWheel(
     Box(
         modifier
             .height(itemHeight * visibleItems)
+            // The drum lays out two rows more than it shows, so a partial row
+            // appears at each edge and the wheel reads as continuing past the
+            // window. Both are *outside* the container, so the container has to
+            // cut them off — without this they drew over whatever the picker
+            // was sitting in.
+            .clipToBounds()
             .scrollable(
                 state = scrollState,
                 orientation = Orientation.Vertical,
@@ -532,6 +547,21 @@ private fun <T> InfiniteWheel(
         Column(
             Modifier
                 .fillMaxWidth()
+                // `requiredHeight`, because the rows do not fit and are not meant
+                // to. A `Column` gives each child what is left of its own height,
+                // and this one sits in a box exactly `visibleItems` rows tall
+                // while holding `visibleItems + 2` — so the last two were
+                // measured against nothing left and came out zero-high.
+                //
+                // Applied against the "options appear only above the selection"
+                // half of the report, and **not proven to have fixed it**. Rows
+                // fade with distance and `wheelFade` bottoms out at 0.2 alpha
+                // rather than zero, so a rendered measurement cannot separate a
+                // row that is absent from one that is present and faint; the
+                // measurement that was taken is written up in
+                // `InfiniteWheelTest`. This starves no row and is right on its
+                // own terms, but the report stays open.
+                .requiredHeight(itemHeight * rows)
                 .offset {
                     val turned = offset.value / itemPx
                     val first = floor(turned).toInt() - halfVisible - 1

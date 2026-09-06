@@ -36,6 +36,7 @@ import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.motion.SlotGap
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
@@ -124,6 +125,20 @@ fun DatePicker(
         selected ?: today ?: LocalDate(2026, 1, 1)
     ),
     formats: DateTimeFormats = LocalDateTimeFormats.current,
+    /**
+     * Where the week starts.
+     *
+     * Monday by default, which is Australia, most of Europe and the ISO week.
+     * North America starts on Sunday and a few calendars start on Saturday.
+     *
+     * A shortcut, not a second source of truth: it defaults from
+     * [DateTimeFormats.firstDayOfWeek], which is where the answer has always
+     * lived, and setting it derives a `formats` for the week arithmetic rather
+     * than being consulted separately. So an app-wide choice is one field on the
+     * token group and a one-off is one argument here — the same arrangement
+     * `Theme.strings` and every component's own string parameter already use.
+     */
+    firstDayOfWeek: DayOfWeek = formats.firstDayOfWeek,
 ) {
     CalendarFrame(
         modifier = modifier,
@@ -142,6 +157,7 @@ fun DatePicker(
             today = today,
             markerFor = markerFor,
             formats = formats,
+            firstDayOfWeek = firstDayOfWeek,
         )
     }
 }
@@ -173,6 +189,20 @@ fun DateRangePicker(
         start ?: today ?: LocalDate(2026, 1, 1)
     ),
     formats: DateTimeFormats = LocalDateTimeFormats.current,
+    /**
+     * Where the week starts.
+     *
+     * Monday by default, which is Australia, most of Europe and the ISO week.
+     * North America starts on Sunday and a few calendars start on Saturday.
+     *
+     * A shortcut, not a second source of truth: it defaults from
+     * [DateTimeFormats.firstDayOfWeek], which is where the answer has always
+     * lived, and setting it derives a `formats` for the week arithmetic rather
+     * than being consulted separately. So an app-wide choice is one field on the
+     * token group and a one-off is one argument here — the same arrangement
+     * `Theme.strings` and every component's own string parameter already use.
+     */
+    firstDayOfWeek: DayOfWeek = formats.firstDayOfWeek,
 ) {
     CalendarFrame(
         modifier = modifier,
@@ -204,6 +234,7 @@ fun DateRangePicker(
                 if (to < from) onRangeSelected(to, from) else onRangeSelected(from, to)
             },
             formats = formats,
+            firstDayOfWeek = firstDayOfWeek,
         )
     }
 }
@@ -231,7 +262,6 @@ private fun CalendarFrame(
     content: @Composable (LocalDate) -> Unit,
 ) {
     val motion = Theme.motion
-    var stepDirection by remember { mutableStateOf(1) }
 
     // Only worth offering from somewhere else. Paging three months forward and
     // wanting to come back is the whole case; a button that is always there and
@@ -257,7 +287,6 @@ private fun CalendarFrame(
                     icon = previousIcon,
                     contentDescription = "Previous month",
                     onClick = {
-                        stepDirection = -1
                         navigation.step(-1)
                     },
                     size = ButtonSize.Small,
@@ -289,7 +318,6 @@ private fun CalendarFrame(
                             icon = todayIcon,
                             contentDescription = "Return to today",
                             onClick = {
-                                stepDirection = if (today < navigation.visibleMonth) -1 else 1
                                 navigation.jumpTo(today)
                             },
                             size = ButtonSize.Small,
@@ -302,7 +330,6 @@ private fun CalendarFrame(
                         icon = nextIcon,
                         contentDescription = "Next month",
                         onClick = {
-                            stepDirection = 1
                             navigation.step(1)
                         },
                         size = ButtonSize.Small,
@@ -314,7 +341,21 @@ private fun CalendarFrame(
         AnimatedContent(
             targetState = navigation.visibleMonth,
             transitionSpec = {
-                val enterFrom = if (stepDirection >= 0) 1 else -1
+                // Derived from the transition itself, not from a variable
+                // somebody has to remember to set.
+                //
+                // This used to read a `stepDirection` that only the three header
+                // buttons ever wrote, so a month change arriving any other way —
+                // a caller driving the hoisted `CalendarNavigationState`, a
+                // `jumpTo`, a swipe a host has wired up — animated in whatever
+                // direction the last button press had left behind. Initially
+                // that is forward, which is why going *back* wiped the wrong way.
+                //
+                // `initialState` and `targetState` are the two months this
+                // transition is actually between, and `LocalDate` is comparable,
+                // so the direction is a fact about the transition rather than a
+                // note left beside it.
+                val enterFrom = if (targetState >= initialState) 1 else -1
                 (
                     slideInHorizontally(motion.tweenDefault()) { width -> enterFrom * width / 3 } +
                         fadeIn(motion.tweenFast())
