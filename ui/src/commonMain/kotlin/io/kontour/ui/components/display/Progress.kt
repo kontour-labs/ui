@@ -57,16 +57,28 @@ fun LinearProgress(
     height: Dp = 6.dp,
 ) {
     val motion = Theme.motion
-    val transition = rememberInfiniteTransition(label = "linearProgress")
 
-    val sweep by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = BandTravel, easing = LinearEasing),
-        ),
-        label = "linearSweep",
-    )
+    // Registered only when it is going to be drawn.
+    //
+    // `rememberInfiniteTransition` subscribes to the frame clock the moment it
+    // is composed, and it keeps asking for frames forever whether or not
+    // anything reads the value it produces. So gating the *read* — which is what
+    // the draw below used to do on its own — stops the picture moving and leaves
+    // the whole cost in place: a determinate bar, or one under reduced motion,
+    // drove sixty frames a second of an unchanging shape. On web that is the
+    // frame budget for everything else on the page, on one thread.
+    val sweep = if (progress == null && !motion.reduceMotion) {
+        rememberInfiniteTransition(label = "linearProgress").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = BandTravel, easing = LinearEasing),
+            ),
+            label = "linearSweep",
+        )
+    } else {
+        null
+    }
 
     val animatedProgress by animateFloatAsState(
         targetValue = progress?.coerceIn(0f, 1f) ?: 0f,
@@ -108,7 +120,7 @@ fun LinearProgress(
             // off the ends so it never appears to bounce.
             val bandWidth = size.width * BandFraction
             val travel = size.width + bandWidth
-            val left = -bandWidth + travel * sweep
+            val left = -bandWidth + travel * (sweep?.value ?: 0f)
             drawRoundRect(
                 color = colour,
                 topLeft = Offset(left.coerceAtLeast(0f), 0f),
@@ -262,19 +274,28 @@ fun StepProgress(
     //
     // Under reduced motion both stop: the travel is what says "working", and a
     // looping animation is exactly what that setting is asking to be spared.
+    //
+    // Gated around the transition, not after it. `val phase = if (animating)
+    // sweep else 0f` is what this was, and it reads correctly while doing
+    // nothing at all for the cost: `rememberInfiniteTransition` subscribes to
+    // the frame clock when it is composed, so a settled row of steps went on
+    // requesting sixty frames a second to draw a picture that could not change.
     val animating = (indeterminate || working) && !motion.reduceMotion
-    val sweep by rememberInfiniteTransition(label = "stepSweep").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = if (indeterminate) StepWalkPerSegment * total else BandTravel,
-                easing = LinearEasing,
+    val sweep = if (animating) {
+        rememberInfiniteTransition(label = "stepSweep").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = if (indeterminate) StepWalkPerSegment * total else BandTravel,
+                    easing = LinearEasing,
+                ),
             ),
-        ),
-        label = "stepSweepValue",
-    )
-    val phase = if (animating) sweep else 0f
+            label = "stepSweepValue",
+        )
+    } else {
+        null
+    }
 
     Canvas(
         modifier
@@ -303,6 +324,12 @@ fun StepProgress(
         val gapPx = gap.toPx()
         val segmentWidth = (size.width - gapPx * (total - 1)) / total
         val radius = CornerRadius(size.height / 2f)
+
+        // Read here rather than in composition: the value changes every frame,
+        // and reading it above would recompose the whole row on each one instead
+        // of redrawing it. Null when nothing is animating, which is the same
+        // condition as `!animating` — see where it is created.
+        val phase = sweep?.value ?: 0f
 
         for (index in 0 until total) {
             val left = index * (segmentWidth + gapPx)

@@ -91,6 +91,19 @@ const NETWORKS = {
 }
 const NETWORK = arg('network', 'none')
 
+/** A hash route to open instead of the landing page, e.g. `#/gallery`. */
+const PATH = arg('path', '')
+
+/**
+ * Emulate `prefers-reduced-motion: reduce`.
+ *
+ * The one page-level switch that should change how much work the library does,
+ * and the only way to check from outside that it actually does: a component that
+ * registers an animation and then declines to read it looks identical and costs
+ * the same.
+ */
+const REDUCE_MOTION = process.argv.includes('--reduce-motion')
+
 async function serve(root) {
   const cache = new Map()
   const server = createServer(async (req, res) => {
@@ -292,6 +305,11 @@ async function main() {
     }, sessionId)
   }
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE }, sessionId)
+  if (REDUCE_MOTION) {
+    await cdp.send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+    }, sessionId)
+  }
 
   const evaluate = async (expression) => {
     const { result, exceptionDetails } = await cdp.send(
@@ -309,7 +327,7 @@ async function main() {
   }
 
   const started = Date.now()
-  await cdp.send('Page.navigate', { url: `http://127.0.0.1:${port}/` }, sessionId)
+  await cdp.send('Page.navigate', { url: `http://127.0.0.1:${port}/${PATH}` }, sessionId)
 
   // `first-contentful-paint` fires for the boot screen in `index.html`, which is
   // static markup and says nothing about the bundle. What a reader is waiting
@@ -376,10 +394,11 @@ async function main() {
   const transferred = resources.reduce((sum, r) => sum + (r.size || 0), 0)
   const duplicates = [...responses.entries()].filter(([, hits]) => hits.length > 1)
 
-  console.log(`\n  ${DIST}`)
+  console.log(`\n  ${DIST}${PATH ? '  ' + PATH : ''}`)
   console.log(
     `  chromium ${version.Browser}, software WebGL, cache disabled, gzip on, ` +
-      (link ? `${NETWORK} (${(link.download * 8 / 1e6).toFixed(1)} Mbit/s, ${link.latency}ms)` : 'unthrottled'),
+      (link ? `${NETWORK} (${(link.download * 8 / 1e6).toFixed(1)} Mbit/s, ${link.latency}ms)` : 'unthrottled') +
+      (REDUCE_MOTION ? ', prefers-reduced-motion: reduce' : ''),
   )
   console.log('')
   console.log('  LOAD')

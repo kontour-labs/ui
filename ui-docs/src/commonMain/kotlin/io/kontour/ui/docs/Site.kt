@@ -62,6 +62,8 @@ import io.kontour.ui.nav.TopBar
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.Popover
+import io.kontour.ui.platform.platformPrefersHighContrast
+import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
@@ -110,8 +112,18 @@ fun Site() {
     ) {
         KontourTheme(
             darkTheme = settings.dark ?: systemDark,
-            contrast = if (settings.highContrast) ContrastLevel.High else ContrastLevel.Standard,
-            reduceMotion = settings.reduceMotion,
+            // `?:` on all three, not just the first. `KontourTheme` defaults
+            // each of these to what the operating system reports, and passing a
+            // plain `false` overrides that with "no" — which is how the site
+            // that documents the library's reduced-motion and high-contrast
+            // support came to ignore both of them for every visitor who had
+            // asked for them.
+            contrast = if (settings.highContrast ?: platformPrefersHighContrast()) {
+                ContrastLevel.High
+            } else {
+                ContrastLevel.Standard
+            },
+            reduceMotion = settings.reduceMotion ?: platformPrefersReducedMotion(),
         ) {
             WindowSizeClassProvider {
                 OverlayHost(Modifier.fillMaxSize()) {

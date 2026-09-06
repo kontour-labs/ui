@@ -92,6 +92,21 @@ class Scene(
     }
 
     /**
+     * Whether anything in the scene still wants another frame.
+     *
+     * The only way to see an animation that is running but not visible. A
+     * `rememberInfiniteTransition` subscribes to the frame clock when it is
+     * composed and keeps asking forever, whether or not the value it produces
+     * reaches a canvas — so a component that registers one and then declines to
+     * read it draws exactly the right picture at exactly the wrong cost, and no
+     * golden, no phase count and no stopwatch can tell the difference.
+     *
+     * This can: a settled scene has no invalidations, and a scene with a live
+     * transition in it always does.
+     */
+    fun stillAnimating(): Boolean = scene.hasInvalidations()
+
+    /**
      * Renders until [until] holds, or until [timeoutMillis] of **real** time has
      * passed. Returns the frame that satisfied it, or null if none did.
      *

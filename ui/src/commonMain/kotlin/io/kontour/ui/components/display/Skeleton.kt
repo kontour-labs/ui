@@ -81,15 +81,23 @@ fun Skeleton(
         colours.surface
     }
 
-    val transition = rememberInfiniteTransition(label = "skeleton")
-    val sweep by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = LinearEasing),
-        ),
-        label = "skeletonSweep",
-    )
+    // Not registered under reduced motion, where the branch below does not draw
+    // a wipe at all. `rememberInfiniteTransition` subscribes to the frame clock
+    // when it is composed, so a page of skeletons was asking for sixty frames a
+    // second to paint a flat rectangle — the exact opposite of what the setting
+    // asks for, and invisible from the outside because the picture was right.
+    val sweep = if (reduceMotion) {
+        null
+    } else {
+        rememberInfiniteTransition(label = "skeleton").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1200, easing = LinearEasing),
+            ),
+            label = "skeletonSweep",
+        )
+    }
 
     Box(
         modifier
@@ -121,7 +129,7 @@ fun Skeleton(
                             // enters one edge and leaves the other whatever the
                             // angle. At 0° this is `-bandWidth + travel * sweep`
                             // offset from the left edge, which is what it was.
-                            val head = -span / 2f - bandWidth + travel * sweep
+                            val head = -span / 2f - bandWidth + travel * (sweep?.value ?: 0f)
                             drawRect(
                                 brush = Brush.linearGradient(
                                     colorStops = arrayOf(

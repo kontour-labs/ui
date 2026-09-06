@@ -88,20 +88,30 @@ fun Spinner(
     // A linear driver, turned into a cosine below. `RepeatMode.Reverse` on an
     // eased tween would do something similar and would corner at each end,
     // because the easing's rate is not zero where the direction changes.
-    val phase by transition.animateFloat(
-        // Starts a quarter in, so the arc appears at half length rather than at
-        // its shortest. A spinner that begins as a stub and grows reads as
-        // popping in, and it is also what a screenshot catches on frame six.
-        initialValue = SpinnerDefaults.OpeningPhase,
-        targetValue = SpinnerDefaults.OpeningPhase + 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = SpinnerDefaults.BreatheMillis, easing = LinearEasing),
-        ),
-        label = "spinnerBreathe",
-    )
-
-    val effectiveSweep =
-        if (reduceMotion) SpinnerDefaults.RestingSweep else spinnerSweep(phase)
+    //
+    // Not registered under reduced motion, where the arc holds a constant length
+    // and nothing reads it. The rotation above is registered either way, and
+    // deliberately: a spinner that does not turn is not reporting anything, and
+    // reduced motion asks to be spared decoration rather than status. So this
+    // halves the animations a resting spinner runs rather than removing them.
+    val phase = if (reduceMotion) {
+        null
+    } else {
+        transition.animateFloat(
+            // Starts a quarter in, so the arc appears at half length rather than
+            // at its shortest. A spinner that begins as a stub and grows reads as
+            // popping in, and it is also what a screenshot catches on frame six.
+            initialValue = SpinnerDefaults.OpeningPhase,
+            targetValue = SpinnerDefaults.OpeningPhase + 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = SpinnerDefaults.BreatheMillis,
+                    easing = LinearEasing,
+                ),
+            ),
+            label = "spinnerBreathe",
+        )
+    }
 
     Canvas(
         modifier
@@ -115,6 +125,8 @@ fun Spinner(
     ) {
         val stroke = strokeWidth.toPx()
         val inset = stroke / 2f
+        val effectiveSweep =
+            phase?.let { spinnerSweep(it.value) } ?: SpinnerDefaults.RestingSweep
         drawArc(
             color = colour,
             // The head is at `rotation`; the tail trails it.
