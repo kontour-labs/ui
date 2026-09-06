@@ -12,7 +12,7 @@ missing: a section that lands in two files, a component whose page was never
 made, a page nothing links to. So the arrangement is checked rather than
 trusted.
 
-Eighteen rules:
+Twenty-two rules:
 
   1. Every component in `componentRegistry` has a page whose title names it.
      The registry is the library's own list, so this cannot drift from what
@@ -42,6 +42,19 @@ Eighteen rules:
  16. Every boolean a component takes as a parameter is on some demo's knob.
  17. Every component page explains at least one of its parameters.
  18. No page talks to a maintainer instead of to a reader.
+ 19. The library performs no more haptic intents than the policy allows. Added
+     in round 25, when fifty-seven call sites came down to eleven: no single
+     test could have caught that drift, because every one of the fifty-seven
+     was working. What catches it is the count.
+ 20. The shape scale is used rather than reimplemented — a ceiling on true
+     circles, and a ban on hand-rolled `RoundedCornerShape`.
+ 21. Every `OverlayEntry` says whether it traps focus. The default is `true`
+     and it was right six times out of seven; the seventh was a component that
+     could not be used at all.
+ 22. The haptics policy and the library name the same components. Rule 19 caps
+     how many sites there are; this keeps the document explaining them true,
+     and it had already drifted — the table went on listing a component whose
+     sites the audit itself had removed.
 
 Rules 4, 6, 7, 14, 16 and 17 are **ratchets**: a ceiling that only goes down, rather
 than a list of exempted names. You cannot exempt *your* page, only make the total
@@ -499,6 +512,73 @@ def haptic_sites() -> list[str]:
         if count:
             sites.append(f"{path.name} ({count})")
     return sites
+
+
+MAX_POLICY_DRIFT = 0
+
+# The `Where` column of the haptics table in `theming.md`: the components the
+# policy says fire, as backticked names on a row that starts with a pipe.
+HAPTIC_POLICY_ROW = re.compile(r"^\|\s*A \*\*[^|]+\|([^|]*)\|", re.M)
+
+# A component that fires, either directly or through the shared ticker.
+PERFORMS = re.compile(r"\bperform\(|\brememberDetentTicker\(")
+
+# Two files whose component is not their filename. Written out rather than
+# guessed: `Reorderable.kt` holds `ReorderableItem`, and the warning lives in
+# `Dialog.kt` but belongs to `AlertDialog`.
+HAPTIC_FILE_NAMES = {"Reorderable": "ReorderableItem", "Dialog": "AlertDialog"}
+
+# The mechanism rather than a component: one defines the dispatcher, the other
+# is the shared detent ticker every snapping component calls.
+HAPTIC_MECHANISM = {"Feedback.kt", "Detents.kt"}
+
+
+def policy_named() -> set[str]:
+    """The components the haptics table names. For the summary line."""
+    named = set()
+    for row in HAPTIC_POLICY_ROW.findall(Path("ui-docs/content/theming.md").read_text()):
+        for name in re.findall(r"`([A-Z]\w+)", row):
+            named.add(name)
+    return named
+
+
+def haptics_policy_drift() -> list[str]:
+    """Components the haptics policy names but that no longer fire, and vice versa.
+
+    Rule 19 caps the *count* of call sites, which is what stops the library
+    drifting back toward buzzing at everything. It says nothing about whether the
+    document explaining the count is still true, and that document is the thing a
+    reader is supposed to argue with before raising the ceiling.
+
+    It had already drifted. The audit removed both of `PaneScaffold`'s sites —
+    a pane divider is dragged with a mouse on a wide screen, which is the one
+    input that cannot feel a haptic at all — and the table went on listing it
+    under "a threshold passed" for the rest of the round. Nothing failed,
+    because nothing was checking the prose against the code.
+
+    Matched on component name, so a component that moves file or gains a second
+    call site is not a failure; only appearing in one list and not the other is.
+    """
+    policy = set()
+    for row in HAPTIC_POLICY_ROW.findall(Path("ui-docs/content/theming.md").read_text()):
+        for name in re.findall(r"`([A-Z]\w+)", row):
+            policy.add(name)
+
+    firing = set()
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        if path.name in HAPTIC_MECHANISM:
+            continue
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        if PERFORMS.search(text):
+            stem = path.stem
+            firing.add(HAPTIC_FILE_NAMES.get(stem, stem))
+
+    problems = []
+    for name in sorted(policy - firing):
+        problems.append(f"{name} is in the table and fires nothing")
+    for name in sorted(firing - policy):
+        problems.append(f"{name} fires and is in no row of the table")
+    return problems
 
 
 MAX_CIRCLES = 11
@@ -1222,6 +1302,15 @@ def main() -> int:
             f"means to"
         )
 
+    drift = haptics_policy_drift()
+    if len(drift) > MAX_POLICY_DRIFT:
+        problems.append(
+            f"the haptics policy in `theming.md` and the library disagree: "
+            f"{'; '.join(drift)} — rule 19 caps how many sites there are and "
+            f"this is what keeps the document explaining them true, which is "
+            f"the thing anyone raising that cap has to argue with first"
+        )
+
     unswept = unswept_enums()
     if len(unswept) > MAX_UNSWEPT_ENUMS:
         problems.append(
@@ -1249,6 +1338,7 @@ def main() -> int:
         f"{len(internal)} written for a maintainer, "
         f"{felt} haptic call sites, "
         f"{circular} deliberate circles, "
+        f"{len(policy_named())} components named by the haptics policy, "
         f"{len(silent)} silent focus traps, "
         f"all accounted for."
     )

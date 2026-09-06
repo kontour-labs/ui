@@ -228,6 +228,28 @@ render is read back and required to differ from its own corner pixel: a
 component that draws nothing produces a clean card, and the golden would then
 *defend* the blank.
 
+### Run the gate after the last edit, not before it
+
+Obvious, and worth writing down because it has been got wrong twice. A change
+recorded as green because the gate passed *earlier in the sitting* is a change
+whose last edit nobody checked: round 25 landed a stage whose fix moved four
+goldens and never regenerated them, and two stages before that had left the KDoc
+gate failing on a pair of unresolved `[Link]`s. Both were found a stage later, by
+a gate run for something else, and in the meantime three commits claimed a green
+that did not exist.
+
+Nothing enforces this and nothing can. `git status` after the run is the whole
+check: if it shows a source file the gate has not seen, the gate has not passed.
+
+### And regenerate goldens in the same run
+
+An update pass rewrites **every** golden the current code moves, not only the
+ones that failed. Round 25's stage 6 failed nine and rewrote twenty-five: the
+other sixteen were sub-threshold differences that had never been looked at.
+Review what changed rather than what failed — `git status ui-catalog/screenshots`
+is the list, and a before/after pair of each is a few minutes that has caught a
+real regression more than once.
+
 ---
 
 ## Two clocks, and which one a test is on

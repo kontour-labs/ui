@@ -154,7 +154,7 @@ of those, and everything else is silent:
 | Fires | Where | Why |
 |---|---|---|
 | A **detent crossed under a finger** | `Slider`, `RangeSlider`, `WheelPicker`, `SegmentedControl`, `TabBar` swipe, `ReorderableItem` | The finger is between two values and the eye is on something else. This is the case haptics exist for. |
-| A **threshold passed** | `PullToRefresh`, `SwipeActions`, `PaneScaffold` | What letting go will do has just changed, and nothing on screen said so first. |
+| A **threshold passed** | `PullToRefresh`, `SwipeActions` | What letting go will do has just changed, and nothing on screen said so first. |
 | A **long press becoming a gesture** | `Menu`, `Tooltip`, `ReorderableItem` | The press has been held long enough to mean something. Nothing has visibly happened yet, which is exactly why it needs reporting. |
 | A **destructive question arriving** | `AlertDialog(destructive = true)` | The only one that fires *before* the thing it is about. Optional — see `hapticWarning`. |
 
@@ -180,6 +180,33 @@ fails if that number goes up. Components are held to it by intent rather than by
 haptic, which is the stronger claim — one that performs no intent is silent
 under every level *and* under a replacement dispatcher, because there is nothing
 for either to let through.
+
+### Every site, before and after
+
+The count is what the build checks; this is what the count is made of. Read it
+when the answer to "should this buzz?" is not obvious — the argument for each
+removal is the row it is on.
+
+| Component | Fired | Now | Why |
+|---|---|---|---|
+| `Slider` | `Tick` on press, `Tick` per step dragged, `GestureEnd` on release | `Tick` per step **dragged** | A tap sets a value without travelling, so it crosses no detent. The release crosses nothing either. |
+| `RangeSlider` | The same three | `Tick` per step dragged | Same rule, same component, two handles. |
+| `WheelPicker` | `Tick` on composition, `Tick` per row, `Tick` through a caller's spring | `Tick` per row, through `DetentTicker` | `snapshotFlow` emits its current value first, so every wheel buzzed on arrival — three for a `TimePicker`, before the screen had finished appearing. |
+| `SegmentedControl` | `Selection` on tap, `GestureEnd` on release | `Tick` per segment **crossed** | A thumb sliding past a segment is a detent; pressing one is a button press. |
+| `TabBar` | `Selection` on tap ×2 | `Tick` per tab crossed by a **swipe** | Same distinction. Tapping a tab is watched; swiping past one is not. |
+| `ReorderableItem` | `LongPress`, `GestureEnd` on drop | `LongPress` (touch only), `Selection` per position change, `Tick` on drop | The position changes are the news, once per gap crossed. The drop is lighter than they are, and the long press no longer fires on the mouse-and-handle path, where there is no threshold to announce. |
+| `PullToRefresh` | `DragThreshold` | `DragThreshold` | Kept whole: it is the one moment that says letting go will do something. |
+| `SwipeActions` | `Tick` per action width, `DragThreshold`, `Confirm` on run, `GestureEnd` on settle | `DragThreshold` | Four intents across one swipe. `actionWidth` is arithmetic, not an anchor. |
+| `AlertDialog` | — | `Warn`, for a destructive alert | The one addition, and the only haptic that fires for something that has **not** happened yet. Opt-out; inert on a non-destructive alert however it is set. |
+| `Menu`, `Tooltip` | `LongPress` | `LongPress` | The press has been held long enough to mean something and nothing visible has happened yet. |
+| `Menu` item | `Selection` | — | A menu item is a button. |
+| `Rating` | `Selection` per star, `GestureEnd`, one more on tap | — | Five marks on one continuous track. Nothing rests between them, so a drag across it crosses no detent — the report's words were "there's no real detents here". |
+| `Stepper` | `Tick` ×2 | — | Two buttons and a number that changes where you are looking. |
+| `Switch`, `Checkbox`, `RadioButton`, `SelectionRow`, `Chip`, `ColourSwatchPicker`, `Select` | `Selection`, 11 sites between them | — | Every one of these is a control whose whole job is to change visibly under the finger. |
+| `IconButton`, `FloatingActionButton` | `Selection` ×2, `Confirm` ×3 | — | A button press is the least surprising thing a screen does. |
+| `ListItem`, `Accordion`, `CalendarMonth`, `TimePicker` | `Selection`, 5 sites | — | Rows, disclosure, a date cell, an hour. All watched. |
+| `Breadcrumbs`, `NavDrawer`, `NavExpansion`, `NavItemContent`, `Pagination` | `Selection`, 6 sites | — | Navigation. The screen changing is the feedback. |
+| `PaneScaffold` | `DragThreshold`, `GestureEnd` | — | A pane divider dragged with a mouse on a wide screen, which is the one input that cannot feel a haptic at all. |
 
 Three judgement calls inside that, written down because they are the ones most
 likely to be argued with:
