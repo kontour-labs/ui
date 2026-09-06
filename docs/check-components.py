@@ -12,7 +12,7 @@ missing: a section that lands in two files, a component whose page was never
 made, a page nothing links to. So the arrangement is checked rather than
 trusted.
 
-Eighteen rules:
+Twenty-two rules:
 
   1. Every component in `componentRegistry` has a page whose title names it.
      The registry is the library's own list, so this cannot drift from what
@@ -42,6 +42,19 @@ Eighteen rules:
  16. Every boolean a component takes as a parameter is on some demo's knob.
  17. Every component page explains at least one of its parameters.
  18. No page talks to a maintainer instead of to a reader.
+ 19. The library performs no more haptic intents than the policy allows. Added
+     in round 25, when fifty-seven call sites came down to eleven: no single
+     test could have caught that drift, because every one of the fifty-seven
+     was working. What catches it is the count.
+ 20. The shape scale is used rather than reimplemented — a ceiling on true
+     circles, and a ban on hand-rolled `RoundedCornerShape`.
+ 21. Every `OverlayEntry` says whether it traps focus. The default is `true`
+     and it was right six times out of seven; the seventh was a component that
+     could not be used at all.
+ 22. The haptics policy and the library name the same components. Rule 19 caps
+     how many sites there are; this keeps the document explaining them true,
+     and it had already drifted — the table went on listing a component whose
+     sites the audit itself had removed.
 
 Rules 4, 6, 7, 14, 16 and 17 are **ratchets**: a ceiling that only goes down, rather
 than a list of exempted names. You cannot exempt *your* page, only make the total
@@ -461,6 +474,226 @@ def uncursored_clicks() -> list[str]:
         if cursors < clicks:
             behind.append(f"{path.name} ({clicks - cursors} short)")
     return behind
+
+
+MAX_HAPTIC_SITES = 11
+
+
+HAPTIC_CALL = re.compile(r"feedback\.perform\(")
+
+
+def haptic_sites() -> list[str]:
+    """Every place in `:ui` that asks for physical feedback, by file.
+
+    A ceiling rather than a ban, and a ratchet like rules 4, 6 and 7 — the
+    number is allowed to go down and nothing else.
+
+    It exists because this drifted once, quietly and in one direction. "Make it
+    tactile" was a good instruction; fifty-seven call sites was the result of
+    following it one component at a time, with nobody in a position to see the
+    total. Every `clickable` fired. Every `toggleable` fired. A stepped slider
+    fired on the press and again on the release, a swipe row fired four
+    different intents in one gesture, and a wheel picker fired the moment it was
+    composed. Each of those was defensible on its own and the sum was a
+    component set that buzzes when you look at it.
+
+    No single test could have caught that, because every one of them was
+    *working*. What catches it is the count, which is why this is a count.
+
+    The policy the survivors have to meet is written out under "Physical
+    feedback" in `ui-docs/content/theming.md`, and `DetentHapticsTest` holds the
+    individual components to it. Raising this number means arguing with that
+    section first.
+    """
+    sites: list[str] = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        count = len(HAPTIC_CALL.findall(text))
+        if count:
+            sites.append(f"{path.name} ({count})")
+    return sites
+
+
+MAX_POLICY_DRIFT = 0
+
+# The `Where` column of the haptics table in `theming.md`: the components the
+# policy says fire, as backticked names on a row that starts with a pipe.
+HAPTIC_POLICY_ROW = re.compile(r"^\|\s*A \*\*[^|]+\|([^|]*)\|", re.M)
+
+# A component that fires, either directly or through the shared ticker.
+PERFORMS = re.compile(r"\bperform\(|\brememberDetentTicker\(")
+
+# Two files whose component is not their filename. Written out rather than
+# guessed: `Reorderable.kt` holds `ReorderableItem`, and the warning lives in
+# `Dialog.kt` but belongs to `AlertDialog`.
+HAPTIC_FILE_NAMES = {"Reorderable": "ReorderableItem", "Dialog": "AlertDialog"}
+
+# The mechanism rather than a component: one defines the dispatcher, the other
+# is the shared detent ticker every snapping component calls.
+HAPTIC_MECHANISM = {"Feedback.kt", "Detents.kt"}
+
+
+def policy_named() -> set[str]:
+    """The components the haptics table names. For the summary line."""
+    named = set()
+    for row in HAPTIC_POLICY_ROW.findall(Path("ui-docs/content/theming.md").read_text()):
+        for name in re.findall(r"`([A-Z]\w+)", row):
+            named.add(name)
+    return named
+
+
+def haptics_policy_drift() -> list[str]:
+    """Components the haptics policy names but that no longer fire, and vice versa.
+
+    Rule 19 caps the *count* of call sites, which is what stops the library
+    drifting back toward buzzing at everything. It says nothing about whether the
+    document explaining the count is still true, and that document is the thing a
+    reader is supposed to argue with before raising the ceiling.
+
+    It had already drifted. The audit removed both of `PaneScaffold`'s sites —
+    a pane divider is dragged with a mouse on a wide screen, which is the one
+    input that cannot feel a haptic at all — and the table went on listing it
+    under "a threshold passed" for the rest of the round. Nothing failed,
+    because nothing was checking the prose against the code.
+
+    Matched on component name, so a component that moves file or gains a second
+    call site is not a failure; only appearing in one list and not the other is.
+    """
+    policy = set()
+    for row in HAPTIC_POLICY_ROW.findall(Path("ui-docs/content/theming.md").read_text()):
+        for name in re.findall(r"`([A-Z]\w+)", row):
+            policy.add(name)
+
+    firing = set()
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        if path.name in HAPTIC_MECHANISM:
+            continue
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        if PERFORMS.search(text):
+            stem = path.stem
+            firing.add(HAPTIC_FILE_NAMES.get(stem, stem))
+
+    problems = []
+    for name in sorted(policy - firing):
+        problems.append(f"{name} is in the table and fires nothing")
+    for name in sorted(firing - policy):
+        problems.append(f"{name} fires and is in no row of the table")
+    return problems
+
+
+MAX_CIRCLES = 11
+MAX_ROUNDED_RECT_SHAPES = 0
+
+
+PILL_USE = re.compile(r"shapes\.pill\b")
+ROUNDED_RECT = re.compile(r"\bRoundedCornerShape\s*\(")
+
+
+def circles() -> list[str]:
+    """Files still asking for `Shapes.pill`, and files hand-rolling a rounded rect.
+
+    Two ceilings for one rule: **a corner in this library is a squircle unless
+    the thing it is on is a circle.**
+
+    `pill` is the circle. It is a true arc and it is right for an avatar, a
+    status dot, the ring round a radio button, a scrollbar thumb — things that
+    are round because of what they *are*. Eleven sites qualify. Everything else
+    that was reaching for it wanted a *lozenge*, and a lozenge with circular ends
+    beside a family of squircles is the mismatch the shape scale exists to
+    remove; `Shapes.capsule` is the same silhouette with the family's curvature,
+    and twenty-three sites moved onto it.
+
+    The second count is stricter and is a ban rather than a ratchet.
+    `RoundedCornerShape` appears exactly once in `:ui`, to define `pill` itself.
+    A literal anywhere else is a component that has stopped tracking the scale —
+    which is how the last drift started, one reasonable-looking call site at a
+    time.
+
+    Not counted, and worth naming so the gap is deliberate rather than missed:
+    the seventeen `drawRoundRect` calls. A `CornerRadius` on a `RoundRect` cannot
+    carry smoothing at all, so those are round-rects by construction. All but two
+    are on something 3-8dp in its short dimension, where the smoothing works out
+    under half a pixel; the two that are not — the slider thumb and the switch
+    thumb — change size on every frame of a gesture, so a generic path there is a
+    path rebuilt sixty times a second. Both are written up under "Two kinds of
+    corner" in `ui-docs/content/tokens.md`.
+    """
+    problems: list[str] = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        pills = len(PILL_USE.findall(text))
+        if pills:
+            problems.append(f"{path.name} ({pills})")
+    return problems
+
+
+def hand_rolled_rounded_rects() -> list[str]:
+    """`RoundedCornerShape` literals outside the one that defines `pill`."""
+    offenders: list[str] = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        if path.name == "Shapes.kt":
+            continue
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        count = len(ROUNDED_RECT.findall(text))
+        if count:
+            offenders.append(f"{path.name} ({count})")
+    return offenders
+
+
+MAX_SILENT_FOCUS_TRAPS = 0
+
+
+# `OverlayEntry(` and everything up to the matching close, so `trapFocus` can be
+# looked for among *this* entry's arguments rather than anywhere in the file.
+OVERLAY_ENTRY = re.compile(r"\bOverlayEntry\s*\(")
+
+
+def silent_focus_traps() -> list[str]:
+    """`OverlayEntry` sites that never say whether they trap focus.
+
+    `OverlayEntry.trapFocus` defaults to `true`, and the host ORs it across every
+    visible entry — one trapping overlay makes the whole tree behind it
+    unfocusable. That is right for a dialog and catastrophic for something that
+    floats *over* a control the user is still using.
+
+    The selection toolbar was the second kind and took the first kind's default.
+    It published a `Menu`-layer entry over a focused text field, the field lost
+    focus, its selection collapsed, Compose called `hide()`, and the entry was
+    torn down before the button the user had just pressed could run its
+    `onClick`. The toolbar destroyed itself by existing, and it did it by saying
+    nothing.
+
+    Seven of the library's fourteen entries were silent when this was written.
+    Six of them wanted the default; that is exactly what makes a default like
+    this dangerous, because it is right often enough to be adopted without
+    thought.
+
+    So the rule is **state it**, not "compute it". Deriving from `scrim` looks
+    tempting and does not work: `Menu` and the selection toolbar are both
+    `ScrimStyle.Transparent` and want opposite answers.
+    """
+    silent: list[str] = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        # Block comments are blanked *keeping their newlines*, so the line
+        # number below is the one in the file rather than the one in a string
+        # this function invented. A line comment cannot contain a newline, so
+        # deleting those outright is safe.
+        text = LINE_COMMENT.sub(
+            "",
+            BLOCK_COMMENT.sub(lambda m: "\n" * m.group(0).count("\n"), path.read_text()),
+        )
+        for match in OVERLAY_ENTRY.finditer(text):
+            depth, i = 1, match.end()
+            while i < len(text) and depth:
+                if text[i] == "(":
+                    depth += 1
+                elif text[i] == ")":
+                    depth -= 1
+                i += 1
+            if "trapFocus" not in text[match.end():i]:
+                line = text.count("\n", 0, match.start()) + 1
+                silent.append(f"{path.name}:{line}")
+    return silent
 
 
 def unswept_enums() -> list[str]:
@@ -1014,6 +1247,70 @@ def main() -> int:
             f"{', '.join(internal)}"
         )
 
+    # Rule 19 — the library buzzes for eleven things, and no more.
+    #
+    # See `haptic_sites`. A ratchet on a total nobody was in a position to see
+    # while it grew from a good instruction to fifty-seven call sites.
+    haptics = haptic_sites()
+    felt = sum(int(entry.rsplit("(", 1)[1].rstrip(")")) for entry in haptics)
+    if felt > MAX_HAPTIC_SITES:
+        problems.append(
+            f"{felt} haptic call sites in :ui, over the ceiling of "
+            f"{MAX_HAPTIC_SITES}: {', '.join(haptics)} — a haptic reports "
+            f"something the user could not otherwise tell, and the four cases "
+            f"that qualify are listed under \"Physical feedback\" in "
+            f"ui-docs/content/theming.md. A press they are watching is not one "
+            f"of them"
+        )
+
+    # Rule 20 — a corner is a squircle unless the thing it is on is a circle.
+    #
+    # See `circles`. `pill` survives for the eleven places that are genuinely
+    # round; a `RoundedCornerShape` literal anywhere but the token that defines
+    # it is a component that has stopped tracking the scale.
+    round_shapes = circles()
+    circular = sum(int(e.rsplit("(", 1)[1].rstrip(")")) for e in round_shapes)
+    if circular > MAX_CIRCLES:
+        problems.append(
+            f"{circular} uses of `Shapes.pill` in :ui, over the ceiling of "
+            f"{MAX_CIRCLES}: {', '.join(round_shapes)} — `pill` is a true "
+            f"circular arc and belongs on things that are round because of what "
+            f"they are. A lozenge wants `Shapes.capsule`, which is the same "
+            f"silhouette with the family's own curvature"
+        )
+
+    literals = hand_rolled_rounded_rects()
+    if len(literals) > MAX_ROUNDED_RECT_SHAPES:
+        problems.append(
+            f"{len(literals)} file(s) build a `RoundedCornerShape` by hand: "
+            f"{', '.join(literals)} — the only one in :ui defines `Shapes.pill`. "
+            f"A literal elsewhere is a corner that has stopped tracking the scale"
+        )
+
+    # Rule 21 — an overlay says whether it takes focus away from the app.
+    #
+    # See `silent_focus_traps`. A default that is right six times in seven, and
+    # whose seventh was a component that could not be used at all.
+    silent = silent_focus_traps()
+    if len(silent) > MAX_SILENT_FOCUS_TRAPS:
+        problems.append(
+            f"{len(silent)} `OverlayEntry` site(s) do not say whether they trap "
+            f"focus: {', '.join(silent)} — the default is `true`, and the host "
+            f"applies it to everything behind *every* visible entry. An overlay "
+            f"that floats over a control the user is still using has to say "
+            f"`trapFocus = false`, and one that owns the screen has to say it "
+            f"means to"
+        )
+
+    drift = haptics_policy_drift()
+    if len(drift) > MAX_POLICY_DRIFT:
+        problems.append(
+            f"the haptics policy in `theming.md` and the library disagree: "
+            f"{'; '.join(drift)} — rule 19 caps how many sites there are and "
+            f"this is what keeps the document explaining them true, which is "
+            f"the thing anyone raising that cap has to argue with first"
+        )
+
     unswept = unswept_enums()
     if len(unswept) > MAX_UNSWEPT_ENUMS:
         problems.append(
@@ -1039,6 +1336,10 @@ def main() -> int:
         f"{len(unswept)} parameter enums and {len(undemoed)} booleans on no knob, "
         f"{len(component_pages) - len(unexplained)} pages explaining a parameter, "
         f"{len(internal)} written for a maintainer, "
+        f"{felt} haptic call sites, "
+        f"{circular} deliberate circles, "
+        f"{len(policy_named())} components named by the haptics policy, "
+        f"{len(silent)} silent focus traps, "
         f"all accounted for."
     )
     return 0

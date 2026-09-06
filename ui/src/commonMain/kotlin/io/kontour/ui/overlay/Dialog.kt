@@ -44,6 +44,8 @@ import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.interaction.Feedback
+import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.CompletableDeferred
 
@@ -99,6 +101,9 @@ fun Dialog(
                 OverlayEntry(
                     key = key,
                     layer = OverlayLayer.Dialog,
+                    // A dialog owns the screen: focus must not wander back to
+                    // the form behind it. The default, said out loud.
+                    trapFocus = true,
                     dismissOnOutside = dismissible,
                     dismissLabel = dismissLabel,
                     onDismiss = onDismissRequest,
@@ -203,6 +208,8 @@ fun Dialog(
  *
  * @param destructive Renders the confirm action in the danger tone. Set it for
  *   anything the user cannot undo.
+ * @param hapticWarning Buzzes once as the dialog opens. Defaults to
+ *   [destructive], and does nothing on a dialog that is not.
  */
 @Composable
 fun AlertDialog(
@@ -222,9 +229,31 @@ fun AlertDialog(
     neutralLabel: String? = null,
     onNeutral: (() -> Unit)? = null,
     destructive: Boolean = false,
+    /**
+     * A physical warning as the dialog arrives.
+     *
+     * The one place in this library where a haptic fires for something that has
+     * not happened yet. Everything else reports a value changing, a detent
+     * crossed or an outcome; this reports a *question*, and it is the case the
+     * haptics audit kept precisely because the rest went — feedback is worth
+     * having where it says something the eye is not already being told, and "the
+     * thing you are about to confirm cannot be undone" is that.
+     *
+     * Defaulted from [destructive] rather than to `true`, so it is opt-*out* on
+     * the dialogs that want it and absent everywhere else: a "Save changes?"
+     * never buzzes, whatever this is set to, because a non-destructive alert has
+     * nothing to warn about. Set it `false` on a destructive dialog that opens
+     * often enough for the warning to become wallpaper.
+     */
+    hapticWarning: Boolean = destructive,
     dismissible: Boolean = true,
     content: StateScope.() -> Unit,
 ) {
+    val feedback = Feedback
+    LaunchedEffect(visible) {
+        if (visible && destructive && hapticWarning) feedback.perform(FeedbackIntent.Warn)
+    }
+
     // Reuses the state block's regions: a title, a body under it, and an action
     // area the component arranges. The actions stay parameters rather than slots
     // because the component owns their order, their widths and which of them is

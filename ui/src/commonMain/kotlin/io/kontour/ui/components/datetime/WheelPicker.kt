@@ -1,7 +1,7 @@
 package io.kontour.ui.components.datetime
 
-import androidx.compose.foundation.background
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -25,17 +26,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -44,8 +46,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
@@ -62,7 +63,7 @@ import kotlinx.coroutines.launch
  *
  * Items away from the centre fade and shrink, which is what makes the flat list
  * read as a curved drum rather than a scrolling list with a box drawn on it.
- * Each item passing the centre fires a tick haptic, so the control can be
+ * Each item **dragged** past the centre fires a tick haptic, so the control can be
  * operated by feel.
  *
  * ```
@@ -102,7 +103,19 @@ fun <T> WheelPicker(
     itemHeight: Dp = 40.dp,
     infinite: Boolean = false,
 ) {
-    require(visibleItems % 2 == 1) { "visibleItems must be odd so a row can sit in the centre" }
+    require(visibleItems % 2 == 1) {
+        "WheelPicker's visibleItems must be odd so a row can sit in the centre, not $visibleItems"
+    }
+    // The quiet neighbour of the loud one above. `visibleItems` has rejected even
+    // numbers since it was written; `itemHeight` is divided by in four places and
+    // accepted `0.dp`, which produces NaN — no exception, no drawing, and a drum
+    // that is permanently stuck. One bad argument shouted and the one beside it
+    // went silent.
+    require(itemHeight > 0.dp) {
+        "WheelPicker's itemHeight must be greater than zero, not $itemHeight. Every " +
+            "position on the drum is derived by dividing by it, so zero gives NaN and a " +
+            "picker that renders nothing and cannot be scrolled."
+    }
     if (items.isEmpty()) return
 
     if (infinite) {
@@ -137,12 +150,18 @@ fun <T> WheelPicker(
     val bandLimit = with(LocalDensity.current) { (itemHeight * WheelOverscrollRows).toPx() }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = selected)
     val flingBehavior = rememberSnapFlingBehavior(listState)
-    val feedback = Feedback
+    val ticker = rememberDetentTicker()
     val currentOnSelect by rememberUpdatedState(onSelectedChange)
 
     // The item under the centre line is the first visible one, because the list
     // is padded by exactly `edgeItems` rows at each end.
-    val centredIndex by remember {
+    // Keyed on the list, like `InfiniteWheel`'s version two hundred lines below
+    // and unlike this one until now. An unkeyed `remember` holds the *first*
+    // lambda, so this clamped against the `items` it was composed with while
+    // everything else read the current one — a list of five filtered down to one
+    // still produced a centred index of four, and the next `items[centredIndex]`
+    // threw. The two were written together and only one of them got the key.
+    val centredIndex by remember(items.size) {
         derivedStateOf {
             (listState.firstVisibleItemIndex +
                 if (listState.firstVisibleItemScrollOffset > 0) 1 else 0)
@@ -150,15 +169,28 @@ fun <T> WheelPicker(
         }
     }
 
+    // A detent crossed, not a value observed.
+    //
+    // This fired the dispatcher directly on every emission, and `snapshotFlow`
+    // emits the *current* value first — so every wheel buzzed the moment it
+    // appeared, before anything had been touched. A `TimePicker` is three of
+    // these, so opening one was three haptics for arriving at a screen.
+    // `DetentTicker` arms on the first value and fires on the ones after it,
+    // which is the same guard six other components already share.
     LaunchedEffect(listState) {
         snapshotFlow { centredIndex }.collect { index ->
-            feedback.perform(FeedbackIntent.Tick)
+            ticker.at(index)
             currentOnSelect(index)
         }
     }
 
     LaunchedEffect(selected) {
         if (selected != centredIndex && !listState.isScrollInProgress) {
+            // Re-armed rather than left ticking: the drum is being turned by the
+            // caller, and a value set from code is not a detent a finger crossed.
+            // `scrollToItem` jumps, so exactly one emission follows and the
+            // re-arm swallows exactly it.
+            ticker.reset()
             listState.scrollToItem(selected)
         }
     }
@@ -398,7 +430,6 @@ private fun <T> InfiniteWheel(
 ) {
     val density = LocalDensity.current
     val itemPx = with(density) { itemHeight.toPx() }
-    val feedback = Feedback
     val motion = Theme.motion
     val currentOnSelect by rememberUpdatedState(onSelectedChange)
     val scope = rememberCoroutineScope()
@@ -418,13 +449,6 @@ private fun <T> InfiniteWheel(
         derivedStateOf { wrap((offset.value / itemPx).roundToInt(), items.size) }
     }
 
-    LaunchedEffect(items.size) {
-        snapshotFlow { centredIndex }.collect { index ->
-            feedback.perform(FeedbackIntent.Tick)
-            currentOnSelect(index)
-        }
-    }
-
     // A caller setting the value moves the drum by the *short* way round, which
     // on a wheel that wraps is a thing that has to be chosen rather than
     // falling out of the arithmetic: 23:00 to 00:00 is one row forward, not
@@ -439,13 +463,44 @@ private fun <T> InfiniteWheel(
         }
     }
 
+    val ticker = rememberDetentTicker()
+
+    /**
+     * A detent crossed by a finger, and by nothing else.
+     *
+     * Three things move this drum and only one of them is a gesture. It appears
+     * — and `snapshotFlow` emits its current value first, so the wheel buzzed on
+     * arrival. A caller sets the value — and the spring below crosses every row
+     * between here and there, so `selected = 23` was twenty-three haptics for a
+     * line of code. It settles after a fling — half a row, after the finger has
+     * gone. Only the middle of a real drag is a detent anyone felt.
+     *
+     * `isScrollInProgress` is exactly that distinction on this drum: it is the
+     * `scrollable` below, which is the finger and the fling it threw, and it is
+     * false for both animations. Re-arming rather than ignoring is what keeps
+     * the next real drag from firing for the row it starts on.
+     */
     val scrollState = rememberScrollableState { delta ->
         // Every pixel, always. There is no end to over-scroll past, so nothing
         // is ever left over for a parent to take — which is the other half of
         // the wheel-escaping report, answered by construction rather than by a
         // nested-scroll connection that has to catch it.
-        scope.launch { offset.snapTo(offset.value - delta) }
+        //
+        // Added, not subtracted. `reverseDirection = true` on the `scrollable`
+        // below already turns a drag upward into a positive delta, which is the
+        // whole of the "dragging up rolls the drum forward" convention; negating
+        // it again here undid it and the drum ran backwards. Two negations, one
+        // in a modifier with a comment explaining itself and one in the
+        // arithmetic without — only the unexplained one survived review.
+        scope.launch { offset.snapTo(offset.value + delta) }
         delta
+    }
+
+    LaunchedEffect(items.size) {
+        snapshotFlow { centredIndex }.collect { index ->
+            if (scrollState.isScrollInProgress) ticker.at(index) else ticker.reset()
+            currentOnSelect(index)
+        }
     }
 
     // Settle onto a row when the finger and the fling are both done. The drum
@@ -465,6 +520,12 @@ private fun <T> InfiniteWheel(
     Box(
         modifier
             .height(itemHeight * visibleItems)
+            // The drum lays out two rows more than it shows, so a partial row
+            // appears at each edge and the wheel reads as continuing past the
+            // window. Both are *outside* the container, so the container has to
+            // cut them off — without this they drew over whatever the picker
+            // was sitting in.
+            .clipToBounds()
             .scrollable(
                 state = scrollState,
                 orientation = Orientation.Vertical,
@@ -486,6 +547,21 @@ private fun <T> InfiniteWheel(
         Column(
             Modifier
                 .fillMaxWidth()
+                // `requiredHeight`, because the rows do not fit and are not meant
+                // to. A `Column` gives each child what is left of its own height,
+                // and this one sits in a box exactly `visibleItems` rows tall
+                // while holding `visibleItems + 2` — so the last two were
+                // measured against nothing left and came out zero-high.
+                //
+                // Applied against the "options appear only above the selection"
+                // half of the report, and **not proven to have fixed it**. Rows
+                // fade with distance and `wheelFade` bottoms out at 0.2 alpha
+                // rather than zero, so a rendered measurement cannot separate a
+                // row that is absent from one that is present and faint; the
+                // measurement that was taken is written up in
+                // `InfiniteWheelTest`. This starves no row and is right on its
+                // own terms, but the report stays open.
+                .requiredHeight(itemHeight * rows)
                 .offset {
                     val turned = offset.value / itemPx
                     val first = floor(turned).toInt() - halfVisible - 1

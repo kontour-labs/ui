@@ -24,10 +24,13 @@ read what is above; there is nothing above, so nothing happens. The distinction
 is a held pointer rather than the kind of scroll: a pull is a sustained gesture —
 press, drag, decide, let go — and a notch is not.
 
-**The ring stops at an arc.** It grows and turns with the finger up to the
-length the spinner opens at, and the spinner takes over from there, so the moment
-the gesture commits is a change of meaning rather than a change of picture. It
-used to close the circle and then empty.
+**The ring stops at an arc, and the spinner carries on from it.** It grows and
+turns with the finger up to the spinner's longest arc, and the spinner opens at
+that length *and at that angle*, so the moment the gesture commits is a change of
+meaning rather than a change of picture. It used to close the circle and then
+empty; more recently it matched the length but not the position, so an arc that
+had been dragged most of the way round the dial jumped back to three o'clock in
+one frame.
 
 **Letting it back slowly does not scroll the page.** Past the threshold the pull
 resists, so the indicator moves less than the finger does; the way back closes at

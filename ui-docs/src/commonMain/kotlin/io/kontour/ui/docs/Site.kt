@@ -62,6 +62,8 @@ import io.kontour.ui.nav.TopBar
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.Popover
+import io.kontour.ui.platform.platformPrefersHighContrast
+import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
@@ -110,8 +112,18 @@ fun Site() {
     ) {
         KontourTheme(
             darkTheme = settings.dark ?: systemDark,
-            contrast = if (settings.highContrast) ContrastLevel.High else ContrastLevel.Standard,
-            reduceMotion = settings.reduceMotion,
+            // `?:` on all three, not just the first. `KontourTheme` defaults
+            // each of these to what the operating system reports, and passing a
+            // plain `false` overrides that with "no" — which is how the site
+            // that documents the library's reduced-motion and high-contrast
+            // support came to ignore both of them for every visitor who had
+            // asked for them.
+            contrast = if (settings.highContrast ?: platformPrefersHighContrast()) {
+                ContrastLevel.High
+            } else {
+                ContrastLevel.Standard
+            },
+            reduceMotion = settings.reduceMotion ?: platformPrefersReducedMotion(),
         ) {
             WindowSizeClassProvider {
                 OverlayHost(Modifier.fillMaxSize()) {
@@ -431,7 +443,7 @@ private fun Home() {
             guides.forEach { page ->
                 item(
                     label = page.heading,
-                    supporting = page.summary,
+                    supporting = page.shortSummary,
                     onClick = { navigate(Route.Doc(page.path)) },
                 )
             }
@@ -440,28 +452,22 @@ private fun Home() {
 }
 
 /**
- * The page's opening line, for the index.
+ * The page's opening line, cut to fit a list row.
  *
- * Its first paragraph rather than a field somebody has to remember to fill in:
- * a summary written twice is a summary that disagrees with itself, and every one
- * of these pages already opens by saying what it is.
+ * The extraction moved to `docs/generate-doc-pages.py` and arrives as
+ * [DocPage.summary]; only the truncation is left here, which is where it
+ * belongs — [SummaryLength] is how much room this list has, not a fact about
+ * the page.
  *
- * The exception is the `*Also on this page: …*` line, which several pages put
- * first and which is a list of symbols rather than a description — `theming.md`
- * summarised itself as "Also on this page: `KontourTheme`" until this skipped it.
+ * What that bought: this used to read [DocPage.blocks], so drawing the landing
+ * page built the prose of all seven guides on it. `CorpusLazinessTest` has the
+ * assertion that would have caught it, now that there is one.
  */
-private val DocPage.summary: String
-    get() {
-        val opening = blocks.asSequence()
-            .filterIsInstance<Block.Paragraph>()
-            .map { paragraph -> paragraph.spans.joinToString("") { it.text } }
-            .firstOrNull { !it.startsWith("Also on this page") }
-            .orEmpty()
-        return if (opening.length <= SummaryLength) {
-            opening
-        } else {
-            opening.take(SummaryLength).substringBeforeLast(' ') + "…"
-        }
+internal val DocPage.shortSummary: String
+    get() = if (summary.length <= SummaryLength) {
+        summary
+    } else {
+        summary.take(SummaryLength).substringBeforeLast(' ') + "…"
     }
 
 /**

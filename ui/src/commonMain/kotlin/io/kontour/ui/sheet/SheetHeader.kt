@@ -155,7 +155,7 @@ fun DragHandle(
             Modifier
                 .width(width)
                 .height(4.dp)
-                .background(colour, Theme.shapes.pill)
+                .background(colour, Theme.shapes.capsule)
         )
     }
 }
@@ -342,7 +342,12 @@ fun SheetHeader(
                 Title(
                     textStyle = Theme.typography.titleMedium,
                     centred = style == SheetHeaderStyle.Centred,
-                    modifier = Modifier.padding(horizontal = Theme.spacing.sm),
+                    // No padding of its own. The bar above already insets the
+                    // whole header by `md`, which is the sheet's own content
+                    // padding, and a second `sm` on top of that put the title
+                    // and its supporting line further in than everything they
+                    // head. The trailing controls never had it, which is why
+                    // only one side looked wrong.
                 )
             },
             trailing = {

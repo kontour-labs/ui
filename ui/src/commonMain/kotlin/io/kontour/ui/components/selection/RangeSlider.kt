@@ -103,16 +103,19 @@ fun RangeSlider(
     /**
      * Whether to draw a dot on the track at each detent.
      *
-     * Off by default, which is a change: [steps] used to imply them. A row of
-     * dots turns a slider into a diagram of its own implementation, and on a
-     * short track with many steps they merge into a dashed line that reads as
-     * texture rather than as information. The detent is still there — the thumb
-     * still resists and still ticks — it is just no longer drawn.
+     * **On whenever the slider is stepped**, which is what a stepped slider is
+     * for: the steps are the choices, and a track that hides them makes the user
+     * find them by feel. A continuous slider has no detents to draw and gets
+     * none.
      *
-     * Turn them on where the count is small and *is* the point: five ratings,
-     * four zoom levels.
+     * This went off by default for a round, on the argument that a row of dots
+     * turns a slider into a diagram of its own implementation. That is true at
+     * *many* steps — thirty of them on a short track merge into a dashed line
+     * that reads as texture — and it is the wrong default, because the common
+     * stepped slider has four or five stops and they are the whole point of it.
+     * Pass `false` for the dense case.
      */
-    showTicks: Boolean = false,
+    showTicks: Boolean = steps > 0,
     /** What the range is *of*. `null` when a label beside it already says. */
     contentDescription: String? = null,
     startContentDescription: String = Theme.strings.rangeStart,
@@ -121,6 +124,18 @@ fun RangeSlider(
     onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    // An inverted range has no reading, and the failure it used to cause was
+    // invisible: `coerceIn` throws on one, and the call that reached it first was
+    // inside the `setProgress` **semantics action** — so no screenshot could see
+    // it, no gesture could reach it, and the first person to find it would be
+    // using a screen reader or an automated accessibility check.
+    require(valueRange.start <= valueRange.endInclusive) {
+        "RangeSlider was given an inverted valueRange " +
+            "(${valueRange.start}..${valueRange.endInclusive}). The start has to be at " +
+            "or below the end; a range built from two computed bounds can invert when " +
+            "the data behind them is empty or out of order."
+    }
+
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
@@ -132,21 +147,6 @@ fun RangeSlider(
     val dragged by interactions.collectIsDraggedAsState()
     val pressed by interactions.collectIsPressedAsState()
     val active = dragged || pressed
-
-    val thumbScale by animateFloatAsState(
-        targetValue = if (active && !motion.reduceMotion) 1.25f else 1f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
-        label = "rangeSliderThumb",
-    )
-
-    // A circle at rest that lengthens into a capsule while it is held. Shares
-    // `active` and the spring with the scale above, so the thumb grows and
-    // stretches as one gesture rather than two overlapping ones.
-    val thumbAspect by animateFloatAsState(
-        targetValue = if (active && !motion.reduceMotion) SliderDefaults.ThumbAspect else 1f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
-        label = "rangeSliderThumbAspect",
-    )
 
     val span = valueRange.endInclusive - valueRange.start
 
@@ -176,6 +176,47 @@ fun RangeSlider(
      * collapsing and then reopening from the other side.
      */
     var activeThumb by remember { mutableStateOf(Thumb.None) }
+
+    /**
+     * The grow-and-stretch, **per thumb**.
+     *
+     * One pair of animations used to drive both, keyed on `active`, which is a
+     * fact about the *control* rather than about either thumb: touching one end
+     * of the range made the other end swell at the same moment, so a range
+     * slider under a finger read as two handles being held at once.
+     *
+     * [activeThumb] already knew which one it was — it decides `reach` and which
+     * value the drag moves — and simply was not asked here. A thumb is now held
+     * when the control is held *and* the gesture belongs to it, which for a press
+     * that has not yet chosen a thumb is neither of them, and that is right: a
+     * press on the bare track has not picked one up.
+     */
+    fun held(thumb: Thumb): Boolean = active && activeThumb == thumb && !motion.reduceMotion
+
+    val startScale by animateFloatAsState(
+        targetValue = if (held(Thumb.Start)) 1.25f else 1f,
+        animationSpec = motion.springOrTween(motion.springBouncy),
+        label = "rangeSliderStartThumb",
+    )
+    val endScale by animateFloatAsState(
+        targetValue = if (held(Thumb.End)) 1.25f else 1f,
+        animationSpec = motion.springOrTween(motion.springBouncy),
+        label = "rangeSliderEndThumb",
+    )
+
+    // A circle at rest that lengthens into a capsule while it is held. Shares
+    // the spring with the scale above, so a thumb grows and stretches as one
+    // gesture rather than two overlapping ones.
+    val startAspect by animateFloatAsState(
+        targetValue = if (held(Thumb.Start)) SliderDefaults.ThumbAspect else 1f,
+        animationSpec = motion.springOrTween(motion.springBouncy),
+        label = "rangeSliderStartAspect",
+    )
+    val endAspect by animateFloatAsState(
+        targetValue = if (held(Thumb.End)) SliderDefaults.ThumbAspect else 1f,
+        animationSpec = motion.springOrTween(motion.springBouncy),
+        label = "rangeSliderEndAspect",
+    )
 
     /** See [Slider]'s `dragFraction`. `NaN` when no drag is in progress. */
     var dragFraction by remember { mutableFloatStateOf(Float.NaN) }
@@ -210,11 +251,23 @@ fun RangeSlider(
         return valueRange.start + snapped * span
     }
 
+    /**
+     * The detent tick, if a **drag** just crossed one.
+     *
+     * `carrying` is the whole of the condition — see [Slider]'s `emit`, which
+     * carries the reasoning. Here the tap case is even plainer: a press that
+     * never moved emits from `onEnd`, so a stepped range slider fired once on
+     * touch and once on release for a gesture that crossed nothing. Both are the
+     * same non-event, and both are gone.
+     *
+     * The index is still recorded either way, so the first pixel of a drag that
+     * follows a tap does not tick for the detent the thumb is already on.
+     */
     fun tick(next: Float) {
         if (steps <= 0) return
         val index = ((next - valueRange.start) / span * (steps + 1)).roundToInt().toFloat()
         if (lastStepIndex.isNaN() || abs(index - lastStepIndex) >= 1f) {
-            feedback.perform(FeedbackIntent.Tick)
+            if (carrying) feedback.perform(FeedbackIntent.Tick)
             lastStepIndex = index
         }
     }
@@ -574,7 +627,6 @@ fun RangeSlider(
                                     pressFraction,
                                 )
                             }
-                            feedback.perform(FeedbackIntent.GestureEnd)
                             lastStepIndex = Float.NaN
                             dragFraction = Float.NaN
                             pressFraction = Float.NaN
@@ -630,17 +682,17 @@ fun RangeSlider(
                                 }
                             }
 
-                            for ((x, reachPx) in listOf(
-                                startX to reachStart * trackWidth,
-                                endX to reachEnd * trackWidth,
+                            for (drawn in listOf(
+                                DrawnThumb(startX, reachStart * trackWidth, startScale, startAspect),
+                                DrawnThumb(endX, reachEnd * trackWidth, endScale, endAspect),
                             )) {
                                 sliderThumb(
-                                    centreX = x,
+                                    centreX = drawn.x,
                                     centreY = centreY,
                                     radiusPx = thumbRadiusPx,
-                                    scale = thumbScale,
-                                    aspect = thumbAspect,
-                                    reachPx = reachPx,
+                                    scale = drawn.scale,
+                                    aspect = drawn.aspect,
+                                    reachPx = drawn.reach,
                                     ringColour = colours.surface,
                                     fillColour = activeColour,
                                     ringPx = SliderThumbRing.toPx(),
@@ -726,6 +778,13 @@ private fun ThumbSemantics(
 }
 
 /** Which thumb a gesture is moving. */
+/**
+ * One thumb's drawing, so the loop below reads as two thumbs rather than as a
+ * list of quadruples. Each carries its own scale and aspect: a range slider has
+ * two handles and only one of them is ever in your hand.
+ */
+private class DrawnThumb(val x: Float, val reach: Float, val scale: Float, val aspect: Float)
+
 private enum class Thumb { Start, End, None }
 
 /**

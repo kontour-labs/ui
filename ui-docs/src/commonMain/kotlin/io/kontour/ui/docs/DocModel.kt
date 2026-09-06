@@ -45,6 +45,20 @@ class DocPage(
     val family: String,
     val kind: DocKind,
     val order: Int,
+    /**
+     * The page's opening line, for the index.
+     *
+     * Its first paragraph, extracted by `docs/generate-doc-pages.py` rather than
+     * read off [blocks] — which is where it came from, and which made the
+     * landing page build the prose of every guide it lists in order to show one
+     * line of each. That is the work [blocks] is lazy to defer, arriving through
+     * the index the laziness was for.
+     *
+     * Still derived rather than hand-written: a summary written twice is a
+     * summary that disagrees with itself. It is now derived one build earlier,
+     * and `CorpusLazinessTest` asserts it still matches what the blocks say.
+     */
+    val summary: String,
     private val content: () -> List<Block>,
 ) {
     /**

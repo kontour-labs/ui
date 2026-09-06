@@ -60,7 +60,6 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
-import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -279,7 +278,6 @@ fun SwipeActions(
     }
 
     val onFull by rememberUpdatedState { action: SwipeAction ->
-        feedback.perform(FeedbackIntent.Confirm)
         action.onAction()
     }
 
@@ -299,24 +297,26 @@ fun SwipeActions(
     }
 
     /**
-     * What the row felt like while it was being dragged, which was nothing.
+     * One haptic in this gesture, at the one moment that has a consequence.
      *
-     * Every other draggable control in the library clicks as it passes a detent
-     * — the sliders, the pickers, the segmented control, the tab bar — and this
-     * one, which has the most pronounced detents of any of them, was silent from
-     * the first pixel to the commit. A row with two actions has three positions
-     * it can rest in and a point of no return past all of them, and the only
-     * feedback was the action firing after it was too late to change your mind.
+     * There were four. A tick per `actionWidth` uncovered, a `DragThreshold` at
+     * the commit point, a `Confirm` when the action ran, and a `GestureEnd` when
+     * the row settled — so a full swipe that deleted something fired a short
+     * burst, and a swipe that was thought better of still fired two. The
+     * reported effect was a row that "goes way too crazy", which is what a
+     * pattern reads as when it is not describing anything.
      *
-     * - A **tick** each time the drag uncovers another action, counted in whole
-     *   `actionWidth`s so it is once per button revealed rather than once per
-     *   anchor object.
-     * - A **`DragThreshold`** at the full-swipe point, once and distinctly. That
-     *   is the one moment in this gesture with a consequence, and it is the
-     *   moment the user most needs to be told about without looking.
-     * - A **`GestureEnd`** when the row settles.
+     * The tick was the least defensible of the four: it was written to match the
+     * sliders and the pickers, but `actionWidth` is not a detent. Nothing snaps
+     * there and nothing rests there — the anchors are rest, revealed and
+     * committed — so it was a click for a boundary that only existed in the
+     * arithmetic. The `Confirm` and the `GestureEnd` reported outcomes the user
+     * was already watching happen.
+     *
+     * What is left is the threshold: past this point, letting go deletes the
+     * row. It is the only thing in the gesture the user cannot see coming, and
+     * it is the only thing still worth a buzz.
      */
-    val ticker = rememberDetentTicker()
 
     /**
      * Whether the swipe has gone far enough to commit.
@@ -330,27 +330,13 @@ fun SwipeActions(
     var pastThreshold by remember { mutableStateOf(false) }
 
     LaunchedEffect(state, actionWidthPx, width) {
-        var settled = true
         snapshotFlow { state.anchoredState.offset }.collect { offset ->
             if (offset.isNaN() || actionWidthPx <= 0f) return@collect
-            val travel = abs(offset)
-
-            ticker.at((travel / actionWidthPx).toInt())
 
             val commitAt = width * SwipeActionsDefaults.FullSwipeThreshold
-            val past = width > 0f && travel >= commitAt
+            val past = width > 0f && abs(offset) >= commitAt
             if (past && !pastThreshold) feedback.perform(FeedbackIntent.DragThreshold)
             pastThreshold = past
-
-            // "Back at rest" is the end of the gesture, and the only edge worth
-            // reporting: `offset` emits on every frame of the settle animation
-            // too, and a click per frame of a spring is a buzz.
-            val atRest = travel < 1f
-            if (atRest && !settled) {
-                feedback.perform(FeedbackIntent.GestureEnd)
-                ticker.reset()
-            }
-            settled = atRest
         }
     }
 

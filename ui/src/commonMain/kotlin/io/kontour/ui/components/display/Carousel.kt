@@ -134,7 +134,19 @@ class CarouselState internal constructor(
         if (pitch <= 0f) first.index.toFloat() else first.index + (-first.offset) / pitch
     }
 
-    val count: Int get() = pageCount()
+    val count: Int
+        get() = pageCount().also {
+            // Checked here rather than at each reader, because both `Carousel`
+            // and `PageIndicator` take the count from this one property and one
+            // of them sizes a `FloatArray` with it — so a negative count reached
+            // the user as `NegativeArraySizeException`, which names neither the
+            // carousel nor the lambda that produced the number.
+            require(it >= 0) {
+                "Carousel's pageCount lambda returned $it. A page count cannot be " +
+                    "negative; this is usually a subtraction against a collection that " +
+                    "has not loaded yet."
+            }
+        }
 
     suspend fun scrollToPage(page: Int) {
         listState.animateScrollToItem(page.coerceIn(0, (count - 1).coerceAtLeast(0)))
@@ -454,8 +466,8 @@ private fun PageDots(
                     modifier = Modifier
                         .width(width)
                         .height(PageIndicatorDefaults.DotSize)
-                        .clip(Theme.shapes.pill),
-                    shape = Theme.shapes.pill,
+                        .clip(Theme.shapes.capsule),
+                    shape = Theme.shapes.capsule,
                     // Under a worm every dot is a track, and the pill on top is
                     // the only thing that says which page this is.
                     colour = if (active) activeColour else inactiveColour,

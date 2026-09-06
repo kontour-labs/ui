@@ -60,9 +60,15 @@ import kotlin.math.min
  * had a corner from a different design system to the card. The cost is bounded by
  * [SquircleShape]'s path cache.
  *
- * [pill] survives as a true capsule for the things that are round because of what
- * they are rather than how tall they are: an avatar, a scrollbar, a selection
- * indicator.
+ * [pill] survives for the things that are round because of what they *are* rather
+ * than because of how tall they happen to be: an avatar, a scrollbar thumb, a
+ * status dot, the ring round a radio button. Everything else that reads as a
+ * lozenge — a chip, a toast, a nav indicator, a skeleton line, a day cell — is
+ * [capsule], which is the same silhouette with the family's own curvature.
+ *
+ * A selection indicator used to be on that list and is not any more. A 56x32
+ * travelling pill is not a circle; it is a lozenge behind a row of controls that
+ * are squircles, which is exactly the mismatch this token pair exists to name.
  *
  * ### Ask for what a thing *is*
  *
@@ -99,6 +105,27 @@ data class Shapes(
     val pill: CornerBasedShape = RoundedCornerShape(percent = 50),
 
     /**
+     * A capsule, drawn as a squircle. The shape [pill] should have been.
+     *
+     * Half the shorter side, so it is a capsule at any size — and a *circle* on
+     * a square box, in the same sense [pill] is, because a corner with no room
+     * on either edge has nothing to smooth. See [SquircleShape]'s `params`.
+     *
+     * The distinction between the two is worth stating because it is the whole
+     * of this token. [pill] is a true circular arc, and it is right for the
+     * things that genuinely are circles — an avatar, a status dot, the ring round
+     * a radio button, a scrollbar thumb. Everything *else* that was reaching for
+     * `pill` wanted a capsule, and a capsule with circular ends beside a family
+     * of squircles is the mismatch that makes nesting look wrong: two curves that
+     * meet at a tangent but disagree about everything after it.
+     *
+     * [control] is this, named for what presses it. This one is named for the
+     * shape, because a skeleton's line, a toast and a sheet's grab bar are
+     * capsules that nobody presses.
+     */
+    val capsule: CornerBasedShape = SquircleShape(CapsuleCornerSize()),
+
+    /**
      * Anything you press, and anything that labels a thing you could press.
      *
      * Buttons, icon buttons, split buttons, button groups, chips, tags, floating
@@ -108,7 +135,7 @@ data class Shapes(
      * button was nearly a capsule already and an `XLarge` was nearly square, so
      * one component disagreed with itself across its own size scale.
      */
-    val control: CornerBasedShape = SquircleShape(CapsuleCornerSize()),
+    val control: CornerBasedShape = capsule,
 
     /**
      * Anything that holds a value the user typed or chose.

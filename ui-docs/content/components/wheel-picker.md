@@ -37,6 +37,21 @@ it; a select is right when they are choosing from a list.
 
 ---
 
+## What it refuses
+
+`visibleItems` must be odd, so a row can sit in the centre. `itemHeight` must be
+greater than zero.
+
+The second one is here because it was silent. Every position on the drum is
+derived by dividing by the row height, so `0.dp` produced NaN — no exception, no
+drawing, and a picker that could not be scrolled. Its neighbour had been
+rejecting even `visibleItems` with a clear message since the day it was written.
+One bad argument shouted and the one beside it went quiet, which is the worse of
+the two failures.
+
+An empty `items` list is not refused: it draws nothing, which is what a list that
+has not loaded should do.
+
 ## Accessibility
 
 The wheel reports the centred item as its `stateDescription`, so a screen reader

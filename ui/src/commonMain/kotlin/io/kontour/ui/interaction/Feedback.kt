@@ -33,6 +33,20 @@ enum class FeedbackIntent {
     /** An action was refused: invalid input, a blocked gesture. */
     Reject,
 
+    /**
+     * Something with consequences is being *asked*, and has not happened yet.
+     *
+     * A destructive confirmation opening is the case it exists for. Distinct
+     * from [Reject], which reports that something was refused, and from
+     * [Confirm], which reports that something worked: this one is the only
+     * intent in the list that fires *before* the thing it is about. The two
+     * share a platform constant today — a notification-style buzz is what both
+     * want — and they are still two intents, because a consumer retuning the
+     * mapping should be able to make "you are about to delete this" feel
+     * different from "that did not work".
+     */
+    Warn,
+
     /** A long-press threshold was reached and something is about to happen. */
     LongPress,
 
@@ -155,6 +169,7 @@ internal fun rememberDefaultFeedbackDispatcher(
                     FeedbackIntent.Tick -> HapticFeedbackType.SegmentFrequentTick
                     FeedbackIntent.Confirm -> HapticFeedbackType.Confirm
                     FeedbackIntent.Reject -> HapticFeedbackType.Reject
+                    FeedbackIntent.Warn -> HapticFeedbackType.Reject
                     FeedbackIntent.LongPress -> HapticFeedbackType.LongPress
                     FeedbackIntent.DragThreshold -> HapticFeedbackType.GestureThresholdActivate
                     FeedbackIntent.GestureEnd -> HapticFeedbackType.GestureEnd

@@ -36,8 +36,6 @@ import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.overlay.AnchoredDropdownMenu
 import io.kontour.ui.overlay.MenuItem
@@ -394,7 +392,6 @@ private fun SelectFrame(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
-    val feedback = LocalFeedback.current
     val motion = Theme.motion
     val editorFocus = remember { FocusRequester() }
 
@@ -454,7 +451,6 @@ private fun SelectFrame(
                 indication = kontourIndication(Theme.shapes.field, pressScale = 1f),
                 enabled = enabled,
                 onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
                     setExpanded(!expanded)
                 },
             ),

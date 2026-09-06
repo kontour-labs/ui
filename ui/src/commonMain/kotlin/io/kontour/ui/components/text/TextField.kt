@@ -133,6 +133,7 @@ fun TextField(
         modifier = modifier,
         enabled = enabled,
         focused = focused,
+        readOnly = readOnly,
         colours = colours,
         metrics = metrics,
         shape = shape,
@@ -152,14 +153,22 @@ fun TextField(
             }
         },
         // The one control in the library where the exactly right cursor is
-        // available: editable text is what `PointerIcon.Text` is for.
+        // available: **editable** text is what `PointerIcon.Text` is for.
         //
         // On the frame rather than on the input, because the whole field takes
         // the caret when it is clicked — a beam over the middle of a field and
         // an arrow over its padding would say the two halves do different
         // things. The trailing slot's own controls set a hand over themselves,
         // which is right: a reveal toggle is a button sitting in a text field.
-        frameModifier = Modifier.pointerCursor(PointerIcon.Text, enabled = enabled),
+        //
+        // Not on a read-only one. The text there can still be selected, so the
+        // beam is not *entirely* a lie, but what a caret promises is that typing
+        // will go in at the point you click — and it will not. Same reasoning as
+        // the focus tint this field also stopped showing.
+        frameModifier = Modifier.pointerCursor(
+            PointerIcon.Text,
+            enabled = enabled && !readOnly,
+        ),
     ) {
         val contentColour = if (enabled) colours.content else colours.contentDisabled
 

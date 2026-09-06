@@ -1,8 +1,9 @@
 package io.kontour.ui.components.list
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyItemScope
@@ -26,14 +27,19 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.withTimeoutOrNull
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.input.LocalInputModality
@@ -170,7 +176,13 @@ fun rememberReorderableState(
             // A reorder is a discrete event happening under a finger that is
             // not looking for it — the user is watching the row they are
             // holding, not the gap it just left.
-            onReorder = { feedback.perform(FeedbackIntent.Tick) },
+            //
+            // `Selection` rather than `Tick`, so that the drop can be `Tick` and
+            // be *lighter* than this. Those two are the only weights the
+            // vocabulary has below a thud — `SegmentTick` against
+            // `SegmentFrequentTick` — and this is the one that should be felt:
+            // the list changed, and letting go did not.
+            onReorder = { feedback.perform(FeedbackIntent.Selection) },
         )
     }
 }
@@ -418,7 +430,11 @@ private fun Modifier.reorderDrag(
     // see `currentIndex`.
     this.pointerInput(state, immediate) {
         val onStart: (Offset) -> Unit = {
-            feedback.perform(FeedbackIntent.LongPress)
+            // Only where a long press is what started it. `LongPress` announces
+            // that a threshold was reached and the row is now yours to move —
+            // on the [immediate] path there is no threshold to announce, and
+            // firing it there was a haptic for a mouse-down on a grip.
+            if (!immediate) feedback.perform(FeedbackIntent.LongPress)
             state.start(currentIndex())
         }
         val onDrag: (PointerInputChange, Offset) -> Unit = { change, amount ->
@@ -426,7 +442,13 @@ private fun Modifier.reorderDrag(
             state.drag(amount.y)
         }
         val onEnd: () -> Unit = {
-            feedback.perform(FeedbackIntent.GestureEnd)
+            // Lighter than the reorders it follows: `SegmentFrequentTick`
+            // against their `SegmentTick`. A drop is a confirmation that the row
+            // has landed, not news — the news already happened, once per gap the
+            // row crossed. `GestureEnd`, which this used to be, is a thud, and a
+            // thud at the end of a run of clicks reads as the gesture having
+            // gone wrong.
+            feedback.perform(FeedbackIntent.Tick)
             state.stop()
         }
         if (immediate) {
@@ -437,12 +459,82 @@ private fun Modifier.reorderDrag(
                 onDragCancel = { state.stop() },
             )
         } else {
-            detectDragGesturesAfterLongPress(
+            detectDragAfterHold(
                 onDragStart = onStart,
                 onDrag = onDrag,
                 onDragEnd = onEnd,
                 onDragCancel = { state.stop() },
             )
+        }
+    }
+}
+
+/**
+ * How far a finger may wander during the hold and still be holding still.
+ *
+ * `detectDragGesturesAfterLongPress` cancels on `viewConfiguration.touchSlop`,
+ * which is the threshold for "this is a scroll" — and it is the wrong question
+ * to ask of a finger that has not started moving anywhere yet. A fingertip is a
+ * centimetre wide and rolls as it presses; on a phone browser, where frames are
+ * slower and every event is sampled coarsely, holding inside eight dp for half a
+ * second is a skill rather than a gesture.
+ *
+ * Reproduced with the hold intact and ten dp of wander in the middle of it: the
+ * row was never picked up, and the drag that followed went to whatever scrolls
+ * behind it — which is the report, "cannot drag downwards, the page scrolls
+ * instead".
+ *
+ * Twenty-four dp, which is about a fingertip. A scroll does not fit inside it:
+ * anything that is going to scroll has left this circle long before the timeout,
+ * because a scroll that travels 24dp in half a second is 48dp a second, which is
+ * slower than a page moves under a finger that means to move it.
+ */
+private val ReorderHoldSlop = 24.dp
+
+/**
+ * A long press that tolerates a finger, then a drag.
+ *
+ * `detectDragGesturesAfterLongPress` with one number changed — see
+ * [ReorderHoldSlop] — and written out rather than wrapped because the movement
+ * budget is inside `awaitLongPressOrCancellation`, which is not public.
+ */
+private suspend fun PointerInputScope.detectDragAfterHold(
+    onDragStart: (Offset) -> Unit,
+    onDrag: (PointerInputChange, Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+) {
+    val budget = ReorderHoldSlop.toPx()
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        // `withTimeoutOrNull` returning null is the *success* here: the loop
+        // inside it only ever returns early, so reaching the deadline means the
+        // finger stayed put for the whole of it.
+        val gaveUp = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Main)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull
+                if (!change.pressed) return@withTimeoutOrNull
+                if ((change.position - down.position).getDistance() > budget) return@withTimeoutOrNull
+            }
+        }
+        if (gaveUp != null) return@awaitEachGesture
+
+        onDragStart(down.position)
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Main)
+            val change = event.changes.firstOrNull { it.id == down.id }
+            if (change == null || change.isConsumed) {
+                onDragCancel()
+                break
+            }
+            if (!change.pressed) {
+                change.consume()
+                onDragEnd()
+                break
+            }
+            val delta = change.positionChange()
+            if (delta != Offset.Zero) onDrag(change, delta)
         }
     }
 }

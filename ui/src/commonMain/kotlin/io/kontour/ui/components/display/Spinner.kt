@@ -72,6 +72,17 @@ fun Spinner(
     colour: Color = LocalContentColour.current,
     strokeWidth: Dp = (size.value / 9f).dp.coerceAtLeast(1.5.dp),
     contentDescription: String? = null,
+    /**
+     * Where the arc's head is on the frame the spinner appears, in `drawArc`
+     * degrees — zero is three o'clock and it turns clockwise from there.
+     *
+     * Exists for one caller. [io.kontour.ui.components.list.PullToRefresh] draws
+     * its own arc while the finger is down and swaps this in when the pull
+     * commits, and the swap is a jump unless the spinner opens with its head
+     * exactly where the pull left it — which, at three o'clock against a pull
+     * that finishes at seven, it was.
+     */
+    initialAngle: Float = SpinnerDefaults.InitialAngle,
 ) {
     val reduceMotion = Theme.motion.reduceMotion
     val transition = rememberInfiniteTransition(label = "spinner")
@@ -88,20 +99,30 @@ fun Spinner(
     // A linear driver, turned into a cosine below. `RepeatMode.Reverse` on an
     // eased tween would do something similar and would corner at each end,
     // because the easing's rate is not zero where the direction changes.
-    val phase by transition.animateFloat(
-        // Starts a quarter in, so the arc appears at half length rather than at
-        // its shortest. A spinner that begins as a stub and grows reads as
-        // popping in, and it is also what a screenshot catches on frame six.
-        initialValue = SpinnerDefaults.OpeningPhase,
-        targetValue = SpinnerDefaults.OpeningPhase + 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = SpinnerDefaults.BreatheMillis, easing = LinearEasing),
-        ),
-        label = "spinnerBreathe",
-    )
-
-    val effectiveSweep =
-        if (reduceMotion) SpinnerDefaults.RestingSweep else spinnerSweep(phase)
+    //
+    // Not registered under reduced motion, where the arc holds a constant length
+    // and nothing reads it. The rotation above is registered either way, and
+    // deliberately: a spinner that does not turn is not reporting anything, and
+    // reduced motion asks to be spared decoration rather than status. So this
+    // halves the animations a resting spinner runs rather than removing them.
+    val phase = if (reduceMotion) {
+        null
+    } else {
+        transition.animateFloat(
+            // Starts a quarter in, so the arc appears at half length rather than
+            // at its shortest. A spinner that begins as a stub and grows reads as
+            // popping in, and it is also what a screenshot catches on frame six.
+            initialValue = SpinnerDefaults.OpeningPhase,
+            targetValue = SpinnerDefaults.OpeningPhase + 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = SpinnerDefaults.BreatheMillis,
+                    easing = LinearEasing,
+                ),
+            ),
+            label = "spinnerBreathe",
+        )
+    }
 
     Canvas(
         modifier
@@ -115,10 +136,13 @@ fun Spinner(
     ) {
         val stroke = strokeWidth.toPx()
         val inset = stroke / 2f
+        val effectiveSweep =
+            phase?.let { spinnerSweep(it.value) } ?: SpinnerDefaults.RestingSweep
         drawArc(
             color = colour,
-            // The head is at `rotation`; the tail trails it.
-            startAngle = rotation - effectiveSweep,
+            // The head is at `rotation`, offset to wherever it opened; the
+            // tail trails it.
+            startAngle = initialAngle + rotation - effectiveSweep,
             sweepAngle = effectiveSweep,
             useCenter = false,
             topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
@@ -166,18 +190,31 @@ object SpinnerDefaults {
     const val RestingSweep: Float = 90f
 
     /**
+     * Where the arc's head is on the frame a spinner appears.
+     *
+     * Three o'clock, which is `drawArc`'s own zero and where every spinner in
+     * the library has always opened.
+     */
+    const val InitialAngle: Float = 0f
+
+    /**
      * Where in the breathe cycle a spinner starts.
      *
-     * A quarter in, so the arc appears at half its length rather than at its
-     * shortest: one that begins as a stub and grows reads as popping in.
+     * Halfway, which is the top of the cosine, so the arc appears at
+     * [MaxSweep] — its longest — and its first movement is to shorten. It was a
+     * quarter in, which is half length, because the worry was that an arc which
+     * begins as a stub and grows reads as popping in. That worry is answered
+     * more completely here: nothing is shorter than where it starts.
      *
      * Named because a second thing depends on it. `PullToRefresh` grows an arc
      * with the finger and swaps this in when the pull commits, and the swap is
      * only invisible if the two are the same length at the moment it happens —
-     * so the pull stops at [OpeningSweep] rather than closing the circle, and
-     * neither number can drift from the other.
+     * so the pull grows to [OpeningSweep] rather than closing the circle, and
+     * neither number can drift from the other. The report is that the pull's
+     * final arc should be the spinner's *longest*, which is what moving this
+     * from a quarter to a half is: it makes [OpeningSweep] equal [MaxSweep].
      */
-    const val OpeningPhase: Float = 0.25f
+    const val OpeningPhase: Float = 0.5f
 
     /** The arc's length, in degrees, at the instant a spinner appears. */
     val OpeningSweep: Float get() = spinnerSweep(OpeningPhase)

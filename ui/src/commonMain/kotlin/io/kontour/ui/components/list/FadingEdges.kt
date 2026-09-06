@@ -71,7 +71,21 @@ fun Modifier.fadingEdges(
     return this
         // Isolate the layer, or DstOut erases whatever is painted behind the
         // list as well as the list itself.
-        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        //
+        // Only while there is a fade to draw. `Offscreen` is not a flag: it
+        // makes every draw of this node render into a buffer of its own and then
+        // composite that buffer back, and this was set unconditionally — so a
+        // list scrolled to the top, or one short enough never to scroll at all,
+        // paid a full offscreen round trip per frame for a blend that was not
+        // happening. Read inside the layer block, so a fade appearing changes the
+        // layer rather than recomposing the list.
+        .graphicsLayer {
+            compositingStrategy = if (fade.isVisible) {
+                CompositingStrategy.Offscreen
+            } else {
+                CompositingStrategy.Auto
+            }
+        }
         .drawWithContent {
             drawContent()
             if (!fade.isVisible) return@drawWithContent

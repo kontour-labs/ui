@@ -231,7 +231,7 @@ fun BottomSheet(
                 // Less whatever the sheet has been stretched above its top
                 // detent. Purely visual, and read in the layout phase so a
                 // stretch never recomposes the sheet's content.
-                .offset { IntOffset(0, offsetOrHidden(state) - state.overshoot.roundToInt()) }
+                .offset { IntOffset(0, offsetOrHidden(state) - state.drawnOvershoot.roundToInt()) }
                 .then(
                     if (draggable) {
                         Modifier
@@ -290,7 +290,7 @@ fun BottomSheet(
                         IntOffset(
                             0,
                             offsetOrHidden(state) -
-                                state.overshoot.roundToInt() -
+                                state.drawnOvershoot.roundToInt() -
                                 actionsHeight -
                                 actionsGap.roundToPx(),
                         )
@@ -430,6 +430,8 @@ fun ModalBottomSheet(
                     key = key,
                     layer = OverlayLayer.Sheet,
                     scrim = ScrimStyle.Dimmed,
+                    // Always dimmed, so always modal, so always trapping.
+                    trapFocus = true,
                     // A sheet covers part of the screen rather than floating in
                     // the middle of it, so the presenting content recedes as
                     // well as blurring. That is what says "on top of this

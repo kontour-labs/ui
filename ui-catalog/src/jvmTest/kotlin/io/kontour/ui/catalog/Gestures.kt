@@ -1,12 +1,16 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
+import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.scene.ComposeScenePointer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.Density
@@ -64,6 +68,47 @@ class Scene(
         repeat(count - 1) { last = frame() }
         return last
     }
+
+    /**
+     * Renders the next frame and throws the pixels away.
+     *
+     * [frame] encodes every frame to PNG and decodes it back through `ImageIO`,
+     * which is the right trade when a test is going to *look* at the pixels: it
+     * is the only way to get a `BufferedImage` out of Skia here, and a golden
+     * that costs a few tens of milliseconds to take is still a golden.
+     *
+     * It is the wrong trade when the time **is** the measurement. Encoding and
+     * decoding a full-screen PNG is far more work than drawing the frame was, so
+     * a stopwatch around [frame] measures `ImageIO` with a rendering somewhere
+     * inside it, and any ratio taken that way is dragged towards 1 by a large
+     * constant that has nothing to do with what is being compared.
+     * `BackdropCostDiagnostic` reported its blur cost that way, and the figure it
+     * printed was the blur diluted by two image codecs.
+     */
+    fun advance() {
+        nanos += FrameNanos
+        scene.render(nanos).close()
+    }
+
+    /** Renders [count] frames, discarding each. */
+    fun advance(count: Int) {
+        repeat(count) { advance() }
+    }
+
+    /**
+     * Whether anything in the scene still wants another frame.
+     *
+     * The only way to see an animation that is running but not visible. A
+     * `rememberInfiniteTransition` subscribes to the frame clock when it is
+     * composed and keeps asking forever, whether or not the value it produces
+     * reaches a canvas — so a component that registers one and then declines to
+     * read it draws exactly the right picture at exactly the wrong cost, and no
+     * golden, no phase count and no stopwatch can tell the difference.
+     *
+     * This can: a settled scene has no invalidations, and a scene with a live
+     * transition in it always does.
+     */
+    fun stillAnimating(): Boolean = scene.hasInvalidations()
 
     /**
      * Renders until [until] holds, or until [timeoutMillis] of **real** time has
@@ -143,6 +188,52 @@ class Scene(
             scrollDelta = delta,
             timeMillis = nanos / 1_000_000L,
             type = PointerType.Mouse,
+        )
+    }
+
+    /**
+     * One finger in a gesture that has more than one.
+     *
+     * [down] is what makes a list of these an event rather than a snapshot: a
+     * second finger arriving is one event in which the first is still pressed and
+     * the second has just become so, and a finger lifting is one in which it has
+     * not.
+     */
+    class Touch(val id: Long, val at: Offset, val down: Boolean = true)
+
+    /**
+     * Sends one event carrying every finger currently on the screen.
+     *
+     * The single-pointer helpers above go through `sendPointerEvent`'s
+     * one-pointer overload, which is all this harness could do and is why nothing
+     * in the suite had ever put two fingers on a component. A drag handler that
+     * assumes one pointer is a drag handler nothing had asked.
+     *
+     * The whole set goes in every event, because that is what a pointer event is
+     * — a description of the screen, not a delta. Sending only the finger that
+     * moved is how a test convinces itself the other one was lifted.
+     *
+     * `ComposeScenePointer` is marked internal-between-modules and experimental,
+     * hence the opt-in. It is the only way to express two fingers to a
+     * `ComposeScene`, the alternative is not testing two fingers, and this is a
+     * test source set — the annotation is a promise about source compatibility
+     * across versions, which a test in the same repository as its dependency
+     * pin can take.
+     */
+    @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
+    fun touch(type: PointerEventType, fingers: List<Touch>) {
+        nanos += FrameNanos
+        scene.sendPointerEvent(
+            eventType = type,
+            pointers = fingers.map {
+                ComposeScenePointer(
+                    id = PointerId(it.id),
+                    position = it.at,
+                    pressed = it.down,
+                    type = PointerType.Touch,
+                )
+            },
+            timeMillis = nanos / 1_000_000L,
         )
     }
 

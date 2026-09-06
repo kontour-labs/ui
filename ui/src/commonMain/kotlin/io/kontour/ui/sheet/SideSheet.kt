@@ -150,6 +150,18 @@ fun SideSheet(
                 key = key,
                 layer = OverlayLayer.Sheet,
                 scrim = scrim,
+                // Derived, and only in the one direction that is sound.
+                // `ScrimStyle.None` means this overlay lets pointer events
+                // through to what is behind it, and something you can still
+                // click is something you must still be able to focus. The other
+                // two scrims say nothing either way — `Menu` and the selection
+                // toolbar are both `Transparent` and want opposite answers — so
+                // anything with a scrim traps, deliberately.
+                //
+                // A scrimless side sheet is a panel that stays open beside the
+                // content — an inspector, a filter rail — and trapping focus in
+                // one would lock the keyboard out of the thing it is inspecting.
+                trapFocus = scrim != ScrimStyle.None,
                 // Same reason as a bottom sheet: it takes an edge of the screen
                 // rather than floating over the middle of it.
                 backdrop = if (scrim == ScrimStyle.Dimmed) {

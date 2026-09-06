@@ -175,6 +175,22 @@ the one hint a pointer user gets that a sheet is draggable at all.
 
 ---
 
+## An empty detent list
+
+`detents` must not be empty, and this is worth its own heading because the model
+above actively recommends filtering: which positions apply depends on what is in
+the sheet, and `all.filter { … }` can match nothing.
+
+Both routes to an empty list now refuse with the same message. Passing one to
+`rememberSheetState` used to fail with `NoSuchElementException: List is empty` —
+because `initialDetent` defaults to `detents.first()`, and a default argument is
+evaluated at the call site, before the friendlier check inside `SheetState` could
+run. Assigning one to `state.detents` afterwards used to succeed, and took the
+frame down some frames later inside the drag handle, where the header reads
+`detents.last()`.
+
+Keep `SheetDetent.Hidden` in the list if nothing else applies.
+
 ## Nested scrolling
 
 A `LazyColumn` inside a sheet works without ceremony:

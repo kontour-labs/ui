@@ -34,6 +34,26 @@ data class ShadowSpec(
  * a crisp edge against a busy background, and a wide, soft *ambient* layer
  * carries the sense of height. One layer alone gives you either a hard edge or
  * a vague smudge, never both.
+ *
+ * ### What the second layer costs, measured
+ *
+ * `Modifier.elevation` gives each layer its own `dropShadow` node, so this is
+ * two blurred passes rather than one, and `ShadowCostDiagnostic` puts numbers on
+ * it — twenty elevated `Card`s on a software rasteriser:
+ *
+ * ```
+ * no shadow 1.28ms/frame · one layer 3.45 · two layers 5.59
+ * ```
+ *
+ * The second layer costs what the first does, which is what two blurs over the
+ * same bounds should cost, and shadows are most of that frame. It is a real
+ * price and it is being paid deliberately: there is no arrangement of
+ * `androidx.compose.ui.draw.dropShadow` that draws both in one pass, so the only
+ * way to halve it is to draw one shadow — the picture this KDoc exists to refuse.
+ *
+ * Worth keeping in proportion. That machine has no GPU, and these radii are 2dp
+ * and 6dp; a shader pass makes short work of both. Reach for `CardVariant.Filled`
+ * or `Outlined` on a screen that is mostly cards before reaching for the tokens.
  */
 @Immutable
 data class Shadow(val layers: List<ShadowSpec>) {

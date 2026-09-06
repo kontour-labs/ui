@@ -8,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import io.kontour.ui.platform.platformPrefersHighContrast
+import io.kontour.ui.platform.platformPrefersReducedMotion
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -41,8 +43,23 @@ class DisplaySettings {
      * painted `#121212` by the CSS and then a white site over the top of it.
      */
     var dark by mutableStateOf<Boolean?>(null)
-    var highContrast by mutableStateOf(false)
-    var reduceMotion by mutableStateOf(false)
+
+    /**
+     * Null until the reader touches the toggle, for the same reason [dark] is.
+     *
+     * These two were plain `false`, and the site passed them straight into
+     * `KontourTheme` — so a visitor who has asked their operating system for
+     * reduced motion or for more contrast got neither, on the site that
+     * documents how the library honours both. `KontourTheme` defaults each to
+     * the platform, and the site was overriding the default with the answer
+     * "no".
+     *
+     * Found by measurement rather than by reading: a browser with
+     * `prefers-reduced-motion: reduce` emulated counted the same number of
+     * animation frames on the skeleton page as one without it.
+     */
+    var highContrast by mutableStateOf<Boolean?>(null)
+    var reduceMotion by mutableStateOf<Boolean?>(null)
     var rightToLeft by mutableStateOf(false)
     var textScale by mutableStateOf(1f)
 }
@@ -55,13 +72,22 @@ internal val textScales = listOf("85%" to 0.85f, "100%" to 1f, "130%" to 1.3f, "
 
 @Composable
 internal fun SettingsPanel(settings: DisplaySettings, systemDark: Boolean) {
+    // Read here as well as at the theme, so a toggle a reader has not touched
+    // shows what they are actually getting rather than what the site would
+    // default to on its own.
+    val systemReduceMotion = platformPrefersReducedMotion()
+    val systemHighContrast = platformPrefersHighContrast()
     Column(
         modifier = Modifier.fillMaxWidth().padding(Theme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
     ) {
         Toggle("Dark", settings.dark ?: systemDark) { settings.dark = it }
-        Toggle("High contrast", settings.highContrast) { settings.highContrast = it }
-        Toggle("Reduce motion", settings.reduceMotion) { settings.reduceMotion = it }
+        Toggle("High contrast", settings.highContrast ?: systemHighContrast) {
+            settings.highContrast = it
+        }
+        Toggle("Reduce motion", settings.reduceMotion ?: systemReduceMotion) {
+            settings.reduceMotion = it
+        }
         Toggle("Right to left", settings.rightToLeft) { settings.rightToLeft = it }
 
         Text(

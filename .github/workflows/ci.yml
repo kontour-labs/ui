@@ -36,6 +36,14 @@ on:
           `GITHUB_REF_NAME` is a branch name and the build refuses it.
         required: false
         default: ''
+      renders:
+        description: >-
+          Draw every page of the site at four widths and upload the contact
+          sheets. Off by default and never runs on a pull request: it is 488
+          renders and it used to be 90% of this workflow's bill.
+        type: boolean
+        required: false
+        default: false
 
 # Read-only by default. The two jobs that write say so themselves, which is
 # tighter than the arrangement this replaced: `pages.yml` granted `pages: write`
@@ -146,6 +154,15 @@ jobs:
       # work, and explains why. `check` would reach `kotlinNpmInstall` and set up
       # a browser test environment for tests this suite does not run, which is a
       # minute of runner time for nothing. This list is the same work without it.
+      # One invocation, not two. This was split in half, and the second half
+      # spent 27 seconds to do 13 seconds of work: `--no-daemon` forks a fresh
+      # JVM per invocation, and with no configuration cache to restore it
+      # recalculates the task graph from scratch each time.
+      #
+      # `:ui-samples` answers a different question from the rest — `compileKotlinJvm`
+      # asks whether the documentation examples still work against the real API,
+      # `checkDocSamples` whether the copy on the page is still the code that was
+      # compiled — but nothing about that needs its own process.
       - name: Test
         run: |
           ./gradlew --no-daemon \
@@ -154,15 +171,7 @@ jobs:
             :ui:checkApiConventions \
             :ui:checkKdocSamples \
             :ui-catalog:jvmTest \
-            :ui-docs:jvmTest
-
-      # The examples on the documentation pages, compiled. `compileKotlinJvm`
-      # answers "does this still work against the real API"; `checkDocSamples`
-      # answers "is the copy on the page still the code that was compiled".
-      # Neither is much use without the other.
-      - name: Compile the documentation examples
-        run: |
-          ./gradlew --no-daemon \
+            :ui-docs:jvmTest \
             :ui-samples:compileKotlinJvm \
             :ui-samples:checkDocSamples
 
@@ -174,20 +183,6 @@ jobs:
       # a README whose component count is the tree's.
       - name: Check every component has a page
         run: python3 docs/check-components.py
-
-      # Every page of the site at four window widths, with a contact sheet per
-      # width. Uploaded on success as well as on failure, because the point of
-      # these is that somebody looks at them: `SiteRenderTest` asserts a page
-      # renders and drew something, and no assertion it could carry would say
-      # "this page reads badly on a phone" — which is what the complaint that
-      # started Round 16 actually was.
-      - name: Upload the site renders
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: site-shots
-          path: ui-docs/build/site-shots/
-          if-no-files-found: ignore
 
       # Without this a golden failure is a percentage in a log. With it you can
       # download the render and the highlighted diff and see what moved.
@@ -249,6 +244,47 @@ jobs:
             :ui-catalog:compileKotlinIosArm64 \
             :showcase:android:assembleDebug \
             :ui:assemble
+
+  # Contact sheets, when somebody asks for them.
+  #
+  # This used to run on every pull request as part of `test`. What it produces is
+  # a picture of every page for a person to scroll through — a review artefact,
+  # not a gate — and a review artefact nobody has asked for is one nobody reads.
+  #
+  # It is worth being straight about the size of this: the sweep is about a
+  # minute and a half, measured. It was moved out on the strength of a figure
+  # that said 23, which came from reading Gradle's `> Task` headers as execution
+  # times when they are flush times.
+  #
+  # So what is given up is not bought back in minutes. The sweep also asserted
+  # that every page renders without throwing and that every page drew something,
+  # and both have caught shipped defects — a landing page that threw below 600dp,
+  # and half the site rendering empty. `SiteRenderTest`'s KDoc has the history.
+  renders:
+    name: Site contact sheets
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.renders }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Draw every page
+        run: ./gradlew --no-daemon :ui-docs:siteRenders
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-shots
+          path: ui-docs/build/site-shots/
+          if-no-files-found: error
+          # 76 MB a run, and the point of them is that somebody scrolls through
+          # them while the change is fresh.
+          retention-days: 7
 
   # The documentation site, and the API reference it serves under `/api/`.
   #
@@ -313,6 +349,17 @@ jobs:
       - name: Build the site
         run: ./gradlew --no-daemon :ui-docs:wasmJsBrowserDistribution
 
+      # What a reader downloads, against ceilings that only go down. Cheap — it
+      # gzips eleven files and prints a table — and it is the only assertion in
+      # the repository on the size of anything, which is why a bundle that had
+      # grown to 5.8 MB was never news to anybody.
+      #
+      # `docs/measure-web.mjs` is the other half and does not run here: it opens
+      # a browser, and a timing taken on a shared runner would be a number to
+      # ignore. This one is bytes, and bytes are the same everywhere.
+      - name: Check the bundle size
+        run: python3 docs/check-bundle-size.py
+
       # A gate, not a report: `failOnWarning` is on, so a malformed `@param` or a
       # `[Link]` to a symbol that no longer exists fails the build. That is a
       # class of KDoc defect nothing else here can see.
@@ -328,78 +375,14 @@ jobs:
       - name: Check the API reference links
         run: python3 docs/check-api-links.py
 
-      # Site at the root, reference under `/api/`. Laid out here rather than by
-      # a Gradle copy task, because this arrangement is a fact about the
-      # deployment and not about the build.
+      # Site at the root, reference under `/api/`, preloads generated from what
+      # the build produced. In `docs/lay-out-site.py` rather than inline here,
+      # because this used to be thirty lines of shell that only existed on a
+      # runner — so the arrangement a reader is actually served could not be
+      # produced, inspected or measured anywhere else, and `docs/measure-web.mjs`
+      # pointed at the raw distribution was measuring a page nobody gets.
       - name: Lay the site out
-        run: |
-          mkdir -p site
-          cp -r ui-docs/build/dist/wasmJs/productionExecutable/. site/
-          # The Wasm compiler emits a source map beside the binary whatever
-          # webpack is told, and `cp -r .` takes everything. 281 KB of it,
-          # fetched by nobody.
-          find site -name '*.map' -delete
-          mkdir -p site/api
-          cp -r ui/build/dokka/html/. site/api/
-          # Pages runs the whole tree through Jekyll unless told not to, and
-          # Jekyll drops files and directories beginning with an underscore —
-          # which is most of what a webpack bundle emits.
-          touch site/.nojekyll
-          test -f site/index.html
-          test -f site/api/index.html
-
-          # What the bundle actually contains. Printed because the filenames are
-          # a convention of the Kotlin plugin rather than a promise, and this is
-          # the only place anybody gets to see what it chose.
-          echo "::group::Distribution contents"
-          find site -maxdepth 1 -type f -printf '%10s  %P\n' | sort -k2
-          echo "::endgroup::"
-
-          # Preload the wasm binaries, named from the build rather than guessed.
-          #
-          # These are ~5 MB gzipped between them and nothing can start fetching
-          # either one until the browser has downloaded, parsed and run
-          # `ui-docs.js` — one round trip and a parse serialised in front of the
-          # biggest thing on the page, which is most of a first load on a phone.
-          #
-          # They used to be two hardcoded tags in `index.html`, and one of them
-          # named a file that only exists in an intermediate build directory. A
-          # preload that misses is invisible — the browser fetches it, gets a
-          # 404, and the page still works, just slowly — so it is generated from
-          # the directory listing above and can only name something real.
-          #
-          # `crossorigin` is required even same-origin: without it the preload is
-          # fetched in a different mode from the one the module loader uses, and
-          # the browser downloads the file twice.
-          preloads=$(cd site && find . -maxdepth 1 -name '*.wasm' -printf '%P\n' | sort | while read -r w; do
-            printf '    <link rel="preload" href="%s" as="fetch" type="application/wasm" crossorigin>\n' "$w"
-          done)
-          if [ -z "$preloads" ]; then
-            echo "no .wasm in the distribution — the bundle layout changed" >&2
-            exit 1
-          fi
-          printf '%s\n' "$preloads"
-          grep -q '</head>' site/index.html || {
-            echo "index.html has no </head> to inject the preloads before" >&2
-            exit 1
-          }
-          awk -v pre="$preloads" '
-            /<\/head>/ && !done { print pre; done = 1 }
-            { print }
-          ' site/index.html > site/index.html.new
-          mv site/index.html.new site/index.html
-
-          # Every preload has to name a file that is really there. The generated
-          # ones pass by construction; this is here for the hand-written ones,
-          # the two font weights that draw the first screen.
-          grep -o 'rel="preload" href="[^"]*"' site/index.html \
-            | sed 's/.*href="//; s/"$//' \
-            | while read -r asset; do
-                test -f "site/$asset" || {
-                  echo "index.html preloads $asset, which the build did not produce" >&2
-                  exit 1
-                }
-              done
+        run: python3 docs/lay-out-site.py --out site --api ui/build/dokka/html
 
       - uses: actions/upload-pages-artifact@v3
         with:

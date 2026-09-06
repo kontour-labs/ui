@@ -1,0 +1,500 @@
+#!/usr/bin/env node
+//
+// What the docs site costs a browser, measured in one.
+//
+// Everything else in this repository's performance work is counted on a JVM,
+// which is the right call for a recomposition count — the number is the same on
+// a phone — and useless for the two symptoms this exists to answer: a site that
+// takes seconds to appear, and animation that is rough on web specifically.
+// Both are properties of a browser, and until this script there was nothing in
+// the repository that had ever opened one.
+//
+// No dependencies, deliberately. Node 22 has a global `WebSocket`, Chromium is
+// already on the machine for the screenshot harness, and the Chrome DevTools
+// Protocol is a JSON wire format — so this is a static file server, a browser
+// and about four hundred lines, rather than a package tree that has to be kept
+// alive across Kotlin upgrades.
+//
+//   node docs/measure-web.mjs [--dist DIR] [--seconds N] [--json OUT]
+//                             [--screenshot OUT.png] [--click X,Y]
+//
+// ### What it can and cannot tell you
+//
+// **Load time is real.** Fetching, parsing and instantiating several megabytes
+// of Wasm is network- and CPU-bound, and headless Chromium does it the same way
+// a visible one does. The server here gzips exactly as GitHub Pages does, so
+// the transfer sizes are the ones a reader actually pays.
+//
+// **Frame time is directional only.** There is no GPU in a container, so WebGL
+// runs on SwiftShader and every millisecond is software. Comparing this run to a
+// phone is meaningless; comparing two runs of this script with one variable
+// changed is not, and that is all the backdrop work needs.
+//
+// **Idle frames are real, and are the most useful number here.** Whether the
+// page keeps asking for animation frames when nothing is moving is a property of
+// the code, not of the renderer, and it is measured by counting the application's
+// own `requestAnimationFrame` calls rather than by timing anything.
+//
+// ### Driving an interaction
+//
+// `--click X,Y` presses at a point and then samples 1.5 seconds of frames, which
+// is how the one symptom that started this — "big animations are rough, opening a
+// side sheet" — gets a number at all. Take a `--screenshot` first to find the
+// coordinate; pass both and the shot is taken after the click, which is how you
+// check the thing you meant to press was pressed.
+//
+//   node docs/measure-web.mjs --dist site --path '#/components/side-sheet' \
+//     --click 733,576 --screenshot after.png
+//
+// What that reports for the side sheet, on this software rasteriser:
+//
+//   blur on    median 16.7ms, p95 250-267ms, 35 frames in 1.5s
+//   blur off   median 16.7ms, p95 100-117ms, 46-50 frames in 1.5s
+//
+//   first six frames, blur on:   82, 17, 250, 17, 250, 267 ms
+//   first six frames, blur off:  68, 17, 317, 17, 217,  17 ms
+//
+// The median is a lie in both — the animation is a handful of very long frames
+// at the start and then sixty hertz. That shape is the finding: it is not a
+// uniformly slow animation, it is about six frames that cost most of a second
+// between them, and the blur roughly doubles them without being all of them.
+import { createServer } from 'node:http'
+import { readFile, stat, readdir, writeFile } from 'node:fs/promises'
+import { gzipSync } from 'node:zlib'
+import { spawn } from 'node:child_process'
+import { join, extname, normalize, resolve } from 'node:path'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { existsSync, readFileSync } from 'node:fs'
+
+const CHROME = process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium'
+
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.wasm': 'application/wasm',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.woff2': 'font/woff2',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+}
+
+// Pages compresses text and Wasm and leaves images and fonts alone. Matching it
+// matters: gzip is the difference between a 15.9 MB first load and a 5.3 MB one,
+// and measuring the uncompressed number would be measuring a site nobody visits.
+const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.wasm', '.svg'])
+
+function arg(name, fallback) {
+  const i = process.argv.indexOf(`--${name}`)
+  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback
+}
+
+const DIST = resolve(arg('dist', 'ui-docs/build/dist/wasmJs/productionExecutable'))
+const IDLE_SECONDS = Number(arg('seconds', '3'))
+
+/**
+ * Link speeds, because a loopback server is not a network.
+ *
+ * Unthrottled, this whole site arrives in under a second and the reported figure
+ * describes a reader who does not exist. The complaint that started this round was
+ * three to seven seconds, and reproducing that needs the bandwidth it was measured
+ * over: 5.7 MB is 5 seconds at 9 Mbit/s and 29 at 1.6, whatever the code does.
+ *
+ * Chrome's own DevTools presets, so a number here can be compared to one somebody
+ * takes by hand in a browser.
+ */
+const NETWORKS = {
+  none: null,
+  fast4g: { download: 9000e3 / 8, upload: 1500e3 / 8, latency: 20 },
+  slow4g: { download: 1600e3 / 8, upload: 750e3 / 8, latency: 150 },
+}
+const NETWORK = arg('network', 'none')
+
+/** A hash route to open instead of the landing page, e.g. `#/gallery`. */
+const PATH = arg('path', '')
+
+/**
+ * Emulate `prefers-reduced-motion: reduce`.
+ *
+ * The one page-level switch that should change how much work the library does,
+ * and the only way to check from outside that it actually does: a component that
+ * registers an animation and then declines to read it looks identical and costs
+ * the same.
+ */
+const REDUCE_MOTION = process.argv.includes('--reduce-motion')
+
+async function serve(root) {
+  const cache = new Map()
+  const server = createServer(async (req, res) => {
+    const path = normalize(decodeURIComponent(req.url.split('?')[0])).replace(/^(\.\.[/\\])+/, '')
+    let file = join(root, path === '/' ? 'index.html' : path)
+    try {
+      if ((await stat(file)).isDirectory()) file = join(file, 'index.html')
+    } catch {
+      res.writeHead(404).end('not found')
+      return
+    }
+    const ext = extname(file)
+    if (!cache.has(file)) {
+      const raw = await readFile(file)
+      cache.set(file, { raw, gz: COMPRESSIBLE.has(ext) ? gzipSync(raw, { level: 9 }) : null })
+    }
+    const { raw, gz } = cache.get(file)
+    const wantsGzip = (req.headers['accept-encoding'] ?? '').includes('gzip') && gz
+    const body = wantsGzip ? gz : raw
+    res.writeHead(200, {
+      'content-type': TYPES[ext] ?? 'application/octet-stream',
+      'content-length': body.length,
+      ...(wantsGzip ? { 'content-encoding': 'gzip' } : {}),
+      // What Pages sends. Left in on purpose: the cache policy is one of the
+      // things being measured, so faking a better one here would hide it.
+      'cache-control': 'max-age=600',
+    })
+    res.end(req.method === 'HEAD' ? undefined : body)
+  })
+  await new Promise((ok) => server.listen(0, '127.0.0.1', ok))
+  return { server, port: server.address().port }
+}
+
+async function launch() {
+  const dir = await mkdtemp(join(tmpdir(), 'measure-web-'))
+  const child = spawn(CHROME, [
+    '--headless=new',
+    '--no-sandbox',
+    '--disable-dev-shm-usage',
+    // Software WebGL, named rather than inherited, so two runs of this script
+    // are comparable even if the machine underneath them is not.
+    '--use-gl=angle',
+    '--use-angle=swiftshader',
+    '--window-size=1280,900',
+    '--hide-scrollbars',
+    `--user-data-dir=${dir}`,
+    '--remote-debugging-port=0',
+    'about:blank',
+  ], { stdio: ['ignore', 'ignore', 'pipe'] })
+
+  const portFile = join(dir, 'DevToolsActivePort')
+  const deadline = Date.now() + 30_000
+  while (Date.now() < deadline) {
+    if (existsSync(portFile)) {
+      const [port] = readFileSync(portFile, 'utf8').split('\n')
+      if (port) return { child, dir, port: Number(port) }
+    }
+    await new Promise((ok) => setTimeout(ok, 100))
+  }
+  throw new Error('Chromium never wrote a DevToolsActivePort file')
+}
+
+/** A CDP session: request/response by id, events by handler, flat sessionIds. */
+class Cdp {
+  #socket
+  #next = 1
+  #pending = new Map()
+  #handlers = []
+
+  static async connect(url) {
+    const cdp = new Cdp()
+    cdp.#socket = new WebSocket(url)
+    await new Promise((ok, fail) => {
+      cdp.#socket.addEventListener('open', ok, { once: true })
+      cdp.#socket.addEventListener('error', fail, { once: true })
+    })
+    cdp.#socket.addEventListener('message', (event) => {
+      const message = JSON.parse(event.data)
+      if (message.id && cdp.#pending.has(message.id)) {
+        const { ok, fail } = cdp.#pending.get(message.id)
+        cdp.#pending.delete(message.id)
+        message.error ? fail(new Error(message.error.message)) : ok(message.result)
+      } else if (message.method) {
+        for (const handler of cdp.#handlers) handler(message)
+      }
+    })
+    return cdp
+  }
+
+  send(method, params = {}, sessionId) {
+    const id = this.#next++
+    this.#socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }))
+    return new Promise((ok, fail) => this.#pending.set(id, { ok, fail }))
+  }
+
+  on(handler) { this.#handlers.push(handler) }
+  close() { this.#socket.close() }
+}
+
+/**
+ * Installed before any page script runs.
+ *
+ * Two jobs. It marks the moments the page cannot report for itself — when the
+ * canvas Compose draws into first exists — and it wraps `requestAnimationFrame`
+ * so the application's own frame requests can be counted separately from this
+ * script's. That second one is the whole point: a page that keeps asking for
+ * frames while nothing on it is moving is doing work for nobody, and no timing
+ * measurement can distinguish that from a page that is merely slow.
+ */
+const PROBE = `
+window.__probe = { firstRafAt: null, rafCalls: 0, paints: {} }
+const realRaf = window.requestAnimationFrame.bind(window)
+window.requestAnimationFrame = (cb) => {
+  if (window.__probe.firstRafAt === null) window.__probe.firstRafAt = performance.now()
+  window.__probe.rafCalls++
+  return realRaf(cb)
+}
+new PerformanceObserver((list) => {
+  for (const e of list.getEntries()) window.__probe.paints[e.name] = e.startTime
+}).observe({ type: 'paint', buffered: true })
+new PerformanceObserver((list) => {
+  for (const e of list.getEntries()) window.__probe.paints['largest-contentful-paint'] = e.startTime
+}).observe({ type: 'largest-contentful-paint', buffered: true })
+
+/** Frame pacing, sampled by driving frames — for comparing two runs of this script. */
+window.__sample = (ms) => new Promise((done) => {
+  const deltas = []
+  let last = performance.now()
+  const until = last + ms
+  const tick = (now) => {
+    deltas.push(now - last)
+    last = now
+    if (now < until) realRaf(tick)
+    else done(deltas)
+  }
+  realRaf(tick)
+})
+
+/**
+ * Frames the *application* asked for, counted without asking for any.
+ *
+ * Deliberately not the sampler above: driving requestAnimationFrame in a loop
+ * keeps the compositor awake, so a page measured that way always looks busy.
+ * This only reads a counter, waits on a timer, and reads it again.
+ */
+window.__idle = (ms) => new Promise((done) => {
+  const before = window.__probe.rafCalls
+  setTimeout(() => done(window.__probe.rafCalls - before), ms)
+})
+`
+
+function kb(n) { return (n / 1024).toFixed(1).padStart(9) }
+
+async function main() {
+  if (!existsSync(DIST)) {
+    console.error(`no distribution at ${DIST} — run :ui-docs:wasmJsBrowserDistribution first`)
+    process.exit(2)
+  }
+
+  const { server, port } = await serve(DIST)
+  const { child, dir, port: debug } = await launch()
+  const version = await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()
+  const cdp = await Cdp.connect(version.webSocketDebuggerUrl)
+
+  const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' })
+  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true })
+
+  const responses = new Map()
+  const order = []
+  cdp.on(({ method, params }) => {
+    if (method === 'Network.responseReceived') {
+      const url = params.response.url.replace(`http://127.0.0.1:${port}/`, '')
+      if (!responses.has(url)) { responses.set(url, []); order.push(url) }
+      responses.get(url).push({
+        status: params.response.status,
+        type: params.type,
+        mime: params.response.mimeType,
+        encoding: params.response.headers?.['content-encoding'] ?? '',
+        fromCache: params.response.fromDiskCache || params.response.fromPrefetchCache,
+      })
+    }
+  })
+
+  await cdp.send('Page.enable', {}, sessionId)
+  await cdp.send('Network.enable', {}, sessionId)
+  await cdp.send('Runtime.enable', {}, sessionId)
+  await cdp.send('Network.setCacheDisabled', { cacheDisabled: true }, sessionId)
+  if (!(NETWORK in NETWORKS)) {
+    console.error(`unknown --network ${NETWORK}; pick one of ${Object.keys(NETWORKS).join(', ')}`)
+    process.exit(2)
+  }
+  const link = NETWORKS[NETWORK]
+  if (link) {
+    await cdp.send('Network.emulateNetworkConditions', {
+      offline: false,
+      latency: link.latency,
+      downloadThroughput: link.download,
+      uploadThroughput: link.upload,
+    }, sessionId)
+  }
+  await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE }, sessionId)
+  if (REDUCE_MOTION) {
+    await cdp.send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+    }, sessionId)
+  }
+
+  const evaluate = async (expression) => {
+    const { result, exceptionDetails } = await cdp.send(
+      'Runtime.evaluate',
+      { expression, awaitPromise: true, returnByValue: true },
+      sessionId,
+    )
+    if (exceptionDetails) {
+      throw new Error(
+        [exceptionDetails.text, exceptionDetails.exception?.description]
+          .filter(Boolean).join(' — ') + ` while evaluating: ${expression.slice(0, 120)}`,
+      )
+    }
+    return result.value
+  }
+
+  const started = Date.now()
+  await cdp.send('Page.navigate', { url: `http://127.0.0.1:${port}/${PATH}` }, sessionId)
+
+  // `first-contentful-paint` fires for the boot screen in `index.html`, which is
+  // static markup and says nothing about the bundle. What a reader is waiting
+  // for is Compose, and the honest marker for that is the first animation frame
+  // it asks for — the frame it draws the application in.
+  //
+  // Not the canvas element, which was tried first and does not work: nothing
+  // matching `canvas` is ever reachable from `document`, shadow roots walked,
+  // while the app is plainly running and drawing. Compose keeps its surface
+  // somewhere a page script cannot see.
+  const readyDeadline = Date.now() + 120_000
+  let probe = {}
+  while (Date.now() < readyDeadline) {
+    probe = await evaluate(
+      '({ firstRafAt: window.__probe.firstRafAt, rafCalls: window.__probe.rafCalls, ' +
+        'paints: window.__probe.paints })',
+    )
+    if (probe.firstRafAt) break
+    await new Promise((ok) => setTimeout(ok, 25))
+  }
+  const wall = Date.now() - started
+  const paints = probe.paints ?? {}
+  const timing = await evaluate(`(() => {
+    const n = performance.getEntriesByType('navigation')[0] ?? {}
+    return { domContentLoaded: n.domContentLoadedEventEnd, load: n.loadEventEnd, responseEnd: n.responseEnd }
+  })()`)
+  const appFrames = await evaluate(`window.__idle(${IDLE_SECONDS * 1000})`)
+  const idleDeltas = await evaluate(`window.__sample(1000)`)
+
+  // Read after the idle window rather than at first frame. The font waterfall
+  // lands about a second *after* the app is up, so a listing taken at first
+  // frame reports a smaller, tidier site than the one that was loaded.
+  const resources = await evaluate(`performance.getEntriesByType('resource').map(r =>
+    ({ name: r.name, size: r.transferSize, decoded: r.decodedBodySize, start: r.startTime, end: r.responseEnd }))`)
+
+  const clickAt = arg('click', null)
+  let interaction = null
+  if (clickAt) {
+    const [x, y] = clickAt.split(',').map(Number)
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
+    for (const type of ['mousePressed', 'mouseReleased']) {
+      await cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 }, sessionId)
+    }
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  const shot = arg('screenshot', null)
+  if (shot) {
+    const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' }, sessionId)
+    await writeFile(shot, Buffer.from(data, 'base64'))
+  }
+
+  const stats = (deltas) => {
+    if (!deltas.length) return null
+    const sorted = [...deltas].sort((a, b) => a - b)
+    return {
+      frames: deltas.length,
+      median: sorted[Math.floor(sorted.length / 2)],
+      p95: sorted[Math.floor(sorted.length * 0.95)],
+      worst: sorted[sorted.length - 1],
+      over16: deltas.filter((d) => d > 16.7).length,
+      // Where the bad frames fall matters as much as how bad they are. A hitch
+      // in the first two frames is composition; one spread through the run is
+      // the animation itself.
+      worstAt: deltas.indexOf(Math.max(...deltas)),
+      first: deltas.slice(0, 6).map((d) => Math.round(d)),
+    }
+  }
+
+  const transferred = resources.reduce((sum, r) => sum + (r.size || 0), 0)
+  const duplicates = [...responses.entries()].filter(([, hits]) => hits.length > 1)
+
+  console.log(`\n  ${DIST}${PATH ? '  ' + PATH : ''}`)
+  console.log(
+    `  chromium ${version.Browser}, software WebGL, cache disabled, gzip on, ` +
+      (link ? `${NETWORK} (${(link.download * 8 / 1e6).toFixed(1)} Mbit/s, ${link.latency}ms)` : 'unthrottled') +
+      (REDUCE_MOTION ? ', prefers-reduced-motion: reduce' : ''),
+  )
+  console.log('')
+  console.log('  LOAD')
+  console.log(`    boot screen painted      ${(paints['first-contentful-paint'] ?? NaN).toFixed(0).padStart(7)} ms   (static markup in index.html)`)
+  console.log(`    DOMContentLoaded         ${(timing.domContentLoaded ?? NaN).toFixed(0).padStart(7)} ms`)
+  console.log(`    first frame requested    ${(probe.firstRafAt ?? NaN).toFixed(0).padStart(7)} ms   <- the app is up`)
+  console.log(`    wall clock, navigate to that${String(wall).padStart(4)} ms`)
+  console.log(`    transferred              ${kb(transferred)} KiB over ${resources.length} requests\n`)
+
+  console.log('  WHAT WAS FETCHED  (transfer / decoded, in KiB)')
+  for (const r of [...resources].sort((a, b) => (b.size || 0) - (a.size || 0))) {
+    const name = r.name.replace(`http://127.0.0.1:${port}/`, '')
+    if ((r.size || 0) < 1024 && (r.decoded || 0) < 1024) continue
+    console.log(`   ${kb(r.size || 0)} ${kb(r.decoded || 0)}  ${name}`)
+  }
+
+  console.log('\n  WHEN  (ms from navigation, request start to response end)')
+  for (const r of [...resources].sort((a, b) => a.start - b.start)) {
+    if ((r.size || 0) < 1024) continue
+    const name = r.name.replace(`http://127.0.0.1:${port}/`, '').split('/').pop()
+    console.log(`    ${r.start.toFixed(0).padStart(6)} → ${r.end.toFixed(0).padStart(6)}  ${name}`)
+  }
+
+  if (duplicates.length) {
+    console.log('\n  FETCHED MORE THAN ONCE')
+    for (const [url, hits] of duplicates) console.log(`    ${hits.length}x  ${url}`)
+  }
+
+  const idleStats = stats(idleDeltas)
+  console.log(`\n  IDLE, once the app is up and nothing is moving`)
+  console.log(`    frames the app asked for  ${String(appFrames).padStart(6)} in ${IDLE_SECONDS}s, unprompted`)
+  console.log(`    frame pacing when driven  median ${idleStats.median.toFixed(1)}ms · p95 ${idleStats.p95.toFixed(1)} · worst ${idleStats.worst.toFixed(1)}`)
+  console.log(
+    appFrames > IDLE_SECONDS * 10
+      ? `\n    An idle page asked for ${appFrames} animation frames in ${IDLE_SECONDS}s.\n` +
+        '    Nothing is moving, so every one of them is a whole-canvas rasterisation\n' +
+        '    of an unchanged picture, on the one thread the application has.'
+      : '\n    The page settles: it stops asking for frames when nothing is moving.',
+  )
+
+  if (interaction) {
+    const s = stats(interaction)
+    console.log(`\n  AFTER CLICKING ${clickAt}`)
+    console.log(`    median ${s.median.toFixed(1)}ms · p95 ${s.p95.toFixed(1)} · worst ${s.worst.toFixed(1)} at frame ${s.worstAt} · ${s.over16}/${s.frames} over 16.7ms`)
+    console.log(`    first six frames: ${s.first.join(', ')} ms`)
+  }
+
+  const out = arg('json', null)
+  if (out) {
+    await writeFile(out, JSON.stringify({
+      dist: DIST, network: NETWORK, paints, probe, timing, resources, transferred,
+      duplicates: duplicates.map(([url, hits]) => ({ url, count: hits.length })),
+      idle: { ...idleStats, appFrames, seconds: IDLE_SECONDS },
+      interaction: interaction ? stats(interaction) : null,
+    }, null, 2))
+    console.log(`\n  wrote ${out}`)
+  }
+
+  cdp.close()
+  child.kill()
+  server.close()
+  await new Promise((ok) => child.once('exit', ok))
+  await rm(dir, { recursive: true, force: true }).catch(() => {})
+}
+
+main().catch((error) => {
+  console.error(error)
+  process.exit(1)
+})

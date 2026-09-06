@@ -85,8 +85,10 @@ a single "A" with its badge shaved to a red sliver. A badge always keeps its ful
 size — the label is what gives way.
 
 Set `scrollable = true` where the labels matter more than seeing them all at
-once. It is off by default because a scrolling row hides options past the edge
-and gives the user no way to know how many there are.
+once: a scrollable bar's tabs are as wide as their own labels rather than a
+share of the bar, so nothing is ellipsised. It is off by default because a
+scrolling row hides options past the edge and gives the user no way to know how
+many there are.
 
 ### Swiping between tabs
 

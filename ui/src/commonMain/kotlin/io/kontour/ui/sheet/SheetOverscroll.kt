@@ -83,8 +83,12 @@ internal class SheetOverscroll(
         val leftOver = offered - consumed
 
         val stretched = when {
-            // Upward, and the sheet had nowhere left to go.
-            leftOver < 0f && state.canOvershoot -> -state.stretch(-leftOver)
+            // Upward, and the sheet had nowhere left to go. Absorbed whether or
+            // not it can be seen — a sheet that already fills its container
+            // draws no stretch, but it must still take the pull, or the gesture
+            // stays live and the finger's roll-off reads as a flick downward.
+            // See `SheetState.canOvershoot`.
+            leftOver < 0f -> -state.stretch(-leftOver)
             // Downward, and the floor is holding it.
             leftOver > 0f -> state.stretchDown(leftOver)
             else -> 0f

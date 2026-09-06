@@ -405,10 +405,7 @@ fun MenuItem(
                     pressScale = 1f,
                 ),
                 enabled = enabled,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
             )
             .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),

@@ -72,9 +72,20 @@ internal fun DrawScope.sliderThumb(
     // handle, and says it at the moment the claim is true.
     //
     // The corner stays half the height whatever the aspect is, so it is a
-    // capsule at every point along the way and there is no curvature
-    // discontinuity to smooth — the same rule `Shapes.control` uses, arrived at
-    // from the drawing side.
+    // capsule at every point along the way — the same rule `Shapes.control`
+    // uses, arrived at from the drawing side.
+    //
+    // Drawn as a plain rounded rect rather than clipped to `Shapes.capsule`, and
+    // this is the one place in the library where that is the right trade. It
+    // used to be justified as "a capsule has no curvature discontinuity to
+    // smooth", which turned out to be simply untrue — a capsule's end meets its
+    // straight edges with the same step as any other arc, and `SquircleShape`
+    // eases it now. The real reason is cost: this thumb stretches to 1.25x and
+    // leans toward the finger, so its size is different on every frame of a
+    // drag. A shape caches its path on the size it was built at, so a thumb
+    // would miss that cache every frame and rebuild four corners of trigonometry
+    // and twelve cubics, sixty times a second, under a finger. At 24dp the
+    // smoothing is worth about 0.9px.
     val halfWidth = r * aspect
 
     val left = centreX - halfWidth + minOf(reach, 0f)

@@ -41,8 +41,6 @@ import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.strikethrough
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 
@@ -106,7 +104,6 @@ fun IconButton(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val feedback = Feedback
     val interactive = enabled && !loading
 
     IconButtonSurface(
@@ -129,10 +126,7 @@ fun IconButton(
             indication = null,
             enabled = interactive,
             role = Role.Button,
-            onClick = {
-                feedback.perform(FeedbackIntent.Selection)
-                onClick()
-            },
+            onClick = onClick,
         ),
     )
 }
@@ -208,7 +202,6 @@ fun IconToggleButton(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val feedback = Feedback
     val checkedColours = ButtonDefaults.colours(ButtonVariant.Tertiary)
     val uncheckedColours = ButtonDefaults.colours(ButtonVariant.Ghost)
     val accentColours = checkedColours.copy(
@@ -279,7 +272,6 @@ fun IconToggleButton(
                 enabled = enabled,
                 role = Role.Checkbox,
                 onValueChange = {
-                    feedback.perform(FeedbackIntent.Selection)
                     onCheckedChange(it)
                 },
             )

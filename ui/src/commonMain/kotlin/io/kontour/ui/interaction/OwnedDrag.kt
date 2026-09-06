@@ -4,6 +4,9 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerInputChange
@@ -41,10 +44,31 @@ import kotlinx.coroutines.launch
  * in which it could take the gesture first, which is the bug arriving by a
  * different route.
  *
+ * ### The handlers are read, not captured
+ *
+ * `pointerInput` is keyed on [enabled] and [interactionSource], and neither of
+ * those changes over a control's life — which is the point, because restarting
+ * the node mid-gesture cancels the gesture. It also means the block runs *once*
+ * and keeps whatever lambdas it closed over on the first composition, forever.
+ *
+ * That is a stale capture with a real symptom, reported as "move one end of a
+ * range slider, then the other, and the first one goes back where it started".
+ * `RangeSlider`'s emit rebuilds the pair from its `value` parameter on the first
+ * emission of each gesture, and the `value` inside a first-composition lambda is
+ * the range the slider was born with. Every gesture after the first undid the
+ * one before it.
+ *
+ * So the three handlers go through [rememberUpdatedState] and are read at call
+ * time. The node still never restarts, and it still calls the current lambdas.
+ * A control whose handlers only touch snapshot state — the plain
+ * [io.kontour.ui.components.selection.Slider] is one — was never affected,
+ * which is exactly why this went unnoticed for as long as it did.
+ *
  * @param onStart Called with the down position, in this node's coordinates.
  * @param onDelta Called with the horizontal movement since the last change.
  * @param onEnd Called when the pointer lifts or the gesture is cancelled.
  */
+@Composable
 internal fun Modifier.horizontalDragOwning(
     enabled: Boolean,
     interactionSource: MutableInteractionSource?,
@@ -52,14 +76,18 @@ internal fun Modifier.horizontalDragOwning(
     onStart: (Offset) -> Unit,
     onDelta: (Float) -> Unit,
     onEnd: () -> Unit,
-): Modifier = if (!enabled) this else this.pointerInput(enabled, interactionSource) {
+): Modifier {
+    val currentStart by rememberUpdatedState(onStart)
+    val currentDelta by rememberUpdatedState(onDelta)
+    val currentEnd by rememberUpdatedState(onEnd)
+    return if (!enabled) this else this.pointerInput(enabled, interactionSource) {
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
         down.consume()
 
         val press = DragInteraction.Start()
         interactionSource?.let { source -> scope.launch { source.emit(press) } }
-        onStart(down.position)
+        currentStart(down.position)
 
         var cancelled = false
         while (true) {
@@ -70,7 +98,7 @@ internal fun Modifier.horizontalDragOwning(
             // Both axes, deliberately. See above: the vertical half is what the
             // parent would otherwise use to take the gesture away.
             change.consume()
-            if (delta.x != 0f) onDelta(delta.x)
+            if (delta.x != 0f) currentDelta(delta.x)
         }
 
         interactionSource?.let { source ->
@@ -80,6 +108,7 @@ internal fun Modifier.horizontalDragOwning(
                 )
             }
         }
-        onEnd()
+        currentEnd()
+    }
     }
 }

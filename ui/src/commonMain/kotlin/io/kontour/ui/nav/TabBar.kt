@@ -194,7 +194,7 @@ fun TabBar(
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                .clip(Theme.shapes.pill)
+                                .clip(Theme.shapes.capsule)
                                 .background(indicatorColour)
                         )
                     },
@@ -283,6 +283,9 @@ fun TabBarScope.Tab(
     val motion = Theme.motion
     val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    // Bound out here because the `Row`s below bring their own receiver, and
+    // `TabBarScope`'s is no longer reachable implicitly from inside them.
+    val dividesTheBar = fixed
 
     val contentColour by animateColorAsState(
         targetValue = when {
@@ -324,10 +327,7 @@ fun TabBarScope.Tab(
                 indication = kontourIndication(Theme.shapes.control, pressScale = 1f),
                 enabled = enabled,
                 role = Role.Tab,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
             )
             // Horizontal only: the tab's height is the bar's, and the label is
             // centred in it by the arrangement below.
@@ -352,8 +352,19 @@ fun TabBarScope.Tab(
         // keeps its full size and the label gets what is left — without this
         // the badge was the child that ran out, and a tab reading "Alerts"
         // with its 2 shaved down to a red sliver is worse than a shorter word.
+        //
+        // Only where there is a width to divide. A weight inside an *unbounded*
+        // row is not a share of anything: Compose measures weighted children
+        // against `mainAxisMin` when `mainAxisMax` is `Constraints.Infinity`,
+        // and `mainAxisMin` here is zero — so under the `horizontalScroll` a
+        // scrollable bar puts around its tabs, this row measured to nothing and
+        // took the label with it. Measured: a scrollable tab came out 64px wide
+        // against a fixed one's 234, and 64px is exactly the `tabPadding` either
+        // side with a label of zero width between them. That is the report —
+        // "when scrollable, content bunches up on the left" is three empty
+        // padding stubs where the words should be.
         Row(
-            modifier = Modifier.weight(1f, fill = false),
+            modifier = if (dividesTheBar) Modifier.weight(1f, fill = false) else Modifier,
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -512,7 +523,6 @@ fun Modifier.tabSwipe(
                 ticker.reset()
                 // Once, at the end — the thing a `Selection` was being spent on
                 // per step now marks the gesture actually finishing.
-                feedback.perform(FeedbackIntent.Selection)
             },
         )
 }

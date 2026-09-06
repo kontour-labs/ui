@@ -2,7 +2,6 @@ package io.kontour.ui.components.action
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -34,8 +33,6 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
@@ -94,7 +91,6 @@ fun FloatingActionButton(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val feedback = Feedback
     val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
     val interactive = enabled && !loading
 
@@ -110,10 +106,7 @@ fun FloatingActionButton(
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Confirm)
-                    onClick()
-                },
+                onClick = onClick,
             ),
         shape = shape,
         colour = fabColor,
@@ -172,7 +165,6 @@ fun FloatingActionButton(
     content: @Composable () -> Unit,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val feedback = Feedback
     val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
     val interactive = enabled && !loading
 
@@ -189,10 +181,7 @@ fun FloatingActionButton(
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Confirm)
-                    onClick()
-                },
+                onClick = onClick,
             ),
         shape = shape,
         colour = fabColor,
@@ -249,21 +238,28 @@ fun ExtendedFloatingActionButton(
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val motion = Theme.motion
-    val feedback = Feedback
     val (fabColor, fabContent, fabShadow) = fabColours(enabled, containerColour, contentColour)
     val interactive = enabled && !loading
 
-    // Collapsed, the padding is whatever makes the button as wide as it is tall,
-    // which is a different number at every size: the icon is the only content
-    // left, so the width is `padding + icon + padding` and it has to come out at
-    // `container`. It was a flat 16dp, which is `(56 - 24) / 2` — correct for
-    // `Medium` by arithmetic accident and wrong either side of it, so the
-    // collapsed button drew a circle at one size and a lozenge at the other two.
-    val horizontalPadding by animateDpAsState(
-        targetValue = if (expanded) ExpandedPadding else (size.container - size.icon) / 2,
-        animationSpec = motion.springOrTween(motion.springDefault),
-        label = "fabPadding",
-    )
+    // One padding, derived, whether the button is open or shut.
+    //
+    // Collapsed it is whatever makes the button as wide as it is tall: the icon
+    // is the only content, so the width is `padding + icon + padding` and it has
+    // to come out at `container`. That is a different number at every size, and
+    // it used to be a flat 16dp — which is `(56 - 24) / 2`, correct for `Medium`
+    // by arithmetic accident and wrong either side of it.
+    //
+    // *Expanded* was then left as a second flat constant, 20dp, which is the
+    // identical mistake on the other half of the same animation and it landed on
+    // `Large` instead. A `Small` went from 10dp of padding to 20dp on opening —
+    // the same air a 72dp button gets, inside a 40dp one — which is the
+    // "padding is not consistent" that was reported.
+    //
+    // Derived once, it is 10 / 16 / 20, and it holds still while the label
+    // arrives beside it. There is nothing left to animate: an icon that stays
+    // put while a label grows out from it is better motion than an icon sliding
+    // outward to make room for one.
+    val horizontalPadding = (size.container - size.icon) / 2
 
     Surface(
         modifier = modifier
@@ -276,10 +272,7 @@ fun ExtendedFloatingActionButton(
                 indication = kontourIndication(shape, FabDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Confirm)
-                    onClick()
-                },
+                onClick = onClick,
             ),
         shape = shape,
         colour = fabColor,
@@ -347,9 +340,6 @@ private fun fabColours(
 } else {
     Triple(Theme.colours.surfaceSunken, Theme.colours.contentDisabled, Theme.elevation.flat)
 }
-
-/** How much room the label gets either side of it once the button is open. */
-private val ExpandedPadding = 20.dp
 
 /** Metrics for a [FloatingActionButton] that are not on [FabSize] itself. */
 object FabDefaults {

@@ -56,7 +56,7 @@ class SheetState internal constructor(
     internal val confirmDetentChange: (SheetDetent) -> Boolean,
 ) {
     init {
-        require(detents.isNotEmpty()) { "A sheet needs at least one detent" }
+        require(detents.isNotEmpty()) { EmptyDetents }
         require(initialDetent in detents) {
             "initialDetent $initialDetent is not in $detents"
         }
@@ -69,7 +69,20 @@ class SheetState internal constructor(
      * the map's location sheet has only Hidden and a peek, while its trip sheet
      * has four. Filtering the list beats defining a second sheet.
      */
-    var detents: List<SheetDetent> by mutableStateOf(detents)
+    var detents: List<SheetDetent>
+        get() = detentList
+        // Checked on assignment rather than where it is read. This is a public
+        // `var` whose KDoc recommends filtering the list, and a filter can match
+        // nothing — so `state.detents = allDetents.filter { … }` used to succeed
+        // and take the frame down some frames later inside `DragHandle`, where
+        // `SheetHeader` reads `detents.last()`. A stack trace from there names
+        // neither the assignment nor the filter.
+        set(value) {
+            require(value.isNotEmpty()) { EmptyDetents }
+            detentList = value
+        }
+
+    private var detentList: List<SheetDetent> by mutableStateOf(detents)
 
     internal val anchoredState = AnchoredDraggableState(initialValue = initialDetent)
 
@@ -136,11 +149,33 @@ class SheetState internal constructor(
     internal var overshoot by mutableFloatStateOf(0f)
 
     /**
-     * Whether there is anything above the top detent to stretch into.
+     * How far the sheet is *drawn* above its detent, in pixels.
      *
-     * A sheet already as tall as its container has nowhere to go, and stretching
-     * one would pull its top edge off the screen and leave a band of background
-     * under it — which is the one thing a bottom sheet must never show.
+     * [overshoot] is what the finger has pulled past the stop; this is how much
+     * of that the sheet is allowed to show. They differ for a sheet that already
+     * fills its container, which absorbs the pull and does not move — see
+     * [canOvershoot].
+     */
+    internal val drawnOvershoot: Float get() = if (canOvershoot) overshoot else 0f
+
+    /**
+     * Whether a stretch above the top detent can be *seen*.
+     *
+     * A sheet already as tall as its container has nowhere to go: moving it up
+     * lifts its bottom edge off the bottom of the screen and leaves a band of
+     * background under it, which is the one thing a bottom sheet must never
+     * show.
+     *
+     * It still absorbs the pull. This used to gate the absorbing as well as the
+     * drawing, and the difference is the reported defect: a full-height sheet
+     * dragged upward did nothing with the drag at all, so the gesture stayed
+     * live, and the few pixels a finger travels back down as it leaves the glass
+     * were a downward flick of several hundred pixels a second — enough to clear
+     * `anchoredDraggable`'s velocity threshold and settle the sheet a detent
+     * lower. Measured: a `Full` sheet dragged 660px up and released with 24px of
+     * roll-off went to `half`, where the same 24px on its own left it exactly
+     * where it was, and an `Expanded` sheet — which can stretch, and therefore
+     * had a stretch to pay back — was unmoved by twice that.
      */
     internal val canOvershoot: Boolean
         get() {
@@ -639,7 +674,7 @@ class SheetState internal constructor(
 @Composable
 fun rememberSheetState(
     detents: List<SheetDetent> = DefaultSheetDetents,
-    initialDetent: SheetDetent = detents.first(),
+    initialDetent: SheetDetent = detents.firstDetent(),
     confirmDetentChange: (SheetDetent) -> Boolean = { true },
 ): SheetState {
     val state = remember {
@@ -734,3 +769,27 @@ internal val SheetOrientation = Orientation.Vertical
  * and the gap reads as a detent the sheet forgot to settle at.
  */
 private const val OvershootShare = 1f / 12f
+
+/**
+ * What both an empty [SheetState] and an emptied one say.
+ *
+ * One message, because they are the same mistake arriving by two routes and a
+ * caller should not have to recognise two.
+ */
+private const val EmptyDetents: String =
+    "SheetState was given no detents. A sheet needs at least one position it can rest " +
+        "at, and `detents` is often a filtered list — `rememberSheetState(detents = " +
+        "all.filter { … })` — so an empty one usually means the filter matched nothing. " +
+        "Keep SheetDetent.Hidden if nothing else applies."
+
+/**
+ * [List.first] with that message instead of `NoSuchElementException`.
+ *
+ * `initialDetent` defaults to `detents.first()`, and a default argument is
+ * evaluated at the **call site** — before the function body, and so before the
+ * `require` inside [SheetState] that exists to catch exactly this. An empty list
+ * therefore failed with "List is empty." and a stack trace pointing at
+ * `rememberSheetState`, which is true and useless.
+ */
+private fun List<SheetDetent>.firstDetent(): SheetDetent =
+    firstOrNull() ?: throw IllegalArgumentException(EmptyDetents)

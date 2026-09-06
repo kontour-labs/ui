@@ -316,18 +316,92 @@ class ShapeScaleTest {
     }
 
     @Test
-    fun smoothingTapersToNothingAsTheCornerSaturates() {
-        // A corner that has spent its whole budget on the radius is a semicircle,
-        // and there is no straight edge left to ease onto. Without the taper the
-        // blend handles have nowhere to go and the path folds through itself.
-        // A saturated squircle therefore has to land back on the plain circle.
+    fun aCornerSaturatedOnBothEdgesLandsOnTheCircle() {
+        // A square box at capsule radius: every corner has spent its whole share
+        // of *both* its edges on the arc, so there is nothing left anywhere to
+        // ease onto and the shape is a circle. Without that the blend handles
+        // have nowhere to go and the path folds through itself.
+        //
+        // This is also the whole of the exception list. An `IconButton`, an
+        // `Avatar`, a status dot and a radio ring are square boxes at capsule
+        // radius, so they stay true circles by construction rather than by being
+        // named somewhere as things not to convert.
         val size = Size(100f, 100f)
         val circle = area(walk(pathOf(RoundedCornerShape(50.dp), size)))
         val saturated = area(walk(pathOf(SquircleShape(50.dp), size)))
 
         assertTrue(
             abs(saturated - circle) < 0.005f * circle,
-            "a fully saturated corner must land on the circle: $saturated against $circle",
+            "a corner with no room on either edge must land on the circle: " +
+                "$saturated against $circle",
+        )
+    }
+
+    /**
+     * A capsule is a squircle, and for a long time it silently was not.
+     *
+     * `Shapes.control` is half the shorter side, so on any button, chip, tag,
+     * toolbar or tab the two corners at one end meet in the middle of that end
+     * with nothing between them — the short edge is saturated, exactly and
+     * always. The smoothing used to be capped by the *tighter* of a corner's two
+     * edges, so that one saturated edge dropped the smoothing on the long edge
+     * too, and every control in the library drew a plain circular arc while
+     * naming `SquircleShape` and paying `Outline.Generic` for it.
+     *
+     * Asserted as a *shape* difference rather than an area one, because the area
+     * barely moves: the extent is unchanged, and what changes is that the
+     * curvature no longer steps from the arc straight onto the edge. Measured
+     * where that step used to be — a few degrees off the long edge — the squircle
+     * now sits measurably further from the corner point than the arc does.
+     */
+    @Test
+    fun aCapsuleSmoothsAlongTheEdgeThatHasRoom() {
+        // A button: 200 wide, 52 tall, corner radius 26 — saturated vertically,
+        // 100px of top edge to play with horizontally.
+        val size = Size(200f, 52f)
+        val capsule = SquircleShape(CapsuleCornerSize())
+        val arc = RoundedCornerShape(percent = 50)
+
+        // Close to the long edge, which is where a blend does its work: it has
+        // to *end* on that edge, so the two outlines converge as the ray swings
+        // toward the diagonal and the gap is widest a degree or two off it.
+        val deviations = (1..5).map { degrees ->
+            distanceFromCornerAt(capsule, size, degrees.toFloat()) -
+                distanceFromCornerAt(arc, size, degrees.toFloat())
+        }
+
+        // For scale: a `Card` is not saturated on either edge and smooths freely,
+        // and its own peak deviation on a 300x200 box is 1.59px. A capsule that
+        // is doing the same work should be in the same country, not at zero.
+        assertTrue(
+            deviations.all { it > 0f } && deviations.max() > 1.2f,
+            "a capsule has to ease into the edge it has room on, but against the " +
+                "plain arc it deviated by at most ${deviations.max()}px " +
+                "($deviations) — near zero means the smoothing was thrown away " +
+                "because the *other* edge was full",
+        )
+
+        // Never *inside* the arc, anywhere around the corner. A squircle takes
+        // less off a corner than a circle of the same radius does; a blend that
+        // dipped under it would be cutting the control's own end off rather than
+        // easing it.
+        val insideBy = (1..44).map { degrees ->
+            distanceFromCornerAt(arc, size, degrees.toFloat()) -
+                distanceFromCornerAt(capsule, size, degrees.toFloat())
+        }.max()
+        assertTrue(
+            insideBy < 0.05f,
+            "the capsule dipped ${insideBy}px inside the plain arc somewhere " +
+                "across the corner, which is the end being cut off rather than " +
+                "eased",
+        )
+
+        // And the end is still an end: the extent has not moved.
+        assertTrue(
+            abs(area(walk(pathOf(capsule, size))) - area(walk(pathOf(arc, size)))) <
+                0.01f * area(walk(pathOf(arc, size))),
+            "the ends changed size. Smoothing the long edge must not make the " +
+                "control shorter or rounder — only continuous.",
         )
     }
 

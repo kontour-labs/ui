@@ -385,3 +385,67 @@ tasks.withType<Test>().configureEach {
     systemProperty("user.language", "en")
     systemProperty("user.country", "AU")
 }
+
+/**
+ * Spread test classes across the machine's cores.
+ *
+ * Gradle runs every test in one forked JVM unless told otherwise, which for a
+ * suite whose cost is rasterisation means one core busy and the rest idle. On a
+ * standard GitHub runner that is four cores doing the work of one, and the bill
+ * is wall-clock minutes.
+ *
+ * Capped at four rather than left at `availableProcessors`: each fork holds its
+ * own Skia and renders full-window images, so the ceiling is memory rather than
+ * CPU, and a bigger machine would start swapping before it started helping.
+ * `maxHeapSize` is stated for the same reason — the default is small enough that
+ * a fork rendering 1440x1400 can spend its time collecting garbage.
+ *
+ * Note this distributes **classes**. A single test class is a single fork
+ * however long it runs, which is why `SiteRenderTest` is four classes.
+ */
+tasks.withType<Test>().configureEach {
+    maxParallelForks = minOf(4, Runtime.getRuntime().availableProcessors())
+    maxHeapSize = "1g"
+}
+
+/**
+ * The site render sweep, on request.
+ *
+ * It renders 122 routes at four widths and writes 84 MB of PNGs, and what it
+ * produces is a contact sheet per width for a person to scroll through. That is
+ * a thing somebody asks for when they want it rather than something every pull
+ * request needs to pay for, so it is a task of its own and `jvmTest` excludes it.
+ *
+ *     ./gradlew :ui-docs:siteRenders
+ *
+ * **It is not expensive.** Measured cold with `--no-daemon`: 1m 40s in one fork,
+ * 1m 20s sharded across four. This was extracted on the strength of a figure
+ * that turned out to be wrong — 23 minutes, read off Gradle's `> Task` header
+ * timestamps, which are when output was flushed rather than when a task ran. So
+ * the case for keeping it out of `jvmTest` is that a contact sheet is a review
+ * artefact rather than a gate, not that it costs anything much.
+ *
+ * **What is no longer checked on every change.** That every page renders without
+ * throwing, and that every page drew something. Both have caught real defects —
+ * a landing page that threw below 600dp, and half the site rendering empty — so
+ * this is a deliberate trade of coverage for minutes, not a claim the sweep was
+ * worthless. `SiteRenderTest`'s own KDoc has the history.
+ */
+val siteRenders by tasks.registering(Test::class) {
+    group = "verification"
+    description = "Renders every page at every width into build/site-shots. Not run by jvmTest."
+
+    val jvmTest = tasks.named<Test>("jvmTest").get()
+    testClassesDirs = jvmTest.testClassesDirs
+    classpath = jvmTest.classpath
+
+    filter { includeTestsMatching("*SiteRenderTest") }
+    // The only difference between this task and what `jvmTest` already does:
+    // whether the pictures are kept.
+    systemProperty("kontour.contactSheets", "true")
+    // Nothing about a contact sheet is worth caching: the point is a fresh
+    // picture of the site as it is right now.
+    outputs.upToDateWhen { false }
+}
+
+

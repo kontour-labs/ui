@@ -450,8 +450,8 @@ fun NavBar(
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .elevation(Theme.elevation.low, Theme.shapes.pill)
-                        .clip(Theme.shapes.pill)
+                        .elevation(Theme.elevation.low, Theme.shapes.capsule)
+                        .clip(Theme.shapes.capsule)
                         .background(indicatorColour)
                 )
             },

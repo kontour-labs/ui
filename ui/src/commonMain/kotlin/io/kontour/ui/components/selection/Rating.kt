@@ -40,8 +40,6 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -147,7 +145,6 @@ fun Rating(
         return
     }
 
-    val feedback = Feedback
     val selected = ceil(clamped).toInt()
 
     /**
@@ -166,7 +163,7 @@ fun Rating(
     val currentChange by rememberUpdatedState(onValueChange)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    fun setFromX(x: Float, intent: FeedbackIntent) {
+    fun setFromX(x: Float) {
         if (markWidth.all { it <= 0f }) return
         val nearest = markLeft.indices.minByOrNull { abs(markLeft[it] + markWidth[it] / 2f - x) }
             ?: return
@@ -180,7 +177,6 @@ fun Rating(
             else -> (index + 1).toFloat()
         }
         if (next == currentValue) return
-        feedback.perform(intent)
         currentChange(next)
     }
 
@@ -214,9 +210,8 @@ fun Rating(
                                 pass = PointerEventPass.Initial,
                             )
                             down.consume()
-                            setFromX(down.position.x, FeedbackIntent.Selection)
+                            setFromX(down.position.x)
 
-                            var moved = false
                             while (true) {
                                 val event = awaitPointerEvent(PointerEventPass.Initial)
                                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
@@ -227,14 +222,8 @@ fun Rating(
                                 val travelled = change.positionChange() != Offset.Zero
                                 change.consume()
                                 if (!change.pressed) break
-                                if (travelled) {
-                                    moved = true
-                                    setFromX(change.position.x, FeedbackIntent.Tick)
-                                }
+                                if (travelled) setFromX(change.position.x)
                             }
-                            // A tap has already had its haptic on the way down;
-                            // only a drag has an end worth marking.
-                            if (moved) feedback.perform(FeedbackIntent.GestureEnd)
                         }
                     }
                 } else {
@@ -267,10 +256,7 @@ fun Rating(
                     .pointerCursor(enabled = enabled)
                     .selectable(
                         selected = markValue <= selected,
-                        onClick = {
-                            feedback.perform(FeedbackIntent.Selection)
-                            onValueChange(markValue.toFloat())
-                        },
+                        onClick = { onValueChange(markValue.toFloat()) },
                         enabled = enabled,
                         role = androidx.compose.ui.semantics.Role.RadioButton,
                         interactionSource = interactions,

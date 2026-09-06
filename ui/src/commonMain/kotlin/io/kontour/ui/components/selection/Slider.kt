@@ -72,7 +72,7 @@ internal val SliderHeight = 44.dp
  * ```
  *
  * The thumb grows while dragged and settles back with a bounce on release. Each
- * step crossed on a stepped slider fires a tick haptic, so a user changing a
+ * step **dragged** across on a stepped slider fires a tick haptic, so a user changing a
  * value without looking can feel the detents — which is most of the point of
  * having steps at all.
  *
@@ -95,16 +95,19 @@ fun Slider(
     /**
      * Whether to draw a dot on the track at each detent.
      *
-     * Off by default, which is a change: [steps] used to imply them. A row of
-     * dots turns a slider into a diagram of its own implementation, and on a
-     * short track with many steps they merge into a dashed line that reads as
-     * texture rather than as information. The detent is still there — the thumb
-     * still resists and still ticks — it is just no longer drawn.
+     * **On whenever the slider is stepped**, which is what a stepped slider is
+     * for: the steps are the choices, and a track that hides them makes the user
+     * find them by feel. A continuous slider has no detents to draw and gets
+     * none.
      *
-     * Turn them on where the count is small and *is* the point: five ratings,
-     * four zoom levels.
+     * This went off by default for a round, on the argument that a row of dots
+     * turns a slider into a diagram of its own implementation. That is true at
+     * *many* steps — thirty of them on a short track merge into a dashed line
+     * that reads as texture — and it is the wrong default, because the common
+     * stepped slider has four or five stops and they are the whole point of it.
+     * Pass `false` for the dense case.
      */
-    showTicks: Boolean = false,
+    showTicks: Boolean = steps > 0,
     /**
      * What the slider is *of*, when nothing beside it says.
      *
@@ -119,6 +122,18 @@ fun Slider(
     onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    // An inverted range has no reading, and the failure it used to cause was
+    // invisible: `coerceIn` throws on one, and the call that reached it first was
+    // inside the `setProgress` **semantics action** — so no screenshot could see
+    // it, no gesture could reach it, and the first person to find it would be
+    // using a screen reader or an automated accessibility check.
+    require(valueRange.start <= valueRange.endInclusive) {
+        "Slider was given an inverted valueRange " +
+            "(${valueRange.start}..${valueRange.endInclusive}). The start has to be at " +
+            "or below the end; a range built from two computed bounds can invert when " +
+            "the data behind them is empty or out of order."
+    }
+
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val scope = rememberCoroutineScope()
     val colours = Theme.colours
@@ -153,7 +168,7 @@ fun Slider(
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val currentFinished by rememberUpdatedState(onValueChangeFinished)
 
-    // Remembered so the tick haptic fires once per step crossed, not once per
+    // Remembered so the tick haptic fires once per step dragged across, not once per
     // frame while the thumb sits on a step.
     var lastStepIndex by remember { mutableFloatStateOf(Float.NaN) }
 
@@ -286,12 +301,27 @@ fun Slider(
     val thumbReach =
         if (carrying) dragFraction - drawnFraction else thumbTarget - drawnFraction
 
+    /**
+     * The value, snapped, with a detent tick if a drag just crossed one.
+     *
+     * `carrying` is the whole of the condition, and it is the difference between
+     * a slider that reports *travel* and one that reports *touch*. Pressing a
+     * stepped track lands on a detent, and that used to fire — so did letting go
+     * on the next one, from `onEnd`'s reset. Two buzzes for a gesture that
+     * crossed nothing. A tap is a tap: the value it sets is not a step the finger
+     * felt on the way past.
+     *
+     * The index is still recorded on a tap, and has to be. Without it
+     * `lastStepIndex` would still be `NaN` when the drag began, and the first
+     * pixel of movement would fire a tick for the detent the finger is already
+     * standing on.
+     */
     fun emit(newFraction: Float) {
         val next = snap(newFraction)
         if (steps > 0) {
             val index = ((next - valueRange.start) / range * (steps + 1)).roundToInt().toFloat()
             if (lastStepIndex.isNaN() || abs(index - lastStepIndex) >= 1f) {
-                feedback.perform(FeedbackIntent.Tick)
+                if (carrying) feedback.perform(FeedbackIntent.Tick)
                 lastStepIndex = index
             }
         }
@@ -405,7 +435,6 @@ fun Slider(
                         emit(dragFraction)
                     },
                     onEnd = {
-                        feedback.perform(FeedbackIntent.GestureEnd)
                         lastStepIndex = Float.NaN
                         // Releasing hands the thumb back to the settled value, so
                         // it springs the last of the way onto the detent rather

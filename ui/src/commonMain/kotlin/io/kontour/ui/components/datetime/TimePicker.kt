@@ -23,8 +23,6 @@ import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.LocalTime
@@ -156,7 +154,6 @@ fun TimeField(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val feedback = LocalFeedback.current
     val shape = Theme.shapes.field
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -192,10 +189,7 @@ fun TimeField(
                     indication = kontourIndication(shape, pressScale = 1f),
                     enabled = enabled,
                     role = Role.Button,
-                    onClick = {
-                        feedback.perform(FeedbackIntent.Selection)
-                        onClick()
-                    },
+                    onClick = onClick,
                 ),
             shape = shape,
             colour = Theme.colours.surfaceSunken,

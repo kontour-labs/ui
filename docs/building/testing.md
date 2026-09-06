@@ -228,6 +228,28 @@ render is read back and required to differ from its own corner pixel: a
 component that draws nothing produces a clean card, and the golden would then
 *defend* the blank.
 
+### Run the gate after the last edit, not before it
+
+Obvious, and worth writing down because it has been got wrong twice. A change
+recorded as green because the gate passed *earlier in the sitting* is a change
+whose last edit nobody checked: round 25 landed a stage whose fix moved four
+goldens and never regenerated them, and two stages before that had left the KDoc
+gate failing on a pair of unresolved `[Link]`s. Both were found a stage later, by
+a gate run for something else, and in the meantime three commits claimed a green
+that did not exist.
+
+Nothing enforces this and nothing can. `git status` after the run is the whole
+check: if it shows a source file the gate has not seen, the gate has not passed.
+
+### And regenerate goldens in the same run
+
+An update pass rewrites **every** golden the current code moves, not only the
+ones that failed. Round 25's stage 6 failed nine and rewrote twenty-five: the
+other sixteen were sub-threshold differences that had never been looked at.
+Review what changed rather than what failed — `git status ui-catalog/screenshots`
+is the list, and a before/after pair of each is a few minutes that has caught a
+real regression more than once.
+
 ---
 
 ## Two clocks, and which one a test is on
@@ -325,20 +347,55 @@ is a bit generous".
 
 ## How performance is measured
 
-**Counted, not timed.** A stopwatch here measures this container: a software
-rasteriser, no GPU, and a harness that PNG-encodes and re-decodes every frame.
-A count of measures, layouts, draws or recompositions is CPU-bound Kotlin running
-the identical code on a JVM and on a phone — the number taken here is the number
-a phone sees. So counts are the gates, and the two timing instruments that exist
-are diagnostics that print a number without failing a build.
+**Counted, not timed — with two exceptions that earned it.** A stopwatch here
+measures this container: a software rasteriser and no GPU. A count of measures,
+layouts, draws or recompositions is CPU-bound Kotlin running the identical code
+on a JVM and on a phone, so the number taken here is the number a phone sees.
+Counts are therefore the gates.
 
 | Instrument | Where | Counts |
 |---|---|---|
 | `PhaseCounts` + `Modifier.countPhases` | `ui/src/commonTest/…/PhaseCounts.kt` | measures, placements, draws |
 | the `Counted` pattern | `OverlayRecompositionTest` | recompositions |
 | `SheetState.anchorRebuilds` | `:ui`, production code | anchor rebuilds per frame |
+| `IdleAnimationTest` + `Scene.stillAnimating` | `:ui-catalog` | whether a still screen wants another frame |
 | `BackdropCostDiagnostic` | `:ui-catalog` | *times* frames — diagnostic only |
+| `ShadowCostDiagnostic` | `:ui-catalog` | *times* frames at 0, 1 and 2 shadow layers — diagnostic only |
 | `FrameReadout` | `:ui-catalog`, on screen | real frames, on a real device |
+| `docs/check-bundle-size.py` | CI | gzip bytes a reader downloads |
+| `docs/measure-web.mjs` | local only | a real browser on the built site |
+
+### The two things a count cannot see
+
+**An animation that runs without being read.** `rememberInfiniteTransition`
+subscribes to the frame clock when it is composed and asks for frames forever;
+reading its value only decides whether the picture changes. So a component can
+gate the read, draw a still image, pass every golden, produce no recompositions —
+the value is read in a draw scope — and still wake the thread sixty times a
+second. Four components did. `ComposeScene.hasInvalidations`, wrapped as
+`Scene.stillAnimating`, is the only thing in the harness that can see it, and
+`IdleAnimationTest` asserts both directions: that a determinate progress bar
+settles, and that an indeterminate one does not.
+
+**Anything about the web.** Every count above is taken on JVM Skia, and both of
+the symptoms that started Round 23 — a site that takes seconds to appear, and
+animation that is rough on web specifically — are properties of a browser.
+`docs/measure-web.mjs` opens one: it serves the laid-out site, gzipping as Pages
+does, and drives Chromium over the DevTools Protocol with no dependencies. It
+reports when the application actually starts (the first animation frame Compose
+asks for, not `first-contentful-paint`, which fires for the static boot screen),
+every asset's transfer size, anything fetched twice, and how many frames the page
+asks for when nothing is moving.
+
+It stays a local diagnostic and out of CI, because there is no GPU in a container
+and no meaning in a millisecond taken on a shared runner. What *is* meaningful is
+comparing two runs of it with one variable changed, and `--network fast4g` makes
+that comparison resemble a reader: unthrottled the whole site arrives in about a
+second, which describes nobody.
+
+`docs/check-bundle-size.py` is the half that does run in CI, because bytes are the
+same everywhere. Skia is ratcheted separately from the application binary — at
+roughly two thirds of the payload it would swamp any total that mixed them.
 
 `countPhases` has to be applied through a component's **real public content
 slot**. A replica assembled by the test is the easiest way to write a performance
@@ -384,6 +441,56 @@ project would link.
 Judging performance from a debug build is judging the wrong thing.
 
 ---
+
+## The four sweeps that vary what nothing else varies
+
+Every other sweep in this repository drives `ComponentSpec.content`, which is a
+fixed specimen with hard-coded literals inside it. Between them they cover width,
+density and type size, and they cannot vary a single argument, a second pointer,
+an accessibility action, or a frame after the first. These four do.
+
+| Sweep | Varies | Found |
+|---|---|---|
+| `DegenerateInputTest` | the arguments a real app produces on a bad day | seven crashes |
+| `StateLifecycleTest` | state changing after the component has drawn | one crash |
+| `SemanticsActionSweepTest` | actions only assistive technology can reach | nothing yet; the surface the slider crash hid in |
+| `TwoFingerTest` | a second pointer | nothing yet |
+
+### Every one of them has a control, and two of them needed it
+
+A sweep whose assertion is "nothing threw" passes just as well when nothing
+happened. That is not a hypothetical:
+
+* **`StateLifecycleTest` was built on `Scene` and could not see its own subject.**
+  `ImageComposeScene.render` does not propagate an exception thrown during
+  *recomposition* — only the initial composition, which happens in its
+  constructor. Six tests passed while catching nothing. `runDesktopComposeUiTest`
+  rethrows from `waitForIdle`, and one of the six failed immediately.
+* **`SemanticsActionSweepTest` walked the merged tree** and reported zero actions
+  on nine of eleven pages. Unmerged finds 31.
+
+So each carries a test that asserts something *should* break:
+`aMutationThatShouldFailDoes` drives a page count to −1, which the library
+refuses by name; `theHarnessReallySendsTwoFingers` counts pressed pointers in one
+event and requires two. If those pass while the sweep is broken, nothing else in
+the file can tell you.
+
+The same idea, in the same words, as the control in front of
+`SheetFramePressureTest` — whose first draft passed with every counter at zero on
+a sheet that never moved.
+
+### What "passing" means in a stability sweep
+
+Two shapes, and the difference is the whole design:
+
+* **survives** — the input has a sensible reading, so the component renders it. An
+  empty carousel is a carousel with nothing in it.
+* **refuses** — the input has no sensible reading, so the component throws
+  `IllegalArgumentException` naming **both itself and the parameter**. Both halves
+  matter: the first version of `DegenerateInputTest` only asked for the parameter
+  name, and `Stepper(range = 0 until 0)` passed it, because the standard library's
+  own "Cannot coerce value to an empty range" contains the word "range". A
+  precondition has to be distinguishable from the failure it replaces.
 
 ## The documentation is checked too
 

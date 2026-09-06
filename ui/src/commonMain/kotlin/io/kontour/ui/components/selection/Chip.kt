@@ -39,8 +39,6 @@ import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.motion.SlotGap
@@ -106,7 +104,6 @@ fun Chip(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val shape = Theme.shapes.control
-    val feedback = Feedback
 
     ChipSurface(
         modifier = modifier
@@ -123,10 +120,7 @@ fun Chip(
                 indication = kontourIndication(shape),
                 enabled = enabled,
                 role = Role.Button,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
             ),
         contentColour = if (enabled) colours.content else colours.contentDisabled,
         content = { KeyedChipContent(contentKey, content) },
@@ -143,6 +137,19 @@ fun Chip(
  * With one, the label fades and the chip resizes to it, which is what a filter
  * chip turning into an "Undo" chip should do: it is the same chip changing its
  * mind, not one chip leaving and another arriving.
+ *
+ * ### The inner row is not decoration
+ *
+ * `AnimatedContent` lays its children out in a `Box`, and a `Box` stacks. A
+ * chip's content is normally *two* children of [ChipSurface]'s `Row` — an icon
+ * and a label, separated by its `spacedBy` — and putting them inside
+ * `AnimatedContent` makes them one child of that row and two children of a box,
+ * where the arrangement no longer reaches them. What that draws is the icon
+ * sitting on top of the text, which is what was reported for morph mode.
+ *
+ * So the slot gets its own `Row` with the same arrangement and alignment the
+ * outer one would have given it. `FilterChip` has always wrapped its static
+ * content this way for the same reason; only the keyed path was missing it.
  */
 @Composable
 private fun RowContentScope.KeyedChipContent(
@@ -154,6 +161,9 @@ private fun RowContentScope.KeyedChipContent(
         return
     }
     val motion = Theme.motion
+    // Bound before the `Row` below, which brings its own receiver and would
+    // otherwise shadow this one.
+    val chipScope = this
     AnimatedContent(
         targetState = key,
         transitionSpec = {
@@ -162,7 +172,12 @@ private fun RowContentScope.KeyedChipContent(
         },
         label = "chipContent",
     ) { _ ->
-        content()
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            chipScope.content()
+        }
     }
 }
 
@@ -196,7 +211,6 @@ fun FilterChip(
     val colours = Theme.colours
     val motion = Theme.motion
     val shape = Theme.shapes.control
-    val feedback = Feedback
 
     val container by animateColorAsState(
         targetValue = when {
@@ -237,10 +251,7 @@ fun FilterChip(
             .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,
-                onClick = {
-                    feedback.perform(FeedbackIntent.Selection)
-                    onClick()
-                },
+                onClick = onClick,
                 enabled = enabled,
                 role = Role.Checkbox,
                 interactionSource = interactions,
@@ -323,7 +334,6 @@ fun InputChip(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val shape = Theme.shapes.control
-    val feedback = Feedback
 
     Row(
         modifier = modifier
@@ -371,7 +381,6 @@ fun InputChip(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = kontourIndication(Theme.shapes.control),
                             onClick = {
-                                feedback.perform(FeedbackIntent.Selection)
                                 onRemove()
                             },
                         )

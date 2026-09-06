@@ -63,6 +63,18 @@ because a thumb that eases toward the finger holding it reads as lag.
 
 ---
 
+## What it refuses
+
+`valueRange.start` must be at or below `valueRange.endInclusive`. A range built
+from two computed bounds can invert when the data behind them is empty or arrives
+out of order, and an inverted one has no reading.
+
+Worth stating because of where it used to fail. The first thing to touch the
+range was `setProgress`, the semantics action — so an inverted range drew a
+perfectly ordinary slider, passed every screenshot, and crashed the first time
+somebody moved it with a screen reader or an automated accessibility check. It
+now fails at the call, for everyone, on the first frame.
+
 ## Accessibility
 
 `stateDescription` is the parameter to pass. Without it a slider announces a

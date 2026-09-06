@@ -219,6 +219,20 @@ private fun SelectionToolbarOverlay(
                 // Transparent rather than dimmed: the user is looking at the
                 // text they just selected, and dimming it defeats the point.
                 scrim = ScrimStyle.Transparent,
+                // The one thing this toolbar must not do.
+                //
+                // `trapFocus` defaults to true and the host ORs it across every
+                // visible entry, so an entry that traps makes the whole tree
+                // behind it unfocusable. This floats *over* a field the user is
+                // still using: taking its focus collapses the selection, which
+                // makes Compose call `hide()`, which tears this entry down —
+                // before the button they just pressed can run. The toolbar
+                // destroyed itself by existing, and it did it by saying nothing
+                // and taking a dialog's default.
+                //
+                // `Menu` is also `ScrimStyle.Transparent` and *does* trap, so
+                // this cannot be derived from the scrim. It has to be stated.
+                trapFocus = false,
                 dismissLabel = "Close",
                 onDismiss = { dismiss() },
                 content = {

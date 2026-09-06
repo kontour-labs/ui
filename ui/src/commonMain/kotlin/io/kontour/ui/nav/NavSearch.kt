@@ -134,7 +134,7 @@ fun NavSearch(
                 searchIcon = searchIcon,
                 onQuery = onQuery,
                 onSearch = onSearch,
-                shape = Theme.shapes.pill,
+                shape = Theme.shapes.capsule,
             )
             results?.invoke(this)
         }
@@ -162,7 +162,7 @@ fun NavSearch(
                 searchIcon = searchIcon,
                 onQuery = onQuery,
                 onSearch = onSearch,
-                shape = Theme.shapes.pill,
+                shape = Theme.shapes.capsule,
             )
 
             if (placement == NavExpandPlacement.Top) ResultsPanel(results)

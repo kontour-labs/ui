@@ -2,7 +2,6 @@ package io.kontour.ui.components.text
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
@@ -12,15 +11,21 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,9 +35,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.theme.Theme
 
@@ -59,6 +61,20 @@ internal fun FieldScaffold(
     modifier: Modifier,
     enabled: Boolean,
     focused: Boolean,
+    /**
+     * Whether the value can be read and copied but not typed into.
+     *
+     * Only the *appearance* of focus is suppressed by this. A read-only field is
+     * still focusable, still in the keyboard's traversal order, and its text is
+     * still selectable — that is what foundation's `readOnly` means, and copying
+     * a booking reference out of a locked field is the reason it exists.
+     *
+     * What goes is the accent border and the ground tint, which between them say
+     * "you are typing here" about a field nobody can type in. It used not to
+     * reach this scaffold at all: `readOnly` was passed to `BasicTextField` and
+     * nowhere else, so the frame went on lighting up.
+     */
+    readOnly: Boolean = false,
     colours: TextFieldColours,
     metrics: TextFieldMetrics,
     shape: Shape,
@@ -74,13 +90,21 @@ internal fun FieldScaffold(
     val motion = Theme.motion
     val isError = errorMessage != null
 
+    // Focus that the *frame* reacts to, which is not the same as focus.
+    //
+    // A read-only field still takes focus and still shows a caret and a
+    // selection; what it must not do is put on the accent border and the ground
+    // tint, because those say "typing happens here". Error is deliberately not
+    // gated: a read-only field can still be invalid, and it still has to say so.
+    val litUp = focused && !readOnly
+
     val borderColour by animateColorAsState(
-        targetValue = colours.border(enabled, focused, isError),
+        targetValue = colours.border(enabled, litUp, isError),
         animationSpec = motion.tweenFast(),
         label = "fieldBorder",
     )
     val borderWidth by animateDpAsState(
-        targetValue = if (focused || isError) {
+        targetValue = if (litUp || isError) {
             Theme.sizing.borderWidthStrong
         } else {
             Theme.sizing.borderWidth
@@ -91,7 +115,7 @@ internal fun FieldScaffold(
     // Animated for the same reason the border is: a ground that changes colour
     // between frames reads as a repaint, and one that fades reads as a response.
     val containerColour by animateColorAsState(
-        targetValue = colours.container(enabled, focused),
+        targetValue = colours.container(enabled, litUp),
         animationSpec = motion.tweenFast(),
         label = "fieldContainer",
     )
@@ -99,7 +123,7 @@ internal fun FieldScaffold(
         targetValue = when {
             !enabled -> colours.contentDisabled
             isError -> colours.error
-            focused -> colours.labelFocused
+            litUp -> colours.labelFocused
             else -> colours.label
         },
         animationSpec = motion.tweenFast(),
@@ -205,6 +229,26 @@ internal fun FieldScaffold(
             trailing?.invoke()
         }
 
+        /**
+         * The message, and the last one when there is no message.
+         *
+         * The slot below closes when both the error and the supporting text are
+         * gone, and while it closes it still has to *draw* something. Handing it
+         * an empty string meant the content's width animated to zero on the way
+         * out and back up on the way in, which the slot then clipped — the
+         * report's "wipes in from the left as well as from the top", and the
+         * reason it only happened on a field with no supporting text to fall
+         * back to.
+         *
+         * Keeping the last non-empty message costs one `remember` and means the
+         * width never travels anywhere. Nobody sees the retained text: by the
+         * time it is showing, the slot around it has already faded and collapsed.
+         */
+        val message = errorMessage ?: supporting
+        var lastMessage by remember { mutableStateOf(message.orEmpty()) }
+        if (message != null) lastMessage = message
+        val shownMessage = message ?: lastMessage
+
         // Helper and error occupy the same slot and animate in place, so the
         // form does not jump by a line height every time validation flips.
         AnimatedSlot(
@@ -220,21 +264,39 @@ internal fun FieldScaffold(
             // one sentence with another between frames — the one moment in the
             // form where the user most needs to notice something changed.
             //
-            // `SizeTransform(clip = false)`, and without it the message arrived
-            // from two directions at once. The slot above expands it downward,
-            // which is right and is the whole of the motion this wants; but
-            // `AnimatedContent`'s default size transform *clips* to a box
-            // animating between the two messages' widths, so a longer error
-            // replacing a shorter hint was also revealed left to right. Two
-            // sentences of different lengths is the common case, which is why
-            // it looked intermittent. `Chip` learned this first — see
-            // `KeyedChipContent`, which has carried the same call since it was
-            // written.
+            // No size transform, and it took two goes to get there. The slot
+            // above expands the message downward, which is right and is the
+            // whole of the motion this wants; `AnimatedContent`'s default size
+            // transform animates *and clips to* a box travelling between the two
+            // messages' widths, so a longer error replacing a shorter hint was
+            // also revealed left to right.
+            //
+            // The first fix was `SizeTransform(clip = false)`, which stopped this
+            // box clipping and left it still animating its width — and the slot
+            // wrapping it is an `AnimatedVisibility`, which clips to whatever its
+            // content measures. So the reveal moved one node out and carried on,
+            // which is the "still sometimes" in the second report of it.
+            //
+            // Two changes finish it: no size animation at all, and a target that
+            // never goes empty. See `shownMessage` above for the second.
             AnimatedContent(
-                targetState = errorMessage ?: supporting.orEmpty(),
+                targetState = shownMessage,
                 transitionSpec = {
                     (fadeIn(motion.tweenFast()) togetherWith fadeOut(motion.tweenFast()))
-                        .using(SizeTransform(clip = false))
+                        // No size animation at all, not merely an unclipped one.
+                        //
+                        // `clip = false` above stopped *this* box clipping and
+                        // was the right half of the fix; what it could not stop
+                        // is the box still animating its width, because the
+                        // `AnimatedSlot` wrapping it is an `AnimatedVisibility`
+                        // and clips to whatever its content currently measures.
+                        // So the width was still the thing being revealed
+                        // through — just one node further out.
+                        //
+                        // The slot's vertical expand is the whole of the motion
+                        // this ever wanted. Taking the target width immediately
+                        // leaves nothing horizontal to reveal.
+                        .using(sizeTransform = null)
                 },
                 label = "fieldMessage",
             ) { message ->

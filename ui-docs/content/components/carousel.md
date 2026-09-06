@@ -75,6 +75,18 @@ target.
 
 ---
 
+## What it refuses
+
+The `pageCount` lambda must not return a negative number. Zero is fine and
+common — it is what a collection reports before it has loaded, and an empty
+carousel draws nothing, which is correct.
+
+Negative is different: it is nearly always a subtraction against something that
+has not arrived, and it used to reach the reader as `NegativeArraySizeException`
+from inside [`PageIndicator`](page-indicator.md), which sizes an array with the
+count. It now throws where the lambda is read, naming the carousel and the
+parameter.
+
 ## Accessibility
 
 `contentDescription` is required, and it names the **set** — "Stop photos" —

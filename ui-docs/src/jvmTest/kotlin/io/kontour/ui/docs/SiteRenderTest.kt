@@ -3,8 +3,8 @@ package io.kontour.ui.docs
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
 import org.jetbrains.skia.EncodedImageFormat
+import org.jetbrains.skia.Image
 import java.io.File
-import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.fail
 
@@ -46,20 +46,7 @@ import kotlin.test.fail
  * round was "most components don't have live previews", which no assertion in
  * this file would have phrased for you.
  */
-class SiteRenderTest {
-
-    /**
-     * One per [WindowWidthClass][io.kontour.ui.adaptive.WindowWidthClass] bucket,
-     * not one per marketing device. The library's own breakpoints are the thing
-     * under test, so the widths are chosen to land inside each of them: 600 and
-     * 840 and 1200 are the boundaries.
-     */
-    private val widths = listOf(
-        "compact" to 390,
-        "medium" to 700,
-        "expanded" to 1024,
-        "large" to 1440,
-    )
+abstract class SiteRenderTest(private val widthName: String, private val width: Int) {
 
     /**
      * Density 1, not the 2 the goldens use.
@@ -72,8 +59,22 @@ class SiteRenderTest {
     /** Tall enough to show a page's shape. Overflow below this is expected. */
     private val height = 1400
 
+    /**
+     * Whether to write the pictures, as opposed to only checking them.
+     *
+     * Two jobs live in this file and they want running at different times. The
+     * **gate** — every page renders without throwing, every page drew something —
+     * is worth a minute on every change; both halves of it have caught shipped
+     * defects. The **contact sheets** are 84 MB of PNGs for a person to scroll
+     * through, and that is something somebody asks for.
+     *
+     * So the sweep runs either way and only the writing is conditional. Off by
+     * default; `:ui-docs:siteRenders` turns it on.
+     */
+    private val writing = System.getProperty("kontour.contactSheets") == "true"
+
     @Test
-    fun `every page renders at every width`() {
+    fun `every page renders`() {
         val root = File(System.getProperty("kontour.siteShots") ?: "build/site-shots")
         val failures = mutableListOf<String>()
 
@@ -86,36 +87,46 @@ class SiteRenderTest {
             listOf("home" to Route.Home) +
                 docPages.map { it.path.replace('/', '-') to Route.Doc(it.path) }
 
-        for ((widthName, width) in widths) {
-            val dir = File(root, widthName).apply { mkdirs() }
-            for ((name, route) in routes) {
-                navigate(route)
-                val result = runCatching { shoot(width, File(dir, "$name.png")) }
-                result.onFailure { failures += "$widthName/$name threw ${it::class.simpleName}: ${it.message}" }
-                result.onSuccess { flat -> if (flat) failures += "$widthName/$name drew nothing — the image is one colour" }
-            }
-            contactSheet(dir, widthName)
+        val dir = File(root, widthName).takeIf { writing }?.apply { mkdirs() }
+        for ((name, route) in routes) {
+            navigate(route)
+            val result = runCatching { shoot(width, dir?.let { File(it, "$name.png") }) }
+            result.onFailure { failures += "$widthName/$name threw ${it::class.simpleName}: ${it.message}" }
+            result.onSuccess { flat -> if (flat) failures += "$widthName/$name drew nothing — the image is one colour" }
         }
+        if (dir != null) contactSheet(dir, widthName)
 
         navigate(Route.Home)
         if (failures.isNotEmpty()) {
-            fail("${failures.size} page renders failed:\n\n" + failures.joinToString("\n"))
+            fail("${failures.size} page renders failed at $widthName:\n\n" + failures.joinToString("\n"))
         }
     }
 
-    /** Renders the site at [width] into [file]. Returns true if the image is one flat colour. */
-    private fun shoot(width: Int, file: File): Boolean {
+    /**
+     * Renders the site at [width], writing to [file] if there is one.
+     *
+     * Returns true if the image is one flat colour.
+     *
+     * The flatness check reads Skia's own pixels rather than a PNG. It used to
+     * encode the image, write it, and read the file straight back to look at it
+     * — three round trips to answer a question the pixels in hand could answer,
+     * and with `writing` off there is no file to read at all.
+     */
+    private fun shoot(width: Int, file: File?): Boolean {
         ImageComposeScene(
             width = width,
             height = height,
             density = Density(density),
             content = { Site() },
         ).use { scene ->
-            val bytes = requireNotNull(scene.render(0L).encodeToData(EncodedImageFormat.PNG)) {
-                "Skia failed to encode ${file.name}"
-            }.bytes
-            file.writeBytes(bytes)
-            return isUniform(file, width)
+            val image = scene.render(0L)
+            if (file != null) {
+                val bytes = requireNotNull(image.encodeToData(EncodedImageFormat.PNG)) {
+                    "Skia failed to encode ${file.name}"
+                }.bytes
+                file.writeBytes(bytes)
+            }
+            return isUniform(image, width)
         }
     }
 
@@ -130,12 +141,12 @@ class SiteRenderTest {
      * So it starts below the bar and to the right of the index, and the ink it
      * is looking for is the page's own.
      */
-    private fun isUniform(file: File, width: Int): Boolean {
-        val image = ImageIO.read(file) ?: return true
+    private fun isUniform(image: Image, width: Int): Boolean {
+        val pixels = image.peekPixels() ?: return true
         val top = ChromeHeight
         val left = if (width >= 600) IndexWidth else 0
         if (top >= image.height || left >= image.width) return true
-        val first = image.getRGB(left, top)
+        val first = pixels.getColor(left, top)
         // Every 7th pixel on both axes. A page with content fails this within a
         // few rows; a blank one has to be walked to be sure, and at 1440×1400
         // that is two million calls per image times hundreds of images.
@@ -143,7 +154,7 @@ class SiteRenderTest {
         while (x < image.width) {
             var y = top
             while (y < image.height) {
-                if (image.getRGB(x, y) != first) return false
+                if (pixels.getColor(x, y) != first) return false
                 y += 7
             }
             x += 7
@@ -196,3 +207,33 @@ class SiteRenderTest {
             close()
         }
 }
+
+/**
+ * One class per width, because that is the unit Gradle can parallelise.
+ *
+ * This was a single test method looping over four widths, which meant one fork
+ * however many were allowed: `maxParallelForks` distributes **classes**, not
+ * methods. Four classes can be spread.
+ *
+ * Measured, cold, `--no-daemon`, all 488 renders: **1m 40s in one fork, 1m 20s
+ * across four.** Worth having and not worth much — the sweep was never the
+ * expensive thing it was briefly believed to be, and the note that used to sit
+ * here claiming it was 90% of a CI job was reading Gradle's `> Task` headers as
+ * if they were execution times. They are flush times; forty of them share a
+ * 0.3-second window in the same log.
+ *
+ * The coverage is unchanged by the split. What it costs is four JVMs' worth of
+ * memory instead of one, which is why the fork count is capped.
+ *
+ * They are named for the [WindowWidthClass][io.kontour.ui.adaptive.WindowWidthClass]
+ * bucket rather than for a device: the library's own breakpoints are what is
+ * under test, so each width lands inside one of them. 600, 840 and 1200 are the
+ * boundaries.
+ */
+class CompactSiteRenderTest : SiteRenderTest("compact", 390)
+
+class MediumSiteRenderTest : SiteRenderTest("medium", 700)
+
+class ExpandedSiteRenderTest : SiteRenderTest("expanded", 1024)
+
+class LargeSiteRenderTest : SiteRenderTest("large", 1440)
