@@ -179,6 +179,10 @@ fun Stepper(
                 value = shown,
                 format = format,
                 style = valueStyle,
+                // The column is wider than the number so the buttons do not
+                // shuffle as it grows; the number belongs in the middle of it,
+                // the way the static branch below has always put it.
+                horizontalArrangement = Arrangement.Center,
                 modifier = valueModifier,
             )
         } else {

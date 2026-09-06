@@ -91,6 +91,22 @@ internal fun LoadingSwap(
 
         AnimatedContent(
             targetState = loading,
+            // Centred, and with no size transform at all.
+            //
+            // Both were defaults and both were wrong here. `AnimatedContent`
+            // aligns its children `TopStart` and animates its own size between
+            // the two states, clipping to it on the way — and the outgoing state
+            // is a zero-sized `Box`. So the container's width grew 0 -> spinner
+            // with the spinner pinned to its leading edge and clipped to the
+            // growing box, while the outer `Box` re-centred the whole thing each
+            // frame. What that draws is a spinner wiping in from the left, which
+            // is what was reported; `scaleIn`'s own centre origin never got to
+            // show, because the clip was doing the drawing.
+            //
+            // The text beside it has always expanded from its centre — it is a
+            // `graphicsLayer` scale, which does not resize anything — so the two
+            // halves of one swap were animating on different principles.
+            contentAlignment = Alignment.Center,
             transitionSpec = {
                 // The spinner pops in rather than fading — a slightly overscaled
                 // entrance is the difference between "something is happening"
@@ -100,6 +116,7 @@ internal fun LoadingSwap(
                         fadeOut(motion.tweenFast()) +
                             scaleOut(motion.tweenFast(), targetScale = LoadingSwapScale)
                     )
+                    .using(sizeTransform = null)
             },
             label = "loadingSwapSpinner",
         ) { isLoading ->

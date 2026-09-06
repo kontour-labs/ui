@@ -95,16 +95,19 @@ fun Slider(
     /**
      * Whether to draw a dot on the track at each detent.
      *
-     * Off by default, which is a change: [steps] used to imply them. A row of
-     * dots turns a slider into a diagram of its own implementation, and on a
-     * short track with many steps they merge into a dashed line that reads as
-     * texture rather than as information. The detent is still there — the thumb
-     * still resists and still ticks — it is just no longer drawn.
+     * **On whenever the slider is stepped**, which is what a stepped slider is
+     * for: the steps are the choices, and a track that hides them makes the user
+     * find them by feel. A continuous slider has no detents to draw and gets
+     * none.
      *
-     * Turn them on where the count is small and *is* the point: five ratings,
-     * four zoom levels.
+     * This went off by default for a round, on the argument that a row of dots
+     * turns a slider into a diagram of its own implementation. That is true at
+     * *many* steps — thirty of them on a short track merge into a dashed line
+     * that reads as texture — and it is the wrong default, because the common
+     * stepped slider has four or five stops and they are the whole point of it.
+     * Pass `false` for the dense case.
      */
-    showTicks: Boolean = false,
+    showTicks: Boolean = steps > 0,
     /**
      * What the slider is *of*, when nothing beside it says.
      *
