@@ -54,6 +54,22 @@ appears at all — a confirmation of something the user did ten seconds ago is n
 worth showing late. How long each stays, and why they appear at the top on a
 phone, is in [the overlay guide](../overlays.md#toasts).
 
+**Reaching the front tops the clock up to a floor.** Counting while waiting is
+right, but a toast that arrives at the front with two hundred milliseconds left
+was never actually read — it flashed. So on being promoted its remainder is
+raised to `ToastDefaults.PromotedFloor` of its own duration, three fifths, which
+scales with whatever the caller asked for and keeps the extra time
+`DurationWithAction` exists to give. It is a **floor and not a restart**: a
+restart would put a stack of four back to taking four full durations to clear,
+which is the queue this host was rewritten to stop being, and a toast promoted
+with plenty of time left is untouched either way.
+
+**A pill behind the card shrinks and fades away; the front card slides.** The
+card leaves toward the edge it arrived from, which is legible because it is the
+only thing there. A pill has no such direction — sliding that way takes it under
+the cards in front, so the last frame it is drawn on is a full-size one and the
+next frame it is simply gone.
+
 ---
 
 ## Accessibility

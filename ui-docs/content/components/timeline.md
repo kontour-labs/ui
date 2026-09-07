@@ -29,6 +29,13 @@ journey itinerary.
 overshoots short ones, which is what makes most hand-rolled timelines look
 assembled rather than built.
 
+`loading = true` puts a spinner where the node's dot would be, for the step a
+timeline is waiting on — a train with no platform yet, a payment being taken. The
+connector below it is unchanged, because the itinerary is not in doubt; one step
+of it is. The spinner stands on the same line as every other node rather than in
+the middle of its row, so the rail does not bend around the step that is still
+going.
+
 ---
 
 ## Accessibility
@@ -43,3 +50,7 @@ itinerary; two rows saying only the platform do not.
 
 Where a step is complete or pending and that matters, put it in the words rather
 than in `filled` — the node's fill is colour and shape, and neither is announced.
+
+The same goes for `loading`. A spinner is a picture of waiting and says nothing
+to a screen reader, so a row that is only a spinner is a row with no state at
+all: write "Walking — 4 min" or "Finding a platform" in the item's own text.

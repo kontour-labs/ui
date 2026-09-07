@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -91,6 +92,19 @@ fun TimelineItem(
     nodeColour: Color = Theme.colours.primary,
     connectorColour: Color = Theme.colours.outlineStrong,
     filled: Boolean = true,
+    /**
+     * Whether this step is happening now, drawn as a spinner in place of the dot.
+     *
+     * For the step a timeline is waiting on — a train that has not been assigned
+     * a platform, a payment being taken. The connector below it is unchanged: the
+     * itinerary still runs on, and only the node says which part of it is in
+     * flight.
+     *
+     * **Say it in the words as well.** The node is drawn, not announced — the
+     * same rule [filled] carries — so a row that is only a spinner tells a screen
+     * reader nothing at all. Put "in progress" in the item's own text.
+     */
+    loading: Boolean = false,
     nodeSize: Dp = 12.dp,
     gutterWidth: Dp = 28.dp,
     connectorWidth: Dp = Theme.sizing.borderWidthStrong,
@@ -104,6 +118,22 @@ fun TimelineItem(
             .height(IntrinsicSize.Min),
     ) {
         Box(Modifier.width(gutterWidth).fillMaxHeight()) {
+            // The gutter's one composable slot, and the node's centre is *not*
+            // this box's centre: the dot sits `nodeSize / 2 + NodeGap` from the
+            // top so it lines up with the first line of the content beside it,
+            // whatever height the row turns out to be. A spinner standing in for
+            // the dot has to land on the same point, which is what the top
+            // padding buys — `Alignment.Center` would drop it halfway down a tall
+            // row and break the rail.
+            if (loading) {
+                Spinner(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = TimelineDefaults.NodeGap),
+                    size = nodeSize,
+                    colour = nodeColour,
+                )
+            }
             Canvas(Modifier.fillMaxHeight().width(gutterWidth)) {
                 val centreX = size.width / 2f
                 val nodeRadius = nodeSize.toPx() / 2f
@@ -133,6 +163,11 @@ fun TimelineItem(
                         )
                     }
                 }
+
+                // The spinner above is the node while this is loading, so the
+                // dot is not drawn at all rather than drawn under it. The
+                // connector is: a step in flight still leads somewhere.
+                if (loading) return@Canvas
 
                 if (filled) {
                     drawCircle(

@@ -43,6 +43,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -71,7 +72,9 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.theme.Theme
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.TimeSource
 import kotlin.math.abs
 
 /** What a toast is reporting. */
@@ -328,6 +331,22 @@ object ToastDefaults {
     const val DepthScale: Float = 0.12f
 
     /**
+     * How far a pill behind the card shrinks as it leaves.
+     *
+     * A pill does not slide out the way the front card does. The front card
+     * leaves toward the edge it came from, which is a legible direction because
+     * it is the only thing there; a pill doing the same slides *under* the cards
+     * in front of it and is simply not there on the next frame. Reported exactly
+     * that way — a secondary toast should shrink and fade rather than vanish.
+     *
+     * Two thirds. It has to be a bigger step than the [DepthScale] twelve per
+     * cent that separates one pill from the next: a gentler shrink than that
+     * reads as the stack re-tapering around a toast rather than as the toast
+     * leaving.
+     */
+    const val PillExitScale: Float = 0.66f
+
+    /**
      * How much of a waiting toast's own content colour outlines it.
      *
      * Enough to see where one pill ends and the next begins, faint enough that
@@ -387,6 +406,30 @@ object ToastDefaults {
      * one that lingers.
      */
     const val DurationWithAction: Long = 5_000
+
+    /**
+     * How much of its own duration a toast is topped up to when it reaches the
+     * front.
+     *
+     * A toast behind the front one is counting the whole time — that is
+     * deliberate and there is a test for it — but it is also not being read: the
+     * card in front of it is. So a toast with two hundred milliseconds left when
+     * the one in front of it goes is promoted and then immediately expires,
+     * which the reporter saw as a toast that flashed rather than one that
+     * arrived.
+     *
+     * A **floor**, not a restart, and it was a deliberate choice between the
+     * two: a restart makes a stack of four take four full durations to clear,
+     * which is the queue behaviour this host was rewritten to stop being. A
+     * toast promoted with plenty of time left is untouched.
+     *
+     * Three fifths of the toast's *own* duration rather than a flat number of
+     * milliseconds, so that a toast carrying an action keeps the ratio
+     * [DurationWithAction] exists for — an action has to be read, decided on and
+     * reached, and a flat floor would hand it the same second and a half as a
+     * bare "Saved".
+     */
+    const val PromotedFloor: Float = 0.6f
 
     /**
      * How far a toast has to be dragged toward the edge before it goes.
@@ -545,12 +588,41 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     // composed to run that animation or to take it off the list when it ends —
     // so a dismissed-but-unremoved toast would sit in the stack for ever,
     // holding a place that nothing can see.
+    //
+    // The clock is not a flat `delay`, and the difference is `PromotedFloor`. A
+    // toast counts down wherever it is in the stack, but it is only being *read*
+    // at the front — so one that arrives there with almost nothing left is
+    // promoted and gone in the same breath, which is what was reported. Reaching
+    // the front tops the remainder up to a floor.
+    //
+    // Written as "wait for the front/behind flag to change, or for the time to
+    // run out", which is the whole state machine. It has to be symmetric: a
+    // toast can be demoted as well as promoted — showing a new one puts the
+    // current front card behind it — and a toast that goes front, behind, front
+    // is the ordinary case in a burst, not an exotic one.
+    //
+    // `TimeSource.Monotonic` is the right clock here precisely because `delay`
+    // is: this host expires on wall time, not on frame time, and the tests in
+    // `ToastStackTest` are written against that.
     state.toasts.forEach { toast ->
         key(toast.id) {
             val onScreen by rememberUpdatedState(visible.any { it === toast })
+            val atFront by rememberUpdatedState(visible.lastOrNull() === toast)
             LaunchedEffect(toast.id) {
                 if (toast.durationMillis <= 0) return@LaunchedEffect
-                delay(toast.durationMillis)
+                val floor = (toast.durationMillis * ToastDefaults.PromotedFloor).toLong()
+                var left = toast.durationMillis
+                var front = atFront
+                while (left > 0) {
+                    val mark = TimeSource.Monotonic.markNow()
+                    val moved = withTimeoutOrNull(left) {
+                        snapshotFlow { atFront }.first { it != front }
+                    } != null
+                    left -= mark.elapsedNow().inWholeMilliseconds
+                    if (!moved) break
+                    front = !front
+                    if (front) left = maxOf(left, floor)
+                }
                 if (onScreen) state.dismiss(toast.id) else state.remove(toast)
             }
         }
@@ -645,9 +717,26 @@ private fun ToastCard(
         enter = slideInVertically(motion.tweenDefault()) { if (towardEdge) it / 2 else -it / 2 } +
             fadeIn(motion.tweenFast()) +
             scaleIn(motion.tweenFast(), initialScale = 0.94f),
-        exit = slideOutVertically(motion.tweenFast()) { if (towardEdge) it / 2 else -it / 2 } +
+        // The front card leaves toward the edge it arrived from. A pill behind
+        // it cannot: sliding that way takes it *under* the cards in front, so it
+        // is simply absent on the next frame — reported as a secondary toast
+        // that vanishes. It shrinks and fades in place instead, which is a
+        // departure you can see happening in the only direction a pill has
+        // room to move.
+        //
+        // The fade belongs here and nowhere else. The resting `graphicsLayer`
+        // below deliberately sets no alpha for depth, because fading the ones
+        // behind made them translucent rather than distant and the front card
+        // showed through them. A leaving pill has no such problem: it is on its
+        // way out and nothing is meant to line up behind it.
+        exit = if (depth == 0) {
+            slideOutVertically(motion.tweenFast()) { if (towardEdge) it / 2 else -it / 2 } +
+                fadeOut(motion.tweenFast()) +
+                scaleOut(motion.tweenFast(), targetScale = 0.94f)
+        } else {
             fadeOut(motion.tweenFast()) +
-            scaleOut(motion.tweenFast(), targetScale = 0.94f),
+                scaleOut(motion.tweenFast(), targetScale = ToastDefaults.PillExitScale)
+        },
     ) {
         ToastSurface(
             toast = toast,
