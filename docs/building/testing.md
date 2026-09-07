@@ -290,6 +290,42 @@ proved nothing rather than passing on a coincidence.
 **The rule:** frames for anything animated, `renderUntil` for anything that
 times itself out.
 
+## The gesture in the test and the gesture in the hand
+
+`SliderDragOwnershipTest` presses, moves **along** the slider's axis, and only
+then strays 160px across it. It passes. The first version of `DragOwnershipTest`
+copied that shape onto `SegmentedControl` and passed too — against a control that
+was demonstrably broken, and that the reporter had been describing for four
+rounds running.
+
+The ordering is what decides it. Two nodes are waiting for touch slop: the
+control on its own axis, the scroller above it on the other one. Whichever
+crosses first claims the gesture, and once it has, the loser never gets another
+chance — which the along-then-stray test proves by passing. So a gesture that
+travels along the axis first has settled the question before the stray happens,
+and the stray then measures nothing.
+
+The gesture in the hand starts off-axis. Press, and move away — one motion, one
+direction, whatever direction the finger took. Measured in a browser at phone
+size against the built site, dragging a control 40px along its axis and a varying
+distance across it:
+
+| Across | Slope | Outcome |
+|---|---|---|
+| 20px | 0.50 | control tracks |
+| 40px | **1.00** | **gesture lost** |
+| 60px | 1.50 | gesture lost |
+
+The threshold is a slope of one — forty-five degrees. It is not a distance at
+all, which is why "stray far enough" was the wrong shape to test: stray as far as
+you like, as long as you went along the axis first.
+
+**The rule:** a pointer test whose subject is *who owns the gesture* starts the
+gesture in the direction that loses, and carries a straight-along-the-axis
+control beside it. Without the control an off-axis assertion cannot tell a fix
+from a control that has stopped working altogether; with it, both readings are
+visible in one run.
+
 ## What the slot conversion cost, and what pays for it
 
 `ListItem(label = "…")` could not produce a row without an accessible name.
@@ -392,6 +428,33 @@ and no meaning in a millisecond taken on a shared runner. What *is* meaningful i
 comparing two runs of it with one variable changed, and `--network fast4g` makes
 that comparison resemble a reader: unthrottled the whole site arrives in about a
 second, which describes nobody.
+
+### One thing it ruled out, which is worth writing down
+
+Compose's web runtime sets `touch-action: pan-x pan-y` on the canvas it draws
+into. `--eval` prints one expression from the page, and read through the shadow
+root that canvas lives in, the grant is an inline style:
+
+```
+{"inline":"pan-x pan-y","computed":"pan-x pan-y","inShadow":true,"bodyOverflow":"hidden"}
+```
+
+`pan-x pan-y` hands a touch drag to the browser the moment it decides the gesture
+is a pan, which looked like the whole explanation for drags dying mid-gesture on
+mobile web — and the fix looked like two lines of CSS. Neither survived being
+measured. A page stylesheet cannot select into a shadow root, and would lose to
+an inline style if it could, so `canvas { touch-action: none !important }` does
+nothing whatever; and `html, body { overflow: hidden }` leaves the browser with
+nothing to pan even where the grant applies. The drags that die are dying inside
+Compose, to the scroller in the page rather than to the browser. The section on
+gesture ownership above has the angle at which it happens and the measurement
+that separates the two: on the same page, under the same synthetic touches, a
+`Slider` survived every stray and a `Switch` survived none — and no browser
+distinguishes between them.
+
+Reading a computed style is not a gesture and a synthetic touch is not a finger,
+so none of this proves the grant can never matter on a real device. It proves it
+was not what the reports were about, which is the claim that was needed.
 
 `docs/check-bundle-size.py` is the half that does run in CI, because bytes are the
 same everywhere. Skia is ratcheted separately from the application binary — at

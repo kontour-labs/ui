@@ -2,7 +2,6 @@ package io.kontour.ui.components.selection
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
@@ -43,6 +42,8 @@ import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.DragClaim
+import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.a11y.contrastEdge
@@ -135,6 +136,7 @@ fun SegmentedControl(
     val currentChange by rememberUpdatedState(onSelectedChange)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val ticker = rememberDetentTicker()
+    val scope = rememberCoroutineScope()
 
     /**
      * Where the finger is along the track, or `NaN` before the first drag.
@@ -275,32 +277,38 @@ fun SegmentedControl(
                 .fillMaxWidth()
                 .fillMaxHeight()
                 .onSizeChanged { trackWidth = it.width.toFloat() }
-                .then(
-                    if (enabled) {
-                        Modifier.pointerInput(options.size, isRtl) {
-                            detectHorizontalDragGestures(
-                                onDragStart = { offset ->
-                                    fingerX = offset.x
-                                    dragging = true
-                                    selectAt(offset.x)
-                                },
-                                onHorizontalDrag = { change, _ ->
-                                    fingerX = change.position.x
-                                    selectAt(change.position.x)
-                                },
-                                onDragEnd = {
-                                    dragging = false
-                                    ticker.reset()
-                                },
-                                onDragCancel = {
-                                    dragging = false
-                                    ticker.reset()
-                                },
-                            )
-                        }
-                    } else {
-                        Modifier
-                    }
+                // Not `detectHorizontalDragGestures`, which waits for its own
+                // horizontal touch slop and therefore races the page scroller's
+                // vertical one. A drag more than 45 degrees off the track was
+                // losing that race and the thumb never moved at all — see
+                // `horizontalDragOwning`, which has the measurement.
+                //
+                // `Movement` rather than `Press`: the taps are per-segment,
+                // below this, and claiming the down would eat them. A press that
+                // never travels is left entirely alone; the first pixel that
+                // does travel is a drag and this takes it, before any slop.
+                .horizontalDragOwning(
+                    enabled = enabled,
+                    interactionSource = null,
+                    scope = scope,
+                    claimsOn = DragClaim.Movement,
+                    onStart = { offset ->
+                        fingerX = offset.x
+                        dragging = true
+                        selectAt(offset.x)
+                    },
+                    // Accumulated rather than read off the change, because this
+                    // reports movement rather than position. It comes to the same
+                    // number: every change of the gesture is delivered here and
+                    // the deltas of a pointer's whole path sum to its path.
+                    onDelta = { dx ->
+                        fingerX += dx
+                        selectAt(fingerX)
+                    },
+                    onEnd = {
+                        dragging = false
+                        ticker.reset()
+                    },
                 )
         ) {
             options.forEachIndexed { index, option ->

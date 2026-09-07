@@ -19,6 +19,7 @@
 //                             [--screenshot OUT.png] [--click X,Y]
 //                             [--touch-tap X,Y] [--touch-drag X1,Y1,X2,Y2[,STEPS[,HOLD]]]
 //                             [--mobile] [--dark] [--reduce-motion] [--vibration]
+//                             [--eval EXPR]
 //
 // ### What it can and cannot tell you
 //
@@ -567,6 +568,18 @@ async function main() {
         console.log(`           ${String(n).padStart(4)} x ${key.padEnd(20)} ${verdict}`)
       }
     }
+  }
+
+  // `--eval EXPR` prints one JavaScript expression, evaluated in the page after
+  // everything else has run. For asking the page a question the harness has no
+  // dedicated flag for — the computed style of the canvas Compose creates, say,
+  // which is not something a screenshot or a gesture can tell you.
+  const expression = arg('eval', null)
+  if (expression) {
+    const value = await evaluate(`JSON.stringify(${expression})`)
+    console.log('')
+    console.log(`eval  ${expression}`)
+    console.log(`   -> ${value}`)
   }
 
   const shot = arg('screenshot', null)
