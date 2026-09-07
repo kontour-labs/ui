@@ -256,28 +256,61 @@ is, and every button reads it.
 
 | Token | Resolves to | For |
 |---|---|---|
-| `control` | half its height | `Button`, `SplitButton`, `ButtonGroup`, `ExtendedFloatingActionButton`, `FabMenu`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
-| `field` | half its height, up to 26dp | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
+| `control` | half its height, up to 18dp | `Button`, `SplitButton`, `ButtonGroup`, `ExtendedFloatingActionButton`, `FabMenu`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
+| `field` | half its height, up to 18dp | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
 | `container` | `medium` | `Card`, `ListItem`, `SelectionRow`, `Accordion`, `SwipeActions`, `DropdownMenu`, `Popover`, `Tooltip`, `NavDrawer` |
 | `panel` | `large` | `Dialog`, `CommandPalette`, `NavSearch` |
 
-**A control is a capsule at every height**, which is the thing a fixed radius
-cannot do: at 14dp an `XSmall` button was nearly a pill already and an `XLarge`
-was nearly square, so one component disagreed with itself across its own size
-scale. And a `Button` sat at 14dp next to a circular `IconButton` in the same
-toolbar. Now every action is the same shape whatever size it happens to be.
+**A control is a pill up to `small`, and squarer above it.** Half its own height
+is the thing a fixed radius cannot do: at 14dp an `XSmall` button was nearly a
+pill already and an `XLarge` was nearly square, so one component disagreed with
+itself across its own size scale. But that rule taken all the way up has the
+opposite failure — a 60dp button at 30dp is not a considered radius, it is a
+stadium. So it stops at **18dp**.
 
-**A field is a capsule too, up to a point.** It used to be a fixed 14dp, on the
-argument that a capsule reads as something to press rather than something to fill
-in. Half right: a single-line field *is* a control by every other measure — same
-height, same row, same press target — and giving it a different corner from the
-button beside it was the inconsistency rather than the fix.
+18 is not tuned. It is half `controlHeightSmall`, which is what makes this one
+rule rather than two competing ones:
+
+| Height | Corner | Reads as |
+|---|---|---|
+| 28dp (`XSmall`) | 14dp | a pill — half the height, under the cap |
+| 36dp (`Small`) | 18dp | a pill *and* the cap, meeting exactly |
+| 44dp (`Medium`) | 18dp | capped |
+| 52dp (`Large`) | 18dp | capped |
+| 60dp (`XLarge`) | 18dp | capped |
+
+At `small` and below the corner is under the cap, so it is exactly half the
+height and the control is a pill. At 36dp precisely the two readings agree, so
+there is no step at the join. Above it the corner stops and each size reads a
+little squarer than the last.
+
+It also lands the ladder somewhere useful: **22 minus 18 is 4**, which is
+`spacing.xxs`. A standard control inside a standard `container` with one unit of
+padding round it is concentric by construction, without either of them naming a
+radius — and `panel` at 28 holds a `container` at 22 with 6dp of ring the same
+way.
+
+**A field takes the same cap.** It used to be a fixed 14dp, on the argument that a
+capsule reads as something to press rather than something to fill in. Half right:
+a single-line field *is* a control by every other measure — same height, same row,
+same press target — and giving it a different corner from the button beside it was
+the inconsistency rather than the fix.
 
 What that argument was really protecting is the multi-line case, and a text area
-shaped like a lozenge is nobody's idea of a text area. So the rule is capped at
-26dp — half the height a text field's `minHeight` resolves to — which puts the
-default single-line field exactly on a capsule and stops everything taller right
-there.
+shaped like a lozenge is nobody's idea of a text area. That used to need a cap of
+its own at 26dp; it now shares the one every height-derived corner takes, so a
+field and the button beside it agree at every height rather than only below 52dp,
+and the text area it was protecting is an 18dp box instead of a 26dp lozenge.
+
+**A container that wraps controls can no longer share their token.** It used to
+be able to: two uncapped capsules were concentric for free, because a child inset
+by the padding top and bottom is shorter by exactly twice it, so the two radii
+differed by exactly the padding whatever the numbers were. Once both sides hit
+the cap they land on the same 18 with a gap between them, and a ring that is even
+along the straight edges and closes to nothing at the corners is the pinch this
+whole scale exists to avoid. `Toolbar` derives its corner from its children's
+with `outset` now, and the `TabBar` indicator derives its from its tab's with
+`inset`.
 
 Reaching past these four to a rung of the size scale is for genuine one-offs — an
 avatar, a scrollbar, a skeleton line, a drag handle — where the shape belongs to
@@ -305,9 +338,12 @@ Every rung pays it, the two small ones included — see above for why a scale th
 stops being continuous partway up is worse than the cost it saves.
 
 **A capsule is a squircle too, and for a long time it silently was not.**
-`control` is half the shorter side, so on any button, chip, tag, toolbar or tab
-the two corners at one end meet in the middle of that end with nothing between
-them: the short edge is *saturated*, exactly and always. Smoothing needs room
+`control` used to be half the shorter side on every control, so on any button,
+chip, tag, toolbar or tab the two corners at one end met in the middle of that
+end with nothing between them: the short edge was *saturated*, exactly and
+always. (The cap means that is now only true at `small` and below — above it
+there is straight edge at both ends. The fix below is what makes both cases come
+out right.) Smoothing needs room
 past the radius to put its blend in, and the rule used to take the tighter of a
 corner's two edges and apply it to both — so one full edge dropped the smoothing
 on the other, and every control in the library drew a plain circular arc while
@@ -316,9 +352,15 @@ naming a squircle and paying a generic path for it.
 Each edge is asked separately now. The end keeps its full arc where it meets its
 neighbour and eases into the long edge where there is room, so a control is
 exactly as round at its ends as it was and no longer steps from arc to straight
-line. Measured against a plain arc, a 200×52 button now deviates by up to 1.9px —
-the same order as a `Card`, which is not saturated and has always smoothed
-freely.
+line. Measured against a plain arc, a 200×52 button deviates by up to 1.32px at
+its capped 18dp — the same order as a `Card`, which is not saturated and has
+always smoothed freely.
+
+Squaring the family off did not flatten it, which is worth a number because the
+intuition runs the other way. The uncapped 26dp capsule deviated by 1.9px and the
+capped 18dp one deviates by 1.32 — but as a *fraction of the radius* those agree
+to three decimal places. A control is exactly as much of a squircle as it was, at
+a smaller radius.
 
 The exceptions fall out of the same rule rather than a list. A square box at
 capsule radius is saturated on *both* edges, so it has nothing to ease onto in
@@ -342,7 +384,7 @@ measurable:
 
 - Fifteen of them are **3–8dp in the short dimension** — a progress track, a
   slider track, the `Callout` rule, a page-indicator dot. The blend scales with
-  the radius, so where a 26dp button deviates from a plain arc by 1.9px a 4dp
+  the radius, so where an 18dp button deviates from a plain arc by 1.32px a 4dp
   track deviates by 0.29px. Below half a pixel there is nothing to see and a
   generic path to pay for.
 - The other two are the **slider thumb and the switch thumb**, which change size

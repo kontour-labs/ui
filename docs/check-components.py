@@ -581,7 +581,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 21
+MAX_CIRCLES = 22
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -603,7 +603,7 @@ def circles() -> list[str]:
     squircles is the mismatch the shape scale exists to remove; `Shapes.capsule`
     is the same silhouette with the family's curvature.
 
-    **The ceiling went up from 11 to 21, and it is worth saying why rather than
+    **The ceiling went up from 11 to 22, and it is worth saying why rather than
     quietly bumping it.** Round 25 set it to stop drift *back* to circular arcs,
     when the failure mode was a lozenge with round ends. Round 26 caps the
     height-derived corners, and that gives the name a second job: a capped
@@ -1282,7 +1282,7 @@ def main() -> int:
 
     # Rule 20 — a corner is a squircle unless the thing it is on is a circle.
     #
-    # See `circles`. `pill` survives for the twenty-one places that are genuinely
+    # See `circles`. `pill` survives for the twenty-two places that are genuinely
     # round — square boxes, exempt from the capsule cap; a `RoundedCornerShape`
     # literal anywhere but the token that defines it is a component that has
     # stopped tracking the scale.

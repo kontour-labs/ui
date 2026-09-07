@@ -65,6 +65,7 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.theme.inset
 import io.kontour.ui.theme.Theme
 
 object TabBarDefaults {
@@ -194,7 +195,13 @@ fun TabBar(
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                .clip(Theme.shapes.capsule)
+                                // Concentric with the tab it sits in rather than
+                                // sharing a token with it. Both are above `small`,
+                                // so both would stop at `CapsuleCap` and the 4dp
+                                // ring would close to nothing at the corners. The
+                                // inset is read from the same `xxs` the sizing
+                                // above uses, so the two cannot drift apart.
+                                .clip(Theme.shapes.control.inset(Theme.spacing.xxs))
                                 .background(indicatorColour)
                         )
                     },

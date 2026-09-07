@@ -79,7 +79,7 @@ class ShapeScaleTest {
         // What survives of the old assertion is the case it was really about. A
         // text area is tall, and a tall box with a proportional corner is a
         // lozenge; the cap is what stops it, so the cap is what to check.
-        val cap = 26f
+        val cap = 18f
         for (height in listOf(120f, 400f, 1000f)) {
             val radius = shapes.field.topStart.toPx(Size(400f, height), density)
             assertEquals(cap, radius, "a $height-tall field should stop at the cap")
@@ -87,18 +87,101 @@ class ShapeScaleTest {
     }
 
     @Test
-    fun aControlIsACapsuleAtEveryHeight() {
-        // The reason buttons are not a fixed radius. At 14dp an XSmall button was
-        // nearly a pill already and an XLarge was nearly square, so one component
-        // disagreed with itself across its own size scale. A capsule cannot.
-        for (height in listOf(28f, 36f, 44f, 56f, 72f)) {
+    fun aControlIsAPillUpToSmallAndSquarerAboveIt() {
+        // This used to assert that a control is a capsule at *every* height, and
+        // the reason it no longer does is the whole of round 26: at the top of
+        // the size scale a capsule stops reading as a considered radius and
+        // starts reading as a stadium. A 60dp XL button at 30dp is a lozenge.
+        //
+        // The cap is 18dp, and it is not a tuned number — it is half
+        // `Sizing.controlHeightSmall`, which is what makes the two halves of the
+        // rule one rule rather than two competing ones. At `small` and below the
+        // corner is under the cap, so it is exactly half the height and the
+        // control is a pill. At 36dp precisely, both readings give 18. Above it
+        // the corner stops and the control gets progressively squarer, which is
+        // the direction that was asked for.
+        for (height in listOf(24f, 28f, 32f, 36f)) {
             val radius = shapes.control.topStart.toPx(Size(200f, height), density)
             assertEquals(
                 height / 2f,
                 radius,
-                "a control $height tall should have a radius of ${height / 2f}",
+                "a control $height tall is at or below `small`, so it should be a " +
+                    "pill at ${height / 2f} rather than capped",
             )
         }
+        for (height in listOf(44f, 52f, 60f, 72f, 200f)) {
+            val radius = shapes.control.topStart.toPx(Size(400f, height), density)
+            assertEquals(
+                18f,
+                radius,
+                "a control $height tall is above `small`, so it should stop at the " +
+                    "18dp cap rather than reach ${height / 2f}",
+            )
+        }
+    }
+
+    @Test
+    fun theCapIsExactlyWhereSmallStopsBeingAPill() {
+        // The two halves of the rule have to meet, or there is a discontinuity at
+        // the join: a 36dp control one pixel taller would jump. They meet because
+        // the cap *is* half the small height rather than a number near it.
+        val small = Sizing().controlHeightSmall
+        val atSmall = shapes.control.topStart.toPx(Size(200f, small.value), density)
+        assertEquals(
+            small.value / 2f,
+            atSmall,
+            "at `controlHeightSmall` the pill rule and the cap have to agree, or " +
+                "the scale has a step in it",
+        )
+        assertEquals(
+            18f,
+            atSmall,
+            "and the value they agree on is the cap, so a control taller than " +
+                "`small` continues from where `small` left off rather than jumping",
+        )
+    }
+
+    @Test
+    fun aToolbarStaysConcentricOnceTheCapBinds() {
+        // A toolbar and its buttons used to be concentric for free: both were
+        // uncapped capsules, so the outer radius was half the bar's height, the
+        // inner was half a button's, and a button inset by the padding top and
+        // bottom is shorter by exactly twice it — so the radii differed by
+        // exactly the padding, whatever the numbers were.
+        //
+        // The cap ends that. A 56dp bar and a 44dp button both land on 18, and
+        // two equal radii with 6dp between them is not concentric, it is a ring
+        // that pinches at the corners. The bar has to derive its corner from its
+        // children's instead of sharing a rule with them, which is what `outset`
+        // is for.
+        val padding = 6.dp
+        val button = shapes.control.topStart.toPx(Size(200f, 44f), density)
+        val bar = shapes.control.outset(padding).topStart.toPx(Size(212f, 56f), density)
+        assertEquals(18f, button, "a 44dp button is above `small`, so it is capped")
+        assertEquals(
+            button + padding.value,
+            bar,
+            "a toolbar wrapping a $button-cornered button with ${padding.value}dp " +
+                "of ring should be ${button + padding.value}, not $bar",
+        )
+    }
+
+    @Test
+    fun aSegmentedTrackStaysConcentricOnceTheCapBinds() {
+        // The reporter's own example, in numbers. The track is a 44dp field and
+        // the thumb is 6dp shorter on each side; `inset` is what keeps them
+        // concentric, and it keeps working once the cap binds because it resolves
+        // the base against the outer box before subtracting.
+        val padding = 6.dp
+        val track = shapes.field.topStart.toPx(Size(300f, 44f), density)
+        val thumb = shapes.field.inset(padding).topStart.toPx(Size(100f, 32f), density)
+        assertEquals(18f, track, "a 44dp track is above `small`, so it is capped")
+        assertEquals(
+            track - padding.value,
+            thumb,
+            "a thumb ${padding.value}dp inside a $track-cornered track should be " +
+                "${track - padding.value}, not $thumb",
+        )
     }
 
     @Test
@@ -186,17 +269,23 @@ class ShapeScaleTest {
         // The mirror of `outsetResolvesAgainstTheBoxItWrapsRatherThanTheOneItDraws`,
         // and the case that had no test: a segmented control's thumb.
         //
-        // The track is `field` on a 44px-tall box — `min(22, 26)` = 22. The thumb
-        // sits 6px inside it, so it is 32px tall and wants 22 − 6 = **16**.
-        // Resolved against its own 32px box the capsule answers 16 *before* the
-        // gap comes off, and the thumb was drawn at 10 — six too square on a six
-        // pixel gap. The reporter's words were that the container is almost
-        // pill-shaped and the indicator inside it is not.
+        // The track is `field` on a 44px-tall box. That used to resolve to
+        // `min(22, 26)` = 22 and this test asserted 22 − 6 = **16**; it now
+        // resolves to `min(22, 18)` = 18 and the thumb lands on **12**, because
+        // the cap arrived in the same round. Both numbers are concentric — the
+        // one that matters is the *difference*, which is the gap either way.
+        //
+        // What the test is really pinning is unchanged, and it is the bug the
+        // reporter found: resolved against its own 32px box the capsule answers
+        // 16 *before* the gap comes off, so the thumb was drawn at 10 — six too
+        // square on a six pixel gap. Their words were that the container is
+        // almost pill-shaped and the indicator inside it is not.
         val gap = 6f
+        val track = 18f
         val thumb = Size(200f, 32f)
 
         assertEquals(
-            22f - gap,
+            track - gap,
             Shapes().field.inset(6.dp).topStart.toPx(thumb, density),
             "a proportional corner has to resolve against the box it is nested " +
                 "in, not against its own, or the gap is subtracted twice",
@@ -400,6 +489,53 @@ class ShapeScaleTest {
      * where that step used to be — a few degrees off the long edge — the squircle
      * now sits measurably further from the corner point than the arc does.
      */
+    @Test
+    fun aCappedControlSmoothsOnBothEdgesBecauseItIsNoLongerSaturated() {
+        // A consequence of the cap worth having a number for, because it runs the
+        // opposite way to the intuition that a squarer corner is a plainer one.
+        //
+        // An uncapped control was saturated on its short edge by definition —
+        // half the height, so the two corners at one end met in the middle with
+        // nothing between them, and the smoothing had room on the long edge only.
+        // A capped one is not: 18dp on a 52dp box leaves 8dp of straight edge at
+        // each end. So the blend now has room on *both* edges, and a capped
+        // control is more of a squircle than the uncapped one it replaced, not
+        // less.
+        val size = Size(200f, 52f)
+
+        fun peak(shape: CornerBasedShape, radius: Float): Float =
+            (1..44).maxOf { degrees ->
+                distanceFromCornerAt(shape, size, degrees.toFloat()) -
+                    distanceFromCornerAt(RoundedCornerShape(radius.dp), size, degrees.toFloat())
+            }
+
+        // The number `tokens.md` quotes. Pinned here so it cannot go stale the
+        // way the 1.9px it replaced did.
+        val capped = peak(Shapes().control, 18f)
+        assertEquals(
+            1.32f,
+            capped,
+            0.02f,
+            "a capped control on a 200x52 box should sit ~1.32px outside a plain " +
+                "18dp arc at its widest, but measured $capped",
+        )
+
+        // And the property that number is evidence *of*, which is the durable
+        // half. The uncapped capsule on the same box is 26dp and saturated; this
+        // one is 18dp and is not. Their peak deviations differ — 1.9px against
+        // 1.32 — but as a *fraction of the radius* they are the same shape to
+        // three decimal places. So squaring the family off does not flatten it:
+        // a control is exactly as much of a squircle as it was, at a smaller
+        // radius.
+        val uncapped = peak(SquircleShape(CapsuleCornerSize()), 26f)
+        assertTrue(
+            abs(capped / 18f - uncapped / 26f) < 0.005f,
+            "the blend should be a fixed fraction of the radius either side of " +
+                "saturation, but capped gave ${capped / 18f} and uncapped " +
+                "${uncapped / 26f}",
+        )
+    }
+
     @Test
     fun aCapsuleSmoothsAlongTheEdgeThatHasRoom() {
         // A button: 200 wide, 52 tall, corner radius 26 — saturated vertically,
