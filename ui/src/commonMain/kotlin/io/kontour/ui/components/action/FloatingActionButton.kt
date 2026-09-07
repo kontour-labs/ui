@@ -84,7 +84,7 @@ fun FloatingActionButton(
     /** What a screen reader announces while [loading]. */
     loadingLabel: String = Theme.strings.loading,
     size: FabSize = FabSize.Medium,
-    shape: Shape = Theme.shapes.control,
+    shape: Shape = Theme.shapes.pill,
     containerColour: Color = Theme.colours.primary,
     contentColour: Color = Theme.colours.onPrimary,
     border: BorderStroke? = null,
@@ -157,7 +157,7 @@ fun FloatingActionButton(
     /** What a screen reader announces while [loading]. */
     loadingLabel: String = Theme.strings.loading,
     size: FabSize = FabSize.Medium,
-    shape: Shape = Theme.shapes.control,
+    shape: Shape = Theme.shapes.pill,
     containerColour: Color = Theme.colours.primary,
     contentColour: Color = Theme.colours.onPrimary,
     border: BorderStroke? = null,

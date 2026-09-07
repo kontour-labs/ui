@@ -408,15 +408,15 @@ private fun DayCell(
     // edges and only the ends are capped.
     val shape: Shape = when (rangePosition) {
         RangePosition.Middle -> RectangleShape
-        RangePosition.Start -> Theme.shapes.capsule.copy(
+        RangePosition.Start -> Theme.shapes.pill.copy(
             topEnd = androidx.compose.foundation.shape.CornerSize(0),
             bottomEnd = androidx.compose.foundation.shape.CornerSize(0),
         )
-        RangePosition.End -> Theme.shapes.capsule.copy(
+        RangePosition.End -> Theme.shapes.pill.copy(
             topStart = androidx.compose.foundation.shape.CornerSize(0),
             bottomStart = androidx.compose.foundation.shape.CornerSize(0),
         )
-        else -> Theme.shapes.capsule
+        else -> Theme.shapes.pill
     }
 
     /**
@@ -575,7 +575,7 @@ private fun DayCell(
                         Modifier.border(
                             Theme.sizing.borderWidth,
                             colours.outlineStrong,
-                            Theme.shapes.capsule,
+                            Theme.shapes.pill,
                         )
                     } else {
                         Modifier

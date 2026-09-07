@@ -256,7 +256,7 @@ is, and every button reads it.
 
 | Token | Resolves to | For |
 |---|---|---|
-| `control` | half its height | `Button`, `IconButton`, `SplitButton`, `ButtonGroup`, `FloatingActionButton`, `FabMenu`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
+| `control` | half its height | `Button`, `SplitButton`, `ButtonGroup`, `ExtendedFloatingActionButton`, `FabMenu`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
 | `field` | half its height, up to 26dp | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
 | `container` | `medium` | `Card`, `ListItem`, `SelectionRow`, `Accordion`, `SwipeActions`, `DropdownMenu`, `Popover`, `Tooltip`, `NavDrawer` |
 | `panel` | `large` | `Dialog`, `CommandPalette`, `NavSearch` |
@@ -323,9 +323,17 @@ freely.
 The exceptions fall out of the same rule rather than a list. A square box at
 capsule radius is saturated on *both* edges, so it has nothing to ease onto in
 either direction and stays a true circle: an `IconButton`, an `Avatar`, a status
-dot, the ring round a `RadioButton`. `pill` remains for those, and `capsule` —
-the squircle of the same silhouette — is what a lozenge asks for: a chip, a
-toast, a nav indicator, a skeleton line, a day cell.
+dot, the ring round a `RadioButton`, a colour swatch, a day cell. `pill` remains
+for those, and `capsule` — the squircle of the same silhouette — is what a
+lozenge asks for: a chip, a toast, a nav indicator, a skeleton line.
+
+Those components **name** `pill` rather than inheriting it from `control`, and
+that is a deliberate change: on a square box the two draw the same picture, so
+the name buys nothing you can see today. What it buys is an exemption from the
+cap below. A capped `capsule` on a 50dp box is an 18dp rounded square; a `pill`
+on the same box is still a circle. A day cell is the case that makes it
+concrete — its fill, its "today" ring and its range caps only agree with each
+other if none of them is capped.
 
 **What is still drawn as a plain rounded rect, and why.** Seventeen places paint
 a corner with `drawRoundRect` rather than clipping to a shape, and a

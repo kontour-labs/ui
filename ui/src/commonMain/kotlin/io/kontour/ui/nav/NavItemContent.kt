@@ -165,7 +165,17 @@ internal fun NavDestinationItem(
     val colours = Theme.colours
     val motion = Theme.motion
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val shape = Theme.shapes.capsule
+    // A circle where the glyph box is square, a capsule where it is not.
+    //
+    // `indicatorSize` is a `DpSize` the caller authored rather than a measured
+    // one, so comparing the two sides is exact here in a way it would not be for
+    // anything laid out. `CircleSize` (40x40) and `InlineGlyphSize` (48x48) are
+    // circles; `GlyphSize` (56x28) is a lozenge and stays one.
+    val shape = if (indicatorSize.width == indicatorSize.height) {
+        Theme.shapes.pill
+    } else {
+        Theme.shapes.capsule
+    }
 
     // Null when this item is not inside an indicator group, which is what decides
     // whether it draws its own pill or lets the shared one travel to it.

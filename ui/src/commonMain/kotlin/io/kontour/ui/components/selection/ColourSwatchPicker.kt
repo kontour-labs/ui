@@ -118,7 +118,9 @@ private fun Swatch(
     val scheme = Theme.colours
     val motion = Theme.motion
     val interactions = remember { MutableInteractionSource() }
-    val shape = Theme.shapes.capsule
+    // A swatch is a square, and a square is what makes this a circle. Named
+    // rather than derived — see `Shapes.pill`.
+    val shape = Theme.shapes.pill
 
     val fill = colour ?: scheme.surfaceSunken
     val tick = if (colour != null) contentColourFor(colour) else scheme.content

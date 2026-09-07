@@ -29,7 +29,7 @@ import kotlin.math.min
  * | [extraLarge] | 34dp | Sheets, hero panels |
  * | [control] | half its height, uncapped | Buttons, chips, FABs, switches |
  * | [field] | half its height, up to 26dp | Text fields, selects, time fields |
- * | [pill] | fully round | Avatars, scrollbars, indicators |
+ * | [pill] | fully round | Avatars, scrollbars, swatches, day cells |
  * | [sheet] | 34dp top only | Bottom sheets |
  * | [sideSheet] | 34dp leading only | Side sheets |
  *
@@ -62,9 +62,26 @@ import kotlin.math.min
  *
  * [pill] survives for the things that are round because of what they *are* rather
  * than because of how tall they happen to be: an avatar, a scrollbar thumb, a
- * status dot, the ring round a radio button. Everything else that reads as a
- * lozenge — a chip, a toast, a nav indicator, a skeleton line, a day cell — is
- * [capsule], which is the same silhouette with the family's own curvature.
+ * status dot, the ring round a radio button, a colour swatch, an icon button, a
+ * day cell. Everything else that reads as a lozenge — a chip, a toast, a nav
+ * indicator, a skeleton line — is [capsule], which is the same silhouette with
+ * the family's own curvature.
+ *
+ * ### Naming one costs nothing to look at, and decides what the cap does
+ *
+ * On a *square* box the two are the same picture. [capsule] resolves to half the
+ * shorter side, which on a square leaves no straight edge for the smoothing to
+ * ease into, so the squircle collapses onto the circle [pill] draws — they differ
+ * only by the cubic path's approximation of an arc, which is a fraction of a
+ * pixel at the rim and nothing at all in the middle. Swapping every square
+ * [capsule] in the library to [pill] moved 29 goldens and not one of them by more
+ * than a one-pixel rim.
+ *
+ * So the choice is not about today's render. It is about [CapsuleCornerSize]'s
+ * cap: a capped [capsule] on a 50dp box is an 18dp rounded square, and a [pill]
+ * on the same box is still a circle. A day cell is the case that makes this
+ * concrete — its fill, its "today" ring and its range caps have to agree with
+ * each other, and they only do if none of them is capped.
  *
  * A selection indicator used to be on that list and is not any more. A 56x32
  * travelling pill is not a circle; it is a lozenge behind a row of controls that

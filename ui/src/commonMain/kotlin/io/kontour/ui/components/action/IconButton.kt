@@ -97,7 +97,7 @@ fun IconButton(
     loadingLabel: String = Theme.strings.loading,
     variant: ButtonVariant = ButtonVariant.Ghost,
     size: ButtonSize = ButtonSize.Medium,
-    shape: Shape = Theme.shapes.control,
+    shape: Shape = Theme.shapes.pill,
     rotation: Float = 0f,
     colours: ButtonColours = ButtonDefaults.colours(variant),
     metrics: ButtonMetrics = ButtonDefaults.metrics(size),
@@ -197,7 +197,7 @@ fun IconToggleButton(
      */
     strikethrough: Boolean = false,
     size: ButtonSize = ButtonSize.Medium,
-    shape: Shape = Theme.shapes.control,
+    shape: Shape = Theme.shapes.pill,
     stateDescription: String? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
