@@ -5,6 +5,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -363,7 +364,13 @@ fun NavDrawerItem(
     val colours = Theme.colours
     val motion = Theme.motion
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val shape = Theme.shapes.container
+    // The marker's shape, not the row's. `DrawerItems` marks a row with a pill
+    // inset `xxs` horizontally and exactly as tall, so everything this row draws
+    // for itself — its focus ring, its own container fill when it is outside a
+    // group, and the press wash — has to be that box and that corner. It used to
+    // be `Theme.shapes.container`, a fixed 22dp on the full row, which is 8dp
+    // wider and 4dp rounder than the pill that lands on it.
+    val shape = Theme.shapes.capsule
     // Inside a group the travelling marker carries selection; on its own the row
     // still needs to say which one it is.
     val grouped = LocalSelectionIndicator.current != null
@@ -406,19 +413,29 @@ fun NavDrawerItem(
                 contentDescription?.let { this.contentDescription = it }
             }
             .minimumTouchTarget()
-            .focusRing(interactions, shape)
-            .clip(shape)
-            .background(container, shape)
             .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,
                 interactionSource = interactions,
-                indication = kontourIndication(shape, pressScale = 1f),
+                // Drawn below instead, on the pill rather than on the row. The
+                // whole row is the target — a label is not something to aim past
+                // — but the shape it is marked with is inset from it.
+                indication = null,
                 enabled = enabled,
                 role = Role.Tab,
                 onClick = onClick,
             )
-            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
+            // From here down this node is the marker's rect. The second padding
+            // is the rest of what the content asked for, so nothing moves.
+            .padding(horizontal = Theme.spacing.xxs)
+            .focusRing(interactions, shape)
+            .clip(shape)
+            .background(container, shape)
+            .indication(interactions, kontourIndication(shape, pressScale = 1f))
+            .padding(
+                horizontal = Theme.spacing.md - Theme.spacing.xxs,
+                vertical = Theme.spacing.sm,
+            ),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -447,11 +447,16 @@ fun NavBar(
             ),
             modifier = rowModifier,
             indicator = {
+                // The same corner the destination's own glyph draws, derived
+                // rather than restated — see `navItemShape`. Written out here as
+                // `Theme.shapes.capsule` it disagreed with the glyph's `pill` on
+                // exactly the box they share.
+                val markerShape = navItemShape(indicatorSize)
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .elevation(Theme.elevation.low, Theme.shapes.capsule)
-                        .clip(Theme.shapes.capsule)
+                        .elevation(Theme.elevation.low, markerShape)
+                        .clip(markerShape)
                         .background(indicatorColour)
                 )
             },
