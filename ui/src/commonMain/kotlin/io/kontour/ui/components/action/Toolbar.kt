@@ -21,6 +21,7 @@ import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.CapsuleCap
+import io.kontour.ui.theme.ProvideConcentric
 import io.kontour.ui.theme.outset
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.foundation.VerticalDivider
@@ -98,8 +99,15 @@ fun Toolbar(
                     .defaultMinSize(minHeight = Theme.sizing.minTouchTarget),
                 horizontalArrangement = arrangement,
                 verticalAlignment = Alignment.CenterVertically,
-                content = content,
-            )
+            ) {
+                // The bar already derives its own corner from its children's
+                // (see `ToolbarDefaults.Shape`); this publishes the same
+                // relationship the other way round, so a child that is *not* a
+                // standard control — a custom chip, a menu anchor — can ask for
+                // the corner that matches instead of guessing at one.
+                val row = this
+                ProvideConcentric(shape, contentPadding) { row.content() }
+            }
         }
     }
 }

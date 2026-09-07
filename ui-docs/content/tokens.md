@@ -1,5 +1,7 @@
 # Tokens
 
+*Also on this page: `ProvideConcentric`.*
+
 Everything a component is allowed to look like. Read through `Theme` inside a
 composable:
 
@@ -322,6 +324,66 @@ They are also the seam a consumer wants. Overriding `pill` to square off buttons
 would not even reach them — a button reads `control` — and it would square off
 the avatars and the scrollbar instead; overriding `control` moves the buttons and
 nothing else.
+
+### Nesting one shape inside another
+
+Two rounded rectangles are concentric when **the inner radius is the outer
+radius minus the space between them**. Get it wrong and the ring visibly widens
+or pinches around the corner even though it is even along every straight edge —
+which is the one thing about a nested shape people notice without being able to
+say what they are looking at.
+
+At the standard sizes this now falls out of the scale on its own: `container` is
+22, a control caps at 18, and 22 − 18 is 4, which is `spacing.xxs`. So a button
+in a card with one unit of padding round it is already concentric, and so is a
+`container` in a `panel` with `spacing.xs`.
+
+The moment you change the padding, it stops being free. `inset` and `outset` are
+the two directions of the arithmetic, and both defer: a proportional corner has
+no value until there is a box to take it of, so they resolve against the box the
+*base* is drawn on rather than the one they are handed.
+
+```kotlin
+// A thumb 6dp inside its track.
+val track = Theme.shapes.field
+val thumb = track.inset(6.dp)
+
+// A bar wrapped 6dp around its buttons.
+val bar = Theme.shapes.control.outset(6.dp)
+```
+
+**`Modifier.concentric()` does it without you naming either number.** A
+container publishes its corner and its ring; anything inside can ask for the
+shape that matches.
+
+```kotlin
+Card {
+    // Takes a shape: read it.
+    Button(onClick = {}, shape = Theme.shapes.concentric()) { Text("Save") }
+
+    // Clips its own background: use the modifier.
+    Box(Modifier.fillMaxWidth().height(120.dp).concentric().background(cover))
+}
+```
+
+It is **opt-in**, and stays out of the way when it cannot help:
+
+- Outside any container `Theme.shapes.concentric()` is the component's normal
+  default and `Modifier.concentric()` adds nothing at all — so the same call
+  site works wherever it ends up.
+- It **nests**: a card inside a dialog publishes the card, so a button two
+  levels down measures against the thing actually around it.
+- It does not fight an explicit `shape`, because nothing is automatic. A call
+  site passes this or passes something else.
+- It **declines rather than guesses**. A container whose shape is a path has no
+  radius to subtract from, and one with 16dp at the sides and 8dp top and bottom
+  has no single inner radius that keeps the ring even — the ring is genuinely
+  uneven and no corner fixes it. Both publish nothing and the fallback stands.
+
+`Card` and `Toolbar` publish for you. For a container of your own, call
+`ProvideConcentric(shape, contentPadding) { … }` around its content. `Dialog` and
+`DropdownMenu` do not publish, because neither takes a content padding to derive
+from and inventing one would be guessing at a number their callers own.
 
 ### Two kinds of corner
 

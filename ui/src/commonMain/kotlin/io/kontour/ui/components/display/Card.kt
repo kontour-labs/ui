@@ -18,6 +18,7 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.theme.ProvideConcentric
 import io.kontour.ui.theme.Theme
 
 /** How a card separates itself from the page behind it. */
@@ -94,10 +95,15 @@ fun Card(
         border = border,
         shadow = shadow,
     ) {
-        Column(
-            modifier = Modifier.padding(contentPadding),
-            content = content,
-        )
+        Column(modifier = Modifier.padding(contentPadding)) {
+            // Publishes the card's own corner and ring, so a control inside it
+            // can ask for `Theme.shapes.concentric()` instead of being told a
+            // token by hand. At the defaults it changes nothing — `container`
+            // less `spacing.md`'s 16dp floors at 6dp, and a control asking for
+            // it gets that — but it tracks a caller who overrides either.
+            val column = this
+            ProvideConcentric(shape, contentPadding) { column.content() }
+        }
     }
 }
 
