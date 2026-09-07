@@ -239,6 +239,15 @@ Do not step through the scale by eye. `Theme.shapes.medium.inset(6.dp)` gives th
 radius something 6dp inside a `medium` container should use, floors at zero, and
 keeps the kind of corner it was called on.
 
+**`inset` and `outset` both resolve against the box the shape they are given is
+drawn on, not against the box they are handed.** For a fixed rung the two are the
+same and nothing shows. For a *proportional* corner — a capsule, a pill — they
+are not, because such a corner is smaller on a smaller box before any gap is
+subtracted. `inset` used to skip that reconstruction and take the gap twice: a
+segmented control's thumb came out at 10dp inside a 22dp track, six too square on
+a six dp gap, which is why the thing inside looked like it came from a squarer
+scale than the thing around it.
+
 ### Ask for what a thing *is*
 
 Components do not pick a rung. They ask for one of four names, and that is why

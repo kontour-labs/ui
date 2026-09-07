@@ -306,11 +306,32 @@ fun CornerBasedShape.inset(gap: Dp): CornerBasedShape = copy(
  * It has to defer rather than subtract up front: a [CornerSize] can be a
  * percentage, and a percentage of what is not known until there is a size and a
  * density to resolve it against.
+ *
+ * ### Resolved against the outer box, which it has to reconstruct
+ *
+ * The exact mirror of [OutsetCornerSize], and it was not always. This used to
+ * resolve the base against the size it was handed — the *inner* box — on the
+ * argument that "the inner shape is drawn on the inner box, so the size the
+ * corner should resolve against is the size it is given". That is the wrong
+ * question. The base belongs to the **outer** shape; what is being asked is what
+ * the outer shape's corner *is*, and then what a box [gap] inside it should use.
+ * Resolve the outer shape's spec on the inner box and a proportional corner has
+ * already lost the gap once before the subtraction takes it again.
+ *
+ * A fixed radius is immune — 22dp is 22dp on any box — which is why the two
+ * `inset` call sites on rungs (`Menu`, `CommandPalette`) were always right and
+ * nothing caught it. The one on a capsule was not: `SegmentedControl`'s thumb
+ * came out at 10dp where concentricity wanted 16, six too square on a six dp
+ * gap, and `SegmentedControlDefaults.TrackPadding`'s own KDoc recorded the
+ * padding being tuned by eye against the skew.
  */
 @Immutable
 private data class InsetCornerSize(val base: CornerSize, val gap: Dp) : CornerSize {
-    override fun toPx(shapeSize: Size, density: Density): Float =
-        (base.toPx(shapeSize, density) - with(density) { gap.toPx() }).coerceAtLeast(0f)
+    override fun toPx(shapeSize: Size, density: Density): Float {
+        val shrink = with(density) { gap.toPx() }
+        val outer = Size(shapeSize.width + shrink * 2f, shapeSize.height + shrink * 2f)
+        return (base.toPx(outer, density) - shrink).coerceAtLeast(0f)
+    }
 }
 
 /**
@@ -323,12 +344,11 @@ private data class InsetCornerSize(val base: CornerSize, val gap: Dp) : CornerSi
  *
  * ### Why this is not [inset] with the sign flipped
  *
- * [InsetCornerSize] resolves its base against the size it is handed, and that is
- * right for an inset, because the inner shape is drawn *on* the inner box — the
- * size the corner should resolve against is the size it is given.
+ * Both halves resolve the base against the box **the base's own shape is drawn
+ * on**, and then step. For an outset that box is the inner one; for an inset it
+ * is the outer one. Neither is the box being handed in, so both reconstruct.
  *
- * An outset shape is drawn on the **outer** box, so the size it is handed is the
- * wrong one to resolve against — and a *proportional* corner is where that shows.
+ * A *proportional* corner is where getting it wrong shows.
  * [Shapes.pill] on a 52dp component is 26dp, and the ring 3dp outside it wants
  * 29; resolve it against the 58dp ring instead and it answers 29 before the gap
  * is added, so the ring is drawn at 32 — over-rounded by exactly the gap, every

@@ -165,12 +165,42 @@ class ShapeScaleTest {
 
     @Test
     fun insetOfAPercentCornerStaysAPercentUntilItIsResolved() {
-        // The reason InsetCornerSize defers instead of subtracting up front: half
-        // of a 100px pill is 50, half of a 200px pill is 100, and the gap comes off
-        // whichever one the caller turns out to be.
+        // The reason InsetCornerSize defers instead of subtracting up front: the
+        // percentage is of a box nobody knows yet.
+        //
+        // The numbers here were 46 and 96 and they were wrong. A 100px box sitting
+        // 4px inside a pill is inside a **108px** pill, whose radius is 54, so the
+        // concentric answer is 50 — which is also half of 100, because a pill
+        // inside a pill is still a pill. 46 is under-rounded by exactly the gap:
+        // the base was being resolved on the inner box, where a proportional
+        // corner has already lost the gap once before the subtraction takes it
+        // again. Precisely the fault `outset`'s KDoc describes in the other
+        // direction, which is why the two now share one shape of arithmetic.
         val pill = shapes.pill.inset(4.dp)
-        assertEquals(46f, pill.topStart.toPx(Size(100f, 100f), density))
-        assertEquals(96f, pill.topStart.toPx(Size(200f, 200f), density))
+        assertEquals(50f, pill.topStart.toPx(Size(100f, 100f), density))
+        assertEquals(100f, pill.topStart.toPx(Size(200f, 200f), density))
+    }
+
+    @Test
+    fun insetResolvesAgainstTheBoxItIsNestedInRatherThanItsOwn() {
+        // The mirror of `outsetResolvesAgainstTheBoxItWrapsRatherThanTheOneItDraws`,
+        // and the case that had no test: a segmented control's thumb.
+        //
+        // The track is `field` on a 44px-tall box — `min(22, 26)` = 22. The thumb
+        // sits 6px inside it, so it is 32px tall and wants 22 − 6 = **16**.
+        // Resolved against its own 32px box the capsule answers 16 *before* the
+        // gap comes off, and the thumb was drawn at 10 — six too square on a six
+        // pixel gap. The reporter's words were that the container is almost
+        // pill-shaped and the indicator inside it is not.
+        val gap = 6f
+        val thumb = Size(200f, 32f)
+
+        assertEquals(
+            22f - gap,
+            Shapes().field.inset(6.dp).topStart.toPx(thumb, density),
+            "a proportional corner has to resolve against the box it is nested " +
+                "in, not against its own, or the gap is subtracted twice",
+        )
     }
 
     @Test
@@ -241,6 +271,22 @@ class ShapeScaleTest {
         assertEquals(
             shapes.large.inset(gap).outset(gap).topStart.toPx(outer, density),
             shapes.large.topStart.toPx(inner, density),
+        )
+
+        // And on the corner kinds that would have caught the fault. A fixed rung
+        // is immune to it by construction — 28dp is 28dp on any box — so the
+        // round trip above held for years while the proportional one did not.
+        // These two are the test that did not exist.
+        assertEquals(
+            shapes.pill.topStart.toPx(outer, density),
+            shapes.pill.inset(gap).outset(gap).topStart.toPx(outer, density),
+            "a pill inset and then outset by the same gap is the pill again",
+        )
+        val capped = SquircleShape(CapsuleCornerSize(cap = 26.dp))
+        assertEquals(
+            capped.topStart.toPx(outer, density),
+            capped.inset(gap).outset(gap).topStart.toPx(outer, density),
+            "and so is a capped capsule, at any box either side of its cap",
         )
     }
 

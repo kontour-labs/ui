@@ -54,11 +54,21 @@ object SegmentedControlDefaults {
     /**
      * The inset between the track and its thumb.
      *
-     * One rung of the shape scale, so the thumb's shape is the track's stepped
-     * down by exactly this much — see [io.kontour.ui.theme.inset], which is what
-     * derives it. At 3dp the thumb read one dp too square inside its track: not
-     * obviously wrong, but the kind of near-miss the eye reads as a rendering
-     * fault rather than as a choice.
+     * The thumb's shape is the track's stepped down by exactly this much — see
+     * [io.kontour.ui.theme.inset], which derives it.
+     *
+     * The note that used to be here claimed 6dp was "one rung of the shape
+     * scale", which it is not — 6dp is the *step between* rungs — and that the
+     * derivation above was already happening, which it was not. `inset` resolved
+     * the track's capsule against the thumb's own shorter box, so the gap came
+     * off twice and the thumb was drawn at 10dp where the track is 22. The "at
+     * 3dp the thumb read one dp too square" recorded here was that skew being
+     * tuned around rather than found: at 3dp the error is 3dp, and moving to 6
+     * made the error worse while making the visible ring better, so both halves
+     * of the observation were true and the conclusion drawn from them was not.
+     *
+     * Six stays, on its own merits — it is a ring you can see — and the radius
+     * it produces is now the one it always claimed.
      */
     val TrackPadding: Dp = 6.dp
 }
