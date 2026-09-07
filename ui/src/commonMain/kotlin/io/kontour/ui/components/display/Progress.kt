@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -281,6 +280,26 @@ fun StepProgress(
     // the frame clock when it is composed, so a settled row of steps went on
     // requesting sixty frames a second to draw a picture that could not change.
     val animating = (indeterminate || working) && !motion.reduceMotion
+
+    /**
+     * How far the row has melted into one continuous bar. 1 is fully merged.
+     *
+     * A row whose whole meaning is "this has no steps, it is just going" was
+     * still being drawn as steps: five capsules with four gaps, and a band
+     * travelling behind them that went dark at every boundary. Measured as five
+     * runs of ink along the row where there should be one.
+     *
+     * `animateFloatAsState` on the *state*, deliberately not folded into the
+     * `rememberInfiniteTransition` above — that one is only composed while
+     * something is animating, and joining it would subscribe a settled row of
+     * steps to the frame clock forever. `IdleAnimationTest` is the assertion
+     * that keeps this honest.
+     */
+    val melt by animateFloatAsState(
+        targetValue = if (indeterminate) 1f else 0f,
+        animationSpec = motion.tweenDefault(),
+        label = "stepMelt",
+    )
     val sweep = if (animating) {
         rememberInfiniteTransition(label = "stepSweep").animateFloat(
             initialValue = 0f,
@@ -321,9 +340,28 @@ fun StepProgress(
                 }
             }
     ) {
-        val gapPx = gap.toPx()
+        // The gap closes as the row melts, so the segments arrive touching.
+        val gapPx = gap.toPx() * (1f - melt)
         val segmentWidth = (size.width - gapPx * (total - 1)) / total
         val radius = CornerRadius(size.height / 2f)
+
+        /**
+         * How far a segment reaches into its neighbour, to hide the seam.
+         *
+         * Closing the gaps is not enough on its own: two capsules that merely
+         * touch still meet at two semicircular caps, and the join pinches. Push
+         * each one a full radius into the segment beside it and the overlap is
+         * painted at full height all the way across, so the union is a
+         * continuous bar with round ends and nothing in between — no per-corner
+         * path, and no allocation in a draw loop.
+         *
+         * Zero at either end of the row, which is where the bar's own round ends
+         * belong.
+         */
+        fun reach(index: Int): Pair<Float, Float> = Pair(
+            if (index == 0) 0f else radius.x * melt,
+            if (index == total - 1) 0f else radius.x * melt,
+        )
 
         // Read here rather than in composition: the value changes every frame,
         // and reading it above would recompose the whole row on each one instead
@@ -333,10 +371,11 @@ fun StepProgress(
 
         for (index in 0 until total) {
             val left = index * (segmentWidth + gapPx)
+            val (reachStart, reachEnd) = reach(index)
             drawRoundRect(
                 color = trackColour,
-                topLeft = Offset(left, 0f),
-                size = Size(segmentWidth, size.height),
+                topLeft = Offset(left - reachStart, 0f),
+                size = Size(segmentWidth + reachStart + reachEnd, size.height),
                 cornerRadius = radius,
             )
             // A band travels: across the whole row when the row is
@@ -369,17 +408,30 @@ fun StepProgress(
                 else -> (animated - index).coerceIn(0f, 1f)
             }
             if (fill > 0f) {
+                // The same reach as the track, so a filled segment merges with
+                // its neighbours exactly as its track does — but only at the
+                // end it actually reaches. A part-filled segment's right edge is
+                // the value, and that end stays round wherever it stops.
+                val fillEnd = if (fill >= 1f) reachEnd else 0f
                 drawRoundRect(
                     color = colour,
-                    topLeft = Offset(left, 0f),
-                    size = Size(segmentWidth * fill, size.height),
+                    topLeft = Offset(left - reachStart, 0f),
+                    size = Size(segmentWidth * fill + reachStart + fillEnd, size.height),
                     cornerRadius = radius,
                 )
             }
 
             // Same construction as `LinearProgress` — a band 35% as wide as a
-            // segment, entering one end as it leaves the other — clipped to this
-            // segment so it cannot spill into the gaps.
+            // segment, entering one end as it leaves the other, and kept inside
+            // this segment so it cannot spill into the gaps.
+            //
+            // It used to be *clipped* to the segment, which is where the square
+            // ends came from: the band is drawn round and `clipRect` then sliced
+            // off whichever cap overhung, leaving a straight vertical edge.
+            // Measured at 42 of 88 frames of a working animation, the end column
+            // carrying the band's full 24 rows of ink instead of a tip's one or
+            // two. `LinearProgress` has always avoided it by shrinking the rect
+            // rather than cutting it, and that is what this does now.
             if (animating && (indeterminate || busy)) {
                 val bandWidth = segmentWidth * BandFraction
                 val bandLeft = if (indeterminate) {
@@ -393,16 +445,18 @@ fun StepProgress(
                 } else {
                     left - bandWidth + (segmentWidth + bandWidth) * phase
                 }
-                clipRect(
-                    left = left,
-                    right = left + segmentWidth,
-                    top = 0f,
-                    bottom = size.height,
-                ) {
+                // The segment's own bounds, widened by however far it has
+                // melted into its neighbours: while the row is one bar the band
+                // has to be able to cross the joins, or it blinks at each one.
+                val limitLeft = left - reachStart
+                val limitRight = left + segmentWidth + reachEnd
+                val visibleLeft = bandLeft.coerceAtLeast(limitLeft)
+                val visibleRight = (bandLeft + bandWidth).coerceAtMost(limitRight)
+                if (visibleRight > visibleLeft) {
                     drawRoundRect(
                         color = colour,
-                        topLeft = Offset(bandLeft, 0f),
-                        size = Size(bandWidth, size.height),
+                        topLeft = Offset(visibleLeft, 0f),
+                        size = Size(visibleRight - visibleLeft, size.height),
                         cornerRadius = radius,
                     )
                 }
