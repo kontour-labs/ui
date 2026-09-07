@@ -213,7 +213,21 @@ private fun PaletteBody(
 
     var highlighted by remember { mutableIntStateOf(0) }
     val listState = rememberLazyListState()
-    val focus = remember { FocusRequester() }
+    /**
+     * The field, not the panel.
+     *
+     * This used to be the `Surface` below, which is `focusable()` so its
+     * `onPreviewKeyEvent` could drive the arrows — and focusing it left the
+     * caret nowhere. A palette you have to click before you can type is a
+     * dialog, and the keyboard path is the only reason this component exists.
+     * Measured: the editable node reported `Focused = 'false'` on open.
+     *
+     * Nothing is lost by moving it. `onPreviewKeyEvent` runs *down* the focus
+     * path from the root, so the panel still sees every arrow and every Escape
+     * aimed at the field inside it — which is what `CommandPaletteKeyboardTest`
+     * goes on proving.
+     */
+    val field = remember { FocusRequester() }
 
     // Typing is what shrinks the list, and a remembered index outlives the row
     // it pointed at. Reset rather than clamp: after a keystroke the user's
@@ -221,7 +235,10 @@ private fun PaletteBody(
     // to before the list changed under them.
     LaunchedEffect(text) { highlighted = 0 }
 
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    // `runCatching` because a requester whose node has gone — the palette
+    // dismissed in the same frame it opened — throws rather than declining.
+    // The house guard, from `Menu` and `Select`; this call site never had it.
+    LaunchedEffect(Unit) { runCatching { field.requestFocus() } }
 
     // Keep the highlighted row on screen when the arrows walk past the fold.
     LaunchedEffect(highlighted) {
@@ -239,7 +256,6 @@ private fun PaletteBody(
         modifier = modifier
             .widthIn(max = width)
             .fillMaxWidth()
-            .focusRequester(focus)
             .focusable()
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -303,7 +319,7 @@ private fun PaletteBody(
             SearchField(
                 state = query,
                 placeholder = placeholder,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(field),
                 shape = inner,
                 // No debounce. A palette filters a list already in memory, and
                 // a quarter-second lag between the key and the result is the

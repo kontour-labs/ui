@@ -681,10 +681,36 @@ fun RangeSlider(
                                 }
                             }
 
-                            for (drawn in listOf(
-                                DrawnThumb(startX, reachStart * trackWidth, startScale, startAspect),
-                                DrawnThumb(endX, reachEnd * trackWidth, endScale, endAspect),
-                            )) {
+                            val startThumb =
+                                DrawnThumb(startX, reachStart * trackWidth, startScale, startAspect)
+                            val endThumb =
+                                DrawnThumb(endX, reachEnd * trackWidth, endScale, endAspect)
+
+                            // Painter order is the whole of "which one can I
+                            // see", so the one under the finger goes last.
+                            //
+                            // This was a literal `listOf(start, end)`, which
+                            // put the end thumb on top always. At
+                            // `minDistance = 0` a shoved thumb is welded to the
+                            // pusher and drawn at exactly the same place, so
+                            // dragging the start thumb past the end one left
+                            // the held thumb — the larger of the two, because
+                            // it is the one scaled up — behind a smaller circle
+                            // that stamped its ring across it. Measured on the
+                            // row through both centres: three runs of fill,
+                            // a 40px middle belonging to the thumb nobody is
+                            // touching and a 21px crescent of the held one
+                            // showing either side of it.
+                            //
+                            // `Thumb.None` at rest, so the resting order is
+                            // unchanged and no render moves.
+                            val order = if (activeThumb == Thumb.Start) {
+                                listOf(endThumb, startThumb)
+                            } else {
+                                listOf(startThumb, endThumb)
+                            }
+
+                            for (drawn in order) {
                                 sliderThumb(
                                     centreX = drawn.x,
                                     centreY = centreY,
