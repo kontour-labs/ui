@@ -1,5 +1,9 @@
 package io.kontour.ui.components.text
 
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -294,7 +298,51 @@ private fun SelectionToolbar(
         TextToolbarDefaults.MaxInline - 1
     }
 
-    Toolbar(contentPadding = Theme.spacing.xxs) {
+    Toolbar(
+        // Two ways a tap on this toolbar used to destroy it, reported together
+        // as "on mobile it just deselects". Both measured on a phone-sized
+        // browser against the built site, selecting a word with a long press and
+        // then tapping once:
+        //
+        // | Tapped              | Was                          | Is now |
+        // |---------------------|------------------------------|--------|
+        // | between two buttons | toolbar gone, selection kept | nothing moves |
+        // | "Copy"              | page back to resting, field unfocused | copied, field still focused |
+        // | the overflow "…"    | page back to resting         | the menu opens |
+        //
+        // **A tap that misses a button** — the padding, the gap between two of
+        // them — fell through to the scrim underneath and was read as a tap
+        // *outside*, which dismissed the toolbar the finger was aimed at. Hence
+        // the `pointerInput`, on the Main pass so the buttons are asked first:
+        // it can only swallow what they declined, never make one unclickable.
+        //
+        // **A tap that hits one** focused it. Focus leaving the text field
+        // collapses the selection, Compose calls `hide()`, and the entry is torn
+        // down before the click it is running can finish — the toolbar destroying
+        // itself by being used. `trapFocus = false` above stops the *host*
+        // taking focus for the whole entry and was the fix for the same failure
+        // a round ago; it says nothing about the buttons inside it, which were
+        // focusable like any other.
+        //
+        // So they are not focusable. Nothing is lost: a floating toolbar that
+        // only exists while text is selected cannot be tabbed to *and* keep the
+        // selection, because arriving is what ends it. Keyboard users have the
+        // shortcuts, which is the surface this one is a touch alternative to.
+        modifier = Modifier
+            .focusProperties { canFocus = false }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    down.consume()
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        event.changes.forEach { it.consume() }
+                        if (event.changes.none { it.pressed }) break
+                    }
+                }
+            },
+        contentPadding = Theme.spacing.xxs,
+    ) {
         items.take(fits).forEach { item ->
             Button(
                 onClick = {

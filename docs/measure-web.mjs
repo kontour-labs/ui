@@ -18,6 +18,7 @@
 //   node docs/measure-web.mjs [--dist DIR] [--seconds N] [--json OUT]
 //                             [--screenshot OUT.png] [--click X,Y]
 //                             [--touch-tap X,Y] [--touch-drag X1,Y1,X2,Y2[,STEPS[,HOLD]]]
+//                             [--then-tap X,Y]
 //                             [--mobile] [--dark] [--reduce-motion] [--vibration]
 //                             [--eval EXPR]
 //
@@ -580,6 +581,21 @@ async function main() {
     console.log('')
     console.log(`eval  ${expression}`)
     console.log(`   -> ${value}`)
+  }
+
+  // `--then-tap x,y` is a second tap, dispatched *after* the drag rather than
+  // before it. Every other gesture flag stands alone; this one exists because
+  // some questions are two gestures long and the order is the question. Select
+  // text with a long press and a drag, then tap the toolbar it raised: whether
+  // the selection is still there when the tap lands is the whole of what a
+  // selection toolbar is for.
+  const thenTap = arg('then-tap', null)
+  if (thenTap) {
+    const [x, y] = thenTap.split(',').map(Number)
+    await touch('touchStart', x, y)
+    await wait(40)
+    await touch('touchEnd', x, y)
+    interaction = await evaluate(`window.__sample(1500)`)
   }
 
   const shot = arg('screenshot', null)

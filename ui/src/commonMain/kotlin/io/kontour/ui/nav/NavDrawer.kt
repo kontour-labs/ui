@@ -56,6 +56,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorEdge
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.LocalSelectionIndicator
+import io.kontour.ui.foundation.LocalSelectionIndicatorLeaving
 import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.foundation.selectionIndicatorItem
@@ -547,11 +548,17 @@ fun NavDrawerGroup(
             enter = expandVertically(motion.tweenFast()),
             exit = shrinkVertically(motion.tweenFast()),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
-                // At level zero: a caller using the components directly passes
-                // `nestLevel` per item, and the DSL's `group` re-wraps this with
-                // the depth it is tracking.
-                NavDrawerScopeImpl(this).content()
+            // The content is still composed while the exit runs, and its rows
+            // report smaller, higher rects every frame of it. The marker is
+            // drawn outside this clip, so following them walks it up the list in
+            // full view — see `LocalSelectionIndicatorLeaving`.
+            CompositionLocalProvider(LocalSelectionIndicatorLeaving provides !expanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
+                    // At level zero: a caller using the components directly
+                    // passes `nestLevel` per item, and the DSL's `group`
+                    // re-wraps this with the depth it is tracking.
+                    NavDrawerScopeImpl(this).content()
+                }
             }
         }
     }
