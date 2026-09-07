@@ -87,8 +87,14 @@ size — the label is what gives way.
 Set `scrollable = true` where the labels matter more than seeing them all at
 once: a scrollable bar's tabs are as wide as their own labels rather than a
 share of the bar, so nothing is ellipsised. It is off by default because a
-scrolling row hides options past the edge and gives the user no way to know how
-many there are.
+scrolling row hides options past the edge.
+
+A scrollable bar draws a hairline under its tabs showing how much of the row you
+are looking at — including on a touch screen, where a scrollbar is normally
+hidden. That is the one place the usual rule is wrong: a bar over content you can
+already see and drag is clutter, and a bar over tabs you *cannot* see is the only
+thing saying they are there. It appears only when the tabs actually overflow, and
+`scrollState` is hoisted so an app can drive or read the position itself.
 
 ### Swiping between tabs
 

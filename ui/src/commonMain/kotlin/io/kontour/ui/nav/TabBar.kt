@@ -1,5 +1,7 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.components.list.Scrollbar
+import androidx.compose.foundation.ScrollState
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -115,6 +117,14 @@ object TabBarDefaults {
 fun TabBar(
     modifier: Modifier = Modifier,
     scrollable: Boolean = false,
+    /**
+     * The scroll position of a [scrollable] row, hoisted so it can be read.
+     *
+     * Inline until now, which meant nothing could see where the row had got to —
+     * not a scrollbar, not a "reveal the selected tab" effect, nothing. The row
+     * scrolled and said so to no one.
+     */
+    scrollState: ScrollState = rememberScrollState(),
     containerColour: Color = Color.Transparent,
     indicatorColour: Color = Theme.colours.accent.container,
     /**
@@ -151,11 +161,15 @@ fun TabBar(
             // arithmetic. Wrapping the scroll container instead is how the old
             // implementation drifted away from its tabs as the row scrolled.
             Row(verticalAlignment = Alignment.CenterVertically) {
+            // An extra box around the scrolling one, so the scrollbar can be
+            // laid over the tabs rather than beside them. It carries the weight;
+            // the scrolling box inside it carries the scroll.
+            Box(if (scrollable) Modifier.weight(1f, fill = false) else Modifier.weight(1f)) {
             Box(
                 if (scrollable) {
-                    Modifier.horizontalScroll(rememberScrollState()).weight(1f, fill = false)
+                    Modifier.horizontalScroll(scrollState)
                 } else {
-                    Modifier.weight(1f)
+                    Modifier
                 }
             ) {
                 SelectionIndicatorBox(
@@ -220,6 +234,29 @@ fun TabBar(
                     ) {
                         TabBarScope(row = this, fixed = !scrollable).content()
                     }
+                }
+            }
+
+                // A row you can tell scrolls.
+                //
+                // `Scrollbar` draws nothing for a finger unless it is asked to —
+                // `LocalInputModality` is `Touch` by default and
+                // `supportsHover` is true only for a mouse — so the default
+                // would put this affordance on every platform except the one it
+                // was reported from. A tab bar's whole problem is that you
+                // cannot see there are more tabs off the edge, and a hairline
+                // that appears only when you already have a pointer to discover
+                // them with is not an answer to it.
+                //
+                // It still draws nothing when there is nothing to scroll: that
+                // is `Scrollbar`'s own `geometry.isUseful`, not this call site's.
+                if (scrollable) {
+                    Scrollbar(
+                        state = scrollState,
+                        orientation = Orientation.Horizontal,
+                        modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
+                        alwaysVisible = true,
+                    )
                 }
             }
 
