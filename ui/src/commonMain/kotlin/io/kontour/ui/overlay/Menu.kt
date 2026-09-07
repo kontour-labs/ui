@@ -372,7 +372,6 @@ fun MenuItem(
 ) {
     val slots = listItemSlots(content)
     val colours = Theme.colours
-    val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
     val contentColour = when {

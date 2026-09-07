@@ -24,7 +24,19 @@ enum class FeedbackIntent {
     /** A value changed: a toggle flipped, a radio selected, a chip filtered. */
     Selection,
 
-    /** A discrete step was crossed: a slider tick, a picker detent, a stepper. */
+    /**
+     * A discrete step was crossed: a slider tick, a picker detent, a segment.
+     *
+     * Every component that performs this goes through [DetentTicker], which is
+     * both where the "once per crossing, not once per frame" guard lives and
+     * where the rate limit does.
+     *
+     * It used to say "a stepper" as well, and no `Stepper` has ever performed
+     * it. That is deliberate rather than missing: a stepper is two buttons and a
+     * number that changes where you are already looking, and the rule the
+     * round-25 audit settled on is that a haptic reports something the user
+     * could not otherwise tell. The doc was the thing that was wrong.
+     */
     Tick,
 
     /** An action succeeded. Sparingly — not on every button. */
@@ -50,7 +62,21 @@ enum class FeedbackIntent {
     /** A long-press threshold was reached and something is about to happen. */
     LongPress,
 
-    /** A drag threshold was crossed — a sheet snapping, a row passing its action point. */
+    /**
+     * A drag threshold was crossed: a row passing its action point, a
+     * pull-to-refresh passing the point where letting go will refresh.
+     *
+     * What has changed is *what letting go will do*, and nothing on screen
+     * necessarily said so first.
+     *
+     * This used to name a sheet snapping too, and no sheet performs it. The
+     * reason is worth keeping rather than the claim: `SheetState.targetDetent`
+     * is exactly the right signal — it "changes the instant a drag passes the
+     * threshold" — but nothing distinguishes that from the same field changing
+     * because code called `animateTo`. A sheet that buzzes when it is opened
+     * programmatically is worse than one that is silent, so this waits for a
+     * drag signal the sheet does not currently expose.
+     */
     DragThreshold,
 
     /** A gesture completed and the element settled. */
@@ -140,10 +166,65 @@ val Feedback: FeedbackDispatcher
 /**
  * The default mapping from intent to platform haptic.
  *
- * [FeedbackIntent.Selection] deliberately maps to `ToggleOn`/`ToggleOff`'s
- * sibling `SegmentTick` rather than to `LongPress`: selection should feel like a
- * detent, not like a thud. The heavier `LongPress` is reserved for the one case
- * that means it.
+ * ### What each constant actually does, per platform
+ *
+ * Measured rather than assumed, because the names are Android's and two of them
+ * turn out to be unreachable on most of the devices this library runs on. The
+ * web column is the `navigator.vibrate` pattern in milliseconds; iOS is the
+ * generator `CupertinoHapticFeedback` routes to; the Android column is the API
+ * level the `HapticFeedbackConstants` value was added in.
+ *
+ * | Intent | Constant | Web | iOS | Android |
+ * |---|---|---|---|---|
+ * | [FeedbackIntent.Tick] | `VirtualKey` | 0, 20ms | light impact | 5 |
+ * | [FeedbackIntent.Selection] | `ContextClick` | 12ms | medium impact | 23 |
+ * | [FeedbackIntent.DragThreshold] | `GestureThresholdActivate` | 12ms | light impact | **34** |
+ * | [FeedbackIntent.LongPress] | `LongPress` | 0, 30ms | medium impact | 3 |
+ * | [FeedbackIntent.GestureEnd] | `GestureEnd` | 12ms | light impact | 30 |
+ * | [FeedbackIntent.Confirm] | `Confirm` | 18, 32, 36ms | notification, success | 30 |
+ * | [FeedbackIntent.Reject], [FeedbackIntent.Warn] | `Reject` | 18, 28, 18, 28, 18ms | notification, error | 30 |
+ * | [FeedbackIntent.KeyPress] | `KeyboardTap` | 6ms | **nothing** | 8 |
+ *
+ * ### Why [FeedbackIntent.Tick] moved off `SegmentFrequentTick`
+ *
+ * Because it was never felt. `SegmentFrequentTick` is 6ms on the web, and **a
+ * vibration motor needs roughly 10–20ms to spin up far enough to be felt at
+ * all** — so every detent in the library issued a pulse that reached nothing.
+ * Measured on the built site with `docs/measure-web.mjs --vibration`: a stepped
+ * slider dragged across its range produced `3 x [6]`, eighteen milliseconds of
+ * motor time for a whole gesture. Meanwhile `LongPress` is 30ms and was being
+ * felt, which is exactly the shape the report took — the long presses are
+ * enjoyed and the detents do nothing.
+ *
+ * It is not better on the other two. `SegmentFrequentTick` and `SegmentTick`
+ * are the *same* `selectionChanged()` generator on iOS, so the two intents were
+ * indistinguishable there; and both are `HapticFeedbackConstants` added in API
+ * 34, so on any Android below 14 they do nothing whatsoever.
+ *
+ * `VirtualKey` is the one constant that is above the motor floor on the web, a
+ * distinct generator from [FeedbackIntent.Selection] on iOS, and available back
+ * to API 5 on Android.
+ *
+ * ### There is no lighter tier that is still felt
+ *
+ * The wheel picker wants a *finer* tick than a slider does, and the obvious
+ * shape for that is a second intent mapped to something lighter. There is
+ * nothing to map it to: below `VirtualKey` the web patterns are 12ms and 6ms,
+ * and 6ms is the silence this whole change is about. A "light" intent would
+ * reintroduce the bug on the one component that fires most often.
+ *
+ * So the wheel gets the same tick as everything else and is quietened by
+ * **rate** instead — see [DetentTicker]. On the web an intensity scale does not
+ * exist; there is felt and not felt.
+ *
+ * ### The gaps this leaves, named rather than hidden
+ *
+ * [FeedbackIntent.DragThreshold] is still on an API-34 constant, so a pull-to-
+ * refresh threshold is silent on Android 13 and below. It is 12ms on the web and
+ * light impact on iOS, so it clears the floor on the two platforms this round
+ * measured; the Android gap is real and unfixed. [FeedbackIntent.KeyPress] does
+ * nothing at all on iOS and is 6ms on the web, which is to say it is decorative
+ * — nothing in the library performs it.
  */
 @Composable
 internal fun rememberDefaultFeedbackDispatcher(
@@ -165,8 +246,8 @@ internal fun rememberDefaultFeedbackDispatcher(
             if (!level.allows(intent)) return@FeedbackDispatcher
             haptics.performHapticFeedback(
                 when (intent) {
-                    FeedbackIntent.Selection -> HapticFeedbackType.SegmentTick
-                    FeedbackIntent.Tick -> HapticFeedbackType.SegmentFrequentTick
+                    FeedbackIntent.Selection -> HapticFeedbackType.ContextClick
+                    FeedbackIntent.Tick -> HapticFeedbackType.VirtualKey
                     FeedbackIntent.Confirm -> HapticFeedbackType.Confirm
                     FeedbackIntent.Reject -> HapticFeedbackType.Reject
                     FeedbackIntent.Warn -> HapticFeedbackType.Reject

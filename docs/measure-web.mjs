@@ -18,7 +18,7 @@
 //   node docs/measure-web.mjs [--dist DIR] [--seconds N] [--json OUT]
 //                             [--screenshot OUT.png] [--click X,Y]
 //                             [--touch-tap X,Y] [--touch-drag X1,Y1,X2,Y2[,STEPS[,HOLD]]]
-//                             [--mobile] [--dark] [--reduce-motion]
+//                             [--mobile] [--dark] [--reduce-motion] [--vibration]
 //
 // ### What it can and cannot tell you
 //
@@ -59,6 +59,15 @@
 //
 //   node docs/measure-web.mjs --dist site --mobile --path '#/components/reorderable-item' \
 //     --touch-drag 200,400,200,560,20,700 --screenshot after.png
+//
+// `--vibration` prints every `navigator.vibrate` pattern the run produced, in
+// order. It is how a haptic is measured rather than asserted: on the web a
+// haptic *is* a duration in milliseconds, and a pattern under about 10ms is
+// below what a phone's motor can spin up to produce. Pair it with `--mobile`
+// and a touch drag:
+//
+//   node docs/measure-web.mjs --dist site --mobile --vibration \
+//     --path '#/components/slider' --touch-drag 200,400,340,400,20
 //
 // `--dark` emulates `prefers-color-scheme: dark`, which drives the *system* half
 // of the site's `settings.dark ?: systemDark`. It cannot reach the in-app
@@ -284,7 +293,34 @@ class Cdp {
  * measurement can distinguish that from a page that is merely slow.
  */
 const PROBE = `
-window.__probe = { firstRafAt: null, rafCalls: 0, paints: {} }
+window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [] }
+
+/**
+ * Haptics, which on the web are navigator.vibrate and nothing else.
+ *
+ * Two jobs, and the first is the one that is easy to miss. Compose gates its
+ * whole web haptic path on the vibrate function existing; headless Chromium has
+ * no vibrator and therefore no such function, so without this it takes the
+ * no-op branch and a run records nothing while looking like it proved
+ * something. Defining one makes the support check pass.
+ *
+ * The second is that this is the only place the durations can be read. What the
+ * library asks for is a pattern in milliseconds, and whether that pattern is
+ * long enough for a motor to spin up to is the entire question.
+ */
+{
+  const record = function (pattern) {
+    window.__probe.vibrations.push(Array.isArray(pattern) ? pattern.slice() : [pattern])
+    return true
+  }
+  try {
+    Object.defineProperty(Navigator.prototype, 'vibrate', {
+      configurable: true, writable: true, value: record,
+    })
+  } catch {
+    navigator.vibrate = record
+  }
+}
 const realRaf = window.requestAnimationFrame.bind(window)
 window.requestAnimationFrame = (cb) => {
   if (window.__probe.firstRafAt === null) window.__probe.firstRafAt = performance.now()
@@ -504,6 +540,33 @@ async function main() {
     }
     await touch('touchEnd', x2, y2)
     interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  // Read *after* the gestures, so what is printed is what the interaction
+  // produced rather than whatever the page did while loading.
+  if (process.argv.includes('--vibration')) {
+    const patterns = await evaluate('window.__probe.vibrations')
+    const total = patterns.reduce((sum, p) => sum + p.reduce((a, b) => a + b, 0), 0)
+    console.log('')
+    console.log(`vibration  ${patterns.length} pattern(s), ${total}ms of motor time`)
+    if (patterns.length === 0) {
+      console.log('           nothing — either no haptic intent fired, or the')
+      console.log('           constant it mapped to has no web pattern at all')
+    } else {
+      const counts = new Map()
+      for (const p of patterns) {
+        const key = `[${p.join(',')}]`
+        counts.set(key, (counts.get(key) || 0) + 1)
+      }
+      for (const [key, n] of counts) {
+        // The number that decides whether any of this is felt. A motor needs
+        // roughly 10-20ms to spin up; under that the pulse is issued and
+        // nothing reaches the hand.
+        const longest = Math.max(...key.slice(1, -1).split(',').map(Number))
+        const verdict = longest >= 10 ? 'feelable' : 'BELOW THE MOTOR FLOOR'
+        console.log(`           ${String(n).padStart(4)} x ${key.padEnd(20)} ${verdict}`)
+      }
+    }
   }
 
   const shot = arg('screenshot', null)

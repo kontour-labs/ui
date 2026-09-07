@@ -4,6 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import kotlin.math.abs
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * Fires one [FeedbackIntent.Tick] each time a drag crosses a detent.
@@ -24,10 +28,22 @@ import kotlin.math.abs
  * index changing* is once per crossing, which is what the user's finger is
  * doing.
  *
- * That is also the rate limit. A flick across twenty-four steps does fire
- * twenty-four ticks — that is what "every detent crossed" means, and it is what
- * a physical detent would do — but it can never fire more than once per frame,
- * because an index can only change once between two reads of it.
+ * ### One per detent is not a rate limit
+ *
+ * That used to be claimed here: a flick across twenty-four steps fires
+ * twenty-four ticks, "which is what a physical detent would do", bounded only by
+ * an index changing at most once per frame. Once per frame is sixty a second.
+ *
+ * A physical detent is bounded by something this is not: the wheel has mass, and
+ * the notches go past at a speed a finger set. A vibration motor has no such
+ * limit — the platform simply restarts it — so twenty-four ticks in a third of a
+ * second is not twenty-four detents, it is a continuous buzz. That is the
+ * infinite wheel picker's report ("less punchy"), and it is the same component
+ * that crosses the most detents per gesture.
+ *
+ * So there is a floor between ticks, [MinimumTickInterval]. Crossings inside it
+ * are dropped rather than queued: a tick reports *where the finger is now*, and
+ * a backlog of them arriving after the fact reports where it was.
  *
  * ```kotlin
  * val ticker = rememberDetentTicker()
@@ -38,9 +54,13 @@ import kotlin.math.abs
  * ```
  */
 @Stable
-class DetentTicker internal constructor(private val feedback: FeedbackDispatcher) {
+class DetentTicker internal constructor(
+    private val feedback: FeedbackDispatcher,
+    private val clock: TimeSource = TimeSource.Monotonic,
+) {
 
     private var last: Float = Float.NaN
+    private var lastFired: TimeMark? = null
 
     /**
      * Reports which detent the gesture is now on, ticking if it has changed.
@@ -55,8 +75,16 @@ class DetentTicker internal constructor(private val feedback: FeedbackDispatcher
             return
         }
         if (abs(index - last) >= 1f) {
-            feedback.perform(FeedbackIntent.Tick)
+            // `last` moves whether or not the tick fires. The alternative is
+            // that a dropped crossing leaves the ticker armed for it, so the
+            // *next* crossing fires immediately and the limit does nothing on a
+            // fast drag — which is the only place it is needed.
             last = index
+            val since = lastFired
+            if (since == null || since.elapsedNow() >= MinimumTickInterval) {
+                feedback.perform(FeedbackIntent.Tick)
+                lastFired = clock.markNow()
+            }
         }
     }
 
@@ -66,6 +94,31 @@ class DetentTicker internal constructor(private val feedback: FeedbackDispatcher
     /** Ends the gesture. The next [at] arms rather than fires. */
     fun reset() {
         last = Float.NaN
+        // Deliberately *not* clearing `lastFired`. Two gestures a few
+        // milliseconds apart are one continuous rattle to the hand, whatever
+        // they are to the code.
+    }
+
+    companion object {
+        /**
+         * The shortest gap between two ticks.
+         *
+         * 80ms, and it is derived from the pulse rather than tuned by ear.
+         * [FeedbackIntent.Tick] is 20ms of motor time on the web, so ticks 40ms
+         * apart would leave the motor running half the time — which is a buzz
+         * with gaps in it, not a sequence of taps. 20ms on and 60 off is a
+         * quarter duty cycle, and 12 a second is about where a hand stops
+         * resolving separate events anyway.
+         *
+         * Nothing a deliberate gesture does comes near it: the stepped slider
+         * measured on the built site crossed its detents about 160ms apart, so
+         * this never fires there. What it catches is the flung wheel, which
+         * crosses a row roughly every 8ms and was firing every one of them.
+         *
+         * It is a floor on the *feel*, not a budget. Nothing is queued — see
+         * [at].
+         */
+        val MinimumTickInterval: Duration = 80.milliseconds
     }
 }
 

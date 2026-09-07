@@ -288,7 +288,6 @@ fun TabBarScope.Tab(
 ) {
     val colours = Theme.colours
     val motion = Theme.motion
-    val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     // Bound out here because the `Row`s below bring their own receiver, and
     // `TabBarScope`'s is no longer reachable implicitly from inside them.
@@ -468,7 +467,6 @@ fun Modifier.tabSwipe(
 ): Modifier {
     if (!enabled || count <= 1) return this
 
-    val feedback = LocalFeedback.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val currentChange by rememberUpdatedState(onSelectedChange)
 

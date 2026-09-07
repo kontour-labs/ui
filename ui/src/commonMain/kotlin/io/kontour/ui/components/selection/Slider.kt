@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.horizontalDragOwning
@@ -138,7 +139,6 @@ fun Slider(
     val scope = rememberCoroutineScope()
     val colours = Theme.colours
     val motion = Theme.motion
-    val feedback = Feedback
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
 
@@ -168,9 +168,10 @@ fun Slider(
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val currentFinished by rememberUpdatedState(onValueChangeFinished)
 
-    // Remembered so the tick haptic fires once per step dragged across, not once per
-    // frame while the thumb sits on a step.
-    var lastStepIndex by remember { mutableFloatStateOf(Float.NaN) }
+    // Once per step dragged across, not once per frame while the thumb sits on a
+    // step — and no faster than a hand can tell two ticks apart, which is the
+    // ticker's own rate limit rather than anything this component decides.
+    val ticker = rememberDetentTicker()
 
     /**
      * Where the finger actually is, in fractions of the track. `NaN` when no
@@ -311,19 +312,26 @@ fun Slider(
      * crossed nothing. A tap is a tap: the value it sets is not a step the finger
      * felt on the way past.
      *
-     * The index is still recorded on a tap, and has to be. Without it
-     * `lastStepIndex` would still be `NaN` when the drag began, and the first
-     * pixel of movement would fire a tick for the detent the finger is already
-     * standing on.
+     * The index is still recorded on a tap, and has to be. Without it the ticker
+     * would still be unarmed when the drag began, and the first pixel of
+     * movement would fire a tick for the detent the finger is already standing
+     * on.
      */
     fun emit(newFraction: Float) {
         val next = snap(newFraction)
         if (steps > 0) {
             val index = ((next - valueRange.start) / range * (steps + 1)).roundToInt().toFloat()
-            if (lastStepIndex.isNaN() || abs(index - lastStepIndex) >= 1f) {
-                if (carrying) feedback.perform(FeedbackIntent.Tick)
-                lastStepIndex = index
-            }
+            // Through the shared ticker rather than the hand-rolled guard this
+            // used to keep. `DetentTicker` already described itself as the thing
+            // six components including this one had drifted apart from, which
+            // was only true of five of them; and it is where the rate limit
+            // lives, which a slider needs as much as a wheel does. A flick
+            // across a fifty-step slider crosses a detent every few
+            // milliseconds, and a tick is twenty milliseconds of motor time.
+            //
+            // A tap arms it instead of firing: `carrying` is false until the
+            // first delta, and a value set by landing on it has crossed nothing.
+            if (carrying) ticker.at(index) else { ticker.reset(); ticker.at(index) }
         }
         currentOnValueChange(next)
     }
@@ -435,7 +443,7 @@ fun Slider(
                         emit(dragFraction)
                     },
                     onEnd = {
-                        lastStepIndex = Float.NaN
+                        ticker.reset()
                         // Releasing hands the thumb back to the settled value, so
                         // it springs the last of the way onto the detent rather
                         // than staying wherever the finger let go.

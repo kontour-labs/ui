@@ -476,7 +476,7 @@ def uncursored_clicks() -> list[str]:
     return behind
 
 
-MAX_HAPTIC_SITES = 11
+MAX_HAPTIC_SITES = 9
 
 
 HAPTIC_CALL = re.compile(r"feedback\.perform\(")
@@ -486,7 +486,10 @@ def haptic_sites() -> list[str]:
     """Every place in `:ui` that asks for physical feedback, by file.
 
     A ceiling rather than a ban, and a ratchet like rules 4, 6 and 7 — the
-    number is allowed to go down and nothing else.
+    number is allowed to go down and nothing else. It went 11 to 9 in round 26,
+    when `Slider` and `RangeSlider` stopped hand-rolling their own detent guard
+    and went through the shared `DetentTicker` like everything else that snaps.
+    Two fewer call sites, the same two components firing.
 
     It exists because this drifted once, quietly and in one direction. "Make it
     tactile" was a good instruction; fifty-seven call sites was the result of
