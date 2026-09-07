@@ -17,6 +17,8 @@
 //
 //   node docs/measure-web.mjs [--dist DIR] [--seconds N] [--json OUT]
 //                             [--screenshot OUT.png] [--click X,Y]
+//                             [--touch-tap X,Y] [--touch-drag X1,Y1,X2,Y2[,STEPS[,HOLD]]]
+//                             [--mobile] [--dark] [--reduce-motion]
 //
 // ### What it can and cannot tell you
 //
@@ -45,6 +47,24 @@
 //
 //   node docs/measure-web.mjs --dist site --path '#/components/side-sheet' \
 //     --click 733,576 --screenshot after.png
+//
+// ### Driving a *finger*
+//
+// `--touch-tap X,Y` and `--touch-drag X1,Y1,X2,Y2[,STEPS[,HOLD]]` dispatch real
+// touch events, and `--mobile` is what makes them land: Compose registers its
+// listeners from `navigator.maxTouchPoints` as the page boots, so touch
+// emulation has to be on before navigation or every event falls on the floor.
+// `HOLD` is milliseconds of stillness before the finger moves, which is the only
+// way to reach anything behind a long press.
+//
+//   node docs/measure-web.mjs --dist site --mobile --path '#/components/reorderable-item' \
+//     --touch-drag 200,400,200,560,20,700 --screenshot after.png
+//
+// `--dark` emulates `prefers-color-scheme: dark`, which drives the *system* half
+// of the site's `settings.dark ?: systemDark`. It cannot reach the in-app
+// toggle, and that gap is itself worth knowing about: `styles.css` follows the
+// media query alone, so an app-dark page on an OS-light machine has a white
+// ground behind a dark application.
 //
 // What that reports for the side sheet, on this software rasteriser:
 //
@@ -127,6 +147,32 @@ const PATH = arg('path', '')
  * the same.
  */
 const REDUCE_MOTION = process.argv.includes('--reduce-motion')
+
+/**
+ * Emulate `prefers-color-scheme: dark`.
+ *
+ * Note what this does and does not reach. The site reads dark from
+ * `settings.dark ?: systemDark`, so this drives the *system* half — the same
+ * path a visitor with a dark OS takes. It does not touch the in-app toggle, and
+ * the difference between the two is itself a thing worth measuring: `styles.css`
+ * follows `prefers-color-scheme` alone, so an app-dark page on an OS-light
+ * machine has a white ground behind a dark application.
+ */
+const DARK = process.argv.includes('--dark')
+
+/**
+ * Emulate a phone: a phone's viewport, a phone's pixel ratio, and a touchscreen.
+ *
+ * The touchscreen is the part that matters and the part that has to be set
+ * before the page loads. Compose decides which listeners to register from
+ * `navigator.maxTouchPoints` as it starts, so a `Input.dispatchTouchEvent`
+ * arriving at a page that booted without touch emulation lands on nothing at
+ * all — which looks exactly like the bug you were trying to reproduce.
+ */
+const MOBILE = process.argv.includes('--mobile')
+
+/** A phone, roughly. Nothing here is load-bearing beyond being narrow and dense. */
+const PHONE = { width: 390, height: 844, deviceScaleFactor: 3, mobile: true }
 
 async function serve(root) {
   const cache = new Map()
@@ -329,9 +375,24 @@ async function main() {
     }, sessionId)
   }
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE }, sessionId)
-  if (REDUCE_MOTION) {
-    await cdp.send('Emulation.setEmulatedMedia', {
-      features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+
+  // One call, not one per flag. `Emulation.setEmulatedMedia` *replaces* the
+  // feature list rather than merging into it, so two calls leave only the
+  // second one's answer — and the flag that lost is silently ignored, which is
+  // the failure mode this whole script exists to avoid.
+  const media = []
+  if (REDUCE_MOTION) media.push({ name: 'prefers-reduced-motion', value: 'reduce' })
+  if (DARK) media.push({ name: 'prefers-color-scheme', value: 'dark' })
+  if (media.length) {
+    await cdp.send('Emulation.setEmulatedMedia', { features: media }, sessionId)
+  }
+
+  // Before `Page.navigate`, deliberately — see [MOBILE].
+  if (MOBILE) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', PHONE, sessionId)
+    await cdp.send('Emulation.setTouchEmulationEnabled', {
+      enabled: true,
+      maxTouchPoints: 1,
     }, sessionId)
   }
 
@@ -387,14 +448,61 @@ async function main() {
   const resources = await evaluate(`performance.getEntriesByType('resource').map(r =>
     ({ name: r.name, size: r.transferSize, decoded: r.decodedBodySize, start: r.startTime, end: r.responseEnd }))`)
 
+  /**
+   * One finger, on the glass.
+   *
+   * `Input.dispatchTouchEvent` takes the *current* set of touch points, not an
+   * event about one of them — so a press is a list of one, a move is that same
+   * list with a new position, and a release is the empty list. Getting that
+   * wrong produces a gesture the page sees as starting and never finishing,
+   * which is indistinguishable from the application ignoring it.
+   */
+  const touch = async (type, x, y) => {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }],
+    }, sessionId)
+  }
+
+  /** Real milliseconds. A long press is a wall-clock timeout, not a frame count. */
+  const wait = (ms) => new Promise((done) => setTimeout(done, ms))
+
   const clickAt = arg('click', null)
+  const tapAt = arg('touch-tap', null)
+  const dragAlong = arg('touch-drag', null)
   let interaction = null
+
   if (clickAt) {
     const [x, y] = clickAt.split(',').map(Number)
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
     for (const type of ['mousePressed', 'mouseReleased']) {
       await cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 }, sessionId)
     }
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  if (tapAt) {
+    const [x, y] = tapAt.split(',').map(Number)
+    await touch('touchStart', x, y)
+    await wait(40)
+    await touch('touchEnd', x, y)
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  // `--touch-drag x1,y1,x2,y2[,steps[,hold]]`. `hold` is milliseconds to keep
+  // the finger still before it moves, which is the only way to reach anything
+  // behind a long press.
+  if (dragAlong) {
+    const [x1, y1, x2, y2, steps = 20, hold = 0] = dragAlong.split(',').map(Number)
+    await touch('touchStart', x1, y1)
+    if (hold > 0) await wait(hold)
+    for (let i = 1; i <= steps; i++) {
+      await touch('touchMove', x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps)
+      // A frame between moves. Dispatched back to back, Compose sees one jump
+      // and the velocity tracker has nothing to work with.
+      await wait(16)
+    }
+    await touch('touchEnd', x2, y2)
     interaction = await evaluate(`window.__sample(1500)`)
   }
 
@@ -428,7 +536,9 @@ async function main() {
   console.log(
     `  chromium ${version.Browser}, software WebGL, cache disabled, gzip on, ` +
       (link ? `${NETWORK} (${(link.download * 8 / 1e6).toFixed(1)} Mbit/s, ${link.latency}ms)` : 'unthrottled') +
-      (REDUCE_MOTION ? ', prefers-reduced-motion: reduce' : ''),
+      (REDUCE_MOTION ? ', prefers-reduced-motion: reduce' : '') +
+      (DARK ? ', prefers-color-scheme: dark' : '') +
+      (MOBILE ? `, ${PHONE.width}x${PHONE.height} touch` : ''),
   )
   console.log('')
   console.log('  LOAD')
