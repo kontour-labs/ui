@@ -129,9 +129,60 @@ internal fun Modifier.horizontalDragOwning(
     onDelta: (Float) -> Unit,
     onEnd: () -> Unit,
 ): Modifier {
+    val currentDelta by rememberUpdatedState(onDelta)
+    return ownedDrag(enabled, interactionSource, scope, claimsOn, onStart, onEnd) { delta ->
+        if (delta.x != 0f) currentDelta(delta.x)
+    }
+}
+
+/**
+ * The same drag, both axes.
+ *
+ * For a control that can be sent away in more than one direction — a toast,
+ * which dismisses toward the edge it is anchored to *or* sideways. Everything in
+ * [horizontalDragOwning]'s note applies unchanged, including the cost: a control
+ * that owns its drag cannot be scrolled through.
+ *
+ * The horizontal one is the common case and keeps the shorter name; this exists
+ * because the loop underneath was already consuming both axes and forwarding
+ * one of them.
+ */
+@Composable
+internal fun Modifier.freeDragOwning(
+    enabled: Boolean,
+    interactionSource: MutableInteractionSource?,
+    scope: CoroutineScope,
+    claimsOn: DragClaim = DragClaim.Press,
+    onStart: (Offset) -> Unit,
+    onDelta: (Offset) -> Unit,
+    onEnd: () -> Unit,
+): Modifier {
+    val currentDelta by rememberUpdatedState(onDelta)
+    return ownedDrag(enabled, interactionSource, scope, claimsOn, onStart, onEnd) { delta ->
+        if (delta != Offset.Zero) currentDelta(delta)
+    }
+}
+
+/**
+ * The loop both of the above are.
+ *
+ * Takes the whole [Offset] and lets the caller decide what to do with it, which
+ * is the only difference between them.
+ */
+@Composable
+private fun Modifier.ownedDrag(
+    enabled: Boolean,
+    interactionSource: MutableInteractionSource?,
+    scope: CoroutineScope,
+    claimsOn: DragClaim,
+    onStart: (Offset) -> Unit,
+    onEnd: () -> Unit,
+    onDelta: (Offset) -> Unit,
+): Modifier {
     val currentStart by rememberUpdatedState(onStart)
     val currentDelta by rememberUpdatedState(onDelta)
     val currentEnd by rememberUpdatedState(onEnd)
+
     return if (!enabled) this else this.pointerInput(enabled, interactionSource, claimsOn) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
@@ -182,7 +233,7 @@ internal fun Modifier.horizontalDragOwning(
                 // the scroller would otherwise use to win the race, and a second
                 // finger on the same control is a second way to lose it.
                 event.changes.forEach { it.consume() }
-                if (delta.x != 0f) currentDelta(delta.x)
+                currentDelta(delta)
             }
 
             press?.let { started ->

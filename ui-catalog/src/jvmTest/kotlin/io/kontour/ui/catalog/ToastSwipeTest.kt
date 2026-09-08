@@ -3,11 +3,17 @@ package io.kontour.ui.catalog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastHostState
@@ -50,8 +56,8 @@ class ToastSwipeTest {
 
     @Test
     fun aDragReleasedShortOfTheThresholdReturnsToWhereItStarted() {
-        val short = swipe(travel = -30f)
-        val long = swipe(travel = -60f)
+        val short = swipe(travel = Offset(0f, -30f))
+        val long = swipe(travel = Offset(0f, -60f))
 
         assertEquals(
             short.before, short.after,
@@ -80,7 +86,7 @@ class ToastSwipeTest {
     fun aSwipeTowardTheAnchoredEdgeTakesTheToastAway() {
         // A bottom-anchored stack dismisses downward. Well past `SwipeAway`,
         // which is a third of the card's own height.
-        val far = swipe(travel = 120f)
+        val far = swipe(travel = Offset(0f, 120f))
 
         assertTrue(
             far.gone,
@@ -106,8 +112,8 @@ class ToastSwipeTest {
         // card, and nothing used to put it back when that card was dismissed —
         // so every survivor stayed displaced by however far the finger went, for
         // as long as the stack lived.
-        val near = swipe(travel = 120f, toasts = 2)
-        val far = swipe(travel = 260f, toasts = 2)
+        val near = swipe(travel = Offset(0f, 120f), toasts = 2)
+        val far = swipe(travel = Offset(0f, 260f), toasts = 2)
 
         assertTrue(
             near.gone && far.gone,
@@ -134,6 +140,116 @@ class ToastSwipeTest {
         )
     }
 
+    @Test
+    fun aToastInsideAScrollerStillTakesItsOwnDrag() {
+        // The docs site puts every demo inside a vertical `LazyColumn`, and a
+        // toast drags along the same axis that list scrolls on.
+        //
+        // `DragOwnershipTest` exempts `Toast` from the 45-degree race on the
+        // grounds that "a vertical drag inside a vertical scroller is decided by
+        // depth rather than by slope — the child is asked first". That is a
+        // claim about Compose's arbitration, measured on the JVM against a bare
+        // `Modifier.draggable` in a list. This asks it of a real toast, inside a
+        // real overlay host, inside a real list — which is what the reporter has
+        // in front of them.
+        var dismissed = false
+        var scrolled = 0
+
+        Scene(width = 600, height = ScrollerScene) {
+            val state = remember { ToastHostState() }
+            val list = rememberLazyListState()
+            LazyColumn(state = list, modifier = Modifier.fillMaxSize().background(Color.White)) {
+                item {
+                    Box(Modifier.fillMaxWidth().height(StageHeight)) {
+                        OverlayHost(Modifier.fillMaxSize()) {
+                            Box(Modifier.fillMaxSize())
+                            ToastHost(state, position = ToastPosition.Bottom)
+                        }
+                    }
+                }
+                item { Box(Modifier.fillMaxWidth().height(FillerHeight)) }
+            }
+            LaunchedEffect(Unit) { state.show("Saved for offline", durationMillis = 0) }
+            LaunchedEffect(Unit) {
+                snapshotFlow { list.firstVisibleItemScrollOffset }
+                    .collect { scrolled = it }
+            }
+        }.use { scene ->
+            val settled = scene.frames(60)
+            val startHeight = settled.stackHeight()
+            // The press has to land on the card. A stage taller than the scene
+            // puts a bottom-anchored toast below the viewport, `stackBottom`
+            // returns zero, and the gesture is dispatched off the top of the
+            // window — which moves nothing and reads exactly like a drag that
+            // was refused. That is how the first version of this failed.
+            assertTrue(
+                startHeight > 0,
+                "no toast is on screen to drag: the stage is ${StageHeight} in a " +
+                    "${ScrollerScene}px scene",
+            )
+            val x = settled.width / 2f
+            val y = settled.stackBottom() - Inside.toFloat()
+            scene.press(Offset(x, y))
+            for (step in 1..Steps) {
+                scene.move(Offset(x, y + DismissTravel * step / Steps))
+            }
+            scene.release(Offset(x, y + DismissTravel))
+            dismissed = scene.frames(SettleFrames).stackHeight() < startHeight
+        }
+
+        assertTrue(
+            dismissed,
+            "a toast inside a vertical list did not go away when swiped " +
+                "${DismissTravel.toInt()}px straight at the edge it dismisses to, " +
+                "and the list scrolled ${scrolled}px instead. The exemption in " +
+                "`DragOwnershipTest` — that a drag on the scroller's own axis is " +
+                "decided by depth rather than by slope — does not hold here",
+        )
+    }
+
+    @Test
+    fun everyDirectionSendsAToastAwayExceptTheOneAimedBackIn() {
+        // Decided with the reporter: toward the anchored edge or sideways, with
+        // 45 degrees of slack around each. Those three cones meet, and the only
+        // direction left over is the quarter pointing back at the content.
+        //
+        // Swept as eight compass points at the same distance, for both anchors,
+        // so the shape of the rule is visible in one failure rather than one
+        // point of it. `up` is away from the edge for a bottom stack, and the
+        // two diagonals beside it are inside the same quarter.
+        for (position in listOf(ToastPosition.Bottom, ToastPosition.Top)) {
+            val away = if (position == ToastPosition.Bottom) -1f else 1f
+            val cases = listOf(
+                "straight away" to Offset(0f, away),
+                "away and left" to Offset(-0.6f, away),
+                "away and right" to Offset(0.6f, away),
+                "straight at the edge" to Offset(0f, -away),
+                "at the edge, angled" to Offset(0.6f, -away),
+                "left" to Offset(-1f, 0f),
+                "right" to Offset(1f, 0f),
+                "sideways, angled away" to Offset(1f, away * 0.6f),
+            )
+
+            val wrong = cases.mapNotNull { (name, direction) ->
+                val gone = swipe(
+                    travel = direction * DismissTravel,
+                    position = position,
+                ).gone
+                // Only the first three are inside the refused quarter.
+                val shouldGo = !name.startsWith("away") && name != "straight away"
+                if (gone == shouldGo) null
+                else "$name ${if (gone) "dismissed" else "came back"}"
+            }
+
+            assertTrue(
+                wrong.isEmpty(),
+                "on a $position stack: ${wrong.joinToString("; ")}. Everything but " +
+                    "the quarter aimed back into the screen is supposed to send a " +
+                    "toast away, and that quarter is supposed to return",
+            )
+        }
+    }
+
     private class Swiped(
         /** Where the top of the stack sat before the gesture. */
         val before: Int,
@@ -151,7 +267,11 @@ class ToastSwipeTest {
      * Positive is downward, which for the default bottom anchor is the way it
      * dismisses.
      */
-    private fun swipe(travel: Float, toasts: Int = 1): Swiped {
+    private fun swipe(
+        travel: Offset,
+        toasts: Int = 1,
+        position: ToastPosition = ToastPosition.Bottom,
+    ): Swiped {
         var before = 0
         var after = 0
         var startHeight = 0
@@ -161,7 +281,7 @@ class ToastSwipeTest {
             val state = remember { ToastHostState() }
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Color.White))
-                ToastHost(state, position = ToastPosition.Bottom)
+                ToastHost(state, position = position)
                 LaunchedEffect(Unit) {
                     // Pinned, so the frame is settled rather than mid-timer and
                     // nothing expires underneath the gesture.
@@ -178,13 +298,18 @@ class ToastSwipeTest {
             // scene, 240px below the window, which moves nothing and reads
             // exactly like a control refusing to be dragged.
             val x = settled.width / 2f
-            val y = settled.stackBottom() - Inside.toFloat()
-            scene.press(Offset(x, y))
+            val y = if (position == ToastPosition.Bottom) {
+                settled.stackBottom() - Inside.toFloat()
+            } else {
+                settled.stackTop() + Inside.toFloat()
+            }
+            val from = Offset(x, y)
+            scene.press(from)
             // No frame between the moves. See the note on the class.
             for (step in 1..Steps) {
-                scene.move(Offset(x, y + travel * step / Steps))
+                scene.move(from + travel * (step.toFloat() / Steps))
             }
-            scene.release(Offset(x, y + travel))
+            scene.release(from + travel)
 
             val rested = scene.frames(SettleFrames)
             after = rested.stackTop()
@@ -238,5 +363,17 @@ class ToastSwipeTest {
          * times over, and a card still moving at the end would fail as loudly.
          */
         const val SettleFrames = 40
+
+        /** As tall as the site's demo stages. */
+        val StageHeight = 180.dp
+
+        /** Enough below the stage that the list has somewhere to scroll to. */
+        val FillerHeight = 2_000.dp
+
+        /** Well past `SwipeAway`, which is a third of the card's own height. */
+        const val DismissTravel = 120f
+
+        /** Tall enough to hold the stage and still have a viewport under it. */
+        const val ScrollerScene = 700
     }
 }

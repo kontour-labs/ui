@@ -84,12 +84,26 @@ up by `ToastDefaults.ClearedGrace` of their own duration, capped at a full
 lifetime. Expiring does not — routing both through one path would have every
 expiry extend every other toast, and a stack that never empties.
 
-**Dragging the front card the way it does not dismiss is a rubber band**, easing
-up to `ToastDefaults.RubberBand` of its own height and never quite arriving, and
-**the pills travel with it**. Both were reported together: the card resisted by a
-flat third of every delta, which converges to a fixed point within two or three
-events and then is a wall, and the pills it is the front of stayed where they
-were while it moved.
+**Every direction sends a toast away except the one aimed back into the screen.**
+Push it toward the edge it is anchored to, or sideways either way, and it goes;
+push a bottom toast *up*, or a top one *down*, and it resists and springs back.
+That single rule is what a 45-degree cone around the anchored edge plus a cone
+around each side add up to — three cones that meet, leaving one quarter over.
+
+**The refused quarter is a rubber band**, easing up to `ToastDefaults.RubberBand`
+of the card's own height and never quite arriving, and **the pills travel with
+it**. Both were reported together: the card resisted by a flat third of every
+delta, which converges to a fixed point within two or three events and then is a
+wall, and the pills it is the front of stayed where they were while it moved.
+Sideways is not banded — a way out must not feel like a refusal.
+
+**A toast owns its drag.** Once a finger on one has travelled a pixel, that
+gesture is the toast's and no scroller underneath can take it back. The cost is
+the one `horizontalDragOwning` names: a page cannot be scrolled by a finger that
+started on a toast. For a small pill that is on screen for two and a half seconds
+and has two ways out of the way, that is the right trade — and without it a
+sideways swipe inside a vertical list is a race decided by the angle of the first
+few pixels.
 
 ---
 
