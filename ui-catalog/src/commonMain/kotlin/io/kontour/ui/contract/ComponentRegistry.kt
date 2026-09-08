@@ -1646,6 +1646,28 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             underContract = false,
             renderHeight = 140,
+            states = listOf(
+                // One line and a dismiss, which is the shape that was broken and
+                // the shape nothing in this repository had a picture of.
+                //
+                // The specimen below is a title *and* a message wrapping to three
+                // lines, so the text is the tallest thing in the row and sets its
+                // height. That is the one arrangement in which a top-aligned body
+                // and a centred one land in the same place — so the defect the
+                // reporter saw could not appear in any golden, at any theme, at
+                // any width. Here the dismiss button is the tallest child and the
+                // message has to be centred against it.
+                RenderState("dismissible", height = 96) { modifier ->
+                    Banner(
+                        modifier = modifier.widthIn(max = SpecimenProseWidth),
+                        tone = BannerTone.Danger,
+                        onDismissRequest = {},
+                        dismissIcon = Tabler.Outline.X,
+                    ) {
+                        +"Couldn't reach the server."
+                    }
+                },
+            ),
         ) { modifier, _, _ ->
             // Title, message, leading icon and a dismiss — all four, because a
             // banner with only a message is an `AnimatedBanner` and the two

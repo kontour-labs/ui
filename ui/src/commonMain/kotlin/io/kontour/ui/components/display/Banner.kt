@@ -108,6 +108,26 @@ fun Banner(
             .border(BorderStroke(Theme.sizing.borderWidth, colours.border), shape)
             .padding(Theme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        // Everything in the row, the message included.
+        //
+        // This used to be the default `Alignment.Top`, with the icon and the
+        // dismiss each opting out of it — and the comment on the dismiss below
+        // defended that: "a body that centred itself would drift as the text
+        // grew". **It cannot.** Once the body is the tallest child in the row,
+        // centring it and topping it are the same placement, so there is nothing
+        // there to drift.
+        //
+        // What the top alignment did instead was hand the row's height to
+        // whichever *other* child was tallest, and on a one-line banner that is
+        // the dismiss button. `minimumTouchTarget` grows a measured size rather
+        // than a hit rect, and the platform minimum is 44dp on the web against
+        // 24dp on a desktop — so the same banner put its message 14dp above
+        // centre on a phone and 6dp above centre on a laptop. Reported as "the
+        // text in banner is not centred vertically on mobile web", and the
+        // platform in that sentence is why it lasted: every golden in the
+        // repository is taken at the JVM's 24dp, on a specimen whose text wraps
+        // to three lines and therefore sets the height itself.
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         CompositionLocalProvider(LocalContentColour provides colours.onContainer) {
             slots.leading?.let { leading ->
@@ -153,15 +173,14 @@ fun Banner(
                     onClick = onDismissRequest,
                     // Centred in the banner, not sitting on the title's line.
                     //
-                    // The row itself still aligns to the top, because the
-                    // *message* does: a title and its supporting line stack from
-                    // the top of the banner, and a body that centred itself
-                    // would drift as the text grew. The dismiss belongs to the
-                    // banner rather than to any line of it, and inheriting the
-                    // row's alignment put it up in the corner of a three-line
-                    // banner, level with the title and a long way from the
-                    // middle of the box. Same reasoning as the leading icon
-                    // above, and now the same answer.
+                    // The dismiss belongs to the banner rather than to any line
+                    // of it: inheriting a top alignment put it up in the corner
+                    // of a three-line banner, level with the title and a long way
+                    // from the middle of the box.
+                    //
+                    // Redundant now that the row centres everything, and kept
+                    // because it says what this button wants rather than what the
+                    // row happens to do. Same reasoning as the leading icon.
                     modifier = Modifier.align(Alignment.CenterVertically),
                     size = ButtonSize.XSmall,
                 )

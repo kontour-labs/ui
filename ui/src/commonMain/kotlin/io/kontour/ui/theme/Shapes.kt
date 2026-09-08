@@ -52,9 +52,9 @@ val CapsuleCap: Dp = 18.dp
  * | [medium] | 22dp | Cards, list groups, menus |
  * | [large] | 28dp | Dialogs, large cards |
  * | [extraLarge] | 34dp | Sheets, hero panels |
- * | [control] | half its height, up to [CapsuleCap] | Buttons, chips, FABs, switches |
+ * | [control] | half its height, up to [CapsuleCap] | Buttons, chips, switches |
  * | [field] | half its height, up to [CapsuleCap] | Text fields, selects, time fields |
- * | [pill] | fully round | Avatars, scrollbars, swatches, day cells |
+ * | [pill] | fully round | Avatars, scrollbars, swatches, day cells, FABs |
  * | [sheet] | 34dp top only | Bottom sheets |
  * | [sideSheet] | 34dp leading only | Side sheets |
  *

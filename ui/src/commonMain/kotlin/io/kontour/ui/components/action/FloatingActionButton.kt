@@ -229,7 +229,22 @@ fun ExtendedFloatingActionButton(
     loadingLabel: String = Theme.strings.loading,
     expanded: Boolean = true,
     size: FabSize = FabSize.Medium,
-    shape: Shape = Theme.shapes.control,
+    /**
+     * `pill`, and it is what makes the collapse a morph rather than a resize.
+     *
+     * The same value the plain [FloatingActionButton] takes, and for the same
+     * reason: a FAB is round because of what it is. `control` caps at
+     * `CapsuleCap`, so it drew an 18dp corner on a 56dp box — a rounded square
+     * collapsed and a rounded rectangle open, on a button sitting next to a plain
+     * FAB that is a circle. Round 26 moved the library's circles onto `pill`
+     * precisely so the cap could not reach them and this one was missed.
+     *
+     * Nothing else is needed for the morph the collapse was always supposed to
+     * have. A 50% corner resolves against the shorter side, and the collapse
+     * already animates the *width* — so the corner tracks it frame by frame: a
+     * capsule while the label is out, a circle the moment the box is square.
+     */
+    shape: Shape = Theme.shapes.pill,
     containerColour: Color = Theme.colours.primary,
     contentColour: Color = Theme.colours.onPrimary,
     border: BorderStroke? = null,
