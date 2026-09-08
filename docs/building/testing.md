@@ -365,6 +365,180 @@ Three causes, one symptom, and only the first was in the plan. **A measurement
 that improves but does not resolve is evidence that the model is incomplete**,
 not evidence that the fix worked.
 
+### And when it does reach zero, check that it reached zero where the defect is
+
+The same report came back a fourth time. All three causes above are in the
+**band** — the strip the receding content vacates — and the test written for them
+samples row 5, which is in the band. It reports a gap of **0** and it is telling
+the truth.
+
+The reporter was describing the other side of the same edge. A blurred layer with
+a `scale` anywhere above it comes out partially transparent for about one and a
+half blur radii *inside* its own boundary, and the test had no samples there at
+all. Move the strip to mid-height across the content's own edge, keep the same
+white-page-against-black-page comparison, and it reads:
+
+```
+58, 61, 27, 66, 22, 55, 41
+```
+
+one number per frame of the sheet arriving. **The alternation is the report.**
+The reporter said flashing rather than glowing, and it flickers because the
+content's edge lands on a different subpixel each frame. A test that sampled one
+frame could have found the glow; only one that samples every frame finds the
+flash.
+
+`TileMode.Clamp` is the documented answer to a blur fading its own edge, and it
+does not work through a scale. Six arrangements were measured — blur alone; blur
+and scale on one layer; the scale on an outer layer with the blur on an inner
+one; the blur forced to `CompositingStrategy.Offscreen`; with a rectangle clip;
+with the squircle — and every one with a scale above the blur produced the
+identical fade, byte for byte, while every one without produced none at all. That
+is what turned the fix from "rearrange the layers" into "put something opaque
+behind it" — after two rearrangements had already been written and reverted for
+moving the number not at all.
+
+**A passing test is a claim about the pixels it looked at**, and nothing more.
+Widening the old test to cover both regions would have made one failure stand for
+either cause, so the new one is separate, and the old one's KDoc now says what it
+does not cover.
+
+## Three fixes, no number moved, all three reverted
+
+Round 27's text-selection report — *"half of the options in the text selection
+toolbar disappear when you select one option, and the action doesn't even
+work"* — is the clearest case this repository has of the rule earning its keep.
+Three separate fixes were written, built, driven against the real site, and
+reverted, because the number they were aimed at did not move.
+
+### What is actually true, measured
+
+Two implementations of the same four verbs, and they fail in different halves.
+
+| | selection toolbar | right-click menu |
+|---|---|---|
+| the item's handler runs | **yes** — Cut removes the word | **no** — Cut leaves it |
+| a write reaches the browser | **no** | **no** |
+| after the click | bar stays up, verbs that need a selection still shown | menu re-renders with half its items, or closes |
+
+And the framework's own clipboard does not write at all on this target:
+
+```
+window.isSecureContext                              true
+navigator.clipboard.write / .writeText              function
+ClipboardItem                                       function
+selection-toolbar Copy → ClipboardItems built       1
+selection-toolbar Copy → writes reaching the browser 0
+right-click Copy (the synchronous ClipboardManager)  0
+console                                             nothing
+```
+
+The first three rows are why this is a defect rather than a browser policy, and
+the last is why it needed a harness change to see: nothing throws and nothing
+warns. An entry is built with the text in it, and then nothing happens.
+
+### The probe that settled it, and why the obvious one could not
+
+`--clipboard` records every clipboard *call*. That cannot separate "the write was
+refused" from "the write was never attempted", and those need opposite fixes. So
+the recorder now also proxies `navigator.clipboard` and records every property
+**read**, and counts `ClipboardItem` constructions.
+
+That is what produced the finding. `write` and `writeText` are read while the
+toolbar is being built — feature detection, and it passes — and **the counts are
+identical whether or not a verb is then tapped**. The tap adds one
+`ClipboardItem` and nothing else. So the write is not refused; the code that
+would perform it is never entered.
+
+`--console` went in for the same reason. Compose's web clipboard signals failure
+by `console.warn` and a normal return, so a run that records nothing on the
+console has ruled out every branch where the framework decided the browser has no
+clipboard.
+
+### Corroborated against the compiled framework, not only the probe
+
+The probe's conclusion — that the code which would perform the write is never
+entered — is an inference from property reads. It can be checked directly,
+because the framework's own JavaScript is sitting in `build/`.
+
+`setClipEntry` in `compose-multiplatform-core-compose-ui-ui.js` has **exactly
+three exits**, and its source path is embedded in the bundle
+(`compose/ui/ui/src/jsMain/kotlin/androidx/compose/ui/platform/PlatformClipboard.js.kt`):
+
+```js
+if (get_isFullClipboardApiSupported()) {
+  … nativeClipboard.write(clipEntry.clipboardItems_1) …          // exit 1
+} else if (isFallbackWriteTextApiAvailable()) {
+  … nativeClipboard.writeText(text) …                            // exit 2
+} else {
+  console.warn("The browser doesn't support Clipboard.write() and Clipboard.writeText()");
+}                                                                 // exit 3
+```
+
+The run recorded **no `write`, no `writeText`, and nothing on the console**. All
+three exits are accounted for and none was taken, so the function was not
+entered. That is no longer an inference.
+
+### A second, separate trap in the same file, found on the way
+
+The predicate that decides whether Copy and Cut are **drawn** is not the one that
+decides whether the write **happens**, and only the second checks the origin.
+From the deployed import object:
+
+```js
+'androidx.compose.foundation.internal.isClipboardWriteSupported' :
+    () => Boolean(navigator.clipboard && (navigator.clipboard.write || navigator.clipboard.writeText)),
+'androidx.compose.ui.platform.isSecureContext' :
+    () => window.isSecureContext === true,
+```
+
+and the two lazies the write branches on are `isSecureContext() && …`.
+
+So on **any origin that is not a secure context** — plain http, a LAN address, a
+`file://` page — `navigator.clipboard` still exists, Copy and Cut are offered,
+their callbacks are non-null, `cutWithResult()` deletes the text, and the write
+falls through to the `console.warn`. A user loses a word and gains nothing.
+
+That is not what is happening here — this harness serves over `127.0.0.1`, which
+*is* a secure context, and the site deploys over https — but it is a real trap
+for anyone serving the docs over plain http on a LAN to test on a phone, which is
+the obvious thing to do. Worth knowing before it is diagnosed a second time.
+
+### The three that were reverted
+
+1. **Detach the write from the caller's coroutine.** Foundation copies by
+   launching undispatched: it collapses the selection and builds the entry
+   inline, then suspends. Collapsing the selection is what dismisses the
+   toolbar, so the suspending half looked like it was being cancelled. A
+   `Clipboard` wrapper that handed the write to a longer-lived scope and returned
+   without suspending was written, unit-tested against a cancelled caller —
+   *that* test passed both ways round — and changed nothing on the site.
+2. **A platform `writeText` of our own**, `expect`/`actual` across all four
+   source sets, called where the library already has the text. It compiles for
+   js and wasmJs, and `navigator.clipboard.writeText` demonstrably works from
+   the same page. It changed nothing, because its call site is inside a handler
+   that does not run.
+3. **`trapFocus = false` on the context menu.** `AnchoredDropdownMenu` hard-codes
+   `trapFocus = true`, `OverlayHost` ORs it across the stack, and `TextToolbar`'s
+   own KDoc describes exactly this destroying a menu that floats over a live
+   field. Same symptom, same shape, and it changed nothing.
+
+Each was plausible, each had a mechanism written out, and each was wrong. Two of
+them would have shipped as "fixes" under any process that stopped at *does it
+compile and does it look right*.
+
+### What to take from it
+
+**A fix aimed at a number is falsifiable; a fix aimed at a story is not.** The
+story here — a suspending write dropped when the toolbar goes away — survived
+three rounds of reasoning and one unit test, and died the moment it was asked for
+a number on the reporter's own platform.
+
+The next attempt starts from the table above rather than from a hypothesis. The
+open question is narrow and stated: **why does a click on a menu item not run its
+handler on web, when the same click on a selection-toolbar button does?** Both
+draw through the same overlay host and the same `Button`.
+
 ## A gesture the harness cannot deliver proves nothing either way
 
 Round 26 tried to test that a text box raises the library's selection toolbar,

@@ -70,6 +70,27 @@ only thing there. A pill has no such direction — sliding that way takes it und
 the cards in front, so the last frame it is drawn on is a full-size one and the
 next frame it is simply gone.
 
+Both leave on the **exit** easing rather than the house one. That is not a
+detail: `Motion.standard` is a hard ease-out, three quarters done one frame in,
+and on a departure it puts a nine-frame tween into the first two. The shrink was
+running perfectly and finishing before anyone could see it — reported, twice, as
+a pill with no animation at all.
+
+**Clearing one by hand buys the others time.** Every toast counts down wherever
+it sits in the stack, which is deliberate; the consequence is that working
+through the ones in front spends the time of the one behind them, so reaching for
+a toast deep in a stack is what takes it away. A dismissal now tops the rest back
+up by `ToastDefaults.ClearedGrace` of their own duration, capped at a full
+lifetime. Expiring does not — routing both through one path would have every
+expiry extend every other toast, and a stack that never empties.
+
+**Dragging the front card the way it does not dismiss is a rubber band**, easing
+up to `ToastDefaults.RubberBand` of its own height and never quite arriving, and
+**the pills travel with it**. Both were reported together: the card resisted by a
+flat third of every delta, which converges to a fixed point within two or three
+events and then is a wall, and the pills it is the front of stayed where they
+were while it moved.
+
 ---
 
 ## Accessibility

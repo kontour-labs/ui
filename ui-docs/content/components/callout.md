@@ -12,11 +12,24 @@ Callout {
 }
 ```
 
-**The accent is the leading edge, not a bar near it.** It is drawn flush against
-the container and clipped to the container's own outline, so it narrows to
-nothing where the corner turns away — an edge catching the light rather than a
-rule standing beside the text. It used to be a rounded bar set in from the edge,
-which read as a tally mark someone had left in the box.
+**It is a [`Banner`](banner.md) that cannot go away.** Same `BannerTone`, decided
+by the same table, so a warning callout and a warning banner are the same ground,
+the same border and the same ink. Two things that both mean "pay attention to
+this" should not look like they came from two different libraries.
+
+**The `tone` also picks the icon**, which is the one place a callout has to differ
+from a banner. A banner takes its icon from the call site, because the thing it is
+a message *about* is the caller's to name. A callout often has no caller worth
+asking — a documentation site turns every markdown blockquote into one — so the
+tone supplies a default and a caller with an opinion still passes its own. Pass
+`icon = null` for tint alone.
+
+**There is no accent rule, after three attempts at one.** It was a 3dp band down
+the leading edge, and every version of it lost to the container's own corner:
+flush inside the clip it tapered away at both ends, stroked around the whole
+outline it read as a "C" bracketing the text, and indented to dodge both it
+looked like a tally mark left in the box. A tint and a glyph — which the
+component beside it was already using — say the same thing and survive a corner.
 
 ---
 
@@ -31,5 +44,9 @@ about *now* is a [`Banner`](banner.md); anything about something they just did i
 a [`Toast`](toast.md). A callout is for a note in the middle of a page that is
 worth setting apart visually and no more urgent than its neighbours.
 
-`accent` and `container` change colour only. Do not use colour alone to carry
-severity — WCAG 1.4.1 — so if the distinction matters, say it in the words.
+**The icon is why the tone is not colour alone.** WCAG 1.4.1 rules out carrying
+information in colour by itself, and a tint is exactly that — so the mark is the
+second channel, and it is on by default for that reason rather than for
+decoration. It is `contentDescription = null`, deliberately: the tone belongs in
+the words, and a reader is not helped by hearing "warning" read out before a
+sentence that already says so. If the severity matters, write it.

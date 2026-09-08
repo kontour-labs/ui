@@ -65,6 +65,20 @@ enum class BackdropStyle {
  */
 private const val SeamOverlap = 1f
 
+/**
+ * How far the blur's softened edge reaches inside the content it is applied to,
+ * as a multiple of the blur radius.
+ *
+ * **Measured, not chosen.** At a 48px radius the content's own colour is not
+ * reached again until roughly 68px inside its edge, and that ratio is what a
+ * Gaussian's tail gives: Compose's `BlurEffect` radius is two standard
+ * deviations, and a blur is done at three. 1.5 is that, rounded up, and it is
+ * checked by the same measurement that found the halo — a ring cut too shallow
+ * puts the leak straight back and `theBlurredEdgeDoesNotShowThePageBehindIt`
+ * says so with the number.
+ */
+private const val HaloReach = 1.5f
+
 /** Numbers behind [BackdropStyle]. */
 object BackdropDefaults {
 
@@ -164,6 +178,22 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
  * [coachmarkStep]'s spotlight cuts its hole, and covers exactly the pixels the
  * content has vacated.
  *
+ * **And a ring inside it, where the blur has made the content see-through.** The
+ * blur softens the content's own edge inward as well as outward, for about
+ * [HaloReach] radii, and nothing stops it — so behind those pixels goes
+ * [Theme.colours][io.kontour.ui.theme.Theme.colours]`.background`, which is what
+ * an app's root is: `Scaffold`, `NavigationSuiteScaffold` and `TopBar` all take
+ * it as their container colour's default.
+ *
+ * That is a guess about the caller, and the one place it is visibly wrong is
+ * worth naming: an app whose root paints *nothing* shows this ring against
+ * whatever its window is, instead of showing the window through the halo.
+ * `SheetShowcase`'s phone frame is exactly that — a `surface`-coloured box with
+ * an empty `OverlayHost` in it — and `sheets-dark` photographs the ring because
+ * of it. The alternative is to keep letting the page through, which is the
+ * defect. Between guessing the colour of a root that paints one and showing a
+ * white browser page under a dark app, the guess wins.
+ *
  * Drawn on the *host*, before its children, rather than under the content layer
  * — anything inside that layer is scaled and blurred along with everything else.
  */
@@ -173,6 +203,15 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
 
     val clipShape: Shape = Theme.shapes.extraLarge
     val geometry = remember { GroundGeometry() }
+
+    // No blur, no halo, and therefore no ring: the content's edge is hard and
+    // the band alone covers everything it has vacated.
+    val haloPx = if (LocalBackdropBlur.current && platformSupportsBackdropBlur) {
+        with(LocalDensity.current) { BackdropDefaults.BlurRadius.toPx() } * HaloReach
+    } else {
+        0f
+    }
+    val backing = Theme.colours.background
 
     return drawBehind {
         val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
@@ -234,6 +273,52 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         geometry.band.addRect(Rect(Offset.Zero, size))
         geometry.band.addPath(geometry.scaled)
 
+        // And the app's own background under the content's blurred edge, which
+        // is the fourth way the page behind the host was reaching the screen and
+        // the one the reporter kept seeing: a glow around the shrinking screen
+        // that flickers frame to frame.
+        //
+        // A blurred layer under an ancestor `scale` comes out **partially
+        // transparent** for the blur's whole reach inside its own edge, and
+        // `TileMode.Clamp` cannot stop it. Measured six ways — blur alone, blur
+        // with the scale on the same layer, the scale on an outer layer with the
+        // blur on an inner one, the blur forced offscreen, with a rectangle clip
+        // and with the squircle — and every arrangement that has a scale
+        // anywhere above the blur produces the identical fade, byte for byte,
+        // while every arrangement without one produces none at all. So this is
+        // not something the composition can be rearranged out of; the only
+        // answer is to put something opaque behind it.
+        //
+        // The band's black is the wrong thing to put there — it would read as a
+        // dark vignette on a light theme, which is the same defect in the other
+        // direction. What belongs behind the app's own content, where that
+        // content has gone see-through, is the colour the app's content is.
+        //
+        // **A ring, not a fill.** The middle of the host is deliberately left
+        // alone, for the reason the note above gives: nothing requires an app's
+        // content to be opaque, and painting the whole host would decide that
+        // for it. The ring is as deep as the halo and no deeper, and its outer
+        // edge is the host itself rather than the hole — two opaque fills that
+        // shared the hole's antialiased boundary would leave the same hairline
+        // `SeamOverlap` exists to close. The black band is drawn over it.
+        if (haloPx > 0f) {
+            val inset = 2f * haloPx * f / minOf(size.width, size.height)
+            geometry.matrix.reset()
+            geometry.matrix.translate(size.width / 2f, size.height / 2f)
+            geometry.matrix.scale((scale - inset).coerceAtLeast(0f), (scale - inset).coerceAtLeast(0f))
+            geometry.matrix.translate(-size.width / 2f, -size.height / 2f)
+
+            geometry.inner.reset()
+            geometry.inner.addPath(geometry.hole)
+            geometry.inner.transform(geometry.matrix)
+
+            geometry.ring.reset()
+            geometry.ring.fillType = PathFillType.EvenOdd
+            geometry.ring.addRect(Rect(Offset.Zero, size))
+            geometry.ring.addPath(geometry.inner)
+            drawPath(geometry.ring, backing)
+        }
+
         // Opaque, and that is the fix for the reported white flash. This used to
         // be `alpha = f`, which made the first frames of every sheet a nearly
         // transparent band — and what showed through was whatever the app is
@@ -265,8 +350,14 @@ private class GroundGeometry {
     /** [hole] under this frame's scale. */
     val scaled = Path()
 
+    /** [hole] a halo's depth further in, which is the ring's inner edge. */
+    val inner = Path()
+
     /** The host, with [scaled] cut out of it. */
     val band = Path()
+
+    /** The host, with [inner] cut out of it. */
+    val ring = Path()
 
     val matrix = Matrix()
     var size: Size? = null

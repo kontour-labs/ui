@@ -348,17 +348,24 @@ def claimed_symbols() -> set[str]:
 # is nowhere near zero and reads the same way.
 # Only goes down. See rule 14.
 #
-# Fourteen, and what is in it is as interesting as the number. `ContrastLevel`
-# and `HapticsLevel` are parameters of `KontourTheme`, which no component demo
-# will ever sweep — the site's own settings panel drives them instead. Excusing
-# those two would need either a list of names, which this file's whole argument
-# is against, or a second derived rule with one customer. A ceiling is not a
-# claim that it should be zero; it is a claim that it should not grow.
+# Nine, and what is in it is as interesting as the number. `ContrastLevel` and
+# `HapticsLevel` are parameters of `KontourTheme`, which no component demo will
+# ever sweep — the site's own settings panel drives them instead. Excusing those
+# two would need either a list of names, which this file's whole argument is
+# against, or a second derived rule with one customer. A ceiling is not a claim
+# that it should be zero; it is a claim that it should not grow.
 #
-# The other twelve are all reachable and all worth a knob: `LoadMoreState`'s
-# four states, `OverlaySide` and `OverlayAlignment` in every direction,
-# `ToastPosition` at both ends, `ReorderHandleSide` at either.
-MAX_UNSWEPT_ENUMS = 10
+# The other seven are all reachable and all worth a knob: `FabPosition`,
+# `OverlaySide` and `OverlayAlignment` in every direction, `NavExpandPlacement`,
+# `NavigationSuiteType`, `PaneFocus` and `ScrimStyle`.
+#
+# `ReorderHandleSide` came off this list in Round 27, and how is the argument
+# for the rule. It was named here as worth a knob for two rounds. It got one
+# only when the reporter asked to see the drag handles — because `handleIcon`,
+# the parameter that makes the side mean anything, had **zero call sites**
+# anywhere in the repository. The side was unswept because the feature was
+# unrendered, and the ceiling is what kept saying so.
+MAX_UNSWEPT_ENUMS = 9
 
 # Only goes down. See rule 16.
 #
@@ -584,7 +591,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 22
+MAX_CIRCLES = 24
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -606,8 +613,25 @@ def circles() -> list[str]:
     squircles is the mismatch the shape scale exists to remove; `Shapes.capsule`
     is the same silhouette with the family's curvature.
 
-    **The ceiling went up from 11 to 22, and it is worth saying why rather than
-    quietly bumping it.** Round 25 set it to stop drift *back* to circular arcs,
+    **22 to 24, and it is the same sweep finishing rather than a new argument.**
+    Round 26 moved "the ten circles" onto `pill` so the 18dp cap could not reach
+    them, and it missed two of the places that needed it most — both of which the
+    reporter then found:
+
+    * `ExtendedFloatingActionButton` kept `control`, so a collapsed one was a
+      rounded square sitting beside a plain FAB that is a circle. Measured as the
+      corner's radius over half the box's height: **0.67 at Medium, 0.52 at
+      Large, 1.0 after**. `FabShapeTest` could not see it, because it asked
+      whether the box was *square* and a rounded square is.
+    * `NavBar`'s `Floating` container kept `control` too — an 18dp box holding
+      40dp `pill` circles. **0.68 before, 1.0 after.** Its own documentation had
+      said "a capsule inset from every edge" the whole time.
+
+    Both are square-box sites by the test below, so both meet the bar this
+    docstring already sets. Neither is a lozenge.
+
+    **The ceiling went up from 11 to 22 before that, and it is worth saying why
+    rather than quietly bumping it.** Round 25 set it to stop drift *back* to circular arcs,
     when the failure mode was a lozenge with round ends. Round 26 caps the
     height-derived corners, and that gives the name a second job: a capped
     `capsule` on a 50dp box is an 18dp rounded square, while a `pill` on the same

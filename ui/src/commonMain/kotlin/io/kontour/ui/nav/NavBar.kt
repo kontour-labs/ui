@@ -581,7 +581,25 @@ fun NavBar(
             // it, and the shape is the whole point of the style.
             Surface(
                 modifier = hug,
-                shape = Theme.shapes.control,
+                // A capsule, because it is holding circles — and the arithmetic
+                // rather than the taste is the argument. The items are 40dp
+                // squares on `pill`, so 20dp of radius, with `spacing.xs` above
+                // and below them; a container concentric with those is 20 + 8 =
+                // 28dp, and 28 is exactly half this bar's 56dp height, which is
+                // what `pill` gives it for nothing.
+                //
+                // It was `pill` until it moved to `control`, and round 26 then
+                // capped `control` at `CapsuleCap` underneath it — an 18dp box
+                // around uncapped circles, which is what was reported.
+                // `nav-surfaces.md` has said "a capsule inset from every edge"
+                // throughout; the code drifted out from under the documentation.
+                //
+                // The horizontal padding is `spacing.sm` and does not agree, and
+                // does not have to: on a capsule the horizontal is a straight run
+                // with no corner in it. That mismatch is also why
+                // `ProvideConcentric` has nothing to publish here — it declines
+                // uneven padding on purpose.
+                shape = Theme.shapes.pill,
                 colour = containerColour,
                 contentColour = contentColour,
                 shadow = Theme.elevation.high,

@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -8,7 +9,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -83,6 +86,22 @@ fun Spinner(
      * that finishes at seven, it was.
      */
     initialAngle: Float = SpinnerDefaults.InitialAngle,
+    /**
+     * A length to open at and shorten from, rather than opening at its own.
+     *
+     * For a spinner that is *taking over* from an arc the user was drawing — a
+     * pull to refresh, where the finger has already swept most of a circle and
+     * the spinner replacing it at its own shorter length reads as a jump. Given
+     * one, the arc arrives at that length and contracts into its breathing over
+     * a `motion.fast`, which reads as the arc letting go.
+     *
+     * Null everywhere else, and then nothing extra animates: the `Animatable`
+     * is allocated either way but never started, so it holds one value forever
+     * and asks for no frames. That is what `IdleAnimationTest` is watching —
+     * a resting spinner that keeps requesting frames is the failure it exists
+     * to catch.
+     */
+    initialSweep: Float? = null,
 ) {
     val reduceMotion = Theme.motion.reduceMotion
     val transition = rememberInfiniteTransition(label = "spinner")
@@ -124,6 +143,22 @@ fun Spinner(
         )
     }
 
+    // Zero until the handover is over, one when there is no handover to make.
+    //
+    // The `Animatable` is remembered unconditionally — a `remember` inside an
+    // `if` would be a different slot on the two paths — and it is the
+    // `LaunchedEffect` that is conditional. One that is never started never
+    // animates, so the null case costs an allocation and no frames.
+    //
+    // The spec is read here rather than inside the effect: `Theme.motion` is a
+    // composable read and a `LaunchedEffect` body is a coroutine, not a
+    // composition.
+    val handoverSpec = Theme.motion.tweenFast<Float>()
+    val handover = remember { Animatable(if (initialSweep == null) 1f else 0f) }
+    if (initialSweep != null) {
+        LaunchedEffect(Unit) { handover.animateTo(1f, handoverSpec) }
+    }
+
     Canvas(
         modifier
             .size(size)
@@ -136,8 +171,13 @@ fun Spinner(
     ) {
         val stroke = strokeWidth.toPx()
         val inset = stroke / 2f
-        val effectiveSweep =
+        val breathing =
             phase?.let { spinnerSweep(it.value) } ?: SpinnerDefaults.RestingSweep
+        val effectiveSweep = if (initialSweep != null) {
+            breathing + (initialSweep - breathing) * (1f - handover.value)
+        } else {
+            breathing
+        }
         drawArc(
             color = colour,
             // The head is at `rotation`, offset to wherever it opened; the

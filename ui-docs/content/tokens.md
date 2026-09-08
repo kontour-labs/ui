@@ -213,7 +213,7 @@ same `of(n)` is a sign that value wants a name.
 | `medium` | 22dp | Cards, list groups, menus |
 | `large` | 28dp | Dialogs, large cards |
 | `extraLarge` | 34dp | Sheets, hero panels |
-| `pill` | 50% | Avatars, scrollbars, indicators |
+| `pill` | 50% | Avatars, scrollbars, indicators, both FABs, `FabMenu`, a floating `NavBar` |
 | `sheet` | 34dp top only | Bottom sheets |
 | `sideSheet` | 34dp leading only | Side sheets |
 
@@ -258,7 +258,7 @@ is, and every button reads it.
 
 | Token | Resolves to | For |
 |---|---|---|
-| `control` | half its height, up to 18dp | `Button`, `SplitButton`, `ButtonGroup`, `ExtendedFloatingActionButton`, `FabMenu`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
+| `control` | half its height, up to 18dp | `Button`, `SplitButton`, `ButtonGroup`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
 | `field` | half its height, up to 18dp | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
 | `container` | `medium` | `Card`, `ListItem`, `SelectionRow`, `Accordion`, `SwipeActions`, `DropdownMenu`, `Popover`, `Tooltip`, `NavDrawer` |
 | `panel` | `large` | `Dialog`, `CommandPalette`, `NavSearch` |

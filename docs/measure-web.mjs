@@ -16,10 +16,12 @@
 // alive across Kotlin upgrades.
 //
 //   node docs/measure-web.mjs [--dist DIR] [--seconds N] [--json OUT]
+//   node docs/measure-web.mjs --wheel 400,500,600   # scroll the page down 600px
 //                             [--screenshot OUT.png] [--click X,Y]
 //                             [--touch-tap X,Y] [--touch-drag X1,Y1,X2,Y2[,STEPS[,HOLD]]]
 //                             [--then-tap X,Y]
 //                             [--mobile] [--dark] [--reduce-motion] [--vibration]
+//                             [--clipboard] [--console]
 //                             [--eval EXPR]
 //
 // ### What it can and cannot tell you
@@ -295,7 +297,140 @@ class Cdp {
  * measurement can distinguish that from a page that is merely slow.
  */
 const PROBE = `
-window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [] }
+window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [], clipboard: [], console: [], clipItems: 0, clipTouches: [] }
+
+/**
+ * Every clipboard write the run produced, in order.
+ *
+ * The same shape as the vibration recorder above and for the same two reasons.
+ * A headless browser's clipboard is permission-gated, so reading it back after
+ * the fact answers nothing — and "the action doesn't even work" is a claim about
+ * whether a write happened at all, which is only observable at the call.
+ *
+ * Both surfaces are recorded because the library has two: the selection toolbar
+ * goes through Compose's own handler and the right-click menu through
+ * LocalClipboardManager, and which of them is wired up is exactly the question.
+ */
+{
+  let held = ''
+  const Real = window.ClipboardItem
+  const seen = (via, text) => window.__probe.clipboard.push({ via, text: String(text) })
+  // Every property the page *reads* off the clipboard object, whether or not it
+  // then calls it. This is the difference between "the framework asked for
+  // write and did not call it" and "the framework never looked at the clipboard
+  // at all" — two explanations for an empty recorder that need completely
+  // different fixes, and one round was already spent on the wrong one.
+  const touched = (name) => window.__probe.clipTouches.push(String(name))
+  try {
+    const real = navigator.clipboard
+    Object.defineProperty(Navigator.prototype, 'clipboard', {
+      configurable: true,
+      get: () => new Proxy({
+        writeText: (text) => { seen('writeText', text); held = String(text); return Promise.resolve() },
+        // Reads back what was written, so a Paste can be measured as well as a
+        // Copy. A stub that always returned empty would make every paste look
+        // broken whether or not it was.
+        readText: () => Promise.resolve(held),
+        write: (items) => { seen('write', '(ClipboardItem)'); return Promise.resolve() },
+        // A real ClipboardItem rather than an empty list, and the difference is
+        // the whole of whether a paste can be measured. Compose's web target
+        // reads through read() and not readText(), so a stub returning an empty
+        // list makes every paste insert nothing — which is indistinguishable
+        // from the defect, and would have been reported as one.
+        read: () => Promise.resolve(
+          held === '' ? [] : [new Real([['text/plain', new Blob([held], {type: 'text/plain'})]].reduce(
+            (o, [type, blob]) => { o[type] = blob; return o }, {},
+          ))],
+        ),
+        addEventListener: () => {},
+      }, {
+        get(target, property) {
+          touched(property)
+          return target[property]
+        },
+        has(target, property) {
+          touched('in:' + String(property))
+          return property in target
+        },
+      }),
+    })
+    void real
+  } catch {}
+  // document.execCommand('copy') is the older path, and Compose's web target
+  // still reaches for it on browsers without the async API.
+  const exec = document.execCommand ? document.execCommand.bind(document) : null
+  document.execCommand = function (command, ...rest) {
+    if (String(command).toLowerCase() === 'copy' || String(command).toLowerCase() === 'cut') {
+      seen(String(command).toLowerCase(), document.getSelection ? document.getSelection().toString() : '')
+    }
+    return exec ? exec(command, ...rest) : false
+  }
+}
+
+/**
+ * How far a copy got before it stopped.
+ *
+ * "Nothing was written" has at least three causes and the recorder above cannot
+ * separate them: the framework decided the browser has no clipboard and never
+ * tried; it built an entry and the write itself was refused; or it built one and
+ * the coroutine carrying the write was cancelled before it resumed. The last is
+ * live here rather than theoretical — Compose's cut() deletes the text and
+ * *then* suspends on setClipEntry, which is exactly the shape of the reported
+ * symptom, a word that disappears with nothing on the clipboard.
+ *
+ * Constructing a ClipboardItem is the midpoint of that sequence, so counting the
+ * constructions splits the three apart: zero means it never tried, one with no
+ * write means it was built and the write did not happen.
+ */
+{
+  const Real = window.ClipboardItem
+  if (typeof Real === 'function') {
+    const Counting = function (...args) {
+      window.__probe.clipItems++
+      return new Real(...args)
+    }
+    Counting.prototype = Real.prototype
+    try { Counting.supports = Real.supports ? Real.supports.bind(Real) : undefined } catch {}
+    window.ClipboardItem = Counting
+  }
+}
+
+/**
+ * What the page said to the console, which is where a framework explains itself.
+ *
+ * Written for the clipboard, and general because the reason is general. Compose's
+ * web clipboard does not fail by throwing — every branch that cannot write ends
+ * in a console.warn saying the browser supports neither Clipboard.write nor
+ * Clipboard.writeText, and then returns normally. From outside, a write that was
+ * refused and a write that was never attempted look identical: the recorder above
+ * logs nothing in both cases. That is the difference between "the library has no
+ * clipboard" and "the harness is not a secure context", and it decides whether
+ * there is a bug here at all.
+ *
+ * Patched rather than read over CDP's Runtime.consoleAPICalled, to match the two
+ * recorders above and because a patch installed at document start cannot miss
+ * anything a listener attached after Runtime.enable might.
+ *
+ * The original is still called, so --console changes what is *recorded* and not
+ * what the page does.
+ */
+{
+  const levels = ['log', 'info', 'warn', 'error']
+  for (const level of levels) {
+    const original = console[level] ? console[level].bind(console) : null
+    console[level] = function (...args) {
+      try {
+        window.__probe.console.push({
+          level,
+          text: args.map((a) => {
+            try { return typeof a === 'string' ? a : JSON.stringify(a) } catch { return String(a) }
+          }).join(' '),
+        })
+      } catch {}
+      if (original) original(...args)
+    }
+  }
+}
 
 /**
  * Haptics, which on the web are navigator.vibrate and nothing else.
@@ -544,37 +679,29 @@ async function main() {
     interaction = await evaluate(`window.__sample(1500)`)
   }
 
-  // Read *after* the gestures, so what is printed is what the interaction
-  // produced rather than whatever the page did while loading.
-  if (process.argv.includes('--vibration')) {
-    const patterns = await evaluate('window.__probe.vibrations')
-    const total = patterns.reduce((sum, p) => sum + p.reduce((a, b) => a + b, 0), 0)
-    console.log('')
-    console.log(`vibration  ${patterns.length} pattern(s), ${total}ms of motor time`)
-    if (patterns.length === 0) {
-      console.log('           nothing — either no haptic intent fired, or the')
-      console.log('           constant it mapped to has no web pattern at all')
-    } else {
-      const counts = new Map()
-      for (const p of patterns) {
-        const key = `[${p.join(',')}]`
-        counts.set(key, (counts.get(key) || 0) + 1)
-      }
-      for (const [key, n] of counts) {
-        // The number that decides whether any of this is felt. A motor needs
-        // roughly 10-20ms to spin up; under that the pulse is issued and
-        // nothing reaches the hand.
-        const longest = Math.max(...key.slice(1, -1).split(',').map(Number))
-        const verdict = longest >= 10 ? 'feelable' : 'BELOW THE MOTOR FLOOR'
-        console.log(`           ${String(n).padStart(4)} x ${key.padEnd(20)} ${verdict}`)
-      }
+  // `--wheel X,Y,DELTA[,STEPS]`. A wheel rather than a drag, because on a desktop
+  // that is how the page scrolls — and the page is the thing several of these
+  // measurements need to move. `html, body` carry `overflow: hidden`, so there is
+  // no DOM scroll to drive and `--eval` cannot reach a `LazyColumn`: the scroll
+  // has to arrive as an input event like any other.
+  const wheelAt = arg('wheel', null)
+  if (wheelAt) {
+    const [x, y, delta, steps = 10] = wheelAt.split(',').map(Number)
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
+    for (let i = 0; i < steps; i++) {
+      await cdp.send('Input.dispatchMouseEvent', {
+        type: 'mouseWheel', x, y, deltaX: 0, deltaY: delta / steps,
+      }, sessionId)
+      // A frame between notches, for the reason `--touch-drag` has one: dispatched
+      // back to back, Compose sees a single jump and the velocity tracker has
+      // nothing to work with, so nothing flings.
+      await wait(16)
     }
+    interaction = await evaluate(`window.__sample(1500)`)
   }
 
-  // `--eval EXPR` prints one JavaScript expression, evaluated in the page after
-  // everything else has run. For asking the page a question the harness has no
-  // dedicated flag for — the computed style of the canvas Compose creates, say,
-  // which is not something a screenshot or a gesture can tell you.
+  // Read *after* the gestures, so what is printed is what the interaction
+  // produced rather than whatever the page did while loading.
   const expression = arg('eval', null)
   if (expression) {
     const value = await evaluate(`JSON.stringify(${expression})`)
@@ -706,6 +833,110 @@ async function main() {
     }
     interaction = await evaluate(`window.__sample(1500)`)
   }
+
+  // `--last-click X,Y`, which runs after every other gesture.
+  //
+  // `--click` fires first and `--then-tap` before the pointer gestures, so a menu
+  // that has to be *opened* before an item in it can be chosen had no way to be
+  // driven: `--right-click` puts the menu up and nothing could then press
+  // anything in it. That is the A/B for "the toolbar's Copy writes nothing" —
+  // the right-click menu is a different implementation of the same four verbs.
+  const lastClick = arg('last-click', null)
+  if (lastClick) {
+    const [x, y] = lastClick.split(',').map(Number)
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
+    for (const type of ['mousePressed', 'mouseReleased']) {
+      await cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 }, sessionId)
+    }
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  // These recorders are read here rather than beside the gestures above, and the
+  // placement is the measurement.
+  //
+  // `--then-tap` and `--eval` run *after* the first gesture — that is their whole
+  // purpose, "select some text and then tap the toolbar it raised" — so a readout
+  // sitting before them reports the state of the world halfway through the thing
+  // being measured. The clipboard recorder was written there first and printed
+  // "nothing was written" for a tap that had not happened yet, which is a result
+  // that looks exactly like the defect it was built to find.
+  if (process.argv.includes('--clipboard')) {
+    const writes = await evaluate('window.__probe.clipboard')
+    if (!writes.length) {
+      console.log('clipboard  nothing was written')
+    } else {
+      console.log(`clipboard  ${writes.length} write(s)`)
+      for (const w of writes) console.log(`             ${w.via}: ${JSON.stringify(w.text)}`)
+    }
+    // The two gates Compose's own web clipboard checks before it writes
+    // anything, printed whether or not a write happened, because "nothing was
+    // written" means two completely different things depending on them. A
+    // loopback origin *is* a secure context per the spec, so if this prints
+    // `secure: true` and no write followed, the refusal is not the harness's.
+    const gates = await evaluate(
+      "JSON.stringify({secure: window.isSecureContext, " +
+        "write: typeof navigator.clipboard?.write, " +
+        "writeText: typeof navigator.clipboard?.writeText, " +
+        "item: typeof ClipboardItem})",
+    )
+    const built = await evaluate('window.__probe.clipItems')
+    const readBack = await evaluate('navigator.clipboard.readText()')
+    console.log(`           gates ${gates}`)
+    console.log(`           ${built} ClipboardItem(s) built`)
+    console.log(`           holding ${JSON.stringify(readBack)}`)
+    const touches = await evaluate('window.__probe.clipTouches')
+    const counted = new Map()
+    for (const t of touches) counted.set(t, (counted.get(t) || 0) + 1)
+    console.log(
+      `           navigator.clipboard read as: ` +
+        (counted.size
+          ? [...counted].map(([k, n]) => (n > 1 ? `${k}x${n}` : k)).join(', ')
+          : 'never touched'),
+    )
+    console.log('')
+  }
+
+  if (process.argv.includes('--console')) {
+    const lines = await evaluate('window.__probe.console')
+    console.log('')
+    if (!lines.length) {
+      console.log('console    the page said nothing')
+    } else {
+      console.log(`console    ${lines.length} message(s)`)
+      for (const l of lines) console.log(`           ${l.level}: ${l.text}`)
+    }
+    console.log('')
+  }
+
+  if (process.argv.includes('--vibration')) {
+    const patterns = await evaluate('window.__probe.vibrations')
+    const total = patterns.reduce((sum, p) => sum + p.reduce((a, b) => a + b, 0), 0)
+    console.log('')
+    console.log(`vibration  ${patterns.length} pattern(s), ${total}ms of motor time`)
+    if (patterns.length === 0) {
+      console.log('           nothing — either no haptic intent fired, or the')
+      console.log('           constant it mapped to has no web pattern at all')
+    } else {
+      const counts = new Map()
+      for (const p of patterns) {
+        const key = `[${p.join(',')}]`
+        counts.set(key, (counts.get(key) || 0) + 1)
+      }
+      for (const [key, n] of counts) {
+        // The number that decides whether any of this is felt. A motor needs
+        // roughly 10-20ms to spin up; under that the pulse is issued and
+        // nothing reaches the hand.
+        const longest = Math.max(...key.slice(1, -1).split(',').map(Number))
+        const verdict = longest >= 10 ? 'feelable' : 'BELOW THE MOTOR FLOOR'
+        console.log(`           ${String(n).padStart(4)} x ${key.padEnd(20)} ${verdict}`)
+      }
+    }
+  }
+
+  // `--eval EXPR` prints one JavaScript expression, evaluated in the page after
+  // everything else has run. For asking the page a question the harness has no
+  // dedicated flag for — the computed style of the canvas Compose creates, say,
+  // which is not something a screenshot or a gesture can tell you.
 
   const shot = arg('screenshot', null)
   if (shot) {

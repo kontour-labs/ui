@@ -688,10 +688,43 @@ private fun fabMenuGeometry(
     val left = centre.x - margin
     val right = container.width - margin - centre.x
 
-    val upward = up >= down
-    val leftward = left >= right
+    // How much room the run needs, so the direction is a question of **fit**
+    // rather than of which side happens to have more.
+    //
+    // `up >= down` is a midpoint test: it flips the moment the button crosses the
+    // centre of the window, whether or not the column would have fitted the other
+    // way. And `container` is the window rather than whatever the button looks
+    // like it sits inside — so a menu in a card on a scrolling page opened up or
+    // down depending on where the *page* was scrolled to, which is nothing the
+    // user can see. Reported as the options drawing on the wrong side.
+    //
+    // A speed dial opens up from its button on both platforms and does anything
+    // else only when it cannot. So: take the preferred side if the run fits
+    // there, and only compare the two sides when it does not.
+    val quarter = (PI / 2).toFloat()
+    val needed = if (layout == FabMenuLayout.Fan) {
+        // The arc is a quarter turn whichever quadrant it is drawn into, so the
+        // radius the spacing wants does not depend on the direction — which is
+        // what lets it be computed before the direction is chosen.
+        val stepAngle = if (count > 1) quarter / (count - 1) else 0f
+        val wanted = if (count > 1) (footprint + gap) / stepAngle else 0f
+        maxOf(wanted, clearance) + half
+    } else {
+        clearance + (count - 1) * (footprint + gap) + half
+    }
+
+    val upward = up >= needed || up >= down
+
+    // **Two answers, because it was being asked two questions.** `Horizontal` and
+    // `Fan` use this for the item run, where fit is the question; `Vertical` puts
+    // its items at `centre.x` and uses it only for the label side, where "which
+    // side of the window has more room" is the question and always was. One
+    // boolean serving both is why a label could land on its own neighbour.
+    val itemsLeftward = left >= needed || left >= right
+    val labelOnLeft = left >= right
+
     val alongY = if (upward) up else down
-    val alongX = if (leftward) left else right
+    val alongX = if (itemsLeftward) left else right
 
     /** Where the first item goes and how far apart the rest are, in [room]. */
     fun spacing(room: Float): Pair<Float, Float> {
@@ -714,7 +747,7 @@ private fun fabMenuGeometry(
 
         FabMenuLayout.Horizontal -> {
             val (first, step) = spacing(alongX)
-            val sign = if (leftward) -1f else 1f
+            val sign = if (itemsLeftward) -1f else 1f
             List(count) { index -> Offset(centre.x + sign * (first + index * step), centre.y) }
         }
 
@@ -724,7 +757,7 @@ private fun fabMenuGeometry(
             // the quadrant with screen in it.
             val fromAngle = if (upward) -PI / 2 else PI / 2
             val toAngle = when {
-                !leftward -> 0.0
+                !itemsLeftward -> 0.0
                 upward -> -PI
                 else -> PI
             }
@@ -752,5 +785,5 @@ private fun fabMenuGeometry(
         }
     }
 
-    return FabMenuGeometry(points = points, labelOnLeft = leftward)
+    return FabMenuGeometry(points = points, labelOnLeft = labelOnLeft)
 }

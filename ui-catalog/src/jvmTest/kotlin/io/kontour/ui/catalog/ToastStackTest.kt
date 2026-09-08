@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
@@ -17,6 +18,7 @@ import io.kontour.ui.overlay.ToastHostState
 import io.kontour.ui.overlay.ToastPosition
 import io.kontour.ui.overlay.ToastTone
 import java.awt.image.BufferedImage
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.time.TimeSource
 import kotlin.test.assertNotNull
@@ -660,6 +662,274 @@ class ToastStackTest {
     }
 
     /**
+     * A pill's exit lasts long enough to be seen.
+     *
+     * Reported twice. The first time the pill slid out under the cards in front
+     * and was simply absent on the next frame; it shrinks and fades in place now,
+     * and `aPillLeavesByShrinking` pins that. The second report was that there
+     * was *still* no animation — and the shrink was running perfectly, over two
+     * frames of a nine-frame tween.
+     *
+     * The cause was the easing, not the duration. `tweenFast` carries
+     * `Motion.standard`, `cubic-bezier(0.16, 1, 0.3, 1)`: a hard ease-out that is
+     * 75% done one frame in and 93% done after two. `Motion` already says so —
+     * `tweenExit` exists because "run in reverse it makes an overlay drop most of
+     * its opacity at once and then linger" — and the toast was not using it.
+     *
+     * ### Counted in frames the stack actually moves on
+     *
+     * A pill shows only `Peek` of itself, so the thing to count is not how far it
+     * travels but on how many frames it travels *at all*. Against the arrival
+     * easing the stack's top edge reads `562, 575, 581` and stops: two moves.
+     * Against `tweenExit` it reads `562, 564, 565, 566, 568, 570, 573, 577, 581`
+     * — nine, and accelerating, which is what a departure should do.
+     */
+    @Test
+    fun aPillTakesLongEnoughLeavingToBeSeen() {
+        val tops = pillExitTopEdges()
+        val moved = tops.zipWithNext().count { (a, b) -> a != b }
+
+        assertTrue(
+            moved >= 5,
+            "the top of the stack moved on only $moved frames while a pill left, " +
+                "out of ${tops.size} sampled: $tops. The shrink is running and " +
+                "finishing before anyone can see it — an arrival easing on a " +
+                "departure, which puts nine frames of travel into the first two.",
+        )
+    }
+
+    /**
+     * Dragging a toast the way it does not go is a rubber band, not a slow drag.
+     *
+     * It used to scale every delta by a flat third, which bounds nothing: pull
+     * far enough and the card leaves the screen in the direction it refuses to be
+     * dismissed in. Each pixel of pull now moves it less than the last, easing up
+     * to `RubberBand` of its own height and stopping.
+     *
+     * ### And the pills come too
+     *
+     * Reported alongside it: the stack came apart under a finger, because `swipe`
+     * belonged to the card being dragged and every pill behind it stayed where it
+     * was. It is owned by the stack now and every card reads it, so the top and
+     * bottom of the stack move by the same amount — which is what the second
+     * assertion here is.
+     */
+    @Test
+    fun theWrongWayRubberBandsAndTakesTheStackWithIt() {
+        val (topTravel, bottomTravel, series) = wrongWayTravel()
+
+        assertTrue(
+            bottomTravel in 5..40,
+            "pulling the front card 240px the way it does not dismiss moved it " +
+                "${bottomTravel}px, over $series. Under 5 it is not responding at " +
+                "all, which reads as a dead control; over 40 it is not bounded.",
+        )
+        assertTrue(
+            series.last() > series[3] + 2,
+            "the card was ${series[3]}px along by the fourth step of the pull and " +
+                "${series.last()}px by the twelfth: $series. That is a wall, not a " +
+                "band. Damping each delta as it arrives always does this — the " +
+                "damping depends on where the card already is, so it converges " +
+                "within two or three events and is flat from there. A flat third " +
+                "of every delta gives `10, 10, 10 …`; a linear ramp gives " +
+                "`2, 19, 19, 19 …`. A band has to be a function of the whole pull.",
+        )
+        assertTrue(
+            abs(topTravel - bottomTravel) <= 4,
+            "the bottom of the stack travelled ${bottomTravel}px under the finger " +
+                "and the top only ${topTravel}px. The pills are being left " +
+                "behind: a stack is one object, and half of it following a drag " +
+                "while the other half stays put says it is not.",
+        )
+    }
+
+    /**
+     * Clearing a toast by hand buys the ones behind it time.
+     *
+     * Reported from the far end of a deep stack: *"I tried to access one that was
+     * a heap of a way down, and it disappeared as I was clearing the ones on
+     * top."* Every toast counts down wherever it sits — deliberately, and
+     * `aToastBehindTheVisibleWindowStillRunsItsClock` is the test for it — so
+     * working through the ones in front spends the time of the one behind them.
+     * The act of reaching for it is what takes it away.
+     *
+     * A clear now tops the others back up by `ClearedGrace`, capped at a full
+     * lifetime. Expiring does **not**: routing both through the same path would
+     * have every expiry extend every other toast, and a stack that never empties.
+     * That is why `ToastHostState` has an internal `expire` beside its public
+     * `dismiss`.
+     *
+     * Measured the way `aToastPromotedWithLittleTimeLeftIsToppedUpToAFloor` is,
+     * and for the same reason: two emptying times off the same harness, because
+     * an absolute deadline here would be a wall-clock race.
+     */
+    @Test
+    fun clearingOneByHandBuysTheOthersTime() {
+        val alone = emptiesAfter("one 4,000ms toast, nothing cleared") { toasts ->
+            toasts.show("Saved for offline", durationMillis = 4_000)
+        }
+        val afterClearing = clearedAfter()
+
+        assertTrue(
+            afterClearing > alone + 800,
+            "the 4,000ms toast emptied ${afterClearing}ms after it appeared with a " +
+                "pinned one cleared off the top of it at 1,500ms, against " +
+                "${alone}ms on its own — a difference of ${afterClearing - alone}ms. " +
+                "Clearing the ones in front is still costing the one behind them " +
+                "the time it takes to do the clearing.",
+        )
+        assertTrue(
+            afterClearing < alone + 2_600,
+            "the toast emptied ${afterClearing}ms against ${alone}ms alone, a " +
+                "difference of ${afterClearing - alone}ms. The grace is capped at " +
+                "a full lifetime — 1,500ms of waiting plus 4,000ms is 5,500 — so " +
+                "anything past that is a clear resetting the clock rather than " +
+                "topping it up, and a stack of ten would never empty.",
+        )
+    }
+
+    /**
+     * The stack's top edge, once per frame, while the deepest pill leaves.
+     *
+     * Four pinned toasts so nothing expires under the measurement, and the
+     * deepest one dismissed by hand: the only thing that moves is the pill going.
+     */
+    private fun pillExitTopEdges(): List<Int> {
+        var go by mutableStateOf(false)
+        var deepest = 0L
+        val tops = mutableListOf<Int>()
+
+        // Three, in a tall scene. Four is the maximum the host draws and the
+        // deepest of four is tapered down to almost nothing — its whole
+        // contribution to the stack's top edge is one `Peek`, so it goes in a
+        // single step whatever easing it leaves on, and the measurement says
+        // nothing about the easing. Three is the shape a burst actually makes.
+        Scene(width = 600, height = TallScene) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) {
+                    repeat(3) {
+                        val id = toasts.show("Toast number $it", durationMillis = 0)
+                        if (it == 0) deepest = id
+                    }
+                }
+                LaunchedEffect(go) { if (go) toasts.dismiss(deepest) }
+            }
+        }.use { scene ->
+            scene.frames(60)
+            go = true
+            repeat(ExitFrames) { tops += scene.frame().stackTop() }
+        }
+        return tops
+    }
+
+    /**
+     * How far the bottom and the top of the stack travel under a 240px drag the
+     * way the front card does *not* dismiss.
+     */
+    private fun wrongWayTravel(): Triple<Int, Int, List<Int>> {
+        var topTravel = 0
+        var bottomTravel = 0
+        val series = mutableListOf<Int>()
+
+        Scene(width = 600, height = SceneHeight) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) {
+                    repeat(4) { toasts.show("Toast number $it", durationMillis = 0) }
+                }
+            }
+        }.use { scene ->
+            val settled = scene.frames(60)
+            val fromTop = settled.stackTop()
+            val fromBottom = settled.stackBottom()
+            // A bottom-anchored stack dismisses downward, so up is the way it
+            // will not go. The press point is taken from the settled frame
+            // rather than written down: the first version of this used a
+            // coordinate copied from a taller scene and pressed 240px below the
+            // window, which moves nothing and reads exactly like a control that
+            // refuses to be dragged.
+            val x = settled.width / 2f
+            val y = fromBottom - 20f
+            scene.press(Offset(x, y))
+            for (step in 1..12) {
+                scene.move(Offset(x, y - step * 20f))
+                series += fromBottom - scene.frame().stackBottom()
+            }
+            val pulled = scene.frame()
+            topTravel = fromTop - pulled.stackTop()
+            bottomTravel = fromBottom - pulled.stackBottom()
+            scene.release(Offset(x, y - 240f))
+        }
+        return Triple(topTravel, bottomTravel, series)
+    }
+
+    /**
+     * How long the stack takes to empty when a pinned toast is cleared off the
+     * top of a 4,000ms one, 1,500ms in.
+     */
+    private fun clearedAfter(): Long {
+        var clear by mutableStateOf(false)
+        var pinned = 0L
+        var elapsed = 0L
+        var emptied: BufferedImage? = null
+
+        Scene(width = 600, height = 400) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) {
+                    toasts.show("Saved for offline", durationMillis = 4_000)
+                    // Pinned and in front, so it is only ever gone by hand.
+                    pinned = toasts.show("Couldn't reach the timetable", durationMillis = 0)
+                }
+                LaunchedEffect(clear) { if (clear) toasts.dismiss(pinned) }
+            }
+        }.use { scene ->
+            val appeared = scene.renderUntil(timeoutMillis = 3_000) { it.stackHeight() > 0 }
+            assertNotNull(appeared, "no toast was drawn at all")
+            val mark = TimeSource.Monotonic.markNow()
+            scene.renderUntil(timeoutMillis = 1_500) { false }
+            clear = true
+            emptied = scene.renderUntil(timeoutMillis = 20_000) { it.stackHeight() == 0 }
+            elapsed = mark.elapsedNow().inWholeMilliseconds
+        }
+        assertNotNull(emptied, "the stack never emptied")
+        return elapsed
+    }
+
+    /**
+     * The first row holding a toast, or the image height if none do.
+     *
+     * Against the ground rather than through `isSurface`, and the difference is
+     * not cosmetic: `isSurface` is deliberately strict — dark pixels only,
+     * because everywhere else in this file it is counting solid stacked cards
+     * against their own shadows. A pill on its way out is *fading*, and under
+     * that threshold it stops being seen two frames before it stops being drawn.
+     * The first version of `aPillTakesLongEnoughLeavingToBeSeen` used it and
+     * reported a single jump, `243 -> 262`, for the nine-frame travel this file
+     * measures elsewhere. Same mistake `BackdropBlurTest` records; the same fix.
+     */
+    private fun BufferedImage.stackTop(): Int =
+        (0 until height).firstOrNull { y -> rowHasToast(y) } ?: height
+
+    /** The last such row, or zero. */
+    private fun BufferedImage.stackBottom(): Int =
+        (height - 1 downTo 0).firstOrNull { y -> rowHasToast(y) } ?: 0
+
+    private fun BufferedImage.rowHasToast(y: Int): Boolean =
+        (0 until width).any { x ->
+            val rgb = getRGB(x, y)
+            val mean = (((rgb shr 16) and 0xFF) + ((rgb shr 8) and 0xFF) + (rgb and 0xFF)) / 3
+            mean < LeavingGround
+        }
+
+    /**
      * The toasts waiting behind step in at the sides, visibly.
      *
      * They always shrank a little — `1 - 0.07 * depth`, so 134px then 124px at
@@ -884,6 +1154,9 @@ class ToastStackTest {
          * tail is zeros either way and reads as such in a failure message.
          */
         const val ExitFrames = 24
+
+        /** Tall enough for a three-deep stack to show every pill. */
+        const val TallScene = 700
 
         /**
          * How dark a pixel has to be to count as a toast that is leaving.
