@@ -165,10 +165,20 @@ fun TextField(
         // beam is not *entirely* a lie, but what a caret promises is that typing
         // will go in at the point you click — and it will not. Same reasoning as
         // the focus tint this field also stopped showing.
-        frameModifier = Modifier.pointerCursor(
-            PointerIcon.Text,
-            enabled = enabled && !readOnly,
-        ),
+        frameModifier = Modifier
+            .pointerCursor(
+                PointerIcon.Text,
+                enabled = enabled && !readOnly,
+            )
+            // On the frame, not the input, and that placement is the mechanism:
+            // the Initial pointer pass runs parent to child, so a secondary
+            // press is consumed here before the text input's own detector can
+            // raise the platform's context menu. See `textContextMenu`.
+            .textContextMenu(
+                state = state,
+                editable = enabled && !readOnly,
+                enabled = enabled,
+            ),
     ) {
         val contentColour = if (enabled) colours.content else colours.contentDisabled
 

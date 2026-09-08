@@ -6,7 +6,9 @@ The toolbar shown when the user selects text.
 
 **You do not need this to get the library's toolbar.** `OverlayHost` installs it
 for every text box below it, which is every text box in an app built the ordinary
-way. `TextSelectionToolbar` is for **adding your own items** to it.
+way — along with the **right-click menu**, which is the same verbs on a
+[`DropdownMenu`](dropdown-menu.md). `TextSelectionToolbar` is for **adding your own items**
+to the selection toolbar.
 
 <!--sample:TextToolbarBasics-->
 ```kotlin
@@ -21,6 +23,34 @@ TextSelectionToolbar(
     Screen()
 }
 ```
+
+## The right-click menu is the library's too
+
+A secondary click in any text box opens a `DropdownMenu` with the same four
+verbs, absent rather than greyed out where they do not apply — Paste with no
+selection, Cut and Copy only with one.
+
+What that replaces was two different things, and it took a measurement to find
+out which. **On the desktop** Compose opens a context menu of its own in a
+separate popup window: a second semantics root, with none of this library's
+shape, type or colour. **In a browser** nothing happened at all — the
+`contextmenu` event is prevented and no menu is drawn in its place, on a field
+and on prose alike.
+
+`LocalContextMenuRepresentation` would replace the first, and it is declared in
+Compose Foundation's **desktop** source set: it does not exist on the web. So the
+menu here is opened by the library instead, from a secondary press caught on the
+**Initial** pointer pass. That pass runs parent to child, so the press is
+consumed on the field's frame before the text input inside it can raise the
+platform's own, and the surface is the one every other menu in the library
+already uses.
+
+**On the web this does not work yet.** Measured against the rebuilt site: the
+browser delivers the secondary button as a real `pointerdown` with `button === 2`
+and the `contextmenu` that follows is prevented, but no menu is drawn — so the
+press reaches the page and something between there and this handler loses it.
+Where is not established. On a desktop the menu is the library's; in a browser a
+right-click in a text box still does nothing, as it did before.
 
 ## It defers to the platform where there is a platform to defer to
 

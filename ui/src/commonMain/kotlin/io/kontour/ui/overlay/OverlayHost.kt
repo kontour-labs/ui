@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import io.kontour.ui.foundation.Scrim
 import io.kontour.ui.components.text.DefaultTextSelectionToolbar
+import io.kontour.ui.components.text.TextContextMenuHost
 import io.kontour.ui.theme.Theme
 
 /**
@@ -511,7 +512,12 @@ fun OverlayHost(
                 // installs it rather than the field: `LocalOverlayHost` throws
                 // when there is no host, so a field that reached for one would
                 // break every app that draws a field on its own.
-                DefaultTextSelectionToolbar { content() }
+                DefaultTextSelectionToolbar {
+                    // And the right-click menu, for the same reason and in the
+                    // same place: it opens into this host, and a field cannot
+                    // reach for a host that may not exist.
+                    TextContextMenuHost { content() }
+                }
             }
 
             // Each scrim-requesting entry gets its own scrim directly beneath

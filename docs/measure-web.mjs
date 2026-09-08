@@ -657,12 +657,23 @@ async function main() {
     const [x, y] = rightClickAt.split(',').map(Number)
     await evaluate(`
       window.__contextmenu = []
+      window.__secondary = []
       window.addEventListener('contextmenu', (event) => {
         window.__contextmenu.push({
           prevented: event.defaultPrevented,
           target: event.target && event.target.tagName,
         })
       }, false)
+      // Whether the secondary button reaches the page as a pointer event at
+      // all. Without this the harness cannot tell "the app ignored the click"
+      // from "the click never arrived", and those need different fixes.
+      for (const type of ['pointerdown', 'mousedown']) {
+        window.addEventListener(type, (event) => {
+          if (event.button === 2) {
+            window.__secondary.push({ type, target: event.target && event.target.tagName })
+          }
+        }, true)
+      }
       true
     `)
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
@@ -673,6 +684,7 @@ async function main() {
     }
     await wait(300)
     const seen = await evaluate('window.__contextmenu')
+    const secondary = await evaluate('window.__secondary')
     console.log('')
     console.log(`right-click  at ${x},${y}`)
     if (!seen || seen.length === 0) {
@@ -684,6 +696,13 @@ async function main() {
           : "NOT PREVENTED — the browser's own menu is what the user gets"
         console.log(`             on <${event.target}>: ${verdict}`)
       }
+    }
+    if (!secondary || secondary.length === 0) {
+      console.log('             the secondary button reached the page as NO pointer')
+      console.log('             event at all — nothing in the app could have seen it')
+    } else {
+      const kinds = secondary.map((e) => `${e.type} on <${e.target}>`).join(', ')
+      console.log(`             secondary button delivered as: ${kinds}`)
     }
     interaction = await evaluate(`window.__sample(1500)`)
   }
