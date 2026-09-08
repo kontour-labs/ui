@@ -246,6 +246,9 @@ enum class ReorderHandleSide { Start, End }
  * @param handleSide Which end the handle sits at. [ReorderHandleSide.End] by
  *   default: a handle on the leading edge competes with whatever the row leads
  *   with, which is usually an icon or an avatar.
+ *
+ *   The handle takes no label. It used to take one, and the label reached
+ *   nothing — see [ReorderGrip].
  */
 @Composable
 fun LazyItemScope.ReorderableItem(
@@ -257,7 +260,6 @@ fun LazyItemScope.ReorderableItem(
     shape: Shape? = null,
     handleIcon: ImageVector? = null,
     handleSide: ReorderHandleSide = ReorderHandleSide.End,
-    handleLabel: String = Theme.strings.moveUp,
     moveUpLabel: String = Theme.strings.moveUp,
     moveDownLabel: String = Theme.strings.moveDown,
     content: @Composable () -> Unit,
@@ -371,11 +373,11 @@ fun LazyItemScope.ReorderableItem(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (handleSide == ReorderHandleSide.Start) {
-                ReorderGrip(handleIcon, handleLabel, enabled, drags)
+                ReorderGrip(handleIcon, enabled, drags)
             }
             Box(Modifier.weight(1f)) { content() }
             if (handleSide == ReorderHandleSide.End) {
-                ReorderGrip(handleIcon, handleLabel, enabled, drags)
+                ReorderGrip(handleIcon, enabled, drags)
             }
         }
     }
@@ -389,11 +391,18 @@ fun LazyItemScope.ReorderableItem(
  * rather than merged, because the row already carries move-up and move-down as
  * custom actions and a screen reader has no use for a third route that needs a
  * drag.
+ *
+ * **So it takes no label, and the icon's description is null.** There used to be
+ * a `handleLabel` parameter, defaulting to "Move up", passed down here as the
+ * icon's `contentDescription` — and then erased one node up by the
+ * `clearAndSetSemantics` above it. A public parameter that could not reach
+ * anything, documented nowhere, called from nowhere, announcing the wrong word
+ * if it ever had. The clearing is the part that is right: the row's two custom
+ * actions are the accessible route, and this is decoration on top of them.
  */
 @Composable
 private fun ReorderGrip(
     icon: ImageVector,
-    label: String,
     enabled: Boolean,
     drags: Modifier,
 ) {
@@ -406,7 +415,7 @@ private fun ReorderGrip(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = label,
+            contentDescription = null,
             tint = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled,
             size = Theme.sizing.iconMedium,
         )

@@ -348,17 +348,24 @@ def claimed_symbols() -> set[str]:
 # is nowhere near zero and reads the same way.
 # Only goes down. See rule 14.
 #
-# Fourteen, and what is in it is as interesting as the number. `ContrastLevel`
-# and `HapticsLevel` are parameters of `KontourTheme`, which no component demo
-# will ever sweep — the site's own settings panel drives them instead. Excusing
-# those two would need either a list of names, which this file's whole argument
-# is against, or a second derived rule with one customer. A ceiling is not a
-# claim that it should be zero; it is a claim that it should not grow.
+# Nine, and what is in it is as interesting as the number. `ContrastLevel` and
+# `HapticsLevel` are parameters of `KontourTheme`, which no component demo will
+# ever sweep — the site's own settings panel drives them instead. Excusing those
+# two would need either a list of names, which this file's whole argument is
+# against, or a second derived rule with one customer. A ceiling is not a claim
+# that it should be zero; it is a claim that it should not grow.
 #
-# The other twelve are all reachable and all worth a knob: `LoadMoreState`'s
-# four states, `OverlaySide` and `OverlayAlignment` in every direction,
-# `ToastPosition` at both ends, `ReorderHandleSide` at either.
-MAX_UNSWEPT_ENUMS = 10
+# The other seven are all reachable and all worth a knob: `FabPosition`,
+# `OverlaySide` and `OverlayAlignment` in every direction, `NavExpandPlacement`,
+# `NavigationSuiteType`, `PaneFocus` and `ScrimStyle`.
+#
+# `ReorderHandleSide` came off this list in Round 27, and how is the argument
+# for the rule. It was named here as worth a knob for two rounds. It got one
+# only when the reporter asked to see the drag handles — because `handleIcon`,
+# the parameter that makes the side mean anything, had **zero call sites**
+# anywhere in the repository. The side was unswept because the feature was
+# unrendered, and the ceiling is what kept saying so.
+MAX_UNSWEPT_ENUMS = 9
 
 # Only goes down. See rule 16.
 #

@@ -22,6 +22,7 @@ import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
+import com.composables.icons.tabler.outline.GripVertical
 import com.composables.icons.tabler.outline.Moon
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Trash
@@ -35,6 +36,7 @@ import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.LoadMore
 import io.kontour.ui.components.list.LoadMoreState
 import io.kontour.ui.components.list.PullToRefresh
+import io.kontour.ui.components.list.ReorderHandleSide
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.SettingRow
@@ -203,7 +205,38 @@ internal val SwipeActionsDemo = ComponentDemo(slug = "swipe-actions") {
     }
 }
 
-internal val ReorderableItemDemo = ComponentDemo(slug = "reorderable-item") {
+/**
+ * The handle, which had never been rendered anywhere until this knob.
+ *
+ * `handleIcon` shipped with zero call sites — not a demo, not a sample, not the
+ * registry — so the first time anything drew one was the round the reporter
+ * asked to see them. It is not only decoration: with a handle the drag starts
+ * **immediately** from the grip, and without one a touch has to long-press the
+ * row first. Two different gestures behind one nullable parameter, which is why
+ * it is worth a knob rather than a sentence in the docs.
+ */
+private val reorderHandles = Knob.Flag("Drag handles")
+
+/**
+ * Which end the grip sits at.
+ *
+ * Swept because `ReorderHandleSide` was one of the component parameter enums no
+ * knob touched — the site named it in the generated table and showed one of its
+ * two values. It has an effect only while [reorderHandles] is on, which is
+ * honest rather than awkward: that is the component's own behaviour, and a
+ * reader who turns the side over with no handle showing learns it.
+ */
+private val reorderHandleSide =
+    Knob.Choice("Handle side", ReorderHandleSide.entries.toList(), ReorderHandleSide.End)
+
+internal val ReorderableItemDemo = ComponentDemo(
+    slug = "reorderable-item",
+    knobs = listOf(reorderHandles, reorderHandleSide),
+) {
+    // Read out here rather than inside `itemsIndexed`, where `this` is the
+    // `LazyItemScope` and the `DemoScope` has no label to reach back to.
+    val handle = if (this[reorderHandles]) Tabler.Outline.GripVertical else null
+    val handleAt = this[reorderHandleSide]
     var order by remember { mutableStateOf(stops.map { it.first }) }
     val listState = rememberLazyListState()
     val state = rememberReorderableState(listState) { from, to ->
@@ -220,7 +253,13 @@ internal val ReorderableItemDemo = ComponentDemo(slug = "reorderable-item") {
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             itemsIndexed(order, key = { _, name -> name }) { index, name ->
-                ReorderableItem(state = state, index = index, itemCount = order.size) {
+                ReorderableItem(
+                    state = state,
+                    index = index,
+                    itemCount = order.size,
+                    handleIcon = handle,
+                    handleSide = handleAt,
+                ) {
                     ListItem(position = ListItemPosition.of(index, order.size)) {
                         +name
                         leading { +Tabler.Outline.Bus }

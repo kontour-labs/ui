@@ -313,6 +313,7 @@ window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [], cl
  */
 {
   let held = ''
+  const Real = window.ClipboardItem
   const seen = (via, text) => window.__probe.clipboard.push({ via, text: String(text) })
   try {
     const real = navigator.clipboard
@@ -325,7 +326,16 @@ window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [], cl
         // broken whether or not it was.
         readText: () => Promise.resolve(held),
         write: (items) => { seen('write', '(ClipboardItem)'); return Promise.resolve() },
-        read: () => Promise.resolve([]),
+        // A real ClipboardItem rather than an empty list, and the difference is
+        // the whole of whether a paste can be measured. Compose's web target
+        // reads through read() and not readText(), so a stub returning an empty
+        // list makes every paste insert nothing — which is indistinguishable
+        // from the defect, and would have been reported as one.
+        read: () => Promise.resolve(
+          held === '' ? [] : [new Real([['text/plain', new Blob([held], {type: 'text/plain'})]].reduce(
+            (o, [type, blob]) => { o[type] = blob; return o }, {},
+          ))],
+        ),
         addEventListener: () => {},
       }),
     })
@@ -855,8 +865,10 @@ async function main() {
         "item: typeof ClipboardItem})",
     )
     const built = await evaluate('window.__probe.clipItems')
+    const readBack = await evaluate('navigator.clipboard.readText()')
     console.log(`           gates ${gates}`)
     console.log(`           ${built} ClipboardItem(s) built`)
+    console.log(`           holding ${JSON.stringify(readBack)}`)
     console.log('')
   }
 
