@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import io.kontour.ui.foundation.Scrim
+import io.kontour.ui.components.text.DefaultTextSelectionToolbar
 import io.kontour.ui.theme.Theme
 
 /**
@@ -505,7 +506,12 @@ fun OverlayHost(
                     // Focus cannot enter content that is behind a modal overlay.
                     .focusProperties { canFocus = !trapping }
             ) {
-                content()
+                // Every text box below here gets the library's own selection
+                // toolbar. See `DefaultTextSelectionToolbar` for why the host
+                // installs it rather than the field: `LocalOverlayHost` throws
+                // when there is no host, so a field that reached for one would
+                // break every app that draws a field on its own.
+                DefaultTextSelectionToolbar { content() }
             }
 
             // Each scrim-requesting entry gets its own scrim directly beneath

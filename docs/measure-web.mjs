@@ -598,6 +598,96 @@ async function main() {
     interaction = await evaluate(`window.__sample(1500)`)
   }
 
+  // `--double-click x,y` selects a word, which is the gesture a desktop user
+  // actually makes before looking for a selection toolbar. A press-and-drag
+  // turns out to focus the field and select nothing, so it cannot ask the
+  // question on its own.
+  const doubleClickAt = arg('double-click', null)
+  if (doubleClickAt) {
+    const [x, y] = doubleClickAt.split(',').map(Number)
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
+    for (const clickCount of [1, 2]) {
+      await cdp.send('Input.dispatchMouseEvent', {
+        type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount,
+      }, sessionId)
+      await cdp.send('Input.dispatchMouseEvent', {
+        type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount,
+      }, sessionId)
+      await wait(30)
+    }
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  // `--mouse-drag x1,y1,x2,y2[,steps]` presses, travels and releases with the
+  // primary button. A finger and a mouse are not the same gesture to a text
+  // field — a drag with the button down is what selects a range on a desktop,
+  // and `--touch-drag` cannot ask that question.
+  const mouseDrag = arg('mouse-drag', null)
+  if (mouseDrag) {
+    const [x1, y1, x2, y2, steps = 12] = mouseDrag.split(',').map(Number)
+    const at = (i) => ({ x: x1 + (x2 - x1) * i / steps, y: y1 + (y2 - y1) * i / steps })
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x1, y: y1 }, sessionId)
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mousePressed', x: x1, y: y1, button: 'left', buttons: 1, clickCount: 1,
+    }, sessionId)
+    for (let i = 1; i <= steps; i++) {
+      const { x, y } = at(i)
+      await cdp.send('Input.dispatchMouseEvent', {
+        type: 'mouseMoved', x, y, button: 'left', buttons: 1,
+      }, sessionId)
+      await wait(16)
+    }
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mouseReleased', x: x2, y: y2, button: 'left', buttons: 0, clickCount: 1,
+    }, sessionId)
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  // `--right-click x,y` dispatches a real secondary click and reports whether
+  // anything on the page stopped the browser drawing its own context menu.
+  //
+  // The native menu cannot be seen from here — it is chrome, not page — so what
+  // is measured instead is the fact that decides whether it appears at all:
+  // `defaultPrevented` on the `contextmenu` event, read from a listener on
+  // `window` in the bubble phase, which runs after every handler inside the
+  // canvas has had the event. Not prevented means the browser's menu is what
+  // the user gets, whatever the app drew underneath it.
+  const rightClickAt = arg('right-click', null)
+  if (rightClickAt) {
+    const [x, y] = rightClickAt.split(',').map(Number)
+    await evaluate(`
+      window.__contextmenu = []
+      window.addEventListener('contextmenu', (event) => {
+        window.__contextmenu.push({
+          prevented: event.defaultPrevented,
+          target: event.target && event.target.tagName,
+        })
+      }, false)
+      true
+    `)
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
+    for (const type of ['mousePressed', 'mouseReleased']) {
+      await cdp.send('Input.dispatchMouseEvent', {
+        type, x, y, button: 'right', buttons: 2, clickCount: 1,
+      }, sessionId)
+    }
+    await wait(300)
+    const seen = await evaluate('window.__contextmenu')
+    console.log('')
+    console.log(`right-click  at ${x},${y}`)
+    if (!seen || seen.length === 0) {
+      console.log('             no contextmenu event fired at all')
+    } else {
+      for (const event of seen) {
+        const verdict = event.prevented
+          ? 'prevented — the app draws its own'
+          : "NOT PREVENTED — the browser's own menu is what the user gets"
+        console.log(`             on <${event.target}>: ${verdict}`)
+      }
+    }
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
   const shot = arg('screenshot', null)
   if (shot) {
     const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' }, sessionId)

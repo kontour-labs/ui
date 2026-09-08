@@ -4,11 +4,15 @@
 
 The toolbar shown when the user selects text.
 
+**You do not need this to get the library's toolbar.** `OverlayHost` installs it
+for every text box below it, which is every text box in an app built the ordinary
+way. `TextSelectionToolbar` is for **adding your own items** to it.
+
 <!--sample:TextToolbarBasics-->
 ```kotlin
-// Wrap the app once, with the items this app wants on a text selection.
+// Wrap the part of the app that has something to add to a text selection.
 // With no actions, Android and iOS keep their own toolbar and this installs
-// nothing; desktop and the web have none to keep, so it draws its own.
+// nothing; desktop and the web have none to keep, so the host's draws instead.
 TextSelectionToolbar(
     actions = listOf(
         TextToolbarAction("Plan a trip") { /* open the planner */ },
@@ -29,10 +33,17 @@ exchange for matching a design system they did not ask the toolbar to match.
 So on Android and iOS, with no actions to add, this installs nothing at all and
 the system's own menu comes up exactly as it would without this library.
 
-**Desktop and the web have no such surface.** Compose falls back to a bare
-unstyled popup on the desktop and to nothing recognisable in a browser, so
-leaving the platform alone there leaves the user with *less* rather than more —
-the opposite of the reason for deferring. On those platforms this draws its own.
+**Desktop and the web have no such surface.** Compose falls back to a toolbar of
+its own — measured in a phone-sized browser against the built site, a rounded
+pill reading `Copy  Paste  Cut`. It is a real toolbar and it is perfectly usable;
+it simply belongs to no design system, cannot carry an app's own actions, and
+puts the verbs in an order nothing else in the app uses. Against it the library's
+reads `Cut  Copy  Paste` on a `Toolbar`.
+
+That is worth saying carefully because this page used to claim the fallback was
+"nothing recognisable in a browser", and a screenshot says otherwise. The
+argument for drawing our own on those platforms is not that there is nothing
+there — it is that what is there is not the app.
 
 One rule read two ways: show the richest selection toolbar available, which is
 the system's where there is one and this one where there is not.
