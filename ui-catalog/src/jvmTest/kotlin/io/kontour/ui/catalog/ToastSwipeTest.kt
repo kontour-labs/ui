@@ -252,9 +252,14 @@ class ToastSwipeTest {
 
     @Test
     fun aTopToastPushedDownComesBack() {
-        // The web disagreed with the sweep above on exactly this case, so it is
-        // pulled out on its own: a `Top` toast pushed *away* from its edge is
-        // inside the refused quarter and must return.
+        // The sweep above covers this, and it is pulled out on its own anyway
+        // because two rounds of web measurement claimed the browser dismissed
+        // here. Both were artefact — instruments whose control arm could not
+        // have failed, written up in `testing.md` — and the browser agrees. A
+        // named test is what makes the next such claim cheap to check.
+        //
+        // A `Top` toast pushed *away* from its edge is inside the refused
+        // quarter and must return.
         val pushed = swipe(travel = Offset(0f, 70f), position = ToastPosition.Top)
 
         assertTrue(

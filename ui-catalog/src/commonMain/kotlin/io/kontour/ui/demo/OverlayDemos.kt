@@ -302,7 +302,11 @@ internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
 // Which edge they come from. Bottom is the default and the one most apps want;
 // top is for a screen whose bottom edge is already busy — a map with a sheet
 // over it, say — and the stack recedes the other way to match.
-private val toastPosition = Knob.Choice("Position", ToastPosition.entries.toList())
+// The initial value is spelled out rather than left to `options.first()`, which
+// is `Top` — the enum's order, not the component's default. The demo said
+// "Bottom is the default" in the line above and then opened on Top.
+private val toastPosition =
+    Knob.Choice("Position", ToastPosition.entries.toList(), initial = ToastPosition.Bottom)
 
 internal val ToastDemo = ComponentDemo(
     slug = "toast",

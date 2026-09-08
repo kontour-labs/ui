@@ -539,55 +539,99 @@ open question is narrow and stated: **why does a click on a menu item not run it
 handler on web, when the same click on a selection-toolbar button does?** Both
 draw through the same overlay host and the same `Button`.
 
-## The JVM and the browser disagree about one quarter of the toast cone
+## A control that cannot fail is not a control
 
 Round 28 gave `Toast` a two-axis dismiss: every direction sends it away except
-the quarter aimed back into the screen. The JVM sweep covers eight compass points
-for both anchors and passes, canaried — against the previous commit it fails with
-exactly the three sideways cases and no others.
+the quarter aimed back into the screen. The JVM sweep covers eight compass
+points for both anchors and passes, canaried — against the previous commit it
+fails with exactly the three sideways cases and no others.
 
-The browser agrees about three quarters of it and not the fourth. Phone
-emulation, the `Top` anchor the demo defaults to, three runs of **identical
-length** (twelve steps each, so the run times match), pill present or gone:
+Confirming that on the reporter's platform took **three** instruments. The first
+two produced clean-looking tables that were entirely artefact, and both failed
+the same way: the subject was already gone in every arm, so the comparison had
+nothing left to compare.
 
-| twelve-step drag | toast afterwards |
+### What the first two instruments actually measured
+
+`--screenshot` fires after every gesture's 1.5s sample **and** the idle window.
+On the toast page that is roughly 4.3 seconds from the tap that raises the
+toast, against a `ToastDefaults.Duration` of 2,500ms — so the shutter opens
+after the toast has expired, whatever the gesture did. Three runs at 5px, 60px
+up and 60px down came back **byte-identical**: the same empty page, agreeing
+with itself for the wrong reason.
+
+`--film` was written to get underneath that, and immediately hit its own
+version of the problem. With no settle between gestures the drag arrived
+*before* the toast had finished appearing, so the finger landed on the page
+behind it and scrolled. What looked like "the scroller is stealing the toast's
+drag" was a drag aimed at a toast that was not there yet.
+
+The third instrument was a matched pair — a twelve-step drag that travels 2px
+as the control, twelve-step real drags as the arms — and it still reported that
+a `Top` toast pushed *away* from its edge dismissed, which the JVM says it must
+not. That table was written up here as an unexplained JVM/browser
+disagreement. **It was not one.** Re-run with the control arm printed alongside:
+
+| old instrument, two runs | toast afterwards |
 |---|---|
-| travels 2px — the control | **present** |
-| 70px *away* from the anchored edge | **gone** |
-| 90px sideways | **gone** |
+| 2px control | gone, gone |
+| 70px away from the anchored edge | gone, gone |
 
-Rows one and three are what the cone is for, and row three is the capability the
-reporter asked for. **Row two is wrong**: away from the edge is the refused
-quarter, and the JVM test for exactly that case — a `Top` toast pushed 70px
-down — passes.
+Both arms empty. The instrument had no discriminating power at all, and the one
+run where the control had come back "present" was the 2.5-second timer landing
+on the other side of the shutter — noise read as signal.
 
-Unexplained, and left that way rather than guessed at. What it is *not*: the
-toast expiring, which the matched control rules out; the page scrolling, which
-the frame shows it did not; and a `towardEdge` sign error, which would have moved
-the JVM sweep too.
+### The instrument that works
 
-### The control that made this readable, and the two that did not
+Two changes, both aimed at the same thing — make the subject outlive the
+measurement:
 
-The first version of this comparison used a **two**-step drag as its no-dismiss
-control against twelve-step real drags. Two runs of different lengths against a
-component with a 2.5-second clock is not a control at all, and it very nearly
-produced the opposite conclusion — that the cone worked everywhere — because
-every twelve-step run came back empty and the short one did not.
+* raise the toast that carries an action, so the clock is
+  `DurationWithAction` (5,000ms) rather than `Duration` (2,500ms);
+* pass `--film` with a single frame, which swaps both 1.5s settles for
+  `FILM_SETTLE_MS` and brings the whole run from tap to shutter down to about
+  2.1 seconds.
 
-Before that, two whole rounds of web measurement were thrown away for the same
-class of reason:
+Phone emulation, the `Top` anchor, four twelve-step gestures from the same
+start point, three repeats each. The number is the toast's bounding box in CSS
+pixels, differenced against the page at rest:
 
-* `--screenshot` fires after each gesture's 1.5s sample **and** the idle window,
-  by which time a toast has expired. Three runs at 5px, 60px up and 60px down
-  came back **byte-identical** — the same empty page.
-* `--film` with no settle between gestures put the drag *before* the toast had
-  finished appearing, so the finger landed on the page and scrolled it. What
-  looked at first like "the scroller is stealing the toast's drag" was a drag
-  aimed at a toast that was not there yet.
+| twelve-step drag | box afterwards, ×3 |
+|---|---|
+| 2px — the control | `(48, 294, 341, 347)` |
+| 70px **away** from the anchored edge | `(48, 294, 341, 347)` |
+| 70px **toward** the anchored edge | absent |
+| 90px **sideways** | absent |
 
-**The rule this earns:** when the subject has a clock, every run in a comparison
-must be the same length, and the control must be a *real gesture that should do
-nothing* rather than the absence of one. A shorter run is a different experiment.
+Twelve runs, unanimous, and it agrees with the JVM on all four points. Rows
+three and four are the dismissal the reporter asked for. Row two is the rubber
+band: after being pushed 70px into the refused quarter the toast is back at the
+box an undragged toast occupies, **pixel for pixel** — zero residual
+displacement, against a control that is a real gesture rather than the absence
+of one.
+
+The pair that makes this readable is rows two and three. They share a start
+point, a length and a step count and differ only in sign, so "row two kept its
+toast" cannot be explained by the drag having missed: the same drag with the
+sign flipped dismissed it.
+
+**The rule this earns:** before believing a comparison, check that the control
+arm *could* have come out the other way. A control that agrees with the
+hypothesis because the subject has already vanished from both arms proves
+nothing, and it is indistinguishable from a real result until you print it. A
+subject with a clock needs enough life to outlast the instrument, and the way
+to prove it has enough is to show two arms that actually differ.
+
+### One thing still not measured directly
+
+Whether the card is *visibly* displaced mid-drag — the band on the way out
+rather than the return — is inferred from `rubberBand`'s arithmetic and from
+the return, not photographed. Attempts to catch a mid-drag frame failed on
+`--film`'s documented contention: a single `Page.captureScreenshot` shares the
+CDP channel with `Input.dispatchTouchEvent`, so a frame's timestamp relative to
+the gesture is not reliable, and an 80-step drag slow enough to photograph
+outlives the toast it is dragging. The JVM `Scene` harness has a controlled
+clock and covers this; the browser does not.
 
 ## A gesture the harness cannot deliver proves nothing either way
 
