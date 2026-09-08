@@ -403,6 +403,93 @@ Widening the old test to cover both regions would have made one failure stand fo
 either cause, so the new one is separate, and the old one's KDoc now says what it
 does not cover.
 
+## Three fixes, no number moved, all three reverted
+
+Round 27's text-selection report — *"half of the options in the text selection
+toolbar disappear when you select one option, and the action doesn't even
+work"* — is the clearest case this repository has of the rule earning its keep.
+Three separate fixes were written, built, driven against the real site, and
+reverted, because the number they were aimed at did not move.
+
+### What is actually true, measured
+
+Two implementations of the same four verbs, and they fail in different halves.
+
+| | selection toolbar | right-click menu |
+|---|---|---|
+| the item's handler runs | **yes** — Cut removes the word | **no** — Cut leaves it |
+| a write reaches the browser | **no** | **no** |
+| after the click | bar stays up, verbs that need a selection still shown | menu re-renders with half its items, or closes |
+
+And the framework's own clipboard does not write at all on this target:
+
+```
+window.isSecureContext                              true
+navigator.clipboard.write / .writeText              function
+ClipboardItem                                       function
+selection-toolbar Copy → ClipboardItems built       1
+selection-toolbar Copy → writes reaching the browser 0
+right-click Copy (the synchronous ClipboardManager)  0
+console                                             nothing
+```
+
+The first three rows are why this is a defect rather than a browser policy, and
+the last is why it needed a harness change to see: nothing throws and nothing
+warns. An entry is built with the text in it, and then nothing happens.
+
+### The probe that settled it, and why the obvious one could not
+
+`--clipboard` records every clipboard *call*. That cannot separate "the write was
+refused" from "the write was never attempted", and those need opposite fixes. So
+the recorder now also proxies `navigator.clipboard` and records every property
+**read**, and counts `ClipboardItem` constructions.
+
+That is what produced the finding. `write` and `writeText` are read while the
+toolbar is being built — feature detection, and it passes — and **the counts are
+identical whether or not a verb is then tapped**. The tap adds one
+`ClipboardItem` and nothing else. So the write is not refused; the code that
+would perform it is never entered.
+
+`--console` went in for the same reason. Compose's web clipboard signals failure
+by `console.warn` and a normal return, so a run that records nothing on the
+console has ruled out every branch where the framework decided the browser has no
+clipboard.
+
+### The three that were reverted
+
+1. **Detach the write from the caller's coroutine.** Foundation copies by
+   launching undispatched: it collapses the selection and builds the entry
+   inline, then suspends. Collapsing the selection is what dismisses the
+   toolbar, so the suspending half looked like it was being cancelled. A
+   `Clipboard` wrapper that handed the write to a longer-lived scope and returned
+   without suspending was written, unit-tested against a cancelled caller —
+   *that* test passed both ways round — and changed nothing on the site.
+2. **A platform `writeText` of our own**, `expect`/`actual` across all four
+   source sets, called where the library already has the text. It compiles for
+   js and wasmJs, and `navigator.clipboard.writeText` demonstrably works from
+   the same page. It changed nothing, because its call site is inside a handler
+   that does not run.
+3. **`trapFocus = false` on the context menu.** `AnchoredDropdownMenu` hard-codes
+   `trapFocus = true`, `OverlayHost` ORs it across the stack, and `TextToolbar`'s
+   own KDoc describes exactly this destroying a menu that floats over a live
+   field. Same symptom, same shape, and it changed nothing.
+
+Each was plausible, each had a mechanism written out, and each was wrong. Two of
+them would have shipped as "fixes" under any process that stopped at *does it
+compile and does it look right*.
+
+### What to take from it
+
+**A fix aimed at a number is falsifiable; a fix aimed at a story is not.** The
+story here — a suspending write dropped when the toolbar goes away — survived
+three rounds of reasoning and one unit test, and died the moment it was asked for
+a number on the reporter's own platform.
+
+The next attempt starts from the table above rather than from a hypothesis. The
+open question is narrow and stated: **why does a click on a menu item not run its
+handler on web, when the same click on a selection-toolbar button does?** Both
+draw through the same overlay host and the same `Button`.
+
 ## A gesture the harness cannot deliver proves nothing either way
 
 Round 26 tried to test that a text box raises the library's selection toolbar,

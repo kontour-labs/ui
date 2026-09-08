@@ -297,7 +297,7 @@ class Cdp {
  * measurement can distinguish that from a page that is merely slow.
  */
 const PROBE = `
-window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [], clipboard: [], console: [], clipItems: 0 }
+window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [], clipboard: [], console: [], clipItems: 0, clipTouches: [] }
 
 /**
  * Every clipboard write the run produced, in order.
@@ -315,11 +315,17 @@ window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [], cl
   let held = ''
   const Real = window.ClipboardItem
   const seen = (via, text) => window.__probe.clipboard.push({ via, text: String(text) })
+  // Every property the page *reads* off the clipboard object, whether or not it
+  // then calls it. This is the difference between "the framework asked for
+  // write and did not call it" and "the framework never looked at the clipboard
+  // at all" — two explanations for an empty recorder that need completely
+  // different fixes, and one round was already spent on the wrong one.
+  const touched = (name) => window.__probe.clipTouches.push(String(name))
   try {
     const real = navigator.clipboard
     Object.defineProperty(Navigator.prototype, 'clipboard', {
       configurable: true,
-      get: () => ({
+      get: () => new Proxy({
         writeText: (text) => { seen('writeText', text); held = String(text); return Promise.resolve() },
         // Reads back what was written, so a Paste can be measured as well as a
         // Copy. A stub that always returned empty would make every paste look
@@ -337,6 +343,15 @@ window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [], cl
           ))],
         ),
         addEventListener: () => {},
+      }, {
+        get(target, property) {
+          touched(property)
+          return target[property]
+        },
+        has(target, property) {
+          touched('in:' + String(property))
+          return property in target
+        },
       }),
     })
     void real
@@ -869,6 +884,15 @@ async function main() {
     console.log(`           gates ${gates}`)
     console.log(`           ${built} ClipboardItem(s) built`)
     console.log(`           holding ${JSON.stringify(readBack)}`)
+    const touches = await evaluate('window.__probe.clipTouches')
+    const counted = new Map()
+    for (const t of touches) counted.set(t, (counted.get(t) || 0) + 1)
+    console.log(
+      `           navigator.clipboard read as: ` +
+        (counted.size
+          ? [...counted].map(([k, n]) => (n > 1 ? `${k}x${n}` : k)).join(', ')
+          : 'never touched'),
+    )
     console.log('')
   }
 
