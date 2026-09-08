@@ -250,6 +250,25 @@ class ToastSwipeTest {
         }
     }
 
+    @Test
+    fun aTopToastPushedDownComesBack() {
+        // The web disagreed with the sweep above on exactly this case, so it is
+        // pulled out on its own: a `Top` toast pushed *away* from its edge is
+        // inside the refused quarter and must return.
+        val pushed = swipe(travel = Offset(0f, 70f), position = ToastPosition.Top)
+
+        assertTrue(
+            !pushed.gone,
+            "a top-anchored toast pushed 70px down — away from the edge it " +
+                "dismisses to — went away. That is the one quarter that is " +
+                "supposed to resist and spring back",
+        )
+        assertEquals(
+            pushed.before, pushed.after,
+            "it came back to ${pushed.after} from ${pushed.before}",
+        )
+    }
+
     private class Swiped(
         /** Where the top of the stack sat before the gesture. */
         val before: Int,

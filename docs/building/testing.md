@@ -539,6 +539,56 @@ open question is narrow and stated: **why does a click on a menu item not run it
 handler on web, when the same click on a selection-toolbar button does?** Both
 draw through the same overlay host and the same `Button`.
 
+## The JVM and the browser disagree about one quarter of the toast cone
+
+Round 28 gave `Toast` a two-axis dismiss: every direction sends it away except
+the quarter aimed back into the screen. The JVM sweep covers eight compass points
+for both anchors and passes, canaried — against the previous commit it fails with
+exactly the three sideways cases and no others.
+
+The browser agrees about three quarters of it and not the fourth. Phone
+emulation, the `Top` anchor the demo defaults to, three runs of **identical
+length** (twelve steps each, so the run times match), pill present or gone:
+
+| twelve-step drag | toast afterwards |
+|---|---|
+| travels 2px — the control | **present** |
+| 70px *away* from the anchored edge | **gone** |
+| 90px sideways | **gone** |
+
+Rows one and three are what the cone is for, and row three is the capability the
+reporter asked for. **Row two is wrong**: away from the edge is the refused
+quarter, and the JVM test for exactly that case — a `Top` toast pushed 70px
+down — passes.
+
+Unexplained, and left that way rather than guessed at. What it is *not*: the
+toast expiring, which the matched control rules out; the page scrolling, which
+the frame shows it did not; and a `towardEdge` sign error, which would have moved
+the JVM sweep too.
+
+### The control that made this readable, and the two that did not
+
+The first version of this comparison used a **two**-step drag as its no-dismiss
+control against twelve-step real drags. Two runs of different lengths against a
+component with a 2.5-second clock is not a control at all, and it very nearly
+produced the opposite conclusion — that the cone worked everywhere — because
+every twelve-step run came back empty and the short one did not.
+
+Before that, two whole rounds of web measurement were thrown away for the same
+class of reason:
+
+* `--screenshot` fires after each gesture's 1.5s sample **and** the idle window,
+  by which time a toast has expired. Three runs at 5px, 60px up and 60px down
+  came back **byte-identical** — the same empty page.
+* `--film` with no settle between gestures put the drag *before* the toast had
+  finished appearing, so the finger landed on the page and scrolled it. What
+  looked at first like "the scroller is stealing the toast's drag" was a drag
+  aimed at a toast that was not there yet.
+
+**The rule this earns:** when the subject has a clock, every run in a comparison
+must be the same length, and the control must be a *real gesture that should do
+nothing* rather than the absence of one. A shorter run is a different experiment.
+
 ## A gesture the harness cannot deliver proves nothing either way
 
 Round 26 tried to test that a text box raises the library's selection toolbar,

@@ -128,6 +128,9 @@ function arg(name, fallback) {
 }
 
 const DIST = resolve(arg('dist', 'ui-docs/build/dist/wasmJs/productionExecutable'))
+/** Long enough for an enter animation, short enough not to outlive a toast. */
+const FILM_SETTLE_MS = 400
+
 const IDLE_SECONDS = Number(arg('seconds', '3'))
 
 /**
@@ -666,11 +669,18 @@ async function main() {
   const filmSpec = arg('film', null)
   let filming = null
   let filmFrames = 0
-  // Each gesture below ends by sampling frame times for 1.5s. While filming
-  // that is both redundant — the film is the observation — and destructive: a
-  // toast raised by `--touch-tap` has expired by the time `--touch-drag` runs,
-  // so the drag lands on an empty page and the run measures nothing.
-  const settle = async () => (filmSpec ? null : await evaluate(`window.__sample(1500)`))
+  // Each gesture below ends by sampling frame times for 1.5s. While filming that
+  // is both redundant — the film is the observation — and destructive: a toast
+  // raised by `--touch-tap` has expired by the time `--touch-drag` runs, so the
+  // drag lands on an empty page.
+  //
+  // But dropping it to nothing is worse, and measured: the drag then arrives
+  // *before* the thing it is aimed at has finished appearing, the finger lands
+  // on the page behind it, and the page scrolls instead. A short pause is what
+  // is actually wanted — long enough for an enter animation, short enough not to
+  // outlive what it raised.
+  const settle = async () =>
+    (filmSpec ? await wait(FILM_SETTLE_MS).then(() => null) : await evaluate(`window.__sample(1500)`))
   if (filmSpec) {
     const [dir, count = 20, gap = 100, after = 0] = filmSpec.split(',')
     await mkdir(dir, { recursive: true })
