@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -658,12 +659,33 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     // or three events. Measured: a flat third of every delta stopped at 10px and
     // a linear ramp stopped at 19, both by the second frame of a 240px pull.
     // The band has to be a function of the *whole* pull.
-    var pull by remember { mutableFloatStateOf(0f) }
+    // Held as the state rather than read out of it, and handed down that way.
+    //
+    // `Modifier.draggable` calls its delta handler once per *pointer event*, and
+    // a finger emits faster than the compositor recomposes. This used to be a
+    // `Float` parameter on `ToastCard` — a value captured at composition — with
+    // the handler computing `pull + delta` from it, so every delta inside one
+    // frame started from the same stale base and the last one overwrote the
+    // rest. You kept one delta per frame instead of their sum, and a 180px drag
+    // moved the card 42px. `SliderDragTest`'s KDoc has the same bug in the same
+    // API, and `Switch` avoids it the same way: read the accumulator live.
+    val pull = remember { mutableFloatStateOf(0f) }
     val swipe = rubberBand(
-        pull = pull,
+        pull = pull.floatValue,
         limit = frontHeightPx * ToastDefaults.RubberBand,
         towardEdge = towardEdge,
     )
+
+    // Back to nothing whenever the card in front changes.
+    //
+    // Every card reads `swipe` into its `translationY`, and nothing else ever
+    // put this back: a toast swiped away left the whole stack behind it sitting
+    // permanently displaced, until the stack emptied completely and the overlay
+    // entry went with it. It also covers the case where a toast arrives while
+    // the spring below is still running — the settle is on the dragged node's
+    // own scope, and that node exists only while its card is at `depth == 0`.
+    val frontId = visible.lastOrNull()?.id
+    LaunchedEffect(frontId) { pull.floatValue = 0f }
 
     // Every toast runs its clock, including the ones with no room to be drawn.
     //
@@ -756,7 +778,6 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     onFrontMeasured = { frontHeightPx = it },
                     swipe = swipe,
                     pull = pull,
-                    onPull = { pull = it },
                     modifier = config.modifier,
                 )
             }
@@ -784,9 +805,14 @@ private fun ToastCard(
      * behind while the other half follows a finger says it is not.
      */
     swipe: Float,
-    /** The same drag before the rubber band is applied — see `rubberBand`. */
-    pull: Float,
-    onPull: (Float) -> Unit,
+    /**
+     * The same drag before the rubber band is applied — see `rubberBand`.
+     *
+     * The state itself, not its value. The drag handler has to *read* this at
+     * the moment each pointer event arrives; given a `Float` it would accumulate
+     * onto whatever the last composition happened to see. See `ToastStack`.
+     */
+    pull: MutableFloatState,
     modifier: Modifier,
 ) {
     val motion = Theme.motion
@@ -888,30 +914,47 @@ private fun ToastCard(
                     if (depth == 0) {
                         Modifier.draggable(
                             state = rememberDraggableState { delta ->
-                                // A plain accumulator. Where the card actually
-                                // goes is `rubberBand`, one level up, because a
-                                // band is a function of the whole pull and not
-                                // of one delta at a time.
-                                onPull(pull + delta)
+                                // A plain accumulator, read and written live.
+                                // Where the card actually goes is `rubberBand`,
+                                // one level up, because a band is a function of
+                                // the whole pull and not of one delta at a time.
+                                pull.floatValue += delta
                             },
                             orientation = Orientation.Vertical,
                             onDragStopped = {
+                                // Read from the accumulator, not from `swipe`.
+                                //
+                                // `swipe` is this composable's *parameter* — the
+                                // banded displacement as of the last time it
+                                // recomposed — and the release arrives on a
+                                // pointer event, not on a frame. Deciding from
+                                // it asks "how far had the card travelled as of
+                                // the last frame", which is at best one frame
+                                // stale and, when the events since then were
+                                // never drawn, zero. Measured: a 120px swipe
+                                // straight at the edge read as 0px and refused
+                                // to dismiss.
+                                //
+                                // Toward the edge the band is 1:1, so the
+                                // accumulator *is* the displacement there, which
+                                // is the only direction that dismisses anyway.
+                                val travelled = pull.floatValue
                                 val far = height * ToastDefaults.SwipeAway
                                 val towardTheEdge =
-                                    if (towardEdge) swipe > 0f else swipe < 0f
-                                if (towardTheEdge && abs(swipe) >= far) {
+                                    if (towardEdge) travelled > 0f else travelled < 0f
+                                if (towardTheEdge && abs(travelled) >= far) {
                                     state.dismiss(toast.id)
                                 } else {
                                     // Sprung, not snapped. Letting go below the
                                     // threshold used to put the card back in a
                                     // single frame, which looks like a glitch
                                     // rather than like a control returning.
-                                    val from = pull
+                                    val from = pull.floatValue
                                     animate(
                                         initialValue = from,
                                         targetValue = 0f,
                                         animationSpec = motion.springOrTween(motion.springSnappy),
-                                    ) { value, _ -> onPull(value) }
+                                    ) { value, _ -> pull.floatValue = value }
                                 }
                             },
                         )
