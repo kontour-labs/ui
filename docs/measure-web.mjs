@@ -21,7 +21,7 @@
 //                             [--touch-tap X,Y] [--touch-drag X1,Y1,X2,Y2[,STEPS[,HOLD]]]
 //                             [--then-tap X,Y]
 //                             [--mobile] [--dark] [--reduce-motion] [--vibration]
-//                             [--clipboard]
+//                             [--clipboard] [--console]
 //                             [--eval EXPR]
 //
 // ### What it can and cannot tell you
@@ -297,7 +297,7 @@ class Cdp {
  * measurement can distinguish that from a page that is merely slow.
  */
 const PROBE = `
-window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [], clipboard: [] }
+window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [], clipboard: [], console: [], clipItems: 0 }
 
 /**
  * Every clipboard write the run produced, in order.
@@ -339,6 +339,71 @@ window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [], cl
       seen(String(command).toLowerCase(), document.getSelection ? document.getSelection().toString() : '')
     }
     return exec ? exec(command, ...rest) : false
+  }
+}
+
+/**
+ * How far a copy got before it stopped.
+ *
+ * "Nothing was written" has at least three causes and the recorder above cannot
+ * separate them: the framework decided the browser has no clipboard and never
+ * tried; it built an entry and the write itself was refused; or it built one and
+ * the coroutine carrying the write was cancelled before it resumed. The last is
+ * live here rather than theoretical — Compose's cut() deletes the text and
+ * *then* suspends on setClipEntry, which is exactly the shape of the reported
+ * symptom, a word that disappears with nothing on the clipboard.
+ *
+ * Constructing a ClipboardItem is the midpoint of that sequence, so counting the
+ * constructions splits the three apart: zero means it never tried, one with no
+ * write means it was built and the write did not happen.
+ */
+{
+  const Real = window.ClipboardItem
+  if (typeof Real === 'function') {
+    const Counting = function (...args) {
+      window.__probe.clipItems++
+      return new Real(...args)
+    }
+    Counting.prototype = Real.prototype
+    try { Counting.supports = Real.supports ? Real.supports.bind(Real) : undefined } catch {}
+    window.ClipboardItem = Counting
+  }
+}
+
+/**
+ * What the page said to the console, which is where a framework explains itself.
+ *
+ * Written for the clipboard, and general because the reason is general. Compose's
+ * web clipboard does not fail by throwing — every branch that cannot write ends
+ * in a console.warn saying the browser supports neither Clipboard.write nor
+ * Clipboard.writeText, and then returns normally. From outside, a write that was
+ * refused and a write that was never attempted look identical: the recorder above
+ * logs nothing in both cases. That is the difference between "the library has no
+ * clipboard" and "the harness is not a secure context", and it decides whether
+ * there is a bug here at all.
+ *
+ * Patched rather than read over CDP's Runtime.consoleAPICalled, to match the two
+ * recorders above and because a patch installed at document start cannot miss
+ * anything a listener attached after Runtime.enable might.
+ *
+ * The original is still called, so --console changes what is *recorded* and not
+ * what the page does.
+ */
+{
+  const levels = ['log', 'info', 'warn', 'error']
+  for (const level of levels) {
+    const original = console[level] ? console[level].bind(console) : null
+    console[level] = function (...args) {
+      try {
+        window.__probe.console.push({
+          level,
+          text: args.map((a) => {
+            try { return typeof a === 'string' ? a : JSON.stringify(a) } catch { return String(a) }
+          }).join(' '),
+        })
+      } catch {}
+      if (original) original(...args)
+    }
   }
 }
 
@@ -761,7 +826,7 @@ async function main() {
     interaction = await evaluate(`window.__sample(1500)`)
   }
 
-  // Both recorders are read here rather than beside the gestures above, and the
+  // These recorders are read here rather than beside the gestures above, and the
   // placement is the measurement.
   //
   // `--then-tap` and `--eval` run *after* the first gesture — that is their whole
@@ -777,6 +842,32 @@ async function main() {
     } else {
       console.log(`clipboard  ${writes.length} write(s)`)
       for (const w of writes) console.log(`             ${w.via}: ${JSON.stringify(w.text)}`)
+    }
+    // The two gates Compose's own web clipboard checks before it writes
+    // anything, printed whether or not a write happened, because "nothing was
+    // written" means two completely different things depending on them. A
+    // loopback origin *is* a secure context per the spec, so if this prints
+    // `secure: true` and no write followed, the refusal is not the harness's.
+    const gates = await evaluate(
+      "JSON.stringify({secure: window.isSecureContext, " +
+        "write: typeof navigator.clipboard?.write, " +
+        "writeText: typeof navigator.clipboard?.writeText, " +
+        "item: typeof ClipboardItem})",
+    )
+    const built = await evaluate('window.__probe.clipItems')
+    console.log(`           gates ${gates}`)
+    console.log(`           ${built} ClipboardItem(s) built`)
+    console.log('')
+  }
+
+  if (process.argv.includes('--console')) {
+    const lines = await evaluate('window.__probe.console')
+    console.log('')
+    if (!lines.length) {
+      console.log('console    the page said nothing')
+    } else {
+      console.log(`console    ${lines.length} message(s)`)
+      for (const l of lines) console.log(`           ${l.level}: ${l.text}`)
     }
     console.log('')
   }

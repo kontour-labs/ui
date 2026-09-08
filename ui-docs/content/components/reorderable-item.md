@@ -28,6 +28,17 @@ LazyColumn(state = listState) {
 }
 ```
 
+**A `handleIcon` changes the gesture, not just the picture.** With one, the row
+is dragged from the grip and the drag starts the moment the grip is pressed.
+Without one the whole row is draggable, and on touch that has to wait for a long
+press — because a row that moved as soon as a finger touched it could never be
+scrolled past. `handleSide` puts the grip at either end; the trailing end by
+default, since the leading end is usually where a row's own icon or avatar is.
+
+The grip is decoration. Move up and move down are the accessible route either
+way, so the glyph carries no description and adding one would only put a third,
+drag-shaped path in front of a screen reader.
+
 ---
 
 ## Accessibility

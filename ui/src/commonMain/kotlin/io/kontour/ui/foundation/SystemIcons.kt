@@ -7,7 +7,11 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Dots
+import com.composables.icons.tabler.outline.AlertCircle
+import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.Check
+import com.composables.icons.tabler.outline.CircleCheck
+import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.ChevronLeft
 import com.composables.icons.tabler.outline.ChevronRight
@@ -66,6 +70,25 @@ object SystemIcons {
 
     /** Dismiss. */
     val Close: ImageVector get() = Tabler.Outline.X
+
+    /**
+     * One per `BannerTone`, for a `Callout` that has no caller to ask.
+     *
+     * A `Banner` takes its icon from the call site, because the thing it is a
+     * message *about* is the caller's to name. A callout is an aside inside
+     * prose, and on a documentation site every markdown blockquote becomes one —
+     * so there is nobody there to choose, and a severity with no glyph is a tint
+     * and nothing else. These are what it falls back to; a caller that has an
+     * opinion still passes its own.
+     *
+     * Structural in the same sense as [Check] and [Star]: the tone is *made of*
+     * the colour and the mark together, and colour alone is the one signal a
+     * reader may not have.
+     */
+    val Info: ImageVector get() = Tabler.Outline.InfoCircle
+    val Success: ImageVector get() = Tabler.Outline.CircleCheck
+    val Warning: ImageVector get() = Tabler.Outline.AlertTriangle
+    val Danger: ImageVector get() = Tabler.Outline.AlertCircle
 
     /**
      * Whatever did not fit.

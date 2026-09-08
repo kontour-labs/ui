@@ -223,12 +223,11 @@ internal val BannerDemo = ComponentDemo(slug = "banner", knobs = listOf(bannerTo
     }
 }
 
-internal val CalloutDemo = ComponentDemo(slug = "callout") {
-    Callout(Modifier.fillMaxWidth()) {
-        Text(
-            "Melbourne, Sydney and Canberra do not currently support journey planning.",
-            style = Theme.typography.bodySmall,
-        )
+private val calloutTone = Knob.Choice("Tone", BannerTone.entries.toList())
+
+internal val CalloutDemo = ComponentDemo(slug = "callout", knobs = listOf(calloutTone)) {
+    Callout(Modifier.fillMaxWidth(), tone = this[calloutTone]) {
+        Text("Melbourne, Sydney and Canberra do not currently support journey planning.")
     }
 }
 

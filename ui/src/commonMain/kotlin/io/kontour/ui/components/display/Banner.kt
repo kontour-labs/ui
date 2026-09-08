@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
@@ -222,91 +223,96 @@ fun AnimatedBanner(
 }
 
 /**
- * A quoted aside, in the shape the marketing site's markdown already uses.
+ * A quoted aside, tinted and marked the way a [Banner] is.
  *
- * An accent rule down the leading edge and a tinted ground — for a note or a
- * caveat inside a body of text. Unlike a [Banner] it carries no severity and is
- * not a live region: it is part of the prose, not a message about the screen.
+ * For a note or a caveat inside a body of text. It shares a `Banner`'s ground,
+ * border, icon and type, and that is the point: two things that say "pay
+ * attention to this" should not look like two different libraries. What it does
+ * **not** share is everything that makes a banner a message about the *screen* —
+ * no dismiss, no action, no live region. A callout is part of the prose.
+ *
+ * ### The rule is gone, after three attempts at it
+ *
+ * It was an accent band down the leading edge, and every version of it lost to
+ * the container's own corner. Flush inside the clip, it tapered away at both
+ * ends; stroked around the whole outline, a 22dp corner carried it 25dp along
+ * the top and bottom and it read as a "C" bracketing the text; indented 8dp to
+ * dodge both, it stopped reading as an edge at all and looked, in the report,
+ * "like a tally mark left in the box". Three rounds, one stripe, and the honest
+ * reading is that a 3dp mark is not enough signal to be worth that much trouble
+ * when the component beside it already solved the same problem with a tint and a
+ * glyph.
+ *
+ * @param tone Which of the five, and it decides the ground, the border, the text
+ *   colour and the icon together. [BannerTone.Accent] by default, which is the
+ *   neutral aside a blockquote becomes.
+ * @param icon The mark. Defaults to the tone's own — unlike [Banner], which makes
+ *   the caller choose, because a callout often has no caller: a documentation
+ *   site turns every markdown blockquote into one. Null for a callout that is
+ *   tint alone.
  */
 @Composable
 fun Callout(
     modifier: Modifier = Modifier,
-    accent: Color = Theme.colours.accent.solid,
-    container: Color = Theme.colours.accent.container,
+    tone: BannerTone = BannerTone.Accent,
+    icon: ImageVector? = calloutIcon(tone),
     content: @Composable () -> Unit,
 ) {
+    val colours = bannerColoursFor(tone)
     val shape = Theme.shapes.container
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            // Intrinsic height so the accent rule can match the tallest child;
-            // a Row otherwise gives fillMaxHeight nothing to fill.
-            .height(IntrinsicSize.Min)
             .clip(shape)
-            .background(container, shape)
-            // The leading *edge* is the accent, not a bar floating near it.
-            //
-            // Third attempt, and the first two are worth keeping because the
-            // third is the answer to both. A plain bar inside a rounded
-            // container is eaten by the clip where the curve turns, so a rule
-            // meant to run the full height tapers away at each end; stroking
-            // the container's whole outline instead curves with it all the way,
-            // and a 22dp corner carries the rule 25dp along the top and bottom
-            // edges, which reads as a "C" bracketing the text. The version that
-            // shipped dodged both by indenting the bar 8dp from the edge — and
-            // an 8dp gap is exactly enough to stop it reading as an edge at
-            // all. It looked like a tally mark left in the box, which is the
-            // report.
-            //
-            // So the taper is not the fault; it is the effect. A band flush
-            // against the leading edge, clipped to the container's own path,
-            // narrows to nothing exactly where the corner turns away from it —
-            // which is what an edge catching the light does. The squircle is
-            // what makes this work rather than merely tolerable: its curvature
-            // is spread along the edge instead of concentrated in a quarter
-            // circle, so the band thins over most of a corner's length rather
-            // than being cut off in a couple of pixels.
-            .drawWithCache {
-                val outline = shape.createOutline(size, layoutDirection, this)
-                val path = Path().apply { addOutline(outline) }
-                val width = CalloutRuleWidth.toPx()
-
-                // Draw coordinates do not flip, but the spacer that reserves
-                // this strip is a `Row` child and does. Mirror by hand or the
-                // rule is painted under the text in RTL.
-                val left = if (layoutDirection == LayoutDirection.Rtl) {
-                    size.width - width
-                } else {
-                    0f
-                }
-
-                onDrawWithContent {
-                    drawContent()
-                    clipPath(path) {
-                        drawRect(
-                            color = accent,
-                            topLeft = Offset(left, 0f),
-                            size = Size(width, size.height),
-                        )
-                    }
-                }
-            },
+            .background(colours.container, shape)
+            .border(BorderStroke(Theme.sizing.borderWidth, colours.border), shape)
+            .padding(Theme.spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        // As in `Banner`, and for the reason written there: the icon is about the
+        // whole aside rather than about its first line.
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The rule plus a hair of air; the content's own padding does the rest.
-        Box(Modifier.width(CalloutRuleWidth + Theme.spacing.xs))
-        Box(Modifier.padding(Theme.spacing.sm)) {
-            CompositionLocalProvider(
-                LocalContentColour provides Theme.colours.accent.onContainer,
-            ) {
-                content()
+        CompositionLocalProvider(LocalContentColour provides colours.onContainer) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    // The tone is in the words, or it is not information. A
+                    // reader who cannot see the tint is not helped by hearing
+                    // "warning" read out before a sentence that already says so.
+                    contentDescription = null,
+                    modifier = Modifier.size(Theme.sizing.iconMedium),
+                )
+            }
+            ProvideTextStyle(Theme.typography.bodySmall) {
+                Box(Modifier.weight(1f)) { content() }
             }
         }
     }
 }
 
-/** How wide the accent rule down a [Callout]'s leading edge is. */
-private val CalloutRuleWidth = 3.dp
+/**
+ * The glyph a tone falls back to.
+ *
+ * Not a `when` on a colour: the tone is the vocabulary and the icon is one of
+ * the things it decides, alongside the ground and the border in
+ * [bannerColoursFor].
+ */
+@Composable
+private fun calloutIcon(tone: BannerTone): ImageVector = when (tone) {
+    BannerTone.Info -> SystemIcons.Info
+    BannerTone.Success -> SystemIcons.Success
+    BannerTone.Warning -> SystemIcons.Warning
+    BannerTone.Danger -> SystemIcons.Danger
+    // The same glyph as `Info`, deliberately. The two differ in emphasis rather
+    // than in kind — an accent aside is a note in the brand's colour and an info
+    // one is a note in the informational colour — and inventing a second mark to
+    // keep them apart would be signalling a difference the component does not
+    // have. This is the tone a markdown blockquote becomes, and "here is a note"
+    // is what it means.
+    BannerTone.Accent -> SystemIcons.Info
+}
+
 
 @Composable
 private fun bannerColoursFor(tone: BannerTone): StatusColours = when (tone) {

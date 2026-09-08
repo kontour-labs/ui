@@ -24,13 +24,27 @@ read what is above; there is nothing above, so nothing happens. The distinction
 is a held pointer rather than the kind of scroll: a pull is a sustained gesture —
 press, drag, decide, let go — and a notch is not.
 
-**The ring stops at an arc, and the spinner carries on from it.** It grows and
-turns with the finger up to the spinner's longest arc, and the spinner opens at
-that length *and at that angle*, so the moment the gesture commits is a change of
-meaning rather than a change of picture. It used to close the circle and then
-empty; more recently it matched the length but not the position, so an arc that
-had been dragged most of the way round the dial jumped back to three o'clock in
-one frame.
+**The ring stops at three quarters, and the spinner contracts out of it.** The
+arc grows and turns with the finger to about 270° at the threshold, and the
+spinner then opens *at that length and that angle* and shortens into its own over
+a beat — so the moment the gesture commits is a change of meaning rather than a
+change of picture. It used to close the circle and then empty; more recently it
+matched the length but not the position, so an arc that had been dragged most of
+the way round the dial jumped back to three o'clock in one frame.
+
+The three quarters is what the ceiling used to cost. It was pinned to the
+spinner's own opening length — a hair over half a circle — purely so the swap
+would not be a step, which made a gesture taken all the way to its threshold look
+like it had barely committed. Handing the length *to* the spinner keeps the swap
+smooth without holding the arc back.
+
+**The indicator reaches full size before the finger is done.** Its scale and its
+opacity ramp over the first 40% of the pull rather than the whole of it. While
+they tracked the whole pull they multiplied with the sweep — the arc's apparent
+length grew as the *square* of the pull — and a half pull drew a short arc at
+half size and half opacity, which measured as no ink at all. It still grows in
+from nothing, so a stray one-pixel drag does not flash a control onto the screen;
+it just finishes early and leaves the rest of the gesture to the arc.
 
 **Letting it back slowly does not scroll the page.** Past the threshold the pull
 resists, so the indicator moves less than the finger does; the way back closes at

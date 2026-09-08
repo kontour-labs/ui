@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
@@ -96,6 +97,54 @@ class FabMenuTest {
         assertTrue(
             topStart.centres.all { it.y > topStart.anchor.y },
             "a button in the top corner opened upward, off the screen",
+        )
+    }
+
+    /**
+     * A menu opens **upward wherever the run fits**, not wherever there is more
+     * room.
+     *
+     * Reported as "the expanding option buttons draw on the wrong side". The
+     * direction was a *midpoint* test — `up >= down` — so a button anywhere in
+     * the top half of the window opened downward whether or not the column would
+     * have fitted above it. The two cases already covered here are both corners,
+     * where the midpoint test and the fit test agree; everything between them was
+     * untested and is where the report lives.
+     *
+     * It matters because `container` is the **window**, not whatever the button
+     * looks like it is inside. `FabMenu`'s demo sits in a 260dp box in a long
+     * scrolling page, so the direction it opens depends on where the *page* is
+     * scrolled to — the same button, on the same screen, opening up or down
+     * depending on nothing the user can see.
+     *
+     * ### The assertion needs no constants
+     *
+     * Whichever way it went, the run's extent is measurable from the items. So:
+     * opening downward is only allowed when the same run would not have fitted
+     * upward. That holds at both corners, holds in the middle, and does not need
+     * to know the footprint, the gap or the anchor's radius.
+     */
+    @Test
+    fun theMenuOpensUpwardWhereverTheRunFits() = runComposeUiTest {
+        val offenders = Biases.mapNotNull { bias ->
+            val opened = openAt(FabMenuLayout.Vertical, BiasAlignment(1f, bias), height = TallWindow)
+            val downward = opened.centres.all { it.y > opened.anchor.y }
+            val extent = opened.centres.maxOf { abs(it.y - opened.anchor.y) }
+            val roomAbove = opened.anchor.y - extent
+            if (downward && roomAbove > Tolerance) {
+                "at bias $bias the anchor was ${opened.anchor.y.toInt()}px down and " +
+                    "the run is ${extent.toInt()}px, so it had " +
+                    "${roomAbove.toInt()}px to spare above it and opened downward anyway"
+            } else {
+                null
+            }
+        }
+
+        assertTrue(
+            offenders.isEmpty(),
+            "a menu opened downward with room above it for the whole column: " +
+                offenders.joinToString("; ") + ". A speed dial opens up from the " +
+                "button unless it cannot, and `up >= down` is not that question.",
         )
     }
 
@@ -297,6 +346,24 @@ class FabMenuTest {
         val Labels = listOf("Save stop", "Nearby", "Routes")
 
         const val WindowWidth = 400
+
+        /**
+         * Tall enough that the column fits above the button across most of it,
+         * so "is there room" and "is there more room" give different answers over
+         * a usefully wide range.
+         */
+        const val TallWindow = 800
+
+        /**
+         * Where to put the button, as `BiasAlignment`'s -1..1 vertical bias.
+         *
+         * The two corners are already covered by
+         * [theMenuOpensAwayFromTheCornerItIsIn]; these are the positions between
+         * them, which is everywhere a button on a scrolling page actually is.
+         * `-0.9` is near the top and is the one case that legitimately opens
+         * downward, so it keeps the test honest about what it is asserting.
+         */
+        val Biases = listOf(-0.9f, -0.5f, -0.2f, 0f, 0.3f)
 
         /** Too short for three items at full spacing, which is the point. */
         const val SqueezedHeight = 200

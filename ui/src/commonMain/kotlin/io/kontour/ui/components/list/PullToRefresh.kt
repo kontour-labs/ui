@@ -68,6 +68,20 @@ object PullToRefreshDefaults {
      * far enough.
      */
     const val Resistance: Float = 0.4f
+
+    /**
+     * How much of the pull the indicator spends growing to full size.
+     *
+     * Four tenths, so it is done well before the finger is and the rest of the
+     * gesture belongs to the arc alone. It used to be the whole pull, which put
+     * the indicator's size and the arc's sweep on the same ramp and multiplied
+     * them: the arc's apparent length grew as the square of the pull, and half a
+     * pull drew no measurable ink at all.
+     *
+     * Not zero. A stray one-pixel drag should not flash a control onto the
+     * screen, and growing in is what stops it.
+     */
+    const val GrowthShare: Float = 0.4f
 }
 
 @Stable
@@ -395,7 +409,22 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
             .graphicsLayer {
                 // Grows in as the pull begins rather than appearing at full
                 // size, so a stray one-pixel drag does not flash a control.
-                val scale = if (refreshing) 1f else pull
+                // Full size well before the finger is done, rather than
+                // arriving with it.
+                //
+                // Scale and alpha both tracked `pull` while the *sweep* did too,
+                // so the arc's apparent size grew as `pull²` — its length with
+                // the sweep and its radius with the scale, multiplied. At half a
+                // pull that is a 95° arc at half size **and** half opacity, which
+                // measured as no ink at all on a white page: 0px against 205px at
+                // a full pull. "Doesn't get big enough" was three things at once
+                // and this was the largest of them.
+                //
+                // The growth is still there — a stray one-pixel drag must not
+                // flash a control — it just finishes early, leaving the rest of
+                // the gesture to the arc alone.
+                val grown = (pull / PullToRefreshDefaults.GrowthShare).coerceAtMost(1f)
+                val scale = if (refreshing) 1f else grown
                 scaleX = scale
                 scaleY = scale
                 alpha = scale
@@ -418,6 +447,11 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
                 // then teleported back to three the instant the gesture
                 // committed, which is the reported jump.
                 initialAngle = PullHead + if (reduceMotion) 0f else PullTurn,
+                // Opens at the length the finger left and contracts into its
+                // own, so the handover is a release rather than a step. Without
+                // it a 270° arc would be replaced by a 190° one in a single
+                // frame, which is what the ceiling used to be pinned to avoid.
+                initialSweep = if (reduceMotion) null else PullSweep,
             )
         } else {
             // Drawn here rather than handed to `CircularProgress`, because a
@@ -443,11 +477,7 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
                 // and never breathes, so that is the length to grow to instead
                 // — matching `OpeningSweep` there would have handed a 190°
                 // arc over to a 90° one.
-                val full = if (reduceMotion) {
-                    SpinnerDefaults.RestingSweep
-                } else {
-                    SpinnerDefaults.OpeningSweep
-                }
+                val full = if (reduceMotion) SpinnerDefaults.RestingSweep else PullSweep
                 val sweep = pull * full
                 val head = PullHead + if (reduceMotion) 0f else pull * PullTurn
                 drawArc(
@@ -473,6 +503,17 @@ private const val PullHead = -90f
 
 /** How far the arc turns over a full pull. Most of a revolution, not all of it. */
 private const val PullTurn = 300f
+
+/**
+ * How far round the arc gets by the time the finger reaches the threshold.
+ *
+ * Three quarters. It used to be `SpinnerDefaults.OpeningSweep`, so that the
+ * spinner taking over drew the same length and the swap was not a step — and a
+ * hair over half a circle read as not much of a commitment for a gesture that
+ * had gone all the way to its threshold. The handover is kept by handing the
+ * length *to* the spinner instead, through `Spinner`'s `initialSweep`.
+ */
+private const val PullSweep = 270f
 
 private fun Modifier.offsetY(y: Float): Modifier =
     offset { IntOffset(0, y.roundToInt()) }

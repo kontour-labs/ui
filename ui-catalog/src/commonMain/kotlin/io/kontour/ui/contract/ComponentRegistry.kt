@@ -234,7 +234,7 @@ class ComponentSpec(
      *
      * Null for almost everything: one canvas for all of them is what makes a
      * page of these comparable. The exception earns it — `PullToRefresh`
-     * mid-refresh floats its indicator a 72dp threshold below the top of its
+     * mid-refresh floats its indicator an 80dp threshold below the top of its
      * content, so a faithful picture of it is 112dp of structure and the
      * standard card offers 88.
      */
@@ -1694,20 +1694,38 @@ val componentRegistry: List<ComponentSpec> = buildList {
             underContract = false,
             renderHeight = 120,
             minWidth = 200,
+            states = listOf(
+                // A severity, where the tone is doing all three of its jobs at
+                // once: a different ground, a different border and a different
+                // mark. The specimen below is the default, so without this one
+                // the repository would have no picture of a callout that is not
+                // `Accent`, and the tone would look like a colour swap.
+                RenderState("warning") { modifier ->
+                    Callout(
+                        modifier.widthIn(max = SpecimenProseWidth),
+                        tone = BannerTone.Warning,
+                    ) {
+                        Text("Journey planning is unavailable while the timetable reloads.")
+                    }
+                },
+            ),
         ) { modifier, _, _ ->
-            // Long enough to wrap, because the whole of this component is the
-            // rule down its leading edge and a rule needs height to be a rule.
-            // A one-line callout is almost entirely corner, which is exactly
-            // the part that is about to change.
-            //
             // Bounded, because `Callout` is `fillMaxWidth` and the render
             // measures unbounded: left to itself the message takes one 991px
             // line and overflows a 600px canvas.
+            //
+            // The default tone and the default icon, both taken rather than
+            // passed, because that is the callout the reporter is actually
+            // looking at: `Prose` turns every markdown blockquote on the
+            // documentation site into one of these and passes neither.
+            //
+            // The type comes from the component now rather than from here, which
+            // is most of what made this a `Banner` sibling — every call site used
+            // to pass `bodySmall` by hand and any one of them could have not.
             Callout(modifier.widthIn(max = SpecimenProseWidth)) {
                 Text(
                     "Melbourne, Sydney and Canberra do not currently support " +
                         "journey planning.",
-                    style = Theme.typography.bodySmall,
                 )
             }
         }
@@ -1733,7 +1751,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // with nothing underneath, the indicator floats in space rather than
             // sitting above the thing it is refreshing.
             PullToRefresh(refreshing = true, onRefresh = {}, modifier = modifier) {
-                // Taller than the 72dp threshold on purpose. With shorter
+                // Taller than the 80dp threshold on purpose. With shorter
                 // content the indicator lands *below* the list, which is what it
                 // honestly does when it wraps something short — and is not what
                 // it does in the full-height scrollable it is actually for.

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.ScrollbarDefaults
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import androidx.compose.ui.unit.Dp
@@ -86,17 +87,27 @@ private fun Block(block: Block) {
 
         is Block.Paragraph -> Linkable(block.spans, Theme.typography.bodyMedium)
 
-        // `Callout`, whose own KDoc describes it as "a quoted aside, in the
-        // shape the marketing site's markdown already uses" — and which this
-        // site then did not use, drawing its own rule out of a `Box` with a
-        // background and a space in it to give the rule a height.
+        // `Callout`, at its defaults, and this is the call site those defaults
+        // were chosen for: markdown gives a blockquote no severity and nobody
+        // to ask about an icon, so `BannerTone.Accent` and the tone's own mark
+        // are what it gets.
         //
-        // The rule was the right idea for the reason the old comment gave: an
-        // indent alone reads as a paragraph that happens to start late. It is
-        // also exactly what `Callout` draws, with a container tint behind it
-        // and a radius the rest of the page shares.
+        // An earlier version of this branch drew its own rule out of a `Box`
+        // with a background and a space in it, on the reasoning that an indent
+        // alone reads as a paragraph that happens to start late. The reasoning
+        // was right and the rule was not: three attempts at one all lost to the
+        // container's corner. A tint, a border and a glyph set the aside apart
+        // without needing to survive a radius.
         is Block.Quote -> Callout {
-            Linkable(block.spans, Theme.typography.bodySmall, Theme.colours.content)
+            // The tone's own content colour, not the page's. This used to pass
+            // `Theme.colours.content`, which overrode the accent the container is
+            // tinted with — so on this site the tint was the *only* signal the
+            // callout carried, and it is where the reporter was looking at it.
+            //
+            // The style is still passed because `Linkable` requires one; it is
+            // the same `bodySmall` the component now provides, so a caller that
+            // forgot it would get the right thing anyway.
+            Linkable(block.spans, Theme.typography.bodySmall, LocalContentColour.current)
         }
 
         is Block.Bullets -> Column(
