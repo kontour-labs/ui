@@ -365,6 +365,44 @@ Three causes, one symptom, and only the first was in the plan. **A measurement
 that improves but does not resolve is evidence that the model is incomplete**,
 not evidence that the fix worked.
 
+### And when it does reach zero, check that it reached zero where the defect is
+
+The same report came back a fourth time. All three causes above are in the
+**band** — the strip the receding content vacates — and the test written for them
+samples row 5, which is in the band. It reports a gap of **0** and it is telling
+the truth.
+
+The reporter was describing the other side of the same edge. A blurred layer with
+a `scale` anywhere above it comes out partially transparent for about one and a
+half blur radii *inside* its own boundary, and the test had no samples there at
+all. Move the strip to mid-height across the content's own edge, keep the same
+white-page-against-black-page comparison, and it reads:
+
+```
+58, 61, 27, 66, 22, 55, 41
+```
+
+one number per frame of the sheet arriving. **The alternation is the report.**
+The reporter said flashing rather than glowing, and it flickers because the
+content's edge lands on a different subpixel each frame. A test that sampled one
+frame could have found the glow; only one that samples every frame finds the
+flash.
+
+`TileMode.Clamp` is the documented answer to a blur fading its own edge, and it
+does not work through a scale. Six arrangements were measured — blur alone; blur
+and scale on one layer; the scale on an outer layer with the blur on an inner
+one; the blur forced to `CompositingStrategy.Offscreen`; with a rectangle clip;
+with the squircle — and every one with a scale above the blur produced the
+identical fade, byte for byte, while every one without produced none at all. That
+is what turned the fix from "rearrange the layers" into "put something opaque
+behind it" — after two rearrangements had already been written and reverted for
+moving the number not at all.
+
+**A passing test is a claim about the pixels it looked at**, and nothing more.
+Widening the old test to cover both regions would have made one failure stand for
+either cause, so the new one is separate, and the old one's KDoc now says what it
+does not cover.
+
 ## A gesture the harness cannot deliver proves nothing either way
 
 Round 26 tried to test that a text box raises the library's selection toolbar,

@@ -122,8 +122,14 @@ class BackdropBlurTest {
             scene.frames(80)
         }
 
-        // Well inside the receded content and well above the sheet.
-        val middle = (200..400).map { luminance(image, it, 120) }.average()
+        // Well inside the receded content and well above the sheet — and now
+        // also clear of the ring `backdropGround` paints under the blur's
+        // softened edge. This used to sample row 120, which is inside that ring
+        // on a 900-tall host, so it would have gone on passing if the ring had
+        // grown to cover the whole screen: the one thing this test exists to
+        // catch. A test that passes on the wrong pixels is what this whole round
+        // is about.
+        val middle = (200..400).map { luminance(image, it, 300) }.average()
         // And in the band the recession vacated, two pixels from the edge.
         val band = (100..300).map { luminance(image, 2, it) }.average()
 
@@ -164,6 +170,16 @@ class BackdropBlurTest {
      * | `backdropGround` filled the band at `alpha = f` | **135** |
      * | the blur's edge treatment defaulted to transparent | 107 → **64** |
      * | the hole and the content's clip shared an antialiased pixel | 64 → **0** |
+ *
+ * ### And it was still not finished
+ *
+ * All three of those are about the band *outside* the receding content, which is
+ * the only thing this test looks at. The reporter came back a fourth time, and
+ * the fourth cause is inside the content's own edge where this test has no
+ * samples at all. [theBlurredEdgeDoesNotShowThePageBehindIt] is that number.
+ * This one is left as it is rather than widened: the two regions have different
+ * causes and different fixes, and a single test covering both would have
+ * reported one failure for either.
      *
      * The first was the whole hypothesis going in, and it was only the largest
      * third of the answer. Fixing it left 64, which is why the other two got
@@ -191,6 +207,93 @@ class BackdropBlurTest {
                 "through it. The two must be the same picture: an app does not " +
                 "tell this library what it is sitting on.",
         )
+    }
+
+    /**
+     * Nothing behind the host reaches the content's own blurred edge either.
+     *
+     * **The same report, a second time, and the first fix was measured beside
+     * it.** [theGroundDoesNotShowThePageBehindTheHost] samples row 5 — the band
+     * *above* the receding content — and reports a gap of 0 there, correctly.
+     * The reporter kept seeing a glow around the shrinking screen, flickering
+     * frame to frame, because the leak had moved: it is **inside** the content's
+     * edge, in the pixels that test never looks at.
+     *
+     * ### What is leaking
+     *
+     * A blurred layer with a `scale` anywhere above it comes out partially
+     * transparent for the blur's whole reach inside its own edge — 68px at a
+     * 48px radius — and `TileMode.Clamp` does not stop it. Six arrangements were
+     * measured: blur alone, blur and scale on one layer, the scale on an outer
+     * layer with the blur on an inner one, the blur forced to
+     * `CompositingStrategy.Offscreen`, and both clipped. Every one with a scale
+     * above the blur gave the identical fade byte for byte; every one without
+     * gave none. It is not a composition that can be rearranged.
+     *
+     * ### The flicker is in the number
+     *
+     * Peak leak per frame as the sheet arrived, before the fix:
+     *
+     * ```
+     * 58, 61, 27, 66, 22, 55, 41
+     * ```
+     *
+     * It alternates because the content's edge lands on a different subpixel
+     * each frame, and *that* is what the reporter was describing as flashing
+     * rather than glowing. A test that took one frame could have caught the
+     * glow; only a test that takes every frame catches the flash.
+     */
+    @Test
+    fun theBlurredEdgeDoesNotShowThePageBehindIt() {
+        val overWhite = openingEdge(page = Color.White)
+        val overBlack = openingEdge(page = Color.Black)
+        val peaks = overWhite.indices.map { frame ->
+            val white = overWhite[frame]
+            val black = overBlack[frame]
+            white.indices.maxOf { white[it] - black[it] }
+        }
+
+        assertTrue(
+            overWhite.any { row -> row.any { it > 20f } },
+            "the content never drew at all: ${overWhite.map { row -> row.max().toInt() }}",
+        )
+        assertTrue(
+            peaks.max() <= GroundLeak,
+            "across the first ${peaks.size} frames of a sheet arriving, the strip " +
+                "inside the receding content's left edge differed by up to " +
+                "${peaks.max().toInt()} levels between a white page behind the " +
+                "host and a black one — ${peaks.map { it.toInt() }}. That is the " +
+                "page shining through the blur's own softened edge. An app does " +
+                "not tell this library what it is sitting on.",
+        )
+    }
+
+    /**
+     * A strip across the receding content's left edge, once per frame, as a side
+     * sheet opens over a [page]-coloured host.
+     *
+     * Sampled at mid-height and 160px wide, which covers the band, the edge and
+     * the halo's whole reach at every fraction the arrival passes through — the
+     * edge moves inward as the content recedes, so a fixed column would measure
+     * three different things over the twenty frames and none of them for long.
+     */
+    private fun openingEdge(page: Color): List<FloatArray> {
+        var visible by mutableStateOf(false)
+        val strips = mutableListOf<FloatArray>()
+        Scene(width = 720, height = 1400, darkTheme = true) {
+            OverlayHost(Modifier.fillMaxSize().background(page)) {
+                Box(Modifier.fillMaxSize().background(Theme.colours.background))
+                SideSheet(visible = visible, onDismissRequest = {}) { Text("Filters") }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            visible = true
+            repeat(EdgeFrames) {
+                val image = scene.frame()
+                strips += FloatArray(160) { x -> luminance(image, x, 700) }
+            }
+        }
+        return strips
     }
 
     /**
@@ -351,6 +454,16 @@ class BackdropBlurTest {
          * message.
          */
         const val BandFrames = 40
+
+        /**
+         * How many frames of a sheet's arrival to sample the content's edge
+         * across.
+         *
+         * Fewer than [BandFrames], because this one is bounded by the sheet: at
+         * this width it covers the whole window, and by the tenth frame there is
+         * no content edge left to look at. The leak peaked on frames 3 to 9.
+         */
+        const val EdgeFrames = 20
 
         /**
          * How much of the page behind the host may reach the band.

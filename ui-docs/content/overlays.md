@@ -133,12 +133,34 @@ follows its own setting is a white page under a dark app.
 
 So nothing behind the host may reach the screen through that band, and three
 things were letting it. The fill was drawn at the animation's own fraction, so
-its first frames were nearly transparent; the blur treated everything outside
-the layer as transparent, which fades the content's own edge over the blur
-radius; and the band's hole and the content's clip landed on the same
-antialiased pixel, each covering most of it and neither covering all. Reported
-as a dark-mode sheet flashing white around the blurred bit, which is what all
-three look like together.
+its first frames were nearly transparent; the blur spread outward past the
+content's edge, leaving the pixels it reached only partly covered; and the band's
+hole and the content's clip landed on the same antialiased pixel, each covering
+most of it and neither covering all. Reported as a dark-mode sheet flashing white
+around the blurred bit, which is what all three look like together.
+
+**And a fourth, on the inside of that edge rather than the outside.** Clamping
+the blur's edge treatment fixed the half that spread into the band. The half that
+spreads *inward* is still there, and it leaves the content partially transparent
+for about one and a half blur radii inside its own boundary. Over a white page
+under a dark app that is a bright glow hugging the shrinking screen, and since
+the edge lands on a different subpixel each frame, it flickers rather than sits
+still — which is why the report said flashing rather than glowing.
+
+`TileMode.Clamp` is the documented answer to a blur fading its own edge, and it
+does not survive a scale. Six arrangements were measured: blur alone; blur and
+scale on one layer; the scale on an outer layer with the blur on an inner one;
+the blur forced to its own offscreen buffer; with a rectangle clip; with the
+squircle. Every one with a scale above the blur produced the identical fade, byte
+for byte. Every one without produced none at all. There is no composition that
+avoids it.
+
+So the library covers the halo rather than arguing with it. `backdropGround`
+paints a ring of the theme's own background under the content's edge, as deep as
+the blur reaches and no deeper — because what belongs behind an app's content,
+where that content has gone see-through, is the colour that content is. The
+middle of the host is deliberately left alone: nothing requires an app's content
+to be opaque, and painting all of it would decide that for the app.
 
 **Turning it off.** `KontourTheme(backdropBlur = false)` costs the app a texture
 and nothing else — same shapes, same scrim, same motion, same layout — so it is a

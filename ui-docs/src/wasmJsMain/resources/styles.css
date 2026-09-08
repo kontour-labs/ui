@@ -21,9 +21,16 @@ html, body {
   That divergence was the leading suspect for the reported dark-mode white flash
   around a receding sheet, and it was the wrong end of it: the page was only
   visible because `backdropGround` was letting it through. `BackdropBlurTest`
-  measures that at zero now, over a white page and a black one alike. Left
-  as-is deliberately — `dark` is not persisted, so page and app always agree on
-  the frame this colour exists for.
+  measures that at zero now, over a white page and a black one alike — in the
+  band the sheet's recession vacates, and inside the content's own blurred edge.
+
+  Left as-is deliberately, but not for the reason this note used to give. It said
+  page and app "always agree on the frame this colour exists for" because `dark`
+  is not persisted, and that is only true until the reader opens the settings
+  sheet and turns the site dark on a light machine — after which they disagree
+  for the rest of the session, which is precisely when the flash was reported.
+  What makes it safe is the library, not the reload: nothing behind the host
+  reaches the screen any more, whatever colour it is.
 */
 
 /*
