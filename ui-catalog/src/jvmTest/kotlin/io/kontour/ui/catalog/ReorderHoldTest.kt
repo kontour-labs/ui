@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -13,6 +15,9 @@ import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.rememberReorderableState
+import io.kontour.ui.interaction.FeedbackDispatcher
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.LocalFeedback
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -73,11 +78,74 @@ class ReorderHoldTest {
         )
     }
 
+    /**
+     * Every wander either reorders **or** scrolls, and only one of them buzzes.
+     *
+     * ### This was written to catch a defect that turned out not to exist
+     *
+     * `ReorderHoldSlop` is 24dp and a `LazyColumn` claims at
+     * `viewConfiguration.touchSlop`, which is smaller — so on paper there is a
+     * band where the scroller has already taken the gesture and the hold, which
+     * never checks `isConsumed`, runs to completion anyway: the row lifts, fires
+     * a `LongPress`, and is cancelled by the next event. A thump announcing a row
+     * the user does not get.
+     *
+     * Swept at 20, 30, 36, 40, 44, 48 and 56 px of wander, that band **is not
+     * there**:
+     *
+     * ```
+     * 20-48px  reorders, felt [LongPress, Selection, Selection, Tick]
+     * 56px     scrolls,  felt nothing
+     * ```
+     *
+     * The handover is clean and it happens at the hold's own budget, not at the
+     * scroller's slop. Whatever is wrong with dragging in a browser, it is not
+     * this — so nothing was changed for it, and this test records the invariant
+     * instead of a fix.
+     *
+     * ### What it is now a ratchet on
+     *
+     * The pairing, not the boundary. Wherever the boundary sits, a gesture that
+     * ends in a scroll must not have announced a pick-up first. Lower
+     * `ReorderHoldSlop` under the scroller's slop and this opens the band it was
+     * written to find.
+     */
+    @Test
+    fun aHoldEitherPicksTheRowUpOrScrolls_neverBoth() {
+        val offenders = Wanders.mapNotNull { wander ->
+            val run = reorder(holdMillis = 900, wander = wander, travel = -160f)
+            val lifted = FeedbackIntent.LongPress in run.felt
+            val reordered = run.order[2] != "Subiaco"
+            when {
+                reordered && !lifted -> "${wander.toInt()}px reordered in silence"
+                lifted && !reordered ->
+                    "${wander.toInt()}px announced a pick-up and then scrolled instead " +
+                        "(felt ${run.felt}, list at ${run.firstVisibleIndex})"
+                else -> null
+            }
+        }
+
+        assertTrue(
+            offenders.isEmpty(),
+            "a hold has to end in exactly one of two things, and say so: " +
+                offenders.joinToString("; "),
+        )
+    }
+
     private class Result(
         val order: List<String>,
         val firstVisibleIndex: Int,
         val firstVisibleOffset: Int,
+        val felt: List<FeedbackIntent>,
     )
+
+    @Composable
+    private fun Recording(into: MutableList<FeedbackIntent>, content: @Composable () -> Unit) {
+        CompositionLocalProvider(
+            LocalFeedback provides FeedbackDispatcher { into += it },
+            content = content,
+        )
+    }
 
     /**
      * Presses the third row, wanders [wander] pixels, holds for [holdMillis] of
@@ -94,8 +162,10 @@ class ReorderHoldTest {
         var bounds = Rect.Zero
         var index = 0
         var offset = 0
+        val felt = mutableListOf<FeedbackIntent>()
 
         Scene(width = 500, height = 300) {
+            Recording(felt) {
             val listState = rememberLazyListState()
             val reorder = rememberReorderableState(listState) { from, to ->
                 rows.add(to, rows.removeAt(from))
@@ -114,6 +184,7 @@ class ReorderHoldTest {
             }
             index = listState.firstVisibleItemIndex
             offset = listState.firstVisibleItemScrollOffset
+            }
         }.use { scene ->
             scene.frames(4)
             val grab = bounds.center
@@ -131,7 +202,7 @@ class ReorderHoldTest {
             scene.frames(10)
         }
 
-        return Result(rows.toList(), index, offset)
+        return Result(rows.toList(), index, offset, felt.toList())
     }
 
     private companion object {
@@ -142,5 +213,15 @@ class ReorderHoldTest {
 
         /** Past `ReorderHoldSlop`'s 24dp: a gesture, not a settle. */
         const val TooFar = 56f
+
+        /**
+         * Either side of `ReorderHoldSlop`, in steps small enough to land inside
+         * any band that opens up between the two thresholds.
+         *
+         * 48px is the budget exactly and 56 is past it, so the pair brackets the
+         * handover; the four below them are the region a shrinking budget would
+         * expose first.
+         */
+        val Wanders = listOf(20f, 30f, 36f, 40f, 44f, 48f, 56f)
     }
 }
