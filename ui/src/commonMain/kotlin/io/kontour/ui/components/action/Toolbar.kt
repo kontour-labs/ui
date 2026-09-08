@@ -20,6 +20,9 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import io.kontour.ui.foundation.Surface
+import io.kontour.ui.theme.CapsuleCap
+import io.kontour.ui.theme.ProvideConcentric
+import io.kontour.ui.theme.outset
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.foundation.VerticalDivider
 import io.kontour.ui.theme.Theme
@@ -96,8 +99,15 @@ fun Toolbar(
                     .defaultMinSize(minHeight = Theme.sizing.minTouchTarget),
                 horizontalArrangement = arrangement,
                 verticalAlignment = Alignment.CenterVertically,
-                content = content,
-            )
+            ) {
+                // The bar already derives its own corner from its children's
+                // (see `ToolbarDefaults.Shape`); this publishes the same
+                // relationship the other way round, so a child that is *not* a
+                // standard control — a custom chip, a menu anchor — can ask for
+                // the corner that matches instead of guessing at one.
+                val row = this
+                ProvideConcentric(shape, contentPadding) { row.content() }
+            }
         }
     }
 }
@@ -122,31 +132,47 @@ object ToolbarDefaults {
     /**
      * The ring of space between the surface's edge and its first control.
      *
-     * One rung of the shape scale. With capsules on both sides of it the exact
-     * value no longer decides whether the nesting is concentric — see [Shape] —
-     * but it is still what sets how much of the bar is ring rather than button.
+     * It is the step between two rungs of the shape scale, and since the cap
+     * landed it is once again what decides whether the nesting is concentric:
+     * [Shape] is this much larger than a child's corner, by construction. See
+     * [Shape] for why that stopped being free.
      */
     val ContentPadding: Dp = 6.dp
 
     /**
-     * The same shape as the controls it holds.
+     * A child's shape, grown by the ring of space around it.
      *
-     * Which is what concentric means here, and it is now true by construction
-     * rather than by arithmetic. Both are capsules, so the outer radius is half
-     * the toolbar's height and the inner is half a child's — and a child inset
-     * by [ContentPadding] top and bottom is shorter by exactly twice it, so the
-     * two radii differ by exactly [ContentPadding]. That is the rule, and it
-     * holds whatever the padding, the height or the buttons turn out to be,
-     * because nothing here is a number.
+     * Concentric means the outer radius is the inner one plus the gap between
+     * them, and this is that sentence written down rather than arithmetic that
+     * happens to come out right.
+     *
+     * It used to be the bare `control` shape, shared with the buttons, and that
+     * *was* concentric by construction: both were uncapped capsules, so the
+     * outer radius was half the bar's height and the inner half a child's — and
+     * a child inset by [ContentPadding] top and bottom is shorter by exactly
+     * twice it, so the two radii differed by exactly [ContentPadding], whatever
+     * the numbers were.
+     *
+     * [CapsuleCap] ends that, and it is worth being precise about how, because
+     * the failure is invisible in the token and obvious on the screen. A 56dp
+     * bar and a 44dp button are both above `small`, so both stop at 18 — two
+     * equal radii with 6dp between them. The ring stays 6dp along every straight
+     * edge and closes to nothing at the corners, which is exactly the pinch this
+     * whole round is about.
+     *
+     * [outset] resolves the child's corner against the box the child is drawn on
+     * — this box less [ContentPadding] on each side — and adds the gap back. So
+     * the bar comes out at 24 where its buttons are at 18, and the rule holds
+     * again whatever the padding, the height or the buttons turn out to be.
      *
      * It got here the long way. It was a pill; then a `ButtonGroup`'s 8dp
      * corners were found poking *through* the pill's curve and being sheared
-     * flat against it, so it became one rung up the size scale instead; and now
-     * the children are capsules too, so the original answer is right again —
-     * for a reason this time rather than by luck.
+     * flat against it, so it became one rung up the size scale instead; then the
+     * children became capsules and the bare token was right again; and now it is
+     * derived, which is the first version of this that says what it means.
      */
     val Shape: CornerBasedShape
-        @Composable get() = Theme.shapes.control
+        @Composable get() = Theme.shapes.control.outset(ContentPadding)
 
     /**
      * Shorter than the toolbar, so the rule floats rather than butting into the

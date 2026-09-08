@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -53,6 +54,16 @@ enum class BackdropStyle {
      */
     BlurAndScale,
 }
+
+/**
+ * How far the ground's hole is drawn inside the content it is cut for, in
+ * pixels.
+ *
+ * One device pixel, which is the width of the antialiased boundary the two
+ * share. Not a `Dp`: this is not a design measure but the size of a rasteriser's
+ * seam, and it is the same one pixel on every density.
+ */
+private const val SeamOverlap = 1f
 
 /** Numbers behind [BackdropStyle]. */
 object BackdropDefaults {
@@ -113,7 +124,16 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
             // softens as the panel arrives instead of going out of focus a frame
             // before it appears.
             val radius = radiusPx * f
-            BlurEffect(radiusX = radius, radiusY = radius)
+            // `TileMode.Clamp`, and it is the other half of the reported white
+            // flash. A blur samples beyond what it is blurring, and left to
+            // itself it treats everything outside as *transparent* — so the
+            // layer's own edge fades out over the blur radius, and this layer's
+            // edge is the whole screen. Scaled back by `ScaleBack`, that fade
+            // lands exactly where the reporter saw it: a soft halo hugging the
+            // receding content, showing whatever the app is sitting on. Clamping
+            // extends the edge pixels instead, so the content stays opaque to
+            // its own boundary.
+            BlurEffect(radiusX = radius, radiusY = radius, edgeTreatment = TileMode.Clamp)
         } else {
             null
         }
@@ -180,10 +200,27 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
             geometry.size = size
         }
 
+        // A pixel tighter than the content, and that pixel is the third of the
+        // three ways the page behind the host was reaching the screen.
+        //
+        // The hole's edge and the content layer's clip land on the same line,
+        // and both are antialiased. Two edges that each cover about 85% of the
+        // boundary pixel do not add up to one covered pixel — roughly 30% of it
+        // is neither, and through that runs a hairline of whatever is behind.
+        // Invisible on a light page under a light app; a bright thread around
+        // the content in dark mode, which is what was reported.
+        //
+        // So they overlap instead of meeting. The cost is the one the corner
+        // note above describes — the band's black sitting under the content's
+        // antialiased edge reads as that edge being a shade darker — and it is
+        // taken deliberately here rather than by accident. The difference is
+        // that it is a single pixel and it is the same pixel all the way round,
+        // where that bug was a whole corner radius and only in the corners.
         val scale = lerp(1f, BackdropDefaults.ScaleBack, f)
+        val overlap = 2f * SeamOverlap / minOf(size.width, size.height)
         geometry.matrix.reset()
         geometry.matrix.translate(size.width / 2f, size.height / 2f)
-        geometry.matrix.scale(scale, scale)
+        geometry.matrix.scale(scale - overlap, scale - overlap)
         geometry.matrix.translate(-size.width / 2f, -size.height / 2f)
 
         // Only the hole scales. The band's outer rect is the host, which does
@@ -197,7 +234,19 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         geometry.band.addRect(Rect(Offset.Zero, size))
         geometry.band.addPath(geometry.scaled)
 
-        drawPath(geometry.band, Color.Black, alpha = f)
+        // Opaque, and that is the fix for the reported white flash. This used to
+        // be `alpha = f`, which made the first frames of every sheet a nearly
+        // transparent band — and what showed through was whatever the app is
+        // sitting on, which the library does not know and cannot paint. A docs
+        // site whose page follows the OS theme while the app follows its own
+        // setting is a white page behind a dark app, and the band was a window
+        // onto it.
+        //
+        // The ramp bought no motion in the first place: the band's *area* is
+        // `(1 - scale) / 2` of the host, which is already zero at zero and grows
+        // with the same fraction. It appears by getting wider, which is what a
+        // gap opening up does.
+        drawPath(geometry.band, Color.Black)
     }
 }
 

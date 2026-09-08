@@ -532,7 +532,8 @@ private fun BoxScope.SheetSurface(
                 layout(placeable.width, placeable.height) { placeable.place(0, 0) }
             }
             .onGloballyPositioned { coordinates ->
-                state.sheetTopInRoot = coordinates.positionInRoot().y
+                state.sheetCoordinates = coordinates
+                state.measurePeek()
                 state.updateAnchors(density)
             },
         shape = shape,

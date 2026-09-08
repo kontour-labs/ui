@@ -1,5 +1,9 @@
 package io.kontour.ui.components.text
 
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -106,9 +110,17 @@ object TextToolbarDefaults {
  * [actions] to add, this installs nothing at all.
  *
  * **Desktop and the web have no such surface**, and that is the half this used
- * to get wrong. Compose falls back to a bare unstyled popup on the JVM and to
- * nothing recognisable in a browser, so "leave the platform alone" left those
- * users with less rather than more — the opposite of the reason for deferring.
+ * to get wrong. Compose falls back to a toolbar of its own — a rounded pill
+ * reading `Copy  Paste  Cut`, measured in a phone-sized browser against the
+ * built site — so "leave the platform alone" there means handing the user a
+ * surface belonging to no design system rather than the system's own, which is
+ * the opposite of the reason for deferring.
+ *
+ * That fallback is **visible**, which this file used to deny: it said "nothing
+ * recognisable in a browser", and a screenshot says otherwise. The argument for
+ * drawing our own on those platforms is not that there is nothing there. It is
+ * that what is there is in the wrong order, on the wrong shape, and cannot carry
+ * an app's own actions.
  * See [io.kontour.ui.platform.platformHasSystemTextToolbar]: the rule is *show
  * the richest toolbar available*, which is the system's where there is one and
  * this one where there is not.
@@ -166,6 +178,83 @@ fun TextSelectionToolbar(
         return
     }
 
+    InstalledTextToolbar(actions = actions, labels = labels, content = content)
+}
+
+/**
+ * The library's selection toolbar for every text box under an
+ * [io.kontour.ui.overlay.OverlayHost], which is to say for every text box.
+ *
+ * ### Why the host installs this and not the field
+ *
+ * `LocalTextToolbar` was provided in exactly one place in this repository —
+ * inside [TextSelectionToolbar] — and the only caller of that was a single
+ * catalog demo. So every text box in every app got Compose's own fallback
+ * instead. Measured on a phone-sized browser against the built site, selecting a
+ * word in the plain `TextField` demo:
+ *
+ * | | The bar |
+ * |---|---|
+ * | before | `Copy  Paste  Cut` — a rounded pill, Compose's |
+ * | after | `Cut  Copy  Paste` — a [Toolbar], the library's |
+ *
+ * Which is the answer to "look like the app", and it is also where an app's own
+ * actions can now appear at all: they hang off this toolbar, and outside the one
+ * demo there was no instance of it to hang them off.
+ *
+ * The field would be the obvious place to put the install and it is the wrong
+ * one: [io.kontour.ui.overlay.LocalOverlayHost] **throws** when there is no
+ * host, so a `TextField` that reached for one would break every app and every
+ * test that draws a field on its own. The host is also where this belongs by
+ * type — a selection toolbar is an overlay, and this is the component that
+ * renders overlays.
+ *
+ * A [TextSelectionToolbar] nested below still wins for its own subtree, which is
+ * how an app adds actions: it installs a second toolbar with them, and the
+ * innermost provider is the one a field sees.
+ */
+@Composable
+internal fun DefaultTextSelectionToolbar(content: @Composable () -> Unit) {
+    // Where the platform has a real selection toolbar of its own — Android's and
+    // iOS's, which carry Look Up, Translate, the user's keyboard extensions —
+    // installing ours takes functionality away. That trade is only worth making
+    // for an app that has something to add, and an app with something to add
+    // says so by wrapping in `TextSelectionToolbar`.
+    if (platformHasSystemTextToolbar) {
+        content()
+        return
+    }
+    InstalledTextToolbar(actions = emptyList(), labels = textToolbarLabels(), content = content)
+}
+
+/**
+ * Whether a library text toolbar is installed at this point in the tree.
+ *
+ * Internal, and it exists so a test can pin the install. Said plainly rather
+ * than dressed up as something else: **the gesture that raises this toolbar
+ * cannot be driven on the JVM.** Measured both ways in an offscreen scene — a
+ * mouse double-click selects a word, `TextRange(6, 13)`, and never calls
+ * `showMenu`, because a pointer selection on a desktop goes to the platform's
+ * context menu instead; a touch long-press does not select at all, leaving a
+ * collapsed `TextRange(13, 13)`.
+ *
+ * So the install is asserted here and the behaviour it buys is measured in a
+ * browser, on a phone-sized viewport, where the touch selection is real — and it
+ * was, both ways: `Copy  Paste  Cut` in Compose's pill before, `Cut  Copy  Paste`
+ * in the library's toolbar after. A test that drove the wrong gesture and passed
+ * would be worth less than nothing.
+ */
+@Composable
+internal fun kontourTextToolbarInstalled(): Boolean =
+    LocalTextToolbar.current is KontourTextToolbar
+
+/** Provides a [KontourTextToolbar] to [content] and draws what it asks for. */
+@Composable
+private fun InstalledTextToolbar(
+    actions: List<TextToolbarAction>,
+    labels: TextToolbarLabels,
+    content: @Composable () -> Unit,
+) {
     var request by remember { mutableStateOf<ToolbarRequest?>(null) }
     val toolbar = remember { KontourTextToolbar { request = it } }
 
@@ -294,7 +383,51 @@ private fun SelectionToolbar(
         TextToolbarDefaults.MaxInline - 1
     }
 
-    Toolbar(contentPadding = Theme.spacing.xxs) {
+    Toolbar(
+        // Two ways a tap on this toolbar used to destroy it, reported together
+        // as "on mobile it just deselects". Both measured on a phone-sized
+        // browser against the built site, selecting a word with a long press and
+        // then tapping once:
+        //
+        // | Tapped              | Was                          | Is now |
+        // |---------------------|------------------------------|--------|
+        // | between two buttons | toolbar gone, selection kept | nothing moves |
+        // | "Copy"              | page back to resting, field unfocused | copied, field still focused |
+        // | the overflow "…"    | page back to resting         | the menu opens |
+        //
+        // **A tap that misses a button** — the padding, the gap between two of
+        // them — fell through to the scrim underneath and was read as a tap
+        // *outside*, which dismissed the toolbar the finger was aimed at. Hence
+        // the `pointerInput`, on the Main pass so the buttons are asked first:
+        // it can only swallow what they declined, never make one unclickable.
+        //
+        // **A tap that hits one** focused it. Focus leaving the text field
+        // collapses the selection, Compose calls `hide()`, and the entry is torn
+        // down before the click it is running can finish — the toolbar destroying
+        // itself by being used. `trapFocus = false` above stops the *host*
+        // taking focus for the whole entry and was the fix for the same failure
+        // a round ago; it says nothing about the buttons inside it, which were
+        // focusable like any other.
+        //
+        // So they are not focusable. Nothing is lost: a floating toolbar that
+        // only exists while text is selected cannot be tabbed to *and* keep the
+        // selection, because arriving is what ends it. Keyboard users have the
+        // shortcuts, which is the surface this one is a touch alternative to.
+        modifier = Modifier
+            .focusProperties { canFocus = false }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    down.consume()
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        event.changes.forEach { it.consume() }
+                        if (event.changes.none { it.pressed }) break
+                    }
+                }
+            },
+        contentPadding = Theme.spacing.xxs,
+    ) {
         items.take(fits).forEach { item ->
             Button(
                 onClick = {

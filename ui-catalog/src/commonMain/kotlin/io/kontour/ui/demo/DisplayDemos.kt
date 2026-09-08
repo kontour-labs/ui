@@ -238,9 +238,17 @@ internal val CalloutDemo = ComponentDemo(slug = "callout") {
 private val timelineConnector =
     Knob.Choice("Walk connector", ConnectorStyle.entries.toList(), ConnectorStyle.Dashed)
 
+/**
+ * Whether the leg in progress is still resolving.
+ *
+ * The node becomes a spinner and the connector below it carries on, which is the
+ * whole shape of the feature: the itinerary is not in doubt, one step of it is.
+ */
+private val timelineLoading = Knob.Flag("Walk in progress", initial = false)
+
 internal val TimelineDemo = ComponentDemo(
     slug = "timeline",
-    knobs = listOf(timelineConnector),
+    knobs = listOf(timelineConnector, timelineLoading),
 ) {
     Timeline(Modifier.fillMaxWidth()) {
         TimelineItem(nodeColour = Color(0xFF1B5E20)) {
@@ -251,13 +259,17 @@ internal val TimelineDemo = ComponentDemo(
                 colour = Theme.colours.contentMuted,
             )
         }
+        val walking = this@ComponentDemo[timelineLoading]
         TimelineItem(
             connector = this@ComponentDemo[timelineConnector],
             filled = false,
+            loading = walking,
             nodeColour = Theme.colours.outlineStrong,
         ) {
             Text(
-                "Walk 4 min",
+                // In the words as well as in the node, which is the rule the
+                // component's own KDoc states: the spinner is not announced.
+                if (walking) "Walking — 4 min" else "Walk 4 min",
                 style = Theme.typography.bodySmall,
                 colour = Theme.colours.contentMuted,
             )

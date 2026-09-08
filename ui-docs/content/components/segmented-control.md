@@ -43,6 +43,14 @@ rather than on each segment: a drag from "Depart" to "Arrive" leaves the segment
 it began in, and a per-segment handler loses the pointer at the boundary. Taps
 still belong to the segment under them.
 
+The drag is *owned*: from the first pixel the finger travels, the control takes
+the whole gesture and a scrolling page above it cannot take it back. Without
+that, whether the thumb moved at all depended on the angle — the control and the
+list it sits in are both waiting for their own touch slop, and more than 45° off
+the track the list reached its threshold first and the thumb never moved. The
+price is that you cannot scroll a page by dragging on a segmented control. A
+press that never travels is left alone, so tapping one is unchanged.
+
 ---
 
 ## Accessibility

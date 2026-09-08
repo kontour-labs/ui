@@ -12,6 +12,21 @@ html, body {
 }
 
 /*
+  This colour is a stand-in for the moment before Compose paints, and nothing
+  after that moment may depend on it. It follows `prefers-color-scheme`, while
+  the app follows `settings.dark ?: systemDark` — so a reader who turns the site
+  dark on a light machine has a white page behind a dark app, and the two stay
+  out of step until reload.
+
+  That divergence was the leading suspect for the reported dark-mode white flash
+  around a receding sheet, and it was the wrong end of it: the page was only
+  visible because `backdropGround` was letting it through. `BackdropBlurTest`
+  measures that at zero now, over a white page and a black one alike. Left
+  as-is deliberately — `dark` is not persisted, so page and app always agree on
+  the frame this colour exists for.
+*/
+
+/*
   The boot state, in the library's own type and colours — so the first thing a
   reader sees belongs to the same product as what replaces it. Compose draws
   over the whole viewport once it starts, so this needs no removing.

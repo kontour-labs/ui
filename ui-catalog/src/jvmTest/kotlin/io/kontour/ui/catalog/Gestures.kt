@@ -146,12 +146,22 @@ class Scene(
      * device. [onFrame] sees each of those frames, for a test that needs the
      * middle of a gesture rather than its result.
      */
+    /**
+     * @param paceMillis Real milliseconds to wait between moves, for a test whose
+     *   claim depends on *how fast* the gesture was rather than only on where it
+     *   went. [frame] advances the frame clock and no wall clock at all, so a
+     *   thirty-step drag is thirty frames and very nearly zero real time — which
+     *   is a gesture no finger could make. `DetentTicker`'s rate limit is keyed to
+     *   a wall clock, because the thing it is pacing is a vibration motor, so a
+     *   test that asserts a tick count has to move at a speed a hand could.
+     */
     fun drag(
         from: Offset,
         to: Offset,
         steps: Int = 20,
         release: Boolean = true,
         pointer: PointerType = PointerType.Touch,
+        paceMillis: Long = 0L,
         onFrame: (Int, BufferedImage) -> Unit = { _, _ -> },
     ) {
         press(from, pointer)
@@ -159,6 +169,7 @@ class Scene(
             val t = (step + 1).toFloat() / steps
             move(Offset(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t), pointer)
             onFrame(step, frame())
+            if (paceMillis > 0) Thread.sleep(paceMillis)
         }
         if (release) release(to, pointer)
     }

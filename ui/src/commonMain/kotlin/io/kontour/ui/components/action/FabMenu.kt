@@ -239,7 +239,7 @@ fun FabMenu(
     showLabels: Boolean = layout == FabMenuLayout.Vertical,
     expandedIcon: ImageVector? = null,
     expandedContentDescription: String = Theme.strings.close,
-    shape: Shape = Theme.shapes.control,
+    shape: Shape = Theme.shapes.pill,
     containerColour: Color = Theme.colours.primary,
     contentColour: Color = Theme.colours.onPrimary,
     itemContainerColour: Color = Theme.colours.surfaceRaised,

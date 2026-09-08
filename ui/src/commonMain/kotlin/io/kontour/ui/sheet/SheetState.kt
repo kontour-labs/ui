@@ -20,8 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Velocity
@@ -318,24 +318,58 @@ class SheetState internal constructor(
      * handle, and the last line of the header is cut off.
      */
     internal val peekHeight: Float
-        get() = if (peekAnchorBottomInRoot.isNaN() || sheetTopInRoot.isNaN()) {
-            0f
-        } else {
-            (peekAnchorBottomInRoot - sheetTopInRoot).coerceAtLeast(0f)
-        }
+        get() = if (peekContentHeight.isNaN()) 0f else peekContentHeight.coerceAtLeast(0f)
 
     /**
-     * The two measurements the peek is derived from, kept separately on purpose.
+     * The peek anchor's bottom edge, in the **sheet's** coordinates.
      *
-     * `onGloballyPositioned` fires children-first, so the anchor reports before
-     * the sheet it is inside, and it only fires again when a position actually
-     * changes. Computing the difference at the anchor's callback would find the
-     * sheet's top still unset and never get a second chance — which is how the
-     * peek silently stayed at its fallback. Storing both and deriving means
-     * whichever fires last completes the pair.
+     * This used to be the difference between two positions in the root — the
+     * anchor's bottom and the sheet's top — and that is a measurement of where
+     * the sheet *is* as much as of how tall its header is. The two are reported
+     * by separate `onGloballyPositioned` callbacks, and during a drag they are a
+     * whole frame apart rather than a sub-pixel: the anchor fires first, with
+     * the sheet's top from where the sheet was last frame, so the difference
+     * came out short by however far the finger had travelled.
+     *
+     * A peek that changes is an [AnchorInputs] that changes, and every changed
+     * input rebuilds the anchors — which pins the drag's target back to where
+     * the gesture started. That was reported twice as a sheet hauled up past
+     * every detent and dropping back to the lowest one on release.
+     *
+     * The sheet's offset is applied *above* the node these are measured
+     * against, so in the sheet's own space the anchor does not move when the
+     * sheet does. This is a measurement of the content and nothing else.
      */
-    internal var peekAnchorBottomInRoot by mutableFloatStateOf(Float.NaN)
-    internal var sheetTopInRoot by mutableFloatStateOf(Float.NaN)
+    internal var peekContentHeight by mutableFloatStateOf(Float.NaN)
+
+    /**
+     * The two live layout nodes the peek is measured between.
+     *
+     * Held rather than sampled, because `onGloballyPositioned` fires
+     * children-first and only when a position actually changes: the anchor
+     * reports before the sheet it is inside, and on the first layout that is the
+     * only report either of them makes. Sampling at the anchor's callback would
+     * find the sheet unset and never get a second chance — which is how the peek
+     * silently stayed at its fallback once before. `LayoutCoordinates` are live,
+     * so whichever callback fires calls [measurePeek] and gets an answer taken
+     * from the tree as it is now, not as it was when the other one fired.
+     */
+    internal var sheetCoordinates: LayoutCoordinates? = null
+    internal var peekAnchorCoordinates: LayoutCoordinates? = null
+
+    /**
+     * Re-derives [peekContentHeight] from whichever of the two nodes is current.
+     *
+     * A no-op until both exist and both are still attached — a detached node
+     * cannot be positioned against anything, and asking would throw.
+     */
+    internal fun measurePeek() {
+        val sheet = sheetCoordinates ?: return
+        val anchor = peekAnchorCoordinates ?: return
+        if (!sheet.isAttached || !anchor.isAttached) return
+        peekContentHeight =
+            sheet.localPositionOf(anchor, Offset(0f, anchor.size.height.toFloat())).y
+    }
 
     /** Where the sheet has settled. Equals [targetDetent] once it stops moving. */
     val currentDetent: SheetDetent get() = anchoredState.settledValue
@@ -752,8 +786,8 @@ fun Modifier.sheetPeekAnchor(): Modifier {
     val state = LocalSheetState.current ?: return this
     val density = LocalDensity.current
     return onGloballyPositioned { coordinates ->
-        state.peekAnchorBottomInRoot =
-            coordinates.positionInRoot().y + coordinates.size.height
+        state.peekAnchorCoordinates = coordinates
+        state.measurePeek()
         state.updateAnchors(density)
     }
 }

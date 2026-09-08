@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.horizontalDragOwning
@@ -139,7 +140,6 @@ fun RangeSlider(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
-    val feedback = Feedback
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val scope = rememberCoroutineScope()
@@ -223,7 +223,9 @@ fun RangeSlider(
 
     /** See [Slider]'s `carrying`: a press moves the value, a drag moves the thumb. */
     var carrying by remember { mutableStateOf(false) }
-    var lastStepIndex by remember { mutableFloatStateOf(Float.NaN) }
+
+    /** See [Slider]'s: the shared ticker, which is also where the rate limit is. */
+    val ticker = rememberDetentTicker()
 
     /**
      * Where the press landed, kept for the gesture that never moves.
@@ -266,10 +268,7 @@ fun RangeSlider(
     fun tick(next: Float) {
         if (steps <= 0) return
         val index = ((next - valueRange.start) / span * (steps + 1)).roundToInt().toFloat()
-        if (lastStepIndex.isNaN() || abs(index - lastStepIndex) >= 1f) {
-            if (carrying) feedback.perform(FeedbackIntent.Tick)
-            lastStepIndex = index
-        }
+        if (carrying) ticker.at(index) else { ticker.reset(); ticker.at(index) }
     }
 
     /**
@@ -627,7 +626,7 @@ fun RangeSlider(
                                     pressFraction,
                                 )
                             }
-                            lastStepIndex = Float.NaN
+                            ticker.reset()
                             dragFraction = Float.NaN
                             pressFraction = Float.NaN
                             carrying = false
@@ -682,10 +681,36 @@ fun RangeSlider(
                                 }
                             }
 
-                            for (drawn in listOf(
-                                DrawnThumb(startX, reachStart * trackWidth, startScale, startAspect),
-                                DrawnThumb(endX, reachEnd * trackWidth, endScale, endAspect),
-                            )) {
+                            val startThumb =
+                                DrawnThumb(startX, reachStart * trackWidth, startScale, startAspect)
+                            val endThumb =
+                                DrawnThumb(endX, reachEnd * trackWidth, endScale, endAspect)
+
+                            // Painter order is the whole of "which one can I
+                            // see", so the one under the finger goes last.
+                            //
+                            // This was a literal `listOf(start, end)`, which
+                            // put the end thumb on top always. At
+                            // `minDistance = 0` a shoved thumb is welded to the
+                            // pusher and drawn at exactly the same place, so
+                            // dragging the start thumb past the end one left
+                            // the held thumb — the larger of the two, because
+                            // it is the one scaled up — behind a smaller circle
+                            // that stamped its ring across it. Measured on the
+                            // row through both centres: three runs of fill,
+                            // a 40px middle belonging to the thumb nobody is
+                            // touching and a 21px crescent of the held one
+                            // showing either side of it.
+                            //
+                            // `Thumb.None` at rest, so the resting order is
+                            // unchanged and no render moves.
+                            val order = if (activeThumb == Thumb.Start) {
+                                listOf(endThumb, startThumb)
+                            } else {
+                                listOf(startThumb, endThumb)
+                            }
+
+                            for (drawn in order) {
                                 sliderThumb(
                                     centreX = drawn.x,
                                     centreY = centreY,

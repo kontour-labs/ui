@@ -476,7 +476,7 @@ def uncursored_clicks() -> list[str]:
     return behind
 
 
-MAX_HAPTIC_SITES = 11
+MAX_HAPTIC_SITES = 9
 
 
 HAPTIC_CALL = re.compile(r"feedback\.perform\(")
@@ -486,7 +486,10 @@ def haptic_sites() -> list[str]:
     """Every place in `:ui` that asks for physical feedback, by file.
 
     A ceiling rather than a ban, and a ratchet like rules 4, 6 and 7 — the
-    number is allowed to go down and nothing else.
+    number is allowed to go down and nothing else. It went 11 to 9 in round 26,
+    when `Slider` and `RangeSlider` stopped hand-rolling their own detent guard
+    and went through the shared `DetentTicker` like everything else that snaps.
+    Two fewer call sites, the same two components firing.
 
     It exists because this drifted once, quietly and in one direction. "Make it
     tactile" was a good instruction; fifty-seven call sites was the result of
@@ -581,7 +584,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 11
+MAX_CIRCLES = 22
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -596,12 +599,29 @@ def circles() -> list[str]:
     the thing it is on is a circle.**
 
     `pill` is the circle. It is a true arc and it is right for an avatar, a
-    status dot, the ring round a radio button, a scrollbar thumb — things that
-    are round because of what they *are*. Eleven sites qualify. Everything else
-    that was reaching for it wanted a *lozenge*, and a lozenge with circular ends
-    beside a family of squircles is the mismatch the shape scale exists to
-    remove; `Shapes.capsule` is the same silhouette with the family's curvature,
-    and twenty-three sites moved onto it.
+    status dot, the ring round a radio button, a scrollbar thumb, an icon button,
+    a colour swatch, a day cell — things that are round because of what they
+    *are*, on a box that is square. Everything else that was reaching for it
+    wanted a *lozenge*, and a lozenge with circular ends beside a family of
+    squircles is the mismatch the shape scale exists to remove; `Shapes.capsule`
+    is the same silhouette with the family's curvature.
+
+    **The ceiling went up from 11 to 22, and it is worth saying why rather than
+    quietly bumping it.** Round 25 set it to stop drift *back* to circular arcs,
+    when the failure mode was a lozenge with round ends. Round 26 caps the
+    height-derived corners, and that gives the name a second job: a capped
+    `capsule` on a 50dp box is an 18dp rounded square, while a `pill` on the same
+    box is still a circle. So the ten sites that moved are the ones that must not
+    be capped, and naming them is what exempts them.
+
+    On a square box the two draw the same picture — the corner is saturated on
+    both edges, so there is no straight run for the smoothing to ease into and
+    the squircle collapses onto the arc. Moving all ten moved 29 goldens and not
+    one of them by more than a one-pixel rim, which is the cubic path's
+    approximation of an arc and nothing else. That is the check to repeat if this
+    ceiling ever moves again: a legitimate `pill` site is one where the box is
+    square, and the evidence is that switching it changes no pixel by more than
+    a rim.
 
     The second count is stricter and is a ban rather than a ratchet.
     `RoundedCornerShape` appears exactly once in `:ui`, to define `pill` itself.
@@ -1265,9 +1285,10 @@ def main() -> int:
 
     # Rule 20 — a corner is a squircle unless the thing it is on is a circle.
     #
-    # See `circles`. `pill` survives for the eleven places that are genuinely
-    # round; a `RoundedCornerShape` literal anywhere but the token that defines
-    # it is a component that has stopped tracking the scale.
+    # See `circles`. `pill` survives for the twenty-two places that are genuinely
+    # round — square boxes, exempt from the capsule cap; a `RoundedCornerShape`
+    # literal anywhere but the token that defines it is a component that has
+    # stopped tracking the scale.
     round_shapes = circles()
     circular = sum(int(e.rsplit("(", 1)[1].rstrip(")")) for e in round_shapes)
     if circular > MAX_CIRCLES:
@@ -1275,8 +1296,9 @@ def main() -> int:
             f"{circular} uses of `Shapes.pill` in :ui, over the ceiling of "
             f"{MAX_CIRCLES}: {', '.join(round_shapes)} — `pill` is a true "
             f"circular arc and belongs on things that are round because of what "
-            f"they are. A lozenge wants `Shapes.capsule`, which is the same "
-            f"silhouette with the family's own curvature"
+            f"they are, on a box that is square. A lozenge wants "
+            f"`Shapes.capsule`, which is the same silhouette with the family's "
+            f"own curvature — and which is capped, where `pill` is not"
         )
 
     literals = hand_rolled_rounded_rects()

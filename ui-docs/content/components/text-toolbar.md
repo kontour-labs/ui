@@ -4,11 +4,17 @@
 
 The toolbar shown when the user selects text.
 
+**You do not need this to get the library's toolbar.** `OverlayHost` installs it
+for every text box below it, which is every text box in an app built the ordinary
+way — along with the **right-click menu**, which is the same verbs on a
+[`DropdownMenu`](dropdown-menu.md). `TextSelectionToolbar` is for **adding your own items**
+to the selection toolbar.
+
 <!--sample:TextToolbarBasics-->
 ```kotlin
-// Wrap the app once, with the items this app wants on a text selection.
+// Wrap the part of the app that has something to add to a text selection.
 // With no actions, Android and iOS keep their own toolbar and this installs
-// nothing; desktop and the web have none to keep, so it draws its own.
+// nothing; desktop and the web have none to keep, so the host's draws instead.
 TextSelectionToolbar(
     actions = listOf(
         TextToolbarAction("Plan a trip") { /* open the planner */ },
@@ -17,6 +23,34 @@ TextSelectionToolbar(
     Screen()
 }
 ```
+
+## The right-click menu is the library's too
+
+A secondary click in any text box opens a `DropdownMenu` with the same four
+verbs, absent rather than greyed out where they do not apply — Paste with no
+selection, Cut and Copy only with one.
+
+What that replaces was two different things, and it took a measurement to find
+out which. **On the desktop** Compose opens a context menu of its own in a
+separate popup window: a second semantics root, with none of this library's
+shape, type or colour. **In a browser** nothing happened at all — the
+`contextmenu` event is prevented and no menu is drawn in its place, on a field
+and on prose alike.
+
+`LocalContextMenuRepresentation` would replace the first, and it is declared in
+Compose Foundation's **desktop** source set: it does not exist on the web. So the
+menu here is opened by the library instead, from a secondary press caught on the
+**Initial** pointer pass. That pass runs parent to child, so the press is
+consumed on the field's frame before the text input inside it can raise the
+platform's own, and the surface is the one every other menu in the library
+already uses.
+
+**On the web this does not work yet.** Measured against the rebuilt site: the
+browser delivers the secondary button as a real `pointerdown` with `button === 2`
+and the `contextmenu` that follows is prevented, but no menu is drawn — so the
+press reaches the page and something between there and this handler loses it.
+Where is not established. On a desktop the menu is the library's; in a browser a
+right-click in a text box still does nothing, as it did before.
 
 ## It defers to the platform where there is a platform to defer to
 
@@ -29,10 +63,17 @@ exchange for matching a design system they did not ask the toolbar to match.
 So on Android and iOS, with no actions to add, this installs nothing at all and
 the system's own menu comes up exactly as it would without this library.
 
-**Desktop and the web have no such surface.** Compose falls back to a bare
-unstyled popup on the desktop and to nothing recognisable in a browser, so
-leaving the platform alone there leaves the user with *less* rather than more —
-the opposite of the reason for deferring. On those platforms this draws its own.
+**Desktop and the web have no such surface.** Compose falls back to a toolbar of
+its own — measured in a phone-sized browser against the built site, a rounded
+pill reading `Copy  Paste  Cut`. It is a real toolbar and it is perfectly usable;
+it simply belongs to no design system, cannot carry an app's own actions, and
+puts the verbs in an order nothing else in the app uses. Against it the library's
+reads `Cut  Copy  Paste` on a `Toolbar`.
+
+That is worth saying carefully because this page used to claim the fallback was
+"nothing recognisable in a browser", and a screenshot says otherwise. The
+argument for drawing our own on those platforms is not that there is nothing
+there — it is that what is there is not the app.
 
 One rule read two ways: show the richest selection toolbar available, which is
 the system's where there is one and this one where there is not.

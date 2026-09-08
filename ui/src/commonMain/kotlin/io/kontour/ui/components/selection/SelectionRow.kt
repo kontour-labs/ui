@@ -91,7 +91,6 @@ fun SelectionRow(
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.container
-    val feedback = Feedback
 
     val selectionModifier = when {
         // Inert, but still a checkbox that reads as checked. Dropping the

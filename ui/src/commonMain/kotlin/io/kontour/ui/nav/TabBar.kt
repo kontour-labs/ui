@@ -1,5 +1,7 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.components.list.Scrollbar
+import androidx.compose.foundation.ScrollState
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -65,6 +67,7 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.theme.inset
 import io.kontour.ui.theme.Theme
 
 object TabBarDefaults {
@@ -114,6 +117,14 @@ object TabBarDefaults {
 fun TabBar(
     modifier: Modifier = Modifier,
     scrollable: Boolean = false,
+    /**
+     * The scroll position of a [scrollable] row, hoisted so it can be read.
+     *
+     * Inline until now, which meant nothing could see where the row had got to —
+     * not a scrollbar, not a "reveal the selected tab" effect, nothing. The row
+     * scrolled and said so to no one.
+     */
+    scrollState: ScrollState = rememberScrollState(),
     containerColour: Color = Color.Transparent,
     indicatorColour: Color = Theme.colours.accent.container,
     /**
@@ -150,11 +161,15 @@ fun TabBar(
             // arithmetic. Wrapping the scroll container instead is how the old
             // implementation drifted away from its tabs as the row scrolled.
             Row(verticalAlignment = Alignment.CenterVertically) {
+            // An extra box around the scrolling one, so the scrollbar can be
+            // laid over the tabs rather than beside them. It carries the weight;
+            // the scrolling box inside it carries the scroll.
+            Box(if (scrollable) Modifier.weight(1f, fill = false) else Modifier.weight(1f)) {
             Box(
                 if (scrollable) {
-                    Modifier.horizontalScroll(rememberScrollState()).weight(1f, fill = false)
+                    Modifier.horizontalScroll(scrollState)
                 } else {
-                    Modifier.weight(1f)
+                    Modifier
                 }
             ) {
                 SelectionIndicatorBox(
@@ -194,7 +209,13 @@ fun TabBar(
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                .clip(Theme.shapes.capsule)
+                                // Concentric with the tab it sits in rather than
+                                // sharing a token with it. Both are above `small`,
+                                // so both would stop at `CapsuleCap` and the 4dp
+                                // ring would close to nothing at the corners. The
+                                // inset is read from the same `xxs` the sizing
+                                // above uses, so the two cannot drift apart.
+                                .clip(Theme.shapes.control.inset(Theme.spacing.xxs))
                                 .background(indicatorColour)
                         )
                     },
@@ -213,6 +234,29 @@ fun TabBar(
                     ) {
                         TabBarScope(row = this, fixed = !scrollable).content()
                     }
+                }
+            }
+
+                // A row you can tell scrolls.
+                //
+                // `Scrollbar` draws nothing for a finger unless it is asked to —
+                // `LocalInputModality` is `Touch` by default and
+                // `supportsHover` is true only for a mouse — so the default
+                // would put this affordance on every platform except the one it
+                // was reported from. A tab bar's whole problem is that you
+                // cannot see there are more tabs off the edge, and a hairline
+                // that appears only when you already have a pointer to discover
+                // them with is not an answer to it.
+                //
+                // It still draws nothing when there is nothing to scroll: that
+                // is `Scrollbar`'s own `geometry.isUseful`, not this call site's.
+                if (scrollable) {
+                    Scrollbar(
+                        state = scrollState,
+                        orientation = Orientation.Horizontal,
+                        modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
+                        alwaysVisible = true,
+                    )
                 }
             }
 
@@ -281,7 +325,6 @@ fun TabBarScope.Tab(
 ) {
     val colours = Theme.colours
     val motion = Theme.motion
-    val feedback = LocalFeedback.current
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     // Bound out here because the `Row`s below bring their own receiver, and
     // `TabBarScope`'s is no longer reachable implicitly from inside them.
@@ -461,7 +504,6 @@ fun Modifier.tabSwipe(
 ): Modifier {
     if (!enabled || count <= 1) return this
 
-    val feedback = LocalFeedback.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val currentChange by rememberUpdatedState(onSelectedChange)
 

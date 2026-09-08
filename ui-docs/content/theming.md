@@ -143,8 +143,56 @@ KontourTheme(feedback = FeedbackDispatcher { intent -> myEngine.play(intent) }) 
 
 `HapticsLevel.Full` allows every intent, `Essential` drops the continuous ones
 (`Tick`, `Selection`, `KeyPress`) and keeps the ones that report an outcome, and
-`Off` is silence. On desktop and web the platform handler is already a no-op, so
-none of this needs a check at a call site.
+`Off` is silence. No call site needs a platform check — where a platform cannot
+vibrate, its handler is already a no-op.
+
+### What an intent actually does, per platform
+
+Worth having in front of you, because the constant names are Android's and what
+they *do* is not. The web column is the `navigator.vibrate` pattern in
+milliseconds; iOS is the generator; Android is the API level the constant was
+added in.
+
+| Intent | Constant | Web | iOS | Android |
+|---|---|---|---|---|
+| `Tick` | `VirtualKey` | 0, 20ms | light impact | 5 |
+| `Selection` | `ContextClick` | 12ms | medium impact | 23 |
+| `DragThreshold` | `GestureThresholdActivate` | 12ms | light impact | **34** |
+| `LongPress` | `LongPress` | 0, 30ms | medium impact | 3 |
+| `GestureEnd` | `GestureEnd` | 12ms | light impact | 30 |
+| `Confirm` | `Confirm` | 18, 32, 36ms | notification, success | 30 |
+| `Reject`, `Warn` | `Reject` | 18, 28, 18, 28, 18ms | notification, error | 30 |
+| `KeyPress` | `KeyboardTap` | 6ms | **nothing** | 8 |
+
+**A vibration motor needs roughly 10–20ms to spin up far enough to be felt.**
+That number is the whole reason this table exists. `Tick` used to be
+`SegmentFrequentTick`, which is 6ms on the web — so every detent in the library
+issued a pulse and nothing arrived. Measured on the built site with
+`docs/measure-web.mjs --vibration`, a stepped slider dragged across its range
+produced `3 x [6]`: eighteen milliseconds of motor time for an entire gesture.
+The same drag now produces `3 x [0,20]`.
+
+It was no better elsewhere. `SegmentFrequentTick` and `SegmentTick` are the
+*same* `selectionChanged()` generator on iOS, so `Tick` and `Selection` were
+indistinguishable there; and both are Android 14 constants, so below that they
+did nothing at all.
+
+**There is no lighter tier that is still felt.** Below `Tick`'s 20ms the web
+patterns are 12ms and 6ms, and 6ms is the silence above. So a component that
+wants a *finer* tick — the wheel picker, spinning past a row every few
+milliseconds — does not get a lighter intent. It gets the same one, less often:
+`DetentTicker` will not fire twice inside 80ms, which is a quarter duty cycle
+against a 20ms pulse rather than the continuous buzz that was reported.
+
+**Where haptics do not happen at all**, written down so it is not re-reported as
+a bug:
+
+- **iOS Safari** has no Vibration API. On an iPhone in mobile web there are no
+  haptics whatever the mapping says. Native iOS is unaffected.
+- **Desktop**, all of it. There is no motor, and the handler returns immediately.
+- **Android below 14** for `DragThreshold` alone, which is still on an API-34
+  constant, so a pull-to-refresh threshold is silent there. Named rather than
+  fixed.
 
 ### What the library buzzes for
 
@@ -153,7 +201,7 @@ of those, and everything else is silent:
 
 | Fires | Where | Why |
 |---|---|---|
-| A **detent crossed under a finger** | `Slider`, `RangeSlider`, `WheelPicker`, `SegmentedControl`, `TabBar` swipe, `ReorderableItem` | The finger is between two values and the eye is on something else. This is the case haptics exist for. |
+| A **detent crossed under a finger** | `Slider`, `RangeSlider`, `WheelPicker`, `SegmentedControl`, `TabBar` swipe, `ReorderableItem` | The finger is between two values and the eye is on something else. This is the case haptics exist for. All of them go through `DetentTicker` now, which is where the once-per-crossing guard and the rate limit both live. |
 | A **threshold passed** | `PullToRefresh`, `SwipeActions` | What letting go will do has just changed, and nothing on screen said so first. |
 | A **long press becoming a gesture** | `Menu`, `Tooltip`, `ReorderableItem` | The press has been held long enough to mean something. Nothing has visibly happened yet, which is exactly why it needs reporting. |
 | A **destructive question arriving** | `AlertDialog(destructive = true)` | The only one that fires *before* the thing it is about. Optional — see `hapticWarning`. |
@@ -201,7 +249,7 @@ removal is the row it is on.
 | `Menu`, `Tooltip` | `LongPress` | `LongPress` | The press has been held long enough to mean something and nothing visible has happened yet. |
 | `Menu` item | `Selection` | — | A menu item is a button. |
 | `Rating` | `Selection` per star, `GestureEnd`, one more on tap | — | Five marks on one continuous track. Nothing rests between them, so a drag across it crosses no detent — the report's words were "there's no real detents here". |
-| `Stepper` | `Tick` ×2 | — | Two buttons and a number that changes where you are looking. |
+| `Stepper` | `Tick` ×2 | — | Two buttons and a number that changes where you are looking. `FeedbackIntent.Tick`'s own doc used to name a stepper as its case; the doc was what was wrong, and it has been corrected rather than the component. |
 | `Switch`, `Checkbox`, `RadioButton`, `SelectionRow`, `Chip`, `ColourSwatchPicker`, `Select` | `Selection`, 11 sites between them | — | Every one of these is a control whose whole job is to change visibly under the finger. |
 | `IconButton`, `FloatingActionButton` | `Selection` ×2, `Confirm` ×3 | — | A button press is the least surprising thing a screen does. |
 | `ListItem`, `Accordion`, `CalendarMonth`, `TimePicker` | `Selection`, 5 sites | — | Rows, disclosure, a date cell, an hour. All watched. |

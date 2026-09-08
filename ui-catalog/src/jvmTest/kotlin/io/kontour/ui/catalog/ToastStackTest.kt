@@ -18,6 +18,7 @@ import io.kontour.ui.overlay.ToastPosition
 import io.kontour.ui.overlay.ToastTone
 import java.awt.image.BufferedImage
 import kotlin.test.Test
+import kotlin.time.TimeSource
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -391,6 +392,274 @@ class ToastStackTest {
     }
 
     /**
+     * A toast promoted to the front with little left on its clock is topped up.
+     *
+     * Reported as a toast that flashed rather than arrived. A toast behind the
+     * front one counts the whole time it is waiting — deliberate, and
+     * `aToastBehindTheVisibleWindowStillRunsItsClock` is the test for it — but it
+     * is only being *read* at the front. So one that reaches the front with a few
+     * hundred milliseconds left is promoted and gone in the same breath.
+     *
+     * ### Measured as two emptying times, not one
+     *
+     * `delay` is the wall clock and this harness renders a 16ms frame in about
+     * 45ms of real time, so an absolute deadline would be a race on a throttled
+     * container. Both figures below come out of the same harness on the same
+     * machine, and it is their *difference* that is the claim.
+     *
+     * ### Why the durations are 5,000 and 3,400 and not 4,000 and 3,800
+     *
+     * The first version of this test used a 200ms gap, and it failed reporting
+     * 4,006ms against 3,994ms — no top-up at all. The gap was the fault, not the
+     * fix. **Promotion happens when the toast in front is *removed*, not when it
+     * expires**, and removal is the far end of an exit animation: about 200ms of
+     * frame time, which is a dozen frames, which is over half a second of real
+     * time here. The toast behind expired before it ever reached the front.
+     *
+     * That is the whole reason the numbers are what they are, and it is also why
+     * the floor makes the result *insensitive* to that lag: whatever remains at
+     * promotion, the answer is the floor. It would take an exit lasting more than
+     * 1,600ms to put this back in a race.
+     *
+     * ### What the two bounds separate
+     *
+     * The 3,400ms toast is removed at about 4,000ms, so the 5,000ms one is
+     * promoted with roughly 1,000ms left and three fifths of 5,000 is 3,000. A
+     * **restart** — the other behaviour on the table, and the one this host was
+     * rewritten to stop being — would hand it a fresh 5,000 and empty at about
+     * `alone + 4,000`, with a stack of four taking four full durations to clear.
+     *
+     * Measured, not predicted. Against the fix the two runs are 6,710ms and
+     * 4,838ms, a difference of **1,872ms**; with the top-up disabled they are
+     * 4,992ms and 4,821ms, a difference of **171ms**. The bounds are set either
+     * side of that, and clear of the 4,000 a restart would produce.
+     */
+    @Test
+    fun aToastPromotedWithLittleTimeLeftIsToppedUpToAFloor() {
+        val alone = emptiesAfter("one 5,000ms toast, never promoted") { toasts ->
+            toasts.show("Saved for offline", durationMillis = 5_000)
+        }
+        val promoted = emptiesAfter("a 5,000ms toast behind a 3,400ms one") { toasts ->
+            toasts.show("Saved for offline", durationMillis = 5_000)
+            toasts.show("Route updated", durationMillis = 3_400)
+        }
+
+        assertTrue(
+            promoted > alone + 1_000,
+            "the stack emptied ${promoted}ms after it appeared with the 5,000ms " +
+                "toast waiting behind a 3,400ms one, against ${alone}ms for that " +
+                "same toast on its own — a difference of ${promoted - alone}ms, so " +
+                "the promoted one was not topped up at all. It reached the front " +
+                "with about a second left and went almost immediately",
+        )
+        assertTrue(
+            promoted < alone + 3_000,
+            "the stack emptied ${promoted}ms after it appeared against ${alone}ms " +
+                "for the toast alone — a difference of ${promoted - alone}ms, near " +
+                "the 4,000 a full restart would give rather than the 2,000 a floor " +
+                "of three fifths does. It is being restarted on promotion, which " +
+                "makes a stack of four take four durations to clear",
+        )
+    }
+
+    /**
+     * How long the stack took to empty, from the frame it first had ink in.
+     *
+     * Real milliseconds, because the clock a toast expires on is the real one —
+     * see `eachToastKeepsItsOwnClock`. The wait for ink first is load-bearing:
+     * `show` runs in a `LaunchedEffect`, so the opening frames have an empty
+     * stack and "empty" would be satisfied before anything had been shown.
+     */
+    private fun emptiesAfter(what: String, shown: (ToastHostState) -> Unit): Long {
+        var elapsed = 0L
+        var emptied: BufferedImage? = null
+        Scene(width = 600, height = 400) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) { shown(toasts) }
+            }
+        }.use { scene ->
+            val appeared = scene.renderUntil(timeoutMillis = 3_000) { it.stackHeight() > 0 }
+            assertNotNull(appeared, "no toast was ever drawn for $what")
+            val mark = TimeSource.Monotonic.markNow()
+            emptied = scene.renderUntil(timeoutMillis = 20_000) { it.stackHeight() == 0 }
+            elapsed = mark.elapsedNow().inWholeMilliseconds
+        }
+        assertNotNull(emptied, "the stack never emptied within 20s for $what")
+        return elapsed
+    }
+
+    /**
+     * A pill behind the card shrinks and fades away. It does not just stop being
+     * there.
+     *
+     * The report, near enough word for word. Every toast shared one exit —
+     * `slideOutVertically` toward the anchored edge — and for the front card that
+     * is the right one, because it is the only thing there and the edge it leaves
+     * for is the edge it arrived from. For a pill it is not a direction at all:
+     * sliding toward the edge takes it *under* the card in front, so the last
+     * frame it is drawn on is a full-size one and the next frame it is gone.
+     *
+     * ### The measurement is the width of the band above the card, frame by frame
+     *
+     * Only [io.kontour.ui.overlay.ToastDefaults.Peek] of a pill ever shows — the
+     * offset is measured from the front card's edge precisely so that stays true
+     * whatever height the card is — so that band is the whole of what a user sees
+     * a pill do. Rendered on the frame clock, so the sequence is reproducible
+     * rather than a wall-clock race.
+     *
+     * Sliding, it reads `130, 130, 130, 0, …`: full width, full width, gone. Not
+     * one intermediate value, which is exactly what "vanishes" means when you
+     * write it down. Shrinking, it reads `130, 130, 130, 100, 82, 0` — 77% then
+     * 63% of the width it was, on its way out.
+     *
+     * The assertion is therefore the thing the two do differently: is there any
+     * frame at all on which the pill is drawn *and* narrower than it was?
+     */
+    @Test
+    fun aPillLeavesByShrinking() {
+        val (resting, widths) = pillExitWidths()
+        val shrunk = widths.filter { it > 0 && it <= resting * 3 / 4 }
+
+        assertTrue(
+            shrunk.isNotEmpty(),
+            "the band above the front card measured $widths across the pill's " +
+                "exit, against ${resting}px at rest — it went from full width " +
+                "straight to nothing without ever being drawn smaller. That is " +
+                "the pill sliding out under the card rather than shrinking away.",
+        )
+    }
+
+    /**
+     * The front card still leaves the way it did. The control for the test above.
+     *
+     * A pill's exit is the one that changed. Giving every toast the shrink would
+     * have been the easier edit and the wrong one: the front card has an edge to
+     * leave by, and a card that shrinks in place reads as being taken back rather
+     * than dismissed.
+     */
+    @Test
+    fun theFrontCardStillSlidesOut() {
+        val (resting, widths) = cardExitWidths()
+        val shrunk = widths.filter { it > 0 && it <= resting * 3 / 4 }
+
+        assertTrue(
+            shrunk.isEmpty(),
+            "the front card measured $widths across its exit against ${resting}px " +
+                "at rest, so it was drawn at ${shrunk} on the way out — it is " +
+                "shrinking in place. Only the pills behind it should do that.",
+        )
+    }
+
+    /**
+     * The widest row of the band above the front card, once per frame, while the
+     * pill behind it leaves. Paired with the width that band rests at.
+     */
+    private fun pillExitWidths(): Pair<Int, List<Int>> {
+        var go by mutableStateOf(false)
+        var pillId = 0L
+        var resting = 0
+        val widths = mutableListOf<Int>()
+
+        Scene(width = 600, height = SceneHeight) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) {
+                    // Pinned, both of them, so nothing expires under the
+                    // measurement and the only thing that moves is the one this
+                    // dismisses.
+                    pillId = toasts.show("Saved", durationMillis = 0)
+                    toasts.show("Couldn't reach the timetable service", durationMillis = 0)
+                }
+                LaunchedEffect(go) { if (go) toasts.dismiss(pillId) }
+            }
+        }.use { scene ->
+            val settled = scene.frames(60)
+            // Fixed from the settled frame and then held. The card does not move
+            // while the pill leaves, so this row stays the boundary — and taking
+            // it fresh each frame would follow the pill down instead of holding
+            // still while it goes.
+            val cardTop = settled.cardTop(settled.widthProfile())
+            val rows = 0 until cardTop
+            resting = rows.maxOf { settled.leavingWidthAtRow(it) }
+            go = true
+            repeat(ExitFrames) {
+                val image = scene.frame()
+                widths += rows.maxOf { image.leavingWidthAtRow(it) }
+            }
+        }
+        return resting to widths
+    }
+
+    /**
+     * The same, for a lone toast's own exit — which is a front card, at depth
+     * zero, with nothing behind it.
+     *
+     * One toast rather than two on purpose. With a pill behind it the frame stops
+     * being a measurement of the card: the pill is 134px against the card's 477
+     * and, worse, it is *promoted* the moment the card goes and grows toward full
+     * size in the frames after. The first version of this control read
+     * `477, 477, 477, 134, 134, …` and called the pill a shrinking card.
+     */
+    private fun cardExitWidths(): Pair<Int, List<Int>> {
+        var go by mutableStateOf(false)
+        var cardId = 0L
+        var resting = 0
+        val widths = mutableListOf<Int>()
+
+        Scene(width = 600, height = SceneHeight) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) {
+                    cardId = toasts.show("Couldn't reach the timetable service", durationMillis = 0)
+                }
+                LaunchedEffect(go) { if (go) toasts.dismiss(cardId) }
+            }
+        }.use { scene ->
+            val settled = scene.frames(60)
+            val rows = 0 until settled.height
+            resting = rows.maxOf { settled.leavingWidthAtRow(it) }
+            go = true
+            repeat(ExitFrames) {
+                val image = scene.frame()
+                widths += rows.maxOf { image.leavingWidthAtRow(it) }
+            }
+        }
+        return resting to widths
+    }
+
+    /**
+     * How wide the run of *leaving* toast is on one row.
+     *
+     * `isSurface` is deliberately strict — dark pixels only — because everywhere
+     * else in this file it is counting solid stacked cards against their own
+     * shadows. A toast on its way out is fading, and under that threshold it
+     * reports as gone two frames before it stops being drawn: the pill's real
+     * `130, 130, 130, 100, 82, 0` came back as `128, 128, 128, 0, 0, 0`, which is
+     * the very shape the test exists to distinguish from. So the exit is measured
+     * against the ground instead — clearly darker than the white behind it,
+     * whatever its alpha is down to.
+     */
+    private fun BufferedImage.leavingWidthAtRow(y: Int): Int {
+        var left = width
+        var right = -1
+        for (x in 0 until width) {
+            val rgb = getRGB(x, y)
+            val mean = (((rgb shr 16) and 0xFF) + ((rgb shr 8) and 0xFF) + (rgb and 0xFF)) / 3
+            if (mean >= LeavingGround) continue
+            if (x < left) left = x
+            if (x > right) right = x
+        }
+        return if (right < 0) 0 else right - left + 1
+    }
+
+    /**
      * The toasts waiting behind step in at the sides, visibly.
      *
      * They always shrank a little — `1 - 0.07 * depth`, so 134px then 124px at
@@ -606,6 +875,24 @@ class ToastStackTest {
      */
     private companion object {
         const val SceneHeight = 400
+
+        /**
+         * How many frames of a toast's exit to sample.
+         *
+         * `Scene.frame` advances 16ms of frame time, and the exit is
+         * `motion.tweenFast`, so a couple of dozen is several times over. The
+         * tail is zeros either way and reads as such in a failure message.
+         */
+        const val ExitFrames = 24
+
+        /**
+         * How dark a pixel has to be to count as a toast that is leaving.
+         *
+         * The ground under these scenes is white, and a toast is near-black, so
+         * anything this side of mid-grey is the toast at some alpha and not the
+         * soft shadow around it. See `leavingWidthAtRow`.
+         */
+        const val LeavingGround = 200
 
         /**
          * How much narrower the back of the stack has to be than the front of

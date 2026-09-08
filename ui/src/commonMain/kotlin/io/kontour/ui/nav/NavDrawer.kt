@@ -5,6 +5,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -55,6 +56,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorEdge
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.LocalSelectionIndicator
+import io.kontour.ui.foundation.LocalSelectionIndicatorLeaving
 import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.foundation.selectionIndicatorItem
@@ -363,7 +365,13 @@ fun NavDrawerItem(
     val colours = Theme.colours
     val motion = Theme.motion
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val shape = Theme.shapes.container
+    // The marker's shape, not the row's. `DrawerItems` marks a row with a pill
+    // inset `xxs` horizontally and exactly as tall, so everything this row draws
+    // for itself — its focus ring, its own container fill when it is outside a
+    // group, and the press wash — has to be that box and that corner. It used to
+    // be `Theme.shapes.container`, a fixed 22dp on the full row, which is 8dp
+    // wider and 4dp rounder than the pill that lands on it.
+    val shape = Theme.shapes.capsule
     // Inside a group the travelling marker carries selection; on its own the row
     // still needs to say which one it is.
     val grouped = LocalSelectionIndicator.current != null
@@ -406,19 +414,29 @@ fun NavDrawerItem(
                 contentDescription?.let { this.contentDescription = it }
             }
             .minimumTouchTarget()
-            .focusRing(interactions, shape)
-            .clip(shape)
-            .background(container, shape)
             .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,
                 interactionSource = interactions,
-                indication = kontourIndication(shape, pressScale = 1f),
+                // Drawn below instead, on the pill rather than on the row. The
+                // whole row is the target — a label is not something to aim past
+                // — but the shape it is marked with is inset from it.
+                indication = null,
                 enabled = enabled,
                 role = Role.Tab,
                 onClick = onClick,
             )
-            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
+            // From here down this node is the marker's rect. The second padding
+            // is the rest of what the content asked for, so nothing moves.
+            .padding(horizontal = Theme.spacing.xxs)
+            .focusRing(interactions, shape)
+            .clip(shape)
+            .background(container, shape)
+            .indication(interactions, kontourIndication(shape, pressScale = 1f))
+            .padding(
+                horizontal = Theme.spacing.md - Theme.spacing.xxs,
+                vertical = Theme.spacing.sm,
+            ),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -530,11 +548,17 @@ fun NavDrawerGroup(
             enter = expandVertically(motion.tweenFast()),
             exit = shrinkVertically(motion.tweenFast()),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
-                // At level zero: a caller using the components directly passes
-                // `nestLevel` per item, and the DSL's `group` re-wraps this with
-                // the depth it is tracking.
-                NavDrawerScopeImpl(this).content()
+            // The content is still composed while the exit runs, and its rows
+            // report smaller, higher rects every frame of it. The marker is
+            // drawn outside this clip, so following them walks it up the list in
+            // full view — see `LocalSelectionIndicatorLeaving`.
+            CompositionLocalProvider(LocalSelectionIndicatorLeaving provides !expanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
+                    // At level zero: a caller using the components directly
+                    // passes `nestLevel` per item, and the DSL's `group`
+                    // re-wraps this with the depth it is tracking.
+                    NavDrawerScopeImpl(this).content()
+                }
             }
         }
     }

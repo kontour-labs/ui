@@ -124,6 +124,22 @@ wrapped around the entire application, and reading an animating value during
 composition would recompose every screen in the app once per frame of every
 dialog opening.
 
+**The ground behind a receding sheet is opaque, and it has to be.** Content
+scaled to 94% pulls away from every edge, and the band it leaves is filled with
+black — that is what makes the recession read as depth rather than as nothing at
+all. What is behind the *host* is the app's own window, and the library has no
+idea what colour it is: a page that follows the operating system while the app
+follows its own setting is a white page under a dark app.
+
+So nothing behind the host may reach the screen through that band, and three
+things were letting it. The fill was drawn at the animation's own fraction, so
+its first frames were nearly transparent; the blur treated everything outside
+the layer as transparent, which fades the content's own edge over the blur
+radius; and the band's hole and the content's clip landed on the same
+antialiased pixel, each covering most of it and neither covering all. Reported
+as a dark-mode sheet flashing white around the blurred bit, which is what all
+three look like together.
+
 **Turning it off.** `KontourTheme(backdropBlur = false)` costs the app a texture
 and nothing else — same shapes, same scrim, same motion, same layout — so it is a
 performance dial rather than a design choice. Worth reaching for over a live map,

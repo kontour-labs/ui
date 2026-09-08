@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
@@ -165,7 +166,7 @@ internal fun NavDestinationItem(
     val colours = Theme.colours
     val motion = Theme.motion
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val shape = Theme.shapes.capsule
+    val shape = navItemShape(indicatorSize)
 
     // Null when this item is not inside an indicator group, which is what decides
     // whether it draws its own pill or lets the shared one travel to it.
@@ -247,7 +248,23 @@ internal fun NavDestinationItem(
                         // No shrink here either, and for the tab bar's
                         // reason: the selection pill travels to the destination
                         // that was pressed.
-                        .indication(interactions, kontourIndication(shape, pressScale = 1f))
+                        //
+                        // Only where the marker *is* this box. A stacked item is
+                        // marked by a circle on its glyph, so the press belongs
+                        // here; an inline one is marked by a pill around the
+                        // whole row, and a wash on the icon told the finger a
+                        // shape the marker was never going to take. See the
+                        // inline branch below.
+                        .then(
+                            if (layout == NavItemLayout.Stacked) {
+                                Modifier.indication(
+                                    interactions,
+                                    kontourIndication(shape, pressScale = 1f),
+                                )
+                            } else {
+                                Modifier
+                            }
+                        )
                 ) {
                     Box(
                         Modifier
@@ -345,10 +362,25 @@ internal fun NavDestinationItem(
         }
 
         NavItemLayout.Inline -> Row(
-            modifier = interaction.padding(
-                horizontal = Theme.spacing.sm,
-                vertical = Theme.spacing.xxs,
-            ),
+            // Two paddings rather than one, and the split is the whole point.
+            // A rail marks a row with a pill inset `xxs` horizontally and
+            // exactly as tall as the row, so the press wash has to be that box —
+            // not the icon it used to sit on, and not the full row either. The
+            // first padding makes this node the marker's rect; the second is the
+            // rest of what the content wanted, so nothing moves.
+            //
+            // `selectable` is further up the chain with `indication = null`, so
+            // the *target* is still the whole row. Only the ink is inset.
+            modifier = interaction
+                .padding(horizontal = Theme.spacing.xxs)
+                .indication(
+                    interactions,
+                    kontourIndication(Theme.shapes.capsule, pressScale = 1f),
+                )
+                .padding(
+                    horizontal = Theme.spacing.sm - Theme.spacing.xxs,
+                    vertical = Theme.spacing.xxs,
+                ),
             // `lg`, and it is arithmetic rather than taste. A rail uses this
             // layout at *every* width now, so a collapsed one has to end before
             // its labels begin or it shows a sliver of each first letter. The
@@ -364,6 +396,30 @@ internal fun NavDestinationItem(
         }
     }
 }
+
+/**
+ * A destination's own corner: a circle where its glyph box is square, a capsule
+ * where it is not.
+ *
+ * One function because there are two callers and they had drifted. `NavBar`
+ * authored `Theme.shapes.capsule` for its travelling marker while this file
+ * derived `Theme.shapes.pill` for the same 40x40 glyph — so once round 26 capped
+ * the capsule at 18dp, a nav bar drew an 18dp rounded square travelling between
+ * 20dp circles. Same size, different shape, and nothing could see it because no
+ * golden in the suite rendered a pressed state.
+ *
+ * [indicatorSize] is a [DpSize] the caller authored rather than a measured one,
+ * so comparing the two sides is exact here in a way it would not be for anything
+ * laid out. `CircleSize` (40x40) and `InlineGlyphSize` (48x48) are circles;
+ * `GlyphSize` (56x28) is a lozenge and stays one.
+ */
+@Composable
+internal fun navItemShape(indicatorSize: DpSize): CornerBasedShape =
+    if (indicatorSize.width == indicatorSize.height) {
+        Theme.shapes.pill
+    } else {
+        Theme.shapes.capsule
+    }
 
 /**
  * A destination's own shape, its icon and its badge, in a box of exactly [size].

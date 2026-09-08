@@ -1,5 +1,7 @@
 # Tokens
 
+*Also on this page: `ProvideConcentric`.*
+
 Everything a component is allowed to look like. Read through `Theme` inside a
 composable:
 
@@ -239,6 +241,15 @@ Do not step through the scale by eye. `Theme.shapes.medium.inset(6.dp)` gives th
 radius something 6dp inside a `medium` container should use, floors at zero, and
 keeps the kind of corner it was called on.
 
+**`inset` and `outset` both resolve against the box the shape they are given is
+drawn on, not against the box they are handed.** For a fixed rung the two are the
+same and nothing shows. For a *proportional* corner — a capsule, a pill — they
+are not, because such a corner is smaller on a smaller box before any gap is
+subtracted. `inset` used to skip that reconstruction and take the gap twice: a
+segmented control's thumb came out at 10dp inside a 22dp track, six too square on
+a six dp gap, which is why the thing inside looked like it came from a squarer
+scale than the thing around it.
+
 ### Ask for what a thing *is*
 
 Components do not pick a rung. They ask for one of four names, and that is why
@@ -247,28 +258,61 @@ is, and every button reads it.
 
 | Token | Resolves to | For |
 |---|---|---|
-| `control` | half its height | `Button`, `IconButton`, `SplitButton`, `ButtonGroup`, `FloatingActionButton`, `FabMenu`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
-| `field` | half its height, up to 26dp | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
+| `control` | half its height, up to 18dp | `Button`, `SplitButton`, `ButtonGroup`, `ExtendedFloatingActionButton`, `FabMenu`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
+| `field` | half its height, up to 18dp | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
 | `container` | `medium` | `Card`, `ListItem`, `SelectionRow`, `Accordion`, `SwipeActions`, `DropdownMenu`, `Popover`, `Tooltip`, `NavDrawer` |
 | `panel` | `large` | `Dialog`, `CommandPalette`, `NavSearch` |
 
-**A control is a capsule at every height**, which is the thing a fixed radius
-cannot do: at 14dp an `XSmall` button was nearly a pill already and an `XLarge`
-was nearly square, so one component disagreed with itself across its own size
-scale. And a `Button` sat at 14dp next to a circular `IconButton` in the same
-toolbar. Now every action is the same shape whatever size it happens to be.
+**A control is a pill up to `small`, and squarer above it.** Half its own height
+is the thing a fixed radius cannot do: at 14dp an `XSmall` button was nearly a
+pill already and an `XLarge` was nearly square, so one component disagreed with
+itself across its own size scale. But that rule taken all the way up has the
+opposite failure — a 60dp button at 30dp is not a considered radius, it is a
+stadium. So it stops at **18dp**.
 
-**A field is a capsule too, up to a point.** It used to be a fixed 14dp, on the
-argument that a capsule reads as something to press rather than something to fill
-in. Half right: a single-line field *is* a control by every other measure — same
-height, same row, same press target — and giving it a different corner from the
-button beside it was the inconsistency rather than the fix.
+18 is not tuned. It is half `controlHeightSmall`, which is what makes this one
+rule rather than two competing ones:
+
+| Height | Corner | Reads as |
+|---|---|---|
+| 28dp (`XSmall`) | 14dp | a pill — half the height, under the cap |
+| 36dp (`Small`) | 18dp | a pill *and* the cap, meeting exactly |
+| 44dp (`Medium`) | 18dp | capped |
+| 52dp (`Large`) | 18dp | capped |
+| 60dp (`XLarge`) | 18dp | capped |
+
+At `small` and below the corner is under the cap, so it is exactly half the
+height and the control is a pill. At 36dp precisely the two readings agree, so
+there is no step at the join. Above it the corner stops and each size reads a
+little squarer than the last.
+
+It also lands the ladder somewhere useful: **22 minus 18 is 4**, which is
+`spacing.xxs`. A standard control inside a standard `container` with one unit of
+padding round it is concentric by construction, without either of them naming a
+radius — and `panel` at 28 holds a `container` at 22 with 6dp of ring the same
+way.
+
+**A field takes the same cap.** It used to be a fixed 14dp, on the argument that a
+capsule reads as something to press rather than something to fill in. Half right:
+a single-line field *is* a control by every other measure — same height, same row,
+same press target — and giving it a different corner from the button beside it was
+the inconsistency rather than the fix.
 
 What that argument was really protecting is the multi-line case, and a text area
-shaped like a lozenge is nobody's idea of a text area. So the rule is capped at
-26dp — half the height a text field's `minHeight` resolves to — which puts the
-default single-line field exactly on a capsule and stops everything taller right
-there.
+shaped like a lozenge is nobody's idea of a text area. That used to need a cap of
+its own at 26dp; it now shares the one every height-derived corner takes, so a
+field and the button beside it agree at every height rather than only below 52dp,
+and the text area it was protecting is an 18dp box instead of a 26dp lozenge.
+
+**A container that wraps controls can no longer share their token.** It used to
+be able to: two uncapped capsules were concentric for free, because a child inset
+by the padding top and bottom is shorter by exactly twice it, so the two radii
+differed by exactly the padding whatever the numbers were. Once both sides hit
+the cap they land on the same 18 with a gap between them, and a ring that is even
+along the straight edges and closes to nothing at the corners is the pinch this
+whole scale exists to avoid. `Toolbar` derives its corner from its children's
+with `outset` now, and the `TabBar` indicator derives its from its tab's with
+`inset`.
 
 Reaching past these four to a rung of the size scale is for genuine one-offs — an
 avatar, a scrollbar, a skeleton line, a drag handle — where the shape belongs to
@@ -280,6 +324,66 @@ They are also the seam a consumer wants. Overriding `pill` to square off buttons
 would not even reach them — a button reads `control` — and it would square off
 the avatars and the scrollbar instead; overriding `control` moves the buttons and
 nothing else.
+
+### Nesting one shape inside another
+
+Two rounded rectangles are concentric when **the inner radius is the outer
+radius minus the space between them**. Get it wrong and the ring visibly widens
+or pinches around the corner even though it is even along every straight edge —
+which is the one thing about a nested shape people notice without being able to
+say what they are looking at.
+
+At the standard sizes this now falls out of the scale on its own: `container` is
+22, a control caps at 18, and 22 − 18 is 4, which is `spacing.xxs`. So a button
+in a card with one unit of padding round it is already concentric, and so is a
+`container` in a `panel` with `spacing.xs`.
+
+The moment you change the padding, it stops being free. `inset` and `outset` are
+the two directions of the arithmetic, and both defer: a proportional corner has
+no value until there is a box to take it of, so they resolve against the box the
+*base* is drawn on rather than the one they are handed.
+
+```kotlin
+// A thumb 6dp inside its track.
+val track = Theme.shapes.field
+val thumb = track.inset(6.dp)
+
+// A bar wrapped 6dp around its buttons.
+val bar = Theme.shapes.control.outset(6.dp)
+```
+
+**`Modifier.concentric()` does it without you naming either number.** A
+container publishes its corner and its ring; anything inside can ask for the
+shape that matches.
+
+```kotlin
+Card {
+    // Takes a shape: read it.
+    Button(onClick = {}, shape = Theme.shapes.concentric()) { Text("Save") }
+
+    // Clips its own background: use the modifier.
+    Box(Modifier.fillMaxWidth().height(120.dp).concentric().background(cover))
+}
+```
+
+It is **opt-in**, and stays out of the way when it cannot help:
+
+- Outside any container `Theme.shapes.concentric()` is the component's normal
+  default and `Modifier.concentric()` adds nothing at all — so the same call
+  site works wherever it ends up.
+- It **nests**: a card inside a dialog publishes the card, so a button two
+  levels down measures against the thing actually around it.
+- It does not fight an explicit `shape`, because nothing is automatic. A call
+  site passes this or passes something else.
+- It **declines rather than guesses**. A container whose shape is a path has no
+  radius to subtract from, and one with 16dp at the sides and 8dp top and bottom
+  has no single inner radius that keeps the ring even — the ring is genuinely
+  uneven and no corner fixes it. Both publish nothing and the fallback stands.
+
+`Card` and `Toolbar` publish for you. For a container of your own, call
+`ProvideConcentric(shape, contentPadding) { … }` around its content. `Dialog` and
+`DropdownMenu` do not publish, because neither takes a content padding to derive
+from and inventing one would be guessing at a number their callers own.
 
 ### Two kinds of corner
 
@@ -296,9 +400,12 @@ Every rung pays it, the two small ones included — see above for why a scale th
 stops being continuous partway up is worse than the cost it saves.
 
 **A capsule is a squircle too, and for a long time it silently was not.**
-`control` is half the shorter side, so on any button, chip, tag, toolbar or tab
-the two corners at one end meet in the middle of that end with nothing between
-them: the short edge is *saturated*, exactly and always. Smoothing needs room
+`control` used to be half the shorter side on every control, so on any button,
+chip, tag, toolbar or tab the two corners at one end met in the middle of that
+end with nothing between them: the short edge was *saturated*, exactly and
+always. (The cap means that is now only true at `small` and below — above it
+there is straight edge at both ends. The fix below is what makes both cases come
+out right.) Smoothing needs room
 past the radius to put its blend in, and the rule used to take the tighter of a
 corner's two edges and apply it to both — so one full edge dropped the smoothing
 on the other, and every control in the library drew a plain circular arc while
@@ -307,16 +414,30 @@ naming a squircle and paying a generic path for it.
 Each edge is asked separately now. The end keeps its full arc where it meets its
 neighbour and eases into the long edge where there is room, so a control is
 exactly as round at its ends as it was and no longer steps from arc to straight
-line. Measured against a plain arc, a 200×52 button now deviates by up to 1.9px —
-the same order as a `Card`, which is not saturated and has always smoothed
-freely.
+line. Measured against a plain arc, a 200×52 button deviates by up to 1.32px at
+its capped 18dp — the same order as a `Card`, which is not saturated and has
+always smoothed freely.
+
+Squaring the family off did not flatten it, which is worth a number because the
+intuition runs the other way. The uncapped 26dp capsule deviated by 1.9px and the
+capped 18dp one deviates by 1.32 — but as a *fraction of the radius* those agree
+to three decimal places. A control is exactly as much of a squircle as it was, at
+a smaller radius.
 
 The exceptions fall out of the same rule rather than a list. A square box at
 capsule radius is saturated on *both* edges, so it has nothing to ease onto in
 either direction and stays a true circle: an `IconButton`, an `Avatar`, a status
-dot, the ring round a `RadioButton`. `pill` remains for those, and `capsule` —
-the squircle of the same silhouette — is what a lozenge asks for: a chip, a
-toast, a nav indicator, a skeleton line, a day cell.
+dot, the ring round a `RadioButton`, a colour swatch, a day cell. `pill` remains
+for those, and `capsule` — the squircle of the same silhouette — is what a
+lozenge asks for: a chip, a toast, a nav indicator, a skeleton line.
+
+Those components **name** `pill` rather than inheriting it from `control`, and
+that is a deliberate change: on a square box the two draw the same picture, so
+the name buys nothing you can see today. What it buys is an exemption from the
+cap below. A capped `capsule` on a 50dp box is an 18dp rounded square; a `pill`
+on the same box is still a circle. A day cell is the case that makes it
+concrete — its fill, its "today" ring and its range caps only agree with each
+other if none of them is capped.
 
 **What is still drawn as a plain rounded rect, and why.** Seventeen places paint
 a corner with `drawRoundRect` rather than clipping to a shape, and a
@@ -325,7 +446,7 @@ measurable:
 
 - Fifteen of them are **3–8dp in the short dimension** — a progress track, a
   slider track, the `Callout` rule, a page-indicator dot. The blend scales with
-  the radius, so where a 26dp button deviates from a plain arc by 1.9px a 4dp
+  the radius, so where an 18dp button deviates from a plain arc by 1.32px a 4dp
   track deviates by 0.29px. Below half a pixel there is nothing to see and a
   generic path to pay for.
 - The other two are the **slider thumb and the switch thumb**, which change size

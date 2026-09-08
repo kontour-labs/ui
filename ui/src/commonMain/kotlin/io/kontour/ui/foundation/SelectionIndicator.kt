@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -232,6 +233,32 @@ class SelectionIndicatorState internal constructor() {
         target = null
     }
 }
+
+/**
+ * Set by a container whose content is on the way out, so the marker lets go.
+ *
+ * A collapsing container does not remove its content: it keeps it composed and
+ * clipped while the exit animation runs, and every frame of that the rows inside
+ * report new, smaller, higher positions. The marker follows them faithfully —
+ * and it is drawn by [SelectionIndicatorBox] at the *list's* level, outside the
+ * clip that is hiding the rows. So the rows vanish and the marker slides up over
+ * whatever is above them, which was reported twice as a pill flying up the list
+ * when a drawer group closed on the current page.
+ *
+ * Measured: a marker on a sub-item of a `NavDrawer` group travelled from row 402
+ * to row 222 across fourteen frames of the collapse before fading out at all.
+ *
+ * The rows moving is real, and every row *below* a collapsing group moves too —
+ * that motion should be followed. What must not be followed is a row moving
+ * because it is being clipped away. Only the container knows the difference, so
+ * only the container can say, and this is how it says it.
+ *
+ * Provide `true` around content that is animating out. Descendants stop
+ * reporting, and any that owns the marker clears it, so the marker takes the
+ * "stopped reporting" branch in [SelectionIndicatorBox] and fades where it
+ * stands.
+ */
+internal val LocalSelectionIndicatorLeaving = compositionLocalOf { false }
 
 @Composable
 fun rememberSelectionIndicatorState(): SelectionIndicatorState =
@@ -493,13 +520,21 @@ fun Modifier.selectionIndicatorItem(key: Any, selected: Boolean): Modifier {
     // needs to be told when it changes.
     val coordinates = remember { LastCoordinates() }
 
+    // A container that is closing over this item is not a layout change to
+    // follow. See [LocalSelectionIndicatorLeaving].
+    val leaving = LocalSelectionIndicatorLeaving.current
+
     // Two things can move the indicator and only one of them is a layout event.
     // Selection moving between two items that did not move is not, and neither is
     // the anchor arriving late — `onGloballyPositioned` fires children-first, so
     // on the very first pass an item reports before the enclosing box has
     // captured the anchor. Both still need an effect; a scroll does not.
-    LaunchedEffect(state, key, selected, state.anchor) {
-        state.reportIfPossible(key, selected, coordinates.value)
+    LaunchedEffect(state, key, selected, state.anchor, leaving) {
+        if (leaving) {
+            if (state.targetKey == key) state.clear()
+        } else {
+            state.reportIfPossible(key, selected, coordinates.value)
+        }
     }
 
     // Leaving is a report too, and it was the one nobody made.
@@ -528,6 +563,7 @@ fun Modifier.selectionIndicatorItem(key: Any, selected: Boolean): Modifier {
 
     return onGloballyPositioned {
         coordinates.value = it
+        if (leaving) return@onGloballyPositioned
         // Straight from the layout phase. `report` writes snapshot state, and
         // setting it to an equal value is a no-op, so an item that scrolled with
         // its own anchor — which is where the indicator lives — reports the same

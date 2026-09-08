@@ -256,7 +256,14 @@ class DetentHapticsTest {
             it.frames(3)
             // Slowly, so many frames fall inside each step: a per-frame
             // implementation reports forty and a silent one reports none.
-            it.drag(bounds.alongX(0.02f), bounds.alongX(0.98f), steps = 40)
+            //
+            // Paced in *real* time as well as frames, because this counts ticks
+            // and the shared ticker's rate limit runs on a wall clock — see
+            // `Scene.drag`. Forty steps 20ms apart is a deliberate 800ms drag,
+            // which crosses its ten detents about 80ms apart. Unpaced the same
+            // drag takes almost no real time at all and the limit swallows half
+            // of them, which is a true statement about a gesture no hand makes.
+            it.drag(bounds.alongX(0.02f), bounds.alongX(0.98f), steps = 40, paceMillis = 20)
             it.frames(4)
         }
 
@@ -306,6 +313,59 @@ class DetentHapticsTest {
     }
 
     @Test
+    fun aRangeSliderTicksForEveryStepAHandleIsDraggedAcross() {
+        // The reporter's words were "both normal and range", and only the range
+        // slider's *tap* was covered. A component whose drag is untested is a
+        // component whose drag can be broken without anything going red, which
+        // is the fault this round is mostly about.
+        val felt = mutableListOf<FeedbackIntent>()
+        var range by mutableStateOf(0f..10f)
+        var bounds = Rect.Zero
+
+        Scene(width = 600, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                    RangeSlider(
+                        value = range,
+                        onValueChange = { range = it },
+                        valueRange = 0f..10f,
+                        steps = 9,
+                        modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            // The start handle, from its own position rightwards. Paced for the
+            // same reason as the slider above: this counts ticks, and the rate
+            // limit runs on a wall clock.
+            scene.drag(
+                bounds.alongX(0.02f),
+                bounds.alongX(0.62f),
+                steps = 30,
+                paceMillis = 20,
+            )
+            scene.frames(4)
+        }
+
+        assertTrue(
+            range.start > 0f,
+            "the drag never moved the start handle, so this proves nothing " +
+                "about its haptics",
+        )
+        val ticks = felt.count { it == FeedbackIntent.Tick }
+        assertTrue(
+            ticks >= 3,
+            "dragging a range handle across six steps produced only $ticks " +
+                "ticks (${felt.summary()})",
+        )
+        assertTrue(
+            felt.none { it != FeedbackIntent.Tick },
+            "the drag fired something other than detents: ${felt.summary()}",
+        )
+    }
+
+    @Test
     fun aSegmentedControlTicksOncePerSegmentCrossed() {
         val felt = mutableListOf<FeedbackIntent>()
         var selected by mutableStateOf(0)
@@ -324,7 +384,10 @@ class DetentHapticsTest {
             }
         }.use { scene ->
             scene.frames(3)
-            scene.drag(bounds.alongX(0.05f), bounds.alongX(0.95f), steps = 40)
+            // Paced, because this counts ticks and `DetentTicker` now has a
+            // rate limit on a wall clock — see `Scene.drag`. Forty steps 12ms
+            // apart is a half-second swipe, which is a speed a thumb makes.
+            scene.drag(bounds.alongX(0.05f), bounds.alongX(0.95f), steps = 40, paceMillis = 12)
             scene.frames(4)
         }
 
@@ -361,7 +424,8 @@ class DetentHapticsTest {
             }
         }.use { scene ->
             scene.frames(3)
-            scene.drag(bounds.alongX(0.95f), bounds.alongX(0.05f), steps = 30)
+            // Paced for the same reason as the segmented control above.
+            scene.drag(bounds.alongX(0.95f), bounds.alongX(0.05f), steps = 30, paceMillis = 16)
             scene.frames(4)
         }
 

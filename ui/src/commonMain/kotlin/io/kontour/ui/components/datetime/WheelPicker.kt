@@ -526,6 +526,41 @@ private fun <T> InfiniteWheel(
             // cut them off — without this they drew over whatever the picker
             // was sitting in.
             .clipToBounds()
+            // A grab, which `scrollable` does not answer.
+            //
+            // `scrollable` handles a finger and a wheel notch, and on desktop
+            // Compose deliberately excludes a *mouse drag* from it — right for a
+            // list, wrong for a drum, which is the whole of "there's no
+            // click-and-drag in the infinite wheel picker". The finite path
+            // solved this long ago and says so in its own KDoc: "the `draggable`
+            // only ever sees a mouse the list declined."
+            //
+            // Order matters and is the opposite of the finite path's. There the
+            // list is a deeper *composable*, so it takes the main pass first
+            // whatever the modifiers say. Here the two are siblings in one
+            // chain, and the later modifier is the inner node — so `scrollable`
+            // has to come after this one to keep first refusal on touch.
+            // Written the other way round, both handled the same finger and the
+            // drum turned twice as far as it moved.
+            .draggable(
+                state = rememberDraggableState { delta ->
+                    // Negated where `scrollable`'s lambda is not: that one is
+                    // fed by `reverseDirection = true`, and this is fed by the
+                    // raw pointer. Dragging up is a negative delta and has to
+                    // turn the drum forwards.
+                    scope.launch { offset.snapTo(offset.value - delta) }
+                },
+                orientation = Orientation.Vertical,
+                // `scrollable` settles through `isScrollInProgress`, which a
+                // drag here never touches — so this settles itself, onto the
+                // same nearest row and with the same spring.
+                onDragStopped = {
+                    val nearest = (offset.value / itemPx).roundToInt() * itemPx
+                    if (offset.value != nearest) {
+                        offset.animateTo(nearest, motion.springOrTween(motion.springSnappy))
+                    }
+                },
+            )
             .scrollable(
                 state = scrollState,
                 orientation = Orientation.Vertical,
@@ -554,20 +589,36 @@ private fun <T> InfiniteWheel(
                 // measured against nothing left and came out zero-high.
                 //
                 // Applied against the "options appear only above the selection"
-                // half of the report, and **not proven to have fixed it**. Rows
-                // fade with distance and `wheelFade` bottoms out at 0.2 alpha
-                // rather than zero, so a rendered measurement cannot separate a
-                // row that is absent from one that is present and faint; the
-                // measurement that was taken is written up in
-                // `InfiniteWheelTest`. This starves no row and is right on its
-                // own terms, but the report stays open.
+                // half of the report. It was the right change and it was not the
+                // whole cause — see the offset below, which is.
                 .requiredHeight(itemHeight * rows)
+                // `halfVisible + 1`, and the `+ 1` is the whole of the
+                // "highlighted row is one too high" report.
+                //
+                // `first` steps back `halfVisible + 1` rows from `turned` — one
+                // for each row above the centre, plus one spare so there is
+                // always a row entering from the top. The offset has to give all
+                // of those back. Giving back only `halfVisible` left the drum
+                // standing one row high, so the row in the highlight band was
+                // `turned + 1` while `centredIndex` reported `turned`: the value
+                // and the highlight disagreed by exactly one row.
+                //
+                // It is also why the spare rows were both at the top. Measured
+                // through the semantics tree — which the 0.2 alpha floor cannot
+                // lie to, unlike the pixel reading that left this open last
+                // round — with five visible 40dp rows and `selected = 5`:
+                //
+                //     before   02 clipped   03 clipped   04 …   05 at 49  ← one row high
+                //     after    02 clipped   03 at 12     04 …   05 at 89  ← centred
+                //
+                // and the finite wheel, which shares none of this code, puts its
+                // selected row at 89 too. `WheelPlacementTest` holds both.
                 .offset {
                     val turned = offset.value / itemPx
                     val first = floor(turned).toInt() - halfVisible - 1
                     IntOffset(
                         x = 0,
-                        y = ((first - turned) * itemPx + halfVisible * itemPx).roundToInt(),
+                        y = ((first - turned) * itemPx + (halfVisible + 1) * itemPx).roundToInt(),
                     )
                 }
         ) {

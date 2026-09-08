@@ -290,6 +290,128 @@ proved nothing rather than passing on a coincidence.
 **The rule:** frames for anything animated, `renderUntil` for anything that
 times itself out.
 
+## The gesture in the test and the gesture in the hand
+
+`SliderDragOwnershipTest` presses, moves **along** the slider's axis, and only
+then strays 160px across it. It passes. The first version of `DragOwnershipTest`
+copied that shape onto `SegmentedControl` and passed too — against a control that
+was demonstrably broken, and that the reporter had been describing for four
+rounds running.
+
+The ordering is what decides it. Two nodes are waiting for touch slop: the
+control on its own axis, the scroller above it on the other one. Whichever
+crosses first claims the gesture, and once it has, the loser never gets another
+chance — which the along-then-stray test proves by passing. So a gesture that
+travels along the axis first has settled the question before the stray happens,
+and the stray then measures nothing.
+
+The gesture in the hand starts off-axis. Press, and move away — one motion, one
+direction, whatever direction the finger took. Measured in a browser at phone
+size against the built site, dragging a control 40px along its axis and a varying
+distance across it:
+
+| Across | Slope | Outcome |
+|---|---|---|
+| 20px | 0.50 | control tracks |
+| 40px | **1.00** | **gesture lost** |
+| 60px | 1.50 | gesture lost |
+
+The threshold is a slope of one — forty-five degrees. It is not a distance at
+all, which is why "stray far enough" was the wrong shape to test: stray as far as
+you like, as long as you went along the axis first.
+
+**The rule:** a pointer test whose subject is *who owns the gesture* starts the
+gesture in the direction that loses, and carries a straight-along-the-axis
+control beside it. Without the control an off-axis assertion cannot tell a fix
+from a control that has stopped working altogether; with it, both readings are
+visible in one run.
+
+## An instrument must not share a colour with what it measures against
+
+`ModalSheetFirstOpenTest` asks whether a sheet **rises** or snaps, and it finds
+the sheet by scanning for the first near-black row. That worked for as long as
+the only black thing on screen was the sheet's own body.
+
+Round 26 made the band behind a receding sheet opaque black from its first frame,
+for reasons `BackdropBlurTest` records. The test then reported `Edges seen: 0,
+900` — a snap — for a sheet that was rising perfectly well: the scan was
+returning row 0, the top of the *band*, on every frame. Nothing about the sheet
+had changed.
+
+The body is red now. The rule is worth stating on its own, because it is the
+cheapest kind of wrong test to write and the hardest to spot afterwards: **an
+instrument that shares an attribute with the thing it is measuring against will
+one day measure the wrong one, and it will not say so.** The failure looked
+exactly like a real regression, and it took reading the detector to tell them
+apart.
+
+## The number not reaching zero is the signal that a diagnosis is unfinished
+
+G2 — a dark-mode sheet "flashing white around the blurred bit" — came with a
+hypothesis, and the hypothesis was right. The ground behind a receding sheet was
+filled at the animation's own fraction, so its first frames were nearly
+transparent and whatever the app was sitting on showed through. Fixing that took
+the leak from **135** levels to **64**.
+
+Sixty-four is not zero, and the temptation at that point is to call it
+antialiasing and move on. It was two more causes: a blur that treats everything
+outside its layer as transparent, fading the content's own edge over the blur
+radius; and the band's hole and the content's clip landing on the same
+antialiased pixel, each covering most of it and neither covering all. The third
+is visible with the blur switched off entirely — 80 levels on a single row —
+which is what identified it as a rasteriser seam rather than a rendering effect.
+
+Three causes, one symptom, and only the first was in the plan. **A measurement
+that improves but does not resolve is evidence that the model is incomplete**,
+not evidence that the fix worked.
+
+## A gesture the harness cannot deliver proves nothing either way
+
+Round 26 tried to test that a text box raises the library's selection toolbar,
+and could not, on either harness:
+
+| Gesture | What actually happened |
+|---|---|
+| mouse double-click, JVM | selects a word — `TextRange(6, 13)` — and never calls `showMenu` |
+| touch long-press, JVM | does not select at all, leaving `TextRange(13, 13)` |
+| synthetic drag or double-click, browser | the field takes focus and the caret goes in; nothing highlights |
+
+A pointer selection on a desktop goes to the platform's context menu, not to
+`LocalTextToolbar`, so the first row is not a harness limit at all — it is the
+mechanism being different from the one assumed. The rest are.
+
+So `TextFieldToolbarTest` asserts the **install** and says in its own KDoc that it
+cannot assert the gesture, and the behaviour is measured in a browser at phone
+width where the touch selection is real. **A test that drives the wrong gesture
+and passes is worth less than nothing**: it is a green tick against a claim
+nobody checked.
+
+### Separate "it was ignored" from "it never arrived"
+
+The same round found a right-click in a text box drawing no menu on the web. That
+has two completely different explanations — the app ignored the press, or the
+press never reached the app — and they need opposite fixes.
+
+`docs/measure-web.mjs --right-click` records both halves: whether the
+`contextmenu` event came back `prevented`, and whether the secondary button
+arrived as a `pointerdown` at all. It arrives, as a real `pointerdown` **and**
+`mousedown` with `button === 2`. That single line is what makes "no menu on the
+web" a finding about the library rather than a note about the harness — and it is
+also what stopped a guess being written down as a cause.
+
+## A wrong sentence in this repository is a wrong assumption in the next round
+
+`TextSelectionToolbar`'s KDoc and `text-toolbar.md` both said Compose falls back
+to "nothing recognisable in a browser". Round 26 repeated that claim in a new
+KDoc, on the strength of the old one, and only a canary build caught it: the
+fallback is a perfectly visible toolbar, a rounded pill reading
+`Copy  Paste  Cut` against the library's `Cut  Copy  Paste`.
+
+Both are real. The argument for drawing our own was never that there was nothing
+there. **A claim in this repository's own documentation is not evidence** — it is
+a previous round's reading, and the round that repeats it inherits its errors
+along with its wording.
+
 ## What the slot conversion cost, and what pays for it
 
 `ListItem(label = "…")` could not produce a row without an accessible name.
@@ -392,6 +514,33 @@ and no meaning in a millisecond taken on a shared runner. What *is* meaningful i
 comparing two runs of it with one variable changed, and `--network fast4g` makes
 that comparison resemble a reader: unthrottled the whole site arrives in about a
 second, which describes nobody.
+
+### One thing it ruled out, which is worth writing down
+
+Compose's web runtime sets `touch-action: pan-x pan-y` on the canvas it draws
+into. `--eval` prints one expression from the page, and read through the shadow
+root that canvas lives in, the grant is an inline style:
+
+```
+{"inline":"pan-x pan-y","computed":"pan-x pan-y","inShadow":true,"bodyOverflow":"hidden"}
+```
+
+`pan-x pan-y` hands a touch drag to the browser the moment it decides the gesture
+is a pan, which looked like the whole explanation for drags dying mid-gesture on
+mobile web — and the fix looked like two lines of CSS. Neither survived being
+measured. A page stylesheet cannot select into a shadow root, and would lose to
+an inline style if it could, so `canvas { touch-action: none !important }` does
+nothing whatever; and `html, body { overflow: hidden }` leaves the browser with
+nothing to pan even where the grant applies. The drags that die are dying inside
+Compose, to the scroller in the page rather than to the browser. The section on
+gesture ownership above has the angle at which it happens and the measurement
+that separates the two: on the same page, under the same synthetic touches, a
+`Slider` survived every stray and a `Switch` survived none — and no browser
+distinguishes between them.
+
+Reading a computed style is not a gesture and a synthetic touch is not a finger,
+so none of this proves the grant can never matter on a real device. It proves it
+was not what the reports were about, which is the claim that was needed.
 
 `docs/check-bundle-size.py` is the half that does run in CI, because bytes are the
 same everywhere. Skia is ratcheted separately from the application binary — at

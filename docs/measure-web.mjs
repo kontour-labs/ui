@@ -17,6 +17,10 @@
 //
 //   node docs/measure-web.mjs [--dist DIR] [--seconds N] [--json OUT]
 //                             [--screenshot OUT.png] [--click X,Y]
+//                             [--touch-tap X,Y] [--touch-drag X1,Y1,X2,Y2[,STEPS[,HOLD]]]
+//                             [--then-tap X,Y]
+//                             [--mobile] [--dark] [--reduce-motion] [--vibration]
+//                             [--eval EXPR]
 //
 // ### What it can and cannot tell you
 //
@@ -45,6 +49,33 @@
 //
 //   node docs/measure-web.mjs --dist site --path '#/components/side-sheet' \
 //     --click 733,576 --screenshot after.png
+//
+// ### Driving a *finger*
+//
+// `--touch-tap X,Y` and `--touch-drag X1,Y1,X2,Y2[,STEPS[,HOLD]]` dispatch real
+// touch events, and `--mobile` is what makes them land: Compose registers its
+// listeners from `navigator.maxTouchPoints` as the page boots, so touch
+// emulation has to be on before navigation or every event falls on the floor.
+// `HOLD` is milliseconds of stillness before the finger moves, which is the only
+// way to reach anything behind a long press.
+//
+//   node docs/measure-web.mjs --dist site --mobile --path '#/components/reorderable-item' \
+//     --touch-drag 200,400,200,560,20,700 --screenshot after.png
+//
+// `--vibration` prints every `navigator.vibrate` pattern the run produced, in
+// order. It is how a haptic is measured rather than asserted: on the web a
+// haptic *is* a duration in milliseconds, and a pattern under about 10ms is
+// below what a phone's motor can spin up to produce. Pair it with `--mobile`
+// and a touch drag:
+//
+//   node docs/measure-web.mjs --dist site --mobile --vibration \
+//     --path '#/components/slider' --touch-drag 200,400,340,400,20
+//
+// `--dark` emulates `prefers-color-scheme: dark`, which drives the *system* half
+// of the site's `settings.dark ?: systemDark`. It cannot reach the in-app
+// toggle, and that gap is itself worth knowing about: `styles.css` follows the
+// media query alone, so an app-dark page on an OS-light machine has a white
+// ground behind a dark application.
 //
 // What that reports for the side sheet, on this software rasteriser:
 //
@@ -127,6 +158,32 @@ const PATH = arg('path', '')
  * the same.
  */
 const REDUCE_MOTION = process.argv.includes('--reduce-motion')
+
+/**
+ * Emulate `prefers-color-scheme: dark`.
+ *
+ * Note what this does and does not reach. The site reads dark from
+ * `settings.dark ?: systemDark`, so this drives the *system* half — the same
+ * path a visitor with a dark OS takes. It does not touch the in-app toggle, and
+ * the difference between the two is itself a thing worth measuring: `styles.css`
+ * follows `prefers-color-scheme` alone, so an app-dark page on an OS-light
+ * machine has a white ground behind a dark application.
+ */
+const DARK = process.argv.includes('--dark')
+
+/**
+ * Emulate a phone: a phone's viewport, a phone's pixel ratio, and a touchscreen.
+ *
+ * The touchscreen is the part that matters and the part that has to be set
+ * before the page loads. Compose decides which listeners to register from
+ * `navigator.maxTouchPoints` as it starts, so a `Input.dispatchTouchEvent`
+ * arriving at a page that booted without touch emulation lands on nothing at
+ * all — which looks exactly like the bug you were trying to reproduce.
+ */
+const MOBILE = process.argv.includes('--mobile')
+
+/** A phone, roughly. Nothing here is load-bearing beyond being narrow and dense. */
+const PHONE = { width: 390, height: 844, deviceScaleFactor: 3, mobile: true }
 
 async function serve(root) {
   const cache = new Map()
@@ -238,7 +295,34 @@ class Cdp {
  * measurement can distinguish that from a page that is merely slow.
  */
 const PROBE = `
-window.__probe = { firstRafAt: null, rafCalls: 0, paints: {} }
+window.__probe = { firstRafAt: null, rafCalls: 0, paints: {}, vibrations: [] }
+
+/**
+ * Haptics, which on the web are navigator.vibrate and nothing else.
+ *
+ * Two jobs, and the first is the one that is easy to miss. Compose gates its
+ * whole web haptic path on the vibrate function existing; headless Chromium has
+ * no vibrator and therefore no such function, so without this it takes the
+ * no-op branch and a run records nothing while looking like it proved
+ * something. Defining one makes the support check pass.
+ *
+ * The second is that this is the only place the durations can be read. What the
+ * library asks for is a pattern in milliseconds, and whether that pattern is
+ * long enough for a motor to spin up to is the entire question.
+ */
+{
+  const record = function (pattern) {
+    window.__probe.vibrations.push(Array.isArray(pattern) ? pattern.slice() : [pattern])
+    return true
+  }
+  try {
+    Object.defineProperty(Navigator.prototype, 'vibrate', {
+      configurable: true, writable: true, value: record,
+    })
+  } catch {
+    navigator.vibrate = record
+  }
+}
 const realRaf = window.requestAnimationFrame.bind(window)
 window.requestAnimationFrame = (cb) => {
   if (window.__probe.firstRafAt === null) window.__probe.firstRafAt = performance.now()
@@ -329,9 +413,24 @@ async function main() {
     }, sessionId)
   }
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE }, sessionId)
-  if (REDUCE_MOTION) {
-    await cdp.send('Emulation.setEmulatedMedia', {
-      features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+
+  // One call, not one per flag. `Emulation.setEmulatedMedia` *replaces* the
+  // feature list rather than merging into it, so two calls leave only the
+  // second one's answer — and the flag that lost is silently ignored, which is
+  // the failure mode this whole script exists to avoid.
+  const media = []
+  if (REDUCE_MOTION) media.push({ name: 'prefers-reduced-motion', value: 'reduce' })
+  if (DARK) media.push({ name: 'prefers-color-scheme', value: 'dark' })
+  if (media.length) {
+    await cdp.send('Emulation.setEmulatedMedia', { features: media }, sessionId)
+  }
+
+  // Before `Page.navigate`, deliberately — see [MOBILE].
+  if (MOBILE) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', PHONE, sessionId)
+    await cdp.send('Emulation.setTouchEmulationEnabled', {
+      enabled: true,
+      maxTouchPoints: 1,
     }, sessionId)
   }
 
@@ -387,13 +486,223 @@ async function main() {
   const resources = await evaluate(`performance.getEntriesByType('resource').map(r =>
     ({ name: r.name, size: r.transferSize, decoded: r.decodedBodySize, start: r.startTime, end: r.responseEnd }))`)
 
+  /**
+   * One finger, on the glass.
+   *
+   * `Input.dispatchTouchEvent` takes the *current* set of touch points, not an
+   * event about one of them — so a press is a list of one, a move is that same
+   * list with a new position, and a release is the empty list. Getting that
+   * wrong produces a gesture the page sees as starting and never finishing,
+   * which is indistinguishable from the application ignoring it.
+   */
+  const touch = async (type, x, y) => {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }],
+    }, sessionId)
+  }
+
+  /** Real milliseconds. A long press is a wall-clock timeout, not a frame count. */
+  const wait = (ms) => new Promise((done) => setTimeout(done, ms))
+
   const clickAt = arg('click', null)
+  const tapAt = arg('touch-tap', null)
+  const dragAlong = arg('touch-drag', null)
   let interaction = null
+
   if (clickAt) {
     const [x, y] = clickAt.split(',').map(Number)
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
     for (const type of ['mousePressed', 'mouseReleased']) {
       await cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 }, sessionId)
+    }
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  if (tapAt) {
+    const [x, y] = tapAt.split(',').map(Number)
+    await touch('touchStart', x, y)
+    await wait(40)
+    await touch('touchEnd', x, y)
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  // `--touch-drag x1,y1,x2,y2[,steps[,hold]]`. `hold` is milliseconds to keep
+  // the finger still before it moves, which is the only way to reach anything
+  // behind a long press.
+  if (dragAlong) {
+    const [x1, y1, x2, y2, steps = 20, hold = 0] = dragAlong.split(',').map(Number)
+    await touch('touchStart', x1, y1)
+    if (hold > 0) await wait(hold)
+    for (let i = 1; i <= steps; i++) {
+      await touch('touchMove', x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps)
+      // A frame between moves. Dispatched back to back, Compose sees one jump
+      // and the velocity tracker has nothing to work with.
+      await wait(16)
+    }
+    await touch('touchEnd', x2, y2)
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  // Read *after* the gestures, so what is printed is what the interaction
+  // produced rather than whatever the page did while loading.
+  if (process.argv.includes('--vibration')) {
+    const patterns = await evaluate('window.__probe.vibrations')
+    const total = patterns.reduce((sum, p) => sum + p.reduce((a, b) => a + b, 0), 0)
+    console.log('')
+    console.log(`vibration  ${patterns.length} pattern(s), ${total}ms of motor time`)
+    if (patterns.length === 0) {
+      console.log('           nothing — either no haptic intent fired, or the')
+      console.log('           constant it mapped to has no web pattern at all')
+    } else {
+      const counts = new Map()
+      for (const p of patterns) {
+        const key = `[${p.join(',')}]`
+        counts.set(key, (counts.get(key) || 0) + 1)
+      }
+      for (const [key, n] of counts) {
+        // The number that decides whether any of this is felt. A motor needs
+        // roughly 10-20ms to spin up; under that the pulse is issued and
+        // nothing reaches the hand.
+        const longest = Math.max(...key.slice(1, -1).split(',').map(Number))
+        const verdict = longest >= 10 ? 'feelable' : 'BELOW THE MOTOR FLOOR'
+        console.log(`           ${String(n).padStart(4)} x ${key.padEnd(20)} ${verdict}`)
+      }
+    }
+  }
+
+  // `--eval EXPR` prints one JavaScript expression, evaluated in the page after
+  // everything else has run. For asking the page a question the harness has no
+  // dedicated flag for — the computed style of the canvas Compose creates, say,
+  // which is not something a screenshot or a gesture can tell you.
+  const expression = arg('eval', null)
+  if (expression) {
+    const value = await evaluate(`JSON.stringify(${expression})`)
+    console.log('')
+    console.log(`eval  ${expression}`)
+    console.log(`   -> ${value}`)
+  }
+
+  // `--then-tap x,y` is a second tap, dispatched *after* the drag rather than
+  // before it. Every other gesture flag stands alone; this one exists because
+  // some questions are two gestures long and the order is the question. Select
+  // text with a long press and a drag, then tap the toolbar it raised: whether
+  // the selection is still there when the tap lands is the whole of what a
+  // selection toolbar is for.
+  const thenTap = arg('then-tap', null)
+  if (thenTap) {
+    const [x, y] = thenTap.split(',').map(Number)
+    await touch('touchStart', x, y)
+    await wait(40)
+    await touch('touchEnd', x, y)
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  // `--double-click x,y` selects a word, which is the gesture a desktop user
+  // actually makes before looking for a selection toolbar. A press-and-drag
+  // turns out to focus the field and select nothing, so it cannot ask the
+  // question on its own.
+  const doubleClickAt = arg('double-click', null)
+  if (doubleClickAt) {
+    const [x, y] = doubleClickAt.split(',').map(Number)
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
+    for (const clickCount of [1, 2]) {
+      await cdp.send('Input.dispatchMouseEvent', {
+        type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount,
+      }, sessionId)
+      await cdp.send('Input.dispatchMouseEvent', {
+        type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount,
+      }, sessionId)
+      await wait(30)
+    }
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  // `--mouse-drag x1,y1,x2,y2[,steps]` presses, travels and releases with the
+  // primary button. A finger and a mouse are not the same gesture to a text
+  // field — a drag with the button down is what selects a range on a desktop,
+  // and `--touch-drag` cannot ask that question.
+  const mouseDrag = arg('mouse-drag', null)
+  if (mouseDrag) {
+    const [x1, y1, x2, y2, steps = 12] = mouseDrag.split(',').map(Number)
+    const at = (i) => ({ x: x1 + (x2 - x1) * i / steps, y: y1 + (y2 - y1) * i / steps })
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x1, y: y1 }, sessionId)
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mousePressed', x: x1, y: y1, button: 'left', buttons: 1, clickCount: 1,
+    }, sessionId)
+    for (let i = 1; i <= steps; i++) {
+      const { x, y } = at(i)
+      await cdp.send('Input.dispatchMouseEvent', {
+        type: 'mouseMoved', x, y, button: 'left', buttons: 1,
+      }, sessionId)
+      await wait(16)
+    }
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mouseReleased', x: x2, y: y2, button: 'left', buttons: 0, clickCount: 1,
+    }, sessionId)
+    interaction = await evaluate(`window.__sample(1500)`)
+  }
+
+  // `--right-click x,y` dispatches a real secondary click and reports whether
+  // anything on the page stopped the browser drawing its own context menu.
+  //
+  // The native menu cannot be seen from here — it is chrome, not page — so what
+  // is measured instead is the fact that decides whether it appears at all:
+  // `defaultPrevented` on the `contextmenu` event, read from a listener on
+  // `window` in the bubble phase, which runs after every handler inside the
+  // canvas has had the event. Not prevented means the browser's menu is what
+  // the user gets, whatever the app drew underneath it.
+  const rightClickAt = arg('right-click', null)
+  if (rightClickAt) {
+    const [x, y] = rightClickAt.split(',').map(Number)
+    await evaluate(`
+      window.__contextmenu = []
+      window.__secondary = []
+      window.addEventListener('contextmenu', (event) => {
+        window.__contextmenu.push({
+          prevented: event.defaultPrevented,
+          target: event.target && event.target.tagName,
+        })
+      }, false)
+      // Whether the secondary button reaches the page as a pointer event at
+      // all. Without this the harness cannot tell "the app ignored the click"
+      // from "the click never arrived", and those need different fixes.
+      for (const type of ['pointerdown', 'mousedown']) {
+        window.addEventListener(type, (event) => {
+          if (event.button === 2) {
+            window.__secondary.push({ type, target: event.target && event.target.tagName })
+          }
+        }, true)
+      }
+      true
+    `)
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
+    for (const type of ['mousePressed', 'mouseReleased']) {
+      await cdp.send('Input.dispatchMouseEvent', {
+        type, x, y, button: 'right', buttons: 2, clickCount: 1,
+      }, sessionId)
+    }
+    await wait(300)
+    const seen = await evaluate('window.__contextmenu')
+    const secondary = await evaluate('window.__secondary')
+    console.log('')
+    console.log(`right-click  at ${x},${y}`)
+    if (!seen || seen.length === 0) {
+      console.log('             no contextmenu event fired at all')
+    } else {
+      for (const event of seen) {
+        const verdict = event.prevented
+          ? 'prevented — the app draws its own'
+          : "NOT PREVENTED — the browser's own menu is what the user gets"
+        console.log(`             on <${event.target}>: ${verdict}`)
+      }
+    }
+    if (!secondary || secondary.length === 0) {
+      console.log('             the secondary button reached the page as NO pointer')
+      console.log('             event at all — nothing in the app could have seen it')
+    } else {
+      const kinds = secondary.map((e) => `${e.type} on <${e.target}>`).join(', ')
+      console.log(`             secondary button delivered as: ${kinds}`)
     }
     interaction = await evaluate(`window.__sample(1500)`)
   }
@@ -428,7 +737,9 @@ async function main() {
   console.log(
     `  chromium ${version.Browser}, software WebGL, cache disabled, gzip on, ` +
       (link ? `${NETWORK} (${(link.download * 8 / 1e6).toFixed(1)} Mbit/s, ${link.latency}ms)` : 'unthrottled') +
-      (REDUCE_MOTION ? ', prefers-reduced-motion: reduce' : ''),
+      (REDUCE_MOTION ? ', prefers-reduced-motion: reduce' : '') +
+      (DARK ? ', prefers-color-scheme: dark' : '') +
+      (MOBILE ? `, ${PHONE.width}x${PHONE.height} touch` : ''),
   )
   console.log('')
   console.log('  LOAD')

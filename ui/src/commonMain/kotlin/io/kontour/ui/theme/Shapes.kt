@@ -12,6 +12,31 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.min
 
 /**
+ * Where a height-derived corner stops growing: 18dp.
+ *
+ * Not a tuned number. It is half [Sizing.controlHeightSmall], and that is what
+ * makes the rule one rule instead of two competing ones:
+ *
+ * * at `small` and below, half the height is *under* this, so the corner is
+ *   exactly half the height and the control is a pill;
+ * * at 36dp precisely the two readings give the same 18, so there is no step at
+ *   the join;
+ * * above it the corner stops and the control gets progressively squarer — a
+ *   52dp field goes from 26dp to 18, a 60dp XL button from 30 to 18.
+ *
+ * A capsule at every height was the previous rule, and it was right about the
+ * bottom of the scale and wrong about the top: at 14dp an `XSmall` button was
+ * nearly a pill already and an `XLarge` was nearly square, which is what the
+ * proportional corner fixed — but a 60dp button at 30dp is not a considered
+ * radius, it is a stadium. The cap keeps the first half and drops the second.
+ *
+ * [Shapes.pill] is deliberately *not* capped, because it is for the things that
+ * are round from what they are rather than from how tall they are: an avatar, a
+ * day cell, an icon button. See [Shapes].
+ */
+val CapsuleCap: Dp = 18.dp
+
+/**
  * The corner-radius scale.
  *
  * **One step, all the way up.** Every rung is 6dp above the one below it, and
@@ -27,23 +52,29 @@ import kotlin.math.min
  * | [medium] | 22dp | Cards, list groups, menus |
  * | [large] | 28dp | Dialogs, large cards |
  * | [extraLarge] | 34dp | Sheets, hero panels |
- * | [control] | half its height, uncapped | Buttons, chips, FABs, switches |
- * | [field] | half its height, up to 26dp | Text fields, selects, time fields |
- * | [pill] | fully round | Avatars, scrollbars, indicators |
+ * | [control] | half its height, up to [CapsuleCap] | Buttons, chips, FABs, switches |
+ * | [field] | half its height, up to [CapsuleCap] | Text fields, selects, time fields |
+ * | [pill] | fully round | Avatars, scrollbars, swatches, day cells |
  * | [sheet] | 34dp top only | Bottom sheets |
  * | [sideSheet] | 34dp leading only | Side sheets |
  *
  * ### The numbers line up on purpose
  *
- * `22` is not an arbitrary middle rung: the medium control height is 44dp, so a
- * medium button's corner is exactly half its height and the button is a capsule.
- * The ladder is built around that number rather than the other way round, which
- * is what lets a card sit next to a button and read as the same family.
+ * `22` used to be justified as half the medium control height, so that a medium
+ * button came out exactly a capsule. That reading is gone: a 44dp button stops at
+ * [CapsuleCap] and lands on 18. The rung is still 22, and the relationship it now
+ * carries is the more useful one — **22 minus 18 is 4**, which is `spacing.xxs`.
+ * A standard control sitting in a standard container with one unit of padding
+ * round it is concentric by construction, without either of them naming a radius.
+ *
+ * The rest of the ladder works the same way one step up: `panel` at 28 holds a
+ * `container` at 22 with 6dp of ring, and `extraLarge` at 34 holds a `panel` at
+ * 28 with the same. The even 6dp step is the mechanism [inset] walks.
  *
  * [control] and [field] do not take a rung at all — they take
- * [CapsuleCornerSize], half the shorter side. That is the only way a family stays
- * consistent across its *own* size scale, and it is why a 44dp switch and a 44dp
- * button agree without either of them naming a number.
+ * [CapsuleCornerSize], half the shorter side up to [CapsuleCap]. That is the only
+ * way a family stays consistent across its *own* size scale, and it is why a 44dp
+ * switch and a 44dp button agree without either of them naming a number.
  *
  * ### One kind of corner
  *
@@ -62,9 +93,26 @@ import kotlin.math.min
  *
  * [pill] survives for the things that are round because of what they *are* rather
  * than because of how tall they happen to be: an avatar, a scrollbar thumb, a
- * status dot, the ring round a radio button. Everything else that reads as a
- * lozenge — a chip, a toast, a nav indicator, a skeleton line, a day cell — is
- * [capsule], which is the same silhouette with the family's own curvature.
+ * status dot, the ring round a radio button, a colour swatch, an icon button, a
+ * day cell. Everything else that reads as a lozenge — a chip, a toast, a nav
+ * indicator, a skeleton line — is [capsule], which is the same silhouette with
+ * the family's own curvature.
+ *
+ * ### Naming one costs nothing to look at, and decides what the cap does
+ *
+ * On a *square* box the two are the same picture. [capsule] resolves to half the
+ * shorter side, which on a square leaves no straight edge for the smoothing to
+ * ease into, so the squircle collapses onto the circle [pill] draws — they differ
+ * only by the cubic path's approximation of an arc, which is a fraction of a
+ * pixel at the rim and nothing at all in the middle. Swapping every square
+ * [capsule] in the library to [pill] moved 29 goldens and not one of them by more
+ * than a one-pixel rim.
+ *
+ * So the choice is not about today's render. It is about [CapsuleCornerSize]'s
+ * cap: a capped [capsule] on a 50dp box is an 18dp rounded square, and a [pill]
+ * on the same box is still a circle. A day cell is the case that makes this
+ * concrete — its fill, its "today" ring and its range caps have to agree with
+ * each other, and they only do if none of them is capped.
  *
  * A selection indicator used to be on that list and is not any more. A 56x32
  * travelling pill is not a circle; it is a lozenge behind a row of controls that
@@ -123,17 +171,24 @@ data class Shapes(
      * shape, because a skeleton's line, a toast and a sheet's grab bar are
      * capsules that nobody presses.
      */
-    val capsule: CornerBasedShape = SquircleShape(CapsuleCornerSize()),
+    val capsule: CornerBasedShape = SquircleShape(CapsuleCornerSize(cap = CapsuleCap)),
 
     /**
      * Anything you press, and anything that labels a thing you could press.
      *
      * Buttons, icon buttons, split buttons, button groups, chips, tags, floating
-     * actions, and the toolbar that holds them. Half its own height, so a row of
-     * mixed actions has one corner regardless of what each one's height happens
-     * to be — which is the thing a fixed radius cannot do: at 14dp an `XSmall`
-     * button was nearly a capsule already and an `XLarge` was nearly square, so
-     * one component disagreed with itself across its own size scale.
+     * actions, and the toolbar that holds them. Half its own height up to
+     * [CapsuleCap], so a row of mixed actions has one corner regardless of what
+     * each one's height happens to be — which is the thing a fixed radius cannot
+     * do: at 14dp an `XSmall` button was nearly a capsule already and an `XLarge`
+     * was nearly square, so one component disagreed with itself across its own
+     * size scale. The cap stops the same disagreement happening at the other end;
+     * see [CapsuleCap] for why 18dp is the join rather than a tuned value.
+     *
+     * A container that wraps controls can no longer share this rule and be
+     * concentric for free — two 18dp corners with 6dp between them pinch at the
+     * corners rather than tracking. It has to derive its own from its children's
+     * with [outset], the way `ToolbarDefaults.Shape` does.
      */
     val control: CornerBasedShape = capsule,
 
@@ -154,12 +209,16 @@ data class Shapes(
      * [CapsuleCornerSize]'s cap handles that directly, so the box stays a box
      * without the single-line case having to pay for it.
      *
-     * The cap is 26dp — half [Sizing.controlHeightLarge], which is what a text
-     * field's `minHeight` resolves to. So the default single-line field lands
-     * *exactly* on a capsule and everything taller stops there, which is the
-     * narrowest place the line can be drawn while still drawing it.
+     * The cap used to be 26dp — half [Sizing.controlHeightLarge], the height a
+     * text field's `minHeight` resolves to — chosen as the narrowest line that
+     * still left a single-line field on a capsule. It is [CapsuleCap] now, the
+     * same 18dp every other height-derived corner stops at, so a field and the
+     * button beside it agree at every height rather than only below 52dp.
+     *
+     * The multi-line case the old cap was protecting is protected harder, not
+     * less: a text area was a 26dp lozenge and is now an 18dp box.
      */
-    val field: CornerBasedShape = SquircleShape(CapsuleCornerSize(cap = 26.dp)),
+    val field: CornerBasedShape = SquircleShape(CapsuleCornerSize(cap = CapsuleCap)),
 
     /**
      * Anything that holds other components.
@@ -194,7 +253,8 @@ data class Shapes(
 )
 
 /**
- * Half the shorter side, up to [cap]. What makes a control a capsule at any height.
+ * Half the shorter side, up to [cap]. What keeps a family's corner consistent
+ * across its own size scale.
  *
  * A fixed radius cannot keep a family consistent across its own size scale: at
  * 14dp an `XSmall` button was nearly a capsule already and an `XLarge` was nearly
@@ -206,11 +266,11 @@ data class Shapes(
  * 44dp button and a 44dp switch have the same corner without either of them
  * naming a number. Anything taller stops growing and stays a box.
  *
- * @param cap The radius to stop growing at. Uncapped by default, because a
- *   *control* is a capsule at every height — that is the whole property, and a
- *   72dp button with a 30dp corner is not a capsule. It is [Shapes.field] that
- *   needs the cap, and only because a multi-line text area is the one thing here
- *   that is tall without wanting to be round.
+ * @param cap The radius to stop growing at. Uncapped by default, which is now the
+ *   *unusual* choice rather than the normal one: [Shapes.capsule],
+ *   [Shapes.control] and [Shapes.field] all pass [CapsuleCap]. Leave it uncapped
+ *   for something round from what it is rather than from how tall it is — and
+ *   where that is the whole reason, prefer [Shapes.pill], which says so.
  */
 @Immutable
 data class CapsuleCornerSize(val cap: Dp = Dp.Infinity) : CornerSize {
@@ -306,11 +366,32 @@ fun CornerBasedShape.inset(gap: Dp): CornerBasedShape = copy(
  * It has to defer rather than subtract up front: a [CornerSize] can be a
  * percentage, and a percentage of what is not known until there is a size and a
  * density to resolve it against.
+ *
+ * ### Resolved against the outer box, which it has to reconstruct
+ *
+ * The exact mirror of [OutsetCornerSize], and it was not always. This used to
+ * resolve the base against the size it was handed — the *inner* box — on the
+ * argument that "the inner shape is drawn on the inner box, so the size the
+ * corner should resolve against is the size it is given". That is the wrong
+ * question. The base belongs to the **outer** shape; what is being asked is what
+ * the outer shape's corner *is*, and then what a box [gap] inside it should use.
+ * Resolve the outer shape's spec on the inner box and a proportional corner has
+ * already lost the gap once before the subtraction takes it again.
+ *
+ * A fixed radius is immune — 22dp is 22dp on any box — which is why the two
+ * `inset` call sites on rungs (`Menu`, `CommandPalette`) were always right and
+ * nothing caught it. The one on a capsule was not: `SegmentedControl`'s thumb
+ * came out at 10dp where concentricity wanted 16, six too square on a six dp
+ * gap, and `SegmentedControlDefaults.TrackPadding`'s own KDoc recorded the
+ * padding being tuned by eye against the skew.
  */
 @Immutable
 private data class InsetCornerSize(val base: CornerSize, val gap: Dp) : CornerSize {
-    override fun toPx(shapeSize: Size, density: Density): Float =
-        (base.toPx(shapeSize, density) - with(density) { gap.toPx() }).coerceAtLeast(0f)
+    override fun toPx(shapeSize: Size, density: Density): Float {
+        val shrink = with(density) { gap.toPx() }
+        val outer = Size(shapeSize.width + shrink * 2f, shapeSize.height + shrink * 2f)
+        return (base.toPx(outer, density) - shrink).coerceAtLeast(0f)
+    }
 }
 
 /**
@@ -323,12 +404,11 @@ private data class InsetCornerSize(val base: CornerSize, val gap: Dp) : CornerSi
  *
  * ### Why this is not [inset] with the sign flipped
  *
- * [InsetCornerSize] resolves its base against the size it is handed, and that is
- * right for an inset, because the inner shape is drawn *on* the inner box — the
- * size the corner should resolve against is the size it is given.
+ * Both halves resolve the base against the box **the base's own shape is drawn
+ * on**, and then step. For an outset that box is the inner one; for an inset it
+ * is the outer one. Neither is the box being handed in, so both reconstruct.
  *
- * An outset shape is drawn on the **outer** box, so the size it is handed is the
- * wrong one to resolve against — and a *proportional* corner is where that shows.
+ * A *proportional* corner is where getting it wrong shows.
  * [Shapes.pill] on a 52dp component is 26dp, and the ring 3dp outside it wants
  * 29; resolve it against the 58dp ring instead and it answers 29 before the gap
  * is added, so the ring is drawn at 32 — over-rounded by exactly the gap, every

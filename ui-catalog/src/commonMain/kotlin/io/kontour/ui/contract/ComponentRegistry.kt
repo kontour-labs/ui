@@ -13,7 +13,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -1122,6 +1126,14 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         modifier = modifier,
                     )
                 },
+                RenderState("pressed") { modifier ->
+                    NavBarItem(
+                        item = NavItem(label = "Plan", icon = Tabler.Outline.Star, onClick = {}),
+                        selected = false,
+                        modifier = modifier,
+                        interactionSource = rememberHeldDown(),
+                    )
+                },
             ),
         ) { modifier, enabled, onClick ->
             NavBarItem(
@@ -1150,6 +1162,15 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         modifier = modifier,
                     ) { +"Favourites" }
                 },
+                RenderState("pressed") { modifier ->
+                    NavDrawerItem(
+                        selected = false,
+                        onClick = {},
+                        key = "drawer-item",
+                        modifier = modifier,
+                        interactionSource = rememberHeldDown(),
+                    ) { +"Favourites" }
+                },
             ),
         ) { modifier, enabled, onClick ->
             NavDrawerItem(
@@ -1172,6 +1193,14 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         item = NavItem(label = "Map", icon = Tabler.Outline.Star, onClick = {}),
                         selected = true,
                         modifier = modifier,
+                    )
+                },
+                RenderState("pressed") { modifier ->
+                    NavRailItem(
+                        item = NavItem(label = "Map", icon = Tabler.Outline.Star, onClick = {}),
+                        selected = false,
+                        modifier = modifier,
+                        interactionSource = rememberHeldDown(),
                     )
                 },
             ),
@@ -1894,3 +1923,40 @@ private val SpecimenGridWidth = 256.dp
  * picture: a banner that never wraps is not a banner anyone will see.
  */
 private val SpecimenProseWidth = 260.dp
+
+/**
+ * An interaction source that is already being pressed.
+ *
+ * Not one golden in this suite captured a press or a hover before round 26 —
+ * `ls screenshots | grep -iE 'hover|press'` was empty across four hundred files.
+ * Every state anyone had ever reviewed was a resting one, which is how a press
+ * highlight came to be a different shape and size from the marker it previews
+ * and stayed that way through several rounds of people looking at the goldens.
+ *
+ * A press is not a gesture here, and does not need to be: `.indication()` reads
+ * an interaction source, so handing it one that already holds a
+ * [PressInteraction.Press] draws the pressed state with no pointer involved. The
+ * renders are taken with reduced motion, so what is photographed is the state
+ * rather than a frame of the animation into it.
+ *
+ * ### Do not read these as a press-against-marker comparison
+ *
+ * For `NavBarItem` they can be — all three of its states render on the same
+ * 152x152 canvas. For `NavRailItem` they cannot: resting, selected and pressed
+ * come out 216x94, 240x144 and 274x160, because a rail item drawn on its own
+ * sizes to something that varies with its state, and it is never drawn on its
+ * own in an app. Two renders of different sizes cannot be laid side by side and
+ * judged.
+ *
+ * The question "is the highlight under your finger the shape the marker will
+ * take" is answered by `NavIndicationShapeTest`, which puts the item inside a
+ * real `NavRail`, paints wash and marker in a known ink and compares their
+ * bounding boxes. **That test is the authority**; these renders exist so a press
+ * is visible to a human reviewer at all, which before round 26 it never was.
+ */
+@Composable
+private fun rememberHeldDown(): MutableInteractionSource {
+    val source = remember { MutableInteractionSource() }
+    LaunchedEffect(source) { source.emit(PressInteraction.Press(Offset.Zero)) }
+    return source
+}
