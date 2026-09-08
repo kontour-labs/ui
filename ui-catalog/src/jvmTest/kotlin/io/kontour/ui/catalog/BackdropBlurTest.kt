@@ -20,6 +20,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.Dialog
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 import java.awt.image.BufferedImage
@@ -139,6 +140,90 @@ class BackdropBlurTest {
         )
     }
 
+    /**
+     * Nothing behind the host reaches the screen while a sheet recedes.
+     *
+     * Reported as a dark-mode sheet that **flashes white around the blurred
+     * bit**, on a narrow screen, on a side sheet. A docs site whose page follows
+     * the OS theme while the app follows its own setting is a white page behind a
+     * dark app, and three separate holes in this file were letting it through.
+     *
+     * ### Measured as the same scene twice, differing only in what is behind it
+     *
+     * A single scene cannot answer this: a band that is *supposed* to be black
+     * and a band showing a black page look identical. So this renders the sheet
+     * opening over a white page and over a black one and compares the two frame
+     * by frame. The library cannot know which an app has, so the only correct
+     * answer is that it makes no difference at all — and the two sequences are
+     * now identical, gap **0**.
+     *
+     * ### The three holes, in the order the measurement found them
+     *
+     * | | Peak leak |
+     * |---|---|
+     * | `backdropGround` filled the band at `alpha = f` | **135** |
+     * | the blur's edge treatment defaulted to transparent | 107 → **64** |
+     * | the hole and the content's clip shared an antialiased pixel | 64 → **0** |
+     *
+     * The first was the whole hypothesis going in, and it was only the largest
+     * third of the answer. Fixing it left 64, which is why the other two got
+     * looked at at all: **the number did not go to zero, so the diagnosis was
+     * not finished.** The third one is visible with the blur switched off
+     * entirely — 80 levels on a single row — which is what said it was a
+     * rasteriser seam and not an effect at all.
+     */
+    @Test
+    fun theGroundDoesNotShowThePageBehindTheHost() {
+        val overWhite = openingBand(page = Color.White)
+        val overBlack = openingBand(page = Color.Black)
+        val gap = overWhite.zip(overBlack).maxOf { (white, black) -> white - black }
+
+        assertTrue(
+            overWhite.max() > 20f,
+            "the band never drew at all: $overWhite",
+        )
+        assertTrue(
+            gap <= GroundLeak,
+            "the band above the receding content measured " +
+                "${overWhite.map { it.toInt() }} over a white page and " +
+                "${overBlack.map { it.toInt() }} over a black one — up to " +
+                "${gap.toInt()} levels of the page are reaching the screen " +
+                "through it. The two must be the same picture: an app does not " +
+                "tell this library what it is sitting on.",
+        )
+    }
+
+    /**
+     * The band above the receding content, once per frame, as a side sheet
+     * opens over a [page]-coloured host.
+     *
+     * A **narrow** window and a **side** sheet, which is the reporter's own
+     * configuration: at this width the 480dp sheet is wider than the window, so
+     * it covers everything and the whole band is in view while it arrives.
+     *
+     * Sampled across the left of the row rather than at one pixel, and on the
+     * side the sheet arrives from *last*, so the measurement is the band for as
+     * many frames as possible before the sheet covers it.
+     */
+    private fun openingBand(page: Color): List<Float> {
+        var visible by mutableStateOf(false)
+        val band = mutableListOf<Float>()
+        Scene(width = 720, height = 1400, darkTheme = true) {
+            OverlayHost(Modifier.fillMaxSize().background(page)) {
+                Box(Modifier.fillMaxSize().background(Theme.colours.background))
+                SideSheet(visible = visible, onDismissRequest = {}) { Text("Filters") }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            visible = true
+            repeat(BandFrames) {
+                val image = scene.frame()
+                band += (100..300).map { luminance(image, it, 5) }.average().toFloat()
+            }
+        }
+        return band
+    }
+
     @Test
     fun aShadowInsideTheContentStillDraws() {
         // The `CompositingStrategy.ModulateAlpha` class of bug: a layer wrapped
@@ -255,4 +340,25 @@ class BackdropBlurTest {
         return 0.2126f * r + 0.7152f * g + 0.0722f * b
     }
 
+    private companion object {
+        /**
+         * How many frames of a sheet's arrival to sample the band across.
+         *
+         * The leak was over by the seventh frame even before the fix, because by
+         * then the sheet has covered the band it was leaking through — this
+         * window is narrow and the sheet is wider than it. Forty is several
+         * times that, and the tail reads as two identical sequences in a failure
+         * message.
+         */
+        const val BandFrames = 40
+
+        /**
+         * How much of the page behind the host may reach the band.
+         *
+         * Nothing, within the levels a squircle's antialiased edge and the
+         * scrim's dither move between two otherwise identical renders. The leak
+         * this exists to catch is 135.
+         */
+        const val GroundLeak = 8f
+    }
 }
