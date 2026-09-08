@@ -178,8 +178,33 @@ class ToastHostState {
         return id
     }
 
+    /**
+     * How many toasts the user has sent away by hand.
+     *
+     * Read by each toast's clock, which buys back time whenever this moves. See
+     * [ToastDefaults.ClearedGrace]: clearing the ones on top is how a user
+     * reaches one further down, and the reaching should not cost them the thing
+     * they were reaching for.
+     */
+    internal var clears by mutableIntStateOf(0)
+        private set
+
     /** Starts [id] on its way out. It leaves the list once it has animated away. */
     fun dismiss(id: Long) {
+        clears++
+        expire(id)
+    }
+
+    /**
+     * The clock's own way out, which must not read as the user clearing one.
+     *
+     * The difference matters: a toast that runs out of time is the stack working
+     * as intended, and a toast the user swiped away is the user working through
+     * the stack. Only the second buys the others more time, and routing both
+     * through [dismiss] would have every expiry extend every other toast — a
+     * stack that never empties.
+     */
+    internal fun expire(id: Long) {
         toasts.firstOrNull { it.id == id }?.presence?.targetState = false
     }
 
@@ -440,13 +465,38 @@ object ToastDefaults {
     const val SwipeAway: Float = 0.33f
 
     /**
-     * How much of a wrong-way drag actually moves the toast.
+     * How far a toast can be pulled *away* from the edge it dismisses toward.
+
+     * A quarter of its own height, and it is a limit rather than a ratio: each
+     * pixel of pull moves the card less than the last, so it eases up to this
+     * and stops. It used to be a flat 33% of every delta, which is a slower drag
+     * rather than a bounded one — pull far enough and the card left the screen
+     * the wrong way.
+     *
      *
      * A third. Enough that the card acknowledges the finger, little enough that
      * it is plainly refusing — the usual rubber band. Zero, which is what this
      * used to be, is indistinguishable from a control that has hung.
      */
-    const val Resistance: Float = 0.33f
+    const val RubberBand: Float = 0.35f
+
+    /**
+     * How much of its own duration a toast wins back each time the user clears
+     * one by hand.
+     *
+     * Reported from the far end of a deep stack: *"I tried to access one that
+     * was a heap of a way down, and it disappeared as I was clearing the ones on
+     * top."* Every toast counts down wherever it sits, so working through the
+     * ones in front spends the time of the one behind them — the act of reaching
+     * for it is what takes it away.
+     *
+     * Two fifths, and **capped at a full lifetime**: clearing tops the remainder
+     * back up, and can never carry a toast past the duration it was shown with.
+     * That keeps a burst bounded — a user who clears ten toasts does not leave
+     * the last one on screen for a minute — while making the common case, two or
+     * three swipes to reach the fourth card, cost nothing at all.
+     */
+    const val ClearedGrace: Float = 0.4f
 }
 
 /**
@@ -521,6 +571,29 @@ fun ToastHost(
     }
 }
 
+/**
+ * Where a card actually sits, given how far it has been pulled.
+ *
+ * One pixel per pixel toward the edge it dismisses to. The other way it is a
+ * rubber band: `limit * (1 - 1 / (pull / limit + 1))`, which is half the limit
+ * at one limit of pull, three quarters at three, and never quite arrives. That
+ * "never quite" is the whole difference between a band and a wall — a card that
+ * stops dead still reads as broken, however short the distance was.
+ *
+ * The first two attempts damped each delta as it arrived, which cannot work: the
+ * damping is a function of where the card already is, so it converges within two
+ * or three events and is flat from there. Measured over a 240px pull in 20px
+ * steps, a flat third of every delta gave `[10, 10, 10, …]` and a linear ramp
+ * gave `[2, 19, 19, 19, …]`. This gives a curve that is still moving at the end.
+ */
+private fun rubberBand(pull: Float, limit: Float, towardEdge: Boolean): Float {
+    if (limit <= 0f) return pull
+    val wrongWay = if (towardEdge) -pull else pull
+    if (wrongWay <= 0f) return pull
+    val eased = limit * (1f - 1f / (wrongWay / limit + 1f))
+    return if (towardEdge) -eased else eased
+}
+
 /** What [ToastHost] was called with, so the overlay entry can read it fresh. */
 private data class ToastHostConfig(
     val modifier: Modifier,
@@ -574,6 +647,24 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     var frontHeightPx by remember { mutableIntStateOf(0) }
     val frontHeight = with(density) { frontHeightPx.toDp() }
 
+    // How far the front card has been *pulled*, owned here so the pills behind it
+    // travel with it. Reported as the stack coming apart under a finger: only
+    // the card moved, and the pills it is supposed to be the front of stayed
+    // where they were.
+    //
+    // Raw, and mapped to a displacement below. Damping each delta as it arrives
+    // cannot make a rubber band — it makes a wall, because the damping depends
+    // on where the card already is and so converges to a fixed point within two
+    // or three events. Measured: a flat third of every delta stopped at 10px and
+    // a linear ramp stopped at 19, both by the second frame of a 240px pull.
+    // The band has to be a function of the *whole* pull.
+    var pull by remember { mutableFloatStateOf(0f) }
+    val swipe = rubberBand(
+        pull = pull,
+        limit = frontHeightPx * ToastDefaults.RubberBand,
+        towardEdge = towardEdge,
+    )
+
     // Every toast runs its clock, including the ones with no room to be drawn.
     //
     // This used to live in `ToastCard`, and a card is only composed for the
@@ -611,19 +702,37 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
             LaunchedEffect(toast.id) {
                 if (toast.durationMillis <= 0) return@LaunchedEffect
                 val floor = (toast.durationMillis * ToastDefaults.PromotedFloor).toLong()
+                val grace = (toast.durationMillis * ToastDefaults.ClearedGrace).toLong()
                 var left = toast.durationMillis
                 var front = atFront
+                var clears = state.clears
                 while (left > 0) {
                     val mark = TimeSource.Monotonic.markNow()
+                    // Either thing that can buy this toast time, waited for
+                    // together: it reaches the front, or the user sends another
+                    // one away by hand.
                     val moved = withTimeoutOrNull(left) {
-                        snapshotFlow { atFront }.first { it != front }
-                    } != null
+                        snapshotFlow { atFront to state.clears }
+                            .first { (nowFront, nowClears) ->
+                                nowFront != front || nowClears != clears
+                            }
+                    }
                     left -= mark.elapsedNow().inWholeMilliseconds
-                    if (!moved) break
-                    front = !front
-                    if (front) left = maxOf(left, floor)
+                    if (moved == null) break
+                    val (nowFront, nowClears) = moved
+                    if (nowClears != clears) {
+                        clears = nowClears
+                        // Topped up toward a full lifetime, never past one.
+                        left = minOf(left + grace, toast.durationMillis)
+                    }
+                    if (nowFront != front) {
+                        front = nowFront
+                        if (front) left = maxOf(left, floor)
+                    }
                 }
-                if (onScreen) state.dismiss(toast.id) else state.remove(toast)
+                // `expire`, not `dismiss`: running out of time is the stack
+                // working, and must not read as the user clearing one.
+                if (onScreen) state.expire(toast.id) else state.remove(toast)
             }
         }
     }
@@ -645,6 +754,9 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     closeLabel = config.closeLabel,
                     frontHeight = frontHeight,
                     onFrontMeasured = { frontHeightPx = it },
+                    swipe = swipe,
+                    pull = pull,
+                    onPull = { pull = it },
                     modifier = config.modifier,
                 )
             }
@@ -663,6 +775,18 @@ private fun ToastCard(
     /** How tall the card in front is — see `ToastStack`. Zero until it reports. */
     frontHeight: Dp,
     onFrontMeasured: (Int) -> Unit,
+    /**
+     * How far the front card has been dragged, in pixels.
+     *
+     * Shared by the whole stack rather than owned by the card being dragged, and
+     * **every** card reads it. Reported as the pills sitting still while the
+     * card in front of them moved: a stack is one object, and half of it staying
+     * behind while the other half follows a finger says it is not.
+     */
+    swipe: Float,
+    /** The same drag before the rubber band is applied — see `rubberBand`. */
+    pull: Float,
+    onPull: (Float) -> Unit,
     modifier: Modifier,
 ) {
     val motion = Theme.motion
@@ -683,6 +807,9 @@ private fun ToastCard(
         if (toast.presence.targetState) return@LaunchedEffect
         if (toast.presence.isIdle && !toast.presence.currentState) state.remove(toast)
     }
+
+    /** This card's own measured height, for the swipe threshold and the band. */
+    var height by remember { mutableFloatStateOf(0f) }
 
     // Measured from the front card's edge rather than from the pill's own, so a
     // pill shorter than the card still clears it by `Peek`.
@@ -708,9 +835,6 @@ private fun ToastCard(
         label = "toastDepthScale",
     )
 
-    /** How far the front toast has been dragged toward the edge. */
-    var swipe by remember { mutableFloatStateOf(0f) }
-    var height by remember { mutableFloatStateOf(0f) }
 
     AnimatedVisibility(
         visibleState = toast.presence,
@@ -729,13 +853,21 @@ private fun ToastCard(
         // behind made them translucent rather than distant and the front card
         // showed through them. A leaving pill has no such problem: it is on its
         // way out and nothing is meant to line up behind it.
+        //
+        // `tweenExit` on both, and that is what makes the pill's shrink visible
+        // at all. `tweenFast` carries `Motion.standard`, a hard ease-*out* that
+        // covers most of its distance in the first two frames — fine for an
+        // arrival and wrong for a departure, which is what `Motion.tweenExit`
+        // exists to say. Measured on a four-deep stack: the pill's exit moved
+        // the top of the stack on **two** frames of a nine-frame tween and then
+        // sat still, which reads as a jump because it is one.
         exit = if (depth == 0) {
-            slideOutVertically(motion.tweenFast()) { if (towardEdge) it / 2 else -it / 2 } +
-                fadeOut(motion.tweenFast()) +
-                scaleOut(motion.tweenFast(), targetScale = 0.94f)
+            slideOutVertically(motion.tweenExit()) { if (towardEdge) it / 2 else -it / 2 } +
+                fadeOut(motion.tweenExit()) +
+                scaleOut(motion.tweenExit(), targetScale = 0.94f)
         } else {
-            fadeOut(motion.tweenFast()) +
-                scaleOut(motion.tweenFast(), targetScale = ToastDefaults.PillExitScale)
+            fadeOut(motion.tweenExit()) +
+                scaleOut(motion.tweenExit(), targetScale = ToastDefaults.PillExitScale)
         },
     ) {
         ToastSurface(
@@ -756,16 +888,11 @@ private fun ToastCard(
                     if (depth == 0) {
                         Modifier.draggable(
                             state = rememberDraggableState { delta ->
-                                val next = swipe + delta
-                                val awayFromEdge =
-                                    if (towardEdge) next < 0f else next > 0f
-                                // The wrong way still moves, and resists.
-                                // Clamping it outright meant a drag away from
-                                // the anchored edge did nothing at all, which
-                                // reads as a control that has stopped
-                                // responding rather than one that will not go
-                                // that way.
-                                swipe = if (awayFromEdge) next * ToastDefaults.Resistance else next
+                                // A plain accumulator. Where the card actually
+                                // goes is `rubberBand`, one level up, because a
+                                // band is a function of the whole pull and not
+                                // of one delta at a time.
+                                onPull(pull + delta)
                             },
                             orientation = Orientation.Vertical,
                             onDragStopped = {
@@ -779,12 +906,12 @@ private fun ToastCard(
                                     // threshold used to put the card back in a
                                     // single frame, which looks like a glitch
                                     // rather than like a control returning.
-                                    val from = swipe
+                                    val from = pull
                                     animate(
                                         initialValue = from,
                                         targetValue = 0f,
                                         animationSpec = motion.springOrTween(motion.springSnappy),
-                                    ) { value, _ -> swipe = value }
+                                    ) { value, _ -> onPull(value) }
                                 }
                             },
                         )
