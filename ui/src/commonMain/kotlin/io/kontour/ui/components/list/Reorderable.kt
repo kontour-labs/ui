@@ -3,7 +3,7 @@ package io.kontour.ui.components.list
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyItemScope
@@ -314,10 +314,14 @@ fun LazyItemScope.ReorderableItem(
         label = "reorderLift",
     )
 
+    // Read at gesture time, exactly like `currentIndex` above and for exactly the
+    // same reason — see `reorderDrag`.
+    val immediate by rememberUpdatedState(handleIcon != null || !modality.needsLargeTargets)
+
     val drags = Modifier.reorderDrag(
         state = state,
         enabled = enabled,
-        immediate = handleIcon != null || !modality.needsLargeTargets,
+        immediate = { immediate },
         currentIndex = { currentIndex },
         feedback = feedback,
     )
@@ -420,21 +424,35 @@ private fun ReorderGrip(
 private fun Modifier.reorderDrag(
     state: ReorderableState,
     enabled: Boolean,
-    immediate: Boolean,
+    immediate: () -> Boolean,
     currentIndex: () -> Int,
     feedback: FeedbackDispatcher,
 ): Modifier = if (!enabled) {
     this
 } else {
-    // Keyed on the state and on which gesture to use, and *not* on the index —
-    // see `currentIndex`.
-    this.pointerInput(state, immediate) {
+    // Keyed on the state alone — not on the index, and **not on which gesture to
+    // use** either.
+    //
+    // `immediate` was a key here, and it is derived from `LocalInputModality`,
+    // which `trackInputModality` rewrites on every pointer event on the Initial
+    // pass — including the one that starts this gesture. The local defaults to
+    // `Touch`, so on a desktop the first mouse press of a session *is* a change:
+    // the key moved, the node restarted, and `awaitEachGesture` went back to
+    // wanting a fresh `awaitFirstDown` that could not come until the finger
+    // lifted. Reported as "picking it up doesn't always work", on a first attempt
+    // that fails and a second that does not.
+    //
+    // It is the same mistake `currentIndex` exists to avoid, one parameter over,
+    // and the note there says so in as many words. A gesture node must not be
+    // keyed on anything that changes *during* a gesture; what changes gets read
+    // when the gesture asks for it.
+    this.pointerInput(state) {
         val onStart: (Offset) -> Unit = {
             // Only where a long press is what started it. `LongPress` announces
             // that a threshold was reached and the row is now yours to move —
             // on the [immediate] path there is no threshold to announce, and
             // firing it there was a haptic for a mouse-down on a grip.
-            if (!immediate) feedback.perform(FeedbackIntent.LongPress)
+            if (!immediate()) feedback.perform(FeedbackIntent.LongPress)
             state.start(currentIndex())
         }
         val onDrag: (PointerInputChange, Offset) -> Unit = { change, amount ->
@@ -451,21 +469,13 @@ private fun Modifier.reorderDrag(
             feedback.perform(FeedbackIntent.Tick)
             state.stop()
         }
-        if (immediate) {
-            detectDragGestures(
-                onDragStart = onStart,
-                onDrag = onDrag,
-                onDragEnd = onEnd,
-                onDragCancel = { state.stop() },
-            )
-        } else {
-            detectDragAfterHold(
-                onDragStart = onStart,
-                onDrag = onDrag,
-                onDragEnd = onEnd,
-                onDragCancel = { state.stop() },
-            )
-        }
+        detectReorderDrag(
+            immediate = immediate,
+            onDragStart = onStart,
+            onDrag = onDrag,
+            onDragEnd = onEnd,
+            onDragCancel = { state.stop() },
+        )
     }
 }
 
@@ -492,13 +502,22 @@ private fun Modifier.reorderDrag(
 private val ReorderHoldSlop = 24.dp
 
 /**
- * A long press that tolerates a finger, then a drag.
+ * A drag, after a long press or after touch slop depending on [immediate].
  *
- * `detectDragGesturesAfterLongPress` with one number changed — see
- * [ReorderHoldSlop] — and written out rather than wrapped because the movement
- * budget is inside `awaitLongPressOrCancellation`, which is not public.
+ * One detector rather than two, and that is the point rather than a tidy-up:
+ * **which** of the two a gesture wants is decided when the gesture starts, not
+ * when the modifier is built. It used to be a `pointerInput` key, and a key that
+ * moves mid-gesture restarts the node underneath the finger holding it.
+ *
+ * The hold half is `detectDragGesturesAfterLongPress` with one number changed —
+ * see [ReorderHoldSlop] — written out rather than wrapped because the movement
+ * budget lives inside `awaitLongPressOrCancellation`, which is not public.
+ *
+ * @param immediate A mouse, or a dedicated grip: neither has a scroll to steal,
+ *   so neither waits half a second for one. Read once per gesture.
  */
-private suspend fun PointerInputScope.detectDragAfterHold(
+private suspend fun PointerInputScope.detectReorderDrag(
+    immediate: () -> Boolean,
     onDragStart: (Offset) -> Unit,
     onDrag: (PointerInputChange, Offset) -> Unit,
     onDragEnd: () -> Unit,
@@ -507,20 +526,32 @@ private suspend fun PointerInputScope.detectDragAfterHold(
     val budget = ReorderHoldSlop.toPx()
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
-        // `withTimeoutOrNull` returning null is the *success* here: the loop
-        // inside it only ever returns early, so reaching the deadline means the
-        // finger stayed put for the whole of it.
-        val gaveUp = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-            while (true) {
-                val event = awaitPointerEvent(PointerEventPass.Main)
-                val change = event.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull
-                if (!change.pressed) return@withTimeoutOrNull
-                if ((change.position - down.position).getDistance() > budget) return@withTimeoutOrNull
+        if (immediate()) {
+            // Slop rather than a hold. Without it a plain click on a row would
+            // pick it up, which is what the long press is for on a touchscreen
+            // and what slop is for with a pointer.
+            val moved = awaitTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
+                ?: return@awaitEachGesture
+            onDragStart(moved.position)
+        } else {
+            // `withTimeoutOrNull` returning null is the *success* here: the loop
+            // inside it only ever returns early, so reaching the deadline means
+            // the finger stayed put for the whole of it.
+            val gaveUp = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Main)
+                    val change = event.changes.firstOrNull { it.id == down.id }
+                        ?: return@withTimeoutOrNull
+                    if (!change.pressed) return@withTimeoutOrNull
+                    if ((change.position - down.position).getDistance() > budget) {
+                        return@withTimeoutOrNull
+                    }
+                }
             }
+            if (gaveUp != null) return@awaitEachGesture
+            onDragStart(down.position)
         }
-        if (gaveUp != null) return@awaitEachGesture
 
-        onDragStart(down.position)
         while (true) {
             val event = awaitPointerEvent(PointerEventPass.Main)
             val change = event.changes.firstOrNull { it.id == down.id }
