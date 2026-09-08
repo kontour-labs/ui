@@ -455,6 +455,55 @@ by `console.warn` and a normal return, so a run that records nothing on the
 console has ruled out every branch where the framework decided the browser has no
 clipboard.
 
+### Corroborated against the compiled framework, not only the probe
+
+The probe's conclusion — that the code which would perform the write is never
+entered — is an inference from property reads. It can be checked directly,
+because the framework's own JavaScript is sitting in `build/`.
+
+`setClipEntry` in `compose-multiplatform-core-compose-ui-ui.js` has **exactly
+three exits**, and its source path is embedded in the bundle
+(`compose/ui/ui/src/jsMain/kotlin/androidx/compose/ui/platform/PlatformClipboard.js.kt`):
+
+```js
+if (get_isFullClipboardApiSupported()) {
+  … nativeClipboard.write(clipEntry.clipboardItems_1) …          // exit 1
+} else if (isFallbackWriteTextApiAvailable()) {
+  … nativeClipboard.writeText(text) …                            // exit 2
+} else {
+  console.warn("The browser doesn't support Clipboard.write() and Clipboard.writeText()");
+}                                                                 // exit 3
+```
+
+The run recorded **no `write`, no `writeText`, and nothing on the console**. All
+three exits are accounted for and none was taken, so the function was not
+entered. That is no longer an inference.
+
+### A second, separate trap in the same file, found on the way
+
+The predicate that decides whether Copy and Cut are **drawn** is not the one that
+decides whether the write **happens**, and only the second checks the origin.
+From the deployed import object:
+
+```js
+'androidx.compose.foundation.internal.isClipboardWriteSupported' :
+    () => Boolean(navigator.clipboard && (navigator.clipboard.write || navigator.clipboard.writeText)),
+'androidx.compose.ui.platform.isSecureContext' :
+    () => window.isSecureContext === true,
+```
+
+and the two lazies the write branches on are `isSecureContext() && …`.
+
+So on **any origin that is not a secure context** — plain http, a LAN address, a
+`file://` page — `navigator.clipboard` still exists, Copy and Cut are offered,
+their callbacks are non-null, `cutWithResult()` deletes the text, and the write
+falls through to the `console.warn`. A user loses a word and gains nothing.
+
+That is not what is happening here — this harness serves over `127.0.0.1`, which
+*is* a secure context, and the site deploys over https — but it is a real trap
+for anyone serving the docs over plain http on a LAN to test on a phone, which is
+the obvious thing to do. Worth knowing before it is diagnosed a second time.
+
 ### The three that were reverted
 
 1. **Detach the write from the caller's coroutine.** Foundation copies by
