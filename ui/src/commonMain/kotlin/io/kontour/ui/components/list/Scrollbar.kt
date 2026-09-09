@@ -21,6 +21,7 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
@@ -61,8 +62,10 @@ data class ScrollbarGeometry(
 }
 
 object ScrollbarDefaults {
-    val Thickness: Dp = 6.dp
-    val HoveredThickness: Dp = 10.dp
+    val Thickness: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.scrollbarThickness
+    val HoveredThickness: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.scrollbarHoveredThickness
     val MinThumbLength: Dp = 32.dp
 
     /**

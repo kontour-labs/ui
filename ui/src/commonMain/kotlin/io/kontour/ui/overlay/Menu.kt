@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,7 +87,8 @@ import kotlinx.coroutines.delay
 /** Sizing shared by every menu surface. Override per call site if you must. */
 object MenuDefaults {
     /** Distance between a menu and the control it drops from. */
-    val Gap: Dp = 4.dp
+    val Gap: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.menuGap
 
     /** How close a menu may come to the edge of the window. */
     val ScreenMargin: Dp = 8.dp

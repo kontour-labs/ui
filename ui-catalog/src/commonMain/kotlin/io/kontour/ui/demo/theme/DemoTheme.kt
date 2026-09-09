@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import io.kontour.ui.catalog.CatalogSettings
 import io.kontour.ui.theme.ColourScheme
+import io.kontour.ui.theme.ComponentDefaults
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.Elevation
 import io.kontour.ui.theme.KontourTheme
@@ -51,6 +52,9 @@ enum class ThemeMode { Light, Dark }
  *   rather than drawn live and ignored.
  * @param tiers Which contrast tiers it has authored a palette for. Declining
  *   `High` is a downgrade to make knowingly rather than by omission.
+ * @param componentDefaults The geometry a brand adjusts, and the casing of a
+ *   control's label. Everything on it defaults to the library's own value, so a
+ *   theme names only what it changes.
  */
 @Immutable
 class DemoTheme(
@@ -63,6 +67,7 @@ class DemoTheme(
     val motion: (reduceMotion: Boolean) -> Motion = ::kontourMotion,
     val sizing: (contrast: ContrastLevel) -> Sizing = ::kontourSizing,
     val typography: @Composable () -> Typography = { kontourTypography(outfitFontFamily()) },
+    val componentDefaults: ComponentDefaults = ComponentDefaults(),
 ) {
     init {
         require(modes.isNotEmpty()) { "$name offers no mode at all" }
@@ -121,7 +126,7 @@ val demoThemes: List<DemoTheme> = listOf(kontourDemoTheme, gTurboDemoTheme).also
  * not given, so two call sites that each pass "the arguments they care about"
  * disagree about everything else — which is how the gallery came to ignore the
  * site's dark switch, and how it would go on to ignore its typography and
- * shapes. One function, all nine token arguments, no way to forget one.
+ * shapes. One function, all ten token arguments, no way to forget one.
  *
  * @param systemDark What the platform reports, resolved by the caller so a
  *   golden can pin it.
@@ -165,6 +170,7 @@ fun DemoThemeProvider(
         elevation = theme.elevation(dark),
         motion = theme.motion(reduceMotion),
         sizing = theme.sizing(tier),
+        componentDefaults = theme.componentDefaults,
         content = content,
     )
 }

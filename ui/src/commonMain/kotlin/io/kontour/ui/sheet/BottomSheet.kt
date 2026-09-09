@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.SideEffect
@@ -88,7 +89,8 @@ object SheetDefaults {
     val PositionalThreshold: (Float) -> Float = { distance -> distance * 0.5f }
 
     /** A sheet wider than this is a panel; centre it rather than stretching it. */
-    val MaxWidth: Dp = 640.dp
+    val MaxWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.sheetMaxWidth
 
     /** Between the sheet's top edge and anything riding above it. */
     val ActionsGap: Dp = 8.dp

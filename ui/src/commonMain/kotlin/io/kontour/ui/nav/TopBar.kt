@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.WindowInsets
@@ -62,8 +63,10 @@ enum class TopBarStyle {
 }
 
 object TopBarDefaults {
-    val Height: Dp = 56.dp
-    val LargeHeight: Dp = 112.dp
+    val Height: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.topBarHeight
+    val LargeHeight: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.topBarLargeHeight
 }
 
 /**

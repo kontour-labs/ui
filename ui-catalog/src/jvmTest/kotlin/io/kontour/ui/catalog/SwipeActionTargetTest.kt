@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
-import io.kontour.ui.components.list.SwipeActionsDefaults
+import io.kontour.ui.theme.ComponentDefaults
 import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberSwipeActionsState
 import com.composables.icons.tabler.Tabler
@@ -78,8 +78,11 @@ class SwipeActionTargetTest {
 
             assertTrue(row.width > 0f, "the row never reported a size")
             // The one action is pinned to the trailing edge, 88dp wide.
+            // `SwipeActionsDefaults.ActionWidth` is a theme read now, so it
+            // cannot be asked outside composition. The theme's own defaults are
+            // plain data and are what the component resolves to here.
             val panelLeft = row.right - with(Density(2f)) {
-                SwipeActionsDefaults.ActionWidth.toPx()
+                ComponentDefaults().swipeActionWidth.toPx()
             }
             val tap = Offset(panelLeft + Inset, row.center.y)
 

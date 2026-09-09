@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -71,7 +72,8 @@ import io.kontour.ui.theme.inset
 import io.kontour.ui.theme.Theme
 
 object TabBarDefaults {
-    val Height: Dp = 48.dp
+    val Height: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.tabBarHeight
 
     /**
      * How far across the pane a [tabSwipe] drag goes per tab.

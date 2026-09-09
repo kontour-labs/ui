@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -367,6 +368,8 @@ object FabDefaults {
      * cannot. A FAB is a single closed shape rather than a row of type, which is
      * why even the large one is worth more than the 3% a wide button gets.
      */
+    @Composable
+    @ReadOnlyComposable
     fun pressScale(size: FabSize): Float = when (size) {
         FabSize.Small -> ButtonDefaults.SmallPressScale
         FabSize.Medium, FabSize.Large -> ButtonDefaults.MediumPressScale

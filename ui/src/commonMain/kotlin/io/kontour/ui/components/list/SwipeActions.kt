@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -177,7 +178,8 @@ fun rememberSwipeActionsState(
 
 object SwipeActionsDefaults {
     /** How wide one action's target is. Two side by side is 176dp of swipe. */
-    val ActionWidth: Dp = 88.dp
+    val ActionWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.swipeActionWidth
 
     /** Fraction of the row's width past which a full swipe fires. */
     const val FullSwipeThreshold: Float = 0.6f

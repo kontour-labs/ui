@@ -61,6 +61,13 @@ object Theme {
         @Composable @ReadOnlyComposable get() = LocalSizing.current
 
     /**
+     * The geometry a brand adjusts. See [ComponentDefaults] for what earns a
+     * field there and what belongs in one of the families above instead.
+     */
+    val componentDefaults: ComponentDefaults
+        @Composable @ReadOnlyComposable get() = LocalComponentDefaults.current
+
+    /**
      * Every word the library puts on screen that the caller did not supply.
      *
      * Read by parameter defaults rather than at the point of use, so a call site
@@ -150,6 +157,7 @@ fun KontourTheme(
     elevation: Elevation = remember(colours.isDark) { kontourElevation(colours.isDark) },
     motion: Motion = remember(reduceMotion) { kontourMotion(reduceMotion) },
     sizing: Sizing = remember(contrast) { kontourSizing(contrast) },
+    componentDefaults: ComponentDefaults = remember { ComponentDefaults() },
     strings: Strings = remember { Strings() },
     /**
      * How much physical feedback the app gives. See [HapticsLevel].
@@ -191,6 +199,7 @@ fun KontourTheme(
         LocalElevation provides faded.elevation,
         LocalMotion provides motion,
         LocalSizing provides sizing,
+        LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
         LocalContrastLevel provides contrast,
         LocalBackdropBlur provides backdropBlur,
@@ -268,6 +277,9 @@ val LocalMotion = staticCompositionLocalOf<Motion> { error(NOT_IN_THEME) }
 /** @see LocalColourScheme */
 val LocalSizing = staticCompositionLocalOf<Sizing> { error(NOT_IN_THEME) }
 
+/** @see Theme.componentDefaults */
+val LocalComponentDefaults = staticCompositionLocalOf<ComponentDefaults> { error(NOT_IN_THEME) }
+
 /** @see LocalColourScheme */
 val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
 
@@ -334,6 +346,7 @@ fun ProvideTokens(
     elevation: Elevation = LocalElevation.current,
     motion: Motion = LocalMotion.current,
     sizing: Sizing = LocalSizing.current,
+    componentDefaults: ComponentDefaults = LocalComponentDefaults.current,
     strings: Strings = LocalStrings.current,
     content: @Composable () -> Unit,
 ) {
@@ -351,6 +364,7 @@ fun ProvideTokens(
         LocalElevation provides elevation,
         LocalMotion provides motion,
         LocalSizing provides sizing,
+        LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
         LocalContentColour provides
             if (contentColour == outgoingColours.content) colours.content else contentColour,

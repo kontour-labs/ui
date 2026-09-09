@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.CodeColours
 import io.kontour.ui.theme.ColourScheme
+import io.kontour.ui.theme.ComponentDefaults
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.Shapes
 import io.kontour.ui.theme.StatusColours
@@ -25,30 +26,29 @@ import io.kontour.ui.theme.outfitFontFamily
  * a monospaced face for numbers — and every value below goes through a parameter
  * that already existed.
  *
- * ### It is written verbosely on purpose
+ * ### It was written verbosely on purpose, and all three are now closed
  *
- * Three things here are longer than they should be, and each one is a
- * specification rather than an oversight:
- *
- * 1. **No uppercase labels**, though the design sets every button, field label
- *    and badge in capitals. Casing is not something a `TextStyle` can carry and
- *    there is nowhere else to put it.
- *
- * Two are now closed, and are left named here as the record of what the exercise
- * is for — in both cases the verbose version was the specification, and the seam
- * was accepted only once this file got shorter and its render did not move:
+ * Three things here were longer than they should have been, and each was a
+ * specification rather than an oversight. They are left named as the record of
+ * what the exercise was for: in every case the verbose version was the
+ * specification, and the seam was accepted only once this file got shorter.
  *
  * - The numeric face was a `FontFamily.Monospace` constant nothing could read,
- *   because `Typography` had one family for all sixteen styles. Stage 4 gave it
- *   two and a `mono` style; a dead constant and nine lines of KDoc explaining
- *   why it was dead became one extra argument.
+ *   because `Typography` had one family for all sixteen styles. It gained a
+ *   second family and a `mono` style; a dead constant and nine lines of KDoc
+ *   explaining why it was dead became one extra argument.
  * - The shape scale was thirteen restated tokens, twelve of which repeated the
- *   library's own policy back to it. Stage 5's `kontourShapes` took the ladder
- *   and the capsule cap as arguments; what is left is the two fields where
- *   GTurbo actually disagrees.
+ *   library's own policy back to it. `kontourShapes` took the ladder and the
+ *   capsule cap as arguments; what is left is the two fields where GTurbo
+ *   actually disagrees.
+ * - **Uppercase labels** could not be expressed at all. The design sets every
+ *   button, field label and badge in capitals, and casing is not something a
+ *   `TextStyle` can carry — so there was no argument to pass and the theme
+ *   simply did not have them. `ComponentDefaults.uppercaseLabels` is where it
+ *   goes, and it is the one field on that object that is not a measurement.
  *
- * Each of those closes in a later stage, and the acceptance test for the seam is
- * that *this file gets shorter and its render does not change*.
+ * The acceptance test for each seam was the same: *this file gets shorter, and
+ * its render moves only where the seam was supposed to move it*.
  *
  * ### The palette, and where it came from
  *
@@ -85,6 +85,14 @@ val gTurboDemoTheme = DemoTheme(
     // nothing could read, because `Typography` had one family for all sixteen
     // styles; the design's telemetry, prices and VINs had nowhere to go.
     typography = { kontourTypography(outfitFontFamily(), jetBrainsMonoFontFamily()) },
+    // Capitals on every control label, which is the third thing this file could
+    // not say. It reaches buttons, chips, tags, tabs, the extended FAB and field
+    // labels — a control's *name* — and deliberately not dialog titles, banner
+    // messages or list rows, which are prose in this design as much as any other.
+    //
+    // The 6dp corners are the other half of the same instrument look: nothing
+    // here is a soft product surface, so the labels are set the way a gauge is.
+    componentDefaults = ComponentDefaults(uppercaseLabels = true),
 )
 
 /** The page ground. Nearly black, and not quite neutral — it leans blue. */

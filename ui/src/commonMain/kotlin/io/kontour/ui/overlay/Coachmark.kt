@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,7 +48,8 @@ import io.kontour.ui.theme.Theme
 object CoachmarkDefaults {
 
     /** How far the lit area reaches past the control it is lighting. */
-    val SpotlightPadding: Dp = 8.dp
+    val SpotlightPadding: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.coachmarkSpotlightPadding
 
     /**
      * The lit area's shape.

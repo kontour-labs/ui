@@ -27,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
@@ -75,10 +76,12 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 
 object NavDrawerDefaults {
-    val Width: Dp = 280.dp
+    val Width: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navDrawerWidth
 
     /** How far a nested item is indented from its parent. */
-    val NestIndent: Dp = 24.dp
+    val NestIndent: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navDrawerNestIndent
 }
 
 /**

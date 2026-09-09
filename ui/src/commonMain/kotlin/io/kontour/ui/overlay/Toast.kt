@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -299,7 +300,8 @@ object ToastDefaults {
      * and the next begins and the gap does not have to. Twelve, which fits three
      * behind the card in slightly less height than two used to take.
      */
-    val Peek: Dp = 12.dp
+    val Peek: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.toastPeek
 
     /**
      * How wide a toast waiting behind the front one is drawn.
@@ -311,7 +313,8 @@ object ToastDefaults {
      * Wide enough to read as a toast rather than as a chip: at 48dp the thing
      * peeking out above the card looked like a badge that had come off it.
      */
-    val PillWidth: Dp = 72.dp
+    val PillWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.toastPillWidth
 
     /**
      * How tall it is drawn.
@@ -321,7 +324,8 @@ object ToastDefaults {
      * shape as a whole. A one-line toast's own height, so a pill promoted to the
      * front does not also have to grow taller.
      */
-    val PillHeight: Dp = 36.dp
+    val PillHeight: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.toastPillHeight
 
     /**
      * How tall a toast's row of controls is, whatever the platform.
@@ -388,7 +392,8 @@ object ToastDefaults {
     const val PillRim: Float = 0.22f
 
     /** How much of the screen's width a toast may take, at most. */
-    val MaxWidth: Dp = 420.dp
+    val MaxWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.toastMaxWidth
 
     /**
      * Extra air between the message and the action, on top of the row's own gap.

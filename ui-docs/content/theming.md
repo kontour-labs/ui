@@ -151,6 +151,41 @@ KontourTheme(typography = kontourTypography(family = myBrandFamily)) { … }
 The scale — sizes, weights, line heights, tracking — is preserved; only the
 family changes.
 
+**Change a component's geometry, everywhere:**
+
+```kotlin
+KontourTheme(
+    componentDefaults = ComponentDefaults(
+        uppercaseLabels = true,
+        buttonPaddingMedium = 16.dp,
+        navRailExpandedWidth = 240.dp,
+    ),
+) { … }
+```
+
+`ComponentDefaults` is the youngest of the families and the one with the
+narrowest remit. Colour and type in this library have always come from the
+theme; geometry did not — it sat as constants in forty-odd per-component
+`*Defaults` objects, each overridable at a single call site and none of them
+app-wide, so a design that wanted tighter buttons everywhere edited every call
+or gave up.
+
+A constant earns a place on it when **a different design system would plausibly
+change it** and **no existing family can carry it**. Most do not: a menu's
+minimum width and a rating's five stars are facts about the component, and a
+control's corner is `Theme.shapes.control`, its border weight
+`Theme.sizing.borderWidth` and its spring `Theme.motion` already. What is left
+is button and row density, navigation geometry, the widths of overlays and
+sheets, and the glass and backdrop dials.
+
+`uppercaseLabels` is the one field that is not a measurement, and it is here
+because there is nowhere else: casing is not something a `TextStyle` can carry.
+It applies where the library turns a `String` you passed into text **on a
+control** — a button, an extended FAB, a tag, a chip, a tab and a field's label
+— and not to dialog titles, banner messages, list rows or menu items, which are
+prose. Writing `Text("Save")` inside a slot instead of `+"Save"` opts out, the
+same way it opts out of the slot's line limit and text style.
+
 Overriding tokens mid-tree is cheap in the way that matters — `ProvideTokens`
 provides locals and nothing else, and a nested `KontourTheme` at least declines
 to install a second input-modality tracker. What it is *not* is free of meaning:

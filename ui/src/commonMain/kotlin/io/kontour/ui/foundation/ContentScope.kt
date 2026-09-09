@@ -103,12 +103,29 @@ interface RowContentScope : ContentScope, RowScope
 internal open class ContentScopeImpl(
     private val iconSize: Dp,
     private val maxLines: Int = Int.MAX_VALUE,
-    private val overflow: TextOverflow = TextOverflow.Clip
+    private val overflow: TextOverflow = TextOverflow.Clip,
+    /**
+     * Whether a `String` dropped in here is set in capitals.
+     *
+     * Carried on the scope for the same reason [maxLines] is: it belongs to the
+     * slot. [contentScope] takes it from the theme because every one of its call
+     * sites is the label of a control; [ContentSlot] does not, because its call
+     * sites are titles, messages and list rows.
+     *
+     * Only the `String` overload. An [AnnotatedString] arrives carrying its own
+     * spans, and recasing it means rebuilding those against shifted offsets —
+     * for text a caller has already styled by hand.
+     */
+    private val uppercase: Boolean = false,
 ) : ContentScope {
 
     @Composable
     override operator fun String.unaryPlus() =
-        Text(this, maxLines = maxLines, overflow = overflow)
+        Text(
+            if (uppercase) this.uppercase() else this,
+            maxLines = maxLines,
+            overflow = overflow,
+        )
 
     @Composable
     override operator fun AnnotatedString.unaryPlus() =
@@ -131,14 +148,21 @@ internal class RowContentScopeImpl(
     row: RowScope,
     iconSize: Dp,
     maxLines: Int = Int.MAX_VALUE,
-    overflow: TextOverflow = TextOverflow.Clip
-) : ContentScopeImpl(iconSize, maxLines, overflow), RowContentScope, RowScope by row
+    overflow: TextOverflow = TextOverflow.Clip,
+    uppercase: Boolean = false,
+) : ContentScopeImpl(iconSize, maxLines, overflow, uppercase), RowContentScope, RowScope by row
 
 /**
- * Runs [content] as a row-shaped slot.
+ * Runs [content] as a row-shaped slot — the label of a control.
  *
  * The `Row` itself belongs to the caller — this only supplies the scope — so a
  * component keeps control of its own arrangement and padding.
+ *
+ * Every call site is a control whose text is a *label*: `Button`, the extended
+ * FAB, `Tag`, the three `Chip` variants and a `TabBar` tab. That is why this is
+ * where [io.kontour.ui.theme.ComponentDefaults.uppercaseLabels] is read and [ContentSlot] is not —
+ * the split between the two helpers already falls exactly on the line between a
+ * label and a piece of prose, so the flag needs no list of its own.
  */
 @Composable
 internal fun RowScope.contentScope(
@@ -147,7 +171,13 @@ internal fun RowScope.contentScope(
     overflow: TextOverflow = TextOverflow.Clip,
     content: @Composable RowContentScope.() -> Unit
 ) {
-    RowContentScopeImpl(this, iconSize, maxLines, overflow).content()
+    RowContentScopeImpl(
+        this,
+        iconSize,
+        maxLines,
+        overflow,
+        uppercase = Theme.componentDefaults.uppercaseLabels,
+    ).content()
 }
 
 /** Runs [content] as a slot with no layout of its own. */

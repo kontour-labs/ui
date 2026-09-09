@@ -687,6 +687,75 @@ def hand_rolled_rounded_rects() -> list[str]:
 MAX_SILENT_FOCUS_TRAPS = 0
 
 
+# Geometry a brand adjusts now lives on `ComponentDefaults`. What is left in the
+# `*Defaults` objects is meant to be facts about a component — a menu's minimum
+# width, a rating's five stars, the seven columns of a calendar — and the number
+# only goes down.
+#
+# It was **137** before the sweep that created `ComponentDefaults`, spread over
+# forty-five objects with `ButtonDefaults`' ten paddings and gaps hidden inside
+# `metrics()`. Function bodies are counted for exactly that reason, which means
+# the floor is not zero: `ScrollbarDefaults` returns a fallback `0.dp` from a
+# `remember` and `TextFieldDefaults` fades a container by `0.5f`, and neither is
+# a dial anybody wants.
+MAX_DEFAULTS_LITERALS = 78
+
+# Every field on `ComponentDefaults` is read by something.
+#
+# The honesty guard on a wide object of defaulted fields: at its default, a field
+# nothing reads is indistinguishable from one that is wired. Two fields are read
+# twice on purpose — `uppercaseLabels` by the row-shaped slot and by a field's
+# label, and `navIndicatorWidth` by the pill and by the glyph box that is as wide
+# as it — so this counts fields read *never*.
+#
+# What it catches that a value check cannot: a forward dropped during the sweep.
+# Fifteen of the fifty-eight defaults are shared by two or more fields, so wiring
+# the wrong one of a pair passes every assertion about values; it shows up here
+# as one field with no reader at all.
+MAX_UNREAD_COMPONENT_DEFAULTS = 0
+
+DEFAULTS_OBJECT = re.compile(r"^(?:public )?object (\w*Defaults) \{", re.M)
+# A dimension, duration, fraction or count written as a literal.
+DEFAULTS_LITERAL = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?:\.dp|\.sp|[fL]\b|\b)")
+COMPONENT_DEFAULTS_FIELD = re.compile(r"^    val (\w+): ", re.M)
+
+
+def defaults_literals() -> int:
+    """Hardcoded numbers still sitting inside a `*Defaults` object."""
+    total = 0
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        lines = path.read_text().split("\n")
+        for index, line in enumerate(lines):
+            if not DEFAULTS_OBJECT.match(line):
+                continue
+            depth = 0
+            for at in range(index, len(lines)):
+                depth += lines[at].count("{") - lines[at].count("}")
+                body = lines[at].strip()
+                if not body.startswith(("*", "//", "/*")):
+                    total += len(DEFAULTS_LITERAL.findall(lines[at]))
+                if depth == 0 and at > index:
+                    break
+    return total
+
+
+def unread_component_defaults() -> list[str]:
+    """`ComponentDefaults` fields no component reads."""
+    root = Path("ui/src/commonMain/kotlin")
+    declaration = root / "io/kontour/ui/theme/ComponentDefaults.kt"
+    fields = COMPONENT_DEFAULTS_FIELD.findall(declaration.read_text())
+    body = "\n".join(
+        path.read_text() for path in root.rglob("*.kt") if path != declaration
+    )
+    return [
+        field for field in fields
+        # `Theme.componentDefaults.x` at the point of use, or `d.x` / `it.x`
+        # after the object has been pulled into a local — both are house style
+        # and both appear in the sweep.
+        if not re.search(rf"(?:componentDefaults|\bd|\bit)\.{field}\b", body)
+    ]
+
+
 # `OverlayEntry(` and everything up to the matching close, so `trapFocus` can be
 # looked for among *this* entry's arguments rather than anywhere in the file.
 OVERLAY_ENTRY = re.compile(r"\bOverlayEntry\s*\(")
@@ -1366,6 +1435,34 @@ def main() -> int:
             f"front of a reader and under `DemoRenderTest`"
         )
 
+    # Rule 22 — the geometry bag only shrinks.
+    #
+    # See `MAX_DEFAULTS_LITERALS`. Growing `ComponentDefaults` is only possible
+    # by lowering this, so neither number can drift upward quietly.
+    literals_left = defaults_literals()
+    if literals_left > MAX_DEFAULTS_LITERALS:
+        problems.append(
+            f"{literals_left} hardcoded number(s) sit in `*Defaults` objects, "
+            f"over the ceiling of {MAX_DEFAULTS_LITERALS}. A constant a *brand* "
+            f"would change and no token family carries belongs on "
+            f"`ComponentDefaults`; one that is a fact about the component stays "
+            f"where it is, and the ceiling comes down when one moves"
+        )
+
+    # Rule 23 — nothing on `ComponentDefaults` is unwired.
+    #
+    # See `MAX_UNREAD_COMPONENT_DEFAULTS`. The check a wide, fully-defaulted
+    # object needs, and the one a value assertion cannot make.
+    unread = unread_component_defaults()
+    if len(unread) > MAX_UNREAD_COMPONENT_DEFAULTS:
+        problems.append(
+            f"{len(unread)} `ComponentDefaults` field(s) are read by nothing: "
+            f"{', '.join(unread)} — a field at its default that no component "
+            f"reads is API that ships dead, and looks identical to one that "
+            f"works. Wire it through the component's `*Defaults` object, or "
+            f"take it off"
+        )
+
     if problems:
         print(f"{len(problems)} problem(s):", file=sys.stderr)
         for problem in sorted(problems):
@@ -1386,6 +1483,8 @@ def main() -> int:
         f"{circular} deliberate circles, "
         f"{len(policy_named())} components named by the haptics policy, "
         f"{len(silent)} silent focus traps, "
+        f"{literals_left} literals left in `*Defaults`, "
+        f"{len(unread)} of them unwired, "
         f"all accounted for."
     )
     return 0

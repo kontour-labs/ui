@@ -3,6 +3,7 @@ package io.kontour.ui.motion
 import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.unit.Dp
@@ -26,7 +27,8 @@ object MarqueeDefaults {
     val Velocity: Dp = 40.dp
 
     /** The gap between the end of one pass and the start of the next. */
-    val Gap: Dp = 48.dp
+    val Gap: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.marqueeGap
 }
 
 /**

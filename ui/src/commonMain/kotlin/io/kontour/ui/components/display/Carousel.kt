@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -525,7 +526,8 @@ enum class PageIndicatorStyle {
 }
 
 object PageIndicatorDefaults {
-    val DotSize: Dp = 8.dp
+    val DotSize: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.pageIndicatorDotSize
 
     /**
      * How wide the current dot grows.
@@ -534,9 +536,11 @@ object PageIndicatorDefaults {
      * circle. A tint change alone fails WCAG 1.4.1, and eight pixels of colour
      * is the hardest place in the system to see one.
      */
-    val ActiveWidth: Dp = 20.dp
+    val ActiveWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.pageIndicatorActiveWidth
 
-    val Gap: Dp = 6.dp
+    val Gap: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.pageIndicatorGap
 }
 
 

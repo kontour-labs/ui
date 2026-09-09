@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -50,8 +51,10 @@ import kotlin.math.roundToInt
 /** Metrics shared by every navigation destination. */
 object NavItemDefaults {
     /** The pill drawn behind a stacked item's icon when it is the destination. */
-    val IndicatorWidth: Dp = 56.dp
-    val IndicatorHeight: Dp = 32.dp
+    val IndicatorWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navIndicatorWidth
+    val IndicatorHeight: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navIndicatorHeight
 
     /**
      * The glyph's box in a stacked item that also has a label.
@@ -62,7 +65,10 @@ object NavItemDefaults {
      * label reads as further from its icon than it is. 28dp is 2dp of air, and
      * the gap stays on the 4dp grid where it belongs.
      */
-    val GlyphSize: DpSize = DpSize(IndicatorWidth, 28.dp)
+    val GlyphSize: DpSize
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.let {
+            DpSize(it.navIndicatorWidth, it.navGlyphHeight)
+        }
 
     /**
      * The glyph's box in an inline item — a rail row, at any width.
@@ -72,7 +78,9 @@ object NavItemDefaults {
      * gets clamped is a box the icon is centred in differently at every width,
      * which is most of what made the rail's icons move as it grew.
      */
-    val InlineGlyphSize: DpSize = DpSize(48.dp, 48.dp)
+    val InlineGlyphSize: DpSize
+        @Composable @ReadOnlyComposable get() =
+            Theme.componentDefaults.navInlineGlyph.let { DpSize(it, it) }
 
     /**
      * A destination that is a circle rather than a row in a bar.
@@ -84,7 +92,9 @@ object NavItemDefaults {
      * The 4dp of transparent slack the touch target already provides is also
      * what the row's own vertical padding used to add a second time.
      */
-    val CircleSize: DpSize = DpSize(40.dp, 40.dp)
+    val CircleSize: DpSize
+        @Composable @ReadOnlyComposable get() =
+            Theme.componentDefaults.navCircleSize.let { DpSize(it, it) }
 
     /**
      * How much the current destination's icon grows.
@@ -93,7 +103,8 @@ object NavItemDefaults {
      * animates to 1.2 on a bouncy spring. Small, but it is what makes the bar feel
      * like it responded rather than redrew.
      */
-    const val SelectedIconScale: Float = 1.08f
+    val SelectedIconScale: Float
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navSelectedIconScale
 }
 
 /** How a destination arranges its icon and its label. */
@@ -299,9 +310,12 @@ internal fun NavDestinationItem(
             },
             badge = { if (item.badge != null) Badge(count = item.badge) },
         ) {
+            // Read outside the lambda: `graphicsLayer` runs at draw time, which
+            // is not composition, so a theme value has to be captured here.
+            val selectedScale = NavItemDefaults.SelectedIconScale
             Box(
                 modifier = Modifier.graphicsLayer {
-                    val scale = 1f + (NavItemDefaults.SelectedIconScale - 1f) * emphasis
+                    val scale = 1f + (selectedScale - 1f) * emphasis
                     scaleX = scale
                     scaleY = scale
                 },
