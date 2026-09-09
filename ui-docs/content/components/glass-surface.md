@@ -28,8 +28,10 @@ see [the adaptive page](adaptive.md#there-is-no-portable-backdrop-blur--for-a-fl
 ## Accessibility
 
 Translucency is a contrast risk, and this component does **not** manage it for
-you: `alpha` is 0.72 over `Theme.colours.surfaceRaised` and nothing branches on
-the contrast tier. The token pairs are contrast-asserted against the *opaque*
+you beyond one step: `alpha` is 0.58 over `Theme.colours.surfaceRaised`, and
+**rises to 0.94 at the high-contrast tier** — near-opaque, because translucency
+is the first thing to give up when a reader has asked for contrast. At the
+standard tier the token pairs are still contrast-asserted against the *opaque*
 surface colour, so a translucent one is no longer the colour those assertions
 were about.
 

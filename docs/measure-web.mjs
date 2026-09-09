@@ -21,7 +21,7 @@
 //                             [--touch-tap X,Y] [--touch-drag X1,Y1,X2,Y2[,STEPS[,HOLD]]]
 //                             [--then-tap X,Y]
 //                             [--mobile] [--dark] [--reduce-motion] [--vibration]
-//                             [--clipboard] [--console]
+//                             [--clipboard] [--console] [--film DIR,COUNT,MS[,AFTER]]
 //                             [--eval EXPR]
 //
 // ### What it can and cannot tell you
@@ -96,7 +96,7 @@ import { readFile, stat, readdir, writeFile } from 'node:fs/promises'
 import { gzipSync } from 'node:zlib'
 import { spawn } from 'node:child_process'
 import { join, extname, normalize, resolve } from 'node:path'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { existsSync, readFileSync } from 'node:fs'
 
@@ -128,6 +128,9 @@ function arg(name, fallback) {
 }
 
 const DIST = resolve(arg('dist', 'ui-docs/build/dist/wasmJs/productionExecutable'))
+/** Long enough for an enter animation, short enough not to outlive a toast. */
+const FILM_SETTLE_MS = 400
+
 const IDLE_SECONDS = Number(arg('seconds', '3'))
 
 /**
@@ -640,6 +643,58 @@ async function main() {
   /** Real milliseconds. A long press is a wall-clock timeout, not a frame count. */
   const wait = (ms) => new Promise((done) => setTimeout(done, ms))
 
+  // `--film DIR,COUNT,MS[,AFTER]` — COUNT screenshots MS apart, written as
+  // `DIR/000.png` onward, starting AFTER milliseconds from now.
+  //
+  // `--screenshot` is taken at the very end, after each gesture's own
+  // `__sample(1500)` and after the idle window. That is the right place for a
+  // resting state and it cannot see a transient at all: a toast raised by
+  // `--touch-tap` and dragged by `--touch-drag` has expired long before the
+  // shutter, so three runs with 5px, 60px-up and 60px-down drags came back
+  // **byte-identical** — the same empty page, agreeing with itself for the wrong
+  // reason. A settle takes about 200ms and nothing here could observe one.
+  //
+  // **It competes with the gestures for the debugger connection**, and that is
+  // not a detail. `Page.captureScreenshot` costs 200-350ms each on a software
+  // rasteriser and shares one CDP channel with `Input.dispatchTouchEvent`, so a
+  // film started with no delay queues sixteen screenshots ahead of the tap and
+  // the page is still at rest when the last frame is taken. Measured: a filmed
+  // `--touch-tap` on the toast demo raised no toast at all.
+  //
+  // So `AFTER` is the useful knob rather than a nicety — aim the film at the
+  // moment in question and keep the frame count low. It is a wall-clock film
+  // either way: the frame count is a lower bound on what happened rather than a
+  // timeline, and for a question that needs exact frames the JVM `Scene`
+  // harness has a controlled clock and this does not.
+  const filmSpec = arg('film', null)
+  let filming = null
+  let filmFrames = 0
+  // Each gesture below ends by sampling frame times for 1.5s. While filming that
+  // is both redundant — the film is the observation — and destructive: a toast
+  // raised by `--touch-tap` has expired by the time `--touch-drag` runs, so the
+  // drag lands on an empty page.
+  //
+  // But dropping it to nothing is worse, and measured: the drag then arrives
+  // *before* the thing it is aimed at has finished appearing, the finger lands
+  // on the page behind it, and the page scrolls instead. A short pause is what
+  // is actually wanted — long enough for an enter animation, short enough not to
+  // outlive what it raised.
+  const settle = async () =>
+    (filmSpec ? await wait(FILM_SETTLE_MS).then(() => null) : await evaluate(`window.__sample(1500)`))
+  if (filmSpec) {
+    const [dir, count = 20, gap = 100, after = 0] = filmSpec.split(',')
+    await mkdir(dir, { recursive: true })
+    filming = (async () => {
+      if (Number(after) > 0) await wait(Number(after))
+      for (let i = 0; i < Number(count); i++) {
+        const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' }, sessionId)
+        await writeFile(`${dir}/${String(i).padStart(3, '0')}.png`, Buffer.from(data, 'base64'))
+        filmFrames = i + 1
+        await wait(Number(gap))
+      }
+    })()
+  }
+
   const clickAt = arg('click', null)
   const tapAt = arg('touch-tap', null)
   const dragAlong = arg('touch-drag', null)
@@ -651,7 +706,7 @@ async function main() {
     for (const type of ['mousePressed', 'mouseReleased']) {
       await cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 }, sessionId)
     }
-    interaction = await evaluate(`window.__sample(1500)`)
+    interaction = await settle()
   }
 
   if (tapAt) {
@@ -659,7 +714,7 @@ async function main() {
     await touch('touchStart', x, y)
     await wait(40)
     await touch('touchEnd', x, y)
-    interaction = await evaluate(`window.__sample(1500)`)
+    interaction = await settle()
   }
 
   // `--touch-drag x1,y1,x2,y2[,steps[,hold]]`. `hold` is milliseconds to keep
@@ -676,7 +731,7 @@ async function main() {
       await wait(16)
     }
     await touch('touchEnd', x2, y2)
-    interaction = await evaluate(`window.__sample(1500)`)
+    interaction = await settle()
   }
 
   // `--wheel X,Y,DELTA[,STEPS]`. A wheel rather than a drag, because on a desktop
@@ -697,7 +752,7 @@ async function main() {
       // nothing to work with, so nothing flings.
       await wait(16)
     }
-    interaction = await evaluate(`window.__sample(1500)`)
+    interaction = await settle()
   }
 
   // Read *after* the gestures, so what is printed is what the interaction
@@ -722,7 +777,7 @@ async function main() {
     await touch('touchStart', x, y)
     await wait(40)
     await touch('touchEnd', x, y)
-    interaction = await evaluate(`window.__sample(1500)`)
+    interaction = await settle()
   }
 
   // `--double-click x,y` selects a word, which is the gesture a desktop user
@@ -742,7 +797,7 @@ async function main() {
       }, sessionId)
       await wait(30)
     }
-    interaction = await evaluate(`window.__sample(1500)`)
+    interaction = await settle()
   }
 
   // `--mouse-drag x1,y1,x2,y2[,steps]` presses, travels and releases with the
@@ -767,7 +822,7 @@ async function main() {
     await cdp.send('Input.dispatchMouseEvent', {
       type: 'mouseReleased', x: x2, y: y2, button: 'left', buttons: 0, clickCount: 1,
     }, sessionId)
-    interaction = await evaluate(`window.__sample(1500)`)
+    interaction = await settle()
   }
 
   // `--right-click x,y` dispatches a real secondary click and reports whether
@@ -831,7 +886,7 @@ async function main() {
       const kinds = secondary.map((e) => `${e.type} on <${e.target}>`).join(', ')
       console.log(`             secondary button delivered as: ${kinds}`)
     }
-    interaction = await evaluate(`window.__sample(1500)`)
+    interaction = await settle()
   }
 
   // `--last-click X,Y`, which runs after every other gesture.
@@ -848,7 +903,13 @@ async function main() {
     for (const type of ['mousePressed', 'mouseReleased']) {
       await cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 }, sessionId)
     }
-    interaction = await evaluate(`window.__sample(1500)`)
+    interaction = await settle()
+  }
+
+  if (filming) {
+    await filming
+    console.log('')
+    console.log(`film       ${filmFrames} frame(s) written`)
   }
 
   // These recorders are read here rather than beside the gestures above, and the

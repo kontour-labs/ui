@@ -1,6 +1,6 @@
 # Theming
 
-*Also on this page: `KontourTheme`.*
+*Also on this page: `KontourTheme`, `ProvideTokens`.*
 
 How to change what the system looks like without touching a component.
 
@@ -16,10 +16,17 @@ So the default scheme is not a design; it is a *starting point that offends
 nobody*. `brand` resolves to the accent until you set one, which is the library
 saying it has no opinion rather than pretending to have none.
 
-**The worked example is Kontour's own.** `KontourBrandTheme` in the `anyways`
-app overrides four tokens per tier — accent, brand, focus ring — and inherits
-everything else. It is about a hundred lines, most of them the purple values,
-and it is the shape to copy.
+**The worked example is in this repository.** `GTurbo`, in
+`ui-catalog/src/commonMain/kotlin/io/kontour/ui/demo/theme/GTurbo.kt`, is a
+near-black, red-accented, small-cornered design that shares no value with the
+default — a fair test of whether this is a token *system* or a dark-mode switch.
+Every colour in it was sampled from the design's own pixels, its contrast is
+walked against WCAG on every build, and it is photographed beside the built-in
+schemes in `ui-catalog/screenshots/theme-gturbo-dark.png`. It is the
+shape to copy, and unlike a description in prose it cannot drift: it compiles.
+
+This page used to point at an app in another repository for that. A worked
+example nothing builds is a worked example nobody can check.
 
 ---
 
@@ -48,8 +55,29 @@ Every token group is a parameter, so you override one and inherit the rest.
 **Force a mode for one screen:**
 
 ```kotlin
-KontourTheme(darkTheme = true) { MapScreen() }
+ProvideTokens(colours = kontourColourScheme(dark = true)) { MapScreen() }
 ```
+
+> **Call `KontourTheme` once, at the root, and `ProvideTokens` after it.**
+>
+> A nested `KontourTheme` does **not** inherit. Every parameter it is not given
+> re-runs its *default*, and those defaults read the platform rather than the
+> theme around them — so `KontourTheme(strings = german) { KontourTheme(darkTheme
+> = true) { … } }` puts all 47 strings back into English, resets
+> `HapticsLevel.Off` to `Full`, and discards a custom `spacing`, `sizing` or
+> `motion` on the way. Nothing errors. Nothing looks wrong until somebody reads
+> the German build.
+>
+> `ProvideTokens` defaults every parameter to the value already in scope, so an
+> argument you do not pass is an argument that does not change. This page used to
+> recommend the nested form; both behaviours are now asserted on every build, so
+> the difference stays a fact rather than a memory.
+>
+> Do not hand-roll it either: `CompositionLocalProvider(LocalColourScheme
+> provides scheme)` installs the scheme and leaves every `Text` and `Icon` below
+> it drawing in the *old* palette's content colour, because `LocalContentColour`
+> is derived where `KontourTheme` provides it and is not re-derived by providing
+> the scheme again.
 
 **Change the words the library puts on screen:**
 
@@ -64,7 +92,7 @@ KontourTheme(
 ```
 
 `Strings` is a token group like the rest, and it holds every word the library
-draws that you did not supply — 51 of them. Each component still takes its own
+draws that you did not supply — 47 of them. Each component still takes its own
 parameter, defaulted from here, so a one-off at a call site keeps working and an
 app-wide change is one argument rather than a sweep through every call site.
 
@@ -123,8 +151,46 @@ KontourTheme(typography = kontourTypography(family = myBrandFamily)) { … }
 The scale — sizes, weights, line heights, tracking — is preserved; only the
 family changes.
 
-Nested `KontourTheme` calls re-provide tokens but do not install a second
-input-modality tracker, so overriding a theme mid-tree is cheap.
+**Change a component's geometry, everywhere:**
+
+```kotlin
+KontourTheme(
+    componentDefaults = ComponentDefaults(
+        uppercaseLabels = true,
+        buttonPaddingMedium = 16.dp,
+        navRailExpandedWidth = 240.dp,
+    ),
+) { … }
+```
+
+`ComponentDefaults` is the youngest of the families and the one with the
+narrowest remit. Colour and type in this library have always come from the
+theme; geometry did not — it sat as constants in forty-odd per-component
+`*Defaults` objects, each overridable at a single call site and none of them
+app-wide, so a design that wanted tighter buttons everywhere edited every call
+or gave up.
+
+A constant earns a place on it when **a different design system would plausibly
+change it** and **no existing family can carry it**. Most do not: a menu's
+minimum width and a rating's five stars are facts about the component, and a
+control's corner is `Theme.shapes.control`, its border weight
+`Theme.sizing.borderWidth` and its spring `Theme.motion` already. What is left
+is button and row density, navigation geometry, the widths of overlays and
+sheets, and the glass and backdrop dials.
+
+`uppercaseLabels` is the one field that is not a measurement, and it is here
+because there is nowhere else: casing is not something a `TextStyle` can carry.
+It applies where the library turns a `String` you passed into text **on a
+control** — a button, an extended FAB, a tag, a chip, a tab and a field's label
+— and not to dialog titles, banner messages, list rows or menu items, which are
+prose. Writing `Text("Save")` inside a slot instead of `+"Save"` opts out, the
+same way it opts out of the slot's line limit and text style.
+
+Overriding tokens mid-tree is cheap in the way that matters — `ProvideTokens`
+provides locals and nothing else, and a nested `KontourTheme` at least declines
+to install a second input-modality tracker. What it is *not* is free of meaning:
+see the note under [Overriding](#overriding) for what a nested theme silently
+discards, and prefer `ProvideTokens` for every override below the root.
 
 ---
 
@@ -307,10 +373,12 @@ object OceanTheme {
         )
     }
 
-    val shapes = Shapes(
-        small = RoundedCornerShape(2.dp),
-        medium = RoundedCornerShape(4.dp),
-    )
+    // The whole ladder, from one rung and one step. Writing this as
+    // `Shapes(small = …, medium = …)` — which this page recommended for a
+    // while — leaves `extraSmall` at the default 10dp, so the scale runs
+    // 10, 2, 4, 28, 34 and the *extra small* corner is the second largest
+    // in it. A ladder has to be set as a ladder.
+    val shapes = kontourShapes(extraSmall = 2.dp, step = 2.dp, smoothing = 0f)
 }
 
 @Composable
@@ -325,10 +393,30 @@ fun OceanApp(content: @Composable () -> Unit) {
 }
 ```
 
-**Verify its contrast.** The built-in schemes are checked on every build; a
-scheme of your own is not, until you check it. The library's own contrast test
-is a good template — the whole value of it is that it runs on palettes nobody
-has eyeballed yet.
+**Verify its contrast**, with the check the built-in schemes are held to:
+
+```kotlin
+@Test
+fun theOceanSchemeIsReadable() {
+    for (dark in listOf(false, true)) {
+        val failures = contrastFailures(OceanTheme.colours(dark), ContrastLevel.Standard)
+        assertTrue(failures.isEmpty(), "Ocean, dark=$dark: $failures")
+    }
+}
+```
+
+`contrastFailures` walks every foreground/background pairing a component is
+allowed to produce and returns the ones that miss, each naming the token and the
+number it needed. Contrast is not something you can eyeball — three of the values
+originally proposed for the built-in schemes looked fine and failed by a tenth of
+a point.
+
+The built-in schemes run this on every build. A scheme of your own does not,
+until you write the four lines above.
+
+One thing it cannot promise: **a role added to `ColourScheme` owes it nothing
+automatically.** The pairings are written by hand, because nothing can infer
+which ground a new token is drawn on or whether it is text.
 
 Remember the `brand` / `accent` split when authoring: `brand` may be any brand
 colour at all, including one that fails contrast, because it is only ever
@@ -349,6 +437,32 @@ If you do not author one, pass your single scheme regardless of tier — users w
 asked for high contrast will get standard contrast, which is a downgrade you
 should make knowingly rather than by omission.
 
+**Authoring one is a starting point plus a check.** `highContrastLightColourScheme`
+and `highContrastDarkColourScheme` take every token, each defaulted to the value
+the AAA ratio demands, so a brand overrides what it owns and inherits forty tuned
+greys, washes and status tones:
+
+```kotlin
+val enhanced = highContrastDarkColourScheme(
+    background = Color(0xFF0A0A0B),
+    accent = myEnhancedAccent,
+)
+```
+
+Overriding a ground makes the ratio yours, and there is one call that tells you
+whether you kept it:
+
+```kotlin
+@Test
+fun myEnhancedTierIsEnhanced() {
+    assertEquals(emptyList(), contrastFailures(enhanced, ContrastLevel.High))
+}
+```
+
+The factory does not run that for you. A palette that lands at 6.9:1 instead of
+7 should not crash the app, and least of all should it crash only for the people
+who have the high-contrast setting switched on.
+
 ---
 
 ## The generator, later
@@ -359,17 +473,23 @@ rather than only by its constructor. That shape is deliberate.
 Today the factories are hand-authored:
 
 ```kotlin
-fun lightColourScheme(…): ColourScheme                 // every token
-fun darkColourScheme(…): ColourScheme                  // every token
-fun highContrastLightColourScheme(accent, brand, focusRing): ColourScheme
-fun highContrastDarkColourScheme(accent, brand, focusRing): ColourScheme
+fun lightColourScheme(…): ColourScheme              // every token
+fun darkColourScheme(…): ColourScheme               // every token
+fun highContrastLightColourScheme(…): ColourScheme  // every token, AAA defaults
+fun highContrastDarkColourScheme(…): ColourScheme   // every token, AAA defaults
 ```
 
-The high-contrast pair takes three parameters rather than every token, and that
-is not an oversight. At AAA the grounds are pure white or pure black, the content
-is its opposite, and the greys are the lightest values that still clear 7:1 —
-none of that is a design choice, it is what the tier is *for*. The accent is the
-only part a product owns.
+The high-contrast pair used to take three parameters — accent, brand, focus ring
+— on the argument that the rest is not a design choice: at AAA the grounds are
+pure white or pure black, the content is its opposite, and the greys are the
+lightest values that still clear 7:1. That argument is right about the *defaults*
+and was wrong as a restriction. It meant a product whose ground is neither pure
+white nor pure black had no enhanced tier available at all, because there was no
+way to keep its ground and take the forty tuned values with it.
+
+Withholding a parameter defends a guarantee by blocking every legitimate use
+along with the illegitimate ones. The guarantee is a ratio, so the way to keep it
+is to check the ratio — see `contrastFailures` above.
 
 Deriving a full palette from a single seed colour — for user-selectable accents,
 or Android's wallpaper-derived colours — means adding one more factory:

@@ -1,11 +1,15 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -39,14 +43,18 @@ import com.composables.icons.tabler.outline.SquareRoundedLetterT
 import com.composables.icons.tabler.outline.Stack2
 import com.composables.icons.tabler.outline.Typography
 import com.composables.icons.tabler.outline.Windmill
+import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.adaptive.WindowWidthClass
-import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.selection.Switch
+import io.kontour.ui.demo.DemoCard
+import io.kontour.ui.demo.DemoFamily
+import io.kontour.ui.demo.demoFamilies
+import io.kontour.ui.demo.theme.DemoThemeProvider
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
@@ -57,10 +65,11 @@ import io.kontour.ui.nav.TopBar
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.rememberToastHostState
+import io.kontour.ui.platform.platformPrefersHighContrast
+import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.theme.ContrastLevel
-import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 
 /** One page of the gallery. */
@@ -71,32 +80,71 @@ internal class Page(
 )
 
 /**
- * Every page, in order.
+ * Every page, in order: two written by hand and eleven generated.
+ *
+ * **The generated eleven are the point.** They used to be hand-written too — a
+ * fixed list of thirteen, last changed structurally in August, while the library
+ * gained three weeks of components and an entire demo layer nine days after it.
+ * By the time anyone looked, 31 public composables appeared in the gallery
+ * nowhere at all, and 3,870 lines of panels were drawing statically what the
+ * demos already drew with knobs on.
+ *
+ * The fix is not a check that notices the drift. It is the removal of the second
+ * list: a demo can only be added to `demoFamilies`, and these pages are that.
+ *
+ * Two survive by hand because they are not component demos and never could be:
+ * `About` is what the gallery is, and `Tokens` is the palette, the type scale
+ * and the shape ladder — the one page where a *theme* can be judged rather than
+ * a component.
  *
  * `internal` rather than private so the test suite can render each one on its
  * own. That is not a courtesy: the shell's goldens only ever show the page that
- * happens to be selected, so a list the tests cannot walk is a list where eleven
- * of thirteen pages are drawn by nothing — which is how a crash on two of them
- * reached a phone.
+ * happens to be selected, so a list the tests cannot walk is a list where most
+ * pages are drawn by nothing — which is how a crash on two of them reached a
+ * phone.
  */
-internal val pages = listOf(
+internal val pages: List<Page> = listOf(
     // First, and it is a change of purpose rather than of order: a gallery
     // whose first page is a colour ramp tells someone who has just been
     // handed the library nothing about what it is or where the writing is.
-    Page("About", Tabler.Outline.InfoCircle) { AboutShowcase(it) },
-    Page("Tokens", Tabler.Outline.Palette) { ThemeShowcase(it) },
-    Page("Actions", Tabler.Outline.Click) { ButtonShowcase(it) },
-    Page("Selection", Tabler.Outline.Forms) { SelectionShowcase(it) },
-    Page("Text", Tabler.Outline.SquareRoundedLetterT) { TextShowcase(it) },
-    Page("Forms", Tabler.Outline.Typography) { SelectShowcase(it) },
-    Page("Date & time", Tabler.Outline.Calendar) { DateTimeShowcase(it) },
-    Page("Display", Tabler.Outline.LayoutGrid) { DisplayShowcase(it) },
-    Page("Lists", Tabler.Outline.LayoutList) { ListShowcase(it) },
-    Page("Overlays", Tabler.Outline.Stack2) { OverlayShowcase(it) },
-    Page("Sheets", Tabler.Outline.LayoutBottombar) { SheetShowcase(it) },
-    Page("Navigation", Tabler.Outline.Windmill) { NavShowcase(it) },
-    Page("Adaptive", Tabler.Outline.LayoutSidebar) { AdaptiveShowcase(it) },
-)
+    Page("About", Tabler.Outline.InfoCircle) { Scrolling(it) { AboutShowcase(Modifier.fillMaxWidth()) } },
+    Page("Tokens", Tabler.Outline.Palette) { Scrolling(it) { ThemeShowcase(Modifier.fillMaxWidth()) } },
+) + demoFamilies.map { family ->
+    Page(family.name, family.icon) { modifier -> DemoFamilyPage(family, modifier) }
+}
+
+/**
+ * One family's demos, each in the same card the documentation site draws.
+ *
+ * `DemoCard` is public for exactly this: the gallery and the site were two
+ * things supposed to look alike, and now they are one thing drawn twice.
+ *
+ * Lazy rather than a `Column`. `Display` holds eighteen demos, several of them
+ * with their own overlay host, and the enclosing scroller would compose all of
+ * them to measure the page — the same lesson the documentation site learned on
+ * its component index.
+ */
+/** A scroller for the two pages that are a plain column of content. */
+@Composable
+private fun Scrolling(modifier: Modifier, content: @Composable () -> Unit) {
+    Box(modifier.fillMaxSize().verticalScroll(rememberScrollState())) { content() }
+}
+
+@Composable
+private fun DemoFamilyPage(family: DemoFamily, modifier: Modifier = Modifier) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(Theme.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+    ) {
+        items(family.demos, key = { it.slug }) { demo ->
+            Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+                Text(demo.slug, style = Theme.typography.labelMedium)
+                DemoCard(demo)
+            }
+        }
+    }
+}
 
 /**
  * The component gallery — every component, in every state, on every platform.
@@ -122,35 +170,36 @@ internal val pages = listOf(
  * for why a gallery is not the shape a bottom bar is for.
  */
 @Composable
-fun Catalog() {
-    var dark by remember { mutableStateOf(false) }
-    var highContrast by remember { mutableStateOf(false) }
-    var fontScale by remember { mutableStateOf(1f) }
-    var rtl by remember { mutableStateOf(false) }
-    var reduceMotion by remember { mutableStateOf(false) }
-    var modality by remember { mutableStateOf<InputModality?>(null) }
-    var frameTimes by remember { mutableStateOf(false) }
+fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
     var selected by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
 
     val density = LocalDensity.current
+    val systemDark = isSystemInDarkTheme()
+    val systemHighContrast = platformPrefersHighContrast()
+    val systemReduceMotion = platformPrefersReducedMotion()
 
     CompositionLocalProvider(
         // Font scale is applied here rather than inside the theme because it is a
         // *platform* setting: the theme's type ramp is in sp, and this is what
         // makes sp mean something different. Scaling the ramp instead would look
         // similar and prove nothing.
-        LocalDensity provides Density(density.density, fontScale),
-        LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
+        LocalDensity provides Density(density.density, settings.textScale),
+        LocalLayoutDirection provides
+            if (settings.rightToLeft) LayoutDirection.Rtl else LayoutDirection.Ltr,
     ) {
-        KontourTheme(
-            darkTheme = dark,
-            contrast = if (highContrast) ContrastLevel.High else ContrastLevel.Standard,
-            reduceMotion = reduceMotion,
+        // Every token argument goes through one function, shared with the
+        // documentation site. Passing "the arguments this surface cares about"
+        // is what let the two disagree in the first place.
+        DemoThemeProvider(
+            settings = settings,
+            systemDark = systemDark,
+            systemHighContrast = systemHighContrast,
+            systemReduceMotion = systemReduceMotion,
         ) {
             // Overriding the modality has to happen *inside* the theme, which
             // installs the tracker that would otherwise set it from real input.
-            val overridden = modality
+            val overridden = settings.modality
             CompositionLocalProvider(
                 LocalInputModality provides (overridden ?: LocalInputModality.current)
             ) {
@@ -205,10 +254,17 @@ fun Catalog() {
                                     selectedIndex = selected,
                                     action = settingsButton,
                                 ) { contentPadding ->
+                                    // **The shell does not scroll.** It used
+                                    // to, because every page was a plain
+                                    // `Column`; the generated ones are lazy, and
+                                    // a `LazyColumn` inside a `verticalScroll`
+                                    // is measured with an infinite height and
+                                    // throws. Each page brings its own scroller
+                                    // now, which is also what keeps the lazy
+                                    // ones lazy — the whole reason they are.
                                     Box(
                                         Modifier
                                             .fillMaxSize()
-                                            .verticalScroll(rememberScrollState())
                                             .padding(bottom = contentPadding)
                                     ) {
                                         pages[selected].content(Modifier.fillMaxWidth())
@@ -218,20 +274,10 @@ fun Catalog() {
 
                             SettingsSheet(
                                 visible = settingsOpen,
-                                dark = dark,
-                                onDarkChange = { dark = it },
-                                highContrast = highContrast,
-                                onHighContrastChange = { highContrast = it },
-                                fontScale = fontScale,
-                                onFontScaleChange = { fontScale = it },
-                                rtl = rtl,
-                                onRtlChange = { rtl = it },
-                                reduceMotion = reduceMotion,
-                                onReduceMotionChange = { reduceMotion = it },
-                                modality = modality,
-                                onModalityChange = { modality = it },
-                                frameTimes = frameTimes,
-                                onFrameTimesChange = { frameTimes = it },
+                                settings = settings,
+                                systemDark = systemDark,
+                                systemHighContrast = systemHighContrast,
+                                systemReduceMotion = systemReduceMotion,
                                 onDismiss = { settingsOpen = false },
                             )
                         }
@@ -240,7 +286,7 @@ fun Catalog() {
                     // Outside the host on purpose. A readout drawn *inside* it
                     // would be covered by the first sheet that opened, which is
                     // precisely the moment there is something to read.
-                    if (frameTimes) {
+                    if (settings.frameTimes) {
                         FrameReadout(
                             Modifier
                                 .align(Alignment.TopEnd)
@@ -288,7 +334,6 @@ private fun CompactCatalog(
         Box(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(padding)
         ) {
             pages[selected].content(Modifier.fillMaxWidth())
@@ -309,20 +354,10 @@ private fun CompactCatalog(
 @Composable
 private fun SettingsSheet(
     visible: Boolean,
-    dark: Boolean,
-    onDarkChange: (Boolean) -> Unit,
-    highContrast: Boolean,
-    onHighContrastChange: (Boolean) -> Unit,
-    fontScale: Float,
-    onFontScaleChange: (Float) -> Unit,
-    rtl: Boolean,
-    onRtlChange: (Boolean) -> Unit,
-    reduceMotion: Boolean,
-    onReduceMotionChange: (Boolean) -> Unit,
-    modality: InputModality?,
-    onModalityChange: (InputModality?) -> Unit,
-    frameTimes: Boolean,
-    onFrameTimesChange: (Boolean) -> Unit,
+    settings: CatalogSettings,
+    systemDark: Boolean,
+    systemHighContrast: Boolean,
+    systemReduceMotion: Boolean,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) {
@@ -334,27 +369,48 @@ private fun SettingsSheet(
                 +"Display settings"
             }
 
-            Toggle("Dark", dark, onDarkChange)
-            Toggle("High contrast", highContrast, onHighContrastChange)
-            Toggle("Right to left", rtl, onRtlChange)
-            Toggle("Reduce motion", reduceMotion, onReduceMotionChange)
-            Toggle("Frame times", frameTimes, onFrameTimesChange)
+            Text("Theme", style = Theme.typography.labelMedium)
+            ThemePicker(settings)
+
+            // The three platform-backed switches show the *resolved* value, so
+            // one the reader has not touched reads as what they are actually
+            // getting rather than as the app's own preference — and the first
+            // two go inert under a theme that offers only one mode or tier.
+            val theme = settings.theme
+            SettingToggle(
+                "Dark",
+                theme.resolveDark(settings.dark ?: systemDark),
+                enabled = theme.offersBothModes,
+            ) { settings.dark = it }
+            SettingToggle(
+                "High contrast",
+                theme.resolveTier(
+                    if (settings.highContrast ?: systemHighContrast) ContrastLevel.High
+                    else ContrastLevel.Standard
+                ) == ContrastLevel.High,
+                enabled = theme.offersBothTiers,
+            ) { settings.highContrast = it }
+            SettingToggle("Right to left", settings.rightToLeft) { settings.rightToLeft = it }
+            SettingToggle("Reduce motion", settings.reduceMotion ?: systemReduceMotion) {
+                settings.reduceMotion = it
+            }
+            SettingToggle("Frame times", settings.frameTimes) { settings.frameTimes = it }
 
             Text("Text size", style = Theme.typography.labelMedium)
             SegmentedControl(
                 options = fontScales.map { it.first },
-                selected = fontScales.indexOfFirst { it.second == fontScale }
+                selected = fontScales.indexOfFirst { it.second == settings.textScale }
                     .coerceAtLeast(0),
-                onSelectedChange = { onFontScaleChange(fontScales[it].second) },
+                onSelectedChange = { settings.textScale = fontScales[it].second },
                 modifier = Modifier.fillMaxWidth(),
             )
 
             Text("Input modality", style = Theme.typography.labelMedium)
             SegmentedControl(
-                options = modalities.map { it.first },
-                selected = modalities.indexOfFirst { it.second == modality }
+                options = inputModalities.map { it.first },
+                selected = inputModalities.indexOfFirst { it.second == settings.modality }
                     .coerceAtLeast(0),
-                onSelectedChange = { onModalityChange(modalities[it].second) },
+                onSelectedChange = { settings.modality = inputModalities[it].second },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -368,17 +424,6 @@ private val fontScales = listOf(
     "200%" to 2f,
 )
 
-/**
- * "Auto" first, because it is the honest default — the tracker follows real
- * input, and forcing a modality is for checking a branch you cannot reach on the
- * host you happen to be on.
- */
-private val modalities = listOf<Pair<String, InputModality?>>(
-    "Auto" to null,
-    "Touch" to InputModality.Touch,
-    "Mouse" to InputModality.Mouse,
-    "Keyboard" to InputModality.Keyboard,
-)
 
 @Composable
 private fun Toggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {

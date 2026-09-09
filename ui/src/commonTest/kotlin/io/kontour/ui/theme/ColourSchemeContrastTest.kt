@@ -2,8 +2,10 @@ package io.kontour.ui.theme
 
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.a11y.ContrastThreshold
+import io.kontour.ui.a11y.contrastFailures
 import io.kontour.ui.a11y.contrastRatio
 import kotlin.test.Test
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
@@ -16,7 +18,9 @@ import kotlin.test.fail
  * at 2.1:1) is shipping on the marketing site today. Anyone adding a token or
  * retuning a palette will be told immediately, by name, which pairing broke.
  *
- * Deliberately excluded:
+ * The walk is [io.kontour.ui.a11y.contrastFailures], which is public so an app
+ * authoring its own palette can run it. What is deliberately excluded, and why,
+ * is documented there. In summary:
  *  - `contentDisabled`, `outline`, `outlineSubtle`, and the status `border`
  *    tones. WCAG 1.4.3 exempts disabled controls, and 1.4.11 exempts purely
  *    decorative rules. Holding them to a ratio would force dividers so dark
@@ -47,87 +51,12 @@ class ColourSchemeContrastTest {
 
     @Test
     fun everyBuiltInSchemeMeetsItsContrastTier() {
-        val failures = mutableListOf<Failure>()
-
-        for ((name, c, tier) in schemes) {
-            val bodyText = when (tier) {
-                ContrastLevel.Standard -> ContrastThreshold.BODY_TEXT
-                ContrastLevel.High -> ContrastThreshold.BODY_TEXT_ENHANCED
-            }
-            val nonText = when (tier) {
-                ContrastLevel.Standard -> ContrastThreshold.NON_TEXT
-                ContrastLevel.High -> ContrastThreshold.LARGE_TEXT_ENHANCED
-            }
-
-            fun check(fgName: String, fg: Color, bgName: String, bg: Color, required: Float) {
-                val ratio = contrastRatio(fg, bg)
-                if (ratio < required) {
-                    failures += Failure(name, "$fgName on $bgName", ratio, required)
-                }
-            }
-
-            // Text and control boundaries against every ground they can land on.
-            for ((groundName, ground) in c.grounds()) {
-                check("content", c.content, groundName, ground, bodyText)
-                check("contentMuted", c.contentMuted, groundName, ground, bodyText)
-                check("contentSubtle", c.contentSubtle, groundName, ground, bodyText)
-                check("outlineStrong", c.outlineStrong, groundName, ground, nonText)
-                check("focusRing", c.focusRing, groundName, ground, nonText)
-            }
-
-            // Source code, on the one ground it is ever drawn on.
-            //
-            // Written out rather than left to the sweep above, and the reason
-            // is that a role added to `ColourScheme` owes this test **nothing
-            // automatically**: the lists here are written by hand, so a new
-            // colour arrives untested and passing. `lerpColourScheme` catches a
-            // role that is forgotten entirely — it will not compile — and
-            // nothing catches one that is merely never checked.
-            //
-            // Highlighting is decorative, so these are held to body text on the
-            // ground rather than to any separation from each other: a reader who
-            // cannot tell a keyword from a literal has lost nothing the
-            // characters do not still say. What would be a real defect is a
-            // literal that is hard to read at all.
-            run {
-                val code = c.code
-                for ((role, colour) in listOf(
-                    "code.plain" to code.plain,
-                    "code.keyword" to code.keyword,
-                    "code.literal" to code.literal,
-                    "code.comment" to code.comment,
-                )) {
-                    check(role, colour, "surfaceSunken", c.surfaceSunken, bodyText)
-                }
-            }
-
-            // Labels on solid fills, and the fills themselves against the page.
-            val solids = listOf(
-                Triple("primary", c.primary, c.onPrimary),
-                Triple("accent", c.accent.solid, c.accent.onSolid),
-                Triple("success", c.success.solid, c.success.onSolid),
-                Triple("warning", c.warning.solid, c.warning.onSolid),
-                Triple("danger", c.danger.solid, c.danger.onSolid),
-                Triple("info", c.info.solid, c.info.onSolid),
-            )
-            for ((toneName, solid, onSolid) in solids) {
-                check("on$toneName", onSolid, toneName, solid, bodyText)
-                check(toneName, solid, "background", c.background, nonText)
-            }
-
-            // Text on tinted containers.
-            val containers = listOf(
-                Triple("accent.container", c.accent.container, c.accent.onContainer),
-                Triple("successContainer", c.success.container, c.success.onContainer),
-                Triple("warningContainer", c.warning.container, c.warning.onContainer),
-                Triple("dangerContainer", c.danger.container, c.danger.onContainer),
-                Triple("infoContainer", c.info.container, c.info.onContainer),
-            )
-            for ((containerName, container, onContainer) in containers) {
-                check("on$containerName", onContainer, containerName, container, bodyText)
-            }
-
-            check("onSurfaceInverse", c.onSurfaceInverse, "surfaceInverse", c.surfaceInverse, bodyText)
+        // The walk itself is `contrastFailures`, in `a11y`, because a consumer
+        // authoring a palette needs exactly this and used to be told to copy it
+        // out of a test they cannot see. What stays here is the part that is a
+        // *test*: which schemes get walked, and a message grouped by scheme.
+        val failures = schemes.flatMap { (name, colours, tier) ->
+            contrastFailures(colours, tier).map { Failure(name, it.pair, it.ratio, it.required) }
         }
 
         if (failures.isNotEmpty()) {
@@ -215,8 +144,8 @@ class BrandIsDecorativeOnlyTest {
      * was the literal Kontour purple and 2.1:1 on white. The library has no
      * product colour now, so there is nothing to assert about the default. What
      * is worth keeping is the check itself, as something an app can run against
-     * its own scheme — which is what [brandIsSafeForText] is for, and what
-     * `anyways` calls on `KontourBrandTheme`.
+     * its own scheme — which is what [brandIsSafeForText] is for, and what the
+     * GTurbo demo theme's logo red would answer `false` to.
      */
     @Test
     fun theDefaultBrandIsTheAccentUntilAnAppSetsOne() {
@@ -239,5 +168,56 @@ class BrandIsDecorativeOnlyTest {
                 fail("accent fails non-text contrast in $name: $ratio:1")
             }
         }
+    }
+}
+
+/**
+ * Pins the other half of that contract: [ColourScheme.primary] is **structural**.
+ *
+ * Three roles carry a product's colour and they are not interchangeable.
+ * [ColourScheme.accent] is the brand as a tone and is under every contrast
+ * obligation. [ColourScheme.brand] is the literal mark and is under none — it is
+ * the one role `contrastFailures` does not walk. [ColourScheme.primary] is
+ * neither: its own KDoc defines it as "the solid call-to-action fill: near-black
+ * on light, near-white on dark", and all four built-in schemes are `Palette.Ink`,
+ * `Palette.Paper`, `Palette.Black` and `Palette.White`.
+ *
+ * ### Why this needed an assertion and `brand` did not
+ *
+ * `brand == accent.solid` is the *documented* default — the library ships no
+ * product, so brand resolves to the accent until an app sets one, and
+ * `ThemeShowcase` labels that swatch "brand — unset" when it happens. Collapse
+ * there is expected and visible.
+ *
+ * `primary == accent.solid` is a defect and is **invisible**. A theme that wires
+ * both to its brand colour draws two identical swatches under different names
+ * and, more to the point, drags all 34 sites that read `primary` along with the
+ * accent — both floating action buttons, `Slider` and `RangeSlider`'s active
+ * track, `RadioButton`'s mark, all three `Progress` forms, `Timeline`'s nodes,
+ * `Carousel`'s indicator, `CalendarMonth`'s selected day. Nothing errors and
+ * every contrast check still passes, because each colour is fine on its own.
+ *
+ * The GTurbo demo theme did exactly that for two stages, and the goldens showed
+ * it plainly the whole time. A picture is not a check.
+ */
+class PrimaryIsStructuralTest {
+
+    @Test
+    fun noBuiltInSchemeUsesItsAccentAsItsPrimary() {
+        val collapsed = listOf(
+            "light" to lightColourScheme(),
+            "dark" to darkColourScheme(),
+            "light/high-contrast" to highContrastLightColourScheme(),
+            "dark/high-contrast" to highContrastDarkColourScheme(),
+        ).filter { (_, scheme) -> scheme.primary == scheme.accent.solid }
+
+        assertTrue(
+            collapsed.isEmpty(),
+            "${collapsed.size} built-in scheme(s) have primary == accent.solid: " +
+                collapsed.joinToString(", ") { it.first } + ". They are separate " +
+                "roles — primary is the structural call-to-action fill and accent " +
+                "is the brand as a tone — and a scheme that gives them one value " +
+                "leaves no component able to tell them apart.",
+        )
     }
 }

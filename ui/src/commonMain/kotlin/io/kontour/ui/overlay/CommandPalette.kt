@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -380,7 +381,8 @@ fun commandMatches(query: String, command: Command): Boolean {
 
 object CommandPaletteDefaults {
     /** Wide enough for a command and its shortcut, narrow enough to read. */
-    val Width: Dp = 560.dp
+    val Width: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.commandPaletteWidth
 
     /**
      * How tall the results get before they scroll.
@@ -388,7 +390,8 @@ object CommandPaletteDefaults {
      * A palette that grows to fill the screen stops being a palette. Ten rows is
      * more than anyone reads before typing another letter.
      */
-    val MaxHeight: Dp = 360.dp
+    val MaxHeight: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.commandPaletteMaxHeight
 
     /**
      * How far down the screen it sits.
@@ -396,5 +399,6 @@ object CommandPaletteDefaults {
      * Not centred: the list grows downward as the user types, and a centred
      * palette jumps up the screen on every keystroke.
      */
-    val TopInset: Dp = 96.dp
+    val TopInset: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.commandPaletteTopInset
 }

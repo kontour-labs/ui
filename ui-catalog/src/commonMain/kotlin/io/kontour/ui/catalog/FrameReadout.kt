@@ -86,12 +86,12 @@ internal fun FrameReadout(modifier: Modifier = Modifier) {
     ) {
         Text(
             text = "${mean.tenths()} ms  mean",
-            style = Theme.typography.monoLabel,
+            style = Theme.typography.mono,
             colour = Color.White,
         )
         Text(
             text = "${worst.tenths()} ms  worst",
-            style = Theme.typography.monoLabel,
+            style = Theme.typography.mono,
             // Green while every frame in the window made sixty a second, amber
             // while they made thirty, red below that. The colour is the reading:
             // a number you have to interpret gets glanced at and forgotten.

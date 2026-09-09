@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -230,7 +231,8 @@ object KeyValueListDefaults {
      * width so a longer label pushes the column rather than wrapping to two
      * lines while the rest of the row sits empty.
      */
-    val LabelWidth: Dp = 108.dp
+    val LabelWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.keyValueLabelWidth
 
     /**
      * The narrowest a value column is worth having.
@@ -239,5 +241,6 @@ object KeyValueListDefaults {
      * value into a strip. Roughly "Transperth" at the body size: enough for a
      * short answer on one line, which is what most of these are.
      */
-    val MinValueWidth: Dp = 96.dp
+    val MinValueWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.keyValueMinValueWidth
 }

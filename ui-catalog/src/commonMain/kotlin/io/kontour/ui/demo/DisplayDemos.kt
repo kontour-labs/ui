@@ -40,14 +40,15 @@ import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
 import io.kontour.ui.components.display.Carousel
+import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.EmptyState
+import io.kontour.ui.components.display.ErrorState
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.LinearProgress
 import io.kontour.ui.components.display.PageIndicator
 import io.kontour.ui.components.display.PageIndicatorStyle
-import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.SkeletonListItem
 import io.kontour.ui.components.display.SkeletonText
@@ -291,7 +292,29 @@ internal val SkeletonDemo = ComponentDemo(slug = "skeleton") {
     }
 }
 
-internal val EmptyStateDemo = ComponentDemo(slug = "empty-state") {
+/**
+ * The two states share a page and a shape, so they share a demo.
+ *
+ * `ErrorState` is not a variant of `EmptyState` — it owns its retry button
+ * rather than taking an action slot, on the argument that an error with no way
+ * forward is a dead end. A knob is still the right way to show them: they are
+ * the same slot on the same screen, and the difference is what a reader came to
+ * see.
+ */
+private val stateKind = Knob.Choice("State", listOf("Empty", "Error"))
+
+internal val EmptyStateDemo = ComponentDemo(
+    slug = "empty-state",
+    knobs = listOf(stateKind),
+) {
+    if (this@ComponentDemo[stateKind] == "Error") {
+        ErrorState(Modifier.fillMaxWidth(), onRetry = { echo("Retry") }) {
+            +"Couldn't load your favourites"
+            supporting { +"Check your connection and try again." }
+            leading { +Tabler.Outline.AlertTriangle }
+        }
+        return@ComponentDemo
+    }
     EmptyState(Modifier.fillMaxWidth()) {
         +"No favourites yet"
         supporting { +"Star a stop or route and it will appear here." }
@@ -416,7 +439,15 @@ internal val CarouselDemo = ComponentDemo(slug = "carousel", knobs = listOf(indi
         PageIndicator(
             state = carousel,
             style = style,
-            onPageSelect = { page -> scope.launch { carousel.scrollToPage(page) } },
+            // Echoes as well as scrolls, like every other demo. Not decoration: the
+        // scroll is a suspending animation, so pressing a dot changes nothing
+        // observable until the clock advances — and under a hand-driven clock,
+        // which `EverythingRespondsTest` needs because the overlays never stop
+        // asking for frames, all four dots read as wired to nothing.
+        onPageSelect = { page ->
+            echo("Page ${page + 1}")
+            scope.launch { carousel.scrollToPage(page) }
+        },
         )
     }
 }
@@ -432,7 +463,15 @@ internal val PageIndicatorDemo = ComponentDemo(
     PageIndicator(
         state = carousel,
         style = this[indicatorStyle],
-        onPageSelect = { page -> scope.launch { carousel.scrollToPage(page) } },
+        // Echoes as well as scrolls, like every other demo. Not decoration: the
+        // scroll is a suspending animation, so pressing a dot changes nothing
+        // observable until the clock advances — and under a hand-driven clock,
+        // which `EverythingRespondsTest` needs because the overlays never stop
+        // asking for frames, all four dots read as wired to nothing.
+        onPageSelect = { page ->
+            echo("Page ${page + 1}")
+            scope.launch { carousel.scrollToPage(page) }
+        },
     )
 }
 

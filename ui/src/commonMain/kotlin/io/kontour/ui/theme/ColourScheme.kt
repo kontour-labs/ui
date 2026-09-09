@@ -97,9 +97,12 @@ data class StatusColours(
  *   It is a **role**, not a hue. The default schemes have no product in them, so
  *   it resolves to the same blue as [accent]; an app that sets one separates the
  *   two. The reason it is a separate token at all is that a brand colour is
- *   under no obligation to pass a contrast checker — Kontour's own `#BB86FC` is
- *   2.1:1 on white — and [accent] is under every obligation, so one token could
- *   not be both. `KontourBrandTheme` in `anyways` is the worked example.
+ *   under no obligation to pass a contrast checker and [accent] is under every
+ *   obligation, so one token could not be both. The GTurbo demo theme is the
+ *   worked example: its logo red `#E11F26` is 4.17:1 on its own near-black
+ *   ground — fine as a mark, unreadable as text — while its [accent] carries
+ *   both a fill label and body copy. [io.kontour.ui.a11y.brandIsSafeForText] is
+ *   the question to ask of your own scheme.
  * @property focusRing The keyboard focus indicator. Held to 3:1 against every
  *   ground in the scheme, which is why it is separate from [brand] and follows
  *   [accent] instead.
@@ -135,8 +138,20 @@ data class ColourScheme(
     val outlineSubtle: Color,
 
     // --- Primary action ---
-    /** The solid call-to-action fill: near-black on light, near-white on dark. */
+    /**
+     * The solid call-to-action fill: near-black on light, near-white on dark.
+     *
+     * **Structural, not brand.** The product's colour is [accent] (as a tone) and
+     * [brand] (as a mark); this is the third role and it is the neutral one. It
+     * reaches far past a filled button — the slider's active track, the radio
+     * mark, all three progress forms, the selected calendar day — so a scheme
+     * that sets it to its brand colour tints every one of those and leaves no
+     * component able to tell the two roles apart. Nothing errors when that
+     * happens and contrast still passes, which is why
+     * `PrimaryIsStructuralTest` asserts it instead.
+     */
     val primary: Color,
+    /** What is legible on [primary]. */
     val onPrimary: Color,
 
     // --- Accent ---
@@ -197,7 +212,7 @@ data class ColourScheme(
 )
 
 /**
- * The default light scheme: white and near-black structure, purple as accent.
+ * The default light scheme: white and near-black structure, blue as accent.
  *
  * Every parameter is defaulted, so a product theme overrides only what it needs:
  * ```
@@ -399,16 +414,76 @@ fun darkColourScheme(
 /**
  * The light scheme at [ContrastLevel.High]: pure black text, AAA body contrast.
  *
- * **Takes the three tones a product actually owns**, and nothing else. The rest
- * of this tier is not a design choice: at AAA the grounds are pure white, the
- * content is pure black, and the greys are the lightest values that still clear 7:1.
- * Parameterising those would offer a caller the freedom to break the only thing
- * the tier exists to guarantee.
+ * Every default below is the value the ratio demands — at AAA the grounds are
+ * pure white, the content is pure black, and the greys are the lightest values
+ * that still clear 7:1. **A caller who supplies nothing gets a scheme that
+ * clears WCAG AAA, checked on every build.**
  *
- * An app with a brand supplies its high-contrast accent here, the way
- * `KontourBrandTheme` in `anyways` does.
+ * ### Why it takes twenty-seven parameters and not three
+ *
+ * It took three — `accent`, `brand`, `focusRing` — and this KDoc argued that
+ * parameterising the rest "would offer a caller the freedom to break the only
+ * thing the tier exists to guarantee". True, and it also meant a product whose
+ * ground is not pure white or pure black had **no high-contrast tier at all**:
+ * there was no argument that kept the design's own ground and took the tuned
+ * greys, washes and status tones with it. The library's own GTurbo demo theme
+ * declined the tier for exactly that reason.
+ *
+ * Withholding a parameter protects the guarantee by blocking every legitimate
+ * use along with the illegitimate ones. What the guarantee actually *is* is a
+ * ratio, so check the ratio:
+ *
+ * ```
+ * val mine = highContrastDarkColourScheme(background = Color(0xFF0A0A0B))
+ *
+ * @Test
+ * fun myEnhancedTierIsEnhanced() {
+ *     assertEquals(emptyList(), contrastFailures(mine, ContrastLevel.High))
+ * }
+ * ```
+ *
+ * [io.kontour.ui.a11y.contrastFailures] is one call and names the token and the
+ * number it missed by. This function does not run it for you: an app whose brand
+ * lands at 6.9:1 should not crash, and it should certainly not crash only for the
+ * users who have the high-contrast setting switched on.
+ *
+ * ### Two things the defaults do that are not obvious
+ *
+ * [brand] and [focusRing] default to `accent.solid` rather than to a constant,
+ * so supplying an accent moves all three. The standard [lightColourScheme] uses
+ * constants that merely happen to agree at the default; the difference only shows
+ * when a caller passes something.
+ *
+ * [code]'s `plain` and `comment` follow [content] and [contentMuted], the way
+ * they do in [lightColourScheme] — so a brand that darkens its text gets code
+ * that darkens with it. `keyword` and `literal` stay constants: they are hues
+ * rather than a ground relationship.
+ *
+ * The worked example is `GTurbo` in `ui-catalog`, which is compiled, contrast-
+ * walked and photographed on every build.
  */
 fun highContrastLightColourScheme(
+    // Pure white, and it was previously not written down here at all: these four
+    // and `onPrimary` fell through to `lightColourScheme`'s own defaults, so they
+    // *tracked* the standard scheme. Pinning them is the one thing the widening
+    // changes about the no-argument result's provenance — Kotlin has no way to
+    // say "whatever the standard factory defaults to" — and it is stated rather
+    // than left to be discovered.
+    background: Color = Palette.White,
+    surface: Color = Palette.White,
+    surfaceSunken: Color = Palette.GreyHcSunken,
+    surfaceRaised: Color = Palette.White,
+    surfaceInverse: Color = Palette.Black,
+    onSurfaceInverse: Color = Palette.White,
+    content: Color = Palette.Black,
+    contentMuted: Color = Palette.GreyHcMuted,
+    contentSubtle: Color = Palette.GreyHcSubtle,
+    contentDisabled: Color = Palette.GreyHcDisabled,
+    outline: Color = Palette.GreyHcOutline,
+    outlineStrong: Color = Palette.GreyHcMuted,
+    outlineSubtle: Color = Palette.GreyHcOutlineSubtle,
+    primary: Color = Palette.Black,
+    onPrimary: Color = Palette.White,
     accent: StatusColours = StatusColours(
         solid = Palette.BlueStrong,
         onSolid = Palette.White,
@@ -418,142 +493,207 @@ fun highContrastLightColourScheme(
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
-): ColourScheme = lightColourScheme(
-    // The press and hover washes are the four values easiest to miss, because
-    // they are not named after anything visible: a 6% wash is invisible at this
-    // tier, so a control the user is pressing looks like a control they are not.
-    // The scrim goes darker for the same reason — what it is separating from is
-    // now higher contrast, so the old alpha separates less.
-    scrim = Color(0xB3000000),
-    overlayHover = Color(0x1F000000),
-    overlayPressed = Color(0x3D000000),
-    overlayDragged = Color(0x4D000000),
-    // Deeper, because 7:1 on a near-white ground leaves no room for the
-    // standard pair — and still 45 and 18 ΔE from each other and from black,
-    // which is what stops high contrast collapsing into one colour.
-    code = CodeColours(
-        plain = Palette.Black,
-        keyword = Palette.BlueDeeper,
-        literal = Palette.GreenOnLight,
-        comment = Palette.GreyHcMuted,
-    ),
-    surfaceSunken = Palette.GreyHcSunken,
-    surfaceInverse = Palette.Black,
-    content = Palette.Black,
-    contentMuted = Palette.GreyHcMuted,
-    contentSubtle = Palette.GreyHcSubtle,
-    contentDisabled = Palette.GreyHcDisabled,
-    outline = Palette.GreyHcOutline,
-    outlineStrong = Palette.GreyHcMuted,
-    outlineSubtle = Palette.GreyHcOutlineSubtle,
-    primary = Palette.Black,
-    accent = accent,
-    brand = brand,
-    focusRing = focusRing,
-    success = StatusColours(
+    success: StatusColours = StatusColours(
         solid = Palette.GreenHcSolid,
         onSolid = Palette.White,
         container = Palette.GreenHcTint,
         onContainer = Palette.GreenHcDeep,
         border = Palette.GreenHcSolid,
     ),
-    warning = StatusColours(
+    warning: StatusColours = StatusColours(
         solid = Palette.AmberHcSolid,
         onSolid = Palette.White,
         container = Palette.AmberHcTint,
         onContainer = Palette.AmberHcDeep,
         border = Palette.AmberHcSolid,
     ),
-    danger = StatusColours(
+    danger: StatusColours = StatusColours(
         solid = Palette.RedHcSolid,
         onSolid = Palette.White,
         container = Palette.RedHcTint,
         onContainer = Palette.RedHcDeep,
         border = Palette.RedHcSolid,
     ),
-    info = StatusColours(
+    info: StatusColours = StatusColours(
         solid = Palette.SkyHcSolid,
         onSolid = Palette.White,
         container = Palette.SkyHcTint,
+        // `SkyDeep`, not `SkyHcDeep` — there is no such constant, and this is
+        // the one status `onContainer` in this tier borrowed from the standard
+        // palette. It reads as a typo beside its four siblings and is not one.
         onContainer = Palette.SkyDeep,
         border = Palette.SkyHcSolid,
     ),
+    // The press and hover washes are the four values easiest to miss, because
+    // they are not named after anything visible: a 6% wash is invisible at this
+    // tier, so a control the user is pressing looks like a control they are not.
+    // The scrim goes darker for the same reason — what it is separating from is
+    // now higher contrast, so the old alpha separates less.
+    //
+    // They are also the four that neither the goldens nor `contrastFailures` can
+    // see: nothing in a still frame is hovered or pressed, and a wash composites
+    // over what is behind it so there is no pairing to take a ratio of.
+    // `HighContrastWideningTest` is what covers them.
+    scrim: Color = Color(0xB3000000),
+    overlayHover: Color = Color(0x1F000000),
+    overlayPressed: Color = Color(0x3D000000),
+    overlayDragged: Color = Color(0x4D000000),
+    // Deeper, because 7:1 on a near-white ground leaves no room for the
+    // standard pair — and still 45 and 18 ΔE from each other and from black,
+    // which is what stops high contrast collapsing into one colour.
+    //
+    // `plain` and `comment` track [content] and [contentMuted] the way they do
+    // in [lightColourScheme]; `literal` is `GreenOnLight`, a dark-mode entry
+    // borrowed here for its depth, not the `GreenHcDeep` its name suggests.
+    code: CodeColours = CodeColours(
+        plain = content,
+        keyword = Palette.BlueDeeper,
+        literal = Palette.GreenOnLight,
+        comment = contentMuted,
+    ),
+): ColourScheme = lightColourScheme(
+    background = background,
+    surface = surface,
+    surfaceSunken = surfaceSunken,
+    surfaceRaised = surfaceRaised,
+    surfaceInverse = surfaceInverse,
+    onSurfaceInverse = onSurfaceInverse,
+    content = content,
+    contentMuted = contentMuted,
+    contentSubtle = contentSubtle,
+    contentDisabled = contentDisabled,
+    outline = outline,
+    outlineStrong = outlineStrong,
+    outlineSubtle = outlineSubtle,
+    primary = primary,
+    onPrimary = onPrimary,
+    accent = accent,
+    brand = brand,
+    focusRing = focusRing,
+    success = success,
+    warning = warning,
+    danger = danger,
+    info = info,
+    scrim = scrim,
+    overlayHover = overlayHover,
+    overlayPressed = overlayPressed,
+    overlayDragged = overlayDragged,
+    code = code,
 )
 
 /**
  * The dark scheme at [ContrastLevel.High]: pure black ground, pure white text.
  *
- * Takes the same three tones as [highContrastLightColourScheme], for the same
- * reason: at AAA on black, everything but the accent is fixed by the ratio it
- * has to clear.
+ * Takes the same twenty-seven parameters as [highContrastLightColourScheme] and
+ * for the same reasons — read that one. **This is the tier a near-black product
+ * could not previously have**: `background` was fixed to pure black and the
+ * surfaces to the `InkHc` ladder, so a design whose ground is `#0A0A0B` had to
+ * decline the enhanced tier rather than author one.
+ *
+ * Every default is still the value the ratio demands, and a caller who supplies
+ * nothing gets AAA. A caller who supplies a ground owns the ratio, and
+ * [io.kontour.ui.a11y.contrastFailures] is the one call that checks it.
  */
 fun highContrastDarkColourScheme(
+    background: Color = Palette.Black,
+    surface: Color = Palette.InkHcSurface,
+    surfaceSunken: Color = Palette.InkHcSunken,
+    surfaceRaised: Color = Palette.InkHcRaised,
+    surfaceInverse: Color = Palette.White,
+    onSurfaceInverse: Color = Palette.Black,
+    content: Color = Palette.White,
+    contentMuted: Color = Palette.SlateHcMuted,
+    contentSubtle: Color = Palette.SlateHcSubtle,
+    contentDisabled: Color = Palette.SlateHcDisabled,
+    outline: Color = Palette.SlateHcOutline,
+    outlineStrong: Color = Palette.SlateHcOutlineStrong,
+    outlineSubtle: Color = Palette.SlateHcOutlineSubtle,
+    primary: Color = Palette.White,
+    onPrimary: Color = Palette.Black,
     accent: StatusColours = StatusColours(
         solid = Palette.BlueLightHc,
         onSolid = Palette.BlueHcOnLight,
         container = Palette.BlueTintDarkHc,
         onContainer = Palette.BluePaleHc,
+        // The accent's border is its own solid here, as it is for all four
+        // status tones in both high-contrast tiers — unlike the standard tiers,
+        // where borders are separate softer values. `Palette.BlueBorderDarkHc`
+        // exists and is read by nothing; it looks like the value that belongs
+        // here and is not.
         border = Palette.BlueLightHc,
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
-): ColourScheme = darkColourScheme(
-    scrim = Color(0xC2000000),
-    overlayHover = Color(0x24FFFFFF),
-    overlayPressed = Color(0x47FFFFFF),
-    overlayDragged = Color(0x54FFFFFF),
-    code = CodeColours(
-        plain = Palette.White,
-        keyword = Palette.BlueLightHc,
-        literal = Palette.GreenPale,
-        comment = Palette.SlateHcMuted,
-    ),
-    background = Palette.Black,
-    surface = Palette.InkHcSurface,
-    surfaceSunken = Palette.InkHcSunken,
-    surfaceRaised = Palette.InkHcRaised,
-    surfaceInverse = Palette.White,
-    onSurfaceInverse = Palette.Black,
-    content = Palette.White,
-    contentMuted = Palette.SlateHcMuted,
-    contentSubtle = Palette.SlateHcSubtle,
-    contentDisabled = Palette.SlateHcDisabled,
-    outline = Palette.SlateHcOutline,
-    outlineStrong = Palette.SlateHcOutlineStrong,
-    outlineSubtle = Palette.SlateHcOutlineSubtle,
-    primary = Palette.White,
-    onPrimary = Palette.Black,
-    accent = accent,
-    brand = brand,
-    focusRing = focusRing,
-    success = StatusColours(
+    success: StatusColours = StatusColours(
         solid = Palette.GreenHcLight,
         onSolid = Palette.GreenHcOnLight,
         container = Palette.GreenHcDarkTint,
         onContainer = Palette.GreenHcPale,
         border = Palette.GreenHcLight,
     ),
-    warning = StatusColours(
+    warning: StatusColours = StatusColours(
         solid = Palette.AmberHcLight,
         onSolid = Palette.AmberHcOnLight,
         container = Palette.AmberHcDarkTint,
         onContainer = Palette.AmberHcPale,
         border = Palette.AmberHcLight,
     ),
-    danger = StatusColours(
+    danger: StatusColours = StatusColours(
         solid = Palette.RedHcLight,
         onSolid = Palette.RedHcOnLight,
         container = Palette.RedHcDarkTint,
         onContainer = Palette.RedHcPale,
         border = Palette.RedHcLight,
     ),
-    info = StatusColours(
+    info: StatusColours = StatusColours(
         solid = Palette.SkyHcLight,
         onSolid = Palette.SkyHcOnLight,
         container = Palette.SkyHcDarkTint,
         onContainer = Palette.SkyHcPale,
         border = Palette.SkyHcLight,
     ),
+    scrim: Color = Color(0xC2000000),
+    overlayHover: Color = Color(0x24FFFFFF),
+    overlayPressed: Color = Color(0x47FFFFFF),
+    overlayDragged: Color = Color(0x54FFFFFF),
+    // `plain` and `comment` track [content] and [contentMuted]. `literal` is
+    // `GreenPale`, the *standard* dark tone — `GreenHcPale` exists and is used
+    // two fields up for `success.onContainer`, which makes this look like a slip
+    // and it is the shipped value.
+    code: CodeColours = CodeColours(
+        plain = content,
+        keyword = Palette.BlueLightHc,
+        literal = Palette.GreenPale,
+        comment = contentMuted,
+    ),
+): ColourScheme = darkColourScheme(
+    background = background,
+    surface = surface,
+    surfaceSunken = surfaceSunken,
+    surfaceRaised = surfaceRaised,
+    surfaceInverse = surfaceInverse,
+    onSurfaceInverse = onSurfaceInverse,
+    content = content,
+    contentMuted = contentMuted,
+    contentSubtle = contentSubtle,
+    contentDisabled = contentDisabled,
+    outline = outline,
+    outlineStrong = outlineStrong,
+    outlineSubtle = outlineSubtle,
+    primary = primary,
+    onPrimary = onPrimary,
+    accent = accent,
+    brand = brand,
+    focusRing = focusRing,
+    success = success,
+    warning = warning,
+    danger = danger,
+    info = info,
+    scrim = scrim,
+    overlayHover = overlayHover,
+    overlayPressed = overlayPressed,
+    overlayDragged = overlayDragged,
+    code = code,
 )
 
 /** Picks the built-in scheme for a given mode and contrast tier. */

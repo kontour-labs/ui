@@ -137,7 +137,10 @@ internal fun FieldScaffold(
     Column(modifier = modifier.fillMaxWidth()) {
         if (label != null) {
             Text(
-                text = label,
+                // The one label that does not reach `contentScope`: a field
+                // takes its label as a `String` rather than a slot, because the
+                // control below it needs the same text as its accessible name.
+                text = if (Theme.componentDefaults.uppercaseLabels) label.uppercase() else label,
                 // Visible, but not a node of its own. Every control that goes
                 // through this scaffold takes the label as its accessible *name*
                 // — see `TextField` and `SelectFrame` — so leaving this

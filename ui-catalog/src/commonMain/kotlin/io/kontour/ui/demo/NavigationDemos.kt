@@ -47,12 +47,14 @@ import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavRail
+import io.kontour.ui.nav.NavSearch
 import io.kontour.ui.nav.NavigationSuiteScaffold
 import io.kontour.ui.nav.Pagination
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
+import io.kontour.ui.nav.rememberNavSearchState
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
@@ -133,14 +135,25 @@ private val barStyle = Knob.Choice("Bar style", NavBarStyle.entries.toList(), Na
  * the screen without the bar measuring a pixel taller — so the demo shows it
  * over content rather than over the frame's own ground.
  */
+/**
+ * Swaps the bar's floating action for a [NavSearch].
+ *
+ * The arrangement Round 12 built and only the gallery ever drew: a search field
+ * that lives *in* the navigation surface and expands in place, rather than a
+ * button that opens a screen. It sizes itself to the bar, so seeing it in the
+ * bar is the only way to see what it does.
+ */
+private val barSearch = Knob.Flag("Search in the bar")
+
 private val barBackdrop = Knob.Flag("Backdrop")
 
 internal val NavSurfacesDemo = ComponentDemo(
     slug = "nav-surfaces",
-    knobs = listOf(barStyle, barLabels, barBackdrop),
+    knobs = listOf(barStyle, barLabels, barBackdrop, barSearch),
 ) {
     var selected by remember { mutableStateOf(1) }
     var expanded by remember { mutableStateOf(false) }
+    val navSearch = rememberNavSearchState()
     val labels = this[barLabels]
     val style = this[barStyle]
     val backdrop = this[barBackdrop]
@@ -156,12 +169,25 @@ internal val NavSurfacesDemo = ComponentDemo(
                     showLabels = labels,
                     backdrop = backdrop,
                     action = {
-                        FloatingActionButton(
-                            icon = Tabler.Outline.Search,
-                            contentDescription = "Search",
-                            onClick = { echo("Search") },
-                            size = FabSize.Small,
-                        )
+                        // The bar's action slot takes either. A floating action
+                        // is the common case; `NavSearch` is what goes there
+                        // when searching *is* the primary action, and it sizes
+                        // itself to the surface rather than to the slot.
+                        if (this@ComponentDemo[barSearch]) {
+                            NavSearch(
+                                state = navSearch,
+                                placeholder = "Search stops",
+                                searchIcon = Tabler.Outline.Search,
+                                onSearch = { echo("Search: $it") },
+                            )
+                        } else {
+                            FloatingActionButton(
+                                icon = Tabler.Outline.Search,
+                                contentDescription = "Search",
+                                onClick = { echo("Search") },
+                                size = FabSize.Small,
+                            )
+                        }
                     },
                 )
             }
@@ -209,7 +235,7 @@ internal val NavigationSuiteScaffoldDemo = ComponentDemo(slug = "navigation-suit
                 ) {
                     Text(
                         "content",
-                        style = Theme.typography.monoLabel,
+                        style = Theme.typography.eyebrow,
                         colour = Theme.colours.contentSubtle,
                     )
                 }

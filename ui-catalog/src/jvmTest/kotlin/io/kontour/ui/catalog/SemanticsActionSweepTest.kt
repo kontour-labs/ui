@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -15,6 +16,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.v2.runDesktopComposeUiTest
 import androidx.compose.ui.unit.Density
+import io.kontour.ui.demo.DemoContentForTest
+import io.kontour.ui.demo.demoFamilies
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
@@ -80,27 +83,47 @@ import kotlin.test.fail
 @OptIn(ExperimentalTestApi::class)
 class SemanticsActionSweepTest {
 
-    @Test fun actionsSurviveTheirActions() = sweep("actions", expected = 0) { ButtonShowcase() }
+    // **Floors measured, not guessed.** Every one below came from a run with the
+    // floor at zero, reading what each family actually reports.
+    //
+    // They are floors on the *demos*, which is a different population from the
+    // showcase panels these replaced, so the numbers moved in both directions:
+    // `Collections` went from 2 to 9 and `Selection` from 12 to 9. Neither is a
+    // regression in the library — the panels arranged more sliders than the
+    // demos do, and the demos reach more list rows.
+    //
+    // They also depend on **knob defaults**, because `DemoContentForTest` renders
+    // each demo at its initial settings. `Foundation` reports zero although
+    // `pane-scaffold` publishes `setProgress`, because its divider is only
+    // resizable when the knob says so. A floor is a floor, not a census.
+    @Test fun actionsSurviveTheirActions() = sweepFamily("Actions", expected = 0)
 
-    @Test fun selectionSurvivesItsActions() = sweep("selection", expected = 12) { SelectionShowcase() }
+    @Test fun selectionSurvivesItsActions() = sweepFamily("Selection", expected = 9)
 
-    @Test fun textSurvivesItsActions() = sweep("text", expected = 0) { TextShowcase() }
+    @Test fun textEditingSurvivesItsActions() = sweepFamily("Text editing", expected = 0)
 
-    @Test fun dateAndTimeSurviveTheirActions() = sweep("datetime", expected = 0) { DateTimeShowcase() }
+    @Test fun dateAndTimeSurviveTheirActions() = sweepFamily("Date and time", expected = 0)
 
-    @Test fun overlaysSurviveTheirActions() = sweep("overlays", expected = 0) { OverlayShowcase() }
+    @Test fun displaySurvivesItsActions() = sweepFamily("Display", expected = 2)
 
-    @Test fun formsSurviveTheirActions() = sweep("forms", expected = 0) { SelectShowcase() }
+    @Test fun collectionsSurviveTheirActions() = sweepFamily("Collections", expected = 9)
 
-    @Test fun sheetsSurviveTheirActions() = sweep("sheets", expected = 4) { SheetShowcase() }
+    @Test fun overlaysSurviveTheirActions() = sweepFamily("Overlays", expected = 0)
 
-    @Test fun listsSurviveTheirActions() = sweep("lists", expected = 2) { ListShowcase() }
+    @Test fun sheetsSurviveTheirActions() = sweepFamily("Sheets", expected = 4)
 
-    @Test fun navigationSurvivesItsActions() = sweep("nav", expected = 0) { NavShowcase() }
+    @Test fun navigationSurvivesItsActions() = sweepFamily("Navigation", expected = 0)
 
-    @Test fun adaptiveLayoutsSurviveTheirActions() = sweep("adaptive", expected = 3) { AdaptiveShowcase() }
+    @Test fun adaptiveSurvivesItsActions() = sweepFamily("Adaptive", expected = 0)
 
-    @Test fun displaySurvivesItsActions() = sweep("display", expected = 2) { DisplayShowcase() }
+    @Test fun foundationSurvivesItsActions() = sweepFamily("Foundation", expected = 0)
+
+    private fun sweepFamily(name: String, expected: Int) {
+        val family = demoFamilies.single { it.name == name }
+        sweep(name, expected) {
+            Column { family.demos.forEach { DemoContentForTest(it, emptyMap()) } }
+        }
+    }
 
     /** One action to perform, and enough about it to name it in a failure. */
     private class Reachable(val nodeId: Int, val what: String, val perform: (SemanticsNode) -> Unit)
@@ -206,7 +229,7 @@ class SemanticsActionSweepTest {
     private val everything = SemanticsMatcher("any node") { true }
 
     /** The same surface `EverythingRespondsTest` uses, and for the same reason. */
-    private val Canvas = 1200
+    private val Canvas = 2600
     private val CanvasDensity = 0.5f
 
     private fun ComposeUiTest.settle() {

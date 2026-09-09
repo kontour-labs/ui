@@ -67,7 +67,9 @@ Everything on [`BottomSheet`](bottom-sheet.md) applies, and modality is the
 difference.
 
 `paneTitle` matters more here, because the content behind is blocked and the
-sheet is the whole of what the user can now reach. The scrim carries a labelled
+sheet is the whole of what the user can now reach — literally so: while the
+sheet is up, [`OverlayHost`](overlay-host.md) clears the page below it out of
+the semantics tree, so there is nothing else for a screen reader to find. The scrim carries a labelled
 dismiss action (`dismissLabel`, `Theme.strings.close` by default), so tapping
 away has an equivalent for someone who cannot tap away, and the platform back
 gesture closes it.

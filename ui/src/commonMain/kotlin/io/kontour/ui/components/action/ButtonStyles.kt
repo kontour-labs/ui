@@ -245,44 +245,49 @@ object ButtonDefaults {
     fun metrics(size: ButtonSize): ButtonMetrics {
         val s = Theme.sizing
         val t = Theme.typography
+        // `height`, `iconSize` and `textStyle` have always come from the theme;
+        // `horizontalPadding` and `gap` were `10.dp` and `4.dp` written into
+        // this function, so a brand wanting tighter buttons had to pass
+        // `contentPadding` at every call site. They come from the theme now too.
+        val d = Theme.componentDefaults
         return when (size) {
             ButtonSize.XSmall -> ButtonMetrics(
                 height = s.controlHeightXSmall,
-                horizontalPadding = 10.dp,
+                horizontalPadding = d.buttonPaddingXSmall,
                 iconSize = s.iconSmall,
-                gap = 4.dp,
+                gap = d.buttonGapXSmall,
                 textStyle = t.labelSmall,
             )
 
             ButtonSize.Small -> ButtonMetrics(
                 height = s.controlHeightSmall,
-                horizontalPadding = 14.dp,
+                horizontalPadding = d.buttonPaddingSmall,
                 iconSize = s.iconSmall,
-                gap = 6.dp,
+                gap = d.buttonGapSmall,
                 textStyle = t.labelMedium,
             )
 
             ButtonSize.Medium -> ButtonMetrics(
                 height = s.controlHeightMedium,
-                horizontalPadding = 20.dp,
+                horizontalPadding = d.buttonPaddingMedium,
                 iconSize = s.iconMedium,
-                gap = 8.dp,
+                gap = d.buttonGapMedium,
                 textStyle = t.labelMedium,
             )
 
             ButtonSize.Large -> ButtonMetrics(
                 height = s.controlHeightLarge,
-                horizontalPadding = 24.dp,
+                horizontalPadding = d.buttonPaddingLarge,
                 iconSize = s.iconLarge,
-                gap = 8.dp,
+                gap = d.buttonGapLarge,
                 textStyle = t.labelLarge,
             )
 
             ButtonSize.XLarge -> ButtonMetrics(
                 height = s.controlHeightXLarge,
-                horizontalPadding = 32.dp,
+                horizontalPadding = d.buttonPaddingXLarge,
                 iconSize = s.iconLarge,
-                gap = 10.dp,
+                gap = d.buttonGapXLarge,
                 textStyle = t.labelLarge,
             )
         }
@@ -317,6 +322,8 @@ object ButtonDefaults {
      * small controls, which is most of why they can afford it — and leaves the
      * large ones where they were.
      */
+    @Composable
+    @ReadOnlyComposable
     fun pressScale(
         variant: ButtonVariant,
         size: ButtonSize = ButtonSize.Medium,
@@ -332,8 +339,10 @@ object ButtonDefaults {
     }
 
     /** 28 and 36dp: small enough that 7% reads as a press rather than as a collapse. */
-    const val SmallPressScale: Float = 0.93f
+    val SmallPressScale: Float
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.pressScaleSmall
 
     /** 44dp. */
-    const val MediumPressScale: Float = 0.95f
+    val MediumPressScale: Float
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.pressScaleMedium
 }

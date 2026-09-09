@@ -69,16 +69,23 @@ fun meetsContrast(
  *
  * A brand colour is under no obligation to pass a contrast checker — that is
  * the entire reason [io.kontour.ui.theme.ColourScheme.brand] is a separate token
- * from `accent`, which is under every obligation. Kontour's own `#BB86FC` is
- * 2.1:1 on white and has to stay decorative.
+ * from `accent`, which is under every obligation, and it is why `brand` is the
+ * one role [contrastFailures] does not walk.
+ *
+ * The shipped default happens to satisfy both: `#1D4ED8` is 6.7:1 on white, so
+ * it *would* carry text. That is a fact about this palette rather than about the
+ * role, and reading it as permission is the mistake this function exists to
+ * prevent. The GTurbo demo theme is the other case — its logo red `#E11F26` is
+ * 4.17:1 on its own near-black ground and worse on anything lighter, and it
+ * belongs in `brand` for exactly that reason.
  *
  * So this is not a rule the library enforces; it is a question an app can ask
  * about its own scheme, once, in a test:
  *
  * ```kotlin
  * @Test
- * fun theBrandPurpleStaysDecorative() {
- *     assertFalse(brandIsSafeForText(KontourBrandTheme.colours(dark = false)))
+ * fun theLogoRedStaysDecorative() {
+ *     assertFalse(brandIsSafeForText(myBrandScheme(dark = true)))
  * }
  * ```
  *

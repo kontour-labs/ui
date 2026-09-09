@@ -233,7 +233,7 @@ class PhoneWidthTest {
                         Modifier
                             .fillMaxSize()
                             .background(Theme.colours.background)
-                            .verticalScroll(rememberScrollState())
+                            // (scroller removed — the page scrolls itself)
                     ) {
                         content()
                     }
@@ -253,13 +253,22 @@ class PhoneWidthTest {
         const val PhoneDensity = 3f
 
         /**
-         * Long enough for every entry animation to have started.
+         * Long enough for every entry animation to have *finished*.
          *
          * A specimen that throws on its first frame would be caught by one, but
          * several of these animate something in — a selection indicator settling,
          * a marker arriving — and a crash a few frames later is still a crash.
+         *
+         * Twelve covered that and was not enough for the picture. Under
+         * `reduceMotion` an overlay's entry is `tweenFast`, 150ms, and the state
+         * change that starts it costs a hop or two of its own — so the sheet
+         * demo photographed here landed some 17dp short of its resting place,
+         * with its Save button clipped by the stage it was still sliding into. A
+         * golden meant to be looked at should not be a picture of the ninth
+         * frame of an animation. Twenty-four is 384ms, comfortably past every
+         * duration in `kontourMotion` that this file can reach.
          */
-        const val Frames = 12
+        const val Frames = 24
 
         /** `platformMinTouchTarget` on Android, which the JVM would otherwise report as 24dp. */
         val AndroidTouchTarget = 48.dp
@@ -267,16 +276,21 @@ class PhoneWidthTest {
         /**
          * The same 360dp, at the density the rest of the goldens use.
          *
-         * [GoldenHeight] is 4500dp of page, which is a great deal more than a
-         * phone and is the point: the tallest page here (overlays, with its
-         * scrim-backed specimens) runs past 4000dp, and at the 3000px this file
-         * shipped with, nine of the thirteen were cut off mid-specimen. The
-         * blank tail costs almost nothing — it is one run-length in the PNG —
-         * and `bottomIsEmpty` fails the run if a page ever outgrows it, which
-         * is how each of the two rises since has been noticed.
+         * [GoldenHeight] is 10,000dp of page, which is a great deal more than a
+         * phone and is the point: at the 3000px this file shipped with, nine of
+         * the thirteen were cut off mid-specimen. The blank tail costs almost
+         * nothing — it is one run-length in the PNG — and `bottomIsEmpty` fails
+         * the run if a page ever outgrows it, which is how each of the three
+         * rises since has been noticed.
+         *
+         * The last rise, from 4500dp, is the largest and has a cause worth
+         * naming: a page is now a whole *family* of demos rather than a
+         * hand-arranged panel, and `Display` holds eighteen of them. At phone
+         * width that is a genuinely long page, and it is long in the app too —
+         * this is measuring the thing, not the harness.
          */
         const val GoldenWidth = 720
-        const val GoldenHeight = 9000
+        const val GoldenHeight = 20000
         const val GoldenDensity = 2f
 
         /**

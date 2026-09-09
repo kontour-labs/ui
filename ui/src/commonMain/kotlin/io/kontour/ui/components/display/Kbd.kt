@@ -18,7 +18,6 @@ import com.composables.icons.tabler.outline.ArrowBigUp
 import com.composables.icons.tabler.outline.Backspace
 import com.composables.icons.tabler.outline.Command
 import com.composables.icons.tabler.outline.CornerDownLeft
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -106,7 +105,12 @@ fun Kbd(
         // bounds *are* its drawing. That is what [KbdIcons] is for.
         ProvideTextStyle(
             Theme.typography.labelSmall.copy(
-                fontFamily = FontFamily.Monospace,
+                // The theme's mono, not the platform's. `FontFamily.Monospace`
+                // is Menlo here, Consolas there and whatever a browser was set
+                // to on the web, so a keycap was a different width on every
+                // target — and an app that themed its monospaced face got that
+                // face everywhere except its keyboard keys.
+                fontFamily = Theme.typography.mono.fontFamily,
                 lineHeightStyle = LineHeightStyle(
                     alignment = LineHeightStyle.Alignment.Center,
                     trim = LineHeightStyle.Trim.Both,

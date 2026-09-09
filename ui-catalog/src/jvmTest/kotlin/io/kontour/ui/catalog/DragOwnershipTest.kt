@@ -82,7 +82,13 @@ import kotlin.test.assertTrue
  * The race is only lost when the control's axis differs from the scroller's. A
  * vertical drag inside a vertical scroller is decided by depth rather than by
  * slope — the child is asked first and reaches the same threshold at the same
- * event — so `Scrollbar`, `Toast` and `PullToRefresh` are not exposed to it.
+ * event — so `Scrollbar` and `PullToRefresh` are not exposed to it.
+ *
+ * **`Toast` was on that list and came off it in Round 28**, and not because the
+ * claim was wrong. It was right for as long as a toast dragged on one axis. A
+ * toast now dismisses toward its anchored edge *or* sideways, and the sideways
+ * half is a horizontal drag inside a vertical list — the race this file is
+ * about. It owns its drag now, and `ToastSwipeTest` carries the sweep.
  *
  * That leaves the horizontal controls inside the site's vertical list, and most
  * of those should keep losing. A `Switch`, a `TabBar` swipe and a `Carousel` are
@@ -201,10 +207,11 @@ class DragOwnershipTest {
     fun aDragOnTheScrollersOwnAxisIsDecidedByDepthRatherThanByAngle() {
         // The measurement behind changing six components: nothing.
         //
-        // `Toast`, `Scrollbar` and `PullToRefresh` all drag along the same axis
-        // the page scrolls on, and the argument for leaving them alone is that
-        // there is no race to lose — both are waiting for the same threshold on
-        // the same axis, and the child is asked first. That is a claim about
+        // `Scrollbar` and `PullToRefresh` drag along the same axis the page
+        // scrolls on, and the argument for leaving them alone is that there is
+        // no race to lose — both are waiting for the same threshold on the same
+        // axis, and the child is asked first. (`Toast` was here too until it
+        // grew a sideways dismiss; see the note above.) That is a claim about
         // Compose's arbitration rather than about the library, so it is measured
         // here rather than asserted in a comment; if a Compose upgrade changes
         // it, this says so instead of the next reporter.
@@ -247,7 +254,7 @@ class DragOwnershipTest {
                     "${travelled}px of ${along}px. On the scroller's own axis " +
                     "the child is asked first and claims at the same threshold, " +
                     "so this should be nearly all of it — if it is nearly none, " +
-                    "the exemption for `Toast`, `Scrollbar` and `PullToRefresh` " +
+                    "the exemption for `Scrollbar` and `PullToRefresh` " +
                     "no longer holds and they need the owning drag too.",
             )
             assertTrue(

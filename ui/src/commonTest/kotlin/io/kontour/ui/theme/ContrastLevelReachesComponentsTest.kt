@@ -33,8 +33,11 @@ import kotlin.test.assertTrue
  * call. Both are the kind of thing that gets quietly dropped in a rewrite of the
  * component that owns them.
  *
- * The goldens are the other half of this — `actions-`, `display-`, `lists-`,
- * `selection-` and `text-*-high-contrast` — and they are what a human looks at.
+ * The goldens are the other half of this, and there are fewer of them than there
+ * were: the five per-family high-contrast pictures this KDoc used to name went
+ * when the gallery's hand-written panels were replaced by its demos, and what a
+ * human looks at now is `theme-light-high-contrast` and its dark twin, which
+ * carry the five shadow-edged components in a Contrast section written for it.
  * These are what fails in CI without anyone looking.
  */
 @OptIn(ExperimentalTestApi::class)

@@ -39,9 +39,21 @@ The host is what makes an overlay reachable rather than merely visible.
 
 Each entry is an `isTraversalGroup` with `traversalIndex = index + 1`, and the
 screen underneath is `traversalIndex = 0`. Traversal order therefore follows the
-stack: a screen reader reaches the newest overlay first and the page last,
+stack: a screen reader reaches the newest overlay first and the page after it,
 however the composables happen to be nested. Without that, an overlay drawn last
 in a `Box` is read *after* the content it covers.
+
+**A dimmed overlay removes the page rather than ordering it last.** While any
+entry with `ScrimStyle.Dimmed` is on the stack — a dialog, a modal sheet — the
+content underneath is cleared from the semantics tree entirely, so there is no
+page to traverse to. That is the same statement the dimming makes to a sighted
+user and the focus trap makes to a keyboard one; before it, a button under an
+open sheet kept its click action and could be announced and activated by
+assistive technology alone.
+
+Menus and popovers are deliberately outside that. `ScrimStyle.Transparent`
+blocks pointer input without dimming, the page behind a dropdown keeps
+scrolling, and it stays readable.
 
 The scrim is not decoration. Where an overlay is dismissible it carries an
 `onClick` action with a real label — `Theme.strings.dismiss`, or whatever the

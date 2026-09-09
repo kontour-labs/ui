@@ -1,6 +1,7 @@
 package io.kontour.ui.overlay
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.PathFillType
@@ -89,10 +90,12 @@ object BackdropDefaults {
      * busy background. Across a whole screen a radius that size reads as a
      * smudge on the glass rather than as distance.
      */
-    val BlurRadius: Dp = 24.dp
+    val BlurRadius: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.backdropBlurRadius
 
     /** How far back the presenting content sits under a sheet. */
-    const val ScaleBack: Float = 0.94f
+    val ScaleBack: Float
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.backdropScaleBack
 }
 
 /**
@@ -128,6 +131,9 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
     val blurring = LocalBackdropBlur.current && platformSupportsBackdropBlur
     val scaling = style == BackdropStyle.BlurAndScale
     val clipShape: Shape = Theme.shapes.extraLarge
+    // Read here rather than in the lambda below: `graphicsLayer` runs at draw
+    // time, and a theme value has to be captured in composition.
+    val scaleBack = BackdropDefaults.ScaleBack
     if (!blurring && !scaling) return this
 
     return graphicsLayer {
@@ -153,7 +159,7 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
         }
 
         if (scaling) {
-            val scale = lerp(1f, BackdropDefaults.ScaleBack, f)
+            val scale = lerp(1f, scaleBack, f)
             scaleX = scale
             scaleY = scale
             shape = clipShape
@@ -188,9 +194,9 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
  * That is a guess about the caller, and the one place it is visibly wrong is
  * worth naming: an app whose root paints *nothing* shows this ring against
  * whatever its window is, instead of showing the window through the halo.
- * `SheetShowcase`'s phone frame is exactly that — a `surface`-coloured box with
- * an empty `OverlayHost` in it — and `sheets-dark` photographs the ring because
- * of it. The alternative is to keep letting the page through, which is the
+ * The catalog's sheet demos frame their stage exactly that way — a
+ * `surface`-coloured `Surface` with its own `OverlayHost` in it — and
+ * `phone/sheets` photographs the ring because of it. The alternative is to keep letting the page through, which is the
  * defect. Between guessing the colour of a root that paints one and showing a
  * white browser page under a dark app, the guess wins.
  *
@@ -212,6 +218,7 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         0f
     }
     val backing = Theme.colours.background
+    val scaleBack = BackdropDefaults.ScaleBack
 
     return drawBehind {
         val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
@@ -255,7 +262,7 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         // taken deliberately here rather than by accident. The difference is
         // that it is a single pixel and it is the same pixel all the way round,
         // where that bug was a whole corner radius and only in the corners.
-        val scale = lerp(1f, BackdropDefaults.ScaleBack, f)
+        val scale = lerp(1f, scaleBack, f)
         val overlap = 2f * SeamOverlap / minOf(size.width, size.height)
         geometry.matrix.reset()
         geometry.matrix.translate(size.width / 2f, size.height / 2f)

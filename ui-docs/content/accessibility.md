@@ -75,7 +75,9 @@ responds without being touched, which is most of them.
 otherwise have, and returns `null` at `Standard` so the call site reads as
 "this container's border, or an edge if the user needs one". `Card` Elevated
 and Filled, `Button` Tertiary and the ghosts, `ListItem`, `Tag`, `Dialog`, both
-sheets, `NavBar`, `SegmentedControl` and `TextFieldVariant.Filled` all take one.
+sheets, `Toolbar`, `SegmentedControl` and `TextFieldVariant.Filled` all take one.
+`NavBar` was listed here and does not call it — it sits on its own surface with
+its own boundary, and the entry was wrong rather than the component.
 
 That third part is the one a darker `outline` cannot do. An elevated `Card` is
 white on white with a shadow for an edge, and a shadow does not change between
@@ -85,12 +87,19 @@ light tier, against the 3:1 WCAG 1.4.11 asks of a control's boundary.
 **How this is kept honest.** `LocalContrastLevel` was provided by the theme and
 read by nothing in the repo for most of the project's life, and it went
 unnoticed because the tier had only ever been screenshotted as a *palette* —
-`theme-light-high-contrast` and its dark twin — and never as components. There
-are ten component goldens at high contrast now, and two further checks cover the
-rest: one reads the tokens through `KontourTheme`, so it covers the wiring
-rather than the table, and the other samples across a card's edge, because the
-card is in the
-semantics tree either way.
+`theme-light-high-contrast` and its dark twin — and never as components. Ten
+per-family goldens at high contrast were added, and then removed again when the
+gallery's hand-written panels were replaced by its demos: those two palette
+pictures are the only high-contrast goldens today, and they carry the five
+components whose edge is a shadow, in a Contrast section written for the purpose.
+
+Three checks cover what a picture cannot. One reads the tokens through
+`KontourTheme`, so it covers the wiring rather than the table. One samples across
+a card's edge, because the card is in the semantics tree either way. The third
+compares each high-contrast scheme against the values it shipped with, colour by
+colour — which matters because a golden ignores a channel that moves by eight or
+less, and never draws the scrim, the overlay washes, the code colours,
+`contentDisabled`, `outlineSubtle` or any status border at all.
 
 ---
 

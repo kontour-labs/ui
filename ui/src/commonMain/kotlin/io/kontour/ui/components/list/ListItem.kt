@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,7 +120,8 @@ object ListItemDefaults {
     val Shape: CornerBasedShape @Composable get() = Theme.shapes.container
 
     /** Gap between items in a group. */
-    val Spacing: Dp = 2.dp
+    val Spacing: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.listItemSpacing
 
     /**
      * The rounding on the two corners that face each other across a seam.
@@ -155,8 +157,10 @@ object ListItemDefaults {
      * time, so they come down to the touch-target floor and one step above it,
      * which is where the padding starts doing the work instead.
      */
-    val MinHeight: Dp = 48.dp
-    val TwoLineMinHeight: Dp = 64.dp
+    val MinHeight: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.listItemMinHeight
+    val TwoLineMinHeight: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.listItemTwoLineMinHeight
 }
 
 /**

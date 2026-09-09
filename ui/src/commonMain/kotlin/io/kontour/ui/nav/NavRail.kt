@@ -19,6 +19,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +43,8 @@ import io.kontour.ui.motion.ChevronTurn
 import io.kontour.ui.theme.Theme
 
 object NavRailDefaults {
-    val CollapsedWidth: Dp = 88.dp
+    val CollapsedWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navRailCollapsedWidth
 
     /**
      * Matches [NavDrawerDefaults.Width].
@@ -50,7 +52,8 @@ object NavRailDefaults {
      * An expanded rail *is* a drawer's width, and lining the two up is what stops
      * the switch between them reading as a jump.
      */
-    val ExpandedWidth: Dp = 280.dp
+    val ExpandedWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navRailExpandedWidth
 }
 
 /**

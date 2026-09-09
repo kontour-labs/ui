@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
@@ -506,6 +507,40 @@ fun OverlayHost(
                     }
                     // Focus cannot enter content that is behind a modal overlay.
                     .focusProperties { canFocus = !trapping }
+                    // Neither can a screen reader, which is the same sentence
+                    // in the one traversal order the line above does not cover.
+                    //
+                    // A modal dims the page, takes the focus and eats the taps
+                    // aimed past it — all facts about sighted, pointer or
+                    // keyboard use. The semantics tree was left alone, so a
+                    // button under an open sheet's scrim kept its click action
+                    // and its enabled flag and stayed announceable and
+                    // activatable: a control the app had just decided nobody
+                    // should reach. See `ModalInertnessTest`, and note how it
+                    // was found — a catalog test that reports dead controls
+                    // named it the moment anything left a modal open at rest.
+                    //
+                    // **Keyed off the dimming, not off `trapping`.** The first
+                    // cut used `trapping` and took the page away from a
+                    // dropdown, because a menu traps focus — for the keyboard
+                    // reason two lines up — while being explicitly not modal:
+                    // `ScrimStyle.Transparent` is documented as "no dimming, but
+                    // pointer events are blocked", the page underneath keeps
+                    // scrolling, and `BackdropStyle`'s own KDoc says a dropdown
+                    // "sits over content the user is still reading". Dimming is
+                    // the library's existing statement that the page is not
+                    // available, and it is what a sighted user is being shown;
+                    // this makes the assistive tree say the same thing.
+                    // `OverlayScrollTest` is what caught the wider version.
+                    //
+                    // `clearAndSetSemantics` rather than `hideFromAccessibility`:
+                    // the latter flags a node and leaves it in the tree for
+                    // platform services to honour, which is a promise about
+                    // other people's code. Measured, the flag left the button
+                    // findable. Clearing states the fact — there is no such
+                    // control right now — in the one vocabulary every reader of
+                    // this tree shares.
+                    .then(if (dimming != null) Modifier.clearAndSetSemantics {} else Modifier)
             ) {
                 // Every text box below here gets the library's own selection
                 // toolbar. See `DefaultTextSelectionToolbar` for why the host

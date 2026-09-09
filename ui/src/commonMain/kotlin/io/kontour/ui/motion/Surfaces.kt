@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -169,10 +170,12 @@ object GlassSurfaceDefaults {
      * between 0.6 and 0.55 is the difference between "the bar is a bit
      * see-through" and "there is something behind the bar".
      */
-    const val Alpha: Float = 0.58f
+    val Alpha: Float
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.glassAlpha
 
     /** What [Alpha] becomes under [io.kontour.ui.theme.ContrastLevel.High]. */
-    const val OpaqueAlpha: Float = 0.94f
+    val OpaqueAlpha: Float
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.glassOpaqueAlpha
 
     /**
      * Tuned for a small panel over a busy background, and smaller than
@@ -180,7 +183,8 @@ object GlassSurfaceDefaults {
      * whole screen a radius this size reads as a smudge rather than as
      * distance.
      */
-    val BlurRadius: Dp = 14.dp
+    val BlurRadius: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.glassBlurRadius
 }
 
 /**

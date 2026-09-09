@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
-import io.kontour.ui.nav.TabBarDefaults
+import io.kontour.ui.theme.ComponentDefaults
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Sizing
 import java.awt.image.BufferedImage
@@ -33,7 +33,7 @@ import kotlin.test.assertTrue
  * does to `Sizing.minTouchTarget`: **24dp on the JVM, 44 on iOS and web, 48 on
  * Android**. So the same bar drew a 24dp marker on desktop, a 32dp one in a
  * phone browser and a 36dp one on Android, inside a bar that is
- * [TabBarDefaults.Height] on all three.
+ * [ComponentDefaults.tabBarHeight] on all three.
  *
  * Measured on the desktop showcase, that is a 97 × 24dp lozenge — four times as
  * wide as it is tall — floating in the middle of a 48dp bar with 12dp of empty
@@ -75,11 +75,11 @@ class TabIndicatorTest {
 
         // 48dp of bar less 4dp of air top and bottom. The number matters less
         // than what it is derived from: the bar, not the label.
-        val expected = TabBarDefaults.Height.value - 2 * Air
+        val expected = ComponentDefaults().tabBarHeight.value - 2 * Air
         assertTrue(
             kotlin.math.abs(measured.height - expected) <= 1.0,
             "the indicator is ${measured.height}dp tall in a " +
-                "${TabBarDefaults.Height.value}dp bar, against the ${expected}dp " +
+                "${ComponentDefaults().tabBarHeight.value}dp bar, against the ${expected}dp " +
                 "that leaves one grid step of air above and below it.",
         )
         // And a pill rather than a slot: the rail's marker is 64×56 and the nav
@@ -112,7 +112,7 @@ class TabIndicatorTest {
         }
         // Still the bar's height, not a fraction of it: the width is what ran
         // out, and the marker's height has nothing to do with the width.
-        val expected = TabBarDefaults.Height.value - 2 * Air
+        val expected = ComponentDefaults().tabBarHeight.value - 2 * Air
         assertTrue(
             kotlin.math.abs(narrow.height - expected) <= 1.0,
             "the marker came out ${narrow.width}×${narrow.height}dp in a 48dp-wide " +

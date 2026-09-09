@@ -130,8 +130,13 @@ object Palette {
 
     val BlueBorderLight = Color(0xFFC7DCFD)
     val BlueBorderDark = Color(0xFF2C3E5C)
-    val BlueBorderLightHc = Color(0xFFB9CFF8)
-    val BlueBorderDarkHc = Color(0xFF3D5480)
+    // There were `…Hc` siblings here and nothing read them. Every high-contrast
+    // tone — the accent and all four status tones, in both tiers — uses its own
+    // `solid` as its `border`, which is a real difference from the standard
+    // tiers and looks like an oversight beside two unused constants named for
+    // exactly that slot. Widening the high-contrast factories made "wire them
+    // up" a plausible tidy-up that would have changed two colours, so they are
+    // gone: softer high-contrast borders would be a decision to take on purpose.
 
     // --- Dark-mode surfaces (from `home html.dark`) -------------------------
     val Slate900 = Color(0xFF1A1820)

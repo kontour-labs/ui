@@ -11,12 +11,23 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.action.Button
+import io.kontour.ui.components.action.ButtonVariant
+import io.kontour.ui.components.display.Card
+import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.selection.Checkbox
+import io.kontour.ui.components.selection.Chip
+import io.kontour.ui.components.selection.RadioButton
+import io.kontour.ui.components.selection.Switch
+import io.kontour.ui.components.text.TextField
+import io.kontour.ui.components.text.TextFieldVariant
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.StatusColours
@@ -42,6 +53,7 @@ fun ThemeShowcase(modifier: Modifier = Modifier) {
             StatusTones()
             SurfacesAndElevation()
             ShapeScale()
+            ContrastSensitive()
         }
     }
 }
@@ -50,7 +62,7 @@ fun ThemeShowcase(modifier: Modifier = Modifier) {
 private fun SectionHeading(text: String) {
     Text(
         text = text.uppercase(),
-        style = Theme.typography.monoLabel,
+        style = Theme.typography.eyebrow,
         colour = Theme.colours.accent.solid,
     )
 }
@@ -75,6 +87,15 @@ private fun TypeScale() {
             colour = Theme.colours.contentSubtle,
         )
         Text("LABEL LARGE", style = Theme.typography.labelLarge)
+        Text("EYEBROW — ABOVE A SECTION HEADING", style = Theme.typography.eyebrow)
+        // Two rows of the same width in a monospaced face, one row of figures
+        // that a theme with no mono still has to column-align through `tnum`.
+        // A theme that swapped its typeface shows it here or nowhere: this is
+        // the only picture of `mono` in the repository, and without it the
+        // GTurbo golden was byte-identical whether its numeric face was wired
+        // up or not.
+        Text("mono — 09:42  $18.60  1HGBH41JXMN109186", style = Theme.typography.mono)
+        Text("mono — 23:07  $ 4.05  WVWZZZ1JZ3W386752", style = Theme.typography.mono)
     }
 }
 
@@ -113,11 +134,21 @@ private fun ColourRamp() {
             Swatch("primary", c.primary, c.onPrimary)
             Swatch("accent", c.accent.solid, c.accent.onSolid)
             Swatch("accent.container", c.accent.container, c.accent.onContainer)
-            // Identical to `accent` here, and that is the point: the default
-            // schemes have no product in them, so `brand` resolves to the
-            // accent until an app sets one. Labelled so the swatch reads as
-            // "unset" rather than as a duplicate.
-            Swatch("brand — unset", c.brand, c.accent.onSolid)
+            // In the built-in schemes this is identical to `accent`, and that is
+            // the point: they have no product in them, so `brand` resolves to
+            // the accent until an app sets one, and the label says so rather
+            // than letting the swatch read as a duplicate.
+            //
+            // It used to say "unset" unconditionally, which was true while the
+            // default scheme was the only one anybody drew this under. A theme
+            // that sets a real brand — GTurbo's logo red, one step off its fill
+            // red — made the label wrong, which is the sort of thing a second
+            // theme exists to find.
+            Swatch(
+                if (c.brand == c.accent.solid) "brand — unset" else "brand",
+                c.brand,
+                c.accent.onSolid,
+            )
         }
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
@@ -222,5 +253,62 @@ private fun ShapeScale() {
                 }
             }
         }
+    }
+}
+
+/**
+ * The five things a contrast tier used to change invisibly.
+ *
+ * `ContrastLevel` reaches the UI through one mechanism — a different
+ * `ColourScheme` — so at the enhanced tier `outline` jumped while every *filled*
+ * and every *borderless* container stayed exactly as it was. That went unnoticed
+ * for as long as it did because the tier was only ever screenshotted as a
+ * palette, never as components.
+ *
+ * These five are where the gap lived: containers that lean on a shadow for their
+ * edge, buttons whose variants have no border, the selection controls, and a
+ * filled text field whose border was transparent at every tier. They are here,
+ * on the page that already draws four times for four schemes, rather than in
+ * nine whole-page goldens nobody opened.
+ */
+@Composable
+private fun ContrastSensitive() {
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        SectionHeading("Contrast")
+
+        Card(Modifier.fillMaxWidth()) {
+            Text("Card — its edge is a shadow", style = Theme.typography.bodySmall)
+        }
+
+        ListItem(onClick = {}) {
+            +"ListItem — the same, in a group"
+        }
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        ) {
+            Chip(onClick = {}) { +"Chip" }
+            Button(onClick = {}, variant = ButtonVariant.Ghost) { +"Ghost" }
+            Button(onClick = {}, variant = ButtonVariant.Secondary) { +"Secondary" }
+        }
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        ) {
+            Checkbox(checked = true, onCheckedChange = {})
+            Checkbox(checked = false, onCheckedChange = {})
+            Switch(checked = true, onCheckedChange = {})
+            Switch(checked = false, onCheckedChange = {})
+            RadioButton(selected = true, onClick = {})
+            RadioButton(selected = false, onClick = {})
+        }
+
+        TextField(
+            state = rememberTextFieldState("Filled — a transparent border at every tier"),
+            variant = TextFieldVariant.Filled,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }

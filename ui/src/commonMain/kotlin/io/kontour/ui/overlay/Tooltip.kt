@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,7 +53,8 @@ object TooltipDefaults {
     /** How long a touch-triggered tooltip stays before dismissing itself. */
     const val TouchDurationMillis: Long = 4_000
 
-    val MaxWidth: Dp = 280.dp
+    val MaxWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.tooltipMaxWidth
 }
 
 /**

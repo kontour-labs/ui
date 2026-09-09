@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -71,7 +72,8 @@ object SegmentedControlDefaults {
      * Six stays, on its own merits — it is a ring you can see — and the radius
      * it produces is now the one it always claimed.
      */
-    val TrackPadding: Dp = 6.dp
+    val TrackPadding: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.segmentedTrackPadding
 }
 
 /**

@@ -16,6 +16,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,7 +71,8 @@ object NavBarDefaults {
      * spread: a docked bar's shape already says where the navigation is, so the
      * items can sit together and read as one group.
      */
-    val ItemGap: Dp = 12.dp
+    val ItemGap: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navBarItemGap
 
     /**
      * How a bar distributes its children, unless the caller says otherwise.
@@ -99,6 +101,8 @@ object NavBarDefaults {
      * @param spans Whether the bar is using the window's full width, which is
      *   what a [WindowWidthClass.Compact] window gets.
      */
+    @Composable
+    @ReadOnlyComposable
     fun arrangementFor(style: NavBarStyle, spans: Boolean): Arrangement.Horizontal =
         if (spans) {
             Arrangement.SpaceEvenly

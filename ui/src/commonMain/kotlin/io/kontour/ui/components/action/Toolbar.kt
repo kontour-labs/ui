@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -137,7 +138,8 @@ object ToolbarDefaults {
      * [Shape] is this much larger than a child's corner, by construction. See
      * [Shape] for why that stopped being free.
      */
-    val ContentPadding: Dp = 6.dp
+    val ContentPadding: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.toolbarPadding
 
     /**
      * A child's shape, grown by the ring of space around it.
