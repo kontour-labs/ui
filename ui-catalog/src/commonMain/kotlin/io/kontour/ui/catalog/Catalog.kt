@@ -1,6 +1,7 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -59,6 +60,8 @@ import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetHeader
+import io.kontour.ui.platform.platformPrefersHighContrast
+import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
@@ -122,35 +125,40 @@ internal val pages = listOf(
  * for why a gallery is not the shape a bottom bar is for.
  */
 @Composable
-fun Catalog() {
-    var dark by remember { mutableStateOf(false) }
-    var highContrast by remember { mutableStateOf(false) }
-    var fontScale by remember { mutableStateOf(1f) }
-    var rtl by remember { mutableStateOf(false) }
-    var reduceMotion by remember { mutableStateOf(false) }
-    var modality by remember { mutableStateOf<InputModality?>(null) }
-    var frameTimes by remember { mutableStateOf(false) }
+fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
     var selected by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
 
     val density = LocalDensity.current
+    val systemDark = isSystemInDarkTheme()
+    val systemHighContrast = platformPrefersHighContrast()
+    val systemReduceMotion = platformPrefersReducedMotion()
 
     CompositionLocalProvider(
         // Font scale is applied here rather than inside the theme because it is a
         // *platform* setting: the theme's type ramp is in sp, and this is what
         // makes sp mean something different. Scaling the ramp instead would look
         // similar and prove nothing.
-        LocalDensity provides Density(density.density, fontScale),
-        LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
+        LocalDensity provides Density(density.density, settings.textScale),
+        LocalLayoutDirection provides
+            if (settings.rightToLeft) LayoutDirection.Rtl else LayoutDirection.Ltr,
     ) {
         KontourTheme(
-            darkTheme = dark,
-            contrast = if (highContrast) ContrastLevel.High else ContrastLevel.Standard,
-            reduceMotion = reduceMotion,
+            // `?:` on all three. These used to be plain `false`, which overrode
+            // `KontourTheme`'s own defaults — each of which reads the operating
+            // system — with the answer "no", in the app whose whole job is to
+            // show that the library honours them.
+            darkTheme = settings.dark ?: systemDark,
+            contrast = if (settings.highContrast ?: systemHighContrast) {
+                ContrastLevel.High
+            } else {
+                ContrastLevel.Standard
+            },
+            reduceMotion = settings.reduceMotion ?: systemReduceMotion,
         ) {
             // Overriding the modality has to happen *inside* the theme, which
             // installs the tracker that would otherwise set it from real input.
-            val overridden = modality
+            val overridden = settings.modality
             CompositionLocalProvider(
                 LocalInputModality provides (overridden ?: LocalInputModality.current)
             ) {
@@ -218,20 +226,10 @@ fun Catalog() {
 
                             SettingsSheet(
                                 visible = settingsOpen,
-                                dark = dark,
-                                onDarkChange = { dark = it },
-                                highContrast = highContrast,
-                                onHighContrastChange = { highContrast = it },
-                                fontScale = fontScale,
-                                onFontScaleChange = { fontScale = it },
-                                rtl = rtl,
-                                onRtlChange = { rtl = it },
-                                reduceMotion = reduceMotion,
-                                onReduceMotionChange = { reduceMotion = it },
-                                modality = modality,
-                                onModalityChange = { modality = it },
-                                frameTimes = frameTimes,
-                                onFrameTimesChange = { frameTimes = it },
+                                settings = settings,
+                                systemDark = systemDark,
+                                systemHighContrast = systemHighContrast,
+                                systemReduceMotion = systemReduceMotion,
                                 onDismiss = { settingsOpen = false },
                             )
                         }
@@ -240,7 +238,7 @@ fun Catalog() {
                     // Outside the host on purpose. A readout drawn *inside* it
                     // would be covered by the first sheet that opened, which is
                     // precisely the moment there is something to read.
-                    if (frameTimes) {
+                    if (settings.frameTimes) {
                         FrameReadout(
                             Modifier
                                 .align(Alignment.TopEnd)
@@ -309,20 +307,10 @@ private fun CompactCatalog(
 @Composable
 private fun SettingsSheet(
     visible: Boolean,
-    dark: Boolean,
-    onDarkChange: (Boolean) -> Unit,
-    highContrast: Boolean,
-    onHighContrastChange: (Boolean) -> Unit,
-    fontScale: Float,
-    onFontScaleChange: (Float) -> Unit,
-    rtl: Boolean,
-    onRtlChange: (Boolean) -> Unit,
-    reduceMotion: Boolean,
-    onReduceMotionChange: (Boolean) -> Unit,
-    modality: InputModality?,
-    onModalityChange: (InputModality?) -> Unit,
-    frameTimes: Boolean,
-    onFrameTimesChange: (Boolean) -> Unit,
+    settings: CatalogSettings,
+    systemDark: Boolean,
+    systemHighContrast: Boolean,
+    systemReduceMotion: Boolean,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) {
@@ -334,27 +322,34 @@ private fun SettingsSheet(
                 +"Display settings"
             }
 
-            Toggle("Dark", dark, onDarkChange)
-            Toggle("High contrast", highContrast, onHighContrastChange)
-            Toggle("Right to left", rtl, onRtlChange)
-            Toggle("Reduce motion", reduceMotion, onReduceMotionChange)
-            Toggle("Frame times", frameTimes, onFrameTimesChange)
+            // The three platform-backed switches show the *resolved* value, so
+            // one the reader has not touched reads as what they are actually
+            // getting rather than as the app's own preference.
+            Toggle("Dark", settings.dark ?: systemDark) { settings.dark = it }
+            Toggle("High contrast", settings.highContrast ?: systemHighContrast) {
+                settings.highContrast = it
+            }
+            Toggle("Right to left", settings.rightToLeft) { settings.rightToLeft = it }
+            Toggle("Reduce motion", settings.reduceMotion ?: systemReduceMotion) {
+                settings.reduceMotion = it
+            }
+            Toggle("Frame times", settings.frameTimes) { settings.frameTimes = it }
 
             Text("Text size", style = Theme.typography.labelMedium)
             SegmentedControl(
                 options = fontScales.map { it.first },
-                selected = fontScales.indexOfFirst { it.second == fontScale }
+                selected = fontScales.indexOfFirst { it.second == settings.textScale }
                     .coerceAtLeast(0),
-                onSelectedChange = { onFontScaleChange(fontScales[it].second) },
+                onSelectedChange = { settings.textScale = fontScales[it].second },
                 modifier = Modifier.fillMaxWidth(),
             )
 
             Text("Input modality", style = Theme.typography.labelMedium)
             SegmentedControl(
-                options = modalities.map { it.first },
-                selected = modalities.indexOfFirst { it.second == modality }
+                options = inputModalities.map { it.first },
+                selected = inputModalities.indexOfFirst { it.second == settings.modality }
                     .coerceAtLeast(0),
-                onSelectedChange = { onModalityChange(modalities[it].second) },
+                onSelectedChange = { settings.modality = inputModalities[it].second },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -368,17 +363,6 @@ private val fontScales = listOf(
     "200%" to 2f,
 )
 
-/**
- * "Auto" first, because it is the honest default — the tracker follows real
- * input, and forcing a modality is for checking a branch you cannot reach on the
- * host you happen to be on.
- */
-private val modalities = listOf<Pair<String, InputModality?>>(
-    "Auto" to null,
-    "Touch" to InputModality.Touch,
-    "Mouse" to InputModality.Mouse,
-    "Keyboard" to InputModality.Keyboard,
-)
 
 @Composable
 private fun Toggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {

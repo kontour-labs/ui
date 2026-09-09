@@ -28,7 +28,7 @@ class CatalogScreenshotTest {
             height = 1500,
             allowOverflow = true,
         ) {
-            Catalog()
+            Catalog(pinned())
         }
         assertTrue(file.length() > 0, "catalog-compact rendered an empty file")
     }
@@ -41,8 +41,23 @@ class CatalogScreenshotTest {
             height = 1500,
             allowOverflow = true,
         ) {
-            Catalog()
+            Catalog(pinned())
         }
         assertTrue(file.length() > 0, "catalog-large rendered an empty file")
+    }
+
+    /**
+     * Settings pinned to light, not left to the host.
+     *
+     * `Catalog` used to hardcode `dark = false`. Now it follows the operating
+     * system unless a reader says otherwise, which is right for an app and wrong
+     * for a golden: a screenshot that depends on the machine's appearance
+     * setting is not a golden. Same argument as the locale pinning in
+     * `ui-catalog/build.gradle.kts`.
+     */
+    private fun pinned() = CatalogSettings().apply {
+        dark = false
+        highContrast = false
+        reduceMotion = true
     }
 }

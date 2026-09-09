@@ -38,6 +38,8 @@ import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.catalog.Catalog
+import io.kontour.ui.catalog.CatalogSettings
+import io.kontour.ui.catalog.rememberCatalogSettings
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
@@ -93,8 +95,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
  * what this is.
  */
 @Composable
-fun Site() {
-    val settings = rememberDisplaySettings()
+fun Site(settings: CatalogSettings = rememberCatalogSettings()) {
     val systemDark = isSystemInDarkTheme()
     val route = rememberRoute()
 
@@ -135,7 +136,7 @@ fun Site() {
 }
 
 @Composable
-private fun Shell(settings: DisplaySettings, systemDark: Boolean, route: Route) {
+private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) {
     // The library's own answer to "is there room beside the content", rather
     // than a `>= Medium` comparison written out at the call site. A threshold
     // spelled as a comparison is a threshold that drifts when somebody moves it.
@@ -244,7 +245,7 @@ private fun Shell(settings: DisplaySettings, systemDark: Boolean, route: Route) 
                 }
                 VerticalDivider(Modifier.fillMaxHeight())
             }
-            Box(Modifier.weight(1f).fillMaxHeight()) { Content(route) }
+            Box(Modifier.weight(1f).fillMaxHeight()) { Content(route, settings) }
         }
     }
 
@@ -264,14 +265,21 @@ private fun Shell(settings: DisplaySettings, systemDark: Boolean, route: Route) 
 }
 
 @Composable
-private fun Content(route: Route) {
+private fun Content(route: Route, settings: CatalogSettings) {
     when (route) {
         Route.Home -> Home()
-        // The gallery brings its own theme, size-class provider and overlay host,
-        // so it is not nested inside this one — on a wide window that produced a
-        // documentation sidebar beside the gallery's own nav rail, and the
-        // masthead's dark switch had no effect on anything inside it.
-        Route.Gallery -> Catalog()
+        // The gallery still brings its own theme, size-class provider and
+        // overlay host — on a wide window, nesting inside this one put a
+        // documentation sidebar beside the gallery's own nav rail, and the four
+        // standalone hosts each need a theme of their own anyway.
+        //
+        // What is no longer true is that the masthead's switches stop at the
+        // boundary. They used to: a nested `KontourTheme` re-resolves every
+        // argument it was not given, so the inner one read the platform and drew
+        // light however the outer was set. Both now take their values from the
+        // same [CatalogSettings], so they agree by construction rather than by
+        // anybody keeping two argument lists in step.
+        Route.Gallery -> Catalog(settings)
         is Route.Doc -> DocPageView(route.path)
     }
 }
