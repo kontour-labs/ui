@@ -188,9 +188,9 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
  * That is a guess about the caller, and the one place it is visibly wrong is
  * worth naming: an app whose root paints *nothing* shows this ring against
  * whatever its window is, instead of showing the window through the halo.
- * `SheetShowcase`'s phone frame is exactly that — a `surface`-coloured box with
- * an empty `OverlayHost` in it — and `sheets-dark` photographs the ring because
- * of it. The alternative is to keep letting the page through, which is the
+ * The catalog's sheet demos frame their stage exactly that way — a
+ * `surface`-coloured `Surface` with its own `OverlayHost` in it — and
+ * `phone/sheets` photographs the ring because of it. The alternative is to keep letting the page through, which is the
  * defect. Between guessing the colour of a root that paints one and showing a
  * white browser page under a dark app, the guess wins.
  *

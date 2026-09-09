@@ -32,7 +32,7 @@ class DemoThemeScreenshotTest {
                     reduceMotion = true
                 }
                 val name = "theme-${theme.name.lowercase()}-${mode.name.lowercase()}"
-                val file = Screenshot.render(name = name, width = 1620, height = 2080) {
+                val file = Screenshot.render(name = name, width = 1620, height = 2800) {
                     DemoThemeProvider(
                         settings = settings,
                         systemDark = true,

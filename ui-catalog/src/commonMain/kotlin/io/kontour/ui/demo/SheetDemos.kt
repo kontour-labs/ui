@@ -149,11 +149,29 @@ internal val BottomSheetDemo = ComponentDemo(slug = "bottom-sheet") {
  */
 private val sheetDismissible = Knob.Flag("Dismissible", initial = true)
 
+/**
+ * Whether the sheet is already up, defaulting to **yes**.
+ *
+ * A modal sheet at rest is a button, and a picture of a button is not a picture
+ * of a sheet. The panel this demo replaced opened its modal deliberately for
+ * that reason — its own note said "catch them open and the scrim, the close
+ * button and the swipe" — and deleting the panel took the only image in the
+ * repository of a scrim, of a sheet's shadow against a dimmed ground, and of
+ * the halo ring `Backdrop`'s KDoc describes. The knob puts them back, and
+ * unlike the panel it is also a control a reader can work.
+ */
+private val sheetOpen = Knob.Flag("Open", initial = true)
+
 internal val ModalBottomSheetDemo = ComponentDemo(
     slug = "modal-bottom-sheet",
-    knobs = listOf(sheetDismissible),
+    knobs = listOf(sheetOpen, sheetDismissible),
 ) {
-    var open by remember { mutableStateOf(false) }
+    // Keyed on the knob, so toggling it *resets* the sheet rather than fighting
+    // it. The sheet has two inputs — the knob and its own dismissal — and one
+    // of them has to win; making the knob a reset means a sheet swiped away
+    // comes back on the next toggle, which is the behaviour a reader expects
+    // from a control labelled "Open". The button below reopens it directly.
+    var open by remember(this[sheetOpen]) { mutableStateOf(this[sheetOpen]) }
     val dismissible = this[sheetDismissible]
     Screen {
         Button(

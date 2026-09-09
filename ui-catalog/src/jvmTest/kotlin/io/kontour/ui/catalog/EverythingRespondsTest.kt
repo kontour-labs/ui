@@ -1,10 +1,12 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -13,10 +15,11 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.isEnabled
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.v2.runDesktopComposeUiTest
 import androidx.compose.ui.unit.Density
+import io.kontour.ui.demo.DemoContentForTest
+import io.kontour.ui.demo.demoFamilies
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
@@ -88,8 +91,9 @@ class EverythingRespondsTest {
         isEnabled() and
         // Not a text field. Clicking one focuses it and nothing else, and focus
         // is the one signal this cannot read — a dead button focuses too. A
-        // field's interactivity is typing, which `TextShowcase`'s own tests
-        // cover; there is no callback here for a catalog to leave dangling.
+        // field's interactivity is typing, which the text-editing demos' own
+        // tests cover; there is no callback here for a catalog to leave
+        // dangling.
         SemanticsMatcher.keyNotDefined(SemanticsProperties.EditableText) and
         // Not something already chosen. Pressing the selected radio, tab or
         // segment is *defined* to do nothing — a radio cannot be unselected by
@@ -114,30 +118,60 @@ class EverythingRespondsTest {
      * 19-megapixel surface, and nothing here reads a pixel — every assertion is
      * on semantics.
      */
-    private val Canvas = 1200
+    private val Canvas = 2600
     private val CanvasDensity = 0.5f
 
-    @Test fun actionsRespond() = check("actions") { ButtonShowcase() }
+    /**
+     * One test per family, driven by [demoFamilies].
+     *
+     * These used to press the hand-written showcase panels. They press the demos
+     * now, for the same reason the gallery draws them: the panels were a second
+     * list of the same components that had stopped tracking the first, and 31
+     * public composables were on neither. A demo cannot be missed here, because
+     * there is nowhere else to add one.
+     *
+     * It is also a stronger check than the panels were. A demo is *wired* — its
+     * whole purpose is to be pressed and echo what happened — where a panel was
+     * often a specimen arranged to be looked at.
+     */
+    @Test fun actionsRespond() = checkFamily("Actions")
 
-    @Test fun selectionControlsRespond() = check("selection") { SelectionShowcase() }
+    @Test fun selectionControlsRespond() = checkFamily("Selection")
 
-    @Test fun textFieldsRespond() = check("text") { TextShowcase() }
+    @Test fun textEditingResponds() = checkFamily("Text editing")
 
-    @Test fun dateAndTimeRespond() = check("datetime") { DateTimeShowcase() }
+    @Test fun dateAndTimeRespond() = checkFamily("Date and time")
 
-    @Test fun overlaysRespond() = check("overlays") { OverlayShowcase() }
+    @Test fun displayComponentsRespond() = checkFamily("Display")
 
-    @Test fun formsRespond() = check("forms") { SelectShowcase() }
+    @Test fun collectionsRespond() = checkFamily("Collections")
 
-    @Test fun sheetsRespond() = check("sheets") { SheetShowcase() }
+    @Test fun overlaysRespond() = checkFamily("Overlays")
 
-    @Test fun listsRespond() = check("lists") { ListShowcase() }
+    @Test fun sheetsRespond() = checkFamily("Sheets")
 
-    @Test fun navigationResponds() = check("nav") { NavShowcase() }
+    @Test fun navigationResponds() = checkFamily("Navigation")
 
-    @Test fun adaptiveLayoutsRespond() = check("adaptive") { AdaptiveShowcase() }
+    @Test fun adaptiveLayoutsRespond() = checkFamily("Adaptive")
 
-    @Test fun displayComponentsRespond() = check("display") { DisplayShowcase() }
+    @Test fun foundationsRespond() = checkFamily("Foundation")
+
+    /**
+     * Every demo in one family, stacked in one composition.
+     *
+     * Stacked rather than composed one at a time because the retry pass is what
+     * costs: a suspect is re-tested alone on a fresh page, and a hundred and two
+     * separate compositions would pay that setup for every demo rather than for
+     * every family.
+     */
+    private fun checkFamily(name: String) {
+        val family = demoFamilies.single { it.name == name }
+        check(name) {
+            Column {
+                family.demos.forEach { DemoContentForTest(it, emptyMap()) }
+            }
+        }
+    }
 
     /**
      * Presses everything on one page.

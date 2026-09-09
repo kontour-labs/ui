@@ -107,7 +107,7 @@ class WindowClassTest {
                             Modifier
                                 .fillMaxSize()
                                 .background(Theme.colours.background)
-                                .verticalScroll(rememberScrollState())
+                                // (scroller removed — the page scrolls itself)
                         ) {
                             content(Modifier.fillMaxWidth())
                         }

@@ -1,12 +1,15 @@
 package io.kontour.ui.catalog
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -40,14 +43,18 @@ import com.composables.icons.tabler.outline.SquareRoundedLetterT
 import com.composables.icons.tabler.outline.Stack2
 import com.composables.icons.tabler.outline.Typography
 import com.composables.icons.tabler.outline.Windmill
+import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.adaptive.WindowWidthClass
-import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.selection.Switch
+import io.kontour.ui.demo.DemoCard
+import io.kontour.ui.demo.DemoFamily
+import io.kontour.ui.demo.demoFamilies
+import io.kontour.ui.demo.theme.DemoThemeProvider
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
@@ -58,12 +65,11 @@ import io.kontour.ui.nav.TopBar
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.rememberToastHostState
-import io.kontour.ui.sheet.ModalBottomSheet
-import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
+import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.theme.ContrastLevel
-import io.kontour.ui.demo.theme.DemoThemeProvider
 import io.kontour.ui.theme.Theme
 
 /** One page of the gallery. */
@@ -74,32 +80,71 @@ internal class Page(
 )
 
 /**
- * Every page, in order.
+ * Every page, in order: two written by hand and eleven generated.
+ *
+ * **The generated eleven are the point.** They used to be hand-written too — a
+ * fixed list of thirteen, last changed structurally in August, while the library
+ * gained three weeks of components and an entire demo layer nine days after it.
+ * By the time anyone looked, 31 public composables appeared in the gallery
+ * nowhere at all, and 3,870 lines of panels were drawing statically what the
+ * demos already drew with knobs on.
+ *
+ * The fix is not a check that notices the drift. It is the removal of the second
+ * list: a demo can only be added to `demoFamilies`, and these pages are that.
+ *
+ * Two survive by hand because they are not component demos and never could be:
+ * `About` is what the gallery is, and `Tokens` is the palette, the type scale
+ * and the shape ladder — the one page where a *theme* can be judged rather than
+ * a component.
  *
  * `internal` rather than private so the test suite can render each one on its
  * own. That is not a courtesy: the shell's goldens only ever show the page that
- * happens to be selected, so a list the tests cannot walk is a list where eleven
- * of thirteen pages are drawn by nothing — which is how a crash on two of them
- * reached a phone.
+ * happens to be selected, so a list the tests cannot walk is a list where most
+ * pages are drawn by nothing — which is how a crash on two of them reached a
+ * phone.
  */
-internal val pages = listOf(
+internal val pages: List<Page> = listOf(
     // First, and it is a change of purpose rather than of order: a gallery
     // whose first page is a colour ramp tells someone who has just been
     // handed the library nothing about what it is or where the writing is.
-    Page("About", Tabler.Outline.InfoCircle) { AboutShowcase(it) },
-    Page("Tokens", Tabler.Outline.Palette) { ThemeShowcase(it) },
-    Page("Actions", Tabler.Outline.Click) { ButtonShowcase(it) },
-    Page("Selection", Tabler.Outline.Forms) { SelectionShowcase(it) },
-    Page("Text", Tabler.Outline.SquareRoundedLetterT) { TextShowcase(it) },
-    Page("Forms", Tabler.Outline.Typography) { SelectShowcase(it) },
-    Page("Date & time", Tabler.Outline.Calendar) { DateTimeShowcase(it) },
-    Page("Display", Tabler.Outline.LayoutGrid) { DisplayShowcase(it) },
-    Page("Lists", Tabler.Outline.LayoutList) { ListShowcase(it) },
-    Page("Overlays", Tabler.Outline.Stack2) { OverlayShowcase(it) },
-    Page("Sheets", Tabler.Outline.LayoutBottombar) { SheetShowcase(it) },
-    Page("Navigation", Tabler.Outline.Windmill) { NavShowcase(it) },
-    Page("Adaptive", Tabler.Outline.LayoutSidebar) { AdaptiveShowcase(it) },
-)
+    Page("About", Tabler.Outline.InfoCircle) { Scrolling(it) { AboutShowcase(Modifier.fillMaxWidth()) } },
+    Page("Tokens", Tabler.Outline.Palette) { Scrolling(it) { ThemeShowcase(Modifier.fillMaxWidth()) } },
+) + demoFamilies.map { family ->
+    Page(family.name, family.icon) { modifier -> DemoFamilyPage(family, modifier) }
+}
+
+/**
+ * One family's demos, each in the same card the documentation site draws.
+ *
+ * `DemoCard` is public for exactly this: the gallery and the site were two
+ * things supposed to look alike, and now they are one thing drawn twice.
+ *
+ * Lazy rather than a `Column`. `Display` holds eighteen demos, several of them
+ * with their own overlay host, and the enclosing scroller would compose all of
+ * them to measure the page — the same lesson the documentation site learned on
+ * its component index.
+ */
+/** A scroller for the two pages that are a plain column of content. */
+@Composable
+private fun Scrolling(modifier: Modifier, content: @Composable () -> Unit) {
+    Box(modifier.fillMaxSize().verticalScroll(rememberScrollState())) { content() }
+}
+
+@Composable
+private fun DemoFamilyPage(family: DemoFamily, modifier: Modifier = Modifier) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(Theme.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+    ) {
+        items(family.demos, key = { it.slug }) { demo ->
+            Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+                Text(demo.slug, style = Theme.typography.labelMedium)
+                DemoCard(demo)
+            }
+        }
+    }
+}
 
 /**
  * The component gallery — every component, in every state, on every platform.
@@ -209,10 +254,17 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                                     selectedIndex = selected,
                                     action = settingsButton,
                                 ) { contentPadding ->
+                                    // **The shell does not scroll.** It used
+                                    // to, because every page was a plain
+                                    // `Column`; the generated ones are lazy, and
+                                    // a `LazyColumn` inside a `verticalScroll`
+                                    // is measured with an infinite height and
+                                    // throws. Each page brings its own scroller
+                                    // now, which is also what keeps the lazy
+                                    // ones lazy — the whole reason they are.
                                     Box(
                                         Modifier
                                             .fillMaxSize()
-                                            .verticalScroll(rememberScrollState())
                                             .padding(bottom = contentPadding)
                                     ) {
                                         pages[selected].content(Modifier.fillMaxWidth())
@@ -282,7 +334,6 @@ private fun CompactCatalog(
         Box(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(padding)
         ) {
             pages[selected].content(Modifier.fillMaxWidth())

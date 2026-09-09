@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.windowSizeClass
+import io.kontour.ui.catalog.LocalCatalogEcho
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
 import io.kontour.ui.components.selection.SegmentedControl
@@ -182,13 +183,42 @@ fun DemoCard(demo: ComponentDemo, modifier: Modifier = Modifier) {
  */
 @Composable
 internal fun DemoContentForTest(demo: ComponentDemo, overrides: Map<Knob<*>, Any?>) {
-    val scope = remember(demo, overrides) {
+    // The echo goes where `DemoCard`'s goes.
+    //
+    // It used to land in a `mutableStateOf(null)` that nothing read, which made
+    // a demo whose whole response is `echo("Saved")` look *dead* to
+    // `EverythingRespondsTest`: no state the fingerprint could see, and the
+    // harness's echo collector never called. Eleven of sixteen buttons on the
+    // actions family reported as wired to nothing, and every one of them was
+    // fine.
+    val onEcho = LocalCatalogEcho.current
+    val scope = remember(demo, overrides, onEcho) {
         val values = demo.knobs.associateWith { knob ->
             mutableStateOf(if (knob in overrides) overrides[knob] else knob.initial)
         }
-        DemoScope(Knobs(values), mutableStateOf(null))
+        DemoScope(Knobs(values), EchoingState(onEcho))
     }
     demo.content(scope)
+}
+
+/**
+ * A [MutableState] that reports every write onward as well as keeping it.
+ *
+ * `DemoScope` takes the state rather than a callback, so this is where a demo's
+ * `echo` is turned back into the `LocalCatalogEcho` the gallery and the test
+ * harness both listen on.
+ */
+private class EchoingState(private val onEcho: (String) -> Unit) : MutableState<String?> {
+    private val backing = mutableStateOf<String?>(null)
+    override var value: String?
+        get() = backing.value
+        set(new) {
+            backing.value = new
+            if (new != null) onEcho(new)
+        }
+
+    override fun component1(): String? = value
+    override fun component2(): (String?) -> Unit = { value = it }
 }
 
 /**

@@ -439,7 +439,15 @@ internal val CarouselDemo = ComponentDemo(slug = "carousel", knobs = listOf(indi
         PageIndicator(
             state = carousel,
             style = style,
-            onPageSelect = { page -> scope.launch { carousel.scrollToPage(page) } },
+            // Echoes as well as scrolls, like every other demo. Not decoration: the
+        // scroll is a suspending animation, so pressing a dot changes nothing
+        // observable until the clock advances — and under a hand-driven clock,
+        // which `EverythingRespondsTest` needs because the overlays never stop
+        // asking for frames, all four dots read as wired to nothing.
+        onPageSelect = { page ->
+            echo("Page ${page + 1}")
+            scope.launch { carousel.scrollToPage(page) }
+        },
         )
     }
 }
@@ -455,7 +463,15 @@ internal val PageIndicatorDemo = ComponentDemo(
     PageIndicator(
         state = carousel,
         style = this[indicatorStyle],
-        onPageSelect = { page -> scope.launch { carousel.scrollToPage(page) } },
+        // Echoes as well as scrolls, like every other demo. Not decoration: the
+        // scroll is a suspending animation, so pressing a dot changes nothing
+        // observable until the clock advances — and under a hand-driven clock,
+        // which `EverythingRespondsTest` needs because the overlays never stop
+        // asking for frames, all four dots read as wired to nothing.
+        onPageSelect = { page ->
+            echo("Page ${page + 1}")
+            scope.launch { carousel.scrollToPage(page) }
+        },
     )
 }
 
