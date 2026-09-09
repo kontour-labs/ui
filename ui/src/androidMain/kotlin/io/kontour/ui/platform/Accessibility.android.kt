@@ -1,11 +1,13 @@
 package io.kontour.ui.platform
 
+import android.app.UiModeManager
 import android.content.Context
 import android.database.ContentObserver
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -37,21 +39,62 @@ actual fun platformPrefersReducedMotion(): Boolean {
 
 /**
  * `ACCESSIBILITY_DISPLAY_INVERSION_ENABLED` is not the right signal, and Android
- * has no public "increase contrast" flag before API 34. From 34 onwards
- * `Settings.Secure.CONTRAST_LEVEL` carries it; below that we report false and
- * let the in-app setting be the only route.
+ * has no "increase contrast" flag at all before API 34. From 34 onwards
+ * `UiModeManager.getContrast()` carries it; below that we report false and let the
+ * in-app setting be the only route.
+ *
+ * ### This read used to crash the app on launch
+ *
+ * It went through `Settings.Secure.getFloat(resolver, "contrast_level")`, on the
+ * reasoning that the key is `@hide` in the SDK but stable in the platform since
+ * API 34. That reasoning has a hole in it, and the hole is four years older than
+ * the setting: since **Android 12**, `SettingsProvider.enforceSettingReadable`
+ * refuses any `@hide` key to a non-system app unless it also carries `@Readable`.
+ * `contrast_level` does not, so the read threw
+ *
+ *     java.lang.SecurityException: Settings key: <contrast_level> is not readable.
+ *
+ * The `SDK_INT < 34` guard could not help — the throw happens *on* 34 and above,
+ * which is exactly where the read ran. And this is called at the top of a screen,
+ * before any content, so every launch on a modern device died. Reported from a
+ * real device; nothing in this repository could have caught it, because there are
+ * no Android host tests and every other target returns a constant.
+ *
+ * `UiModeManager.getContrast()` is the public accessor the platform added in the
+ * same release as the setting, with `UiModeManager.ContrastChangeListener` for
+ * observing it. It is not `@hide`, so it has no such failure mode — which is why
+ * this does not defend itself with a `runCatching`. A read that cannot throw is
+ * better than one that is caught.
  */
 @Composable
-actual fun platformPrefersHighContrast(): Boolean {
-    val context = LocalContext.current
-    if (Build.VERSION.SDK_INT < 34) return false
-    return observeSecureSetting(context = context, key = CONTRAST_LEVEL) { resolver ->
-        Settings.Secure.getFloat(resolver, CONTRAST_LEVEL, 0f) >= HIGH_CONTRAST_THRESHOLD
+actual fun platformPrefersHighContrast(): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        contrastFromUiModeManager()
+    } else {
+        false
     }
-}
 
-/** `Settings.Secure.CONTRAST_LEVEL`, which is `@hide` in the SDK but stable since API 34. */
-private const val CONTRAST_LEVEL = "contrast_level"
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+@Composable
+private fun contrastFromUiModeManager(): Boolean {
+    val context = LocalContext.current
+    val manager = remember(context) { context.getSystemService(UiModeManager::class.java) }
+        ?: return false
+
+    var value by remember(manager) { mutableStateOf(manager.contrast >= HIGH_CONTRAST_THRESHOLD) }
+
+    DisposableEffect(manager) {
+        val listener = UiModeManager.ContrastChangeListener { contrast ->
+            value = contrast >= HIGH_CONTRAST_THRESHOLD
+        }
+        manager.addContrastChangeListener(context.mainExecutor, listener)
+        // Re-read on subscribe, for the same reason `observeSetting` does: the
+        // value may have moved between the initial read and the listener landing.
+        value = manager.contrast >= HIGH_CONTRAST_THRESHOLD
+        onDispose { manager.removeContrastChangeListener(listener) }
+    }
+    return value
+}
 
 /** The platform reports -1f..1f; 0.5f is where its own "high contrast" step sits. */
 private const val HIGH_CONTRAST_THRESHOLD = 0.5f
@@ -62,13 +105,6 @@ private fun observeGlobalSetting(
     key: String,
     read: (android.content.ContentResolver) -> Boolean,
 ): Boolean = observeSetting(context, Settings.Global.getUriFor(key), read)
-
-@Composable
-private fun observeSecureSetting(
-    context: Context,
-    key: String,
-    read: (android.content.ContentResolver) -> Boolean,
-): Boolean = observeSetting(context, Settings.Secure.getUriFor(key), read)
 
 @Composable
 private fun observeSetting(
