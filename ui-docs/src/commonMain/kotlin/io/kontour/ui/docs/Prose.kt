@@ -156,7 +156,7 @@ private fun CodeBlock(block: Block.Code) {
         ) {
             Text(
                 text = highlighted(block),
-                style = Theme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                style = Theme.typography.bodySmall.copy(fontFamily = Theme.typography.mono.fontFamily),
                 colour = Theme.colours.code.plain,
                 softWrap = false,
             )
@@ -344,9 +344,10 @@ private fun annotate(spans: List<Span>, heading: Boolean = false): AnnotatedStri
     val from = LocalDocPath.current
     val colours = Theme.colours
     val listener = remember(from) { DocLinkListener(from) }
-    val code = remember(colours, heading) {
+    val mono = Theme.typography.mono.fontFamily
+    val code = remember(colours, heading, mono) {
         SpanStyle(
-            fontFamily = FontFamily.Monospace,
+            fontFamily = mono,
             background = if (heading) {
                 androidx.compose.ui.graphics.Color.Transparent
             } else {

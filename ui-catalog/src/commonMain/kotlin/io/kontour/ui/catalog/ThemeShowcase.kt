@@ -62,7 +62,7 @@ fun ThemeShowcase(modifier: Modifier = Modifier) {
 private fun SectionHeading(text: String) {
     Text(
         text = text.uppercase(),
-        style = Theme.typography.monoLabel,
+        style = Theme.typography.eyebrow,
         colour = Theme.colours.accent.solid,
     )
 }
@@ -87,6 +87,15 @@ private fun TypeScale() {
             colour = Theme.colours.contentSubtle,
         )
         Text("LABEL LARGE", style = Theme.typography.labelLarge)
+        Text("EYEBROW — ABOVE A SECTION HEADING", style = Theme.typography.eyebrow)
+        // Two rows of the same width in a monospaced face, one row of figures
+        // that a theme with no mono still has to column-align through `tnum`.
+        // A theme that swapped its typeface shows it here or nowhere: this is
+        // the only picture of `mono` in the repository, and without it the
+        // GTurbo golden was byte-identical whether its numeric face was wired
+        // up or not.
+        Text("mono — 09:42  $18.60  1HGBH41JXMN109186", style = Theme.typography.mono)
+        Text("mono — 23:07  $ 4.05  WVWZZZ1JZ3W386752", style = Theme.typography.mono)
     }
 }
 

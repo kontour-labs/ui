@@ -107,7 +107,7 @@ internal fun Section(title: String, content: @Composable ColumnScope.() -> Unit)
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         Text(
             text = title.uppercase(),
-            style = Theme.typography.monoLabel,
+            style = Theme.typography.eyebrow,
             colour = Theme.colours.accent.solid,
         )
         content()

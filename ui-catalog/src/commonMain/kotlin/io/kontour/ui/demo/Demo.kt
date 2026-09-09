@@ -165,7 +165,7 @@ fun DemoCard(demo: ComponentDemo, modifier: Modifier = Modifier) {
         lastAction.value?.let { action ->
             Text(
                 text = action,
-                style = Theme.typography.monoLabel,
+                style = Theme.typography.mono,
                 colour = Theme.colours.contentMuted,
                 modifier = Modifier.padding(top = Theme.spacing.md),
             )

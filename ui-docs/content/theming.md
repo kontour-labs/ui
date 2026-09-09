@@ -64,7 +64,7 @@ KontourTheme(
 ```
 
 `Strings` is a token group like the rest, and it holds every word the library
-draws that you did not supply — 51 of them. Each component still takes its own
+draws that you did not supply — 47 of them. Each component still takes its own
 parameter, defaulted from here, so a one-off at a call site keeps working and an
 app-wide change is one argument rather than a sweep through every call site.
 

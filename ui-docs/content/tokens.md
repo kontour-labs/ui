@@ -66,19 +66,19 @@ WCAG 1.4.11 asks of a UI component boundary. Inputs, checkboxes and switches use
 |---|---|---|---|
 | `primary` / `onPrimary` | `#121212` / `#FFFFFF` | `#F4F1F8` / `#121212` | The solid call to action |
 | `accent` | a `StatusColours`, below | | The brand, as a tone |
-| `brand` | `#BB86FC` | `#BB86FC` | Purple as **decoration only** |
-| `focusRing` | `#6D28D9` | `#BB86FC` | The keyboard focus indicator |
+| `brand` | `#1D4ED8` | `#93C5FD` | The literal brand colour, decoration first |
+| `focusRing` | `#1D4ED8` | `#93C5FD` | The keyboard focus indicator |
 
 **`accent` is a tone, not four loose fields.** It is a `StatusColours` exactly
 like `success` and the rest, so there is one tone type and six tones:
 
 | Member | Light | Dark | Was |
 |---|---|---|---|
-| `accent.solid` | `#6D28D9` | `#BB86FC` | `accent` |
-| `accent.onSolid` | `#FFFFFF` | `#1A1024` | `onAccent` |
-| `accent.container` | `#F3ECFE` | `#2A1F3D` | `accentContainer` |
-| `accent.onContainer` | `#4C1D95` | `#D9BBFD` | `onAccentContainer` |
-| `accent.border` | `#DCC9FB` | `#453259` | *new* |
+| `accent.solid` | `#1D4ED8` | `#93C5FD` | `accent` |
+| `accent.onSolid` | `#FFFFFF` | `#0D1B2E` | `onAccent` |
+| `accent.container` | `#EFF6FF` | `#1B2739` | `accentContainer` |
+| `accent.onContainer` | `#1E3A8A` | `#BFDBFE` | `onAccentContainer` |
+| `accent.border` | `#C7DCFD` | `#2C3E5C` | *new* |
 
 The point is not tidiness. A component that takes a tone can now take *this*
 one, which is what `ButtonVariant.Accent`, `BannerTone.Accent` and
@@ -87,15 +87,23 @@ had to reach past the group and assemble itself from three separate fields.
 
 It also means a custom scheme has to supply the whole tone rather than one
 colour. That is the point too: the old `lightColourScheme(accent = Color(...))`
-left `accentContainer` at the default purple, so a blue accent came with a
-purple selected-state and the signature said nothing about it.
+left `accentContainer` at the default, so a green accent came with a blue
+selected-state and the signature said nothing about it.
 
-**On `brand` versus `accent`.** `#BB86FC` is the Kontour purple, and on white it
-reaches only 2.1:1 — it cannot carry text, a fill label, or a focus ring in light
-mode. (The marketing site's `.button.primary:hover` does exactly this today and
-fails.) So the palette splits the job: `brand` is the literal brand colour for
-decoration, and `accent.solid` is a purple dark enough to be read. That split
-is checked, so `brand` cannot quietly become a text colour.
+**On `brand` versus `accent`.** They are separate roles because a brand colour is
+chosen to be recognised and an accent has to be *read*, and nothing guarantees
+one colour can do both. `brand` is the literal mark — a logo, a decorative rule,
+a splash — and is the one role the contrast suite does not walk; `accent.solid`
+is the tone components are built from, and every pairing of it is checked.
+
+Today's default happens to satisfy both: `#1D4ED8` is 6.7:1 on white and
+`#93C5FD` is 10.39:1 on `#121212`, so the shipped `brand` would carry text
+perfectly well. That is a fact about this palette and not about the role. A brand
+that hands over a colour which cannot — GTurbo's `#E11F26` is 4.17:1 on its own
+near-black ground and unreadable on anything lighter — puts it in `brand`,
+supplies a readable tone in `accent`, and the split does its job. Because the
+suite skips `brand`, that is also the one place a scheme can put a colour it has
+decided nobody has to read.
 
 ### Status
 
@@ -158,6 +166,15 @@ Outfit, shipped as five static instances cut from the upstream variable font, so
 weights render identically on every target. SIL OFL; licence at
 [`app/ui/licenses/Outfit-OFL.txt`](../../ui/licenses/Outfit-OFL.txt).
 
+Beside it, two cuts of JetBrains Mono for code, keyboard keys and figures — also
+SIL OFL, licence at
+[`app/ui/licenses/JetBrainsMono-OFL.txt`](../../ui/licenses/JetBrainsMono-OFL.txt).
+It is bundled for the same reason Outfit is: `FontFamily.Monospace` is Menlo on
+one machine, Consolas on another and whatever a browser was configured with on
+the web, and a library that ships five static weights so they "render identically
+on every target" should not then ask the platform what it thinks a monospaced
+face looks like.
+
 | Role | Large | Medium | Small | Weight | Line height |
 |---|---|---|---|---|---|
 | `display` | 48 | 40 | 32 | 800 | 1.10–1.20 |
@@ -166,9 +183,26 @@ weights render identically on every target. SIL OFL; licence at
 | `body` | 17 | 15 | 13 | 400 | 1.60 / 1.50 |
 | `label` | 16 | 14 | 12 | 600 | 1.20 |
 
-Plus `monoLabel` — 13sp, weight 700, `+0.14em` tracking, meant to be set in
-upper case. It is the eyebrow above a section heading (`.mono-label` on the
-marketing site).
+Plus two that are not rungs on that ladder:
+
+- **`eyebrow`** — 13sp, weight 700, `+0.14em` tracking, meant to be set in upper
+  case. The label above a section heading (`.mono-label` on the marketing site).
+  It was called `monoLabel` and is Outfit: nothing about it is monospaced, and
+  the name cost the library six call sites that reached past it for
+  `FontFamily.Monospace` because it plainly was not what they wanted.
+- **`mono`** — `bodyMedium`'s metrics in the monospaced face, with `tnum` on.
+  Figures line up whatever they are, which is what a readout redrawn in place
+  needs; and because Outfit ships `tnum`, that holds even under a theme that
+  supplied no monospaced family at all.
+
+For a different size in that face, take the family and keep the metrics:
+
+```kotlin
+Theme.typography.bodySmall.copy(fontFamily = Theme.typography.mono.fontFamily)
+```
+
+That is what the code blocks on this site do, and it is why `mono` is one style
+rather than a second scale of nine.
 
 Sizes are in `sp` and scale with the OS text-size setting. Every style trims
 half-leading at the top and bottom of a block, so visual bounds match layout
@@ -181,6 +215,18 @@ Which one to reach for:
 - **title** — card headers, list headlines, dialog titles.
 - **body** — everything the user actually reads.
 - **label** — text inside a control: buttons, chips, tabs, form labels.
+- **mono** — anything a reader is meant to compare column-wise or copy verbatim:
+  telemetry, prices, identifiers, code.
+
+A brand that supplies its own faces passes both:
+
+```kotlin
+KontourTheme(typography = kontourTypography(myBrandFace, myMonoFace)) { … }
+```
+
+The second argument defaults to the first rather than to the bundled mono — a
+brand that named one face and said nothing about a second has asked for *its*
+face, not for its face beside somebody else's.
 
 ---
 

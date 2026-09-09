@@ -37,18 +37,31 @@ import sys
 # Ceilings in gzip bytes, with roughly 3% of headroom over the measured figure so
 # that a compressor version does not fail the build. They only go down.
 #
-# Measured 2026-09-05, Kotlin 2.4.10 / Compose 1.12.0-rc01, `--update`:
+# Measured 2026-09-09, Kotlin 2.4.10 / Compose 1.12.0-rc01, `--update`:
+#
+# `fonts` rose from 290,000 for two cuts of JetBrains Mono, 76,704 raw bytes:
+# the library already hardcoded `FontFamily.Monospace` in `Kbd` and the site did
+# it six more times, so this closes a cross-platform inconsistency rather than
+# adding a feature. `app` fell 50,000 in the same pass, from deleting 3,870
+# lines of hand-written gallery panels — a ratchet is allowed to tighten, and
+# this is the run where it did.
 CEILINGS = {
     "skiko": 3_430_000,
-    "app": 2_160_000,
+    "app": 2_110_000,
     "js": 110_000,
-    "fonts": 290_000,
+    "fonts": 370_000,
     "other": 10_000,
-    "total": 5_980_000,
+    "total": 6_000_000,
 }
 
-# The whole first load, in files. Six is index.html, styles.css, the loader, two
-# binaries and one font; anything past that is a round trip a reader waits for.
+# The whole *distribution*, in files — `dist.rglob("*")`, which is every file the
+# build emits and not the subset a browser fetches to show the first frame. The
+# docstring here used to say "first load", which was wrong in a way that
+# mattered: fonts arrive lazily through Compose Resources, so the seven of them
+# below are half this number and none of them is on the critical path. What the
+# ceiling actually bounds is how many separate things a reader's browser could
+# be asked for, which is still worth bounding — but a change that adds a lazily
+# fetched resource is spending against a different budget than it looks.
 MAX_FILES = 14
 
 COMPRESSIBLE = {".html", ".css", ".js", ".mjs", ".json", ".wasm", ".svg"}

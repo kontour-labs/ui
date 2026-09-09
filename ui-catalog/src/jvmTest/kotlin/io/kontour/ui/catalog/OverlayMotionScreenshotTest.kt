@@ -320,7 +320,7 @@ private fun MotionPanel(label: String, content: @Composable BoxScope.() -> Unit)
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         Text(
             text = label.uppercase(),
-            style = Theme.typography.monoLabel,
+            style = Theme.typography.eyebrow,
             colour = Theme.colours.accent.solid,
         )
         Surface(

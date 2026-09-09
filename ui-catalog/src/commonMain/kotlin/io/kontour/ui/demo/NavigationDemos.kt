@@ -235,7 +235,7 @@ internal val NavigationSuiteScaffoldDemo = ComponentDemo(slug = "navigation-suit
                 ) {
                     Text(
                         "content",
-                        style = Theme.typography.monoLabel,
+                        style = Theme.typography.eyebrow,
                         colour = Theme.colours.contentSubtle,
                     )
                 }

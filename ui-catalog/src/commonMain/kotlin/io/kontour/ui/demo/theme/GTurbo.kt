@@ -1,7 +1,6 @@
 package io.kontour.ui.demo.theme
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.CapsuleCornerSize
 import io.kontour.ui.theme.CodeColours
@@ -11,8 +10,10 @@ import io.kontour.ui.theme.Shapes
 import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.StatusColours
 import io.kontour.ui.theme.darkColourScheme
+import io.kontour.ui.theme.jetBrainsMonoFontFamily
 import io.kontour.ui.theme.kontourTypography
 import io.kontour.ui.theme.leadingCornersOnly
+import io.kontour.ui.theme.outfitFontFamily
 import io.kontour.ui.theme.topCornersOnly
 
 /**
@@ -35,12 +36,15 @@ import io.kontour.ui.theme.topCornersOnly
  *    same ladder, from 6dp, in steps of 2" in one line. The corners are still
  *    squircles — what is missing is a way to compress the scale, not a way to
  *    turn its geometry off.
- * 2. **`FontFamily.Monospace`** for the numeric face, because [Typography]
- *    carries one family for all sixteen styles. That is also why `Kbd` and every
- *    code block on the documentation site call the platform's mono today.
- * 3. **No uppercase labels**, though the design sets every button, field label
+ * 2. **No uppercase labels**, though the design sets every button, field label
  *    and badge in capitals. Casing is not something a `TextStyle` can carry and
  *    there is nowhere else to put it.
+ *
+ * A third is now closed and is left here as the record of what the exercise is
+ * for: this file used to carry `FontFamily.Monospace` in a constant nothing
+ * could read, because `Typography` had one family for all sixteen styles. Stage
+ * 4 gave it two and a `mono` style, and the line went from a dead constant plus
+ * nine lines of KDoc explaining why it was dead to one extra argument.
  *
  * Each of those closes in a later stage, and the acceptance test for the seam is
  * that *this file gets shorter and its render does not change*.
@@ -72,7 +76,12 @@ val gTurboDemoTheme = DemoTheme(
     tiers = setOf(ContrastLevel.Standard),
     colours = { _, _ -> gTurboColours() },
     shapes = gTurboShapes(),
-    typography = { kontourTypography(io.kontour.ui.theme.outfitFontFamily()) },
+    // Outfit for text, JetBrains Mono for figures — which is one argument now
+    // that `kontourTypography` takes a second family. Before stage 4 this file
+    // carried a `NumericFace` constant set to `FontFamily.Monospace` that
+    // nothing could read, because `Typography` had one family for all sixteen
+    // styles; the design's telemetry, prices and VINs had nowhere to go.
+    typography = { kontourTypography(outfitFontFamily(), jetBrainsMonoFontFamily()) },
 )
 
 /** The page ground. Nearly black, and not quite neutral — it leans blue. */
@@ -276,15 +285,3 @@ private fun gTurboShapes(): Shapes {
         sideSheet = extraLarge.leadingCornersOnly(),
     )
 }
-
-/**
- * The face the design sets numbers in — telemetry, prices, VINs.
- *
- * Unused for now, and deliberately left in view: [io.kontour.ui.theme.Typography]
- * carries a single family across all sixteen styles, so there is nowhere to put
- * a second one. `Kbd` has the same problem and solves it the same way, by asking
- * the platform for whatever mono it has, which is a different typeface on every
- * target.
- */
-@Suppress("unused")
-private val NumericFace: FontFamily = FontFamily.Monospace

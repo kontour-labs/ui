@@ -67,7 +67,7 @@ private fun Screen(content: @Composable BoxScope.() -> Unit) {
                 Text(
                     text = "map",
                     modifier = Modifier.align(Alignment.TopCenter).padding(Theme.spacing.lg),
-                    style = Theme.typography.monoLabel,
+                    style = Theme.typography.eyebrow,
                     colour = Theme.colours.contentSubtle,
                 )
                 content()

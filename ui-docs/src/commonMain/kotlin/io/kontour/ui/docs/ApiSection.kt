@@ -68,7 +68,7 @@ private fun EntryBlock(entry: ApiEntry) {
         ) {
             Text(
                 text = listOfNotNull(entry.owner, entry.name).joinToString("."),
-                style = Theme.typography.titleSmall.copy(fontFamily = FontFamily.Monospace),
+                style = Theme.typography.titleSmall.copy(fontFamily = Theme.typography.mono.fontFamily),
             )
             // A `Tag`, not accent-coloured text. It marks a *kind* of thing,
             // which is what a tag is for, and the page beside it documents
@@ -91,7 +91,7 @@ private fun EntryBlock(entry: ApiEntry) {
             entry.reference?.let { url ->
                 Text(
                     text = "reference",
-                    style = Theme.typography.monoLabel,
+                    style = Theme.typography.eyebrow,
                     colour = Theme.colours.accent.solid,
                     modifier = Modifier
                         .pointerCursor(PointerIcon.Hand)
@@ -118,7 +118,7 @@ private fun EntryBlock(entry: ApiEntry) {
         entry.enums.mapNotNull { apiEnums[it] }.forEach { enum ->
             Text(
                 text = "${enum.name}: ${enum.values.joinToString(", ")}",
-                style = Theme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                style = Theme.typography.bodySmall.copy(fontFamily = Theme.typography.mono.fontFamily),
                 colour = Theme.colours.contentMuted,
             )
         }
@@ -217,7 +217,7 @@ private fun StackedList(entry: ApiEntry) {
 private fun Mono(text: String, weight: FontWeight = FontWeight.Normal) {
     Text(
         text = text,
-        style = Theme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = weight),
+        style = Theme.typography.bodySmall.copy(fontFamily = Theme.typography.mono.fontFamily, fontWeight = weight),
         colour = Theme.colours.content,
     )
 }
@@ -234,7 +234,7 @@ private fun Default(parameter: ApiParameter) {
     Text(
         text = parameter.default?.let { "= $it" } ?: "required",
         style = Theme.typography.bodySmall.copy(
-            fontFamily = if (parameter.required) FontFamily.Default else FontFamily.Monospace,
+            fontFamily = if (parameter.required) FontFamily.Default else Theme.typography.mono.fontFamily,
         ),
         colour = if (parameter.required) Theme.colours.contentMuted else Theme.colours.content,
     )
