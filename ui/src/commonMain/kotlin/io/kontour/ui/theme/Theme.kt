@@ -136,7 +136,18 @@ fun KontourTheme(
     typography: Typography = rememberDefaultTypography(),
     shapes: Shapes = remember { Shapes() },
     spacing: Spacing = remember { Spacing() },
-    elevation: Elevation = remember(darkTheme) { kontourElevation(darkTheme) },
+    /**
+     * Keyed off the *scheme*, not off [darkTheme].
+     *
+     * The two agree for every caller who lets [colours] default, which is why
+     * this went unnoticed. They come apart the moment an app supplies a palette
+     * of its own: [darkTheme] picks between the built-in schemes, so an app that
+     * has declined them has no reason to set it, and a dark scheme was getting
+     * light-mode alphas — every card, menu and dialog flat, for a reason nothing
+     * on screen explains. [ColourScheme.isDark] is already the thing `Surface`,
+     * `Tag` and `Skeleton` ask when they need to know which ground they are on.
+     */
+    elevation: Elevation = remember(colours.isDark) { kontourElevation(colours.isDark) },
     motion: Motion = remember(reduceMotion) { kontourMotion(reduceMotion) },
     sizing: Sizing = remember(contrast) { kontourSizing(contrast) },
     strings: Strings = remember { Strings() },

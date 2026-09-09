@@ -325,10 +325,30 @@ fun OceanApp(content: @Composable () -> Unit) {
 }
 ```
 
-**Verify its contrast.** The built-in schemes are checked on every build; a
-scheme of your own is not, until you check it. The library's own contrast test
-is a good template — the whole value of it is that it runs on palettes nobody
-has eyeballed yet.
+**Verify its contrast**, with the check the built-in schemes are held to:
+
+```kotlin
+@Test
+fun theOceanSchemeIsReadable() {
+    for (dark in listOf(false, true)) {
+        val failures = contrastFailures(OceanTheme.colours(dark), ContrastLevel.Standard)
+        assertTrue(failures.isEmpty(), "Ocean, dark=$dark: $failures")
+    }
+}
+```
+
+`contrastFailures` walks every foreground/background pairing a component is
+allowed to produce and returns the ones that miss, each naming the token and the
+number it needed. Contrast is not something you can eyeball — three of the values
+originally proposed for the built-in schemes looked fine and failed by a tenth of
+a point.
+
+The built-in schemes run this on every build. A scheme of your own does not,
+until you write the four lines above.
+
+One thing it cannot promise: **a role added to `ColourScheme` owes it nothing
+automatically.** The pairings are written by hand, because nothing can infer
+which ground a new token is drawn on or whether it is text.
 
 Remember the `brand` / `accent` split when authoring: `brand` may be any brand
 colour at all, including one that fails contrast, because it is only ever

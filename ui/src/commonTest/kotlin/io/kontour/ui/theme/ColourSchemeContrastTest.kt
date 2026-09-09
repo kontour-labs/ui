@@ -2,6 +2,7 @@ package io.kontour.ui.theme
 
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.a11y.ContrastThreshold
+import io.kontour.ui.a11y.contrastFailures
 import io.kontour.ui.a11y.contrastRatio
 import kotlin.test.Test
 import kotlin.test.fail
@@ -16,7 +17,9 @@ import kotlin.test.fail
  * at 2.1:1) is shipping on the marketing site today. Anyone adding a token or
  * retuning a palette will be told immediately, by name, which pairing broke.
  *
- * Deliberately excluded:
+ * The walk is [io.kontour.ui.a11y.contrastFailures], which is public so an app
+ * authoring its own palette can run it. What is deliberately excluded, and why,
+ * is documented there. In summary:
  *  - `contentDisabled`, `outline`, `outlineSubtle`, and the status `border`
  *    tones. WCAG 1.4.3 exempts disabled controls, and 1.4.11 exempts purely
  *    decorative rules. Holding them to a ratio would force dividers so dark
@@ -47,87 +50,12 @@ class ColourSchemeContrastTest {
 
     @Test
     fun everyBuiltInSchemeMeetsItsContrastTier() {
-        val failures = mutableListOf<Failure>()
-
-        for ((name, c, tier) in schemes) {
-            val bodyText = when (tier) {
-                ContrastLevel.Standard -> ContrastThreshold.BODY_TEXT
-                ContrastLevel.High -> ContrastThreshold.BODY_TEXT_ENHANCED
-            }
-            val nonText = when (tier) {
-                ContrastLevel.Standard -> ContrastThreshold.NON_TEXT
-                ContrastLevel.High -> ContrastThreshold.LARGE_TEXT_ENHANCED
-            }
-
-            fun check(fgName: String, fg: Color, bgName: String, bg: Color, required: Float) {
-                val ratio = contrastRatio(fg, bg)
-                if (ratio < required) {
-                    failures += Failure(name, "$fgName on $bgName", ratio, required)
-                }
-            }
-
-            // Text and control boundaries against every ground they can land on.
-            for ((groundName, ground) in c.grounds()) {
-                check("content", c.content, groundName, ground, bodyText)
-                check("contentMuted", c.contentMuted, groundName, ground, bodyText)
-                check("contentSubtle", c.contentSubtle, groundName, ground, bodyText)
-                check("outlineStrong", c.outlineStrong, groundName, ground, nonText)
-                check("focusRing", c.focusRing, groundName, ground, nonText)
-            }
-
-            // Source code, on the one ground it is ever drawn on.
-            //
-            // Written out rather than left to the sweep above, and the reason
-            // is that a role added to `ColourScheme` owes this test **nothing
-            // automatically**: the lists here are written by hand, so a new
-            // colour arrives untested and passing. `lerpColourScheme` catches a
-            // role that is forgotten entirely — it will not compile — and
-            // nothing catches one that is merely never checked.
-            //
-            // Highlighting is decorative, so these are held to body text on the
-            // ground rather than to any separation from each other: a reader who
-            // cannot tell a keyword from a literal has lost nothing the
-            // characters do not still say. What would be a real defect is a
-            // literal that is hard to read at all.
-            run {
-                val code = c.code
-                for ((role, colour) in listOf(
-                    "code.plain" to code.plain,
-                    "code.keyword" to code.keyword,
-                    "code.literal" to code.literal,
-                    "code.comment" to code.comment,
-                )) {
-                    check(role, colour, "surfaceSunken", c.surfaceSunken, bodyText)
-                }
-            }
-
-            // Labels on solid fills, and the fills themselves against the page.
-            val solids = listOf(
-                Triple("primary", c.primary, c.onPrimary),
-                Triple("accent", c.accent.solid, c.accent.onSolid),
-                Triple("success", c.success.solid, c.success.onSolid),
-                Triple("warning", c.warning.solid, c.warning.onSolid),
-                Triple("danger", c.danger.solid, c.danger.onSolid),
-                Triple("info", c.info.solid, c.info.onSolid),
-            )
-            for ((toneName, solid, onSolid) in solids) {
-                check("on$toneName", onSolid, toneName, solid, bodyText)
-                check(toneName, solid, "background", c.background, nonText)
-            }
-
-            // Text on tinted containers.
-            val containers = listOf(
-                Triple("accent.container", c.accent.container, c.accent.onContainer),
-                Triple("successContainer", c.success.container, c.success.onContainer),
-                Triple("warningContainer", c.warning.container, c.warning.onContainer),
-                Triple("dangerContainer", c.danger.container, c.danger.onContainer),
-                Triple("infoContainer", c.info.container, c.info.onContainer),
-            )
-            for ((containerName, container, onContainer) in containers) {
-                check("on$containerName", onContainer, containerName, container, bodyText)
-            }
-
-            check("onSurfaceInverse", c.onSurfaceInverse, "surfaceInverse", c.surfaceInverse, bodyText)
+        // The walk itself is `contrastFailures`, in `a11y`, because a consumer
+        // authoring a palette needs exactly this and used to be told to copy it
+        // out of a test they cannot see. What stays here is the part that is a
+        // *test*: which schemes get walked, and a message grouped by scheme.
+        val failures = schemes.flatMap { (name, colours, tier) ->
+            contrastFailures(colours, tier).map { Failure(name, it.pair, it.ratio, it.required) }
         }
 
         if (failures.isNotEmpty()) {
