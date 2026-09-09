@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,8 +20,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
@@ -30,6 +31,7 @@ import io.kontour.ui.adaptive.AspectRatioBox
 import io.kontour.ui.adaptive.ListDetailPaneScaffold
 import io.kontour.ui.adaptive.PaneFocus
 import io.kontour.ui.adaptive.Scaffold
+import io.kontour.ui.adaptive.SupportingPaneScaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.components.action.Button
@@ -38,18 +40,18 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.text.TextField
-import io.kontour.ui.components.text.TextToolbarAction
 import io.kontour.ui.components.text.TextSelectionToolbar
+import io.kontour.ui.components.text.TextToolbarAction
+import io.kontour.ui.components.text.rememberImeChain
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.Scrim
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.VerticalDivider
 import io.kontour.ui.motion.GlassSurface
 import io.kontour.ui.motion.atmosphere
 import io.kontour.ui.nav.TopBar
-import io.kontour.ui.components.text.rememberImeChain
-import io.kontour.ui.foundation.Scrim
 import io.kontour.ui.theme.Theme
 
 // --- Foundation -----------------------------------------------------------
@@ -201,12 +203,28 @@ internal val ScaffoldDemo = ComponentDemo(slug = "scaffold") {
  * and nothing to divide — so it is off by default and the frame below is wide
  * enough here to make it reachable.
  */
+/**
+ * The two scaffolds, which are two answers to one question.
+ *
+ * `ListDetailPaneScaffold` is for panes that are *the same content at two
+ * depths* — pick a stop, see the stop. `SupportingPaneScaffold` is for a main
+ * thing with something beside it that helps, and its supporting pane is
+ * dismissible where a detail pane is navigated back from. Under a narrow window
+ * they collapse differently, which is the whole reason to have both and the
+ * thing this knob shows.
+ */
+private val paneShape = Knob.Choice("Scaffold", listOf("List and detail", "Main and supporting"))
+
 private val paneResizable = Knob.Flag("Resizable")
 
 internal val PaneScaffoldDemo = ComponentDemo(
     slug = "pane-scaffold",
-    knobs = listOf(paneResizable),
+    knobs = listOf(paneShape, paneResizable),
 ) {
+    if (this@ComponentDemo[paneShape] == "Main and supporting") {
+        SupportingPaneDemoBody()
+        return@ComponentDemo
+    }
     var focus by remember { mutableStateOf(PaneFocus.List) }
     var selected by remember { mutableStateOf(1) }
     val stops = listOf("Perth Underground", "Elizabeth Quay", "Perth Busport", "McIver")
@@ -449,3 +467,66 @@ internal val foundationDemos = listOf(
     ImeChainDemo,
     TextToolbarDemo,
 )
+
+/**
+ * The supporting-pane half of the pane-scaffold demo.
+ *
+ * Its own function rather than a branch inline: the list-detail body holds three
+ * pieces of state that mean nothing here, and a `when` around both would keep
+ * them alive across a knob change.
+ */
+@Composable
+private fun SupportingPaneDemoBody() {
+    var supportingVisible by remember { mutableStateOf(true) }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(280.dp)
+            .border(Theme.sizing.borderWidth, Theme.colours.outline, Theme.shapes.medium)
+            .clip(Theme.shapes.medium),
+    ) {
+        // The same trick the list-detail body uses: a size-class provider scoped
+        // to this box, so one pane or two follows the *card's* width and the
+        // behaviour is visible without a tablet.
+        WindowSizeClassProvider(Modifier.fillMaxSize()) {
+            SupportingPaneScaffold(
+                supportingVisible = supportingVisible,
+                onDismissSupporting = { supportingVisible = false },
+                main = {
+                    Column(Modifier.padding(Theme.spacing.md)) {
+                        Text("Toodyay Rd run", style = Theme.typography.titleMedium)
+                        Text(
+                            "42.0 km · 38:04 · peak boost 18.6 psi",
+                            style = Theme.typography.bodySmall,
+                            colour = Theme.colours.contentMuted,
+                        )
+                    }
+                },
+                supporting = {
+                    Column(Modifier.padding(Theme.spacing.md)) {
+                        Text("Conditions", style = Theme.typography.labelMedium)
+                        Text(
+                            "24 °C, dry. Two of the four markers fell inside a " +
+                                "rain radius on the previous run.",
+                            style = Theme.typography.bodySmall,
+                            colour = Theme.colours.contentMuted,
+                        )
+                        if (!supportingVisible) return@Column
+                        Button(
+                            onClick = { supportingVisible = false },
+                            variant = ButtonVariant.Ghost,
+                            size = ButtonSize.Small,
+                        ) { +"Hide" }
+                    }
+                },
+            )
+        }
+    }
+    if (!supportingVisible) {
+        Button(
+            onClick = { supportingVisible = true },
+            variant = ButtonVariant.Secondary,
+            size = ButtonSize.Small,
+        ) { +"Show supporting pane" }
+    }
+}

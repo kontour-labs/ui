@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +27,7 @@ import com.composables.icons.tabler.outline.Copy
 import com.composables.icons.tabler.outline.Dots
 import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.Share
+import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
@@ -33,6 +35,8 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.nav.Tab
+import io.kontour.ui.nav.TabBar
 import io.kontour.ui.overlay.AlertDialog
 import io.kontour.ui.overlay.Command
 import io.kontour.ui.overlay.CommandPalette
@@ -40,20 +44,20 @@ import io.kontour.ui.overlay.ContextMenuArea
 import io.kontour.ui.overlay.Dialog
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.LoadingOverlay
+import io.kontour.ui.overlay.MenuDivider
 import io.kontour.ui.overlay.MenuItem
+import io.kontour.ui.overlay.MenuSectionHeader
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.Popover
+import io.kontour.ui.overlay.SubMenu
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastPosition
 import io.kontour.ui.overlay.ToastTone
-import io.kontour.ui.nav.Tab
-import io.kontour.ui.nav.TabBar
 import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.overlay.tooltip
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
 
 /**
  * A framed stage for one overlay, with its own host.
@@ -251,8 +255,25 @@ internal val ContextMenuAreaDemo = ComponentDemo(slug = "context-menu-area") {
         ContextMenuArea(
             modifier = Modifier.align(Alignment.Center),
             menu = {
+                // Built from the composables rather than `DropdownMenu`'s
+                // builder, because `ContextMenuArea` takes a composable slot —
+                // and that is the one place `SubMenu`, `MenuSectionHeader` and
+                // `MenuDivider` are reached directly. A submenu had no demo at
+                // all before this: hover-and-tap nesting is the part of a menu
+                // most likely to be wrong on touch, and it was drawn nowhere.
+                MenuSectionHeader { +"This stop" }
                 MenuItem(onClick = report) { +"Report a problem" }
                 MenuItem(onClick = suggest) { +"Suggest a correction" }
+                MenuDivider()
+                SubMenu(
+                    label = { +"Add to a list" },
+                    leadingIcon = Tabler.Outline.Star,
+                ) {
+                    MenuItem(onClick = { echo("Added to Favourites") }) { +"Favourites" }
+                    MenuItem(onClick = { echo("Added to Morning commute") }) {
+                        +"Morning commute"
+                    }
+                }
             },
         ) {
             Surface(
