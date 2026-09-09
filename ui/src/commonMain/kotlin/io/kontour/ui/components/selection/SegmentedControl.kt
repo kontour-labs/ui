@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
@@ -350,7 +351,20 @@ fun SegmentedControl(
                     contentAlignment = Alignment.Center,
                 ) {
                     ProvideTextStyle(Theme.typography.labelMedium) {
-                        Text(text = option, colour = labelColour, maxLines = 1)
+                        // Ellipsis rather than `Text`'s default clip, for the
+                        // reason `TabBar` gives for the same decision: a control
+                        // that divides its width evenly *expects* a long label to
+                        // run out of room, and a word cut mid-stroke reads as a
+                        // different word rather than a shortened one. "Keyboard"
+                        // was arriving as "Keyboar", and as "Keybo" at 130% type
+                        // — the accessibility setting making the loss worse, with
+                        // nothing on screen marking it.
+                        Text(
+                            text = option,
+                            colour = labelColour,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }

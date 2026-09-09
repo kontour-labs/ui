@@ -21,6 +21,20 @@ hold arbitrary content is a segment that can be made too wide to fit beside
 three others, and the cap at four short labels is the component's whole
 premise.
 
+### When the labels do not fit
+
+The track is divided evenly between the segments, so a long label on a narrow
+control is *expected* to run out of room — and what runs out **ellipsises**, the
+same as a [`TabBar`](tab-bar.md) tab and for the same reason: "Keyboard" cut to
+"Keyboar" reads as a different word, where "Keybo…" reads as a shortened one.
+
+Note "short" in the paragraph above is relative to the *control's* width, not to
+the label. Four segments in 244dp is 61dp each, which "Keyboard" already exceeds
+at the default type scale — and a reader who has turned text size up makes every
+segment tighter without making the control wider. If your labels are ellipsising
+at 100%, that is the signal to reach for a `RadioGroup` or a `Select`, not to
+shorten the words.
+
 The indicator is a single surface that **slides** between positions rather than
 each segment fading its own background — that is what makes it read as one
 physical thing with a moving part. It shares
