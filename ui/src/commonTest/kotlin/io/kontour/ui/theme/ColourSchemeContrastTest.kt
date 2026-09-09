@@ -5,6 +5,7 @@ import io.kontour.ui.a11y.ContrastThreshold
 import io.kontour.ui.a11y.contrastFailures
 import io.kontour.ui.a11y.contrastRatio
 import kotlin.test.Test
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
@@ -143,8 +144,8 @@ class BrandIsDecorativeOnlyTest {
      * was the literal Kontour purple and 2.1:1 on white. The library has no
      * product colour now, so there is nothing to assert about the default. What
      * is worth keeping is the check itself, as something an app can run against
-     * its own scheme — which is what [brandIsSafeForText] is for, and what
-     * `anyways` calls on `KontourBrandTheme`.
+     * its own scheme — which is what [brandIsSafeForText] is for, and what the
+     * GTurbo demo theme's logo red would answer `false` to.
      */
     @Test
     fun theDefaultBrandIsTheAccentUntilAnAppSetsOne() {
@@ -167,5 +168,56 @@ class BrandIsDecorativeOnlyTest {
                 fail("accent fails non-text contrast in $name: $ratio:1")
             }
         }
+    }
+}
+
+/**
+ * Pins the other half of that contract: [ColourScheme.primary] is **structural**.
+ *
+ * Three roles carry a product's colour and they are not interchangeable.
+ * [ColourScheme.accent] is the brand as a tone and is under every contrast
+ * obligation. [ColourScheme.brand] is the literal mark and is under none — it is
+ * the one role `contrastFailures` does not walk. [ColourScheme.primary] is
+ * neither: its own KDoc defines it as "the solid call-to-action fill: near-black
+ * on light, near-white on dark", and all four built-in schemes are `Palette.Ink`,
+ * `Palette.Paper`, `Palette.Black` and `Palette.White`.
+ *
+ * ### Why this needed an assertion and `brand` did not
+ *
+ * `brand == accent.solid` is the *documented* default — the library ships no
+ * product, so brand resolves to the accent until an app sets one, and
+ * `ThemeShowcase` labels that swatch "brand — unset" when it happens. Collapse
+ * there is expected and visible.
+ *
+ * `primary == accent.solid` is a defect and is **invisible**. A theme that wires
+ * both to its brand colour draws two identical swatches under different names
+ * and, more to the point, drags all 34 sites that read `primary` along with the
+ * accent — both floating action buttons, `Slider` and `RangeSlider`'s active
+ * track, `RadioButton`'s mark, all three `Progress` forms, `Timeline`'s nodes,
+ * `Carousel`'s indicator, `CalendarMonth`'s selected day. Nothing errors and
+ * every contrast check still passes, because each colour is fine on its own.
+ *
+ * The GTurbo demo theme did exactly that for two stages, and the goldens showed
+ * it plainly the whole time. A picture is not a check.
+ */
+class PrimaryIsStructuralTest {
+
+    @Test
+    fun noBuiltInSchemeUsesItsAccentAsItsPrimary() {
+        val collapsed = listOf(
+            "light" to lightColourScheme(),
+            "dark" to darkColourScheme(),
+            "light/high-contrast" to highContrastLightColourScheme(),
+            "dark/high-contrast" to highContrastDarkColourScheme(),
+        ).filter { (_, scheme) -> scheme.primary == scheme.accent.solid }
+
+        assertTrue(
+            collapsed.isEmpty(),
+            "${collapsed.size} built-in scheme(s) have primary == accent.solid: " +
+                collapsed.joinToString(", ") { it.first } + ". They are separate " +
+                "roles — primary is the structural call-to-action fill and accent " +
+                "is the brand as a tone — and a scheme that gives them one value " +
+                "leaves no component able to tell them apart.",
+        )
     }
 }

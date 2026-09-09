@@ -97,9 +97,12 @@ data class StatusColours(
  *   It is a **role**, not a hue. The default schemes have no product in them, so
  *   it resolves to the same blue as [accent]; an app that sets one separates the
  *   two. The reason it is a separate token at all is that a brand colour is
- *   under no obligation to pass a contrast checker — Kontour's own `#BB86FC` is
- *   2.1:1 on white — and [accent] is under every obligation, so one token could
- *   not be both. `KontourBrandTheme` in `anyways` is the worked example.
+ *   under no obligation to pass a contrast checker and [accent] is under every
+ *   obligation, so one token could not be both. The GTurbo demo theme is the
+ *   worked example: its logo red `#E11F26` is 4.17:1 on its own near-black
+ *   ground — fine as a mark, unreadable as text — while its [accent] carries
+ *   both a fill label and body copy. [io.kontour.ui.a11y.brandIsSafeForText] is
+ *   the question to ask of your own scheme.
  * @property focusRing The keyboard focus indicator. Held to 3:1 against every
  *   ground in the scheme, which is why it is separate from [brand] and follows
  *   [accent] instead.
@@ -135,8 +138,20 @@ data class ColourScheme(
     val outlineSubtle: Color,
 
     // --- Primary action ---
-    /** The solid call-to-action fill: near-black on light, near-white on dark. */
+    /**
+     * The solid call-to-action fill: near-black on light, near-white on dark.
+     *
+     * **Structural, not brand.** The product's colour is [accent] (as a tone) and
+     * [brand] (as a mark); this is the third role and it is the neutral one. It
+     * reaches far past a filled button — the slider's active track, the radio
+     * mark, all three progress forms, the selected calendar day — so a scheme
+     * that sets it to its brand colour tints every one of those and leaves no
+     * component able to tell the two roles apart. Nothing errors when that
+     * happens and contrast still passes, which is why
+     * `PrimaryIsStructuralTest` asserts it instead.
+     */
     val primary: Color,
+    /** What is legible on [primary]. */
     val onPrimary: Color,
 
     // --- Accent ---

@@ -188,12 +188,23 @@ private fun gTurboStandardColours(): ColourScheme = darkColourScheme(
     outlineStrong = LineStrong,
     outlineSubtle = LineSubtle,
 
-    // The solid call to action is the brand red, not the near-white the default
-    // scheme uses. This is the one place GTurbo departs from the library's idea
-    // of `primary` as structural rather than brand — and it is what the design
-    // does on every screen, so the theme follows the design.
-    primary = Red,
-    onPrimary = Color.White,
+    // Structural, not the brand — `primary` is defined as "the solid
+    // call-to-action fill: near-black on light, near-white on dark", and every
+    // built-in scheme holds to it.
+    //
+    // This was the brand red for a while, on the argument that the design's
+    // call to action is red on every screen. True, and it made `primary` and
+    // `accent.solid` the same colour, which is two roles wired to one constant:
+    // `ThemeShowcase` drew two identical red swatches under different names, and
+    // all 34 sites that read `primary` — both floating action buttons, the
+    // slider tracks, the selected radio, every progress form, the timeline
+    // nodes, the carousel indicator, the selected calendar day — went red along
+    // with the accent, so nothing on screen could tell the two apart.
+    //
+    // A red call to action is `ButtonVariant.Accent`, which is what the accent
+    // tone below is for.
+    primary = Ink,
+    onPrimary = Ground,
 
     accent = StatusColours(
         solid = Red,
@@ -322,11 +333,10 @@ private fun gTurboEnhancedColours(): ColourScheme = highContrastDarkColourScheme
     outlineStrong = LineStrongHc,
     outlineSubtle = LineSubtle,
 
-    // Salmon rather than red, and the ground rather than white on it — see the
-    // KDoc. This is the one place the enhanced tier looks different rather than
-    // brighter, and it is the design's own second red doing the job it was
-    // picked for.
-    primary = Salmon,
+    // The same structural near-white as the standard tier. It already clears
+    // the enhanced thresholds by a wider margin than anything else in the
+    // palette — 15.38:1 each way — so the tier changes nothing here.
+    primary = Ink,
     onPrimary = Ground,
 
     accent = StatusColours(

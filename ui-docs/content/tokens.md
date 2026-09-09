@@ -69,6 +69,17 @@ WCAG 1.4.11 asks of a UI component boundary. Inputs, checkboxes and switches use
 | `brand` | `#1D4ED8` | `#93C5FD` | The literal brand colour, decoration first |
 | `focusRing` | `#1D4ED8` | `#93C5FD` | The keyboard focus indicator |
 
+**Three roles carry a product's colour and `primary` is not one of them.** It is
+*structural* — near-black on light, near-white on dark, in every scheme the
+library ships — and it reaches a long way past a filled button: the slider's
+active track, the selected radio mark, every progress form, the timeline nodes,
+the carousel indicator, the selected day in a calendar. Setting it to a brand
+colour tints all of those at once, which is a real cost and an easy one to miss,
+because nothing errors and every contrast check still passes: each colour is fine
+on its own, and what fails is the *distinction*. If a design's call to action is
+its brand colour, that is `ButtonVariant.Accent` — reach for `accent`, and leave
+`primary` structural. A theme that collapses the two is checked on every build.
+
 **`accent` is a tone, not four loose fields.** It is a `StatusColours` exactly
 like `success` and the rest, so there is one tone type and six tones:
 

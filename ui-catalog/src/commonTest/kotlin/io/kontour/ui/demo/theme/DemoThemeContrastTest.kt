@@ -46,6 +46,49 @@ class DemoThemeContrastTest {
         }
     }
 
+    /**
+     * `primary` is structural, in every combination every theme claims.
+     *
+     * The library's counterpart is `PrimaryIsStructuralTest` in `:ui`, which
+     * walks the four built-in schemes. This walks the demo themes, and it is the
+     * one that has teeth: the built-ins have always held to the definition and
+     * GTurbo did not, for two stages, while every contrast check passed and both
+     * its goldens showed two identical red swatches under different names.
+     *
+     * `primary == accent.solid` is invisible to everything else here. Each
+     * colour clears its own thresholds; what fails is the *distinction*, and a
+     * ratio cannot see a distinction.
+     */
+    @Test
+    fun everyThemeKeepsPrimaryDistinctFromItsAccent() {
+        val collapsed = buildList {
+            for (theme in demoThemes) {
+                for (mode in theme.modes) {
+                    for (tier in theme.tiers) {
+                        val scheme = theme.colours(mode == ThemeMode.Dark, tier)
+                        if (scheme.primary == scheme.accent.solid) {
+                            add("${theme.name} $mode/$tier")
+                        }
+                    }
+                }
+            }
+        }
+
+        if (collapsed.isNotEmpty()) {
+            fail(
+                "${collapsed.size} scheme(s) give `primary` and `accent.solid` the " +
+                    "same value:\n\n" + collapsed.joinToString("\n") { "  $it" } +
+                    "\n\nThey are separate roles. `primary` is the structural " +
+                    "call-to-action fill — near-black on light, near-white on dark " +
+                    "— and is read by 34 sites in :ui including both floating " +
+                    "action buttons, the slider tracks, the selected radio and " +
+                    "every progress form. `accent` is the brand as a tone. A theme " +
+                    "whose call to action is its brand colour wants " +
+                    "`ButtonVariant.Accent`, not `primary`.",
+            )
+        }
+    }
+
     @Test
     fun aThemeDrawsOnlyWhatItClaims() {
         // The resolution order is the reader's preference, then the theme's
