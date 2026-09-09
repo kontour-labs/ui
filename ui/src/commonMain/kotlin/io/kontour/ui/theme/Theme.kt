@@ -224,14 +224,141 @@ private const val NOT_IN_THEME =
     "No KontourTheme found. Wrap your app in KontourTheme { … } — components " +
         "read their tokens from it and have no sensible default without one."
 
-internal val LocalColourScheme = staticCompositionLocalOf<ColourScheme> { error(NOT_IN_THEME) }
-internal val LocalTypography = staticCompositionLocalOf<Typography> { error(NOT_IN_THEME) }
-internal val LocalShapes = staticCompositionLocalOf<Shapes> { error(NOT_IN_THEME) }
-internal val LocalSpacing = staticCompositionLocalOf<Spacing> { error(NOT_IN_THEME) }
-internal val LocalElevation = staticCompositionLocalOf<Elevation> { error(NOT_IN_THEME) }
-internal val LocalMotion = staticCompositionLocalOf<Motion> { error(NOT_IN_THEME) }
-internal val LocalSizing = staticCompositionLocalOf<Sizing> { error(NOT_IN_THEME) }
-internal val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
+/**
+ * The eight token families, as composition locals.
+ *
+ * Read them through [Theme] — `Theme.colours` is `LocalColourScheme.current` and
+ * is what every component in the library uses. These are public for the other
+ * direction: *providing* one for part of a tree, which [ProvideTokens] does and
+ * which nothing could do from outside this module while they were `internal`.
+ *
+ * ### Still `staticCompositionLocalOf`, deliberately
+ *
+ * A static local does not track reads: changing one recomposes everything below
+ * the provider rather than only the composables that read it. That sounds like
+ * the wrong trade and is the right one here — a token change *is* a change to
+ * everything below it, and a tracking local would pay for read bookkeeping on
+ * every `Theme.spacing` in the library to avoid a recomposition that has to
+ * happen anyway. `animateThemeChanges` is where the cost shows up, and
+ * `KontourTheme`'s KDoc says so at the parameter.
+ *
+ * ### They throw rather than defaulting
+ *
+ * Outside a [KontourTheme] there is no sensible palette, and a component drawing
+ * in some fallback grey is a bug that looks like a design. The message names the
+ * fix.
+ */
+val LocalColourScheme = staticCompositionLocalOf<ColourScheme> { error(NOT_IN_THEME) }
+
+/** @see LocalColourScheme */
+val LocalTypography = staticCompositionLocalOf<Typography> { error(NOT_IN_THEME) }
+
+/** @see LocalColourScheme */
+val LocalShapes = staticCompositionLocalOf<Shapes> { error(NOT_IN_THEME) }
+
+/** @see LocalColourScheme */
+val LocalSpacing = staticCompositionLocalOf<Spacing> { error(NOT_IN_THEME) }
+
+/** @see LocalColourScheme */
+val LocalElevation = staticCompositionLocalOf<Elevation> { error(NOT_IN_THEME) }
+
+/** @see LocalColourScheme */
+val LocalMotion = staticCompositionLocalOf<Motion> { error(NOT_IN_THEME) }
+
+/** @see LocalColourScheme */
+val LocalSizing = staticCompositionLocalOf<Sizing> { error(NOT_IN_THEME) }
+
+/** @see LocalColourScheme */
+val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
+
+/**
+ * Change some tokens for a subtree, and **inherit the rest**.
+ *
+ * ```
+ * ProvideTokens(colours = brandScheme) {
+ *     Header()
+ * }
+ * ```
+ *
+ * ### Why this is not `KontourTheme` nested inside itself
+ *
+ * A nested [KontourTheme] does not inherit. Every parameter it is not given
+ * re-runs its *default*, and those defaults read the platform rather than the
+ * enclosing theme — so
+ *
+ * ```
+ * KontourTheme(strings = german) {
+ *     KontourTheme(darkTheme = true) { … }   // ← all 47 strings are English again
+ * }
+ * ```
+ *
+ * silently reverts the strings, resets `HapticsLevel.Off` to `Full`, and throws
+ * away a custom `spacing`, `sizing` or `motion` with them. Nothing errors and
+ * nothing looks wrong until somebody reads the German build. `ProvideTokens`
+ * defaults every parameter to *the value already in scope*, so an argument you
+ * do not pass is an argument that does not change.
+ *
+ * Use [KontourTheme] once, at the root. Use this for everything after it.
+ *
+ * ### The derived locals, which is the whole reason this is a function
+ *
+ * The obvious hand-rolled version —
+ * `CompositionLocalProvider(LocalColourScheme provides scheme) { … }` — gets the
+ * new scheme everywhere and the **old** content colour on every `Text` and
+ * `Icon` in the subtree, because `LocalContentColour` is derived from the scheme
+ * at the point [KontourTheme] provides it and is not re-derived by providing the
+ * scheme again. Half the subtree changes. Nothing errors. The same trap sits
+ * under `LocalTextStyle`, derived from `typography.bodyMedium`.
+ *
+ * So this re-provides both — but only where they have not been *narrowed*. A
+ * `Surface` sets `LocalContentColour` to the colour that reads on the ground it
+ * just painted, and that ground is still painted in the outgoing palette, so its
+ * narrowing is not stale and must survive. The test is equality with the
+ * outgoing token: unchanged means inherited from the theme and should follow the
+ * theme; anything else was set by something closer and is left alone.
+ *
+ * ### What it deliberately does not take
+ *
+ * `contrast`, `backdropBlur`, `haptics` and `feedback` are [KontourTheme]'s
+ * business — they are decisions about the app, not tokens a subtree restyles —
+ * and each has a public local of its own for the rare case. A subtree that wants
+ * a different *contrast tier* wants a different `ColourScheme` and a different
+ * `Sizing`, which are two arguments here.
+ */
+@Composable
+fun ProvideTokens(
+    colours: ColourScheme = LocalColourScheme.current,
+    typography: Typography = LocalTypography.current,
+    shapes: Shapes = LocalShapes.current,
+    spacing: Spacing = LocalSpacing.current,
+    elevation: Elevation = LocalElevation.current,
+    motion: Motion = LocalMotion.current,
+    sizing: Sizing = LocalSizing.current,
+    strings: Strings = LocalStrings.current,
+    content: @Composable () -> Unit,
+) {
+    val outgoingColours = LocalColourScheme.current
+    val outgoingTypography = LocalTypography.current
+
+    val contentColour = LocalContentColour.current
+    val textStyle = LocalTextStyle.current
+
+    CompositionLocalProvider(
+        LocalColourScheme provides colours,
+        LocalTypography provides typography,
+        LocalShapes provides shapes,
+        LocalSpacing provides spacing,
+        LocalElevation provides elevation,
+        LocalMotion provides motion,
+        LocalSizing provides sizing,
+        LocalStrings provides strings,
+        LocalContentColour provides
+            if (contentColour == outgoingColours.content) colours.content else contentColour,
+        LocalTextStyle provides
+            if (textStyle == outgoingTypography.bodyMedium) typography.bodyMedium else textStyle,
+        content = content,
+    )
+}
 
 /**
  * The tier the current theme is rendering at. Components rarely need this —

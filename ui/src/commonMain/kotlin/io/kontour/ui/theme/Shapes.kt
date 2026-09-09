@@ -253,6 +253,87 @@ data class Shapes(
 )
 
 /**
+ * The same scale, from a different starting rung, in a different step.
+ *
+ * [Shapes]'s own defaults are a ladder — 10, 16, 22, 28, 34 — and five derived
+ * tokens that point at rungs of it. Changing the ladder therefore meant
+ * restating all thirteen fields, because a `data class` default cannot be
+ * expressed in terms of an argument the caller supplied. That is not a
+ * hypothetical: the GTurbo demo theme wanted 6dp in steps of 2 and spent
+ * thirteen lines saying so, twelve of which repeated the library's own policy
+ * back to it.
+ *
+ * ```
+ * KontourTheme(shapes = kontourShapes(extraSmall = 6.dp, step = 2.dp, capsuleCap = 10.dp)) {
+ *     AppRoot()
+ * }
+ * ```
+ *
+ * `kontourShapes()` with no arguments is `Shapes()`, and `ShapeScaleTest` asserts
+ * exactly that. It reads as a tautology and is the whole proof: the factory is
+ * only worth having if it reproduces the defaults it is meant to replace, and
+ * every argument below moves one number in one place rather than opening a
+ * second way to describe the same scale.
+ *
+ * ### What it does not take
+ *
+ * [Shapes.control], [Shapes.field], [Shapes.container] and [Shapes.panel] — the
+ * four the shape KDoc calls "the seam a consumer wants" — are policy, not
+ * geometry: which rung a pressable thing lands on is a decision about the
+ * design, and a brand that disagrees is not adjusting a scale but replacing a
+ * mapping. `copy` already says that clearly:
+ *
+ * ```
+ * kontourShapes(extraSmall = 6.dp, step = 2.dp).let { it.copy(control = it.small, field = it.small) }
+ * ```
+ *
+ * which is GTurbo, whose buttons are small rounded rectangles rather than
+ * capsules. Two lines instead of thirteen, and the one line that differs from
+ * the library is the one a reader should be looking at.
+ *
+ * @param smoothing Applied to every squircle in the scale, and the reason it is
+ *   an argument here rather than a [Shapes] field. [SquircleShape.DefaultSmoothing]
+ *   explains why a scale must not mix two smoothings; this is how a consumer
+ *   changes it without being able to mix them. `0f` is a plain rounded rectangle
+ *   throughout, which is the one-line answer to "turn the continuous corners off".
+ * @param capsuleCap The ceiling on [Shapes.capsule], [Shapes.control] and
+ *   [Shapes.field] — see [CapsuleCap] for why the default is 18dp. A brand
+ *   compressing the ladder almost always wants this smaller too, and forgetting
+ *   it is what leaves a small-cornered design with capsule buttons.
+ */
+fun kontourShapes(
+    extraSmall: Dp = 10.dp,
+    step: Dp = 6.dp,
+    smoothing: Float = SquircleShape.DefaultSmoothing,
+    capsuleCap: Dp = CapsuleCap,
+): Shapes {
+    val xs = SquircleShape(extraSmall, smoothing)
+    val sm = SquircleShape(extraSmall + step, smoothing)
+    val md = SquircleShape(extraSmall + step * 2, smoothing)
+    val lg = SquircleShape(extraSmall + step * 3, smoothing)
+    val xl = SquircleShape(extraSmall + step * 4, smoothing)
+    val capsule = SquircleShape(CapsuleCornerSize(cap = capsuleCap), smoothing)
+    return Shapes(
+        extraSmall = xs,
+        small = sm,
+        medium = md,
+        large = lg,
+        extraLarge = xl,
+        // Not a squircle and not affected by [smoothing]: a true circular arc is
+        // what this token *is*, and the shapes that reach for it — an avatar, a
+        // status dot, a radio ring — are circles rather than rounded boxes.
+        pill = RoundedCornerShape(percent = 50),
+        capsule = capsule,
+        control = capsule,
+        field = SquircleShape(CapsuleCornerSize(cap = capsuleCap), smoothing),
+        container = md,
+        panel = lg,
+        sheet = xl.topCornersOnly(),
+        sideSheet = xl.leadingCornersOnly(),
+    )
+}
+
+/**
  * Half the shorter side, up to [cap]. What keeps a family's corner consistent
  * across its own size scale.
  *

@@ -1,6 +1,6 @@
 # Theming
 
-*Also on this page: `KontourTheme`.*
+*Also on this page: `KontourTheme`, `ProvideTokens`.*
 
 How to change what the system looks like without touching a component.
 
@@ -16,10 +16,17 @@ So the default scheme is not a design; it is a *starting point that offends
 nobody*. `brand` resolves to the accent until you set one, which is the library
 saying it has no opinion rather than pretending to have none.
 
-**The worked example is Kontour's own.** `KontourBrandTheme` in the `anyways`
-app overrides four tokens per tier — accent, brand, focus ring — and inherits
-everything else. It is about a hundred lines, most of them the purple values,
-and it is the shape to copy.
+**The worked example is in this repository.** `GTurbo`, in
+`ui-catalog/src/commonMain/kotlin/io/kontour/ui/demo/theme/GTurbo.kt`, is a
+near-black, red-accented, small-cornered design that shares no value with the
+default — a fair test of whether this is a token *system* or a dark-mode switch.
+Every colour in it was sampled from the design's own pixels, its contrast is
+walked against WCAG on every build, and it is photographed beside the built-in
+schemes in `ui-catalog/screenshots/theme-gturbo-dark.png`. It is the
+shape to copy, and unlike a description in prose it cannot drift: it compiles.
+
+This page used to point at an app in another repository for that. A worked
+example nothing builds is a worked example nobody can check.
 
 ---
 
@@ -48,8 +55,29 @@ Every token group is a parameter, so you override one and inherit the rest.
 **Force a mode for one screen:**
 
 ```kotlin
-KontourTheme(darkTheme = true) { MapScreen() }
+ProvideTokens(colours = kontourColourScheme(dark = true)) { MapScreen() }
 ```
+
+> **Call `KontourTheme` once, at the root, and `ProvideTokens` after it.**
+>
+> A nested `KontourTheme` does **not** inherit. Every parameter it is not given
+> re-runs its *default*, and those defaults read the platform rather than the
+> theme around them — so `KontourTheme(strings = german) { KontourTheme(darkTheme
+> = true) { … } }` puts all 47 strings back into English, resets
+> `HapticsLevel.Off` to `Full`, and discards a custom `spacing`, `sizing` or
+> `motion` on the way. Nothing errors. Nothing looks wrong until somebody reads
+> the German build.
+>
+> `ProvideTokens` defaults every parameter to the value already in scope, so an
+> argument you do not pass is an argument that does not change. This page used to
+> recommend the nested form; both behaviours are now asserted on every build, so
+> the difference stays a fact rather than a memory.
+>
+> Do not hand-roll it either: `CompositionLocalProvider(LocalColourScheme
+> provides scheme)` installs the scheme and leaves every `Text` and `Icon` below
+> it drawing in the *old* palette's content colour, because `LocalContentColour`
+> is derived where `KontourTheme` provides it and is not re-derived by providing
+> the scheme again.
 
 **Change the words the library puts on screen:**
 
@@ -123,8 +151,11 @@ KontourTheme(typography = kontourTypography(family = myBrandFamily)) { … }
 The scale — sizes, weights, line heights, tracking — is preserved; only the
 family changes.
 
-Nested `KontourTheme` calls re-provide tokens but do not install a second
-input-modality tracker, so overriding a theme mid-tree is cheap.
+Overriding tokens mid-tree is cheap in the way that matters — `ProvideTokens`
+provides locals and nothing else, and a nested `KontourTheme` at least declines
+to install a second input-modality tracker. What it is *not* is free of meaning:
+see the note under [Overriding](#overriding) for what a nested theme silently
+discards, and prefer `ProvideTokens` for every override below the root.
 
 ---
 
@@ -307,10 +338,12 @@ object OceanTheme {
         )
     }
 
-    val shapes = Shapes(
-        small = RoundedCornerShape(2.dp),
-        medium = RoundedCornerShape(4.dp),
-    )
+    // The whole ladder, from one rung and one step. Writing this as
+    // `Shapes(small = …, medium = …)` — which this page recommended for a
+    // while — leaves `extraSmall` at the default 10dp, so the scale runs
+    // 10, 2, 4, 28, 34 and the *extra small* corner is the second largest
+    // in it. A ladder has to be set as a ladder.
+    val shapes = kontourShapes(extraSmall = 2.dp, step = 2.dp, smoothing = 0f)
 }
 
 @Composable

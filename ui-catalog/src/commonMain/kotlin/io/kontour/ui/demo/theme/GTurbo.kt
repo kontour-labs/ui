@@ -2,19 +2,16 @@ package io.kontour.ui.demo.theme
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.theme.CapsuleCornerSize
 import io.kontour.ui.theme.CodeColours
 import io.kontour.ui.theme.ColourScheme
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.Shapes
-import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.StatusColours
 import io.kontour.ui.theme.darkColourScheme
 import io.kontour.ui.theme.jetBrainsMonoFontFamily
+import io.kontour.ui.theme.kontourShapes
 import io.kontour.ui.theme.kontourTypography
-import io.kontour.ui.theme.leadingCornersOnly
 import io.kontour.ui.theme.outfitFontFamily
-import io.kontour.ui.theme.topCornersOnly
 
 /**
  * A worked example of a theme that is not this library's own.
@@ -32,19 +29,22 @@ import io.kontour.ui.theme.topCornersOnly
  * Three things here are longer than they should be, and each one is a
  * specification rather than an oversight:
  *
- * 1. **Thirteen restated shape tokens**, because there is no way to say "the
- *    same ladder, from 6dp, in steps of 2" in one line. The corners are still
- *    squircles — what is missing is a way to compress the scale, not a way to
- *    turn its geometry off.
- * 2. **No uppercase labels**, though the design sets every button, field label
+ * 1. **No uppercase labels**, though the design sets every button, field label
  *    and badge in capitals. Casing is not something a `TextStyle` can carry and
  *    there is nowhere else to put it.
  *
- * A third is now closed and is left here as the record of what the exercise is
- * for: this file used to carry `FontFamily.Monospace` in a constant nothing
- * could read, because `Typography` had one family for all sixteen styles. Stage
- * 4 gave it two and a `mono` style, and the line went from a dead constant plus
- * nine lines of KDoc explaining why it was dead to one extra argument.
+ * Two are now closed, and are left named here as the record of what the exercise
+ * is for — in both cases the verbose version was the specification, and the seam
+ * was accepted only once this file got shorter and its render did not move:
+ *
+ * - The numeric face was a `FontFamily.Monospace` constant nothing could read,
+ *   because `Typography` had one family for all sixteen styles. Stage 4 gave it
+ *   two and a `mono` style; a dead constant and nine lines of KDoc explaining
+ *   why it was dead became one extra argument.
+ * - The shape scale was thirteen restated tokens, twelve of which repeated the
+ *   library's own policy back to it. Stage 5's `kontourShapes` took the ladder
+ *   and the capsule cap as arguments; what is left is the two fields where
+ *   GTurbo actually disagrees.
  *
  * Each of those closes in a later stage, and the acceptance test for the seam is
  * that *this file gets shorter and its render does not change*.
@@ -258,30 +258,14 @@ private fun gTurboColours(): ColourScheme = darkColourScheme(
  * in one line, and the test of that seam is that this function collapses and the
  * render does not move.
  */
-private fun gTurboShapes(): Shapes {
-    val extraSmall = SquircleShape(6.dp)
-    val small = SquircleShape(8.dp)
-    val medium = SquircleShape(10.dp)
-    val large = SquircleShape(12.dp)
-    val extraLarge = SquircleShape(14.dp)
-    return Shapes(
-        extraSmall = extraSmall,
-        small = small,
-        medium = medium,
-        large = large,
-        extraLarge = extraLarge,
-        // A capsule stays a capsule: the design's avatars and status dots are as
-        // round as anybody's, and `capsule` is half the shorter side rather than
-        // a rung of the ladder above.
-        capsule = SquircleShape(CapsuleCornerSize(cap = 10.dp)),
-        // A GTurbo button is a small-radius rectangle at every size rather than
-        // a capsule that squares off as it grows, so `control` and `field` leave
-        // the height-derived rule and take a fixed rung.
-        control = small,
-        field = small,
-        container = medium,
-        panel = large,
-        sheet = extraLarge.topCornersOnly(),
-        sideSheet = extraLarge.leadingCornersOnly(),
-    )
-}
+private fun gTurboShapes(): Shapes =
+    kontourShapes(extraSmall = 6.dp, step = 2.dp, capsuleCap = 10.dp).let {
+        // The one line that differs from the library, which is the one a reader
+        // should be looking at: a GTurbo button is a small-radius rectangle at
+        // every size rather than a capsule that squares off as it grows, so
+        // `control` and `field` leave the height-derived rule for a fixed rung.
+        //
+        // `capsule` itself is untouched — the design's avatars and status dots
+        // are as round as anybody's, and 10dp is where they cap.
+        it.copy(control = it.small, field = it.small)
+    }

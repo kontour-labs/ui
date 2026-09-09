@@ -263,6 +263,24 @@ same `of(n)` is a sign that value wants a name.
 | `sheet` | 34dp top only | Bottom sheets |
 | `sideSheet` | 34dp leading only | Side sheets |
 
+**Set the ladder as a ladder.** `kontourShapes(extraSmall = 6.dp, step = 2.dp)`
+is the whole scale from one rung and one step, with `container`, `panel`,
+`sheet` and `sideSheet` following it down. Reaching for `Shapes(small = …,
+medium = …)` instead leaves the rungs you did not name at the defaults, so a
+scale meant to be small runs 10, 2, 4, 28, 34 and its *extra small* corner is
+the second largest in it. `smoothing = 0f` turns the continuous corners off
+across the whole scale in the same call, which is the only place it can be done
+consistently — see below.
+
+`kontourShapes()` with no arguments is exactly `Shapes()`, asserted on every
+build. A brand that disagrees about which rung a *pressable* thing lands on is
+replacing a mapping rather than adjusting a scale, and says so with `copy`:
+
+```kotlin
+kontourShapes(extraSmall = 6.dp, step = 2.dp, capsuleCap = 10.dp)
+    .let { it.copy(control = it.small, field = it.small) }
+```
+
 **One step, all the way up.** Every rung is 6dp above the one below it, and that
 regularity is the point rather than tidiness. Two rounded shapes nested inside
 one another look right when the inner radius is the outer radius minus the gap
