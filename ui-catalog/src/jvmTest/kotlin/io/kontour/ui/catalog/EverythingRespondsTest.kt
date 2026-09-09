@@ -24,6 +24,7 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * Every control in the gallery does something when you press it.
@@ -122,6 +123,38 @@ class EverythingRespondsTest {
     private val CanvasDensity = 0.5f
 
     /**
+     * Long enough that only a *hang* can reach it.
+     *
+     * `runTest`'s default is 60 seconds, and this suite runs right up against it.
+     * Measured, from one `:ui-catalog:jvmTest` run on a developer machine:
+     *
+     *     overlaysRespond      55.7s
+     *     sheetsRespond        54.6s
+     *     dateAndTimeRespond   44.1s
+     *     navigationResponds   42.3s
+     *     the other seven      under 7s each
+     *
+     * So the slowest family finished with **4.3 seconds to spare**, and on a CI
+     * runner it does not: `overlaysRespond` failed there with
+     * `UncompletedCoroutinesError: After waiting for 1m, the test body did not
+     * run to completion`. It had failed the same way once before and was written
+     * off as machine load, which was the trigger and not the cause — the cause is
+     * fifty-six seconds of work under a sixty-second cap.
+     *
+     * The work is legitimate: this presses every control in a family and then
+     * re-tests each suspect alone on a fresh composition, which is what the
+     * comment above [isDeadAlone] is about. Making it faster is a different
+     * change and would not fix this, because some machine is always slower.
+     *
+     * What is wrong is using a liveness check as a performance budget. Sixty
+     * seconds is `runTest`'s arbitrary default, not a number anybody here chose;
+     * five minutes is one that only a genuine hang reaches — which is what a
+     * timeout is for. A test whose pass depends on how busy the machine is is not
+     * a test.
+     */
+    private val Timeout = 5.minutes
+
+    /**
      * One test per family, driven by [demoFamilies].
      *
      * These used to press the hand-written showcase panels. They press the demos
@@ -183,7 +216,7 @@ class EverythingRespondsTest {
         val suspect = mutableListOf<Pair<Int, String>>()
         var count = 0
 
-        runDesktopComposeUiTest(width = Canvas, height = Canvas) {
+        runDesktopComposeUiTest(width = Canvas, height = Canvas, testTimeout = Timeout) {
             val echoed = mutableListOf<String>()
             // Hand-driven, because something on the overlays page never stops
             // asking for frames and an auto-advancing clock chases it forever.
@@ -248,7 +281,7 @@ class EverythingRespondsTest {
     private fun isDeadAlone(content: @Composable () -> Unit, index: Int): Boolean {
         var dead = false
 
-        runDesktopComposeUiTest(width = Canvas, height = Canvas) {
+        runDesktopComposeUiTest(width = Canvas, height = Canvas, testTimeout = Timeout) {
             val echoed = mutableListOf<String>()
             mainClock.autoAdvance = false
             setContent { Harness(echo = { echoed += it }, content = content) }
