@@ -67,7 +67,7 @@ import io.kontour.ui.overlay.Popover
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.theme.ContrastLevel
-import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.demo.theme.DemoThemeProvider
 import io.kontour.ui.theme.Theme
 import androidx.compose.foundation.isSystemInDarkTheme
 
@@ -111,20 +111,15 @@ fun Site(settings: CatalogSettings = rememberCatalogSettings()) {
         LocalLayoutDirection provides
             if (settings.rightToLeft) LayoutDirection.Rtl else LayoutDirection.Ltr,
     ) {
-        KontourTheme(
-            darkTheme = settings.dark ?: systemDark,
-            // `?:` on all three, not just the first. `KontourTheme` defaults
-            // each of these to what the operating system reports, and passing a
-            // plain `false` overrides that with "no" — which is how the site
-            // that documents the library's reduced-motion and high-contrast
-            // support came to ignore both of them for every visitor who had
-            // asked for them.
-            contrast = if (settings.highContrast ?: platformPrefersHighContrast()) {
-                ContrastLevel.High
-            } else {
-                ContrastLevel.Standard
-            },
-            reduceMotion = settings.reduceMotion ?: platformPrefersReducedMotion(),
+        // One function, both surfaces, all nine token arguments — see
+        // `DemoThemeProvider`. The site used to spell three of them out here and
+        // the gallery spelled three out of its own, which is how the two came to
+        // disagree about the other six.
+        DemoThemeProvider(
+            settings = settings,
+            systemDark = systemDark,
+            systemHighContrast = platformPrefersHighContrast(),
+            systemReduceMotion = platformPrefersReducedMotion(),
         ) {
             WindowSizeClassProvider {
                 OverlayHost(Modifier.fillMaxSize()) {

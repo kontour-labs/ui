@@ -8,13 +8,13 @@ import androidx.compose.runtime.Composable
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import io.kontour.ui.catalog.CatalogSettings
+import io.kontour.ui.catalog.SettingToggle
+import io.kontour.ui.catalog.ThemePicker
 import io.kontour.ui.catalog.inputModalities
 import io.kontour.ui.components.selection.SegmentedControl
-import io.kontour.ui.components.selection.SelectionRow
-import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.Theme
 
 /** The scales worth offering. 200% is the one the accessibility page promises. */
@@ -44,14 +44,32 @@ internal fun SettingsPanel(settings: CatalogSettings, systemDark: Boolean) {
         modifier = Modifier.fillMaxWidth().padding(Theme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
     ) {
-        Toggle("Dark", settings.dark ?: systemDark) { settings.dark = it }
-        Toggle("High contrast", settings.highContrast ?: systemHighContrast) {
-            settings.highContrast = it
-        }
-        Toggle("Reduce motion", settings.reduceMotion ?: systemReduceMotion) {
+        Text("Theme", style = Theme.typography.labelMedium)
+        ThemePicker(settings)
+
+        // A theme may decline a mode or a tier — GTurbo is near-black and offers
+        // only dark. Its switch is drawn inert showing the resolved value rather
+        // than live-and-ignored, and the reader's own preference underneath is
+        // untouched, so leaving the theme restores it. `SettingToggle` carries
+        // that policy so it is not written twice.
+        val theme = settings.theme
+        SettingToggle(
+            "Dark",
+            theme.resolveDark(settings.dark ?: systemDark),
+            enabled = theme.offersBothModes,
+        ) { settings.dark = it }
+        SettingToggle(
+            "High contrast",
+            theme.resolveTier(
+                if (settings.highContrast ?: systemHighContrast) ContrastLevel.High
+                else ContrastLevel.Standard
+            ) == ContrastLevel.High,
+            enabled = theme.offersBothTiers,
+        ) { settings.highContrast = it }
+        SettingToggle("Reduce motion", settings.reduceMotion ?: systemReduceMotion) {
             settings.reduceMotion = it
         }
-        Toggle("Right to left", settings.rightToLeft) { settings.rightToLeft = it }
+        SettingToggle("Right to left", settings.rightToLeft) { settings.rightToLeft = it }
 
         Text(
             text = "Text size",
@@ -82,19 +100,5 @@ internal fun SettingsPanel(settings: CatalogSettings, systemDark: Boolean) {
             onSelectedChange = { settings.modality = inputModalities[it].second },
             modifier = Modifier.fillMaxWidth(),
         )
-    }
-}
-
-
-@Composable
-private fun Toggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    SelectionRow(
-        selected = checked,
-        onSelectedChange = onCheckedChange,
-        role = Role.Switch,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        +label
-        trailing { Switch(checked = checked, onCheckedChange = null) }
     }
 }

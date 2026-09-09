@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import io.kontour.ui.demo.theme.demoThemes
 import io.kontour.ui.input.InputModality
 
 /**
@@ -42,6 +43,17 @@ import io.kontour.ui.input.InputModality
  */
 @Stable
 class CatalogSettings {
+
+    /**
+     * Which look to draw. See `demoThemes`.
+     *
+     * A theme may decline a mode or a tier, and the three nullable switches
+     * below are still the *reader's* preference — the theme's policy resolves
+     * them at the point of use rather than overwriting them here, which is what
+     * lets a switch a dark-only theme has disabled come back to what the reader
+     * chose when they leave it.
+     */
+    var theme by mutableStateOf(demoThemes.first())
 
     /** Null follows the operating system. */
     var dark by mutableStateOf<Boolean?>(null)

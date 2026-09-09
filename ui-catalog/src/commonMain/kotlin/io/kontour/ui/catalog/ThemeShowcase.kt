@@ -113,11 +113,21 @@ private fun ColourRamp() {
             Swatch("primary", c.primary, c.onPrimary)
             Swatch("accent", c.accent.solid, c.accent.onSolid)
             Swatch("accent.container", c.accent.container, c.accent.onContainer)
-            // Identical to `accent` here, and that is the point: the default
-            // schemes have no product in them, so `brand` resolves to the
-            // accent until an app sets one. Labelled so the swatch reads as
-            // "unset" rather than as a duplicate.
-            Swatch("brand — unset", c.brand, c.accent.onSolid)
+            // In the built-in schemes this is identical to `accent`, and that is
+            // the point: they have no product in them, so `brand` resolves to
+            // the accent until an app sets one, and the label says so rather
+            // than letting the swatch read as a duplicate.
+            //
+            // It used to say "unset" unconditionally, which was true while the
+            // default scheme was the only one anybody drew this under. A theme
+            // that sets a real brand — GTurbo's logo red, one step off its fill
+            // red — made the label wrong, which is the sort of thing a second
+            // theme exists to find.
+            Swatch(
+                if (c.brand == c.accent.solid) "brand — unset" else "brand",
+                c.brand,
+                c.accent.onSolid,
+            )
         }
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),

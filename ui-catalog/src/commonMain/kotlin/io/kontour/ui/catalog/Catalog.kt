@@ -63,7 +63,7 @@ import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.theme.ContrastLevel
-import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.demo.theme.DemoThemeProvider
 import io.kontour.ui.theme.Theme
 
 /** One page of the gallery. */
@@ -143,18 +143,14 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
         LocalLayoutDirection provides
             if (settings.rightToLeft) LayoutDirection.Rtl else LayoutDirection.Ltr,
     ) {
-        KontourTheme(
-            // `?:` on all three. These used to be plain `false`, which overrode
-            // `KontourTheme`'s own defaults — each of which reads the operating
-            // system — with the answer "no", in the app whose whole job is to
-            // show that the library honours them.
-            darkTheme = settings.dark ?: systemDark,
-            contrast = if (settings.highContrast ?: systemHighContrast) {
-                ContrastLevel.High
-            } else {
-                ContrastLevel.Standard
-            },
-            reduceMotion = settings.reduceMotion ?: systemReduceMotion,
+        // Every token argument goes through one function, shared with the
+        // documentation site. Passing "the arguments this surface cares about"
+        // is what let the two disagree in the first place.
+        DemoThemeProvider(
+            settings = settings,
+            systemDark = systemDark,
+            systemHighContrast = systemHighContrast,
+            systemReduceMotion = systemReduceMotion,
         ) {
             // Overriding the modality has to happen *inside* the theme, which
             // installs the tracker that would otherwise set it from real input.
@@ -322,18 +318,32 @@ private fun SettingsSheet(
                 +"Display settings"
             }
 
+            Text("Theme", style = Theme.typography.labelMedium)
+            ThemePicker(settings)
+
             // The three platform-backed switches show the *resolved* value, so
             // one the reader has not touched reads as what they are actually
-            // getting rather than as the app's own preference.
-            Toggle("Dark", settings.dark ?: systemDark) { settings.dark = it }
-            Toggle("High contrast", settings.highContrast ?: systemHighContrast) {
-                settings.highContrast = it
-            }
-            Toggle("Right to left", settings.rightToLeft) { settings.rightToLeft = it }
-            Toggle("Reduce motion", settings.reduceMotion ?: systemReduceMotion) {
+            // getting rather than as the app's own preference — and the first
+            // two go inert under a theme that offers only one mode or tier.
+            val theme = settings.theme
+            SettingToggle(
+                "Dark",
+                theme.resolveDark(settings.dark ?: systemDark),
+                enabled = theme.offersBothModes,
+            ) { settings.dark = it }
+            SettingToggle(
+                "High contrast",
+                theme.resolveTier(
+                    if (settings.highContrast ?: systemHighContrast) ContrastLevel.High
+                    else ContrastLevel.Standard
+                ) == ContrastLevel.High,
+                enabled = theme.offersBothTiers,
+            ) { settings.highContrast = it }
+            SettingToggle("Right to left", settings.rightToLeft) { settings.rightToLeft = it }
+            SettingToggle("Reduce motion", settings.reduceMotion ?: systemReduceMotion) {
                 settings.reduceMotion = it
             }
-            Toggle("Frame times", settings.frameTimes) { settings.frameTimes = it }
+            SettingToggle("Frame times", settings.frameTimes) { settings.frameTimes = it }
 
             Text("Text size", style = Theme.typography.labelMedium)
             SegmentedControl(
