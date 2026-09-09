@@ -50,9 +50,26 @@ import androidx.compose.ui.unit.dp
  *
  * A wide object of defaulted fields is the shape of API that ships dead: at its
  * default a field that is read nowhere is indistinguishable from one that is.
- * `ComponentDefaultsReachTest` sets each field on its own to a sentinel, renders
- * the component that should read it, and requires the render to *change*. A
- * field that cannot move a pixel does not belong on this object.
+ * Three checks cover that, and each is blind to what the next one sees:
+ *
+ *  - **Every field is read by something.** `docs/check-components.py` counts the
+ *    readers of each field across `:ui` and fails on any that has none. That is
+ *    what makes the heading above true, and it also catches a forward dropped
+ *    during a rename — the field left behind has no reader at all.
+ *  - **Every value is what it was.** `ComponentDefaultsValuesTest` pins all
+ *    fifty-eight as hand-written literals, transcribed from the `*Defaults`
+ *    objects rather than from this file, so a mis-transcription fails even where
+ *    no picture would show it.
+ *  - **The plumbing reaches pixels.** `ComponentDefaultsReachTest` renders a
+ *    component under an overridden `ComponentDefaults` and requires the render to
+ *    change. It covers the gap the other two cannot: two fields that share a
+ *    default and are wired to each other's component read once each and hold
+ *    their values, so only a render can tell them apart.
+ *
+ * What none of them prove is that *every* field individually moves a pixel — the
+ * reader check is a count, not a render. If you add a field, add its literal to
+ * the values test; add a render case only if it shares a default with another
+ * field, which is the case worth the cost.
  *
  * @property uppercaseLabels Whether the label of a control is set in capitals.
  *
