@@ -86,6 +86,29 @@ class DemoThemeContrastTest {
         )
     }
 
+    /**
+     * And the contrast switch is live under both, which it was not.
+     *
+     * These two booleans are read straight into the `enabled` of a switch, in
+     * the gallery and on the documentation site — `Catalog.kt:391` and
+     * `Settings.kt:67`. GTurbo declared one tier, so its high-contrast toggle was
+     * drawn inert; authoring an enhanced palette turned it on with no wiring,
+     * which is what `DemoTheme` promises and worth an assertion rather than a
+     * hope.
+     */
+    @Test
+    fun everyThemeOffersTheContrastSwitchSomethingToDo() {
+        assertEquals(
+            true, gTurboDemoTheme.offersBothTiers,
+            "GTurbo authored an enhanced palette, so the high-contrast switch has " +
+                "to stop being drawn disabled",
+        )
+        assertEquals(
+            true, kontourDemoTheme.offersBothTiers,
+            "the library's own theme has both tiers and always has",
+        )
+    }
+
     @Test
     fun theKontourThemeIsStillTheBuiltInOne() {
         // Cheap, and it catches the mistake where a demo theme is edited into
