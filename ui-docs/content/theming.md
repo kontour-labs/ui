@@ -402,6 +402,32 @@ If you do not author one, pass your single scheme regardless of tier — users w
 asked for high contrast will get standard contrast, which is a downgrade you
 should make knowingly rather than by omission.
 
+**Authoring one is a starting point plus a check.** `highContrastLightColourScheme`
+and `highContrastDarkColourScheme` take every token, each defaulted to the value
+the AAA ratio demands, so a brand overrides what it owns and inherits forty tuned
+greys, washes and status tones:
+
+```kotlin
+val enhanced = highContrastDarkColourScheme(
+    background = Color(0xFF0A0A0B),
+    accent = myEnhancedAccent,
+)
+```
+
+Overriding a ground makes the ratio yours, and there is one call that tells you
+whether you kept it:
+
+```kotlin
+@Test
+fun myEnhancedTierIsEnhanced() {
+    assertEquals(emptyList(), contrastFailures(enhanced, ContrastLevel.High))
+}
+```
+
+The factory does not run that for you. A palette that lands at 6.9:1 instead of
+7 should not crash the app, and least of all should it crash only for the people
+who have the high-contrast setting switched on.
+
 ---
 
 ## The generator, later
@@ -412,17 +438,23 @@ rather than only by its constructor. That shape is deliberate.
 Today the factories are hand-authored:
 
 ```kotlin
-fun lightColourScheme(…): ColourScheme                 // every token
-fun darkColourScheme(…): ColourScheme                  // every token
-fun highContrastLightColourScheme(accent, brand, focusRing): ColourScheme
-fun highContrastDarkColourScheme(accent, brand, focusRing): ColourScheme
+fun lightColourScheme(…): ColourScheme              // every token
+fun darkColourScheme(…): ColourScheme               // every token
+fun highContrastLightColourScheme(…): ColourScheme  // every token, AAA defaults
+fun highContrastDarkColourScheme(…): ColourScheme   // every token, AAA defaults
 ```
 
-The high-contrast pair takes three parameters rather than every token, and that
-is not an oversight. At AAA the grounds are pure white or pure black, the content
-is its opposite, and the greys are the lightest values that still clear 7:1 —
-none of that is a design choice, it is what the tier is *for*. The accent is the
-only part a product owns.
+The high-contrast pair used to take three parameters — accent, brand, focus ring
+— on the argument that the rest is not a design choice: at AAA the grounds are
+pure white or pure black, the content is its opposite, and the greys are the
+lightest values that still clear 7:1. That argument is right about the *defaults*
+and was wrong as a restriction. It meant a product whose ground is neither pure
+white nor pure black had no enhanced tier available at all, because there was no
+way to keep its ground and take the forty tuned values with it.
+
+Withholding a parameter defends a guarantee by blocking every legitimate use
+along with the illegitimate ones. The guarantee is a ratio, so the way to keep it
+is to check the ratio — see `contrastFailures` above.
 
 Deriving a full palette from a single seed colour — for user-selectable accents,
 or Android's wallpaper-derived colours — means adding one more factory:

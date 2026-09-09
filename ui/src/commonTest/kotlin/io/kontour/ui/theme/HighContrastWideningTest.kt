@@ -105,6 +105,93 @@ class HighContrastWideningTest {
 
 
     /**
+     * Every widened parameter actually reaches the scheme.
+     *
+     * The equalities above all pass if a parameter is accepted and then dropped
+     * on the floor: `background: Color = Palette.White` that never reaches
+     * `lightColourScheme(background = …)` produces exactly the old scheme at the
+     * default and ignores its caller forever. The copy-paste slip that forwards
+     * `surface = surface` twice and never assigns `surfaceRaised` has the same
+     * shape, and neither a golden nor a contrast walk can see either.
+     *
+     * So each of the fifty-four parameters is set on its own to a value nothing
+     * else in the scheme uses, and the matching field has to come back holding
+     * it. Written out one line per token on purpose — there is no way to name a
+     * Kotlin argument dynamically, and a loop over reflection would be a second
+     * thing to get wrong.
+     */
+    @Test
+    fun everyWidenedParameterReachesTheScheme() {
+        val forwarded: List<Pair<String, Boolean>> = listOf(
+            // --- light ---
+            "light.background" to (highContrastLightColourScheme(background = Ink).background == Ink),
+            "light.surface" to (highContrastLightColourScheme(surface = Ink).surface == Ink),
+            "light.surfaceSunken" to (highContrastLightColourScheme(surfaceSunken = Ink).surfaceSunken == Ink),
+            "light.surfaceRaised" to (highContrastLightColourScheme(surfaceRaised = Ink).surfaceRaised == Ink),
+            "light.surfaceInverse" to (highContrastLightColourScheme(surfaceInverse = Ink).surfaceInverse == Ink),
+            "light.onSurfaceInverse" to (highContrastLightColourScheme(onSurfaceInverse = Ink).onSurfaceInverse == Ink),
+            "light.content" to (highContrastLightColourScheme(content = Ink).content == Ink),
+            "light.contentMuted" to (highContrastLightColourScheme(contentMuted = Ink).contentMuted == Ink),
+            "light.contentSubtle" to (highContrastLightColourScheme(contentSubtle = Ink).contentSubtle == Ink),
+            "light.contentDisabled" to (highContrastLightColourScheme(contentDisabled = Ink).contentDisabled == Ink),
+            "light.outline" to (highContrastLightColourScheme(outline = Ink).outline == Ink),
+            "light.outlineStrong" to (highContrastLightColourScheme(outlineStrong = Ink).outlineStrong == Ink),
+            "light.outlineSubtle" to (highContrastLightColourScheme(outlineSubtle = Ink).outlineSubtle == Ink),
+            "light.primary" to (highContrastLightColourScheme(primary = Ink).primary == Ink),
+            "light.onPrimary" to (highContrastLightColourScheme(onPrimary = Ink).onPrimary == Ink),
+            "light.brand" to (highContrastLightColourScheme(brand = Ink).brand == Ink),
+            "light.focusRing" to (highContrastLightColourScheme(focusRing = Ink).focusRing == Ink),
+            "light.scrim" to (highContrastLightColourScheme(scrim = Ink).scrim == Ink),
+            "light.overlayHover" to (highContrastLightColourScheme(overlayHover = Ink).overlayHover == Ink),
+            "light.overlayPressed" to (highContrastLightColourScheme(overlayPressed = Ink).overlayPressed == Ink),
+            "light.overlayDragged" to (highContrastLightColourScheme(overlayDragged = Ink).overlayDragged == Ink),
+            "light.accent" to (highContrastLightColourScheme(accent = Probe).accent == Probe),
+            "light.success" to (highContrastLightColourScheme(success = Probe).success == Probe),
+            "light.warning" to (highContrastLightColourScheme(warning = Probe).warning == Probe),
+            "light.danger" to (highContrastLightColourScheme(danger = Probe).danger == Probe),
+            "light.info" to (highContrastLightColourScheme(info = Probe).info == Probe),
+            "light.code" to (highContrastLightColourScheme(code = Listing).code == Listing),
+            // --- dark ---
+            "dark.background" to (highContrastDarkColourScheme(background = Ink).background == Ink),
+            "dark.surface" to (highContrastDarkColourScheme(surface = Ink).surface == Ink),
+            "dark.surfaceSunken" to (highContrastDarkColourScheme(surfaceSunken = Ink).surfaceSunken == Ink),
+            "dark.surfaceRaised" to (highContrastDarkColourScheme(surfaceRaised = Ink).surfaceRaised == Ink),
+            "dark.surfaceInverse" to (highContrastDarkColourScheme(surfaceInverse = Ink).surfaceInverse == Ink),
+            "dark.onSurfaceInverse" to (highContrastDarkColourScheme(onSurfaceInverse = Ink).onSurfaceInverse == Ink),
+            "dark.content" to (highContrastDarkColourScheme(content = Ink).content == Ink),
+            "dark.contentMuted" to (highContrastDarkColourScheme(contentMuted = Ink).contentMuted == Ink),
+            "dark.contentSubtle" to (highContrastDarkColourScheme(contentSubtle = Ink).contentSubtle == Ink),
+            "dark.contentDisabled" to (highContrastDarkColourScheme(contentDisabled = Ink).contentDisabled == Ink),
+            "dark.outline" to (highContrastDarkColourScheme(outline = Ink).outline == Ink),
+            "dark.outlineStrong" to (highContrastDarkColourScheme(outlineStrong = Ink).outlineStrong == Ink),
+            "dark.outlineSubtle" to (highContrastDarkColourScheme(outlineSubtle = Ink).outlineSubtle == Ink),
+            "dark.primary" to (highContrastDarkColourScheme(primary = Ink).primary == Ink),
+            "dark.onPrimary" to (highContrastDarkColourScheme(onPrimary = Ink).onPrimary == Ink),
+            "dark.brand" to (highContrastDarkColourScheme(brand = Ink).brand == Ink),
+            "dark.focusRing" to (highContrastDarkColourScheme(focusRing = Ink).focusRing == Ink),
+            "dark.scrim" to (highContrastDarkColourScheme(scrim = Ink).scrim == Ink),
+            "dark.overlayHover" to (highContrastDarkColourScheme(overlayHover = Ink).overlayHover == Ink),
+            "dark.overlayPressed" to (highContrastDarkColourScheme(overlayPressed = Ink).overlayPressed == Ink),
+            "dark.overlayDragged" to (highContrastDarkColourScheme(overlayDragged = Ink).overlayDragged == Ink),
+            "dark.accent" to (highContrastDarkColourScheme(accent = Probe).accent == Probe),
+            "dark.success" to (highContrastDarkColourScheme(success = Probe).success == Probe),
+            "dark.warning" to (highContrastDarkColourScheme(warning = Probe).warning == Probe),
+            "dark.danger" to (highContrastDarkColourScheme(danger = Probe).danger == Probe),
+            "dark.info" to (highContrastDarkColourScheme(info = Probe).info == Probe),
+            "dark.code" to (highContrastDarkColourScheme(code = Listing).code == Listing),
+        )
+
+        val dropped = forwarded.filterNot { it.second }.map { it.first }
+        if (dropped.isNotEmpty()) {
+            fail(
+                "${dropped.size} of ${forwarded.size} widened parameters are accepted " +
+                    "and never forwarded, so a caller who sets one is ignored in " +
+                    "silence: " + dropped.joinToString(", "),
+            )
+        }
+    }
+
+    /**
      * Compares two schemes field by field and names the ones that moved.
      *
      * A bare `assertEquals` on a `ColourScheme` prints both twenty-eight-field
@@ -190,13 +277,24 @@ class HighContrastWideningTest {
     }
 
     private companion object {
-        /** Five colours nothing else in either scheme uses. */
+        /** A colour nothing else in either scheme uses. */
+        val Ink = Color(0xFF9911EE)
+
+        /** Five more of them, for the tone-shaped parameters. */
         val Probe = StatusColours(
             solid = Color(0xFF123456),
             onSolid = Color(0xFF654321),
             container = Color(0xFF0F1E2D),
             onContainer = Color(0xFFABCDEF),
             border = Color(0xFF77AA33),
+        )
+
+        /** And four, for `code`. */
+        val Listing = CodeColours(
+            plain = Color(0xFF101112),
+            keyword = Color(0xFF131415),
+            literal = Color(0xFF161718),
+            comment = Color(0xFF191A1B),
         )
     }
 }
