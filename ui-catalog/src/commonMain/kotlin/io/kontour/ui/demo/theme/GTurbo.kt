@@ -99,13 +99,44 @@ val gTurboDemoTheme = DemoTheme(
 private val Ground = Color(0xFF0A0A0B)
 private val Card = Color(0xFF131314)
 private val Well = Color(0xFF1C1B1C)
-private val Raised = Color(0xFF201F20)
+
+/**
+ * The ground a segmented thumb runs in. Under [Ground], not over it.
+ *
+ * A theme outside this library has to answer the same question the built-in
+ * schemes do — what separates a selected segment from its track — and GTurbo
+ * had not, because until now there was no token to answer it with. Its whole
+ * ramp lives between `#0A0A0B` and `#201F20`, so the track goes to pure black
+ * and [Raised] comes up to meet it.
+ */
+private val Track = Color(0xFF000000)
+
+/**
+ * Menus over cards, and the selected segment.
+ *
+ * Lifted from `#201F20`, which put a thumb 1.28:1 over a black track — under
+ * the floor `IndicatorVisibilityTest` holds, and a fair thing for that test to
+ * have caught in a theme nobody had checked this way.
+ *
+ * **Five other tokens moved with it, and that is the interesting part.** This is
+ * a *ground*, so text sits on it: at `#201F20` [LineStrong] read 3.01:1 here,
+ * meaning this ramp was already at its own ceiling and the theme could not
+ * simply raise one value. `DemoThemeContrastTest` said so in eight lines the
+ * moment it was tried.
+ *
+ * So [Muted], [Subtle], [LineStrong], [MutedHc], [SubtleHc] and [LineStrongHc]
+ * all came up a step to keep their promises against it. That is the whole
+ * lesson this theme exists to teach: a scheme is a system of constraints rather
+ * than a list of colours, and a component requirement propagates into values
+ * that look unrelated to it.
+ */
+private val Raised = Color(0xFF2C2A2E)
 
 private val Ink = Color(0xFFE5E2E3)
 
 /** A cool lavender grey rather than a neutral one. 5.84:1 on [Card]. */
-private val Muted = Color(0xFF958DA1)
-private val Subtle = Color(0xFF928B9A)
+private val Muted = Color(0xFF9991A6)
+private val Subtle = Color(0xFF9891A0)
 private val Disabled = Color(0xFF55505C)
 
 private val Line = Color(0xFF2A2A2B)
@@ -128,7 +159,7 @@ private val LineSubtle = Color(0xFF1F1F20)
  * reported 1.32:1 against `surfaceRaised`, and no amount of staring at the deck
  * would have said so.
  */
-private val LineStrong = Color(0xFF6D6775)
+private val LineStrong = Color(0xFF7B7484)
 
 /**
  * The same three greys at [ContrastLevel.High], on the same purple-grey hue.
@@ -139,10 +170,10 @@ private val LineStrong = Color(0xFF6D6775)
  * 1.4.3 exempts disabled controls) and moves with them anyway: a disabled
  * control that has become invisible is not a passing result.
  */
-private val MutedHc = Color(0xFFB9B4C1)
-private val SubtleHc = Color(0xFFB1ABBA)
+private val MutedHc = Color(0xFFC0BBC8)
+private val SubtleHc = Color(0xFFBDB7C7)
 private val DisabledHc = Color(0xFF7B7488)
-private val LineStrongHc = Color(0xFF908A98)
+private val LineStrongHc = Color(0xFF9791A0)
 
 /**
  * The enhanced tier's divider — and until Round 31 there was not one.
@@ -201,6 +232,7 @@ private fun gTurboStandardColours(): ColourScheme = darkColourScheme(
     background = Ground,
     surface = Card,
     surfaceSunken = Well,
+    surfaceTrack = Track,
     surfaceRaised = Raised,
     surfaceInverse = Ink,
     onSurfaceInverse = Ground,
@@ -296,7 +328,7 @@ private fun gTurboStandardColours(): ColourScheme = darkColourScheme(
  * a pure-black ground with the library's own `InkHc` surface ladder. GTurbo's
  * ground is `#0A0A0B` and its surfaces climb from it, so there was no argument
  * that kept the design and took the tuned rest; the theme declared
- * `tiers = setOf(Standard)` and said why. It takes twenty-seven now, and this is
+ * `tiers = setOf(Standard)` and said why. It takes twenty-eight now, and this is
  * what a brand's enhanced palette looks like: twenty-one values it owns, and six
  * it has no opinion about.
  *
@@ -346,6 +378,7 @@ private fun gTurboEnhancedColours(): ColourScheme = highContrastDarkColourScheme
     background = Ground,
     surface = Card,
     surfaceSunken = Well,
+    surfaceTrack = Track,
     surfaceRaised = Raised,
     surfaceInverse = Ink,
     onSurfaceInverse = Ground,

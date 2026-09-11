@@ -353,7 +353,7 @@ fun <T> WheelPicker(
                 .fillMaxWidth()
                 .height(itemHeight)
                 .clip(Theme.shapes.medium)
-                .background(Theme.colours.surfaceSunken)
+                .background(Theme.colours.surfaceTrack)
         )
 
         LazyColumn(
@@ -576,7 +576,7 @@ private fun <T> InfiniteWheel(
                 .height(itemHeight)
                 .align(Alignment.Center)
                 .clip(Theme.shapes.medium)
-                .background(Theme.colours.surfaceSunken)
+                .background(Theme.colours.surfaceTrack)
         )
 
         Column(

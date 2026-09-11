@@ -47,10 +47,12 @@ data class ContrastFailure(
  *
  * ### What it does walk that is not a foreground on a background
  *
- * One pairing, added in Round 31: [ColourScheme.outlineStrong] against the
- * *fills* a selection indicator uses, as well as against the grounds. A fill
- * that does not separate itself from what it sits on has to be bounded, and this
- * is the promise that makes bounding it possible. See the comment at the walk.
+ * Two. [ColourScheme.outlineStrong] against the *fills* it has to bound, as
+ * well as against the grounds — a tint that cannot separate itself has to be
+ * bounded, and this is the promise that makes bounding it possible. And
+ * [ColourScheme.surfaceTrack], which is a ground but not one of the four, so it
+ * is walked against only the two foregrounds that actually land on it. Both
+ * have the reason written at the walk.
  *
  * ### The one thing this cannot promise
  *
@@ -92,6 +94,29 @@ fun contrastFailures(scheme: ColourScheme, tier: ContrastLevel): List<ContrastFa
         check("outlineStrong", scheme.outlineStrong, groundName, ground, nonText)
         check("focusRing", scheme.focusRing, groundName, ground, nonText)
     }
+
+    // A segmented control's labels, on the track they sit in.
+    //
+    // Deliberately not an entry in `grounds` above, which would walk all five
+    // foregrounds against it. Only two of them land on a track — the selected
+    // label is `content`, the unselected ones are `contentMuted` — and the
+    // other three would be held to a ground nothing draws them on.
+    //
+    // The two that are excused are excused for a reason, not because they fail.
+    // `contentSubtle` is never a segment label. And `outlineStrong` reads
+    // 2.38:1 on the light track, which would have been a defect right up until
+    // the thumb stopped being bounded: its 3:1-against-every-fill contract
+    // exists so that a fill unable to separate itself can be given an edge, and
+    // a track is the one ground in the scheme with nothing drawn around it. Put
+    // `surfaceTrack` in `grounds` and you get a failure that describes a line
+    // no component draws.
+    //
+    // What keeps the track honest instead is that `contentMuted` has to stay
+    // legible on it, and at the enhanced tier that is 7:1 — which is what fixes
+    // how dark the track may go. See `Palette.Grey300`.
+    check("content", scheme.content, "surfaceTrack", scheme.surfaceTrack, bodyText)
+    check("contentMuted", scheme.contentMuted, "surfaceTrack", scheme.surfaceTrack, bodyText)
+    check("focusRing", scheme.focusRing, "surfaceTrack", scheme.surfaceTrack, nonText)
 
     // Source code, on the one ground it is ever drawn on.
     //
@@ -141,20 +166,18 @@ fun contrastFailures(scheme: ColourScheme, tier: ContrastLevel): List<ContrastFa
 
     // The boundary of a *fill*, which is the pairing this walk never had.
     //
-    // Everything above uses the four surface tokens only ever as backgrounds.
-    // They were never paired against each other, so `surface` on `surfaceSunken`
-    // — a segmented control's thumb against its own track — was checked by
-    // nothing, in any test, in any module. It measured **1.08:1** in light and
-    // dark alike, against the 3:1 WCAG 1.4.11 asks of anything that identifies a
-    // control's state: in light a shadow separated them, and
-    // `kontourElevation(dark = true)` draws its shadows *black*, so on a
-    // near-black track there was nothing left to darken. Reported from a phone.
+    // Everything above uses the surface tokens only ever as backgrounds. They
+    // were never paired against each other, so a selection indicator's fill
+    // against the fill under it was checked by nothing, in any test, in any
+    // module. `SurfaceLadderTest` holds that floor now — in `:ui`'s own tests
+    // rather than here, because it is a house floor and this function is the
+    // WCAG walk.
     //
-    // The surface ramp was retuned afterwards and that pairing is 1.25–1.30 now,
-    // held by `SurfaceLadderTest` — which lives in `:ui`'s own tests rather than
-    // here, because 1.30 is a house floor and this function is the WCAG walk. The
-    // ratio is still far under 3, so the argument below is unchanged: the fill
-    // does not bound the control, the edge does.
+    // The tokens below are the fills that are *bounded*, and a segmented
+    // control's thumb is deliberately no longer among them: it separates on
+    // fill, and `surfaceTrack` exists so that it can. What remains is
+    // `accent.container` and the grounds — a selected chip is a tint 1.29:1
+    // from the page, so what says it is selected is the border round it.
     //
     // A fill that cannot separate itself has to be bounded, and
     // [ColourScheme.outlineStrong] is the token whose documented job that is —

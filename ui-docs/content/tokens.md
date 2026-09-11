@@ -34,25 +34,34 @@ Four built-in schemes: light, dark, and a high-contrast variant of each.
 |---|---|---|---|
 | `background` | `#FFFFFF` | `#121212` | The page |
 | `surface` | `#FFFFFF` | `#221E29` | Cards, sheets, menus |
-| `surfaceSunken` | `#E2E2E2` | `#000000` | Wells: input fills, code blocks, table stripes |
+| `surfaceSunken` | `#F6F6F6` | `#1A1820` | Wells: input fills, code blocks, table stripes |
+| `surfaceTrack` | `#D0D0D0` | `#000000` | The ground a moving indicator runs in |
 | `surfaceRaised` | `#FFFFFF` | `#302B3B` | Above `surface` — menus over cards |
 | `surfaceInverse` | `#121212` | `#F4F1F8` | Toasts, tooltips |
 | `onSurfaceInverse` | `#FFFFFF` | `#121212` | Content on `surfaceInverse` |
 
-**The grounds separate from each other, not only from the text on them.**
-`surface` on `surfaceSunken` — a segmented thumb on its track, a filled field on
-the page — is **1.25–1.30:1** across the four built-in schemes. It used to be
-1.08, which is close enough to nothing that a shadow was doing all the work in
-light and nothing at all was doing it in dark. That floor is checked on every
-build, and it stops where it does because the ramp has no more room: darkening
-the well drags `outlineStrong` down after it, darkening `accent.container`
-pushes up toward `outlineStrong` from the other side, and in dark the same
-token caps the whole ladder from above, since it has to clear 3:1 against the
-lightest surface in the scheme.
+**A well and a track are not the same ground, and that is why there are two.**
+`surfaceSunken` is quiet on purpose — 1.08:1 under the page in light — because
+it is a hint that content is inset, and a page of code blocks in a loud well is
+a page of grey boxes. `surfaceTrack` is the opposite: something slides along it
+whose position *is* the control's state, so it has to be far enough under that
+thing to show it. A segmented thumb reads **1.54:1** on it in light and 1.53 in
+dark, against 1.08 when both jobs were one token.
 
-Three is what WCAG asks of a control's boundary and no monochrome ramp reaches it
-between two neighbouring grounds — so the fill is the belt and `outlineStrong` is
-the braces.
+They were one token, and the cost of that was paid twice: tuning it for the
+track turned every code block grey, and tuning it for the well left the thumb
+needing a border to be seen at all.
+
+In dark the track is pure black and the *thumb* rises instead — a track cannot
+go below black, but `surfaceRaised` can come up to meet it, which is why dark
+separates marginally better than light rather than worse.
+
+**What this does not reach.** Three is what WCAG asks of a control's boundary,
+and no two greys in one ramp get there — that needs a mid-grey track, which is
+a dark bar rather than a ground. A selected segment is identified by this fill,
+by the shadow under it in light, and by its label darkening from `contentMuted`
+to `content`. A selected *chip* is bounded instead, because a tint 1.29:1 from
+the page genuinely cannot carry it alone.
 
 ### Content
 

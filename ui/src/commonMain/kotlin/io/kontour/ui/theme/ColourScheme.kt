@@ -116,6 +116,21 @@ data class ColourScheme(
     val surface: Color,
     /** Wells and inset areas: input fills, code blocks, table stripes. */
     val surfaceSunken: Color,
+    /**
+     * The ground a moving indicator runs in: a segmented track, a wheel's band.
+     *
+     * Distinct from [surfaceSunken] because the two want opposite things. A well
+     * is a hint that content is inset and should stay quiet — a page of code
+     * blocks in a loud well is a page of grey boxes. A track has something
+     * sliding along it whose position *is* the control's state, so it has to be
+     * far enough under that thing to show it.
+     *
+     * They were one token until a reader disliked what holding both jobs cost:
+     * making a segmented thumb visible turned every code block on the
+     * documentation site grey, and the thumb still needed a border on top. This
+     * is the token that lets the track go dark on its own.
+     */
+    val surfaceTrack: Color,
     /** Above [surface]: menus over cards, elevated dialogs. */
     val surfaceRaised: Color,
     /** Inverted ground for toasts and tooltips. */
@@ -135,16 +150,24 @@ data class ColourScheme(
     /**
      * The boundary of an interactive control.
      *
-     * Clears 3:1 against every ground **and against the fills a selection
-     * indicator uses** — `surface`, `surfaceSunken`, `surfaceRaised` and
-     * `accent.container`. Both halves are walked by
-     * [io.kontour.ui.a11y.contrastFailures], and the second half is there
-     * because the fills cannot separate *themselves* to 3:1: a segmented
-     * control's thumb is `surface` on a `surfaceSunken` track, and the two are
-     * 1.25–1.30:1 apart across the four built-in schemes — retuned up from 1.08
-     * in Round 31, and still nowhere near a boundary. `SurfaceLadderTest` holds
-     * that floor and records why it stops there. What identifies the selected
-     * state is this border.
+     * Clears 3:1 against every ground **and against the fills it has to bound**
+     * — `surface`, `surfaceSunken`, `surfaceRaised` and `accent.container`. Both
+     * halves are walked by [io.kontour.ui.a11y.contrastFailures]. The second
+     * half is there because a tint cannot separate itself: a selected chip is
+     * `accent.container` at 1.29:1 against the page, so what says it is selected
+     * is the border around it, and that border is this.
+     *
+     * It is **not** what identifies a segmented control's selected segment, and
+     * used to be. That thumb is now a lighter fill on a
+     * [surfaceTrack] dark enough to show it — 1.53:1 or so, depending on the
+     * scheme — with a shadow under it in light and the label going from
+     * `contentMuted` to `content`. Three carriers rather than a line, which is
+     * a deliberate step away from the 3:1 a boundary would give; see
+     * `SurfaceLadderTest` for the floor those carriers hold and
+     * `IndicatorVisibilityTest` for what is given up.
+     *
+     * [surfaceTrack] is therefore not in the fill half of the walk. Nothing
+     * bounds a track.
      */
     val outlineStrong: Color,
     /** The faintest rule the scheme offers, for dense lists. */
@@ -235,7 +258,8 @@ data class ColourScheme(
 fun lightColourScheme(
     background: Color = Palette.White,
     surface: Color = Palette.White,
-    surfaceSunken: Color = Palette.Grey250,
+    surfaceSunken: Color = Palette.Grey50,
+    surfaceTrack: Color = Palette.Grey300,
     surfaceRaised: Color = Palette.White,
     surfaceInverse: Color = Palette.Ink,
     onSurfaceInverse: Color = Palette.White,
@@ -302,6 +326,7 @@ fun lightColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
+    surfaceTrack = surfaceTrack,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,
@@ -333,7 +358,8 @@ fun lightColourScheme(
 fun darkColourScheme(
     background: Color = Palette.Ink,
     surface: Color = Palette.Slate850,
-    surfaceSunken: Color = Palette.Black,
+    surfaceSunken: Color = Palette.Slate900,
+    surfaceTrack: Color = Palette.Black,
     surfaceRaised: Color = Palette.Slate800,
     surfaceInverse: Color = Palette.Paper,
     onSurfaceInverse: Color = Palette.Ink,
@@ -397,6 +423,7 @@ fun darkColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
+    surfaceTrack = surfaceTrack,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,
@@ -432,7 +459,7 @@ fun darkColourScheme(
  * that still clear 7:1. **A caller who supplies nothing gets a scheme that
  * clears WCAG AAA, checked on every build.**
  *
- * ### Why it takes twenty-seven parameters and not three
+ * ### Why it takes twenty-eight parameters and not three
  *
  * It took three — `accent`, `brand`, `focusRing` — and this KDoc argued that
  * parameterising the rest "would offer a caller the freedom to break the only
@@ -484,7 +511,8 @@ fun highContrastLightColourScheme(
     // than left to be discovered.
     background: Color = Palette.White,
     surface: Color = Palette.White,
-    surfaceSunken: Color = Palette.Grey250,
+    surfaceSunken: Color = Palette.GreyHcSunken,
+    surfaceTrack: Color = Palette.Grey300,
     surfaceRaised: Color = Palette.White,
     surfaceInverse: Color = Palette.Black,
     onSurfaceInverse: Color = Palette.White,
@@ -568,6 +596,7 @@ fun highContrastLightColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
+    surfaceTrack = surfaceTrack,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,
@@ -597,7 +626,7 @@ fun highContrastLightColourScheme(
 /**
  * The dark scheme at [ContrastLevel.High]: pure black ground, pure white text.
  *
- * Takes the same twenty-seven parameters as [highContrastLightColourScheme] and
+ * Takes the same twenty-eight parameters as [highContrastLightColourScheme] and
  * for the same reasons — read that one. **This is the tier a near-black product
  * could not previously have**: `background` was fixed to pure black and the
  * surfaces to the `InkHc` ladder, so a design whose ground is `#0A0A0B` had to
@@ -610,7 +639,8 @@ fun highContrastLightColourScheme(
 fun highContrastDarkColourScheme(
     background: Color = Palette.Black,
     surface: Color = Palette.InkHcSurface,
-    surfaceSunken: Color = Palette.Black,
+    surfaceSunken: Color = Palette.InkHcSunken,
+    surfaceTrack: Color = Palette.Black,
     surfaceRaised: Color = Palette.InkHcRaised,
     surfaceInverse: Color = Palette.White,
     onSurfaceInverse: Color = Palette.Black,
@@ -683,6 +713,7 @@ fun highContrastDarkColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
+    surfaceTrack = surfaceTrack,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,

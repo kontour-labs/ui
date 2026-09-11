@@ -38,32 +38,62 @@ object Palette {
     val White = Color(0xFFFFFFFF)
     val Black = Color(0xFF000000)
 
+    /**
+     * Uber gray50 — the sunken well behind inset content.
+     *
+     * 1.08:1 against white, which is close to nothing, and that is the point:
+     * a well is a hint that content is inset, not a boundary. Round 31 pushed
+     * this to `#E2E2E2` so that a segmented thumb would separate from its own
+     * track, and every code block, table and filled card on the documentation
+     * site went grey with it — one token doing five jobs, moved for the sake of
+     * the fifth. [Grey300] is that fifth job now, so this one is free to be
+     * quiet again.
+     */
+    val Grey50 = Color(0xFFF6F6F6)
+
     val Grey100 = Color(0xFFEFEFEF)
 
     /** `home --border-subtle`. Decorative rules only; too light to bound a control. */
     val Grey200 = Color(0xFFE5E5E5)
 
     /**
-     * The sunken well behind inset content, at both contrast tiers.
+     * The ground a moving indicator runs in — a segmented track, a wheel's band.
      *
-     * **1.30:1 against white**, where this used to be Uber's gray50 at 1.08 —
-     * close enough to the page that a filled field, a segmented track and an
-     * inset well were all separated by a shadow or by nothing. Reported from a
-     * phone as the selected segment being "almost invisible"; see
-     * `SurfaceLadderTest` for the floor this now holds and for why 1.30 is as
-     * far as it goes.
+     * **1.54:1 under white**, which is the whole reason this token exists apart
+     * from [Grey50]. A track is not a well: something slides along it and has to
+     * be seen doing so, and the thumb is plain `surface`, so the separation can
+     * only come from how far down the track sits. At 1.08 it came from a border
+     * instead, and the border is what a reader disliked.
      *
-     * Everything below it on this ramp moved with it: a ground that dark takes
-     * [Grey500] and [Grey600] down with it to keep their own promises.
+     * Why it stops here, measured rather than picked: the labels of the
+     * *unselected* segments sit on this ground, and it is the **high-contrast**
+     * tier's `contentMuted` that binds — `GreyHcMuted` reads 7.37:1 here against
+     * the 7.0 that tier asks of body text, and fails at `#C8C8C8`. The standard
+     * tier's `contentMuted` runs out at almost exactly the same place (4.91
+     * against 4.5), so both tiers agree on where the floor is. This sits a
+     * couple of steps above it so that a later nudge to either token does not
+     * silently break a control.
+     *
+     * [Grey500] reads 2.38:1 here and that is deliberate rather than a failure:
+     * its 3:1-against-every-fill contract exists so a fill that cannot separate
+     * itself can be *bounded*, and nothing bounds a track any more. See the
+     * exemption in `SchemeContrast`.
      */
-    val Grey250 = Color(0xFFE2E2E2)
+    val Grey300 = Color(0xFFD0D0D0)
 
     val Grey400 = Color(0xFFA3A3A3)
 
-    /** Lightest grey that still clears 3:1 on both white and [Grey250]. */
+    /**
+     * Lightest grey that still clears 3:1 on every fill it has to bound.
+     *
+     * Not the `#8A8A8A` it was: the binding fill is [BlueTintLight], not the
+     * well. A selected chip is that tint, this is its border, and at `#8A8A8A`
+     * the pair reads 2.68:1. The well going back to [Grey50] does not release
+     * this one.
+     */
     val Grey500 = Color(0xFF818181)
 
-    /** Lightest grey that still clears 4.5:1 on both white and [Grey250]. */
+    /** Lightest grey that still clears 4.5:1 on white, [Grey50] and [BlueTintLight]. */
     val Grey600 = Color(0xFF646464)
 
     /** Uber gray500, and close to `home --text-muted`. */
@@ -163,14 +193,26 @@ object Palette {
 
     // --- Dark-mode surfaces (from `home html.dark`) -------------------------
     //
-    // The well below `Slate850` is [Black] now rather than a `Slate900` a step
-    // above the page. Dark has less room than light does — see `SurfaceLadderTest`
-    // — and the ceiling is [Slate600]: `outlineStrong` has to clear 3:1 on the
-    // *lightest* surface, so the top of this ramp cannot rise and the only way to
-    // spread it is downward.
+    // Dark has less room than light does, and the ceiling is [Slate600]:
+    // `outlineStrong` has to clear 3:1 on the *lightest* surface, so the top of
+    // this ramp cannot rise. Round 31 read that as "dark cannot separate a thumb
+    // from its track" and pushed the well all the way to [Black] trying to.
+    //
+    // It had the move backwards. A track is not a well, and the thumb is not
+    // stuck at [Slate850]: dark puts the track at [Black] and lifts the *thumb*
+    // to [Slate800], which separates at 1.53:1 — better than light manages —
+    // off a ramp that was declared exhausted. The well goes back to [Slate900],
+    // one quiet step under the page, which is all a well was ever for.
+    val Slate900 = Color(0xFF1A1820)
     val Slate850 = Color(0xFF221E29)
 
-    /** `surfaceRaised`. 1.19:1 above [Slate850], where it used to be 1.11. */
+    /**
+     * `surfaceRaised`, and the selected segment in dark.
+     *
+     * 1.19:1 above [Slate850] where it used to be 1.11, and **1.53:1 above
+     * [Black]**, which is the number that matters: this is what a segmented
+     * thumb is drawn in once the track drops to black under it.
+     */
     val Slate800 = Color(0xFF302B3B)
     val Slate700 = Color(0xFF3C3547)
     val Slate600 = Color(0xFF7C7484)
@@ -221,13 +263,21 @@ object Palette {
 
     // --- High-contrast extras ---------------------------------------------
     val GreyHcMuted = Color(0xFF3A3A3A)
-    val GreyHcSubtle = Color(0xFF484848)
+    val GreyHcSubtle = Color(0xFF4A4A4A)
     val GreyHcDisabled = Color(0xFF6E6E6E)
     val GreyHcOutline = Color(0xFF767676)
     val GreyHcOutlineSubtle = Color(0xFF949494)
 
+    /** The enhanced tier's well. A shade tighter to the page than [Grey50]. */
+    val GreyHcSunken = Color(0xFFF0F0F0)
+
     val InkHcSurface = Color(0xFF201B2A)
+
+    /** The enhanced tier's raised ground, and its selected segment: 1.52:1 on [Black]. */
     val InkHcRaised = Color(0xFF302942)
+
+    /** The enhanced tier's well in dark, a step under [Black]'s page rather than on it. */
+    val InkHcSunken = Color(0xFF0B0910)
     val SlateHcMuted = Color(0xFFD6CFE0)
     val SlateHcSubtle = Color(0xFFBFB6CC)
     val SlateHcDisabled = Color(0xFF8A8296)

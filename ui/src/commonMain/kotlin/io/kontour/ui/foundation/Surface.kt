@@ -121,7 +121,12 @@ private fun defaultContentColourFor(background: Color): Color {
     val colours = Theme.colours
     if (background.alpha == 0f) return LocalContentColour.current
     return when (background) {
-        colours.background, colours.surface, colours.surfaceSunken, colours.surfaceRaised -> colours.content
+        colours.background,
+        colours.surface,
+        colours.surfaceSunken,
+        colours.surfaceTrack,
+        colours.surfaceRaised,
+        -> colours.content
         colours.surfaceInverse -> colours.onSurfaceInverse
         colours.primary -> colours.onPrimary
         colours.accent.solid -> colours.accent.onSolid

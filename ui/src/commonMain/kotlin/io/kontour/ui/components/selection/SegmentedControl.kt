@@ -2,7 +2,6 @@ package io.kontour.ui.components.selection
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -184,7 +183,7 @@ fun SegmentedControl(
             .selectableGroup()
             .height(height)
             .clip(outerShape)
-            .background(colours.surfaceSunken, outerShape)
+            .background(colours.surfaceTrack, outerShape)
             .then(
                 contrastEdge()?.let { Modifier.border(it, outerShape) } ?: Modifier
             )
@@ -241,32 +240,42 @@ fun SegmentedControl(
                         scaleX = 1f + reach.coerceAtMost(MaxSegmentStretch)
                     },
                 shape = innerShape,
-                colour = if (enabled) colours.surface else colours.surfaceSunken,
-                // `outlineStrong`, at every tier, and not `contrastEdge()`.
+                // The fill separates the thumb, and it took a token to do it.
                 //
-                // The thumb is `surface` and the track is `surfaceSunken`, which
-                // measure **1.07:1 apart in dark and 1.08 in light** — against
-                // the 3:1 WCAG 1.4.11 asks of anything that identifies a
-                // control's state. In light a shadow does the separating;
-                // `kontourElevation(dark = true)` draws `low` as two *black*
-                // layers, and on a `#1A1820` track there is nothing left to
-                // darken. Reported from a phone as the thumb being "almost
-                // invisible in both dark themes", and it is invisible in the
-                // light one too for anyone the shadow does not reach.
+                // Both of these used to be one colour apart from their track:
+                // `surface` on `surfaceSunken`, 1.08:1, which is nothing. It was
+                // reported from a phone as the selected segment being "almost
+                // invisible in both dark themes", and the first fix was a 1dp
+                // `outlineStrong` border at every tier — the only carrier that
+                // worked in dark, where `kontourElevation(dark = true)` draws
+                // its shadows *black* and a shadow on a near-black track has
+                // nothing left to darken.
                 //
-                // `contrastEdge()` is null at the standard tier by design — it
-                // is the helper for containers that only *need* an edge when the
-                // reader has asked for one. This is not that: the separation is
-                // missing at every tier, so the edge is there at every tier.
+                // The border was then disliked, which was fair: a hard grey line
+                // around a thumb is a visible apology for a fill that is not
+                // doing its job. `surfaceTrack` is the fill doing its job. It
+                // exists precisely so the ground under the thumb can go dark
+                // without dragging every code block and text field down with it,
+                // which is what a single `surfaceSunken` forced.
                 //
-                // `outlineStrong` rather than `outline` because `outline` is
-                // documented as decorative and measures 1.25:1 on `surface` —
-                // WCAG exempts it and this pairing is not exempt. The strong
-                // token's own contract is "the boundary of an interactive
-                // control, clears 3:1 against every ground", which is this
-                // sentence written a round earlier; `SchemeContrast` now checks
-                // it against the indicator fills as well as the grounds.
-                border = BorderStroke(Theme.sizing.borderWidth, colours.outlineStrong),
+                // Light drops the track to `#D0D0D0` under a white thumb, 1.54:1.
+                // Dark cannot drop its track any further — it is already black —
+                // so it **raises the thumb** instead, to `surfaceRaised`, for
+                // 1.53:1. The round that declared dark's ladder exhausted was
+                // only ever trying to move the bottom of it.
+                //
+                // What this does not claim is WCAG 1.4.11's 3:1. No two greys in
+                // one ramp reach it — that needs a `#959595` track, which is a
+                // dark bar and not a ground — so the state is carried by three
+                // things at once instead of by one line: this fill, the shadow
+                // below in light, and the label going `contentMuted` -> `content`
+                // at :348. `IndicatorVisibilityTest` holds the floor and records
+                // what was given up.
+                colour = when {
+                    !enabled -> colours.surfaceSunken
+                    colours.isDark -> colours.surfaceRaised
+                    else -> colours.surface
+                },
                 shadow = if (enabled) Theme.elevation.low else Shadow.None,
                 content = {},
             )
