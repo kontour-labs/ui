@@ -34,10 +34,25 @@ Four built-in schemes: light, dark, and a high-contrast variant of each.
 |---|---|---|---|
 | `background` | `#FFFFFF` | `#121212` | The page |
 | `surface` | `#FFFFFF` | `#221E29` | Cards, sheets, menus |
-| `surfaceSunken` | `#F6F6F6` | `#1A1820` | Wells: input fills, code blocks, table stripes |
-| `surfaceRaised` | `#FFFFFF` | `#2A2633` | Above `surface` — menus over cards |
+| `surfaceSunken` | `#E2E2E2` | `#000000` | Wells: input fills, code blocks, table stripes |
+| `surfaceRaised` | `#FFFFFF` | `#302B3B` | Above `surface` — menus over cards |
 | `surfaceInverse` | `#121212` | `#F4F1F8` | Toasts, tooltips |
 | `onSurfaceInverse` | `#FFFFFF` | `#121212` | Content on `surfaceInverse` |
+
+**The grounds separate from each other, not only from the text on them.**
+`surface` on `surfaceSunken` — a segmented thumb on its track, a filled field on
+the page — is **1.25–1.30:1** across the four built-in schemes. It used to be
+1.08, which is close enough to nothing that a shadow was doing all the work in
+light and nothing at all was doing it in dark. That floor is checked on every
+build, and it stops where it does because the ramp has no more room: darkening
+the well drags `outlineStrong` down after it, darkening `accent.container`
+pushes up toward `outlineStrong` from the other side, and in dark the same
+token caps the whole ladder from above, since it has to clear 3:1 against the
+lightest surface in the scheme.
+
+Three is what WCAG asks of a control's boundary and no monochrome ramp reaches it
+between two neighbouring grounds — so the fill is the belt and `outlineStrong` is
+the braces.
 
 ### Content
 
@@ -45,7 +60,7 @@ Four built-in schemes: light, dark, and a high-contrast variant of each.
 |---|---|---|---|
 | `content` | `#121212` | `#F4F1F8` | Anything the user reads to understand the screen |
 | `contentMuted` | `#545454` | `#A79FB0` | Captions, timestamps, secondary labels |
-| `contentSubtle` | `#6B6B6B` | `#9A93A2` | Placeholders, tertiary hints. Still real text, still 4.5:1 |
+| `contentSubtle` | `#646464` | `#9A93A2` | Placeholders, tertiary hints. Still real text, still 4.5:1 |
 | `contentDisabled` | `#A3A3A3` | `#5C5566` | Genuinely disabled controls only (WCAG-exempt) |
 
 ### Lines
@@ -53,7 +68,7 @@ Four built-in schemes: light, dark, and a high-contrast variant of each.
 | Token | Light | Dark | For |
 |---|---|---|---|
 | `outline` | `#E5E5E5` | `#3C3547` | Dividers and decorative rules |
-| `outlineStrong` | `#8A8A8A` | `#7C7484` | The boundary of anything interactive |
+| `outlineStrong` | `#818181` | `#7C7484` | The boundary of anything interactive |
 | `outlineSubtle` | `#EFEFEF` | `#2C2735` | The faintest rule, for dense lists |
 
 `outline` is too light to bound a control — it does not meet the 3:1 that
@@ -87,7 +102,7 @@ like `success` and the rest, so there is one tone type and six tones:
 |---|---|---|---|
 | `accent.solid` | `#1D4ED8` | `#93C5FD` | `accent` |
 | `accent.onSolid` | `#FFFFFF` | `#0D1B2E` | `onAccent` |
-| `accent.container` | `#EFF6FF` | `#1B2739` | `accentContainer` |
+| `accent.container` | `#D5E4F9` | `#1E2C42` | `accentContainer` |
 | `accent.onContainer` | `#1E3A8A` | `#BFDBFE` | `onAccentContainer` |
 | `accent.border` | `#C7DCFD` | `#2C3E5C` | *new* |
 

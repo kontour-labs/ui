@@ -33,9 +33,11 @@ import kotlin.test.assertTrue
  * `contrastFailures` walks a scheme thoroughly and uses the four surface tokens
  * **only ever as backgrounds**. It never pairs them against each other, so
  * `surface` against `surfaceSunken` — a segmented thumb against its own track —
- * was checked by nothing, in any test, in any module. Measured by hand it is
+ * was checked by nothing, in any test, in any module. Measured by hand it was
  * **1.07:1 in dark and 1.08 in light**, against the 3:1 WCAG 1.4.11 asks of
- * anything that identifies a control's state.
+ * anything that identifies a control's state. The surface ramp was retuned
+ * afterwards and the same pairing is 1.25–1.30 now — see `SurfaceLadderTest` —
+ * which is a fill you can see and still not a boundary.
  *
  * In light a shadow does the separating. `kontourElevation(dark = true)` draws
  * `low` as two *black* layers, so in dark there is nothing left to darken: the
@@ -77,7 +79,8 @@ class IndicatorVisibilityTest {
             "the selected segment's boundary is under $Required:1 against its track:\n" +
                 weak.joinToString("\n") +
                 "\nThe thumb is `surface` and the track is `surfaceSunken`, which " +
-                "are about 1.08:1 apart in every scheme — so the separation has to " +
+                "are 1.25-1.30:1 apart in the built-in schemes and were 1.08 before " +
+                "the retune — under 3 either way, so the separation has to " +
                 "come from the edge. `SegmentedControl` draws " +
                 "`outlineStrong`, whose own contract is 3:1 against every ground; " +
                 "a failure here is either that edge gone or a scheme whose " +

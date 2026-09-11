@@ -81,19 +81,26 @@ take one. Its *thumb* does not — see below.
 its own boundary, and the entry was wrong rather than the component.
 
 That third part is the one a darker `outline` cannot do. An elevated `Card` is
-white on white with a shadow for an edge, and a shadow does not change between
-tiers; `surfaceSunken` on `background` measures **1.14:1** at the high-contrast
-light tier, against the 3:1 WCAG 1.4.11 asks of a control's boundary.
+`surfaceRaised` on the page with a shadow for an edge, and a shadow does not
+change between tiers; at the high-contrast light tier those two grounds are both
+pure white, so the card measures **1.00:1** against the page it sits on — against
+the 3:1 WCAG 1.4.11 asks of a control's boundary.
 
 ### A selection indicator is bounded at *every* tier
 
 `contrastEdge()` is deliberately null at `Standard`, which is right for a
 container that merely lacks an edge and wrong for one that has no separation at
-all. A segmented control's thumb is `surface` on a `surfaceSunken` track: those
-measure **1.08:1 apart in every scheme this library ships**, standard and
-enhanced, light and dark. In light a shadow separates them; the dark elevation
-scale draws its shadows *black*, so on a near-black track there is nothing left
-to darken and the thumb disappears.
+all. A segmented control's thumb is `surface` on a `surfaceSunken` track, and
+those measured **1.08:1 apart in every scheme this library shipped**, standard
+and enhanced, light and dark. In light a shadow separated them; the dark
+elevation scale draws its shadows *black*, so on a near-black track there was
+nothing left to darken and the thumb disappeared.
+
+The surface ramp was retuned afterwards and that pairing is **1.25–1.30** now.
+That is a fill you can see rather than a boundary you can rely on — three is the
+number WCAG asks for and no pair of surfaces in a monochrome ramp can reach it
+without the well becoming a mid-grey. So the retune is the belt and the edge
+below is the braces.
 
 So the indicator takes `outlineStrong` — the token whose documented job is the
 boundary of an interactive control — at both tiers, rather than an edge that

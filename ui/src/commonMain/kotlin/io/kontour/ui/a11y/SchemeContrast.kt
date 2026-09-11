@@ -144,11 +144,17 @@ fun contrastFailures(scheme: ColourScheme, tier: ContrastLevel): List<ContrastFa
     // Everything above uses the four surface tokens only ever as backgrounds.
     // They were never paired against each other, so `surface` on `surfaceSunken`
     // — a segmented control's thumb against its own track — was checked by
-    // nothing, in any test, in any module. It measures **1.08:1**, against the
-    // 3:1 WCAG 1.4.11 asks of anything that identifies a control's state, and it
-    // is 1.08 in light and dark alike: in light a shadow separates them, and
+    // nothing, in any test, in any module. It measured **1.08:1** in light and
+    // dark alike, against the 3:1 WCAG 1.4.11 asks of anything that identifies a
+    // control's state: in light a shadow separated them, and
     // `kontourElevation(dark = true)` draws its shadows *black*, so on a
-    // near-black track there is nothing left to darken. Reported from a phone.
+    // near-black track there was nothing left to darken. Reported from a phone.
+    //
+    // The surface ramp was retuned afterwards and that pairing is 1.25–1.30 now,
+    // held by `SurfaceLadderTest` — which lives in `:ui`'s own tests rather than
+    // here, because 1.30 is a house floor and this function is the WCAG walk. The
+    // ratio is still far under 3, so the argument below is unchanged: the fill
+    // does not bound the control, the edge does.
     //
     // A fill that cannot separate itself has to be bounded, and
     // [ColourScheme.outlineStrong] is the token whose documented job that is —

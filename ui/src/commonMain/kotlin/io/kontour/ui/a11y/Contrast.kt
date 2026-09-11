@@ -128,8 +128,9 @@ fun highContrast(): Boolean = LocalContrastLevel.current == ContrastLevel.High
  * on its own. A component with a border gets a stronger one for free when the
  * scheme changes; a component *without* one gets nothing, and most of the
  * library's containers are in the second group by design. An elevated `Card` is
- * white on white with a shadow for an edge — a shadow that does not change
- * between tiers, and measures **1.3:1** against the page in high-contrast dark.
+ * `surfaceRaised` on the page with a shadow for an edge — a shadow that does not
+ * change between tiers, and the two grounds measure **1.00:1** against each
+ * other in high-contrast light and 1.52:1 in dark.
  * `TextFieldVariant.Filled` set its border to `Color.Transparent` at every tier,
  * which is the same problem stated outright.
  *

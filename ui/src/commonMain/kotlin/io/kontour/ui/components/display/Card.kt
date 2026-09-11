@@ -116,10 +116,12 @@ private fun cardColourFor(variant: CardVariant): Color = when (variant) {
 @Composable
 private fun cardBorderFor(variant: CardVariant): BorderStroke? = when (variant) {
     CardVariant.Outlined -> BorderStroke(Theme.sizing.borderWidth, Theme.colours.outline)
-    // Elevated is white on white with a shadow for an edge, and Filled is
-    // `surfaceSunken` on `background` — 1.3:1 and 1.06:1 respectively at the
-    // high-contrast tier, where the shadow does not change and the two grounds
-    // are nearly the same colour. Both become outlined cards rather than
+    // Elevated is `surfaceRaised` on the page with a shadow for an edge — 1.00:1
+    // at the high-contrast light tier, where both are pure white and the shadow
+    // does not change between tiers. Filled is `surfaceSunken` on `background`,
+    // which the Round 31 retune took to 1.30:1 in light but which is **1.00:1**
+    // at the dark enhanced tier, where the page is black and there is nothing
+    // below black for the well to be. Both become outlined cards rather than
     // gaining a second, different edge treatment.
     else -> contrastEdge()
 }

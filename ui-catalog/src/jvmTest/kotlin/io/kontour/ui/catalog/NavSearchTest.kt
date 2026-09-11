@@ -33,7 +33,9 @@ import io.kontour.ui.nav.rememberNavSearchState
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.lightColourScheme
 import java.awt.image.BufferedImage
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -274,7 +276,7 @@ class NavSearchTest {
             scene.frames(6)
             requireNotNull(state).expand()
             val expanded = scene.frames(30)
-            return expanded.brightestBand()
+            return expanded.fieldBand()
         }
     }
 
@@ -292,27 +294,44 @@ class NavSearchTest {
     }
 
     /**
-     * The y of the widest run of undimmed pixels.
+     * The y of the widest run of the field's own fill.
      *
-     * The expanded field is a light pill on a scrimmed page, so the row with the
-     * most near-white pixels is the row through the middle of it. A single
-     * brightest *pixel* would find an antialiased edge anywhere; a whole row of
+     * The expanded field is a pill on a scrimmed page, so the row carrying the
+     * most of the pill's fill is the row through the middle of it. A single
+     * matching *pixel* would find an antialiased edge anywhere; a whole row of
      * them is a field.
+     *
+     * ### Why the fill and not "near-white"
+     *
+     * This used to count pixels above 230 in every channel, which was the same
+     * thing right up until it was not: a `SearchField` is `TextFieldVariant.Filled`
+     * and therefore `surfaceSunken`, and the Round 31 surface retune took that
+     * from `#F6F6F6` to `#E2E2E2` — **226, four below the threshold**. The finder
+     * stopped finding anything, `bestRow` fell back to 0, and the test reported
+     * the field at the top of the window. Nothing about the layout had changed.
+     *
+     * So it asks the scheme what the fill is rather than assuming it is pale. The
+     * tolerance absorbs the focus tint the field wears while it has the caret,
+     * which is `accent.container` at half alpha over this ground.
      */
-    private fun BufferedImage.brightestBand(): Int {
+    private fun BufferedImage.fieldBand(): Int {
+        val fill = lightColourScheme().surfaceSunken.toArgb()
+        val fr = (fill shr 16) and 0xFF
+        val fg = (fill shr 8) and 0xFF
+        val fb = fill and 0xFF
         var best = 0
         var bestRow = 0
         for (y in 0 until height) {
-            var bright = 0
+            var matching = 0
             for (x in 0 until width) {
                 val rgb = getRGB(x, y)
-                val r = (rgb shr 16) and 0xFF
-                val g = (rgb shr 8) and 0xFF
-                val b = rgb and 0xFF
-                if (r > 230 && g > 230 && b > 230) bright++
+                val dr = abs(((rgb shr 16) and 0xFF) - fr)
+                val dg = abs(((rgb shr 8) and 0xFF) - fg)
+                val db = abs((rgb and 0xFF) - fb)
+                if (dr <= FillTolerance && dg <= FillTolerance && db <= FillTolerance) matching++
             }
-            if (bright > best) {
-                best = bright
+            if (matching > best) {
+                best = matching
                 bestRow = y
             }
         }
@@ -320,6 +339,16 @@ class NavSearchTest {
     }
 
     private companion object {
+        /**
+         * How far a pixel may sit from `surfaceSunken` and still be the field.
+         *
+         * Wide enough for the focus tint — `accent.container` at half alpha —
+         * and for antialiasing, narrow enough that the scrimmed page (a long way
+         * darker) and the results panel (`surface`, a long way lighter) are
+         * neither of them mistaken for it.
+         */
+        const val FillTolerance = 24
+
         /**
          * The share of the rail an in-place field takes up.
          *

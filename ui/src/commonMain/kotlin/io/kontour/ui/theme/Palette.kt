@@ -38,19 +38,33 @@ object Palette {
     val White = Color(0xFFFFFFFF)
     val Black = Color(0xFF000000)
 
-    /** Uber gray50 — the sunken well behind inset content. */
-    val Grey50 = Color(0xFFF6F6F6)
     val Grey100 = Color(0xFFEFEFEF)
 
     /** `home --border-subtle`. Decorative rules only; too light to bound a control. */
     val Grey200 = Color(0xFFE5E5E5)
+
+    /**
+     * The sunken well behind inset content, at both contrast tiers.
+     *
+     * **1.30:1 against white**, where this used to be Uber's gray50 at 1.08 —
+     * close enough to the page that a filled field, a segmented track and an
+     * inset well were all separated by a shadow or by nothing. Reported from a
+     * phone as the selected segment being "almost invisible"; see
+     * `SurfaceLadderTest` for the floor this now holds and for why 1.30 is as
+     * far as it goes.
+     *
+     * Everything below it on this ramp moved with it: a ground that dark takes
+     * [Grey500] and [Grey600] down with it to keep their own promises.
+     */
+    val Grey250 = Color(0xFFE2E2E2)
+
     val Grey400 = Color(0xFFA3A3A3)
 
-    /** Lightest grey that still clears 3:1 on both white and [Grey50]. */
-    val Grey500 = Color(0xFF8A8A8A)
+    /** Lightest grey that still clears 3:1 on both white and [Grey250]. */
+    val Grey500 = Color(0xFF818181)
 
-    /** Lightest grey that still clears 4.5:1 on both white and [Grey50]. */
-    val Grey600 = Color(0xFF6B6B6B)
+    /** Lightest grey that still clears 4.5:1 on both white and [Grey250]. */
+    val Grey600 = Color(0xFF646464)
 
     /** Uber gray500, and close to `home --text-muted`. */
     val Grey700 = Color(0xFF545454)
@@ -83,9 +97,18 @@ object Palette {
     /** The high-contrast tier's solid. */
     val BlueStrong = Color(0xFF1E3A8A)
 
-    val BlueTintLight = Color(0xFFEFF6FF)
-    val BlueTintLightHc = Color(0xFFE6EFFE)
-    val BlueTintDark = Color(0xFF1B2739)
+    /**
+     * The accent container, and a tint you can actually see.
+     *
+     * 1.29:1 on white, from 1.09. A selected chip used to differ from the page
+     * by a hundredth of a step; the number that bounds it from the other side is
+     * [Grey500], which clears 3.02:1 against this — and the two converge, so
+     * this is very nearly as dark as an accent tint can be before its own
+     * boundary stops bounding it.
+     */
+    val BlueTintLight = Color(0xFFD5E4F9)
+    val BlueTintLightHc = Color(0xFFCEDFF7)
+    val BlueTintDark = Color(0xFF1E2C42)
     val BlueTintDarkHc = Color(0xFF24314D)
 
     /** The dark tier's solid — light enough to read against ink. */
@@ -139,9 +162,16 @@ object Palette {
     // gone: softer high-contrast borders would be a decision to take on purpose.
 
     // --- Dark-mode surfaces (from `home html.dark`) -------------------------
-    val Slate900 = Color(0xFF1A1820)
+    //
+    // The well below `Slate850` is [Black] now rather than a `Slate900` a step
+    // above the page. Dark has less room than light does — see `SurfaceLadderTest`
+    // — and the ceiling is [Slate600]: `outlineStrong` has to clear 3:1 on the
+    // *lightest* surface, so the top of this ramp cannot rise and the only way to
+    // spread it is downward.
     val Slate850 = Color(0xFF221E29)
-    val Slate800 = Color(0xFF2A2633)
+
+    /** `surfaceRaised`. 1.19:1 above [Slate850], where it used to be 1.11. */
+    val Slate800 = Color(0xFF302B3B)
     val Slate700 = Color(0xFF3C3547)
     val Slate600 = Color(0xFF7C7484)
     val Slate500 = Color(0xFF9A93A2)
@@ -191,15 +221,13 @@ object Palette {
 
     // --- High-contrast extras ---------------------------------------------
     val GreyHcMuted = Color(0xFF3A3A3A)
-    val GreyHcSubtle = Color(0xFF4A4A4A)
+    val GreyHcSubtle = Color(0xFF484848)
     val GreyHcDisabled = Color(0xFF6E6E6E)
     val GreyHcOutline = Color(0xFF767676)
     val GreyHcOutlineSubtle = Color(0xFF949494)
-    val GreyHcSunken = Color(0xFFF0F0F0)
 
-    val InkHcSurface = Color(0xFF16131C)
-    val InkHcSunken = Color(0xFF0B0910)
-    val InkHcRaised = Color(0xFF1F1A28)
+    val InkHcSurface = Color(0xFF201B2A)
+    val InkHcRaised = Color(0xFF302942)
     val SlateHcMuted = Color(0xFFD6CFE0)
     val SlateHcSubtle = Color(0xFFBFB6CC)
     val SlateHcDisabled = Color(0xFF8A8296)

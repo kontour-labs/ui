@@ -101,8 +101,8 @@ fun Tag(
             .background(container, shape)
             // Each tone's own border rather than a grey rectangle drawn around
             // a coloured one. Neutral is the tone that needs this — it is
-            // `surfaceSunken`, which at the high-contrast tier is within 1.14:1
-            // of the page it sits on — but a tag that gained an edge only when
+            // `surfaceSunken`, which at the dark enhanced tier is the same
+            // colour as the page it sits on — but a tag that gained an edge only when
             // it was grey would read as a different kind of tag.
             .then(
                 contrastEdge(tagBorderFor(tone))

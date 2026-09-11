@@ -92,8 +92,9 @@ private const val StretchAtSpeed = 5f
  * is the token that exists for exactly this: the boundary of anything
  * interactive, held at the 3:1 WCAG 1.4.11 asks for. It clears that against
  * `surface` and `surfaceRaised` in both schemes, which the surface ramp itself
- * cannot — `surfaceSunken` is 1.03:1 against `surface` in light mode, and that
- * is the grey the old note was really about.
+ * cannot: `surfaceSunken` is 1.30:1 against `surface` in light mode since the
+ * Round 31 retune took it from 1.08, and 1.30 is still a long way under 3. That
+ * ramp separates fills from each other; it does not bound controls.
  */
 @Composable
 fun Switch(

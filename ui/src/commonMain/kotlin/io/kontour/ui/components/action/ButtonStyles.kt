@@ -177,9 +177,10 @@ object ButtonDefaults {
                 disabledBorder = disabledBorder,
             )
 
-            // `surfaceSunken` on `background` measures 1.14:1 at the
-            // high-contrast light tier and 1.06:1 at dark — a button-shaped
-            // region of the page either way. The edge is what makes it a control.
+            // `surfaceSunken` on `background` measures 1.30:1 at the
+            // high-contrast light tier since the retune and **1.00:1** at dark,
+            // where the page and the well are both pure black — a button-shaped
+            // region of the page. The edge is what makes it a control.
             ButtonVariant.Tertiary -> ButtonColours(
                 container = c.surfaceSunken,
                 content = c.content,
