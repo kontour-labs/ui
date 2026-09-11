@@ -19,6 +19,7 @@ import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.rememberDefaultFeedbackDispatcher
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
+import io.kontour.ui.platform.platformReportAppearance
 
 /**
  * The design system's tokens, for reading inside a composable.
@@ -190,6 +191,21 @@ fun KontourTheme(
         ThemeFade(colours, elevation)
     }
     val resolvedColours = faded.colours
+
+    // The host's chrome — Android's status and navigation bars, iOS's status
+    // bar, a browser's scrollbars and address bar — takes its colours from a
+    // flag nothing here had ever set, so a dark app under a light system got
+    // dark icons on a dark bar. Reported from a phone.
+    //
+    // `colours.isDark`, not `resolvedColours.isDark`: the target rather than the
+    // cross-fading scheme. A status bar is light or dark with nothing in
+    // between, so it flips once at the start of the fade instead of being
+    // rewritten on every frame of it.
+    //
+    // Guarded by the same question the modality tracker asks. A nested theme —
+    // a screen forcing dark over a light app — re-provides tokens for its
+    // subtree and has no business repainting the window.
+    if (!alreadyTracking) platformReportAppearance(colours.isDark)
 
     CompositionLocalProvider(
         LocalColourScheme provides resolvedColours,
