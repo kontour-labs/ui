@@ -75,7 +75,8 @@ responds without being touched, which is most of them.
 otherwise have, and returns `null` at `Standard` so the call site reads as
 "this container's border, or an edge if the user needs one". `Card` Elevated
 and Filled, `Button` Tertiary and the ghosts, `ListItem`, `Tag`, `Dialog`, both
-sheets, `Toolbar`, `SegmentedControl` and `TextFieldVariant.Filled` all take one.
+sheets, `Toolbar`, `SegmentedControl`'s track and `TextFieldVariant.Filled` all
+take one. Its *thumb* does not — see below.
 `NavBar` was listed here and does not call it — it sits on its own surface with
 its own boundary, and the entry was wrong rather than the component.
 
@@ -83,6 +84,23 @@ That third part is the one a darker `outline` cannot do. An elevated `Card` is
 white on white with a shadow for an edge, and a shadow does not change between
 tiers; `surfaceSunken` on `background` measures **1.14:1** at the high-contrast
 light tier, against the 3:1 WCAG 1.4.11 asks of a control's boundary.
+
+### A selection indicator is bounded at *every* tier
+
+`contrastEdge()` is deliberately null at `Standard`, which is right for a
+container that merely lacks an edge and wrong for one that has no separation at
+all. A segmented control's thumb is `surface` on a `surfaceSunken` track: those
+measure **1.08:1 apart in every scheme this library ships**, standard and
+enhanced, light and dark. In light a shadow separates them; the dark elevation
+scale draws its shadows *black*, so on a near-black track there is nothing left
+to darken and the thumb disappears.
+
+So the indicator takes `outlineStrong` — the token whose documented job is the
+boundary of an interactive control — at both tiers, rather than an edge that
+arrives only when the reader has asked for one. `contrastFailures` walks
+`outlineStrong` against the **fills** as well as the grounds, which is the half
+that was missing: the four surface tokens had only ever been used as
+backgrounds, so `surface` against `surfaceSunken` was checked by nothing.
 
 **How this is kept honest.** `LocalContrastLevel` was provided by the theme and
 read by nothing in the repo for most of the project's life, and it went

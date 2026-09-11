@@ -132,7 +132,18 @@ data class ColourScheme(
     // --- Lines ---
     /** Dividers and decorative rules. Too light to bound a control — use [outlineStrong]. */
     val outline: Color,
-    /** The boundary of an interactive control. Clears 3:1 against every ground. */
+    /**
+     * The boundary of an interactive control.
+     *
+     * Clears 3:1 against every ground **and against the fills a selection
+     * indicator uses** — `surface`, `surfaceSunken`, `surfaceRaised` and
+     * `accent.container`. Both halves are walked by
+     * [io.kontour.ui.a11y.contrastFailures], and the second half is there
+     * because the fills cannot separate *themselves*: a segmented control's
+     * thumb is `surface` on a `surfaceSunken` track and the two are 1.08:1
+     * apart in every scheme this library ships. What identifies the selected
+     * state is this border.
+     */
     val outlineStrong: Color,
     /** The faintest rule the scheme offers, for dense lists. */
     val outlineSubtle: Color,

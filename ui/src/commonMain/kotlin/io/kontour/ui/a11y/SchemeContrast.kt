@@ -45,6 +45,13 @@ data class ContrastFailure(
  * - The overlay washes and `scrim`. They composite over whatever is behind
  *   them, so there is no pairing to take a ratio of.
  *
+ * ### What it does walk that is not a foreground on a background
+ *
+ * One pairing, added in Round 31: [ColourScheme.outlineStrong] against the
+ * *fills* a selection indicator uses, as well as against the grounds. A fill
+ * that does not separate itself from what it sits on has to be bounded, and this
+ * is the promise that makes bounding it possible. See the comment at the walk.
+ *
  * ### The one thing this cannot promise
  *
  * **A role added to [ColourScheme] owes this function nothing automatically.**
@@ -131,6 +138,38 @@ fun contrastFailures(scheme: ColourScheme, tier: ContrastLevel): List<ContrastFa
         "surfaceInverse", scheme.surfaceInverse,
         bodyText,
     )
+
+    // The boundary of a *fill*, which is the pairing this walk never had.
+    //
+    // Everything above uses the four surface tokens only ever as backgrounds.
+    // They were never paired against each other, so `surface` on `surfaceSunken`
+    // — a segmented control's thumb against its own track — was checked by
+    // nothing, in any test, in any module. It measures **1.08:1**, against the
+    // 3:1 WCAG 1.4.11 asks of anything that identifies a control's state, and it
+    // is 1.08 in light and dark alike: in light a shadow separates them, and
+    // `kontourElevation(dark = true)` draws its shadows *black*, so on a
+    // near-black track there is nothing left to darken. Reported from a phone.
+    //
+    // A fill that cannot separate itself has to be bounded, and
+    // [ColourScheme.outlineStrong] is the token whose documented job that is —
+    // "the boundary of an interactive control; clears 3:1 against every ground".
+    // It already did against the grounds, which are checked above. What was
+    // never checked is the other side of the same border: the **fill** it has to
+    // bound. A scheme whose `accent.container` drifts toward its own
+    // `outlineStrong` leaves a nav indicator with a boundary on one side only,
+    // and nothing here would have said so.
+    //
+    // This cannot see whether a component *draws* the edge — no walk over a
+    // palette can. `IndicatorVisibilityTest` in `:ui-catalog` photographs one
+    // and measures the step across it; the two halves are a pair.
+    for ((fillName, fill) in listOf(
+        "surface" to scheme.surface,
+        "surfaceSunken" to scheme.surfaceSunken,
+        "surfaceRaised" to scheme.surfaceRaised,
+        "accent.container" to scheme.accent.container,
+    )) {
+        check("outlineStrong", scheme.outlineStrong, fillName, fill, nonText)
+    }
 
     return failures
 }
