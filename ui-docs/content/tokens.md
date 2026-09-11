@@ -626,6 +626,9 @@ vestibular discomfort — large translation, parallax and spinning are. When
 - springs degrade to tweens, so nothing overshoots or bounces
 - `KontourIndication` drops the press-shrink and keeps the tonal wash
 - continuous looping motion — marquee, indeterminate spinners — stops
+- **large transforms lose their amplitude**: an overlay fades in place instead of
+  scaling into it, and the screen behind a sheet stays where it is instead of
+  receding to 94%
 
 Which OS setting turns it on is in
 [`accessibility.md`](accessibility.md#reduced-motion).
@@ -637,6 +640,20 @@ for the preference:
 animateFloatAsState(target, Theme.motion.tweenDefault())
 animateDpAsState(target, Theme.motion.springOrTween())
 ```
+
+**The helpers cannot express the last rule, and that is the one thing to know
+about them.** `tweenDefault`, `tweenSlow` and `springOrTween` make a movement
+*shorter* and stop it overshooting; none of them can make it *smaller*. So a
+transform whose objection is "it moves too far" rather than "it takes too long"
+has to read `Theme.motion.reduceMotion` for itself:
+
+```kotlin
+val scale = if (Theme.motion.reduceMotion) 1f else 0.94f
+```
+
+The rule of thumb is amplitude. A few pixels — a press, a lean, a lift — is
+covered by the helpers shortening it. A transform that moves a whole panel or a
+whole screen is not, and needs the explicit read.
 
 ---
 

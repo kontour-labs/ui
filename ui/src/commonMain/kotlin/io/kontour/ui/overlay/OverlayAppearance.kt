@@ -1,8 +1,10 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import io.kontour.ui.theme.Theme
 import kotlin.math.pow
 
 /**
@@ -48,19 +50,41 @@ import kotlin.math.pow
  * `Modifier.dropShadow` in any node beneath it, so the shadow does not draw
  * either. Both found by rendering a frame mid-animation, which is what
  * `OverlayMotionScreenshotTest` now exists to keep doing.
+ *
+ * ### Under reduced motion it fades and does not scale
+ *
+ * `Motion`'s helpers shorten a movement; none of them can make one smaller, so
+ * a transform whose objection is "it moves too far" has to read the preference
+ * itself. Every dialog, menu, popover, tooltip and command palette in the
+ * library appears through this one function, which makes it the second largest
+ * amplitude on screen after the sheet backdrop.
+ *
+ * Fading in place is what the library already does elsewhere under the same
+ * preference — `Transitions.fadeThrough` drops its `scaleIn`, `Indication` drops
+ * the press-shrink — and it is what `Motion`'s own KDoc describes: "transition
+ * presets swap movement for opacity".
+ *
+ * `@Composable` now rather than a plain modifier factory, because a theme value
+ * cannot be read from inside a `graphicsLayer` block. All three call sites were
+ * already in composition — they read `LocalOverlayProgress.current` to get here.
  */
+@Composable
 internal fun Modifier.overlayAppearance(
     progress: () -> Float,
     fromScale: Float = 0.9f,
     origin: TransformOrigin = TransformOrigin.Center,
-): Modifier = graphicsLayer {
-    transformOrigin = origin
-    val arrived = progress().coerceIn(0f, 1f)
-    // Scale on the plain progress, alpha ahead of it — see [PanelFade].
-    val scale = fromScale + (1f - fromScale) * arrived
-    scaleX = scale
-    scaleY = scale
-    alpha = arrived.pow(PanelFade)
+): Modifier {
+    // See "Under reduced motion it fades and does not scale" above.
+    val from = if (Theme.motion.reduceMotion) 1f else fromScale
+    return graphicsLayer {
+        transformOrigin = origin
+        val arrived = progress().coerceIn(0f, 1f)
+        // Scale on the plain progress, alpha ahead of it — see [PanelFade].
+        val scale = from + (1f - from) * arrived
+        scaleX = scale
+        scaleY = scale
+        alpha = arrived.pow(PanelFade)
+    }
 }
 
 /**

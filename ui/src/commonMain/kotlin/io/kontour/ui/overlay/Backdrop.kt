@@ -99,6 +99,36 @@ object BackdropDefaults {
 }
 
 /**
+ * [BackdropDefaults.ScaleBack], or no scale at all when the reader has asked for
+ * reduced motion.
+ *
+ * **`Motion`'s helpers cannot express this.** `tweenDefault` and `tweenSlow`
+ * shorten a movement, `springOrTween` stops one overshooting; none of them can
+ * make a movement *smaller*. Anything whose objection is "it moves too far"
+ * rather than "it takes too long" has to read the preference itself, and until
+ * this the whole of `overlay/`, `nav/`, `sheet/` and `adaptive/` read it
+ * nowhere.
+ *
+ * This is the largest instance in the library by a wide margin: opening any
+ * sheet scales the **entire viewport**, and during a drag the screen scales
+ * continuously under the finger with no spec anywhere in the path to shorten.
+ * Reported from a phone.
+ *
+ * It is also an inconsistency rather than a judgement call, which is what
+ * settles it: `Transitions.fadeThrough` already drops its
+ * `scaleIn(initialScale = 0.94f)` under the same preference, and `Indication`
+ * drops the press-shrink. The same 0.94, gated in one place and not the other.
+ *
+ * **The blur stays.** A blur does not move, and the reason a sheet blurs what is
+ * behind it — separating the panel from the page — survives the preference
+ * intact. What goes is the travel.
+ */
+@Composable
+@ReadOnlyComposable
+private fun resolvedScaleBack(): Float =
+    if (Theme.motion.reduceMotion) 1f else BackdropDefaults.ScaleBack
+
+/**
  * Blurs, and optionally pushes back, everything drawn inside this node while an
  * overlay above it asks for it.
  *
@@ -129,11 +159,11 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
 
     val radiusPx = with(LocalDensity.current) { BackdropDefaults.BlurRadius.toPx() }
     val blurring = LocalBackdropBlur.current && platformSupportsBackdropBlur
-    val scaling = style == BackdropStyle.BlurAndScale
     val clipShape: Shape = Theme.shapes.extraLarge
     // Read here rather than in the lambda below: `graphicsLayer` runs at draw
     // time, and a theme value has to be captured in composition.
-    val scaleBack = BackdropDefaults.ScaleBack
+    val scaleBack = resolvedScaleBack()
+    val scaling = style == BackdropStyle.BlurAndScale && scaleBack < 1f
     if (!blurring && !scaling) return this
 
     return graphicsLayer {
@@ -218,7 +248,7 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         0f
     }
     val backing = Theme.colours.background
-    val scaleBack = BackdropDefaults.ScaleBack
+    val scaleBack = resolvedScaleBack()
 
     return drawBehind {
         val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)

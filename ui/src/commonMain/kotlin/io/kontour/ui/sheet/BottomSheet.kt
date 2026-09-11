@@ -575,7 +575,21 @@ private fun BoxScope.SheetSurface(
     }
 }
 
-/** Sits at [SheetDetent.Hidden]'s offset until the sheet has been measured. */
+/**
+ * Sits at [SheetDetent.Hidden]'s offset until the sheet has been measured.
+ *
+ * **The sheet's own travel is not gated on reduced motion, and that is a
+ * decision rather than an oversight.** Round 31 took the amplitude out of the
+ * two largest transforms in the library under that preference — the backdrop's
+ * scale-back and every overlay's scale-in — and stopped here. A sheet sliding up
+ * from the bottom edge *is* what tells you where it came from and which way to
+ * push it back; a sheet that appeared in place would be a dialog with a drag
+ * handle. The preference asks for less gratuitous movement, not for a component
+ * to stop being the thing it is.
+ *
+ * What the preference does reach is the sheet's spec: `springOrTween` degrades
+ * the spring to a tween, so the travel is shorter and never overshoots.
+ */
 private fun offsetOrHidden(state: SheetState): Int {
     val offset = state.anchoredState.offset
     return if (offset.isNaN()) {
