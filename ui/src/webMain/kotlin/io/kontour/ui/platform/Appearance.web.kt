@@ -25,25 +25,27 @@ internal actual fun platformReportAppearance(dark: Boolean) {
     // Keyed on the value rather than run after every composition: a DOM property
     // keeps whatever it was last set to, so there is nothing to re-assert.
     //
-    // ### This reaches the document once and does not follow a later change
+    // ### It does follow a later change, and this file used to say it did not
     //
-    // Measured in a real browser, and it is the web actual specifically. Load the
-    // site under `prefers-color-scheme: dark` and the document comes up
-    // `color-scheme: dark`; load it light, turn the site's own Dark switch on,
-    // and the canvas goes dark while the document stays `color-scheme: light`.
+    // The claim here was that the document was set once at startup and never
+    // followed the app's own Dark switch, on the strength of a counter that read
+    // `1`. **That was wrong**, and it is recorded rather than quietly deleted
+    // because a false measurement written down confidently is worse than no
+    // measurement at all.
     //
-    // It is not this effect and not `KontourTheme`'s wiring. Instrumented with a
-    // counter written from the composable's *body*, `platformReportAppearance`
-    // is called **exactly once** on the site across a change that visibly
-    // repaints the whole app — while the JVM actual, instrumented the same way
-    // and driven the same way, reports `[false, true]`. So `KontourTheme`'s body
-    // is not re-running on wasm even as the scheme it provides changes, which is
-    // a fact about that composition rather than about this file, and is worth
-    // its own investigation rather than a guess here.
+    // Re-measured on the built site in Chromium, driving the real control —
+    // open the settings popover, tap Dark, read
+    // `document.documentElement.style` — the document goes to
+    // `color-scheme: dark`, and starting under `prefers-color-scheme: dark` and
+    // tapping Dark off takes it to `color-scheme: light`. Both directions.
     //
-    // What it costs today: the browser's scrollbars, caret and form controls
-    // follow the *system* appearance rather than the site's own switch. Android
-    // and iOS use different actuals and are unaffected.
+    // The first experiment had one counter and nothing to compare it against, so
+    // "the theme did not recompose" and "the counter did not record" looked
+    // identical. The second had three — the site root, the theme provider and
+    // `KontourTheme`'s own body — and a baseline run that opened the popover
+    // without changing anything. Across the tap the site root stayed at 1, the
+    // provider went 2 → 3 and the theme body 2 → 8. The theme recomposes; the
+    // report reaches the document.
     LaunchedEffect(dark) {
         val root = document.documentElement as? HTMLElement ?: return@LaunchedEffect
         root.style.setProperty("color-scheme", if (dark) "dark" else "light")

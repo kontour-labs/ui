@@ -58,15 +58,9 @@ it resolved, so there is nothing to do at the host but let it draw edge to edge.
 A nested `KontourTheme` — one screen forcing dark over a light app — does not.
 It re-provides tokens for its subtree; the window belongs to the app.
 
-> **On web this reaches the document once.** Loading under
-> `prefers-color-scheme: dark` sets `color-scheme: dark` correctly; changing the
-> theme from inside the app afterwards does not update it, so the browser's
-> scrollbars and form controls keep following the system rather than the app.
-> Measured in a browser, and it is not the DOM write: instrumented with a
-> counter, the whole `platformReportAppearance` call happens **once** on wasm
-> across a change that visibly repaints the application, where the same wiring
-> on the JVM reports twice. Android and iOS use different implementations and
-> are not affected.
+On web the flag is the document's `color-scheme`, and it follows the app's own
+switch in both directions — measured in a browser on the built site, turning Dark
+on under a light system and off under a dark one.
 
 ---
 

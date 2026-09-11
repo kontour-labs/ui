@@ -74,6 +74,42 @@ object Screenshot {
     }
 
     /**
+     * Where this fork writes the list of goldens it rendered.
+     *
+     * One file per process, named by pid, because the suite runs four forks and
+     * an in-process accumulator would only ever see its own quarter. The build
+     * unions them afterwards and diffs the result against the committed
+     * pictures — see `checkGoldenOrphans`.
+     *
+     * Null when the property is absent, which is how a run from an IDE, or any
+     * other entry point that has not arranged for the union, records nothing
+     * rather than leaving a partial manifest for the next build to misread.
+     */
+    private val manifest: File? by lazy {
+        System.getProperty("kontour.screenshots.manifestDir")?.let { dir ->
+            File(dir).apply { mkdirs() }.resolve("${ProcessHandle.current().pid()}.txt")
+        }
+    }
+
+    /**
+     * Notes that [name] was rendered.
+     *
+     * **Appended per render rather than collected and flushed at exit.** Two
+     * hundred and twenty-five file appends are nothing beside the rasterisation
+     * they accompany, and a fork that dies part-way still leaves behind what it
+     * actually did — where a shutdown hook would leave nothing and the union
+     * would report every golden that fork owned as an orphan.
+     *
+     * Called before the comparison rather than after it, so a *failing* golden
+     * still counts as rendered. An orphan is a picture nobody draws, which is a
+     * different question from whether the drawing matched.
+     */
+    private fun record(name: String) {
+        val file = manifest ?: return
+        synchronized(this) { file.appendText(name + "\n") }
+    }
+
+    /**
      * Renders [content] at [width] × [height] and compares it to `<name>.png`.
      *
      * Renders more than one frame on purpose. Fonts come from Compose Resources
@@ -104,6 +140,7 @@ object Screenshot {
         trim: Int? = null,
         content: @Composable () -> Unit,
     ): File {
+        record(name)
         ImageComposeScene(
             width = width,
             height = height,

@@ -857,6 +857,34 @@ project would link.
 
 Judging performance from a debug build is judging the wrong thing.
 
+#### Six reports came off a phone, and only one was out of reach
+
+The gallery installed on an Android device produced six defects in an afternoon.
+The tempting conclusion is that a phone sees things a JVM cannot. The actual
+count says otherwise — **five of the six were reachable from this machine the
+whole time, and none of them had a test**:
+
+| Report | Could the JVM suite have seen it? | Written afterwards |
+|---|---|---|
+| Dark-mode contrast too low to read | Yes — contrast is arithmetic on two colours | the fill-boundary walk in `contrastFailures` (`SchemeContrast.kt`) |
+| Theme switching jitters | Yes — a shadow that steps on every frame of a fade is countable | `ThemeFadeTest.theShadowStepsOnceWhileTheSurfaceIsStillTravelling`, `ThemeFadeCostDiagnostic` |
+| Text sizes misaligned at large type | Yes — compose `Catalog` under `Density(fontScale = 1.3f)` | `HostFontScaleTest`, `SettingsLabelFitTest`, `IndicatorTravelInterruptedTest` |
+| Reduced motion reaches too few places | Yes — it *is* an amplitude, and an amplitude is a number | `ReducedMotionAmplitudeTest` |
+| The status bar stays light in dark mode | Half — the wiring is testable, the Android actual is not | `AppearanceReportTest` |
+| Accessibility settings ignore the device | **No** — there is no system here to read a setting from | `HostDensityTest` covers what happens *after* the read |
+
+So the useful distinction is not "phone defects" versus "JVM defects". It is
+**out of reach** versus **nobody looked**, and out of reach is the rarer of the
+two. A platform read has no system to read from and an `expect`'s Android actual
+has no test source set; almost everything else — contrast, amplitude, layout
+under a font scale, a token that steps out of time with its neighbours — is a
+number this machine can produce, and did produce, once somebody asked for it.
+
+When the next device report arrives, ask which it is before reaching for the fix.
+"Nothing here could have seen this" says build an instrument, or get a device
+into somebody's hands. "Nothing here happened to look" says write the test the
+defect should have failed — and that is the answer five times out of six.
+
 ---
 
 ## The four sweeps that vary what nothing else varies

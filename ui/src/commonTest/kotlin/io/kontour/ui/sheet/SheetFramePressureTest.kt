@@ -49,11 +49,14 @@ import kotlin.test.assertTrue
  * ### The three numbers, and which one was the finding
  *
  * - **Measures** would be the worst of the three, and are not the problem here.
- *   The surface's height does track the animating offset, but the `layout` block
- *   between it and the content measures that content with `maxHeight = Infinity`
- *   — constant constraints, so the content is insulated and genuinely does not
- *   re-measure. Counted anyway as a guard: it is a real trap, and the next
- *   change to that block could fall into it.
+ *   The surface is `containerHeight` tall whatever the offset is, so the
+ *   constraints reaching the content do not change while the sheet slides and
+ *   the content genuinely does not re-measure. Counted anyway as a guard: it is
+ *   a real trap, and the next change to that block could fall into it. (The
+ *   content used to be measured at `maxHeight = Infinity`, which insulated it
+ *   the same way and cropped anything taller than the window — see
+ *   `SheetContentConstraintsTest`. The insulation survived the fix; the crop did
+ *   not.)
  * - **Draws** are the finding. Measured at **0.9 per frame** while sliding, and
  *   at zero once fixed. The sheet's surface used to be sized to
  *   `containerHeight - offset` so that it always reached the bottom of the

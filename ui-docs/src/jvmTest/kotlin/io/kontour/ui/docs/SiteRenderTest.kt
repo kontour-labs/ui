@@ -45,6 +45,71 @@ import kotlin.test.fail
  * step, and it is deliberately not automated — the complaint that started this
  * round was "most components don't have live previews", which no assertion in
  * this file would have phrased for you.
+ *
+ * ### An open flake: "LayoutNode 1106 not found in RectList"
+ *
+ * Seen **once**, and recorded here rather than fixed, because a fix would be a
+ * guess with nothing to test it against.
+ *
+ * One run of `./gradlew :ui:jvmTest :ui-catalog:jvmTest :ui-docs:jvmTest`
+ * failed with:
+ *
+ * ```
+ * expanded/components-actions threw IllegalArgumentException:
+ *   LayoutNode 1106 not found in RectList
+ * ```
+ *
+ * Two runs straight afterwards — the same three tasks with `--rerun-tasks`, and
+ * then this module alone — were green, and the class passes in isolation. So it
+ * is non-deterministic rather than a regression, and the node id is a run-local
+ * number: `1106` will not be `1106` next time.
+ *
+ * **What the message means.** `RectManager` is Compose's own spatial index over
+ * the layout tree. Read out of the shipped bytecode —
+ *
+ * ```
+ * javap -p -c androidx/compose/ui/spatial/RectManager.class
+ * ```
+ *
+ * from `org.jetbrains.compose.ui:ui-desktop:1.12.0-rc01` —
+ * `indexInRectList(node)` takes `node.rectListIndex`, checks that the slot it
+ * points at really holds that node's `semanticsId`, falls back to a linear
+ * `RectList.indexOf`, and throws when nothing is found. In other words: **a node
+ * carried an index into a list that no longer holds it.** Stale bookkeeping, not
+ * a missing callback.
+ *
+ * **And the guard in front of it cannot catch that.** The call sites are shaped
+ * `if (inRectList(node)) { …indexInRectList(node)… }`, and `inRectList` is
+ * precisely `node.rectListIndex != Unset` — the same field whose staleness is
+ * the fault. The one case the guard *does* exclude is the index being unset,
+ * which is the branch that would have thrown harmlessly. What it leaves through
+ * is the stale index, which is the branch that actually threw.
+ *
+ * **Why not ours.** Nothing in this repository registers a rect callback: no
+ * `onLayoutRectChanged`, no `RelativeLayoutBounds`, no `onFirstVisible`, no
+ * `onVisibilityChanged`. The index is Compose's own, maintained for every node
+ * whether or not anybody asked for it.
+ *
+ * So there is no defect here to write a failing test against, and this round had
+ * already had three confident pre-measurement diagnoses turn out to be wrong. A
+ * speculative change to the site's composition would be untestable and would
+ * look, in six months, exactly like a fix.
+ *
+ * **If it happens again, capture this before anything else:**
+ *
+ *  - the **full stack trace**, not the message — which `RectManager` entry point
+ *    (`invalidateCallbacksFor`, `updateFlagsFor`, `remove`, …) reached the throw
+ *    is the whole question, because each says something different about which
+ *    node was removed and when;
+ *  - the **route and width** it threw on, and whether it is the same pair;
+ *  - the **Compose version**, since this is upstream bookkeeping;
+ *  - whether it reproduces under repetition —
+ *    `for i in $(seq 1 20); do ./gradlew :ui-docs:jvmTest --tests '*ExpandedSiteRenderTest*' --rerun-tasks || break; done`
+ *    — and whether it needs the other two modules running beside it, which is
+ *    how it was first seen.
+ *
+ * Two sightings with a stack trace each is probably enough to file upstream. One
+ * without is not.
  */
 abstract class SiteRenderTest(private val widthName: String, private val width: Int) {
 

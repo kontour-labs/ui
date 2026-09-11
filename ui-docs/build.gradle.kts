@@ -414,26 +414,30 @@ tasks.withType<Test>().configureEach {
  * It renders 122 routes at four widths and writes 84 MB of PNGs, and what it
  * produces is a contact sheet per width for a person to scroll through. That is
  * a thing somebody asks for when they want it rather than something every pull
- * request needs to pay for, so it is a task of its own and `jvmTest` excludes it.
+ * request needs to pay for, so the *writing* is what this task turns on:
  *
  *     ./gradlew :ui-docs:siteRenders
  *
- * **It is not expensive.** Measured cold with `--no-daemon`: 1m 40s in one fork,
- * 1m 20s sharded across four. This was extracted on the strength of a figure
- * that turned out to be wrong — 23 minutes, read off Gradle's `> Task` header
- * timestamps, which are when output was flushed rather than when a task ran. So
- * the case for keeping it out of `jvmTest` is that a contact sheet is a review
- * artefact rather than a gate, not that it costs anything much.
+ * **`jvmTest` runs the same sweep.** It has no filter, so all four
+ * `SiteRenderTest` classes run on every change; the only thing this task changes
+ * is `kontour.contactSheets`, and therefore whether the pictures are kept. The
+ * KDoc here used to say `jvmTest` excluded the sweep, which was never true of
+ * any version of this file — `SiteRenderTest`'s own KDoc says so correctly, and
+ * `writing` in that class is the whole of the difference.
  *
- * **What is no longer checked on every change.** That every page renders without
- * throwing, and that every page drew something. Both have caught real defects —
- * a landing page that threw below 600dp, and half the site rendering empty — so
- * this is a deliberate trade of coverage for minutes, not a claim the sweep was
- * worthless. `SiteRenderTest`'s own KDoc has the history.
+ * **It is not expensive**, which is why nothing needs excluding. Measured cold
+ * with `--no-daemon`: 1m 40s in one fork, 1m 20s sharded across four. The
+ * extraction was argued for on the strength of a figure that turned out to be
+ * wrong — 23 minutes, read off Gradle's `> Task` header timestamps, which are
+ * when output was flushed rather than when a task ran.
+ *
+ * Both halves of the gate — every page renders without throwing, every page drew
+ * something — have caught shipped defects, a landing page that threw below 600dp
+ * and half the site rendering empty. They still run on every change.
  */
 val siteRenders by tasks.registering(Test::class) {
     group = "verification"
-    description = "Renders every page at every width into build/site-shots. Not run by jvmTest."
+    description = "Writes every page at every width into build/site-shots. jvmTest runs the same sweep without keeping the pictures."
 
     val jvmTest = tasks.named<Test>("jvmTest").get()
     testClassesDirs = jvmTest.testClassesDirs

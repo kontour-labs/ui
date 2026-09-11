@@ -203,6 +203,19 @@ That handoff is why a sheet takes its content as a slot rather than being a
 modifier. Without it, a sheet with a list inside is either undraggable or
 unscrollable, depending on which modifier won.
 
+**Content taller than the window scrolls rather than being cropped.** The sheet
+measures its content at the room it actually has, so a long `Column` wrapped in
+`verticalScroll` has a real viewport and the part below the fold is reachable.
+Content that fits is unaffected — `SheetDetent.Expanded` still means "as tall as
+the content".
+
+This used to be the other way round: the content was measured at an unbounded
+height and then placed in the room the sheet had, so anything past the window's
+bottom edge simply was not drawn — and adding a `verticalScroll` to fix it threw,
+because Compose refuses a scroller measured at an infinite height. If you carried
+a workaround for that — a fixed `heightIn` on the content, say — you no longer
+need it.
+
 ---
 
 ## Opening a sheet before it has been laid out

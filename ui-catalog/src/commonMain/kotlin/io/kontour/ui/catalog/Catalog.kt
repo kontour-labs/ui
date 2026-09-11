@@ -355,12 +355,13 @@ private fun CompactCatalog(
  * left here is the sheet's own shape: a header, and the spacing a sheet wants
  * rather than the tighter spacing a popover wants.
  *
- * **The sheet's content is measured unbounded and then cropped**, not scrolled
- * (see `BottomSheet`), so a row added here is a row that can push the last one
- * off the bottom of a phone in silence. Measured: 728dp at 100% type, 863dp at
- * 200%, against roughly 867dp of usable window on a Pixel-class device.
- * `SettingsPanelHeightTest` holds those numbers as a ceiling — it cannot promise
- * a fit, because on a 640dp phone there already is not one.
+ * **It scrolls.** It has to: measured, this panel is 728dp at 100% type and
+ * 863dp at 200%, against roughly 867dp of usable window on a Pixel-class device
+ * and 640dp on a 5" one. It used to be cropped instead — the sheet measured its
+ * content unbounded — and at 200% a reader lost Text size and Input modality,
+ * the two controls they had opened the panel to reach.
+ * `SettingsPanelHeightTest` still holds those numbers as a ceiling, now as a
+ * ratchet on how long the panel is rather than on how much of it survives.
  */
 @Composable
 internal fun SettingsSheet(
@@ -374,11 +375,25 @@ internal fun SettingsSheet(
     }
 }
 
-/** The sheet's column, without the sheet — so a test can photograph and measure it. */
+/**
+ * The sheet's column, without the sheet — so a test can photograph and measure it.
+ *
+ * Scrolls, because the panel is taller than a phone. The sheet measures its
+ * content at the room it has, which is what gives this `verticalScroll` a finite
+ * viewport to scroll within. That order matters: measured unbounded, as the
+ * sheet once did, Compose refuses a scroller outright and throws — so this line
+ * and the `:ui` change are one change, not two.
+ *
+ * Outside a sheet — the popover on a wide window uses the same controls through
+ * [DisplaySettingsControls] — there is room, and this is not the composable
+ * being used.
+ */
 @Composable
 internal fun SettingsSheetContent(settings: CatalogSettings, systemDark: Boolean) {
     Column(
-        Modifier.padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
+        Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
         SheetHeader() {

@@ -14,19 +14,23 @@ import kotlin.test.assertTrue
 /**
  * How tall the display settings are, and a ceiling so the next row is deliberate.
  *
- * **A bottom sheet crops its content; it does not scroll it.** `BottomSheet`
- * measures the content once at `maxHeight = Constraints.Infinity` — it has to,
- * so that the `Expanded` detent can mean "as tall as the content" — and then
- * places that same placeable in whatever room the surface has. The child
- * therefore believes it has infinite height, so anything past the window's
- * bottom edge is clipped rather than reachable, and a scroller inside cannot
- * help because its viewport was infinite when it was measured. The site's
- * popover has no height cap either.
+ * The panel scrolls now, and the ceiling stays. Those are not in tension: what
+ * this measures is how *long* the panel is, and length is still a cost even when
+ * it is reachable. Every row past the fold is a row somebody has to scroll to
+ * find, on the one screen whose job is to be found quickly.
  *
- * That makes the panel's height a real constraint rather than a matter of taste,
- * and nothing measured it. This round adds a row — "Follow device", the way back
- * from a pinned setting — and a row added to a list that silently truncates is
- * exactly the change that wants a number beside it rather than a look.
+ * It was written for a harder reason. A bottom sheet used to crop what did not
+ * fit — the content was measured at `maxHeight = Constraints.Infinity` and then
+ * placed in the room the surface had — so a row added here could push Text size
+ * and Input modality off the bottom of a phone in silence, and a `verticalScroll`
+ * could not help because its viewport was infinite too. That is fixed in `:ui`
+ * (`SheetContentConstraintsTest`), and `SettingsSheetContent` scrolls. The site's
+ * popover still has no height cap.
+ *
+ * The numbers below were taken when the round added a row — "Follow device", the
+ * way back from a pinned setting — and they are the reason this file exists: a
+ * row added to a list nobody has measured is a change you look at rather than
+ * know.
  *
  * ### What was measured
  *
@@ -46,11 +50,10 @@ import kotlin.test.assertTrue
  *
  * ### So this is a ratchet, not a guarantee
  *
- * It cannot honestly assert "fits a phone", because at 200% on a small one it
- * does not. What it can do is stop the panel growing by accident: the ceiling is
- * what it measures today, and a change that needs more room has to say so here —
- * and by then the sheet has to have learnt to scroll, which is a change to `:ui`
- * and a different piece of work.
+ * It never could honestly assert "fits a phone", because at 200% on a small one
+ * it does not — and now that the sheet scrolls, it does not need to. What it can
+ * do is stop the panel growing by accident: the ceiling is what it measures
+ * today, and a change that needs more room has to come here and say so.
  */
 class SettingsPanelHeightTest {
 
@@ -98,12 +101,12 @@ class SettingsPanelHeightTest {
         assertTrue(
             over.isEmpty(),
             "the display settings grew:\n" + over.joinToString("\n") +
-                "\nA bottom sheet crops what does not fit rather than scrolling " +
-                "to it, and the rows at the bottom of this panel are Text size " +
-                "and Input modality — the two a reader at 200% type most needs " +
-                "to reach. At 200% the panel is already within about 20dp of a " +
-                "Pixel-class window. Raise a ceiling only with something that " +
-                "makes the extra room reachable.",
+                "\nAt 200% this panel already runs to within about 20dp of a " +
+                "Pixel-class window, and past the bottom of a 5\" one. It " +
+                "scrolls, so nothing is unreachable — but the rows down there " +
+                "are Text size and Input modality, the two a reader at 200% type " +
+                "opened the panel to change. Raise a ceiling deliberately, with " +
+                "a note saying what moved.",
         )
     }
 
