@@ -191,11 +191,25 @@ fun DisplaySettingsControls(
  * multipliers of it, because 200% is the figure the accessibility page promises
  * the library copes at, and that promise is uncheckable if picking 200% on a
  * phone already at 130% gives you 260%.
+ *
+ * **No per-cent signs, and the reason is the control itself.** A
+ * `SegmentedControl` divides its width evenly and ellipsises what will not fit,
+ * so at 200% type on a 380dp phone the widest label, `200%`, measured **71.5dp
+ * against a 67.2dp segment** — every option arrived as `20…`, and a text-size
+ * picker that reads `10…` and `20…` is the one control a reader at 200% has
+ * opened the panel to use. Dropping the sign takes the widest label to `Auto` at
+ * **61.0dp**, which fits. The heading above already says "Text size"; the unit
+ * was saying it a second time and charging four dp a segment for it.
+ *
+ * The site's popover is narrower — 55.2dp a segment — and still cuts one label
+ * at 200%. It is `Auto` alone now rather than all five.
+ *
+ * `SettingsLabelFitTest` holds every one of those measurements.
  */
 val textScales: List<Pair<String, Float?>> = listOf(
     "Auto" to null,
-    "85%" to 0.85f,
-    "100%" to 1f,
-    "130%" to 1.3f,
-    "200%" to 2f,
+    "85" to 0.85f,
+    "100" to 1f,
+    "130" to 1.3f,
+    "200" to 2f,
 )
