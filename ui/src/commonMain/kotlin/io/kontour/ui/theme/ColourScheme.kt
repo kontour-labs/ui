@@ -132,7 +132,20 @@ data class ColourScheme(
     // --- Lines ---
     /** Dividers and decorative rules. Too light to bound a control — use [outlineStrong]. */
     val outline: Color,
-    /** The boundary of an interactive control. Clears 3:1 against every ground. */
+    /**
+     * The boundary of an interactive control.
+     *
+     * Clears 3:1 against every ground **and against the fills a selection
+     * indicator uses** — `surface`, `surfaceSunken`, `surfaceRaised` and
+     * `accent.container`. Both halves are walked by
+     * [io.kontour.ui.a11y.contrastFailures], and the second half is there
+     * because the fills cannot separate *themselves* to 3:1: a segmented
+     * control's thumb is `surface` on a `surfaceSunken` track, and the two are
+     * 1.25–1.30:1 apart across the four built-in schemes — retuned up from 1.08
+     * in Round 31, and still nowhere near a boundary. `SurfaceLadderTest` holds
+     * that floor and records why it stops there. What identifies the selected
+     * state is this border.
+     */
     val outlineStrong: Color,
     /** The faintest rule the scheme offers, for dense lists. */
     val outlineSubtle: Color,
@@ -222,7 +235,7 @@ data class ColourScheme(
 fun lightColourScheme(
     background: Color = Palette.White,
     surface: Color = Palette.White,
-    surfaceSunken: Color = Palette.Grey50,
+    surfaceSunken: Color = Palette.Grey250,
     surfaceRaised: Color = Palette.White,
     surfaceInverse: Color = Palette.Ink,
     onSurfaceInverse: Color = Palette.White,
@@ -320,7 +333,7 @@ fun lightColourScheme(
 fun darkColourScheme(
     background: Color = Palette.Ink,
     surface: Color = Palette.Slate850,
-    surfaceSunken: Color = Palette.Slate900,
+    surfaceSunken: Color = Palette.Black,
     surfaceRaised: Color = Palette.Slate800,
     surfaceInverse: Color = Palette.Paper,
     onSurfaceInverse: Color = Palette.Ink,
@@ -471,7 +484,7 @@ fun highContrastLightColourScheme(
     // than left to be discovered.
     background: Color = Palette.White,
     surface: Color = Palette.White,
-    surfaceSunken: Color = Palette.GreyHcSunken,
+    surfaceSunken: Color = Palette.Grey250,
     surfaceRaised: Color = Palette.White,
     surfaceInverse: Color = Palette.Black,
     onSurfaceInverse: Color = Palette.White,
@@ -597,7 +610,7 @@ fun highContrastLightColourScheme(
 fun highContrastDarkColourScheme(
     background: Color = Palette.Black,
     surface: Color = Palette.InkHcSurface,
-    surfaceSunken: Color = Palette.InkHcSunken,
+    surfaceSunken: Color = Palette.Black,
     surfaceRaised: Color = Palette.InkHcRaised,
     surfaceInverse: Color = Palette.White,
     onSurfaceInverse: Color = Palette.Black,

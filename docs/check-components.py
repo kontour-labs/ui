@@ -687,6 +687,46 @@ def hand_rolled_rounded_rects() -> list[str]:
 MAX_SILENT_FOCUS_TRAPS = 0
 
 
+# Rule 24 — a transform that moves does so under the reader's control.
+#
+# `Motion`'s helpers can make a movement *shorter* and stop it overshooting.
+# None of them can make one **smaller**, which means a transform whose objection
+# is "it moves too far" rather than "it takes too long" has to read
+# `Theme.motion.reduceMotion` for itself — and before Round 31 the `overlay/`,
+# `nav/`, `sheet/` and `adaptive/` packages contained no such read at all.
+#
+# The one the phone reported was the biggest: every sheet scaled the **whole
+# viewport** back to 94% behind it, ungated, and during a drag with no spec in
+# the path at all. The second was `overlayAppearance`, through which every
+# dialog, menu, popover, tooltip and command palette in the library arrives.
+#
+# What is left is a tail of small-amplitude cases, and the ceiling is what makes
+# it a counted tail rather than a forgotten one. Each is a few pixels — a lift,
+# a collapse, a wheel, a calendar page — and fixing them well means deciding a
+# policy for that size of movement rather than gating a transform. Lower this
+# when one of them is decided; raising it means a new transform that moves a
+# panel or a screen, and those are the ones this exists to stop.
+MAX_UNGATED_TRANSFORMS = 7
+
+# A `graphicsLayer` assigning a transform, in a file that never asks the reader.
+TRANSFORM_ASSIGNMENT = re.compile(r"\b(?:scaleX|scaleY|translationX|translationY)\s*=")
+
+
+def ungated_transforms() -> list[str]:
+    """Files that transform inside a layer and never consult `reduceMotion`."""
+    offenders = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        if "graphicsLayer" not in text:
+            continue
+        if not TRANSFORM_ASSIGNMENT.search(text):
+            continue
+        if "reduceMotion" in text:
+            continue
+        offenders.append(path.name)
+    return offenders
+
+
 # Geometry a brand adjusts now lives on `ComponentDefaults`. What is left in the
 # `*Defaults` objects is meant to be facts about a component — a menu's minimum
 # width, a rating's five stars, the seven columns of a calendar — and the number
@@ -1417,6 +1457,21 @@ def main() -> int:
             f"means to"
         )
 
+    # Rule 24 — a large transform is the reader's to refuse.
+    #
+    # See `ungated_transforms`. The helpers shorten a movement and cannot shrink
+    # one, so amplitude is the one thing `Theme.motion` cannot express for you.
+    ungated = ungated_transforms()
+    if len(ungated) > MAX_UNGATED_TRANSFORMS:
+        problems.append(
+            f"{len(ungated)} file(s) transform inside a `graphicsLayer` and "
+            f"never read `reduceMotion`, over the ceiling of "
+            f"{MAX_UNGATED_TRANSFORMS}: {', '.join(ungated)} — "
+            f"`tweenDefault` and `springOrTween` shorten a movement and cannot "
+            f"make one smaller, so a scale or a translation that moves a panel "
+            f"or a screen has to ask for itself"
+        )
+
     drift = haptics_policy_drift()
     if len(drift) > MAX_POLICY_DRIFT:
         problems.append(
@@ -1483,6 +1538,7 @@ def main() -> int:
         f"{circular} deliberate circles, "
         f"{len(policy_named())} components named by the haptics policy, "
         f"{len(silent)} silent focus traps, "
+        f"{len(ungated)} ungated transforms, "
         f"{literals_left} literals left in `*Defaults`, "
         f"{len(unread)} of them unwired, "
         f"all accounted for."

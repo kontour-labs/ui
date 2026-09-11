@@ -125,6 +125,14 @@ object SheetDefaults {
  * list and sheet at each end, which is why the sheet takes its content as a
  * slot rather than being a modifier. See
  * `ui-docs/content/sheets.md`.
+ *
+ * ### Content taller than the window
+ *
+ * The content is measured at the room the sheet has, not at an unbounded
+ * height, so a scroller inside it scrolls rather than being cropped — wrap a
+ * long `Column` in `verticalScroll`, or use the `LazyColumn` above, and the part
+ * that does not fit is reachable. Content that *does* fit is unaffected:
+ * `SheetDetent.Expanded` still means "as tall as the content".
  */
 @Composable
 fun BottomSheet(
@@ -216,6 +224,37 @@ fun BottomSheet(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // The container's height, read in the **measure** phase.
+            //
+            // `onSizeChanged` fires after layout, so for the whole of the first
+            // pass `containerHeight` was 0 — and everything downstream is sized
+            // from it. The surface is told to be 0 tall, the content is measured
+            // against that, `sheetHeight` comes out 0, `Expanded` resolves to
+            // "hidden", and the sheet never appears. Measuring the content
+            // unbounded was the old way round that, and it is what cropped
+            // anything taller than the window; it also makes a `verticalScroll`
+            // inside a sheet **throw** — Compose refuses a scroller measured at
+            // an infinite height by name.
+            //
+            // `fillMaxSize` means the incoming constraints *are* the container,
+            // and they are known before any child is measured. So the first pass
+            // is already correct and nothing downstream needs a fallback.
+            .layout { measurable, constraints ->
+                if (constraints.hasBoundedHeight) {
+                    // The height only. **Not** `updateAnchors` — the content's
+                    // own measure block calls that, and it is the first moment
+                    // at which both this and `sheetHeight` are known. Rebuilding
+                    // the anchors here instead resolves every detent from a
+                    // `sheetHeight` of 0, which settles the sheet at "hidden"
+                    // before it has been measured and leaves it there.
+                    state.containerHeight = constraints.maxHeight.toFloat()
+                }
+                val placeable = measurable.measure(constraints)
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            }
+            // Still the source of record for a host with an unbounded height,
+            // where `fillMaxSize` has nothing to fill and the block above
+            // declines to guess. Writes the same number in every other case.
             .onSizeChanged { size ->
                 state.containerHeight = size.height.toFloat()
                 state.updateAnchors(density)
@@ -520,9 +559,10 @@ private fun BoxScope.SheetSurface(
             // is `containerHeight` tall and starts at `offset`, so its bottom
             // lands at `offset + containerHeight`, at or below the container's
             // own bottom at every detent — the gap cannot open. What hangs below
-            // the screen is never seen. The content is measured unbounded either
-            // way and cropped to the surface, so the region actually on screen,
-            // `offset` to `containerHeight`, is identical to what it was.
+            // the screen is never seen. The content is measured against the
+            // same `containerHeight` either way, so the region actually on
+            // screen, `offset` to `containerHeight`, is identical to what it
+            // was.
             .layout { measurable, constraints ->
                 val target = state.containerHeight
                     .coerceAtLeast(0f)
@@ -551,16 +591,72 @@ private fun BoxScope.SheetSurface(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    // Measured as tall as it wants to be, then given only the
-                    // room the surface has. `SheetDetent.Expanded` means "as
-                    // tall as the content", so the content's own height has to
-                    // stay knowable after the surface stopped being sized by it
-                    // — otherwise `Expanded` resolves to whatever the sheet is
-                    // currently showing and the anchor chases itself.
+                    // Free to be shorter than the surface, never taller.
+                    //
+                    // `SheetDetent.Expanded` means "as tall as the content", so
+                    // the content's own height has to stay knowable after the
+                    // surface stopped being sized by it — otherwise `Expanded`
+                    // resolves to whatever the sheet is currently showing and
+                    // the anchor chases itself. Dropping `minHeight` is what
+                    // buys that: a `Column` wraps its children, so for content
+                    // that fits, `placeable.height` is the content's height and
+                    // `Expanded` resolves exactly where it always did.
+                    //
+                    // ### Why not `Constraints.Infinity` every time
+                    //
+                    // It used to be, and content taller than the window was
+                    // **cropped rather than scrolled**. The child was told it
+                    // had infinite room, laid itself out believing it, and was
+                    // then placed in the room the surface actually has;
+                    // everything past the window's bottom edge simply was not
+                    // drawn. Reported from a phone: the gallery's settings panel
+                    // is 728dp at 100% type and 863dp at 200%, against roughly
+                    // 867dp of usable window on a Pixel-class phone — at 200% a
+                    // reader lost Text size and Input modality, the two controls
+                    // they opened the panel to use.
+                    //
+                    // A `verticalScroll` inside could not rescue it — Compose
+                    // refuses a scroller measured at an infinite height by name
+                    // and **throws**, so the recommended cure for a long sheet
+                    // was a crash. Neither could a `LazyColumn`, which at an
+                    // infinite viewport composes *every* item, exactly what the
+                    // KDoc above recommends it for. A finite maxHeight is what
+                    // makes both work; see `SheetContentConstraintsTest`.
+                    //
+                    // Nothing is lost at the tall end: `resolveAnchors` clamps
+                    // the visible height to the container, so a `sheetHeight`
+                    // that is now the window's height instead of the content's
+                    // resolves `Expanded` to the same offset — the top of the
+                    // container — that a taller number did.
+                    //
+                    // Two measure passes are not the alternative: a `Measurable`
+                    // may be measured once. Nor are intrinsics — a `LazyColumn`
+                    // has none.
                     .layout { measurable, constraints ->
-                        val placeable = measurable.measure(
-                            constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
-                        )
+                        // A `maxHeight` of zero is not a measurement, it is
+                        // the absence of one, and measuring the content against
+                        // it gives `sheetHeight = 0`, `Expanded` resolving to
+                        // "hidden", and a sheet that never appears — which is
+                        // what thirteen tests across five classes reported when
+                        // the first draft of this took the incoming constraints
+                        // unconditionally.
+                        //
+                        // A host with a size never reaches this now: the
+                        // container is read in the measure phase above, so the
+                        // surface has its real height on the very first pass.
+                        // What is left is the host that is genuinely unbounded,
+                        // where the sheet has no room to speak of and unbounded
+                        // is the only honest answer. Note that a `verticalScroll`
+                        // inside a sheet in *that* host will throw — Compose
+                        // refuses a scroller measured at an infinite height —
+                        // and that is Compose's rule rather than this one's.
+                        val room =
+                            if (constraints.hasBoundedHeight && constraints.maxHeight > 0) {
+                                constraints.copy(minHeight = 0)
+                            } else {
+                                constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
+                            }
+                        val placeable = measurable.measure(room)
                         state.sheetHeight = placeable.height.toFloat()
                         state.updateAnchors(density)
                         val height = placeable.height.coerceAtMost(constraints.maxHeight)
@@ -575,7 +671,21 @@ private fun BoxScope.SheetSurface(
     }
 }
 
-/** Sits at [SheetDetent.Hidden]'s offset until the sheet has been measured. */
+/**
+ * Sits at [SheetDetent.Hidden]'s offset until the sheet has been measured.
+ *
+ * **The sheet's own travel is not gated on reduced motion, and that is a
+ * decision rather than an oversight.** Round 31 took the amplitude out of the
+ * two largest transforms in the library under that preference — the backdrop's
+ * scale-back and every overlay's scale-in — and stopped here. A sheet sliding up
+ * from the bottom edge *is* what tells you where it came from and which way to
+ * push it back; a sheet that appeared in place would be a dialog with a drag
+ * handle. The preference asks for less gratuitous movement, not for a component
+ * to stop being the thing it is.
+ *
+ * What the preference does reach is the sheet's spec: `springOrTween` degrades
+ * the spring to a tween, so the travel is shorter and never overshoots.
+ */
 private fun offsetOrHidden(state: SheetState): Int {
     val offset = state.anchoredState.offset
     return if (offset.isNaN()) {

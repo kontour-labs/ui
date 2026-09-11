@@ -24,8 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AdjustmentsHorizontal
@@ -48,15 +46,11 @@ import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.components.action.IconButton
-import io.kontour.ui.components.selection.SegmentedControl
-import io.kontour.ui.components.selection.SelectionRow
-import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.demo.DemoCard
 import io.kontour.ui.demo.DemoFamily
 import io.kontour.ui.demo.demoFamilies
 import io.kontour.ui.demo.theme.DemoThemeProvider
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.nav.ModalNavDrawer
 import io.kontour.ui.nav.NavItem
@@ -69,7 +63,6 @@ import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetHeader
-import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.Theme
 
 /** One page of the gallery. */
@@ -184,7 +177,11 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
         // *platform* setting: the theme's type ramp is in sp, and this is what
         // makes sp mean something different. Scaling the ramp instead would look
         // similar and prove nothing.
-        LocalDensity provides Density(density.density, settings.textScale),
+        //
+        // `hostDensity` rather than a `Density(...)` written out here, because
+        // the one written out here dropped the phone's own text-size setting on
+        // the floor — and so did the identical line in `Site`.
+        LocalDensity provides hostDensity(density, settings.textScale),
         LocalLayoutDirection provides
             if (settings.rightToLeft) LayoutDirection.Rtl else LayoutDirection.Ltr,
     ) {
@@ -276,8 +273,6 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                                 visible = settingsOpen,
                                 settings = settings,
                                 systemDark = systemDark,
-                                systemHighContrast = systemHighContrast,
-                                systemReduceMotion = systemReduceMotion,
                                 onDismiss = { settingsOpen = false },
                             )
                         }
@@ -350,90 +345,61 @@ private fun CompactCatalog(
     }
 }
 
-/** The switches, in a sheet so they are reachable on a phone. */
+/**
+ * The switches, in a sheet so they are reachable on a phone.
+ *
+ * The list itself is `DisplaySettingsControls`, shared with the documentation
+ * site's popover. It used to be spelled out here and spelled out again there,
+ * which is how the two came to draw the same rows in a different order — and how
+ * the font-scale defect above got into both hosts in identical words. What is
+ * left here is the sheet's own shape: a header, and the spacing a sheet wants
+ * rather than the tighter spacing a popover wants.
+ *
+ * **It scrolls.** It has to: measured, this panel is 728dp at 100% type and
+ * 863dp at 200%, against roughly 867dp of usable window on a Pixel-class device
+ * and 640dp on a 5" one. It used to be cropped instead — the sheet measured its
+ * content unbounded — and at 200% a reader lost Text size and Input modality,
+ * the two controls they had opened the panel to reach.
+ * `SettingsPanelHeightTest` still holds those numbers as a ceiling, now as a
+ * ratchet on how long the panel is rather than on how much of it survives.
+ */
 @Composable
-private fun SettingsSheet(
+internal fun SettingsSheet(
     visible: Boolean,
     settings: CatalogSettings,
     systemDark: Boolean,
-    systemHighContrast: Boolean,
-    systemReduceMotion: Boolean,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) {
-        Column(
-            Modifier.padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
-            verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-        ) {
-            SheetHeader() {
-                +"Display settings"
-            }
-
-            Text("Theme", style = Theme.typography.labelMedium)
-            ThemePicker(settings)
-
-            // The three platform-backed switches show the *resolved* value, so
-            // one the reader has not touched reads as what they are actually
-            // getting rather than as the app's own preference — and the first
-            // two go inert under a theme that offers only one mode or tier.
-            val theme = settings.theme
-            SettingToggle(
-                "Dark",
-                theme.resolveDark(settings.dark ?: systemDark),
-                enabled = theme.offersBothModes,
-            ) { settings.dark = it }
-            SettingToggle(
-                "High contrast",
-                theme.resolveTier(
-                    if (settings.highContrast ?: systemHighContrast) ContrastLevel.High
-                    else ContrastLevel.Standard
-                ) == ContrastLevel.High,
-                enabled = theme.offersBothTiers,
-            ) { settings.highContrast = it }
-            SettingToggle("Right to left", settings.rightToLeft) { settings.rightToLeft = it }
-            SettingToggle("Reduce motion", settings.reduceMotion ?: systemReduceMotion) {
-                settings.reduceMotion = it
-            }
-            SettingToggle("Frame times", settings.frameTimes) { settings.frameTimes = it }
-
-            Text("Text size", style = Theme.typography.labelMedium)
-            SegmentedControl(
-                options = fontScales.map { it.first },
-                selected = fontScales.indexOfFirst { it.second == settings.textScale }
-                    .coerceAtLeast(0),
-                onSelectedChange = { settings.textScale = fontScales[it].second },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Text("Input modality", style = Theme.typography.labelMedium)
-            SegmentedControl(
-                options = inputModalities.map { it.first },
-                selected = inputModalities.indexOfFirst { it.second == settings.modality }
-                    .coerceAtLeast(0),
-                onSelectedChange = { settings.modality = inputModalities[it].second },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+        SettingsSheetContent(settings, systemDark)
     }
 }
 
-private val fontScales = listOf(
-    "85%" to 0.85f,
-    "100%" to 1f,
-    "130%" to 1.3f,
-    "200%" to 2f,
-)
-
-
+/**
+ * The sheet's column, without the sheet — so a test can photograph and measure it.
+ *
+ * Scrolls, because the panel is taller than a phone. The sheet measures its
+ * content at the room it has, which is what gives this `verticalScroll` a finite
+ * viewport to scroll within. That order matters: measured unbounded, as the
+ * sheet once did, Compose refuses a scroller outright and throws — so this line
+ * and the `:ui` change are one change, not two.
+ *
+ * Outside a sheet — the popover on a wide window uses the same controls through
+ * [DisplaySettingsControls] — there is room, and this is not the composable
+ * being used.
+ */
 @Composable
-private fun Toggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    SelectionRow(
-        selected = checked,
-        onSelectedChange = onCheckedChange,
-        role = Role.Switch,
+internal fun SettingsSheetContent(settings: CatalogSettings, systemDark: Boolean) {
+    Column(
+        Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
-        +label
-        trailing { Switch(checked = checked, onCheckedChange = null) }
+        SheetHeader() {
+            +"Display settings"
+        }
+        DisplaySettingsControls(settings, systemDark, showFrameTimes = true)
     }
 }
 

@@ -52,14 +52,16 @@ internal class ThemeFade(val colours: ColourScheme, val elevation: Elevation)
  *
  * [Elevation] is a sibling token rather than part of the scheme, and it used to
  * be resolved from the `darkTheme` flag — so shadows cut to their dark-mode
- * strength on the first frame and sat there while the surfaces beneath them were
- * still moving. Both now come out of **one** [Animatable], which is the only way
- * they cannot drift: two animations with the same spec agree until the day one
- * of the specs is tuned.
+ * strength on the **first** frame and sat there while the surfaces beneath them
+ * were still moving. Both come out of one [Animatable] now, which is the only
+ * way they cannot drift: two animations with the same spec agree until the day
+ * one of the specs is tuned.
  *
- * The reason to leave it was that lerping a `List<ShadowSpec>` risks a length
- * mismatch. That turned out to have a one-line answer — a layer that does not
- * exist is that layer at alpha zero — which is in `lerp(Shadow, Shadow, Float)`.
+ * It steps at the fade's **midpoint** rather than interpolating, and that is a
+ * measurement rather than a preference — see [lerpTheme], which has the numbers.
+ * A shadow whose alpha and radius move every frame cannot reuse the blur it
+ * rasterised on the frame before, and blurs are about four fifths of what a fade
+ * costs.
  *
  * ### Interrupting mid-fade
  *
@@ -97,11 +99,46 @@ internal fun animatedTheme(
     }
 }
 
-/** Both halves, from one fraction. */
+/**
+ * Both halves, from one fraction — but the elevation **snaps** at the midpoint.
+ *
+ * ### Because the shadows are the frame
+ *
+ * `ThemeFadeCostDiagnostic` measures a fade three ways on the same tree. At
+ * twenty cards a resting frame is 4.05ms, a fading frame is 15.91, and a fading
+ * frame with the elevation held still is 11.62. With the shadows taken out
+ * altogether the same fade costs 2.62 against 0.90 at rest — so **the shadows
+ * are about four fifths of what a fade costs**, and interpolating their
+ * parameters is a third of that again.
+ *
+ * The reason is cheap to state: a rasterised blur can be reused while its
+ * parameters hold, and `lerp(Elevation)` moves every layer's alpha and radius on
+ * every frame — dark's scale multiplies alpha by 2.4 — so every elevated surface
+ * on screen misses the cache on every frame of the fade and re-rasterises both
+ * of its layers. That is the jitter reported from a phone.
+ *
+ * ### Why snapping is not a compromise
+ *
+ * [ColourScheme.isDark] already switches at the midpoint rather than
+ * interpolating, for the reason given there: it is not a quantity and cannot be
+ * half-way. A shadow's *strength* is a quantity, but the half-way value of one
+ * is not a thing anybody has asked for — what a reader sees is surfaces changing
+ * colour, and the shadow under a card is a few pixels of near-black either way.
+ * Stepping it once, in the middle, while the surfaces are mid-way, is the least
+ * visible moment there is to do it.
+ *
+ * What it is *not* is pinning: the shadows still arrive at the new scale, which
+ * is the whole reason `Elevation` travels with the scheme at all. They arrive in
+ * one step instead of fourteen.
+ *
+ * Measured after the change, same machine, twenty cards: see the diagnostic's
+ * table, which prints a fading frame beside the pinned scene it is now expected
+ * to resemble.
+ */
 internal fun lerpTheme(start: ThemeFade, stop: ThemeFade, fraction: Float): ThemeFade =
     ThemeFade(
         colours = lerpColourScheme(start.colours, stop.colours, fraction),
-        elevation = lerp(start.elevation, stop.elevation, fraction),
+        elevation = if (fraction < 0.5f) start.elevation else stop.elevation,
     )
 
 /**
@@ -112,8 +149,9 @@ internal fun lerpTheme(start: ThemeFade, stop: ThemeFade, fraction: Float): Them
  * one end where it would disagree with what is on screen for most of the fade.
  *
  * Its readers are `Skeleton`, `Tag` and `Surface`, each choosing a *content*
- * colour by which ground it is on. The elevation scale used to be the example
- * here and no longer is — it interpolates now, so it has nothing to ask.
+ * colour by which ground it is on. [lerpTheme] steps the elevation scale at the
+ * same midpoint and for a different reason — this one cannot be half-way, that
+ * one must not be, because a blur that changes every frame cannot be reused.
  */
 internal fun lerpColourScheme(start: ColourScheme, stop: ColourScheme, fraction: Float): ColourScheme =
     ColourScheme(

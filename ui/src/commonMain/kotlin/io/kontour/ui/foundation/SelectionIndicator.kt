@@ -341,7 +341,6 @@ fun SelectionIndicatorBox(
         }
 
         val movedItem = state.targetKey != lastKey
-        lastKey = state.targetKey
 
         // A marker that is not on screen has no position worth keeping.
         //
@@ -385,6 +384,26 @@ fun SelectionIndicatorBox(
             // should not change character that much between the two settings.
             else -> bounds.animateTo(target, motion.springOrTween(motion.springDefault))
         }
+
+        // **After** the travel, not before it.
+        //
+        // `lastKey` answers "has this item already been arrived at", and the
+        // branch above spends the whole length of a spring inside `animateTo`.
+        // This effect restarts whenever the target rect changes — a rail
+        // expanding, a window resizing, a container re-measuring under the
+        // marker — so a rect arriving mid-flight cancels the travel and
+        // relaunches. Advanced up front, the relaunch found the key already
+        // claimed, computed `movedItem = false`, took the resize branch, and
+        // **abandoned the spring**: the marker covered the rest of the distance
+        // in a single frame.
+        //
+        // Measured with a row that changes width three frames into a travel:
+        // 858px in one frame, against 103px in the fastest frame of the same
+        // travel left alone. See `IndicatorTravelInterruptedTest`.
+        //
+        // A cancelled coroutine never reaches this line, which is exactly the
+        // property wanted: a travel that did not finish has not claimed its key.
+        lastKey = state.targetKey
         alpha.animateTo(1f, motion.tweenFast())
     }
 

@@ -1224,6 +1224,36 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "SegmentedControl",
             role = Role.RadioButton,
             control = ControlLocator.SelectedOption,
+            states = listOf(
+                // The squeeze, which nothing in this repository photographed
+                // until now — and which is why a clipped label shipped.
+                //
+                // Four realistic options in 244dp: the width the documentation
+                // site's settings panel gave this control when the clip was
+                // found — a 320dp popover, double-padded, divided four ways, so
+                // 61dp a segment. "Keyboard" does not fit in that and arrived as
+                // "Keyboar", a different word with nothing marking the loss.
+                //
+                // The panel is 276dp now that the second padding is gone, so the
+                // real one no longer clips. 244 stays here on purpose: this is a
+                // guard on the *component's* behaviour when a label does not fit,
+                // and it must not quietly stop testing that because a caller
+                // found more room.
+                //
+                // The width is fixed here rather than left to the render card
+                // because the card is generous and the defect only exists when
+                // the control is starved. `WidthSweepTest` cannot see this: it
+                // measures ink spilling *out* of the box, and clipped text keeps
+                // every pixel inside — that is what clipping is.
+                RenderState("squeezed") { modifier ->
+                    SegmentedControl(
+                        options = listOf("Auto", "Touch", "Mouse", "Keyboard"),
+                        selected = 0,
+                        onSelectedChange = {},
+                        modifier = modifier.width(244.dp),
+                    )
+                },
+            ),
         ) { modifier, enabled, onClick ->
             SegmentedControl(
                 options = listOf("Bus", "Train"),

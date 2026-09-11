@@ -2,6 +2,7 @@ package io.kontour.ui.components.selection
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -34,6 +35,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
@@ -240,7 +242,31 @@ fun SegmentedControl(
                     },
                 shape = innerShape,
                 colour = if (enabled) colours.surface else colours.surfaceSunken,
-                border = contrastEdge(),
+                // `outlineStrong`, at every tier, and not `contrastEdge()`.
+                //
+                // The thumb is `surface` and the track is `surfaceSunken`, which
+                // measure **1.07:1 apart in dark and 1.08 in light** — against
+                // the 3:1 WCAG 1.4.11 asks of anything that identifies a
+                // control's state. In light a shadow does the separating;
+                // `kontourElevation(dark = true)` draws `low` as two *black*
+                // layers, and on a `#1A1820` track there is nothing left to
+                // darken. Reported from a phone as the thumb being "almost
+                // invisible in both dark themes", and it is invisible in the
+                // light one too for anyone the shadow does not reach.
+                //
+                // `contrastEdge()` is null at the standard tier by design — it
+                // is the helper for containers that only *need* an edge when the
+                // reader has asked for one. This is not that: the separation is
+                // missing at every tier, so the edge is there at every tier.
+                //
+                // `outlineStrong` rather than `outline` because `outline` is
+                // documented as decorative and measures 1.25:1 on `surface` —
+                // WCAG exempts it and this pairing is not exempt. The strong
+                // token's own contract is "the boundary of an interactive
+                // control, clears 3:1 against every ground", which is this
+                // sentence written a round earlier; `SchemeContrast` now checks
+                // it against the indicator fills as well as the grounds.
+                border = BorderStroke(Theme.sizing.borderWidth, colours.outlineStrong),
                 shadow = if (enabled) Theme.elevation.low else Shadow.None,
                 content = {},
             )
@@ -350,7 +376,20 @@ fun SegmentedControl(
                     contentAlignment = Alignment.Center,
                 ) {
                     ProvideTextStyle(Theme.typography.labelMedium) {
-                        Text(text = option, colour = labelColour, maxLines = 1)
+                        // Ellipsis rather than `Text`'s default clip, for the
+                        // reason `TabBar` gives for the same decision: a control
+                        // that divides its width evenly *expects* a long label to
+                        // run out of room, and a word cut mid-stroke reads as a
+                        // different word rather than a shortened one. "Keyboard"
+                        // was arriving as "Keyboar", and as "Keybo" at 130% type
+                        // — the accessibility setting making the loss worse, with
+                        // nothing on screen marking it.
+                        Text(
+                            text = option,
+                            colour = labelColour,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }

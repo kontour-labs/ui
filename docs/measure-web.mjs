@@ -699,6 +699,20 @@ async function main() {
   const tapAt = arg('touch-tap', null)
   const dragAlong = arg('touch-drag', null)
   let interaction = null
+  // What produced that sample.
+  //
+  // Nine flags below assign `interaction`, and the report used to name
+  // `--click` whatever the sample came from: a `--touch-tap` run printed
+  // "AFTER CLICKING null", and a run with both a click and a drag printed the
+  // click's coordinates over the drag's timings — the wrong gesture named over
+  // the right gesture's numbers, which is worse than no label at all.
+  //
+  // The label is set beside the sample, so the two cannot come apart. Later
+  // gestures still overwrite earlier ones, and that is deliberate — the flags
+  // compose into one question ("select some text, *then* tap the toolbar") and
+  // the frames worth reporting are the ones after the last thing you did. What
+  // changes is that the report now says which one that was.
+  let interactionLabel = null
 
   if (clickAt) {
     const [x, y] = clickAt.split(',').map(Number)
@@ -707,6 +721,7 @@ async function main() {
       await cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 }, sessionId)
     }
     interaction = await settle()
+    interactionLabel = `clicking ${clickAt}`
   }
 
   if (tapAt) {
@@ -715,6 +730,7 @@ async function main() {
     await wait(40)
     await touch('touchEnd', x, y)
     interaction = await settle()
+    interactionLabel = `tapping ${tapAt}`
   }
 
   // `--touch-drag x1,y1,x2,y2[,steps[,hold]]`. `hold` is milliseconds to keep
@@ -732,6 +748,7 @@ async function main() {
     }
     await touch('touchEnd', x2, y2)
     interaction = await settle()
+    interactionLabel = `touch-dragging ${dragAlong}`
   }
 
   // `--wheel X,Y,DELTA[,STEPS]`. A wheel rather than a drag, because on a desktop
@@ -753,6 +770,7 @@ async function main() {
       await wait(16)
     }
     interaction = await settle()
+    interactionLabel = `scrolling the wheel at ${wheelAt}`
   }
 
   // Read *after* the gestures, so what is printed is what the interaction
@@ -778,6 +796,7 @@ async function main() {
     await wait(40)
     await touch('touchEnd', x, y)
     interaction = await settle()
+    interactionLabel = `tapping ${thenTap} (--then-tap)`
   }
 
   // `--double-click x,y` selects a word, which is the gesture a desktop user
@@ -798,6 +817,7 @@ async function main() {
       await wait(30)
     }
     interaction = await settle()
+    interactionLabel = `double-clicking ${doubleClickAt}`
   }
 
   // `--mouse-drag x1,y1,x2,y2[,steps]` presses, travels and releases with the
@@ -823,6 +843,7 @@ async function main() {
       type: 'mouseReleased', x: x2, y: y2, button: 'left', buttons: 0, clickCount: 1,
     }, sessionId)
     interaction = await settle()
+    interactionLabel = `mouse-dragging ${mouseDrag}`
   }
 
   // `--right-click x,y` dispatches a real secondary click and reports whether
@@ -887,6 +908,7 @@ async function main() {
       console.log(`             secondary button delivered as: ${kinds}`)
     }
     interaction = await settle()
+    interactionLabel = `right-clicking ${rightClickAt}`
   }
 
   // `--last-click X,Y`, which runs after every other gesture.
@@ -904,6 +926,7 @@ async function main() {
       await cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 }, sessionId)
     }
     interaction = await settle()
+    interactionLabel = `clicking ${lastClick} (--last-click)`
   }
 
   if (filming) {
@@ -1074,7 +1097,7 @@ async function main() {
 
   if (interaction) {
     const s = stats(interaction)
-    console.log(`\n  AFTER CLICKING ${clickAt}`)
+    console.log(`\n  AFTER ${interactionLabel.toUpperCase()}`)
     console.log(`    median ${s.median.toFixed(1)}ms · p95 ${s.p95.toFixed(1)} · worst ${s.worst.toFixed(1)} at frame ${s.worstAt} · ${s.over16}/${s.frames} over 16.7ms`)
     console.log(`    first six frames: ${s.first.join(', ')} ms`)
   }
@@ -1085,7 +1108,7 @@ async function main() {
       dist: DIST, network: NETWORK, paints, probe, timing, resources, transferred,
       duplicates: duplicates.map(([url, hits]) => ({ url, count: hits.length })),
       idle: { ...idleStats, appFrames, seconds: IDLE_SECONDS },
-      interaction: interaction ? stats(interaction) : null,
+      interaction: interaction ? { gesture: interactionLabel, ...stats(interaction) } : null,
     }, null, 2))
     console.log(`\n  wrote ${out}`)
   }

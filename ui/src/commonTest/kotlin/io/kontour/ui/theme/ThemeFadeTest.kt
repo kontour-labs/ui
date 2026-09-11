@@ -104,17 +104,37 @@ class ThemeFadeTest {
     }
 
     /**
-     * Colours and shadows are at the same point of the same fade.
+     * Colours and shadows are driven by one fade, and the shadow steps inside it.
      *
-     * The property the shared `Animatable` exists for. Two animations with the
-     * same spec would pass this today and stop passing the day one spec is
-     * tuned, which is why they are one.
+     * ### What this used to assert, and why it changed
+     *
+     * It used to require the shadow's alpha to be strictly *between* the two
+     * scales part-way through — the property the shared `Animatable` was added
+     * for, against a defect where shadows cut to their dark-mode strength on the
+     * **first** frame and sat there while the surfaces beneath them travelled.
+     *
+     * The shadow is a step function of the same fraction now, and the reason is
+     * measured rather than preferred: `ThemeFadeCostDiagnostic` finds that blurs
+     * are about four fifths of what a theme fade costs, and a blur whose alpha
+     * and radius move every frame cannot reuse the one it rasterised on the
+     * frame before. `lerpTheme` has the numbers.
+     *
+     * So the thing to guard is no longer "it is in between". It is the pair of
+     * facts that make the step invisible and keep the original defect fixed:
+     * the shadow is still at the **old** scale while the surface has already
+     * left its starting colour, and it is at the **new** one before the surface
+     * has arrived. A shadow that cut on frame one fails the first; one that
+     * never changed at all fails the second.
+     *
+     * Sampled frame by frame rather than at a chosen millisecond, so the claim
+     * does not depend on the tween's duration or on where `standard` easing puts
+     * the midpoint.
      */
     @OptIn(ExperimentalTestApi::class)
     @Test
-    fun bothHalvesMoveTogether() = runComposeUiTest {
+    fun theShadowStepsOnceWhileTheSurfaceIsStillTravelling() = runComposeUiTest {
         var dark by mutableStateOf(false)
-        var seenColours: Color? = null
+        var seenColour: Color? = null
         var seenAlpha: Float? = null
 
         val lightColours = kontourColourScheme(dark = false, contrast = ContrastLevel.Standard)
@@ -125,30 +145,60 @@ class ThemeFadeTest {
         mainClock.autoAdvance = false
         setContent {
             KontourTheme(darkTheme = dark) {
-                seenColours = Theme.colours.surface
+                seenColour = Theme.colours.surface
                 seenAlpha = Theme.elevation.medium.layers.first().alpha
                 Box(Modifier.fillMaxSize())
             }
         }
 
         mainClock.advanceTimeByFrame()
-        assertEquals(lightColours.surface, seenColours, "did not start light")
+        assertEquals(lightColours.surface, seenColour, "did not start light")
 
         dark = true
-        mainClock.advanceTimeByFrame()
-        mainClock.advanceTimeBy(80)
+        val path = mutableListOf<Pair<Color, Float>>()
+        repeat(FadeFrames) {
+            mainClock.advanceTimeByFrame()
+            path += seenColour!! to seenAlpha!!
+        }
 
-        val colourMid = seenColours!!
-        val alphaMid = seenAlpha!!
-
-        assertNotEquals(lightColours.surface, colourMid, "the surface never left its start")
-        assertNotEquals(darkColours.surface, colourMid, "the surface arrived in one frame")
-        assertTrue(
-            alphaMid > lightAlpha && alphaMid < darkAlpha,
-            "the shadow is at $alphaMid, outside the $lightAlpha..$darkAlpha it " +
-                "should be crossing — it cut to its destination while the " +
-                "surface under it was still travelling",
+        val alphas = path.map { it.second }.distinct()
+        assertEquals(
+            listOf(lightAlpha, darkAlpha),
+            alphas,
+            "the shadow's alpha took ${alphas.size} distinct values across the " +
+                "fade. It is meant to take exactly two, in that order: the old " +
+                "scale, then the new one. More than two means it is interpolating " +
+                "again — every elevated surface on screen re-rasterising both of " +
+                "its blurs on every frame, which is four fifths of what a fade " +
+                "costs. One means it is not travelling with the scheme at all.",
         )
+
+        val stepped = path.indexOfFirst { it.second == darkAlpha }
+        assertTrue(stepped > 0, "the shadow was at the dark scale on the first frame of the fade")
+        assertNotEquals(
+            lightColours.surface,
+            path[stepped - 1].first,
+            "the surface had not moved at all by the frame before the shadow " +
+                "stepped, so the step is not inside the fade — it is the cut the " +
+                "shared `Animatable` was added to remove",
+        )
+        assertNotEquals(
+            darkColours.surface,
+            path[stepped].first,
+            "the surface had already arrived by the frame the shadow stepped, so " +
+                "the step is at the end of the fade rather than in the middle of " +
+                "it, which is the most visible place to put it rather than the least",
+        )
+    }
+
+    private companion object {
+        /**
+         * Long enough to contain the whole of `tweenDefault` at 60Hz.
+         *
+         * 220ms is fourteen frames; twenty leaves room for the tween's duration
+         * to be retuned without this quietly sampling only half of it.
+         */
+        const val FadeFrames = 20
     }
 
     @OptIn(ExperimentalTestApi::class)

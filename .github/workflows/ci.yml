@@ -163,6 +163,11 @@ jobs:
       # asks whether the documentation examples still work against the real API,
       # `checkDocSamples` whether the copy on the page is still the code that was
       # compiled — but nothing about that needs its own process.
+      #
+      # Naming tasks rather than running `check` is why `checkScreenshotAssertions`
+      # has to be listed: `:ui-catalog:check` never runs here. Its sibling
+      # `checkGoldenOrphans` does not, because it is a finalizer of
+      # `:ui-catalog:jvmTest` and arrives with it.
       - name: Test
         run: |
           ./gradlew --no-daemon \
@@ -171,6 +176,7 @@ jobs:
             :ui:checkApiConventions \
             :ui:checkKdocSamples \
             :ui-catalog:jvmTest \
+            :ui-catalog:checkScreenshotAssertions \
             :ui-docs:jvmTest \
             :ui-samples:compileKotlinJvm \
             :ui-samples:checkDocSamples

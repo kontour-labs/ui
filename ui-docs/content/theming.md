@@ -46,6 +46,22 @@ By default it resolves dark mode, contrast tier and reduced motion from the
 operating system, and follows all three live. Which platform setting drives
 which is in [`accessibility.md`](accessibility.md#contrast-tiers).
 
+**It also tells the host which way round the app is drawing.** Every platform
+has chrome the canvas cannot reach and that picks its own colours from a flag
+the host owns — Android's status and navigation bar icons, iOS's status bar, a
+browser's scrollbars and mobile address bar. All of them default to guessing
+from the *system's* appearance, which is the wrong guess for an app with a dark
+switch in it: force dark under a light phone and the clock and the battery stay
+dark on a dark bar. The outermost `KontourTheme` sets the flag from the scheme
+it resolved, so there is nothing to do at the host but let it draw edge to edge.
+
+A nested `KontourTheme` — one screen forcing dark over a light app — does not.
+It re-provides tokens for its subtree; the window belongs to the app.
+
+On web the flag is the document's `color-scheme`, and it follows the app's own
+switch in both directions — measured in a browser on the built site, turning Dark
+on under a light system and off under a dark one.
+
 ---
 
 ## Overriding

@@ -1042,6 +1042,18 @@ private fun ToastCard(
                 // not the card plus its slop — the stack's geometry is tuned to
                 // `Peek` against the card, and scaling a bigger box moves every
                 // number in it.
+                //
+                // **Not gated on `reduceMotion`, deliberately.** Round 31 gated
+                // the sheet backdrop's scale-back and `overlayAppearance`'s, and
+                // this looks like the same shape of thing and is not: those are
+                // *movements*, run by a progress fraction between two states,
+                // and the preference is about movement. This is where a card in
+                // a stack **rests**. Taking it away would not calm an animation,
+                // it would flatten three cards into one pile with no order in
+                // it — a picture the reader has to untangle rather than a
+                // movement they have to follow. `check-components.py`'s rule 24
+                // counts this file for that reason: the number is a record, not
+                // an accusation.
                 .graphicsLayer {
                     translationX = swipe.x
                     translationY = depthOffset.toPx() + swipe.y

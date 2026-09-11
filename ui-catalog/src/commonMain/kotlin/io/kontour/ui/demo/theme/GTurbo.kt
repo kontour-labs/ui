@@ -144,6 +144,24 @@ private val SubtleHc = Color(0xFFB1ABBA)
 private val DisabledHc = Color(0xFF7B7488)
 private val LineStrongHc = Color(0xFF908A98)
 
+/**
+ * The enhanced tier's divider — and until Round 31 there was not one.
+ *
+ * The high-contrast scheme below darkened [LineStrong] to [LineStrongHc] and
+ * left `outline` at [Line], which is `#2A2A2B` and measures **1.29:1 on
+ * `Card`** at both tiers. That is the whole of `contrastEdge()`'s mechanism made
+ * invisible in this theme: the helper draws an edge round every container that
+ * has none *at the enhanced tier only*, and it defaults to `outline` — so
+ * turning high contrast on in GTurbo added a border nobody could see. Reported
+ * from a phone, as the selection indicator being "almost invisible in both dark
+ * themes".
+ *
+ * 4.68:1 on [Card], which is clearly under [LineStrongHc]'s 5.55 — a divider
+ * should still read as lighter than the boundary of a control — and clearly over
+ * the 3:1 that an edge doing this job needs.
+ */
+private val LineHc = Color(0xFF847D8C)
+
 /** The fill red. Fails as text by design; carries white at 5.67:1. */
 private val Red = Color(0xFFC6252B)
 
@@ -337,7 +355,7 @@ private fun gTurboEnhancedColours(): ColourScheme = highContrastDarkColourScheme
     contentSubtle = SubtleHc,
     contentDisabled = DisabledHc,
 
-    outline = Line,
+    outline = LineHc,
     outlineStrong = LineStrongHc,
     outlineSubtle = LineSubtle,
 

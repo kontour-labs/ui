@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
@@ -39,6 +38,7 @@ import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.catalog.Catalog
 import io.kontour.ui.catalog.CatalogSettings
+import io.kontour.ui.catalog.hostDensity
 import io.kontour.ui.catalog.rememberCatalogSettings
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
@@ -103,11 +103,12 @@ fun Site(settings: CatalogSettings = rememberCatalogSettings()) {
     // setting and the type ramp is in sp, so this is what makes sp mean
     // something different. Scaling the ramp instead would look similar and
     // prove nothing. Layout direction is not a theme parameter either.
+    //
+    // `hostDensity` rather than a `Density(...)` written out here, because the
+    // one written out here dropped the browser's own font scale on the floor —
+    // and so did the identical line in `Catalog`.
     CompositionLocalProvider(
-        LocalDensity provides Density(
-            LocalDensity.current.density,
-            settings.textScale,
-        ),
+        LocalDensity provides hostDensity(LocalDensity.current, settings.textScale),
         LocalLayoutDirection provides
             if (settings.rightToLeft) LayoutDirection.Rtl else LayoutDirection.Ltr,
     ) {
