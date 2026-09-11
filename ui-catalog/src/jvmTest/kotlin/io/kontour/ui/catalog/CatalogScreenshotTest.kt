@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -17,6 +18,27 @@ import kotlin.test.assertTrue
  * `NavigationSuiteScaffold` made visible.
  */
 class CatalogScreenshotTest {
+
+    /**
+     * The line this class was missing, and the reason a missing one is invisible.
+     *
+     * `Screenshot.render` *records* a mismatch and carries on — deliberately, so
+     * that a change moving four schemes reports four rather than the first — and
+     * `assertAllMatched` is the only thing that turns the record into a failure.
+     * Every other class that renders has this method. This one asserted
+     * `file.length() > 0` instead, which is true of a golden that matched, a
+     * golden that drifted, and a golden written fresh a second ago: the shell
+     * goldens could move by any amount and the run stayed green.
+     *
+     * What made it hard to see is that `mismatches` is a JVM-wide singleton and
+     * the suite runs four forks. A drift here did not vanish — it waited, and
+     * was reported by whichever *other* class ran next in the same fork, under
+     * that class's name, or was dropped entirely when this class ran last.
+     * Which of those happened was decided by fork scheduling, so the same defect
+     * was a confusing failure on one machine and silence on the next.
+     */
+    @AfterTest
+    fun allGoldensMatched() = Screenshot.assertAllMatched()
 
     @Test
     fun rendersCompactWithABottomBar() {
