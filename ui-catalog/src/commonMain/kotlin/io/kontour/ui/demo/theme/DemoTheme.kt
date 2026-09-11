@@ -2,9 +2,6 @@ package io.kontour.ui.demo.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import io.kontour.ui.catalog.CatalogSettings
 import io.kontour.ui.theme.ColourScheme
 import io.kontour.ui.theme.ComponentDefaults
@@ -147,23 +144,34 @@ fun DemoThemeProvider(
     )
     val reduceMotion = settings.reduceMotion ?: systemReduceMotion
 
-    // A theme swap **cuts**; a dark or contrast change still fades.
+    // A theme swap fades its colours and snaps its geometry.
     //
-    // `animatedTheme` interpolates the colour scheme and the elevation and
-    // nothing else, which is right for the change it was written for. Across a
-    // theme swap the shapes and the type change too, and they cannot be
-    // interpolated — so a fade would drift the palette over 300ms while the
-    // corners and the typeface snapped on the first frame. A clean cut reads as
-    // deliberate; a half-animated one reads as broken.
-    val previous = remember { mutableStateOf(theme) }
-    val swapping = previous.value !== theme
-    LaunchedEffect(theme) { previous.value = theme }
-
+    // **This reverses a decision, on evidence.** It used to cut: `swapping` was
+    // computed here and passed as `animateThemeChanges = !swapping`, on the
+    // reasoning that `animatedTheme` interpolates the scheme and the elevation
+    // and nothing else — so across a swap the corners and the typeface would
+    // change on the first frame while the palette drifted for 220ms after them,
+    // and "a half-animated transition reads as broken".
+    //
+    // The premise is still true: there is no `lerp(Shapes)` or `lerp(Typography)`
+    // anywhere in this repository and a font family is a discrete resource, so
+    // token interpolation genuinely cannot carry them. What was wrong is the
+    // conclusion, and a phone is what showed it: the alternative to a
+    // half-animated swap is not a clean cut, it is **every colour on screen
+    // changing between two frames**, which on a device reads as a glitch rather
+    // than as a decision. Half of a large change animating beats none of it.
+    //
+    // The geometry snapping is also what keeps the frame affordable — see
+    // `lerpTheme`, where the elevation now steps at the midpoint for the same
+    // reason. What is not attempted is a `Crossfade` of two rendered trees,
+    // which *would* carry the shapes and the type: `OverlayHost`, the toast host
+    // state, every scroll position and every `SheetState` live inside the
+    // content lambda, so the incoming tree would get fresh `remember` slots —
+    // closing an open sheet and jumping every scrolled page back to the top.
     KontourTheme(
         darkTheme = dark,
         contrast = tier,
         reduceMotion = reduceMotion,
-        animateThemeChanges = !swapping,
         colours = theme.colours(dark, tier),
         typography = theme.typography(),
         shapes = theme.shapes,
