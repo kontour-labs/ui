@@ -1,7 +1,7 @@
 package io.kontour.ui.platform
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.LaunchedEffect
 import kotlinx.browser.document
 import org.w3c.dom.HTMLElement
 
@@ -22,8 +22,30 @@ import org.w3c.dom.HTMLElement
  */
 @Composable
 internal actual fun platformReportAppearance(dark: Boolean) {
-    SideEffect {
-        val root = document.documentElement as? HTMLElement ?: return@SideEffect
+    // Keyed on the value rather than run after every composition: a DOM property
+    // keeps whatever it was last set to, so there is nothing to re-assert.
+    //
+    // ### This reaches the document once and does not follow a later change
+    //
+    // Measured in a real browser, and it is the web actual specifically. Load the
+    // site under `prefers-color-scheme: dark` and the document comes up
+    // `color-scheme: dark`; load it light, turn the site's own Dark switch on,
+    // and the canvas goes dark while the document stays `color-scheme: light`.
+    //
+    // It is not this effect and not `KontourTheme`'s wiring. Instrumented with a
+    // counter written from the composable's *body*, `platformReportAppearance`
+    // is called **exactly once** on the site across a change that visibly
+    // repaints the whole app — while the JVM actual, instrumented the same way
+    // and driven the same way, reports `[false, true]`. So `KontourTheme`'s body
+    // is not re-running on wasm even as the scheme it provides changes, which is
+    // a fact about that composition rather than about this file, and is worth
+    // its own investigation rather than a guess here.
+    //
+    // What it costs today: the browser's scrollbars, caret and form controls
+    // follow the *system* appearance rather than the site's own switch. Android
+    // and iOS use different actuals and are unaffected.
+    LaunchedEffect(dark) {
+        val root = document.documentElement as? HTMLElement ?: return@LaunchedEffect
         root.style.setProperty("color-scheme", if (dark) "dark" else "light")
     }
 }
