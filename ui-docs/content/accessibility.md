@@ -211,7 +211,17 @@ Components must lay out correctly at **200%**. In practice that means: no fixed
 heights on anything containing text, no single-line assumptions on labels that
 can wrap, and icons sized from `Theme.sizing` rather than tied to font size.
 
-The catalog has a font-scale slider for exactly this check.
+The gallery and this site both have a **Text size** control for exactly this
+check, and it starts at **Auto** — the device's own setting, which is what an
+accessibility slider on a phone moves.
+
+> **If you provide your own `LocalDensity`, carry `fontScale` through.**
+> `KontourTheme` never touches it, so an app that leaves the density alone
+> inherits whatever the platform hands it and scales correctly. But
+> `Density(density, fontScale)` *replaces* the font scale rather than adjusting
+> it — so a host that builds one out of `LocalDensity.current.density` alone
+> pins every device at 100%, silently, no matter what its accessibility settings
+> say. Nothing on screen looks wrong; the setting simply stops arriving.
 
 ---
 
