@@ -22,3 +22,13 @@ node_modules/
 # the tree; they were committed once and turned up in every documentation diff.
 __pycache__/
 *.pyc
+
+# The laid-out documentation site.
+#
+# `docs/lay-out-site.py --out site` assembles the wasm bundle, the fonts and the
+# generated pages into one directory — about thirty megabytes, all of it derived
+# — and CI builds it under exactly this name before publishing. It only appears
+# in a working tree when somebody runs `docs/measure-web.mjs`, which is the one
+# tool in the repository that opens a real browser, and that is a local
+# diagnostic rather than something to commit.
+site/
