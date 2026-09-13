@@ -907,15 +907,39 @@ The ten that remain are all `key: Any`, and they are right as they are: a key
 
 ### On a device
 
-The frame readout is the only instrument that sees a GPU, and only Android can
-run it — there is no iOS runner in this repository, only the framework an Xcode
-project would link.
+The frame readout is the only instrument that sees a GPU, and nothing in this
+repository can run it: it needs a phone.
 
 ```sh
 ./gradlew :showcase:android:installRelease   # release, not debug
 ```
 
 Judging performance from a debug build is judging the wrong thing.
+
+There is an iOS host now — `showcase/ios/`, an Xcode project over the `Catalog`
+framework `:ui-catalog` already produced — so the readout is reachable on that
+platform too, from a Mac:
+
+```sh
+open showcase/ios/KontourUI.xcodeproj    # then Product ▸ Run
+```
+
+Be clear about what that host is and is not gated by. CI compiles the Kotlin for
+both iOS targets and `docs/check-xcode-host.py` checks the project's structure
+against the repository around it — every file reference resolves, every Swift
+file is compiled, the framework the project links is the one Gradle names, the
+Gradle phase runs before the compile phase. What no runner here can answer is
+whether the app *launches*: linking a framework needs Xcode, and this repository
+has no macOS job. Two things in particular are unverified and worth knowing
+before the first run:
+
+- **A static Kotlin framework and the system frameworks it needs.**
+  `:ui-catalog` declares `isStatic = true`, so the app links the archive
+  directly; if the linker reports undefined symbols, they are Apple frameworks
+  Compose uses and the fix is `OTHER_LDFLAGS` in the Xcode project.
+- **Fonts.** `:ui` ships seven `.ttf` files through Compose resources and
+  nothing here has ever exercised the iOS resource path. If they do not reach the
+  app bundle it shows up on the first screen as fallback type, not as an error.
 
 #### Six reports came off a phone, and only one was out of reach
 
