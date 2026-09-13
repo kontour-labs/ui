@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -456,10 +457,17 @@ fun NavBar(
                 // `Theme.shapes.capsule` it disagreed with the glyph's `pill` on
                 // exactly the box they share.
                 val markerShape = navItemShape(indicatorSize)
+                // Remembered for the reason `Surface` is: a fresh `dropShadow`
+                // lambda per recomposition is a shadow re-rasterised per
+                // recomposition, and this one is drawn once per item.
+                val markerShadow = Theme.elevation.low
+                val raised = remember(markerShadow, markerShape) {
+                    Modifier.elevation(markerShadow, markerShape)
+                }
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .elevation(Theme.elevation.low, markerShape)
+                        .then(raised)
                         .clip(markerShape)
                         .background(indicatorColour)
                 )

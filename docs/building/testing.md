@@ -803,6 +803,7 @@ Counts are therefore the gates.
 | Instrument | Where | Counts |
 |---|---|---|
 | `PhaseCounts` + `Modifier.countPhases` | `ui/src/commonTest/…/PhaseCounts.kt` | measures, placements, draws |
+| `ElevationCacheTest` | `ui/src/commonTest/…/foundation/` | how many times an unchanged elevated surface re-rasterises its shadow |
 | the `Counted` pattern | `OverlayRecompositionTest` | recompositions |
 | `SheetState.anchorRebuilds` | `:ui`, production code | anchor rebuilds per frame |
 | `IdleAnimationTest` + `Scene.stillAnimating` | `:ui-catalog` | whether a still screen wants another frame |

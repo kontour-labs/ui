@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,10 +65,37 @@ fun Surface(
     propagateMinConstraints: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    // Remembered, and this is the one line in this file that is about the frame
+    // rate rather than about what a surface is.
+    //
+    // `Modifier.elevation` folds an `androidx.compose.ui.draw.dropShadow` node
+    // per layer, each taking a lambda that closes over its `ShadowSpec`.
+    // `DropShadowElement` compares that lambda, and two lambda instances are
+    // never equal — so every recomposition of every `Surface` used to hand
+    // Compose a modifier element it had to treat as new, updating the node and
+    // discarding the blur it had already rasterised.
+    //
+    // `OverlayRecompositionTest` wrote this down before anything acted on it:
+    // "a fresh modifier chain every frame means the sheet's two `dropShadow`
+    // layers ... are re-rasterised every frame instead of being cached. That is
+    // the frame rate."
+    //
+    // It matters most where it is least obvious. Theme changes provide new
+    // colours through `staticCompositionLocalOf`, so a fade recomposes the whole
+    // application once per frame — while the elevation scale deliberately
+    // *steps* rather than interpolating, so `shadow` is the same instance for
+    // almost all of it. There was a cache to hit on nearly every frame and
+    // nothing was hitting it.
+    //
+    // `ElevationCacheTest` is what holds this: it counts how many times an
+    // unchanged elevated surface asks its shape for an outline across fourteen
+    // recompositions, and the answer has to be none. Inline this call again and
+    // it reports 28 — fourteen frames times the two layers of `Elevation.low`.
+    val raised = remember(shadow, shape) { Modifier.elevation(shadow, shape) }
     CompositionLocalProvider(LocalContentColour provides contentColour) {
         Box(
             modifier = modifier
-                .elevation(shadow, shape)
+                .then(raised)
                 .clip(shape)
                 .background(color = colour, shape = shape)
                 .then(if (border != null) Modifier.border(border, shape) else Modifier),
