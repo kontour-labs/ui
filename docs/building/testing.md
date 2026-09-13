@@ -182,6 +182,26 @@ Whatever is **disabled** is exempt and nothing else is. If something turns up in
 the failure message that genuinely should not respond, disable it — a control
 that looks pressable and is not is the bug this exists to catch.
 
+### It is also the slowest thing in the suite, and that is where the cap lives
+
+Four of its eleven tests take most of a minute each. That is legitimate work —
+it presses every control on a page and then re-tests each suspect alone on a
+fresh composition — but it means this suite is the one that finds out what
+`runTest`'s timeout actually is, and twice now it has found out on CI rather than
+here.
+
+**`runComposeUiTest(testTimeout = …)` cannot raise that cap.** The v2 runner
+wraps the whole test in a `kotlinx.coroutines.test.runTest` whose own timeout
+argument it leaves at the sixty-second default, and passes `testTimeout` to the
+`SkikoComposeUiTest` inside, which uses it for its inner `runTest` and for
+`waitForIdle`'s `ComposeTimeoutException`. Both caps apply, so the effective one
+is the smaller: the parameter lowers and never raises.
+
+The cap therefore lives in the build files, as
+`systemProperty("kotlinx.coroutines.test.default_timeout", "5m")` on the `Test`
+tasks of `:ui`, `:ui-catalog` and `:ui-docs`. It is the outer `runTest`'s only
+reachable dial.
+
 ## Screenshot goldens
 
 Two kinds, both in `ui-catalog/screenshots/`, both **compared** rather than
@@ -533,6 +553,43 @@ compile and does it look right*.
 story here — a suspending write dropped when the toolbar goes away — survived
 three rounds of reasoning and one unit test, and died the moment it was asked for
 a number on the reporter's own platform.
+
+## A canary has to fail the way the fix would fail
+
+Canarying is the habit this repository leans on hardest: break the thing on
+purpose, watch the check report it, and only then believe the check. It has one
+failure mode, and it took a fix that did nothing to find it.
+
+`EverythingRespondsTest` was timing out on CI at sixty seconds. The fix was to
+pass `testTimeout = 5.minutes`, and it was canaried — set the same constant to
+**one second**, watch the test fail with exactly the error CI had reported,
+conclude that the parameter reaches `runTest`. Green locally, shipped, and the
+next CI run failed with the identical message: *After waiting for 1m*, with the
+source asking for five.
+
+The parameter did reach a `runTest`. It reached the *inner* one, and there is an
+outer one whose timeout the v2 runner leaves at the default — so two caps apply
+and the effective one is the smaller. **Lowering worked whether the fix worked or
+not**, because `min` is `min`. The canary exercised the one direction that cannot
+distinguish a working fix from a broken one.
+
+The canary that settles it puts the two candidates in opposition: five minutes in
+the source *against* ten seconds in the build file. It fails at ten, which it
+could only do if the source's number is not the one in charge.
+
+So the question to ask of a canary is not "did it fail?" but **"would it have
+failed if my fix were wrong?"** Concretely:
+
+- If the claim is *X raises a limit*, canary by raising, not by lowering.
+- If the claim is *X is now cached*, canary by counting the work, not by checking
+  that the picture is unchanged — an uncached version draws the same picture.
+- If the claim is *X is now wired*, canary against the **unwired** code, which is
+  what `ComponentDefaultsReachTest` exists for: a symmetric swap changes no value
+  and is read the same number of times, so only a render catches it.
+
+The cheap version of this question: write down what the canary would print if the
+fix were absent, *before* running it. If that prediction is the same as what it
+prints now, the canary is measuring something else.
 
 The next attempt starts from the table above rather than from a hypothesis. The
 open question is narrow and stated: **why does a click on a menu item not run its

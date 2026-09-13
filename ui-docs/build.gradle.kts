@@ -384,6 +384,14 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 tasks.withType<Test>().configureEach {
     systemProperty("user.language", "en")
     systemProperty("user.country", "AU")
+    // Raised here and not at the call sites, because `runComposeUiTest`'s own
+    // `testTimeout` parameter cannot raise it: the v2 runner wraps every test
+    // in a `runTest` whose timeout argument it leaves at the sixty-second
+    // default, so that argument can only ever lower the cap. `:ui-catalog`'s
+    // copy of this line carries the full account and the bytecode that shows
+    // it; this module gets the same number so a slow machine fails the same
+    // way in all three.
+    systemProperty("kotlinx.coroutines.test.default_timeout", "5m")
 }
 
 /**

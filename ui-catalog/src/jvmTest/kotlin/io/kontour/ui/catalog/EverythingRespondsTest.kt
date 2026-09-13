@@ -123,10 +123,13 @@ class EverythingRespondsTest {
     private val CanvasDensity = 0.5f
 
     /**
-     * Long enough that only a *hang* can reach it.
+     * How long a wait inside the test may run — **not** the cap on the test.
      *
-     * `runTest`'s default is 60 seconds, and this suite runs right up against it.
-     * Measured, from one `:ui-catalog:jvmTest` run on a developer machine:
+     * The distinction is the whole of this docstring, because a previous round
+     * got it wrong and shipped a fix that did nothing.
+     *
+     * This suite is slow by design. Measured, from one `:ui-catalog:jvmTest` run
+     * on a developer machine:
      *
      *     overlaysRespond      55.7s
      *     sheetsRespond        54.6s
@@ -134,23 +137,49 @@ class EverythingRespondsTest {
      *     navigationResponds   42.3s
      *     the other seven      under 7s each
      *
-     * So the slowest family finished with **4.3 seconds to spare**, and on a CI
-     * runner it does not: `overlaysRespond` failed there with
+     * Against `runTest`'s sixty-second default that is 4.3 seconds of headroom,
+     * and a CI runner does not have it: `overlaysRespond` failed there with
      * `UncompletedCoroutinesError: After waiting for 1m, the test body did not
-     * run to completion`. It had failed the same way once before and was written
-     * off as machine load, which was the trigger and not the cause — the cause is
-     * fifty-six seconds of work under a sixty-second cap.
+     * run to completion`, having taken 1m8.5s. The work is legitimate — this
+     * presses every control in a family and then re-tests each suspect alone on
+     * a fresh composition, which is what the comment above [isDeadAlone] is
+     * about — so the cap is what was wrong, not the test.
      *
-     * The work is legitimate: this presses every control in a family and then
-     * re-tests each suspect alone on a fresh composition, which is what the
-     * comment above [isDeadAlone] is about. Making it faster is a different
-     * change and would not fix this, because some machine is always slower.
+     * ### Why raising it here did not raise it
      *
-     * What is wrong is using a liveness check as a performance budget. Sixty
-     * seconds is `runTest`'s arbitrary default, not a number anybody here chose;
-     * five minutes is one that only a genuine hang reaches — which is what a
-     * timeout is for. A test whose pass depends on how busy the machine is is not
-     * a test.
+     * Writing five minutes into this constant and passing it as `testTimeout`
+     * looks like it sets that cap and does not.
+     * `androidx.compose.ui.test.v2.runDesktopComposeUiTest` wraps the whole test
+     * in a `kotlinx.coroutines.test.runTest` **whose own timeout argument it
+     * leaves at the default**, and hands `testTimeout` to the
+     * `SkikoComposeUiTest` inside, which uses it for its inner `runTest` and for
+     * `waitForIdle`'s `ComposeTimeoutException`. Both caps apply, so the
+     * effective one is the smaller: `testTimeout` can lower it and cannot raise
+     * it past sixty seconds.
+     *
+     * So the same failure came back unchanged, with the source asking for five
+     * minutes and the runner reporting one. **The cap now lives where it can
+     * actually be set** — `kotlinx.coroutines.test.default_timeout`, in
+     * `ui-catalog/build.gradle.kts`, which is the outer `runTest`'s only reachable
+     * dial.
+     *
+     * ### The canary that was not one
+     *
+     * That round did canary its fix: it set this to one second, watched
+     * `overlaysRespond` fail with exactly the error CI reported, and concluded
+     * the parameter reached `runTest`. The conclusion was the wrong shape. The
+     * claim being made was *"this raises the cap"*, and lowering it is the one
+     * direction that works whether the claim is true or false — with two caps
+     * in series, `min` is `min`. A canary has to fail the way the **fix** would
+     * fail, not the way some neighbouring change would.
+     *
+     * The canary that settles it puts the two in opposition: five minutes here
+     * and ten seconds in the build file. It fails at ten. If this parameter set
+     * the cap, it would pass.
+     *
+     * Left at five minutes anyway, because it still governs the waits inside —
+     * and a wait that cannot outlast the test containing it is the right way
+     * round.
      */
     private val Timeout = 5.minutes
 
