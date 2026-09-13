@@ -67,8 +67,40 @@ class BackdropBlurTest {
         )
     }
 
+    /**
+     * A sheet recedes the screen behind it and leaves it sharp.
+     *
+     * This used to assert the opposite — `aSheetBlursTheContentBehindItToo` —
+     * and it was right when it was written: `ModalBottomSheet` asked for
+     * `BackdropStyle.BlurAndScale`.
+     *
+     * It asks for [BackdropStyle.Scale] now, and the reason is a number rather
+     * than a taste. `ThemeSwitchCostDiagnostic` prices a blurred backdrop at
+     * **7.3x the whole rest of the frame**, paid on every frame the overlay is
+     * open rather than only while it arrives — 24.87ms against 3.37 for the same
+     * tree with nothing open. A dialog is on screen for one decision and can
+     * afford that. A sheet is a surface people sit in, and the gallery's
+     * settings live in one: "switching themes is ridiculously laggy" was
+     * reported from exactly there, and the same row measures 6.77 once the
+     * softening comes off.
+     *
+     * What is kept is the part that carried the meaning. `BlurAndScale`'s own
+     * KDoc said it before there was a style that acted on it — *the presenting
+     * content receding is what says the sheet is on top of this screen rather
+     * than a new one*. It still recedes, still dims, and the band around it is
+     * still filled.
+     *
+     * ### Why this asserts an equality and not a sharpness
+     *
+     * The sharpness alone would pass if the backdrop were deleted outright, so
+     * the load-bearing assertion is that **`backdropBlur` makes no difference to
+     * a sheet** — the switch that turns the expensive path on and off no longer
+     * reaches one. Its partner is [aSheetPushesThePresentingContentBack], which
+     * holds the recede; neither is sufficient alone and together they pin the
+     * style. [aDialogBlursTheContentBehindIt] is what still exercises the blur.
+     */
     @Test
-    fun aSheetBlursTheContentBehindItToo() {
+    fun aSheetRecedesWithoutBlurring() {
         val sharp = stripeRoughness(blur = false) { open ->
             ModalBottomSheet(visible = open, onDismissRequest = {}) { Text("Departures") }
         }
@@ -77,14 +109,23 @@ class BackdropBlurTest {
         }
 
         assertTrue(sharp > 20f, "the stripes did not draw at all: roughness was $sharp")
-        assertTrue(blurred < sharp / 3f, "$blurred against $sharp")
+        assertTrue(
+            abs(blurred - sharp) < 1f,
+            "the content behind a sheet measured $blurred with `backdropBlur` on " +
+                "and $sharp with it off. A sheet asks for `BackdropStyle.Scale`, " +
+                "which does not blur, so the switch should reach nothing and the " +
+                "two should be the same number — a difference here means a sheet " +
+                "has gone back to softening the whole screen behind it, at 7.3x a " +
+                "frame for as long as it is open.",
+        )
     }
 
     @Test
     fun aSheetPushesThePresentingContentBack() {
-        // The other half of BlurAndScale. A sheet recedes the screen it is
-        // presented from, so the content no longer reaches the window's edge and
-        // the ground behind it shows through.
+        // The other half of `BackdropStyle.Scale`, and the half that carries the
+        // meaning. A sheet recedes the screen it is presented from, so the
+        // content no longer reaches the window's edge and the ground behind it
+        // shows through.
         val closed = edgeColumn(open = false)
         val open = edgeColumn(open = true)
 

@@ -474,10 +474,20 @@ fun ModalBottomSheet(
                     // Always dimmed, so always modal, so always trapping.
                     trapFocus = true,
                     // A sheet covers part of the screen rather than floating in
-                    // the middle of it, so the presenting content recedes as
-                    // well as blurring. That is what says "on top of this
-                    // screen" rather than "a new screen".
-                    backdrop = BackdropStyle.BlurAndScale,
+                    // the middle of it, so the presenting content recedes. That
+                    // is what says "on top of this screen" rather than "a new
+                    // screen".
+                    //
+                    // `Scale` rather than `BlurAndScale`, which is what this
+                    // asked for until the softening was priced: a blurred
+                    // backdrop costs 7.3x the rest of the frame and costs it on
+                    // every frame the sheet is open, not only while it arrives.
+                    // A sheet is the surface people sit in — the gallery's
+                    // settings live in one — and "switching themes is
+                    // ridiculously laggy" was reported from exactly that. A
+                    // dialog still blurs; it is on screen for one decision and
+                    // has nothing to recede.
+                    backdrop = BackdropStyle.Scale,
                     dismissOnOutside = dismissible,
                     dismissLabel = dismissLabel,
                     // The sheet slides itself down and hides the entry when it

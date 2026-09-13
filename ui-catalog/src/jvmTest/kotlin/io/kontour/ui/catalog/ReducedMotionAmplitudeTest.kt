@@ -147,9 +147,9 @@ class ReducedMotionAmplitudeTest {
         assertTrue(
             moving > 0,
             "the backdrop did not recede at all with motion on, so this test is " +
-                "measuring nothing. Either `BackdropStyle.BlurAndScale` stopped " +
-                "being what a modal sheet asks for, or the ground stopped being " +
-                "drawn behind it.",
+                "measuring nothing. Either `BackdropStyle.Scale` stopped being " +
+                "what a modal sheet asks for, or the ground stopped being drawn " +
+                "behind it.",
         )
         assertEquals(
             0,

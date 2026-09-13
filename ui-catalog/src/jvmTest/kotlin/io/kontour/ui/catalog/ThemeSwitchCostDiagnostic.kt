@@ -100,6 +100,23 @@ import kotlin.test.assertTrue
  * warm-up, and hence this paragraph: a timing file that does not say how it
  * handles warm-up is not reporting what it thinks it is.
  *
+ * ### Fourteen frames is this harness, not a device
+ *
+ * Every row above is the mean of fourteen frames because
+ * [ImageComposeScene.render] is handed a clock that advances a fixed 16ms, so a
+ * 220ms fade is fourteen frames by construction. That is the right way to
+ * compare *per-frame* cost between rows and the wrong way to read how long a
+ * fade janks for.
+ *
+ * On a device the clock advances by real elapsed time and a `tween` drops frames
+ * rather than stretching: a fade whose frames cost 100ms finishes in three or
+ * four of them, not fourteen. The browser trace for one switch on the built site
+ * is `17, 100, 117, 117, 183, 17` — four slow frames and then back to pace.
+ *
+ * Worth stating because it changes which fixes are worth making. Shortening the
+ * fade looks like it removes five frames and actually removes about one; the
+ * per-frame cost is the whole of it.
+ *
  * ### Software rasteriser
  *
  * The caveat every timing file here carries: there is no GPU in a container, so
@@ -116,7 +133,8 @@ class ThemeSwitchCostDiagnostic {
     fun aThemeSwitchIsMeasuredUnderTheOverlayItIsMadeFrom() {
         val rows = listOf(
             Triple("overlay closed", null, true),
-            Triple("overlay open, blurred (ships)", BackdropStyle.Blur, true),
+            Triple("overlay open, blurred (dialogs)", BackdropStyle.Blur, true),
+            Triple("overlay open, receding (sheets)", BackdropStyle.Scale, true),
             Triple("overlay open, blur off", BackdropStyle.Blur, false),
         )
         // Thrown away. The first timed configuration in a run came out at 28.57ms

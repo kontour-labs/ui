@@ -163,10 +163,14 @@ fun SideSheet(
                 // content — an inspector, a filter rail — and trapping focus in
                 // one would lock the keyboard out of the thing it is inspecting.
                 trapFocus = scrim != ScrimStyle.None,
-                // Same reason as a bottom sheet: it takes an edge of the screen
-                // rather than floating over the middle of it.
+                // Same reason as a bottom sheet, and the same answer: it takes
+                // an edge of the screen rather than floating over the middle of
+                // it, so the presenting content recedes — and it does not blur,
+                // because the blur costs 7.3x the frame for every frame the
+                // sheet is open. Two sheets that receded differently would read
+                // as two components.
                 backdrop = if (scrim == ScrimStyle.Dimmed) {
-                    BackdropStyle.BlurAndScale
+                    BackdropStyle.Scale
                 } else {
                     BackdropStyle.None
                 },

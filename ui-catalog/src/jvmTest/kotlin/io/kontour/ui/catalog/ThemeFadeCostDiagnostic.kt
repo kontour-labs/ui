@@ -152,7 +152,17 @@ class ThemeFadeCostDiagnostic {
         const val FrameNanos = 16_000_000L
         const val WarmUpFrames = 10
 
-        /** `tweenDefault` is 220ms, which is fourteen frames at 60Hz. */
+        /**
+         * `tweenDefault` is 220ms, which is fourteen frames at 60Hz **here**.
+         *
+         * The scene is driven by a clock that advances a fixed 16ms a frame, so
+         * the fade is fourteen frames by construction however long each one
+         * takes to render. That is what makes the rows comparable, and it is not
+         * what a device does: there the clock advances by real elapsed time and a
+         * `tween` drops frames instead of stretching, so a fade whose frames cost
+         * 100ms is over in three or four. Read this figure as "the sample sits
+         * inside the fade", not as "a fade janks for fourteen frames".
+         */
         const val FadeFrames = 14
         const val Samples = FadeFrames
 

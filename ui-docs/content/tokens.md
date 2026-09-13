@@ -588,7 +588,7 @@ invisible, which is why dark themes so often look flat.
 The top two tiers are lighter than they were. `overlay` used to be a 20dp offset
 with a 50dp blur at 22%, which bled about 70dp past a dialog's edge and was doing
 the whole job of separating it from the page. That job is now shared — what is
-behind a modal is [blurred as well as dimmed](overlays.md#the-backdrop) — and two
+behind a modal is [dimmed, and softened or pushed back](overlays.md#the-backdrop) — and two
 mechanisms both pushed to their limit read as one heavy-handed one.
 
 Elevation is a **rank**, not a decoration: pick the level that matches where the
