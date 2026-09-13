@@ -86,28 +86,36 @@ change between tiers; at the high-contrast light tier those two grounds are both
 pure white, so the card measures **1.00:1** against the page it sits on — against
 the 3:1 WCAG 1.4.11 asks of a control's boundary.
 
-### A selection indicator is bounded at *every* tier
+### A selection indicator, and what identifies it
 
-`contrastEdge()` is deliberately null at `Standard`, which is right for a
-container that merely lacks an edge and wrong for one that has no separation at
-all. A segmented control's thumb is `surface` on a `surfaceSunken` track, and
-those measured **1.08:1 apart in every scheme this library shipped**, standard
+A segmented control's thumb and the track under it used to be `surface` on
+`surfaceSunken`, **1.08:1 apart in every scheme this library shipped**, standard
 and enhanced, light and dark. In light a shadow separated them; the dark
 elevation scale draws its shadows *black*, so on a near-black track there was
 nothing left to darken and the thumb disappeared.
 
-The surface ramp was retuned afterwards and that pairing is **1.25–1.30** now.
-That is a fill you can see rather than a boundary you can rely on — three is the
-number WCAG asks for and no pair of surfaces in a monochrome ramp can reach it
-without the well becoming a mid-grey. So the retune is the belt and the edge
-below is the braces.
+It is a distinct ground now. `surfaceTrack` is tuned for exactly this and
+nothing else, so the thumb reads **1.54:1** in light and 1.53 in dark without
+the well — every code block, table and text field on this site — having to
+darken with it. In dark the track goes to black and the thumb rises to
+`surfaceRaised`, since a track cannot go below black but a thumb can come up.
 
-So the indicator takes `outlineStrong` — the token whose documented job is the
-boundary of an interactive control — at both tiers, rather than an edge that
-arrives only when the reader has asked for one. `contrastFailures` walks
-`outlineStrong` against the **fills** as well as the grounds, which is the half
-that was missing: the four surface tokens had only ever been used as
-backgrounds, so `surface` against `surfaceSunken` was checked by nothing.
+**This does not reach the 3:1 WCAG asks of a boundary, and that is a choice
+rather than an oversight.** No two greys in one ramp reach it; a white thumb
+needs a mid-grey track, which stops being a ground and becomes a dark bar. An
+earlier version drew a hard grey line around the selected segment to get there,
+and it read as an apology for a fill that was not doing its job.
+
+So the selected state is carried three ways instead of one: the fill, the shadow
+under the thumb in light, and the label moving from `contentMuted` to `content`
+— the last of which survives a reader who cannot separate the greys at all. It
+is the same trade iOS makes, and it is a trade: someone who could find the old
+border and cannot find this fill has lost something real.
+
+A selected **chip** still takes `outlineStrong`, because a tint 1.29:1 from the
+page genuinely cannot carry it alone. `contrastFailures` walks `outlineStrong`
+against the fills as well as the grounds, which is what keeps that promise
+honest.
 
 **How this is kept honest.** `LocalContrastLevel` was provided by the theme and
 read by nothing in the repo for most of the project's life, and it went

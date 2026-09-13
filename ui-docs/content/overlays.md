@@ -101,16 +101,27 @@ anything.
 enum class BackdropStyle {
     None,          // nothing — tooltips, toasts, menus, coach marks
     Blur,          // the content behind softens — dialogs, the command palette
-    BlurAndScale,  // blurred and pushed back, the way a card slides under — sheets
+    Scale,         // pushed back, the way a card slides under — sheets
+    BlurAndScale,  // both, for a sheet over something busy
 }
 ```
 
 **It follows the scrim.** The default is `Blur` for anything that dims and `None`
 for anything that does not, so a dropdown does not soften the page it is sitting
-over — if it was not worth dimming, it is not worth blurring. Sheets override to
-`BlurAndScale`, because a sheet takes an edge of the screen rather than floating
-in the middle of it, and the presenting content receding is what says *on top of
-this screen* rather than *a new screen*.
+over — if it was not worth dimming, it is not worth blurring.
+
+**Sheets override to `Scale`**, because a sheet takes an edge of the screen
+rather than floating in the middle of it, and the presenting content receding is
+what says *on top of this screen* rather than *a new screen*. They do not blur,
+and the reason is a price rather than a preference: a blurred backdrop is a
+full-screen offscreen render costing roughly **seven times the rest of the
+frame**, and it is paid on every frame the overlay is open rather than only
+while it arrives. A dialog is on screen for one decision and can afford that; a
+sheet is a surface you sit in.
+
+`BlurAndScale` is still there for a sheet over something busy enough that dimming
+alone leaves it legible and distracting. It is a deliberate choice with a cost,
+not the default.
 
 This is a real backdrop filter, not the two-pass trick `GlassSurface` documents.
 The difference is that behind a modal there is exactly one node — the host

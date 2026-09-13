@@ -47,13 +47,47 @@ enum class BackdropStyle {
     Blur,
 
     /**
+     * Pushed back the way a card slides under the one in front, and not blurred.
+     *
+     * What sheets use. The recede is the part that carries the meaning — see
+     * [BlurAndScale], whose KDoc made this argument before there was a style
+     * that acted on it — and the blur is a softening laid over the top of it.
+     *
+     * The softening is not free. Measured by `ThemeSwitchCostDiagnostic`, a
+     * blurred backdrop costs **7.3x the whole rest of the frame**, and it is
+     * paid on every frame the overlay is open rather than only while it arrives:
+     * a full-screen offscreen render, at a radius the same diagnostic shows
+     * barely matters to the price. That is a fair trade for a dialog, which is
+     * on screen for one decision. It is a poor one for a sheet somebody sits in
+     * flipping switches, which is where it was reported from.
+     *
+     * So a sheet recedes and does not blur. It still dims, it still scales, and
+     * the band around it is still filled — everything that says *behind* is
+     * intact.
+     */
+    Scale,
+
+    /**
      * Blurred, and pushed back the way a card slides under the one in front.
      *
      * For sheets, which cover part of the screen rather than floating in the
      * middle of it — the presenting content receding is what says the sheet is
      * *on top of* this screen rather than a new one.
+     *
+     * No longer what [io.kontour.ui.sheet.ModalBottomSheet] asks for; [Scale]
+     * is. Kept because it is still the right answer for a sheet over something
+     * visually busy enough that dimming alone leaves it legible and distracting,
+     * and because withdrawing a public variant to make a performance point would
+     * be charging the wrong people for it.
      */
     BlurAndScale,
+    ;
+
+    /** Whether this style softens what is behind it. */
+    internal val blurs: Boolean get() = this == Blur || this == BlurAndScale
+
+    /** Whether this style pushes what is behind it away. */
+    internal val scales: Boolean get() = this == Scale || this == BlurAndScale
 }
 
 /**
@@ -158,12 +192,12 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
     if (style == BackdropStyle.None) return this
 
     val radiusPx = with(LocalDensity.current) { BackdropDefaults.BlurRadius.toPx() }
-    val blurring = LocalBackdropBlur.current && platformSupportsBackdropBlur
+    val blurring = style.blurs && LocalBackdropBlur.current && platformSupportsBackdropBlur
     val clipShape: Shape = Theme.shapes.extraLarge
     // Read here rather than in the lambda below: `graphicsLayer` runs at draw
     // time, and a theme value has to be captured in composition.
     val scaleBack = resolvedScaleBack()
-    val scaling = style == BackdropStyle.BlurAndScale && scaleBack < 1f
+    val scaling = style.scales && scaleBack < 1f
     if (!blurring && !scaling) return this
 
     return graphicsLayer {
@@ -235,14 +269,14 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
  */
 @Composable
 internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropStyle): Modifier {
-    if (style != BackdropStyle.BlurAndScale) return this
+    if (!style.scales) return this
 
     val clipShape: Shape = Theme.shapes.extraLarge
     val geometry = remember { GroundGeometry() }
 
     // No blur, no halo, and therefore no ring: the content's edge is hard and
     // the band alone covers everything it has vacated.
-    val haloPx = if (LocalBackdropBlur.current && platformSupportsBackdropBlur) {
+    val haloPx = if (style.blurs && LocalBackdropBlur.current && platformSupportsBackdropBlur) {
         with(LocalDensity.current) { BackdropDefaults.BlurRadius.toPx() } * HaloReach
     } else {
         0f

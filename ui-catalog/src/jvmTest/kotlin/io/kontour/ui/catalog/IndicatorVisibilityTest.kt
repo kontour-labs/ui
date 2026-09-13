@@ -30,27 +30,45 @@ import kotlin.test.assertTrue
  *
  * ### The pairing nothing checked
  *
- * `contrastFailures` walks a scheme thoroughly and uses the four surface tokens
- * **only ever as backgrounds**. It never pairs them against each other, so
- * `surface` against `surfaceSunken` — a segmented thumb against its own track —
- * was checked by nothing, in any test, in any module. Measured by hand it was
- * **1.07:1 in dark and 1.08 in light**, against the 3:1 WCAG 1.4.11 asks of
- * anything that identifies a control's state. The surface ramp was retuned
- * afterwards and the same pairing is 1.25–1.30 now — see `SurfaceLadderTest` —
- * which is a fill you can see and still not a boundary.
+ * `contrastFailures` walks a scheme thoroughly and uses the surface tokens
+ * **only ever as backgrounds**. It never pairs them against each other, so a
+ * segmented thumb against its own track was checked by nothing, in any test, in
+ * any module. Measured by hand it was **1.07:1 in dark and 1.08 in light**.
  *
- * In light a shadow does the separating. `kontourElevation(dark = true)` draws
- * `low` as two *black* layers, so in dark there is nothing left to darken: the
- * number is the same in both and only one of them has a fallback.
+ * ### This floor is a house floor, and it used to be WCAG's
+ *
+ * It was `3.0` — WCAG 1.4.11, what identifying a control's state is held to —
+ * and it passed because the thumb was drawn with a 1dp `outlineStrong` border.
+ * That border is gone, at a reader's request, and the number below is the honest
+ * consequence rather than a quiet relabelling.
+ *
+ * **Why 3:1 was not available without it.** No two greys in one monochrome ramp
+ * reach 3:1. A white thumb needs a `#959595` track, which is not a recessed
+ * ground at all but a dark bar. The choice was a permanent visible line around
+ * every selected segment or a fill that falls short of a boundary's standard,
+ * and the line was what a reader objected to.
+ *
+ * **What carries the state now**, in place of one line: the fill, at 1.52–1.54
+ * across the built-in schemes rather than 1.08 — this is what
+ * `ColourScheme.surfaceTrack` was added for, a ground dark enough for a thumb
+ * that does not drag every code block and text field down with it; the shadow
+ * under the thumb, which works in light and is why light and dark are not the
+ * same case; and the label, which goes `contentMuted` → `content` when a
+ * segment is selected and is the one carrier that survives a reader who cannot
+ * distinguish the greys at all.
+ *
+ * It is the trade iOS makes with its own segmented control, and it is a trade
+ * rather than a free win: someone who could find the old border and cannot find
+ * this fill has lost something real. What they have not lost is the label.
  *
  * ### Why this is a render and not a scheme walk
  *
- * A scheme cannot answer it. `outlineStrong` clears 3:1 against every ground and
- * against `accent.container` in all six schemes — its own KDoc says so and that
- * was already true — so a token-level check passes whether or not any component
- * *draws* it. What was missing was the drawing. So this photographs the control
- * and measures the boundary the way an eye meets it: the strongest step across
- * the thumb's edge, against the track a few pixels outside it.
+ * A scheme cannot answer it. `SurfaceLadderTest` checks that the *tokens* are
+ * far enough apart, and would go on passing if `SegmentedControl` stopped using
+ * them — a token-level check cannot see what a component draws. So this
+ * photographs the control and measures the step the way an eye meets it: the
+ * strongest transition across the thumb's edge, against the track a few pixels
+ * outside it. The two halves are a pair.
  *
  * ### Every scheme the demo layer can build
  *
@@ -76,15 +94,16 @@ class IndicatorVisibilityTest {
         }
         assertTrue(
             weak.isEmpty(),
-            "the selected segment's boundary is under $Required:1 against its track:\n" +
+            "the selected segment does not stand out from its track by $Required:1:\n" +
                 weak.joinToString("\n") +
-                "\nThe thumb is `surface` and the track is `surfaceSunken`, which " +
-                "are 1.25-1.30:1 apart in the built-in schemes and were 1.08 before " +
-                "the retune — under 3 either way, so the separation has to " +
-                "come from the edge. `SegmentedControl` draws " +
-                "`outlineStrong`, whose own contract is 3:1 against every ground; " +
-                "a failure here is either that edge gone or a scheme whose " +
-                "`outlineStrong` does not keep its promise.",
+                "\nThe thumb has no border: it is a lighter fill on `surfaceTrack`, " +
+                "a shadow in light, and a label that darkens to `content`. The fill " +
+                "is most of that, and it measures 1.52-1.54 in the built-in schemes. " +
+                "A failure here is one of three things: `SegmentedControl` no longer " +
+                "drawing `surfaceTrack`, a scheme whose track sits too close to its " +
+                "thumb, or a theme that set the track and forgot to lift the thumb " +
+                "off it — which is what GTurbo did, at 1.28:1, before its " +
+                "`Raised` was corrected.",
         )
     }
 
@@ -148,15 +167,31 @@ class IndicatorVisibilityTest {
         const val Width = 800
         const val Height = 260
 
-        /** WCAG 1.4.11, which is what identifying a control's state is held to. */
-        const val Required = 3.0f
+        /**
+         * A house floor, deliberately below WCAG 1.4.11's 3:1. See the KDoc.
+         *
+         * Measured: Kontour 1.54 light, 1.54 light/high, 1.53 dark, 1.52
+         * dark/high; GTurbo 1.56 in both its tiers.
+         *
+         * Those are the *fill* ratios and nothing else — light reads exactly the
+         * 1.54 the two tokens are apart, so the thumb's shadow contributes
+         * nothing this can see. That is worth knowing rather than assuming: the
+         * shadow is real and a reader gets it, but it falls outside the row this
+         * samples, so do not read a passing number here as evidence the shadow
+         * is doing any work.
+         */
+        const val Required = 1.45f
 
         /**
          * How far either side of the boundary to look, in pixels.
          *
-         * A 1dp border at 2× is two pixels and antialiasing spreads it over three
-         * or four. Six is comfortably wider than that and comfortably narrower
-         * than half a segment, so this cannot wander onto a label.
+         * This used to be sized for a 1dp border — two pixels at 2×, three or
+         * four once antialiased. There is no border now, but the window is still
+         * the right width: a fill edge is antialiased too, and in light the
+         * thumb's shadow darkens the track for a few pixels outside it, which is
+         * part of what separates the two and should be inside the window. Six is
+         * comfortably narrower than half a segment, so this cannot wander onto a
+         * label.
          */
         const val EdgeWindow = 6
     }

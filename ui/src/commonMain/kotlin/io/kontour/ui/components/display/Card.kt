@@ -119,10 +119,9 @@ private fun cardBorderFor(variant: CardVariant): BorderStroke? = when (variant) 
     // Elevated is `surfaceRaised` on the page with a shadow for an edge — 1.00:1
     // at the high-contrast light tier, where both are pure white and the shadow
     // does not change between tiers. Filled is `surfaceSunken` on `background`,
-    // which the Round 31 retune took to 1.30:1 in light but which is **1.00:1**
-    // at the dark enhanced tier, where the page is black and there is nothing
-    // below black for the well to be. Both become outlined cards rather than
-    // gaining a second, different edge treatment.
+    // which is **1.08:1** in light and **1.06:1** at the dark enhanced tier —
+    // a well is a hint that content is inset, not an edge. Both become outlined
+    // cards rather than gaining a second, different edge treatment.
     else -> contrastEdge()
 }
 

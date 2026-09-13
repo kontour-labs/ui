@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.fail
 
 /**
- * The two high-contrast factories widened from three parameters to twenty-seven,
+ * The two high-contrast factories widened from three parameters to twenty-eight,
  * proved against the bodies they replaced.
  *
  * A widening like this is a transcription: some forty values that were hardcoded
@@ -37,7 +37,7 @@ import kotlin.test.fail
  * - `ScreenshotHarness` counts a pixel as differing only when a channel moves by
  *   more than eight, so **a token that shifts by ≤8 per channel is invisible by
  *   construction**, whatever area it covers.
- * - `ThemeShowcase` never draws eleven of the twenty-eight values at all — the
+ * - `ThemeShowcase` never draws eleven of the twenty-nine values at all — the
  *   `scrim`, the three overlay washes, the four `code` colours, `contentDisabled`,
  *   `outlineSubtle` and the five `border` fields. Nothing on that page is
  *   hovered, pressed, dragged, disabled, focused or modal.
@@ -114,7 +114,7 @@ class HighContrastWideningTest {
      * `surface = surface` twice and never assigns `surfaceRaised` has the same
      * shape, and neither a golden nor a contrast walk can see either.
      *
-     * So each of the fifty-four parameters is set on its own to a value nothing
+     * So each of the fifty-six parameters is set on its own to a value nothing
      * else in the scheme uses, and the matching field has to come back holding
      * it. Written out one line per token on purpose — there is no way to name a
      * Kotlin argument dynamically, and a loop over reflection would be a second
@@ -127,6 +127,7 @@ class HighContrastWideningTest {
             "light.background" to (highContrastLightColourScheme(background = Ink).background == Ink),
             "light.surface" to (highContrastLightColourScheme(surface = Ink).surface == Ink),
             "light.surfaceSunken" to (highContrastLightColourScheme(surfaceSunken = Ink).surfaceSunken == Ink),
+            "light.surfaceTrack" to (highContrastLightColourScheme(surfaceTrack = Ink).surfaceTrack == Ink),
             "light.surfaceRaised" to (highContrastLightColourScheme(surfaceRaised = Ink).surfaceRaised == Ink),
             "light.surfaceInverse" to (highContrastLightColourScheme(surfaceInverse = Ink).surfaceInverse == Ink),
             "light.onSurfaceInverse" to (highContrastLightColourScheme(onSurfaceInverse = Ink).onSurfaceInverse == Ink),
@@ -155,6 +156,7 @@ class HighContrastWideningTest {
             "dark.background" to (highContrastDarkColourScheme(background = Ink).background == Ink),
             "dark.surface" to (highContrastDarkColourScheme(surface = Ink).surface == Ink),
             "dark.surfaceSunken" to (highContrastDarkColourScheme(surfaceSunken = Ink).surfaceSunken == Ink),
+            "dark.surfaceTrack" to (highContrastDarkColourScheme(surfaceTrack = Ink).surfaceTrack == Ink),
             "dark.surfaceRaised" to (highContrastDarkColourScheme(surfaceRaised = Ink).surfaceRaised == Ink),
             "dark.surfaceInverse" to (highContrastDarkColourScheme(surfaceInverse = Ink).surfaceInverse == Ink),
             "dark.onSurfaceInverse" to (highContrastDarkColourScheme(onSurfaceInverse = Ink).onSurfaceInverse == Ink),
@@ -210,6 +212,7 @@ class HighContrastWideningTest {
             differ("background", a.background, b.background),
             differ("surface", a.surface, b.surface),
             differ("surfaceSunken", a.surfaceSunken, b.surfaceSunken),
+            differ("surfaceTrack", a.surfaceTrack, b.surfaceTrack),
             differ("surfaceRaised", a.surfaceRaised, b.surfaceRaised),
             differ("surfaceInverse", a.surfaceInverse, b.surfaceInverse),
             differ("onSurfaceInverse", a.onSurfaceInverse, b.onSurfaceInverse),
@@ -328,7 +331,7 @@ private fun legacyHighContrastLight(
         literal = Palette.GreenOnLight,
         comment = Palette.GreyHcMuted,
     ),
-    surfaceSunken = Palette.Grey250,
+    surfaceSunken = Palette.GreyHcSunken,
     surfaceInverse = Palette.Black,
     content = Palette.Black,
     contentMuted = Palette.GreyHcMuted,
@@ -394,7 +397,7 @@ private fun legacyHighContrastDark(
     ),
     background = Palette.Black,
     surface = Palette.InkHcSurface,
-    surfaceSunken = Palette.Black,
+    surfaceSunken = Palette.InkHcSunken,
     surfaceRaised = Palette.InkHcRaised,
     surfaceInverse = Palette.White,
     onSurfaceInverse = Palette.Black,

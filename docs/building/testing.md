@@ -751,6 +751,8 @@ Counts are therefore the gates.
 | `IdleAnimationTest` + `Scene.stillAnimating` | `:ui-catalog` | whether a still screen wants another frame |
 | `BackdropCostDiagnostic` | `:ui-catalog` | *times* frames — diagnostic only |
 | `ShadowCostDiagnostic` | `:ui-catalog` | *times* frames at 0, 1 and 2 shadow layers — diagnostic only |
+| `ThemeFadeCostDiagnostic` | `:ui-catalog` | *times* frames inside a fade, with and without shadows — diagnostic only |
+| `ThemeSwitchCostDiagnostic` | `:ui-catalog` | *times* a switch under the overlay it is made from, and **counts** the recompositions across one |
 | `FrameReadout` | `:ui-catalog`, on screen | real frames, on a real device |
 | `docs/check-bundle-size.py` | CI | gzip bytes a reader downloads |
 | `docs/measure-web.mjs` | local only | a real browser on the built site |

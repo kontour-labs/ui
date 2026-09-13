@@ -285,14 +285,12 @@ fun ListItem(
                 .focusRing(interactions, shape, enabled = interactive)
                 .clip(shape)
                 .background(container, shape)
-                // `surfaceSunken` on `background` is **1.00:1** at the dark
-                // enhanced tier — the page is pure black and so is the well — so a
-                // group of rows reads as loose text rather than as one object with
-                // rows in it, which is the exact thing the sunken ground exists to
-                // prevent, failing at the tier that needs it most. Light's enhanced
-                // tier reads 1.30 since the retune and no longer needs this; the
-                // edge is drawn at both because a row that gained an outline in one
-                // mode and not the other would read as two different components.
+                // `surfaceSunken` on `background` is **1.06:1** at the dark
+                // enhanced tier and **1.14** at light's — a group of rows reads as
+                // loose text rather than as one object with rows in it, which is
+                // the exact thing the sunken ground exists to prevent. A well is
+                // deliberately quiet, so at the tier that asks for more it is the
+                // edge rather than the fill that has to say where a row ends.
                 .then(contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier)
                 .then(clickModifier)
                 // `xs`, not `sm`. The 12dp version put 24dp of air around a

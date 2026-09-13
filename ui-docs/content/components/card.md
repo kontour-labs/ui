@@ -18,8 +18,9 @@ elevated card is `surfaceRaised` on the page with a shadow for an edge, and a
 shadow does not change between tiers — at the high-contrast light tier both are
 pure white, so the card measures **1.00:1** against the page, against the 3:1
 WCAG 1.4.11 asks of a control's boundary. `Filled` is `surfaceSunken` on
-`background`, which reads 1.30:1 in light and **1.00:1** at the dark enhanced
-tier, where the page and the well are both pure black.
+`background`, which reads **1.08:1** in light and 1.06 at the dark enhanced
+tier — a well is a quiet ground by design, so at the tier that asks for more it
+is the edge rather than the fill that says where the card ends.
 
 ---
 

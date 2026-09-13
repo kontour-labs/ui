@@ -301,34 +301,49 @@ class NavSearchTest {
      * matching *pixel* would find an antialiased edge anywhere; a whole row of
      * them is a field.
      *
-     * ### Why the fill and not "near-white"
+     * ### It looks for the focus tint, and for two rounds it did not
      *
-     * This used to count pixels above 230 in every channel, which was the same
-     * thing right up until it was not: a `SearchField` is `TextFieldVariant.Filled`
-     * and therefore `surfaceSunken`, and the Round 31 surface retune took that
-     * from `#F6F6F6` to `#E2E2E2` — **226, four below the threshold**. The finder
-     * stopped finding anything, `bestRow` fell back to 0, and the test reported
-     * the field at the top of the window. Nothing about the layout had changed.
+     * An expanded search field **has the caret**, so what it is filled with is
+     * `accent.container` — not `surfaceSunken`, which is what a `Filled` text
+     * field wears at rest and what this finder spent two rounds looking for.
      *
-     * So it asks the scheme what the fill is rather than assuming it is pale. The
-     * tolerance absorbs the focus tint the field wears while it has the caret,
-     * which is `accent.container` at half alpha over this ground.
+     * It found the field anyway, by coincidence, and the coincidence is worth
+     * recording because it is the kind that survives a rewrite. The first
+     * version counted pixels above 230 in every channel; the tint is
+     * `#D5E4F9`, whose red channel is 213, so that never matched the tint
+     * either — it matched the field's *rounded white-ish edges* and the label
+     * row. The second version matched `surfaceSunken` at `#E2E2E2` within 24 a
+     * channel, and `#D5E4F9` happens to sit (13, 2, 23) away from it: inside the
+     * tolerance on all three, by one step on the widest. Neither version was
+     * looking at the thing it claimed to.
+     *
+     * The well then went back to `#F6F6F6` and the coincidence ran out — 33
+     * away on red — so the finder found nothing, `bestRow` fell back to 0, and
+     * the test reported an `AboveKeyboard` field at the top of the window with
+     * nothing about the layout having changed.
+     *
+     * What it does now is ask the scheme for the colour the field is actually
+     * filled with. Measured on a real render: the expanded field is 684–714
+     * pixels of flat `#D5E4F9` across an 800px row, and the page around it is a
+     * flat `#979797` — white under the scrim — so the two are 42 apart on the
+     * widest channel and nothing else in the frame is close.
      */
     private fun BufferedImage.fieldBand(): Int {
-        val fill = lightColourScheme().surfaceSunken.toArgb()
-        val fr = (fill shr 16) and 0xFF
-        val fg = (fill shr 8) and 0xFF
-        val fb = fill and 0xFF
+        val fill = lightColourScheme().accent.container.toArgb()
+
+        /** How far a pixel sits from a colour, in its furthest channel. */
+        fun distance(rgb: Int, to: Int): Int = maxOf(
+            abs(((rgb shr 16) and 0xFF) - ((to shr 16) and 0xFF)),
+            abs(((rgb shr 8) and 0xFF) - ((to shr 8) and 0xFF)),
+            abs((rgb and 0xFF) - (to and 0xFF)),
+        )
+
         var best = 0
         var bestRow = 0
         for (y in 0 until height) {
             var matching = 0
             for (x in 0 until width) {
-                val rgb = getRGB(x, y)
-                val dr = abs(((rgb shr 16) and 0xFF) - fr)
-                val dg = abs(((rgb shr 8) and 0xFF) - fg)
-                val db = abs((rgb and 0xFF) - fb)
-                if (dr <= FillTolerance && dg <= FillTolerance && db <= FillTolerance) matching++
+                if (distance(getRGB(x, y), fill) <= FillTolerance) matching++
             }
             if (matching > best) {
                 best = matching
@@ -340,14 +355,14 @@ class NavSearchTest {
 
     private companion object {
         /**
-         * How far a pixel may sit from `surfaceSunken` and still be the field.
+         * How far a pixel may sit from `accent.container` and still be the field.
          *
-         * Wide enough for the focus tint — `accent.container` at half alpha —
-         * and for antialiasing, narrow enough that the scrimmed page (a long way
-         * darker) and the results panel (`surface`, a long way lighter) are
-         * neither of them mistaken for it.
+         * For antialiasing along the pill's rounded edges, nothing more — the
+         * fill itself renders flat and exact. Deliberately well under the 42
+         * that separates the tint from the scrimmed page, so this cannot drift
+         * onto the background the way its predecessors drifted onto the tint.
          */
-        const val FillTolerance = 24
+        const val FillTolerance = 12
 
         /**
          * The share of the rail an in-place field takes up.

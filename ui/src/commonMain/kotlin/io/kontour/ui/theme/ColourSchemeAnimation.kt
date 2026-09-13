@@ -30,10 +30,11 @@ internal class ThemeFade(val colours: ColourScheme, val elevation: Elevation)
  *
  * ### One animation, not fifty
  *
- * A scheme is 46 colours. Animating each with its own `animateColorAsState`
- * would be 46 `Animatable`s and 46 coroutines for a transition where every one
- * of them starts and ends together — so this runs **one** float and lerps the
- * scheme from it.
+ * A scheme is 51 colours, counting the five nested in `accent` and the four
+ * status tones and the four in `code`. Animating each with its own
+ * `animateColorAsState` would be 51 `Animatable`s and 51 coroutines for a
+ * transition where every one of them starts and ends together — so this runs
+ * **one** float and lerps the scheme from it.
  *
  * ### What it costs, and why that is the right trade anyway
  *
@@ -159,6 +160,7 @@ internal fun lerpColourScheme(start: ColourScheme, stop: ColourScheme, fraction:
     background = lerp(start.background, stop.background, fraction),
     surface = lerp(start.surface, stop.surface, fraction),
     surfaceSunken = lerp(start.surfaceSunken, stop.surfaceSunken, fraction),
+    surfaceTrack = lerp(start.surfaceTrack, stop.surfaceTrack, fraction),
     surfaceRaised = lerp(start.surfaceRaised, stop.surfaceRaised, fraction),
     surfaceInverse = lerp(start.surfaceInverse, stop.surfaceInverse, fraction),
     onSurfaceInverse = lerp(start.onSurfaceInverse, stop.onSurfaceInverse, fraction),
