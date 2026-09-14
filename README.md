@@ -84,7 +84,12 @@ Every component in every state, on whichever platform you want to poke at it:
 ./gradlew :showcase:desktop:run          # a JVM window
 ./gradlew :showcase:android:installDebug # a device or emulator
 ./gradlew :ui-catalog:jsBrowserRun       # a browser
+open showcase/ios/KontourUI.xcodeproj    # an iPhone or a simulator, from a Mac
 ```
+
+The iOS one is an Xcode project rather than a Gradle task, because linking a
+framework needs Xcode. It builds `:ui-catalog`'s `Catalog.framework` from a Run
+Script phase, so there is nothing to run first.
 
 The gallery is also where most of the tests live: the contract suite, the
 screenshot goldens, and the specimen registry that drives the per-component

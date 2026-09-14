@@ -45,7 +45,8 @@ import io.kontour.ui.theme.Theme
  * profile, so the first run through any code path is interpreted, and opening a
  * sheet for the first time runs a great deal of code for the first time. That
  * shows up here as a terrible first open and a fine second one. Compare like
- * with like: `:showcase:android:installRelease`.
+ * with like: `:showcase:android:installRelease`, or on iOS the Release
+ * configuration of `showcase/ios/KontourUI.xcodeproj`.
  */
 @Composable
 internal fun FrameReadout(modifier: Modifier = Modifier) {

@@ -241,6 +241,18 @@ internal fun NavDestinationItem(
             },
         )
 
+    // Remembered for the reason `Surface` does it: a fresh `dropShadow` lambda per
+    // recomposition is a shadow re-rasterised per recomposition, and there is one
+    // of these per destination.
+    //
+    // The condition is inside the `remember` rather than around it. Cast by
+    // something you can see: in a rail or a drawer the container is transparent,
+    // the surface behind the whole row is what is raised, and a shadow here would
+    // fall from nothing.
+    val raised = remember(shadow, shape, containerColour.alpha > 0f) {
+        if (containerColour.alpha > 0f) Modifier.elevation(shadow, shape) else Modifier
+    }
+
     val glyph = @Composable {
         NavGlyph(
             size = indicatorSize,
@@ -280,17 +292,7 @@ internal fun NavDestinationItem(
                     Box(
                         Modifier
                             .fillMaxSize()
-                            // Cast by something you can see: in a rail or a
-                            // drawer the container is transparent, the surface
-                            // behind the whole row is what is raised, and a
-                            // shadow here would fall from nothing.
-                            .then(
-                                if (containerColour.alpha > 0f) {
-                                    Modifier.elevation(shadow, shape)
-                                } else {
-                                    Modifier
-                                }
-                            )
+                            .then(raised)
                             .background(containerColour, shape)
                     )
                     // The per-item fallback marker, for a destination rendered

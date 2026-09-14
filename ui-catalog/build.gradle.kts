@@ -121,6 +121,31 @@ tasks.withType<Test>().configureEach {
 tasks.withType<Test>().configureEach {
     systemProperty("user.language", "en")
     systemProperty("user.country", "AU")
+    // ---------------------------------------------------------------------
+    // The only place `runTest`'s cap can be raised
+    // ---------------------------------------------------------------------
+    //
+    // `runComposeUiTest(testTimeout = ...)` cannot do it, and a previous round
+    // spent a commit believing it could. `runDesktopComposeUiTest` wraps the
+    // whole test in a `kotlinx.coroutines.test.runTest` **whose timeout
+    // argument it leaves at the default** — readable in the compiled body as
+    // `runTest-8Mi8wO0$default(null, 0L, block, 3, null)`, mask 3 meaning both
+    // the context and the timeout are defaulted — and hands `testTimeout` to
+    // the `SkikoComposeUiTest` inside, which uses it for its own inner
+    // `runTest` and for `waitForIdle`'s `ComposeTimeoutException`. So the
+    // effective cap is `min(testTimeout, this default)`: lowering it works,
+    // raising it above sixty seconds does nothing at all.
+    //
+    // Which is why `EverythingRespondsTest` failed on CI with "After waiting
+    // for 1m" while its source asked for five minutes, and why the canary that
+    // was supposed to prove the parameter reached `runTest` — setting it to one
+    // second and watching the test fail — proved only the half that worked.
+    //
+    // Five minutes for the same reason that round gave: sixty seconds is
+    // `runTest`'s arbitrary default rather than a budget anybody here chose,
+    // and this suite's slowest test is a minute of legitimate work. A number
+    // only a genuine hang reaches is what a timeout is for.
+    systemProperty("kotlinx.coroutines.test.default_timeout", "5m")
 }
 
 /**

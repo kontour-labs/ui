@@ -51,5 +51,10 @@ include(":ui-docs")
 
 // Hosts that put the gallery on a screen. None of them ships; they exist so the
 // library can be run and poked at on each platform it claims to support.
+//
+// There is a third, `showcase/ios/`, and it is deliberately not here: linking a
+// framework needs Xcode, so the iOS host is an Xcode project over the `Catalog`
+// framework `:ui-catalog` already builds. A `:showcase:ios` module would mean a
+// second framework and a second answer to a question `:ui-catalog` has answered.
 include(":showcase:desktop")
 include(":showcase:android")

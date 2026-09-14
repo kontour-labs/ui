@@ -182,6 +182,26 @@ Whatever is **disabled** is exempt and nothing else is. If something turns up in
 the failure message that genuinely should not respond, disable it — a control
 that looks pressable and is not is the bug this exists to catch.
 
+### It is also the slowest thing in the suite, and that is where the cap lives
+
+Four of its eleven tests take most of a minute each. That is legitimate work —
+it presses every control on a page and then re-tests each suspect alone on a
+fresh composition — but it means this suite is the one that finds out what
+`runTest`'s timeout actually is, and twice now it has found out on CI rather than
+here.
+
+**`runComposeUiTest(testTimeout = …)` cannot raise that cap.** The v2 runner
+wraps the whole test in a `kotlinx.coroutines.test.runTest` whose own timeout
+argument it leaves at the sixty-second default, and passes `testTimeout` to the
+`SkikoComposeUiTest` inside, which uses it for its inner `runTest` and for
+`waitForIdle`'s `ComposeTimeoutException`. Both caps apply, so the effective one
+is the smaller: the parameter lowers and never raises.
+
+The cap therefore lives in the build files, as
+`systemProperty("kotlinx.coroutines.test.default_timeout", "5m")` on the `Test`
+tasks of `:ui`, `:ui-catalog` and `:ui-docs`. It is the outer `runTest`'s only
+reachable dial.
+
 ## Screenshot goldens
 
 Two kinds, both in `ui-catalog/screenshots/`, both **compared** rather than
@@ -534,6 +554,43 @@ story here — a suspending write dropped when the toolbar goes away — survive
 three rounds of reasoning and one unit test, and died the moment it was asked for
 a number on the reporter's own platform.
 
+## A canary has to fail the way the fix would fail
+
+Canarying is the habit this repository leans on hardest: break the thing on
+purpose, watch the check report it, and only then believe the check. It has one
+failure mode, and it took a fix that did nothing to find it.
+
+`EverythingRespondsTest` was timing out on CI at sixty seconds. The fix was to
+pass `testTimeout = 5.minutes`, and it was canaried — set the same constant to
+**one second**, watch the test fail with exactly the error CI had reported,
+conclude that the parameter reaches `runTest`. Green locally, shipped, and the
+next CI run failed with the identical message: *After waiting for 1m*, with the
+source asking for five.
+
+The parameter did reach a `runTest`. It reached the *inner* one, and there is an
+outer one whose timeout the v2 runner leaves at the default — so two caps apply
+and the effective one is the smaller. **Lowering worked whether the fix worked or
+not**, because `min` is `min`. The canary exercised the one direction that cannot
+distinguish a working fix from a broken one.
+
+The canary that settles it puts the two candidates in opposition: five minutes in
+the source *against* ten seconds in the build file. It fails at ten, which it
+could only do if the source's number is not the one in charge.
+
+So the question to ask of a canary is not "did it fail?" but **"would it have
+failed if my fix were wrong?"** Concretely:
+
+- If the claim is *X raises a limit*, canary by raising, not by lowering.
+- If the claim is *X is now cached*, canary by counting the work, not by checking
+  that the picture is unchanged — an uncached version draws the same picture.
+- If the claim is *X is now wired*, canary against the **unwired** code, which is
+  what `ComponentDefaultsReachTest` exists for: a symmetric swap changes no value
+  and is read the same number of times, so only a render catches it.
+
+The cheap version of this question: write down what the canary would print if the
+fix were absent, *before* running it. If that prediction is the same as what it
+prints now, the canary is measuring something else.
+
 The next attempt starts from the table above rather than from a hypothesis. The
 open question is narrow and stated: **why does a click on a menu item not run its
 handler on web, when the same click on a selection-toolbar button does?** Both
@@ -746,6 +803,7 @@ Counts are therefore the gates.
 | Instrument | Where | Counts |
 |---|---|---|
 | `PhaseCounts` + `Modifier.countPhases` | `ui/src/commonTest/…/PhaseCounts.kt` | measures, placements, draws |
+| `ElevationCacheTest` | `ui/src/commonTest/…/foundation/` | how many times an unchanged elevated surface re-rasterises its shadow |
 | the `Counted` pattern | `OverlayRecompositionTest` | recompositions |
 | `SheetState.anchorRebuilds` | `:ui`, production code | anchor rebuilds per frame |
 | `IdleAnimationTest` + `Scene.stillAnimating` | `:ui-catalog` | whether a still screen wants another frame |
@@ -849,15 +907,39 @@ The ten that remain are all `key: Any`, and they are right as they are: a key
 
 ### On a device
 
-The frame readout is the only instrument that sees a GPU, and only Android can
-run it — there is no iOS runner in this repository, only the framework an Xcode
-project would link.
+The frame readout is the only instrument that sees a GPU, and nothing in this
+repository can run it: it needs a phone.
 
 ```sh
 ./gradlew :showcase:android:installRelease   # release, not debug
 ```
 
 Judging performance from a debug build is judging the wrong thing.
+
+There is an iOS host now — `showcase/ios/`, an Xcode project over the `Catalog`
+framework `:ui-catalog` already produced — so the readout is reachable on that
+platform too, from a Mac:
+
+```sh
+open showcase/ios/KontourUI.xcodeproj    # then Product ▸ Run
+```
+
+Be clear about what that host is and is not gated by. CI compiles the Kotlin for
+both iOS targets and `docs/check-xcode-host.py` checks the project's structure
+against the repository around it — every file reference resolves, every Swift
+file is compiled, the framework the project links is the one Gradle names, the
+Gradle phase runs before the compile phase. What no runner here can answer is
+whether the app *launches*: linking a framework needs Xcode, and this repository
+has no macOS job. Two things in particular are unverified and worth knowing
+before the first run:
+
+- **A static Kotlin framework and the system frameworks it needs.**
+  `:ui-catalog` declares `isStatic = true`, so the app links the archive
+  directly; if the linker reports undefined symbols, they are Apple frameworks
+  Compose uses and the fix is `OTHER_LDFLAGS` in the Xcode project.
+- **Fonts.** `:ui` ships seven `.ttf` files through Compose resources and
+  nothing here has ever exercised the iOS resource path. If they do not reach the
+  app bundle it shows up on the first screen as fallback type, not as an error.
 
 #### Six reports came off a phone, and only one was out of reach
 

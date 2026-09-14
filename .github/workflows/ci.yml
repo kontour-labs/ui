@@ -235,19 +235,36 @@ jobs:
           key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
           restore-keys: konan-${{ runner.os }}-
 
+      # The iOS host is the one thing here nothing can build: linking a framework
+      # needs Xcode. So its project file is checked structurally instead — every
+      # reference resolves, every Swift file is compiled, the framework it links
+      # is the one `:ui-catalog` names — which is the half that rots. First in
+      # this job because it is instantaneous and the compiles are not.
+      - name: Check the iOS host's Xcode project
+        run: python3 docs/check-xcode-host.py
+
       # The whole point of the module. A component that compiles on the JVM and
       # not on Wasm ships broken, and `commonMain` will not say which — only the
       # per-target compile does.
       #
       # iOS compiles to a klib here; linking a framework and running a simulator
       # needs macOS, which is a slower job than this gate should be.
+      #
+      # Both iOS targets, not just the device one. The **simulator** target is
+      # what `showcase/ios` builds against when it runs on a laptop, and until
+      # the host existed nothing compiled it anywhere — a `iosSimulatorArm64`
+      # source set could have been broken for months without a red build. It is
+      # nearly free: Linux, klib only, and `~/.konan` is already warm from the
+      # line above.
       - name: Compile
         run: |
           ./gradlew --no-daemon \
             :ui:compileKotlinJs \
             :ui:compileKotlinWasmJs \
             :ui:compileKotlinIosArm64 \
+            :ui:compileKotlinIosSimulatorArm64 \
             :ui-catalog:compileKotlinIosArm64 \
+            :ui-catalog:compileKotlinIosSimulatorArm64 \
             :showcase:android:assembleDebug \
             :ui:assemble
 
