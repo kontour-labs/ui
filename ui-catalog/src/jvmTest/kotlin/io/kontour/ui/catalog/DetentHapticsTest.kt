@@ -51,9 +51,14 @@ import kotlin.test.assertTrue
  * otherwise tell, and there are four of those.** A detent crossed under a
  * finger, a threshold passed that changes what letting go will do, a long press
  * reaching the point where it becomes a gesture, and a destructive question
- * arriving. Everything else — pressing a button, flipping a switch, choosing a
+ * arriving. Everything else — pressing a button, tapping a switch, choosing a
  * date, tapping a tab, opening a menu, landing on a step you tapped — is the
  * user doing something they are watching happen, and a buzz adds nothing to it.
+ *
+ * The switch is the one component on both sides of that line, and it is the
+ * only site added since the audit: tapping it is silent, and dragging it past
+ * its midpoint reports, because the drag commits there and nothing on screen
+ * says so first.
  *
  * The previous policy was "make it tactile", and fifty-seven call sites took
  * that literally. Every `clickable` in the library fired, every `toggleable`
@@ -119,13 +124,29 @@ class DetentHapticsTest {
         )
     }
 
+    /**
+     * A switch is two gestures and only one of them is worth reporting.
+     *
+     * It used to be on the silent list whole, on the argument that "a toggle is
+     * a decision the user made and can see the result of". That is still true
+     * of a *tap*, and it was true of a drag too while the drag reported on
+     * release — nothing changed until the finger lifted, so there was no moment
+     * to announce.
+     *
+     * The drag commits at the midpoint now. Crossing it changes what letting go
+     * will do, with nothing on screen having said so first, which is the
+     * `DragThreshold` row of the policy table word for word. So the switch is
+     * the one component on both lists, and this asserts both halves — the tap
+     * silent, the drag exactly one fire, no more.
+     */
     @Test
-    fun aSwitchFiresNothingTappedOrDragged() {
-        val felt = mutableListOf<FeedbackIntent>()
+    fun aSwitchIsSilentTappedAndReportsTheCrossingOnceDragged() {
+        val tapped = mutableListOf<FeedbackIntent>()
+        val dragged = mutableListOf<FeedbackIntent>()
         var checked by mutableStateOf(false)
         var bounds = Rect.Zero
 
-        Scene(width = 400, height = 200) {
+        fun scene(felt: MutableList<FeedbackIntent>) = Scene(width = 400, height = 200) {
             Recording(felt) {
                 Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                     Switch(
@@ -135,22 +156,32 @@ class DetentHapticsTest {
                     )
                 }
             }
-        }.use { scene ->
+        }
+
+        scene(tapped).use { scene ->
             scene.frames(3)
             scene.tap(bounds.center)
             scene.frames(6)
-            // And again as a drag, which is the other half of the report: a
-            // toggle with a draggable thumb was firing on the press, on the
-            // crossing and on the release.
-            scene.drag(bounds.alongX(0.2f), bounds.alongX(0.8f), steps = 12)
+        }
+        assertEquals(
+            emptyList(), tapped,
+            "tapping a switch fired ${tapped.summary()}. It was named in the " +
+                "original report: a toggle you press is a decision you made and " +
+                "can see the result of.",
+        )
+
+        checked = false
+        scene(dragged).use { scene ->
+            scene.frames(3)
+            scene.drag(bounds.alongX(0.1f), bounds.alongX(0.9f), steps = 12)
             scene.frames(6)
         }
-
-        assertTrue(checked || !checked, "the switch never took the gesture")
         assertEquals(
-            emptyList(), felt,
-            "a switch fired ${felt.summary()}. It was named in the report: a " +
-                "toggle is a decision the user made and can see the result of.",
+            listOf(FeedbackIntent.DragThreshold), dragged,
+            "a drag across a switch fired ${dragged.summary()}. One crossing is " +
+                "one report: not a tick per frame while the thumb travels, and " +
+                "not a second one when the finger lifts, because the release has " +
+                "nothing left to say once the midpoint has been.",
         )
     }
 

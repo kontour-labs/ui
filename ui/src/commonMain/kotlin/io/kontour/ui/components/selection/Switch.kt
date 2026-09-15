@@ -17,9 +17,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -34,12 +34,14 @@ import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.LocalRowToggle
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
-import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 private val TrackWidth = 48.dp
 private val TrackHeight = 28.dp
@@ -93,9 +95,9 @@ private const val StretchAtSpeed = 5f
  * interactive, held at the 3:1 WCAG 1.4.11 asks for. It clears that against
  * `surface` and `surfaceRaised` in both schemes, which the surface ramp itself
  * cannot: `surfaceSunken` is 1.08:1 against `surface` in light mode, and even
- * `surfaceTrack` — the loudest ground the scheme has, tuned so a segmented thumb
- * shows on it without a border — only reaches 1.54. That ramp separates fills
- * from each other; it does not bound controls.
+ * `surfaceIndicator` — the fill tuned so a segmented thumb shows without a
+ * border — only reaches 1.59, and only in dark. That ramp separates fills from
+ * each other; it does not bound controls.
  */
 @Composable
 fun Switch(
@@ -174,6 +176,23 @@ fun Switch(
     var dragging by remember { mutableStateOf(false) }
 
     /**
+     * Which side the *gesture* has decided on, which is not [checked].
+     *
+     * The switch used to report on release: you dragged the thumb the whole way
+     * across, nothing changed under your finger, and the state flipped once you
+     * let go. That reads as a control that does not answer a drag — which is
+     * how it was reported — and it is also the wrong model. A physical toggle
+     * goes over at the midpoint and is over from then on, whether or not you
+     * have lifted your hand.
+     *
+     * So the crossing is the commit. This is what the crossing is measured
+     * against, kept locally rather than read from [checked], because [checked]
+     * comes back through the caller and a recomposition: reading it here would
+     * let one gesture cross the same midpoint twice before the answer arrived.
+     */
+    var committed by remember { mutableStateOf(checked) }
+
+    /**
      * The gesture's running total, mirrored into [fraction] and never drawn from.
      *
      * `Animatable.snapTo` suspends, so a drag delta reaches it through a
@@ -184,6 +203,18 @@ fun Switch(
 
     val travel = TrackWidth - ThumbSize - ThumbPadding * 2
     val travelPx = with(LocalDensity.current) { travel.toPx() }
+
+    val feedback = LocalFeedback.current
+
+    /**
+     * Whether the thumb leans against the finger on the way across.
+     *
+     * Off under reduced motion, where the thumb tracks the finger exactly. The
+     * strain is motion in the sense that preference means — an element moving
+     * differently from the input that drives it — and a toggle that resists is
+     * a toggle a reader has to watch.
+     */
+    val resist = !motion.reduceMotion
 
     // Springs to wherever `checked` now is, starting from wherever the thumb now
     // is. Keyed on `dragging` as well as on `checked`, so it also runs when a
@@ -249,8 +280,37 @@ fun Switch(
                 if (dragTarget != null && enabled) {
                     Modifier.draggable(
                         state = rememberDraggableState { delta ->
-                            dragAccumulator = (dragAccumulator + delta / travelPx).coerceIn(0f, 1f)
-                            scope.launch { fraction.snapTo(dragAccumulator) }
+                            dragAccumulator =
+                                (dragAccumulator + delta / travelPx).coerceIn(0f, 1f)
+
+                            val side = dragAccumulator >= 0.5f
+                            val crossed = side != committed
+                            if (crossed) {
+                                committed = side
+                                // The one thing here the eye is not already
+                                // being told: what letting go will do has just
+                                // changed. `DragThreshold` is the intent for
+                                // exactly that, and a tap still reports
+                                // nothing — see `DetentHapticsTest`.
+                                feedback.perform(FeedbackIntent.DragThreshold)
+                                dragTarget(side)
+                            }
+
+                            scope.launch {
+                                val target = thumbTargetFor(dragAccumulator, committed, resist)
+                                if (crossed) {
+                                    // The click. The target jumps when the
+                                    // midpoint goes over, and a spring is what
+                                    // makes that read as the thumb going with
+                                    // it rather than being reassigned.
+                                    fraction.animateTo(
+                                        target,
+                                        motion.springOrTween(motion.springSnappy),
+                                    )
+                                } else {
+                                    fraction.snapTo(target)
+                                }
+                            }
                         },
                         orientation = Orientation.Horizontal,
                         interactionSource = interactions,
@@ -259,18 +319,18 @@ fun Switch(
                             // it should be — grabbing a thumb still in flight
                             // used to snap it to an end before it would move.
                             dragAccumulator = fraction.value
+                            committed = checked
                             dragging = true
                         },
                         onDragStopped = {
-                            // Whichever half it was let go in. Clearing
-                            // `dragging` releases the spring above, which picks
-                            // the thumb up from here and carries it to whatever
-                            // the caller settles on.
-                            val now = fraction.value >= 0.5f
+                            // Nothing to report here any more: the midpoint did
+                            // it, possibly several times if the finger went back
+                            // and forth. Clearing `dragging` releases the spring
+                            // above, which picks the thumb up from wherever it
+                            // was left and carries it to whatever the caller
+                            // settled on — including back, if the caller
+                            // declined the change.
                             dragging = false
-                            if (now != checked) {
-                                dragTarget(now)
-                            }
                         },
                     )
                 } else {
@@ -350,4 +410,34 @@ fun Switch(
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(thumbPx / 2f),
         )
     }
+}
+
+/**
+ * Where the thumb is drawn while a finger is on it.
+ *
+ * Not where the finger is. The thumb sits on the detent it has committed to,
+ * pulled part of the way toward the finger by [SliderDefaults.DetentPull] —
+ * which is the ticked slider's mechanism, the same constant, and the reason the
+ * two controls feel related rather than merely both draggable.
+ *
+ * What that buys is a toggle that leans against you. Drag from off toward the
+ * middle and the thumb travels less than half as far as the finger does; cross
+ * the midpoint and the detent underneath changes, so the target jumps forward
+ * and the thumb springs after it. The resistance and the click are the same
+ * arithmetic seen from either side of the crossing.
+ *
+ * The pull is folded into the **target** rather than added to the drawn value,
+ * for the reason `Slider` records at length: added on top, the two terms move in
+ * opposite directions the instant a detent is crossed and the thumb jumps
+ * backwards before setting off.
+ *
+ * @param finger Where the gesture has got to, `0f` to `1f` across the travel.
+ * @param committed Which end the gesture has decided on.
+ * @param resist False under reduced motion, where the thumb tracks the finger
+ *   exactly and there is nothing to strain against.
+ */
+private fun thumbTargetFor(finger: Float, committed: Boolean, resist: Boolean): Float {
+    if (!resist) return finger
+    val detent = if (committed) 1f else 0f
+    return detent + (finger - detent) * SliderDefaults.DetentPull
 }

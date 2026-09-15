@@ -36,12 +36,28 @@ WCAG asks for, and it is checked against every ground a switch can land on.
 
 ---
 
-**Drag the thumb.** A switch is the most draggable-looking control there is, and
-a drag that stops short of the middle springs back rather than toggling. Wherever
+**Drag the thumb, and it goes over at the midpoint.** A switch is the most
+draggable-looking control there is, and the crossing is the commit: the state
+changes under your finger rather than when you lift it. Drag back across and it
+changes back. A drag that stops short springs home and reports nothing. Wherever
 the finger lets go, that is where the spring starts from — there is one position
 for the thumb, not a drag position and a separate resting animation that have to
 agree. It works inside a `SelectionRow` too, where the row still owns the tap —
 the row publishes its own toggle for the switch to drag against.
+
+**The thumb leans against you on the way across.** It sits on the end it has
+committed to and is pulled part of the way toward your finger, so it travels
+less than half as far as you do — and then the midpoint goes over, the end
+underneath changes, and it springs after you. That is the ticked slider's
+mechanism and literally its constant, `SliderDefaults.DetentPull`, which is why
+the two feel related. Under reduced motion the thumb tracks the finger exactly:
+the strain is an element moving differently from the input driving it, which is
+the thing that preference is about.
+
+It is also the one place in the library a switch buzzes. Crossing the midpoint
+fires `FeedbackIntent.DragThreshold` — what letting go will do has just changed,
+and nothing on screen said so first. **Tapping** a switch is still silent, and
+[the haptics policy](../theming.md#what-the-library-buzzes-for) has the split.
 
 ---
 

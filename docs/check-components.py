@@ -483,7 +483,7 @@ def uncursored_clicks() -> list[str]:
     return behind
 
 
-MAX_HAPTIC_SITES = 9
+MAX_HAPTIC_SITES = 10
 
 
 HAPTIC_CALL = re.compile(r"feedback\.perform\(")
@@ -497,6 +497,13 @@ def haptic_sites() -> list[str]:
     when `Slider` and `RangeSlider` stopped hand-rolling their own detent guard
     and went through the shared `DetentTicker` like everything else that snaps.
     Two fewer call sites, the same two components firing.
+
+    It went 9 to 10 when `Switch` started reporting the midpoint of a drag. That
+    is the one addition the audit's own rules ask for rather than tolerate: the
+    switch commits as the thumb crosses, so what letting go will do changes
+    under the finger, with nothing on screen having said so first — which is the
+    definition of the `DragThreshold` row in the table. A *tap* on a switch
+    still reports nothing, and `DetentHapticsTest` holds it to both halves.
 
     It exists because this drifted once, quietly and in one direction. "Make it
     tactile" was a good instruction; fifty-seven call sites was the result of
