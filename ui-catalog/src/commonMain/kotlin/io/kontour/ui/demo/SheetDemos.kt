@@ -32,6 +32,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
 import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.sheet.SheetHeaderStyle
@@ -95,7 +96,21 @@ private fun Departures() {
     }
 }
 
-internal val BottomSheetDemo = ComponentDemo(slug = "bottom-sheet") {
+/**
+ * Flush to the window's edges, or floating clear of them.
+ *
+ * Worth a knob rather than a second demo because the two are the same sheet: the
+ * detents, the drag, the peek anchor and the floating controls are all unchanged,
+ * and what moves is three edges and four corners.
+ */
+private val sheetPresentation =
+    Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Edge)
+
+internal val BottomSheetDemo = ComponentDemo(
+    slug = "bottom-sheet",
+    knobs = listOf(sheetPresentation),
+) {
+    val presentation = this[sheetPresentation]
     val sheet = rememberSheetState(
         detents = listOf(
             SheetDetent.Hidden,
@@ -112,6 +127,7 @@ internal val BottomSheetDemo = ComponentDemo(slug = "bottom-sheet") {
     Screen {
         BottomSheet(
             state = sheet,
+            presentation = presentation,
             floatingControls = {
                 IconButton(
                     icon = Tabler.Outline.CurrentLocation,

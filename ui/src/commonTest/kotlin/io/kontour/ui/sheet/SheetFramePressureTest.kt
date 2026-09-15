@@ -131,6 +131,81 @@ class SheetFramePressureTest {
         assertBudget("re-anchored", rebuilds, frames)
     }
 
+    /**
+     * A **floating** sheet costs its content nothing extra, and its surface does.
+     *
+     * Worth its own arm because the floating presentation gives up the saving the
+     * two cases above are named for. An edge sheet's surface is `containerHeight`
+     * tall at every detent and merely translated, so its size never changes; a
+     * floating one has a bottom edge that is *seen*, pinned a margin off the
+     * window's, so it is exactly as tall as it is visible and that number changes
+     * on every frame of a drag. Two edges that both move cannot be drawn by a box
+     * that never resizes.
+     *
+     * What survives is the part that was the finding: **the content is still
+     * measured against the container**, not against the surface, so nothing
+     * inside the sheet re-measures or re-records while it moves. That is what
+     * this asserts, and it is also what stops `SheetDetent.Expanded` collapsing —
+     * a shorter surface measuring shorter content resolves `Expanded` lower,
+     * which makes the surface shorter again.
+     *
+     * It did not hold on the first attempt, and that is what this arm is for. A
+     * node whose size changes has its draw invalidated, and without a layer of
+     * its own the content is part of the same recording — measured at **8
+     * re-records over 40 frames** of dragging, against 0 for an edge sheet. A
+     * `graphicsLayer` on the content, for the floating presentation only, takes
+     * it back to 0: the content is rasterised once and composited, and only the
+     * surface's background and shadow redraw.
+     *
+     * The surface's own re-record is not counted here and is not free: it is one
+     * node with two blurred `dropShadow` layers, re-rasterised per frame of a
+     * drag. `countPhases` cannot be put on it from a test — it is private — so
+     * this measures what it can and the rest is written down rather than
+     * asserted. It is the price of the presentation, paid only by callers who
+     * ask for it.
+     */
+    @Test
+    fun aFloatingSheetStillCostsItsContentNothingToMove() {
+        var frames = 0
+        var travelled = 0f
+        val counts = PhaseCounts()
+
+        runComposeUiTest {
+            var visible by mutableStateOf(false)
+            lateinit var sheet: SheetState
+
+            setContent {
+                Harness(visible, SheetPresentation.Floating) { state ->
+                    sheet = state
+                    Body(counts)
+                }
+            }
+            waitForIdle()
+
+            mainClock.autoAdvance = false
+            visible = true
+            repeat(OpenFrames) { mainClock.advanceTimeByFrame() }
+            counts.reset()
+
+            val startedAt = sheet.offset
+            repeat(DraggedFrames) { step ->
+                sheet.anchoredState.dispatchRawDelta(if (step % 2 == 0) -6f else -4f)
+                mainClock.advanceTimeByFrame()
+                frames++
+            }
+            travelled = abs(sheet.offset - startedAt)
+        }
+
+        assertTrue(
+            travelled > 20f,
+            "the floating sheet moved ${travelled}px over $frames frames of " +
+                "dragging, so this measured a sheet standing still",
+        )
+
+        assertBudget("measured", counts.measures, frames)
+        assertBudget("drawn", counts.draws, frames)
+    }
+
     @Test
     fun aDraggedSheetIsNotReRecordedEveryFrame() {
         var frames = 0
@@ -173,7 +248,11 @@ class SheetFramePressureTest {
 
     /** One modal sheet in a host, which is the shape an app uses. */
     @Composable
-    private fun Harness(visible: Boolean, content: @Composable (SheetState) -> Unit) {
+    private fun Harness(
+        visible: Boolean,
+        presentation: SheetPresentation = SheetPresentation.Edge,
+        content: @Composable (SheetState) -> Unit,
+    ) {
         KontourTheme {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 OverlayHost(Modifier.fillMaxSize()) {
@@ -189,6 +268,7 @@ class SheetFramePressureTest {
                         visible = visible,
                         onDismissRequest = {},
                         state = state,
+                        presentation = presentation,
                     ) {
                         content(state)
                     }

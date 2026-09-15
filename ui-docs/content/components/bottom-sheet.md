@@ -66,6 +66,54 @@ sheet a detent.
 
 ---
 
+## `presentation` — a drawer out of the screen, or a panel over it
+
+`SheetPresentation.Edge` is the default and is what a sheet has always been:
+flush to the bottom and to both sides, top corners rounded, bottom corners square
+because there is no bottom edge to round.
+
+`SheetPresentation.Floating` lifts it off all three edges and rounds every
+corner. Two things follow, and they are the reasons to reach for it. It reads as
+a panel *over* the screen rather than a drawer pulled out of it, which is what a
+sheet that is permanently present should look like. And it can shrink to the size
+of a control without looking broken — **a bar-height sheet flush to the bottom of
+the window reads as a drawer that failed to open**, and the same thing floating
+reads as a search field.
+
+```kotlin
+val search = rememberSheetState(
+    // No `Hidden`, so there is nowhere to be swiped away to.
+    detents = listOf(SheetDetent.height("bar", 64.dp), SheetDetent.Half),
+    initialDetent = SheetDetent.height("bar", 64.dp),
+)
+
+BottomSheet(state = search, presentation = SheetPresentation.Floating) {
+    TextField(state = query, placeholder = "Search stops")
+}
+```
+
+**Collapsing instead of dismissing is a detent question, not a presentation
+one.** A sheet's anchors come from its own detent list, so one with no
+`SheetDetent.Hidden` in it has no anchor to be dragged away to, and stretches
+past its lowest detent exactly as it does above its top. That works at either
+presentation; `presentation` only decides what it looks like while it does. Both
+halves are checked on every build.
+
+The margin is `Theme.componentDefaults.sheetFloatingInset`, unioned with the window insets
+rather than added to them — it is a *minimum* clearance, so on a phone with a
+24dp gesture bar the sheet floats 24dp up and not 36. The same line is what lifts
+a floating search field above the keyboard, since the sheet's insets carry the
+IME.
+
+One cost, and it is structural. An edge sheet's surface is as tall as its
+container at every detent and merely translated, so its size never changes and
+its shadow is rasterised once; the surplus hangs off the bottom of the screen
+where nothing sees it. A floating sheet has a bottom edge that *is* seen, so it
+is exactly as tall as it is visible and that changes on every frame of a drag.
+Two edges that both move cannot be drawn by a box that never resizes.
+
+---
+
 ## Accessibility
 
 Pass **`paneTitle`**. The sheet sets it as pane semantics, which is how a screen

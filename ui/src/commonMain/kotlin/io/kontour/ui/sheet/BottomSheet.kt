@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
@@ -53,6 +54,7 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -71,7 +73,45 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
+/** Whether a sheet meets the window's edges or floats clear of them. */
+enum class SheetPresentation {
+    /**
+     * Flush to the bottom and to both sides. A drawer pulled out of the screen.
+     *
+     * The default, and what a sheet has always been. Its bottom corners are
+     * square because there is no bottom edge to round.
+     */
+    Edge,
+
+    /**
+     * Lifted off all three edges, with every corner rounded.
+     *
+     * A panel *over* the screen rather than a drawer out of it. Worth reaching
+     * for when the sheet is permanently present rather than summoned, and
+     * necessary when its lowest detent is small: a bar-height sheet flush to the
+     * bottom of the window reads as a drawer that failed to open, and the same
+     * thing floating reads as a control.
+     */
+    Floating,
+}
+
 object SheetDefaults {
+    /**
+     * The corners for a presentation.
+     *
+     * `Theme.shapes.sheet` has square bottom corners, which is right against the
+     * window's edge and wrong away from it — a floating panel with two sharp
+     * corners at the bottom looks like a drawer that has come loose. So the
+     * floating one takes `Theme.shapes.panel`, rounded all round, which is the
+     * token for exactly that: something with an edge on every side.
+     */
+    @Composable
+    @ReadOnlyComposable
+    fun shapeFor(presentation: SheetPresentation): Shape = when (presentation) {
+        SheetPresentation.Edge -> Theme.shapes.sheet
+        SheetPresentation.Floating -> Theme.shapes.panel
+    }
+
     /**
      * How far a drag must travel before it commits to the next detent.
      *
@@ -141,7 +181,31 @@ object SheetDefaults {
 fun BottomSheet(
     state: SheetState,
     modifier: Modifier = Modifier,
-    shape: Shape = Theme.shapes.sheet,
+    /**
+     * Whether the sheet meets the window's edges or floats clear of them.
+     *
+     * [SheetPresentation.Edge] is the default and is what a sheet has always
+     * been: flush to the bottom and to both sides, with its top corners rounded
+     * and its bottom ones square because there is no bottom to round.
+     *
+     * [SheetPresentation.Floating] lifts it off all three edges by
+     * [Theme.componentDefaults][io.kontour.ui.theme.ComponentDefaults.sheetFloatingInset] and rounds every corner. Two things follow
+     * that are the reason to reach for it. It reads as a *panel over* the screen
+     * rather than a drawer pulled out of it, which is what a sheet that is
+     * permanently present wants to look like. And it can shrink to something the
+     * size of a control without looking like a drawer that failed to open — a
+     * search field parked at the bottom of a map, which is the case this was
+     * asked for.
+     *
+     * **Collapsing instead of dismissing is a detent question, not this one.**
+     * A sheet's anchors come from its own detent list, so one whose detents are
+     * `[height("bar", 64.dp), Half, Expanded]` — with no [SheetDetent.Hidden] —
+     * has no anchor to be dragged away to, and stretches past its lowest detent
+     * exactly as it does above its top. That works at either presentation; this
+     * one only decides what it looks like while it does.
+     */
+    presentation: SheetPresentation = SheetPresentation.Edge,
+    shape: Shape = SheetDefaults.shapeFor(presentation),
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
     paneTitle: String? = null,
@@ -192,6 +256,27 @@ fun BottomSheet(
     val density = LocalDensity.current
     val motion = Theme.motion
     val actionsGap = SheetDefaults.ActionsGap
+    val floating = presentation == SheetPresentation.Floating
+
+    // The margin a floating sheet keeps, on each of the four sides.
+    //
+    // `union` and not a sum, because the margin is a *minimum* clearance rather
+    // than a gap added to whatever the system asks for. On a phone with a 24dp
+    // gesture bar, a sum floats the sheet 36dp up — a margin that reads as a
+    // mistake next to the 12dp at the sides. The union gives 24, which is the
+    // clearance that was already required, and the sides stay at 12.
+    //
+    // The keyboard is in `sheetEdges`, so the same line is what lifts a floating
+    // search field above the IME instead of letting it be covered.
+    val floatInsets = if (floating) {
+        val inset = Theme.componentDefaults.sheetFloatingInset
+        remember(windowInsets, inset) {
+            WindowInsets(left = inset, top = inset, right = inset, bottom = inset)
+                .union(windowInsets)
+        }
+    } else {
+        windowInsets
+    }
 
     // Critically damped. A sheet that bounces on arrival looks unweighted, and
     // unlike a button it is carrying content the user is reading.
@@ -302,10 +387,21 @@ fun BottomSheet(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .widthIn(max = SheetDefaults.MaxWidth)
-                // Less whatever the sheet has been stretched above its top
-                // detent. Purely visual, and read in the layout phase so a
-                // stretch never recomposes the sheet's content.
-                .offset { IntOffset(0, offsetOrHidden(state) - state.drawnOvershoot.roundToInt()) }
+                // The float, horizontally. A padding at the sides is enough
+                // because nothing here is measured from a side edge; the
+                // vertical half of the same margin is not, and is in `sheetTop`.
+                .then(
+                    if (floating) {
+                        Modifier.windowInsetsPadding(
+                            floatInsets.only(WindowInsetsSides.Horizontal)
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
+                // Read in the layout phase, so neither the drag nor the stretch
+                // above the top detent ever recomposes the sheet's content.
+                .offset { IntOffset(0, sheetTop(state, floating, floatInsets, this)) }
                 .then(
                     if (draggable) {
                         Modifier
@@ -336,7 +432,13 @@ fun BottomSheet(
             SheetSurface(
                 state = state,
                 shape = shape,
-                windowInsets = windowInsets,
+                floating = floating,
+                floatInsets = floatInsets,
+                // A floating sheet is already clear of the window's edges, so
+                // padding its content by them again would inset it twice — and
+                // on a gesture-navigation phone that is a bar's worth of dead
+                // space under a sheet the size of a search field.
+                windowInsets = if (floating) NoInsets else windowInsets,
                 containerColour = containerColour,
                 contentColour = contentColour,
                 // A handle on a sheet that cannot be dragged is a lie.
@@ -364,8 +466,7 @@ fun BottomSheet(
                     .offset {
                         IntOffset(
                             0,
-                            offsetOrHidden(state) -
-                                state.drawnOvershoot.roundToInt() -
+                            sheetTop(state, floating, floatInsets, this) -
                                 actionsHeight -
                                 actionsGap.roundToPx(),
                         )
@@ -384,7 +485,7 @@ fun BottomSheet(
                         val over = (actionsHeight + actionsGap.toPx()).coerceAtLeast(1f)
                         alpha = (state.visibleHeight / over).coerceIn(0f, 1f)
                     }
-                    .windowInsetsPadding(windowInsets.only(WindowInsetsSides.Horizontal))
+                    .windowInsetsPadding(floatInsets.only(WindowInsetsSides.Horizontal))
                     .padding(horizontal = Theme.spacing.md),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.Bottom,
@@ -422,7 +523,9 @@ fun ModalBottomSheet(
         detents = listOf(SheetDetent.Hidden, SheetDetent.Expanded),
         initialDetent = SheetDetent.Hidden,
     ),
-    shape: Shape = Theme.shapes.sheet,
+    /** See [BottomSheet]. `Floating` lifts the sheet off all three edges. */
+    presentation: SheetPresentation = SheetPresentation.Edge,
+    shape: Shape = SheetDefaults.shapeFor(presentation),
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
     /**
@@ -468,6 +571,7 @@ fun ModalBottomSheet(
     // this reason; the appearance was missed.
     val latestModifier by rememberUpdatedState(modifier)
     val latestShape by rememberUpdatedState(shape)
+    val latestPresentation by rememberUpdatedState(presentation)
     val latestContainerColour by rememberUpdatedState(containerColour)
     val latestContentColour by rememberUpdatedState(contentColour)
     val latestPaneTitle by rememberUpdatedState(paneTitle)
@@ -544,6 +648,7 @@ fun ModalBottomSheet(
                         BottomSheet(
                             state = state,
                             modifier = latestModifier,
+                            presentation = latestPresentation,
                             shape = latestShape,
                             containerColour = latestContainerColour,
                             contentColour = latestContentColour,
@@ -570,11 +675,13 @@ fun ModalBottomSheet(
 private fun BoxScope.SheetSurface(
     state: SheetState,
     shape: Shape,
+    floating: Boolean,
+    floatInsets: WindowInsets,
     windowInsets: WindowInsets,
     containerColour: Color,
     contentColour: Color,
     dragHandle: (@Composable () -> Unit)?,
-    density: androidx.compose.ui.unit.Density,
+    density: Density,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
@@ -607,11 +714,36 @@ private fun BoxScope.SheetSurface(
             // same `containerHeight` either way, so the region actually on
             // screen, `offset` to `containerHeight`, is identical to what it
             // was.
+            //
+            // ### A floating sheet is the exception, and has to be
+            //
+            // It has a bottom edge that is *seen*, pinned a margin off the
+            // window's, so there is no surplus to hang off the screen: the
+            // surface is exactly as tall as the sheet is visible, and that
+            // number changes on every frame of a drag. The saving above is not
+            // available to a presentation whose whole point is two edges that
+            // both move.
+            //
+            // What it does keep is the content's measurement. The column inside
+            // is measured against the **container**, not against this, so
+            // `sheetHeight` — the content's own full height, which is what
+            // `SheetDetent.Expanded` resolves from — does not shrink to whatever
+            // the sheet is currently showing. It did in the first draft, and the
+            // sheet could then never expand: a shorter surface measured shorter
+            // content, which resolved `Expanded` lower, which made the surface
+            // shorter again.
             .layout { measurable, constraints ->
-                val target = state.containerHeight
+                val container = state.containerHeight
                     .coerceAtLeast(0f)
                     .roundToInt()
                     .coerceAtMost(constraints.maxHeight)
+                val target = if (floating) {
+                    (container - floatInsets.getBottom(this) -
+                        sheetTop(state, true, floatInsets, this))
+                        .coerceIn(0, container)
+                } else {
+                    container
+                }
                 val placeable = measurable.measure(
                     constraints.copy(minHeight = target, maxHeight = target)
                 )
@@ -635,6 +767,22 @@ private fun BoxScope.SheetSurface(
             Column(
                 Modifier
                     .fillMaxWidth()
+                    // A layer of its own, for a floating sheet only.
+                    //
+                    // The surface's size changes on every frame a floating sheet
+                    // moves — see its layout block — and a size change
+                    // invalidates that node's draw. Without a layer here the
+                    // content is part of the same recording, so it is re-recorded
+                    // with it: measured at 8 re-records over 40 frames of
+                    // dragging, against 0 for an edge sheet. With one, the
+                    // content is rasterised once and composited, and only the
+                    // surface's own background and shadow redraw.
+                    //
+                    // Not given to an edge sheet, which does not need it: its
+                    // surface never resizes, so there is nothing to isolate it
+                    // from, and a layer is an offscreen buffer the size of the
+                    // sheet on every platform that has one.
+                    .then(if (floating) Modifier.graphicsLayer() else Modifier)
                     // Free to be shorter than the surface, never taller.
                     //
                     // `SheetDetent.Expanded` means "as tall as the content", so
@@ -694,12 +842,25 @@ private fun BoxScope.SheetSurface(
                         // inside a sheet in *that* host will throw — Compose
                         // refuses a scroller measured at an infinite height —
                         // and that is Compose's rule rather than this one's.
-                        val room =
-                            if (constraints.hasBoundedHeight && constraints.maxHeight > 0) {
+                        //
+                        // The container rather than the incoming constraints,
+                        // which for an edge sheet is the same number and for a
+                        // floating one is the difference between a sheet that
+                        // can expand and one that cannot. See the surface's own
+                        // layout block above.
+                        val container = state.containerHeight
+                            .coerceAtLeast(0f)
+                            .roundToInt()
+                        val room = when {
+                            container > 0 ->
+                                constraints.copy(minHeight = 0, maxHeight = container)
+
+                            constraints.hasBoundedHeight && constraints.maxHeight > 0 ->
                                 constraints.copy(minHeight = 0)
-                            } else {
+
+                            else ->
                                 constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
-                            }
+                        }
                         val placeable = measurable.measure(room)
                         state.sheetHeight = placeable.height.toFloat()
                         state.updateAnchors(density)
@@ -730,6 +891,31 @@ private fun BoxScope.SheetSurface(
  * What the preference does reach is the sheet's spec: `springOrTween` degrades
  * the spring to a tween, so the travel is shorter and never overshoots.
  */
+private fun sheetTop(
+    state: SheetState,
+    floating: Boolean,
+    floatInsets: WindowInsets,
+    density: Density,
+): Int {
+    val top = offsetOrHidden(state) - state.drawnOvershoot.roundToInt()
+    if (!floating) return top
+    // Up by the bottom margin, so the sheet's *bottom* edge lands a margin off
+    // the window's rather than on it. Doing this with a padding instead is the
+    // mistake worth naming: the box wrapping the surface grows taller, its top
+    // stays where the offset put it, and the bottom edge arrives at the window's
+    // after all — `FloatingSheetTest` found the sheet's own colour on the last
+    // row of the window that way round.
+    //
+    // Clamped at the top margin, because a floating sheet has a top edge too. A
+    // detent that resolves to an offset of zero means "as tall as the window",
+    // and a floating sheet that tall is the window less a margin on all four
+    // sides, not a panel with its head off the top of the screen.
+    return (top - floatInsets.getBottom(density)).coerceAtLeast(floatInsets.getTop(density))
+}
+
+/** No padding at all, for a sheet that is already clear of every edge. */
+private val NoInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp)
+
 private fun offsetOrHidden(state: SheetState): Int {
     val offset = state.anchoredState.offset
     return if (offset.isNaN()) {

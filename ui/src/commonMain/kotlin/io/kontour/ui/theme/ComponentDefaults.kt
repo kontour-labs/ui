@@ -182,7 +182,6 @@ data class ComponentDefaults(
     val commandPaletteTopInset: Dp = 96.dp,
     val coachmarkSpotlightPadding: Dp = 8.dp,
     val backdropBlurRadius: Dp = 24.dp,
-    /** How far the page behind a sheet or drawer recedes. */
     /**
      * How far the content behind a modal is inset while it is open.
      *
@@ -197,6 +196,20 @@ data class ComponentDefaults(
      * exactly. What it cannot make uniform is the fourth edge; see there.
      */
     val backdropInset: Dp = 12.dp,
+    /**
+     * How far a `SheetPresentation.Floating` sheet sits from the window's edges.
+     *
+     * A *minimum* clearance rather than a gap added to the system's own: the
+     * sheet unions this with its window insets, so on a phone with a 24dp gesture
+     * bar it floats 24dp up and not 36.
+     *
+     * The same number as [backdropInset], and for the same reason — both are the
+     * frame a surface leaves around what is behind it, and two frames a couple of
+     * dp apart on one screen read as a mistake. Separate fields because a brand
+     * that wants a wider float does not necessarily want the receded screen to
+     * move with it.
+     */
+    val sheetFloatingInset: Dp = 12.dp,
     val glassAlpha: Float = 0.58f,
     /** What a glass surface falls back to at the high-contrast tier. */
     val glassOpaqueAlpha: Float = 0.94f,
