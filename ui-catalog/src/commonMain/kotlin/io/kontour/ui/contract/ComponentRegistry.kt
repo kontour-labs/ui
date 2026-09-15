@@ -22,6 +22,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
@@ -92,6 +93,7 @@ import io.kontour.ui.components.list.rememberSwipeActionsState
 import io.kontour.ui.components.list.settingValue
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
+import io.kontour.ui.components.selection.ColourPicker
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
 import io.kontour.ui.components.selection.RadioButton
@@ -1438,6 +1440,48 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 +"Theme"
                 trailing { settingValue("Match system") }
             }
+        }
+    )
+
+    add(
+        // Stateless by construction, which is what this list needs and what a
+        // picker looks like it cannot be. `colour` is fixed and the change is
+        // routed into `onActivate`; the internal `hsv` and `alpha` only move on
+        // interaction, so the resting frame is the same one every time.
+        //
+        // `onModeChange` and `onFormatChange` both null on purpose. Non-null
+        // puts a mode switch and a notation switch on it, and this specimen is
+        // a picture of a picker rather than of two segmented controls — the
+        // demo is where those are worth pressing.
+        //
+        // No role: the operable parts are inside it — an area, two tracks and a
+        // field, each with its own semantics — and there is no one node that is
+        // "the picker" to give a role to.
+        ComponentSpec(
+            name = "ColourPicker",
+            role = null,
+            expectsMinimumTarget = false,
+            activatedByClick = false,
+            underContract = false,
+            // Tall, and earned: a spectrum area, a hue track, an opacity track,
+            // a swatch row and a value field stacked is 412dp of structure
+            // against the standard card's 120.
+            //
+            // The eight default swatches wrap seven-and-one here, and that is
+            // left alone. The card is 300dp and a row of eight needs more than
+            // the canvas has, so the only ways out are a flattering subset or a
+            // wider canvas for one specimen — and what this shows is true: the
+            // row wraps when it is not given the room. The demo is 320dp and
+            // shows them level.
+            renderHeight = 420,
+        ) { modifier, enabled, onActivate ->
+            ColourPicker(
+                colour = Color(0xFF1E88E5),
+                onColourChange = { onActivate() },
+                modifier = modifier.widthIn(max = SpecimenGridWidth),
+                enabled = enabled,
+                alphaSlider = true,
+            )
         }
     )
 
