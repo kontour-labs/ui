@@ -74,7 +74,31 @@ internal val LocalTextContextMenu = compositionLocalOf<((TextMenuRequest) -> Uni
  * web runtime swallows the platform menu, and no secondary press appears to
  * reach this handler. Where exactly it is lost is not established, and inventing
  * an answer is how a round of repeats gets started. Desktop is fixed; the web
- * half of C9a is open, with the measurement that will start the next attempt.
+ * half of C9a is open.
+ *
+ * ### The next attempt is two one-line probes, and they are written down here
+ *
+ * Because `prevented` is the interesting half. Something calls `preventDefault`
+ * on that `contextmenu`, and the only candidate is the runtime's own canvas
+ * handler — so the press reaches Compose and is lost *after* that, in the
+ * mapping from a DOM mouse event to a `PointerEvent`. Two things in the
+ * condition below can swallow it, and one build separates them:
+ *
+ * - **Widen the button.** Drop the `isSecondaryPressed` line and open the menu
+ *   on any press caught on `Initial`. If a *left* click now opens it, the pass
+ *   is fine and `buttons` is not carrying the secondary bit.
+ * - **Move the pass.** Keep `isSecondaryPressed` and take the event on
+ *   [PointerEventPass.Main]. If that opens it, the button is fine and the
+ *   Initial pass is not running for this event.
+ *
+ * Either outcome names a line. Neither is a guess about a fix, which is the
+ * mistake this comment exists to stop being made twice.
+ *
+ * Driving it needs the built site — `:ui-docs:wasmJsBrowserDistribution`,
+ * `docs/lay-out-site.py`, then
+ * `node docs/measure-web.mjs --dist site --path '#/components/text-field'
+ * --right-click X,Y --screenshot after.png`, with `--click` instead for the
+ * first probe.
  */
 @Composable
 internal fun TextContextMenuHost(content: @Composable () -> Unit) {
