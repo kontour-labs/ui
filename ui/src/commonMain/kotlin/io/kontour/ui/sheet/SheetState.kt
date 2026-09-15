@@ -547,6 +547,63 @@ class SheetState internal constructor(
         val fontScale: Float,
     )
 
+    /**
+     * How tall the sheet's surface has to be, which is **not** the container.
+     *
+     * The surface is a constant size and merely translated, because a node whose
+     * size changes cannot keep the drawing it recorded last frame — see
+     * `SheetFramePressureTest`. That much is settled. What was not settled is
+     * *which* constant, and `containerHeight` is the wrong one: the requirement
+     * is that the surface's bottom reaches the window's at every detent, and
+     * the tallest detent is the one that asks for the most. A sheet whose
+     * tallest detent shows 220dp of a 900dp window needs 220dp of surface and
+     * was given 900.
+     *
+     * **A shadow's blur is linear in the area it covers.** Measured on
+     * `Elevation.overlay`'s two layers over a 420dp-wide surface: 1.2ms at
+     * 200dp tall, 3.0 at 450, 5.9 at 900, 9.7 at 1800 — so four fifths of that
+     * sheet's shadow was being blurred into the region hanging below the
+     * window, where nothing can see it. On the frame a modal sheet mounts, all
+     * of it is: the sheet is parked at `Hidden`, entirely off-screen, and the
+     * blur is the single largest cost on the frame. `SheetMountCostDiagnostic`
+     * has the ladder.
+     *
+     * Plus [maxOvershoot], because a sheet pulled above its top detent moves
+     * **up** — so the bottom edge would lift off the window's by exactly the
+     * stretch, and a band of background would open under it. That was the
+     * original bug the container-tall surface was written to fix, and it is the
+     * one this must not reintroduce.
+     *
+     * **Nothing at all before there are anchors to ask.** That is the frame a
+     * modal sheet mounts on, and the reason this is a layout-phase read rather
+     * than a flag in composition: the surface measures before its content, so on
+     * that frame nobody knows how tall the sheet will be, and a fallback to the
+     * container would blur a window's worth of shadow for a sheet that is parked
+     * off-screen. Zero draws nothing, which is what is wanted there, and costs
+     * no recomposition to arrive at — a `derivedStateOf` flag was tried and
+     * reaches composition a frame late, which puts the blur on the frame the
+     * sheet starts moving instead of the cheap one before it.
+     *
+     * Measured end to end on `SheetOpenCostDiagnostic`, worst frame of an open:
+     * **12.5ms to 9.2 empty, 13.2 to 9.1 with a line of text, 20.3 to 16.0 with
+     * twelve list rows.**
+     */
+    internal val surfaceHeight: Float
+        get() {
+            val container = containerHeight
+            if (container <= 0f) return 0f
+            val lowest = anchoredState.anchors.let { anchors ->
+                var min = Float.NaN
+                for (index in 0 until anchors.size) {
+                    val at = anchors.positionAt(index)
+                    if (!at.isNaN() && (min.isNaN() || at < min)) min = at
+                }
+                min
+            }
+            if (lowest.isNaN()) return 0f
+            return (container - lowest + maxOvershoot).coerceIn(0f, container)
+        }
+
     internal fun updateAnchors(density: Density) {
         val inputs = AnchorInputs(
             container = containerHeight.roundToInt(),

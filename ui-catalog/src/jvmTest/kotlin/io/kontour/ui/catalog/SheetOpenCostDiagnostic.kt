@@ -124,10 +124,24 @@ class SheetOpenCostDiagnostic {
         )
     }
 
-    /** The second of two identical runs, so the JIT and the font cache are warm. */
+    /**
+     * The **smallest** cost seen at each frame position over several runs.
+     *
+     * One run per arm was enough to find which frame costs and was not enough to
+     * tell two fixes for it apart: the same build measured its mount frame at
+     * 10.9ms and 16.5ms on consecutive runs, which is wider than the difference
+     * being looked for. Noise on a wall clock only ever adds — a scheduler, a
+     * GC, another fork — so the minimum at each position is the closest estimate
+     * of the work itself, and it is stable enough to compare two builds with.
+     *
+     * The first run is still discarded outright: the first measurement in a JVM
+     * is a measurement of the JIT, and the first `Text` in one is a measurement
+     * of the font.
+     */
     private fun twice(content: @Composable () -> Unit): List<Long> {
         frameCosts(content)
-        return frameCosts(content)
+        val runs = List(Passes) { frameCosts(content) }
+        return List(Frames) { frame -> runs.minOf { it[frame] } }
     }
 
     private fun frameCosts(content: @Composable () -> Unit): List<Long> {
@@ -166,6 +180,9 @@ class SheetOpenCostDiagnostic {
         const val Width = 420
         const val Height = 900
         const val Frames = 12
+
+        /** Runs per arm, after the discarded one. See [twice]. */
+        const val Passes = 7
         const val SettleFrames = 20
         const val CatastropheNanos = 10_000_000_000L
     }
