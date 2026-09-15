@@ -29,12 +29,22 @@ journey itinerary.
 overshoots short ones, which is what makes most hand-rolled timelines look
 assembled rather than built.
 
+**`connector` is the weight of the leg, not a decoration.** `Solid` is a ride,
+`Dashed` a walk, `Dotted` a wait — a transfer window, an estimate nobody has
+committed to — and `None` ends the rail. The dotted style is drawn as a
+zero-length dash with a round cap, which is a circle of the connector's own
+diameter, so a 4dp train segment and a 2dp walk get dots in proportion rather
+than a fixed one.
+
 `loading = true` puts a spinner where the node's dot would be, for the step a
 timeline is waiting on — a train with no platform yet, a payment being taken. The
 connector below it is unchanged, because the itinerary is not in doubt; one step
 of it is. The spinner stands on the same line as every other node rather than in
 the middle of its row, so the rail does not bend around the step that is still
-going.
+going, **and it is drawn at `connectorWidth`** so it is the same weight as the
+hollow dot it replaces. `Spinner` otherwise derives its stroke from its size,
+which at a 12dp node is 1.5dp against the ring's 2dp: a step going into progress
+got visibly thinner and the rail around it did not.
 
 ---
 

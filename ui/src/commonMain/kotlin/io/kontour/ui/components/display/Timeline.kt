@@ -32,6 +32,21 @@ enum class ConnectorStyle {
     /** Dashed. For a gap: a walk between stops, an interruption, an estimate. */
     Dashed,
 
+    /**
+     * Dotted. A lighter gap than [Dashed].
+     *
+     * Round dots the width of the connector, one gap of their own diameter
+     * apart — which is why it reads as quieter than a dash without being a
+     * different weight. For the part of an itinerary that is not a leg at all:
+     * a wait, a transfer window, an estimate nobody has committed to.
+     *
+     * Drawn as a dash of length zero with a round cap rather than as a run of
+     * circles. A zero-length round-capped dash *is* a circle of the stroke's
+     * diameter, so the dot follows [TimelineItem]'s `connectorWidth` for free
+     * and a 4dp train segment and a 2dp walk get dots in proportion.
+     */
+    Dotted,
+
     /** Nothing. For the last item, or a deliberate break. */
     None,
 }
@@ -132,6 +147,17 @@ fun TimelineItem(
                         .padding(top = TimelineDefaults.NodeGap),
                     size = nodeSize,
                     colour = nodeColour,
+                    // The same weight as the ring it stands in for.
+                    //
+                    // `Spinner` derives a stroke from its size — `size / 9`,
+                    // floored at 1.5dp — which at the 12dp default node works
+                    // out at 1.5dp against the hollow dot's 2dp. So a step
+                    // going into progress got visibly thinner, and the rail
+                    // above and below it did not. `connectorWidth` already
+                    // sets the hollow node's ring, and its own KDoc promises
+                    // "a dot and the line leaving it stay the same weight" —
+                    // this is the third drawing that promise has to cover.
+                    strokeWidth = connectorWidth,
                 )
             }
             Canvas(Modifier.fillMaxHeight().width(gutterWidth)) {
@@ -153,12 +179,19 @@ fun TimelineItem(
                             end = Offset(centreX, size.height),
                             strokeWidth = stroke,
                             cap = StrokeCap.Round,
-                            pathEffect = if (connector == ConnectorStyle.Dashed) {
-                                PathEffect.dashPathEffect(
+                            pathEffect = when (connector) {
+                                ConnectorStyle.Dashed -> PathEffect.dashPathEffect(
                                     floatArrayOf(stroke * 1.5f, stroke * 2f),
                                 )
-                            } else {
-                                null
+                                // Zero-length, round-capped: a dot of the
+                                // stroke's own diameter. The `cap` above is
+                                // already `Round` for the solid line's ends,
+                                // which is what makes this cost one branch
+                                // rather than a second drawing.
+                                ConnectorStyle.Dotted -> PathEffect.dashPathEffect(
+                                    floatArrayOf(0f, stroke * 2f),
+                                )
+                                ConnectorStyle.Solid, ConnectorStyle.None -> null
                             },
                         )
                     }
