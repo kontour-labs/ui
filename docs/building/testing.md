@@ -924,22 +924,66 @@ platform too, from a Mac:
 open showcase/ios/KontourUI.xcodeproj    # then Product ▸ Run
 ```
 
+**Release, on iOS as much as on Android.** The scheme's Run action is set to
+Release deliberately rather than left at Xcode's default:
+`embedAndSignAppleFrameworkForXcode` reads `CONFIGURATION` to decide which Kotlin
+framework to build, so a Debug run links a Kotlin/Native binary compiled without
+optimisation — the whole Compose runtime, this library's layout and every
+animation in it. The cost is a slow first build, because Kotlin/Native optimises
+the entire graph. `docs/check-xcode-host.py` fails if the scheme drifts back.
+
+Turn the readout on inside the gallery: the settings sheet has a **Frame times**
+toggle, and it draws a mean and a worst-in-two-seconds in the top corner.
+
 Be clear about what that host is and is not gated by. CI compiles the Kotlin for
 both iOS targets and `docs/check-xcode-host.py` checks the project's structure
 against the repository around it — every file reference resolves, every Swift
 file is compiled, the framework the project links is the one Gradle names, the
-Gradle phase runs before the compile phase. What no runner here can answer is
-whether the app *launches*: linking a framework needs Xcode, and this repository
-has no macOS job. Two things in particular are unverified and worth knowing
-before the first run:
+Gradle phase runs before the compile phase, the host ignores the safe area on
+every edge, the plist sets `CADisableMinimumFrameDurationOnPhone`, and the Run
+action is Release. What no runner here can answer is whether the app *launches*:
+linking a framework needs Xcode, and this repository has no macOS job.
 
-- **A static Kotlin framework and the system frameworks it needs.**
-  `:ui-catalog` declares `isStatic = true`, so the app links the archive
-  directly; if the linker reports undefined symbols, they are Apple frameworks
-  Compose uses and the fix is `OTHER_LDFLAGS` in the Xcode project.
-- **Fonts.** `:ui` ships seven `.ttf` files through Compose resources and
-  nothing here has ever exercised the iOS resource path. If they do not reach the
-  app bundle it shows up on the first screen as fallback type, not as an error.
+#### What the first run on a phone actually found
+
+Three defects, and the useful thing about them is that **two of the three were
+things this repository already knew and had not applied to the new host**:
+
+- **The safe area, which was the one genuinely new mistake.** The host said
+  `.ignoresSafeArea(.keyboard)`, which ignores the keyboard region *only*, so
+  SwiftUI went on shrinking the Compose view to the safe area. This library is
+  edge-to-edge by construction — `TopBar` paints its `Surface` across the full
+  width and applies `windowInsetsPadding(WindowInsets.topEdges)` to its content
+  *inside* that — so the bars' backgrounds stopped at the boundary, and UIKit
+  still handed the hosted controller the window's `safeAreaInsets`, so Compose
+  padded a second time for a status bar it had already been moved clear of. One
+  modifier, two symptoms: "the top bar and bottom bar cut off the background"
+  and "the content is way too inset at the top". `.ignoresSafeArea()` is the
+  same statement `MainActivity` makes with `enableEdgeToEdge()`.
+- **`CADisableMinimumFrameDurationOnPhone` was missing**, so iOS capped the app
+  at 60Hz whatever the display could do. Compose Multiplatform's own plist check
+  says so at launch, and a reader had to add the key by hand.
+- **The Run action was Debug**, which is the rule the Android section three
+  paragraphs up has stated since the frame readout was written. Reported as "not
+  at all smooth".
+
+The two risks flagged before that run were the wrong two. Linking a static
+Kotlin framework worked with no extra `OTHER_LDFLAGS`, and the app launched.
+**Fonts are still open**: `:ui` ships seven `.ttf` files through Compose
+resources, nothing here has ever exercised the iOS resource path, and the
+failure mode is fallback type on the first screen rather than an error — so it
+has to be looked at rather than waited for.
+
+#### The readout's thresholds are a 60Hz assumption
+
+`FrameReadout` colours the worst frame green below 16.7ms, amber below 33.3ms
+and red beyond. Those are sixty and thirty a second, and on a ProMotion phone —
+which is exactly the device that reports the plist warning — a frame budget is
+**8.3ms**. The instrument will call a solid 16ms green while the display is
+refreshing at 120 and the app is delivering every second frame.
+
+So on such a phone, green currently means "made sixty", not "made the display's
+rate". Reading it as the latter is how a capped app looks fine.
 
 #### Six reports came off a phone, and only one was out of reach
 

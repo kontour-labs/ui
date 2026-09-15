@@ -89,7 +89,10 @@ open showcase/ios/KontourUI.xcodeproj    # an iPhone or a simulator, from a Mac
 
 The iOS one is an Xcode project rather than a Gradle task, because linking a
 framework needs Xcode. It builds `:ui-catalog`'s `Catalog.framework` from a Run
-Script phase, so there is nothing to run first.
+Script phase, so there is nothing to run first — and its Run action is set to
+**Release**, because `embedAndSignAppleFrameworkForXcode` picks the Kotlin
+framework from the configuration and a Debug one is built without optimisation.
+The first build is slow for the same reason.
 
 The gallery is also where most of the tests live: the contract suite, the
 screenshot goldens, and the specimen registry that drives the per-component
