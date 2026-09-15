@@ -56,6 +56,23 @@ of the defects reported were things this file could have caught and did not:
       debug" since the frame readout was written, and the iOS host shipped
       without the same rule.
 
+And two more after the build was first driven from an IDE, both of them defects
+this file shipped:
+
+  16. the Gradle phase does not disable the daemon. `--no-daemon` was copied from
+      the CI workflow, where a container runs one build and exits; in a phase
+      that runs on every build it throws away the warm daemon, Gradle's Tooling
+      API rejects the flag outright so building through Android Studio fails, and
+      a daemonless build cannot share caches with a daemon an open IDE is
+      holding. (That the phase calls the *wrapper* is already rule 11's
+      business: it resolves the task against a real module, which a bare
+      `gradle` cannot satisfy — checked once, not twice.)
+  17. every configuration sets `ONLY_ACTIVE_ARCH = YES`. This repository declares
+      `iosArm64` and `iosSimulatorArm64` and **no `iosX64`**, so a build that asks
+      for every architecture asks for an Intel simulator slice that cannot be
+      produced. Xcode's default for a non-Debug configuration is `NO`, which
+      turned into a real fault the moment rule 15 moved Run to Release.
+
 What is left unchecked is what only Xcode can answer: whether the app launches,
 whether a static Kotlin framework drags in every system framework it needs, and
 whether `:ui`'s seven bundled fonts reach the app bundle through Compose
@@ -441,12 +458,68 @@ for settings, configuration in zip(project_settings, project_configurations):
         )
 
 # ---------------------------------------------------------------------------
+# 17. One architecture, because there is only one to build
+# ---------------------------------------------------------------------------
+#
+# Checked against the Gradle build rather than hardcoded: if an `iosX64` target
+# is ever declared, an Intel simulator becomes buildable and this rule should
+# stop applying rather than quietly outlive its reason.
+
+intel_simulator = re.search(r"\biosX64\s*\(", CATALOG_BUILD.read_text())
+if not intel_simulator:
+    arch_settings = [
+        (c.get("name", "?"), c.get("buildSettings", {}))
+        for c in project_configurations
+    ]
+    for name, settings in arch_settings:
+        if settings.get("ONLY_ACTIVE_ARCH") != "YES":
+            fail(
+                f"the project-level {name} configuration does not set "
+                "ONLY_ACTIVE_ARCH = YES, and Xcode's default outside Debug is NO. "
+                "Building every architecture means asking for an x86_64 simulator "
+                "slice, and this repository declares iosArm64 and "
+                "iosSimulatorArm64 and no iosX64 — there is nothing to build it "
+                "from"
+            )
+
+# ---------------------------------------------------------------------------
 # 11. The Gradle task the shell phase names
 # ---------------------------------------------------------------------------
 
+def shell_code_only(text: str) -> str:
+    """Shell with its comments cut off.
+
+    The second time this file has needed exactly this, and the second time a
+    canary found it rather than a reading. `code_only` above exists because
+    `App.swift`'s comment *names* the wrong modifier in order to explain it; this
+    exists because the build phase's comment names `--no-daemon` in order to
+    explain why it is not there. A check that greps a file for the thing it is
+    forbidding will find the sentence forbidding it.
+
+    Cuts at the first `#` that is not inside quotes, which is exact for a script
+    that does not put `#` in a string — and if one ever does, the failure is a
+    false alarm rather than a miss.
+    """
+    out = []
+    for line in text.split("\n"):
+        quote = None
+        cut = len(line)
+        for i, c in enumerate(line):
+            if quote:
+                if c == quote:
+                    quote = None
+            elif c in "'\"":
+                quote = c
+            elif c == "#" and (i == 0 or line[i - 1].isspace()):
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
 for phase in script_phases:
     script = phase.get("shellScript", "")
-    script = script.encode().decode("unicode_escape")
+    script = shell_code_only(script.encode().decode("unicode_escape"))
     task = re.search(r"\./gradlew[^\n]*?(:[\w\-]+:[\w]+)", script)
     if not task:
         fail(f"the shell phase {phase.get('name')!r} runs no `./gradlew <task>`")
@@ -471,6 +544,19 @@ for phase in script_phases:
                     f"the shell phase's `cd $SRCROOT/{hop.group(1)}` lands on "
                     f"{landed}, and `./gradlew` is at {ROOT}"
                 )
+
+    # 16. Not without the daemon.
+    if re.search(r"--no-daemon\b", script):
+        fail(
+            "the shell phase passes `--no-daemon`. It belongs in CI, where a "
+            "container runs one build and exits, and nowhere near a phase that "
+            "runs on every build: it throws away the warm daemon, Gradle's "
+            "Tooling API rejects the flag so an IDE-driven build fails with "
+            "\"Unknown command-line option '--no-daemon'\", and a daemonless "
+            "build cannot share caches with a daemon an open IDE holds — it "
+            "blocks on their locks with nothing on screen to say why"
+        )
+
 
 # ---------------------------------------------------------------------------
 # 12. The shared scheme

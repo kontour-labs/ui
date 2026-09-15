@@ -974,6 +974,52 @@ resources, nothing here has ever exercised the iOS resource path, and the
 failure mode is fallback type on the first screen rather than an error — so it
 has to be looked at rather than waited for.
 
+#### Two more, from driving the build rather than the app
+
+The third round of defects in this host, and both were the same shape as the
+last round's: **a habit from somewhere else in this repository, applied where it
+does not belong.**
+
+- **`--no-daemon` in the Run Script phase.** Copied from the CI workflow, where
+  a container runs one build and exits and a daemon is waste. An Xcode phase is
+  the opposite case — it runs on every build, so the daemon is the difference
+  between a warm rebuild and paying JVM startup and configuration every time.
+  It also broke two ways at once. Gradle's Tooling API rejects the flag, so
+  driving the build from Android Studio failed with `Unknown command-line option
+  '--no-daemon'`; and a daemonless build cannot share the caches with the daemon
+  an open IDE is already holding, so it blocks on their locks with nothing on
+  screen. Xcode sat on "planning deferred tasks" indefinitely.
+- **`ONLY_ACTIVE_ARCH` unset outside Debug.** Xcode defaults it to `NO` there, so
+  moving the Run action to Release — the previous round's fix — quietly turned a
+  simulator run into a request for an `x86_64` slice. This repository declares
+  `iosArm64` and `iosSimulatorArm64` and **no `iosX64`**, on purpose, so there is
+  nothing to build that slice from. One fix created the next fault, which is the
+  argument for gating each of them rather than fixing and moving on.
+
+Both are `docs/check-xcode-host.py` rules now, canaried against exactly what
+shipped. Rule 16 caught its own explanation first — the comment above the
+command names `--no-daemon` in order to say why it is absent — which is the
+second time a rule in that file has matched the prose forbidding a thing rather
+than the thing. The Swift half already had comment-stripping for the same
+reason; the shell half has it now.
+
+#### When the first build looks like a hang
+
+It may not be one. A cold `~/.konan` pulls a Kotlin/Native toolchain, and the
+Release configuration then optimises the whole Compose graph. The phase now runs
+Gradle with `--console=plain`, because Xcode's log is a file rather than a
+terminal and the rich console redraws itself with control characters — plain
+prints the downloads and task names, which is what distinguishes slow from
+stuck.
+
+To watch that happen somewhere it is visible, build the framework from a
+terminal first; Xcode's phase then finds it done.
+
+```sh
+./gradlew :ui-catalog:linkReleaseFrameworkIosSimulatorArm64   # a simulator
+./gradlew :ui-catalog:linkReleaseFrameworkIosArm64            # a device
+```
+
 #### First-run jank on iOS is not the thing this repository already explains
 
 The second run on a phone reported that the *first* animation of a kind is
