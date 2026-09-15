@@ -152,10 +152,18 @@ object BackdropDefaults {
  * ### What this does instead
  *
  * Scales **uniformly, from the width**, so both side margins are exactly the
- * inset, and then translates *down* by whatever vertical slack that leaves over.
- * The top margin lands on the inset too, and the surplus collects at the bottom
- * — which is the one edge a bottom sheet is covering anyway. Three edges uniform
- * and the fourth hidden, with no distortion, which is the trade iOS makes.
+ * inset, and then moves the content *up* by whatever vertical slack that leaves
+ * over. The top margin lands on the inset too, and the surplus collects at the
+ * bottom — which is the one edge a bottom sheet is covering anyway. Three edges
+ * uniform and the fourth hidden, with no distortion, which is the trade iOS
+ * makes.
+ *
+ * Up, not down, and the first version had it the other way round. A uniform
+ * scale leaves the same slack top and bottom; putting the *top* on the inset
+ * means closing the difference, which moves the content toward the top of the
+ * screen. Translating down instead doubled the top margin — 48px where 24 was
+ * wanted, on a 600x900 window — and `BackdropBlurTest` caught it by sampling a
+ * row that the content had stopped covering.
  *
  * On a window wider than it is tall there is no surplus to move — the slack from
  * a width-derived scale is smaller than the inset — so the translation clamps at
@@ -265,9 +273,9 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
             val scale = lerp(1f, target, f)
             scaleX = scale
             scaleY = scale
-            // The surplus goes to the bottom, where the sheet is. See
-            // [backdropScale] for why this is not two scales.
-            translationY = lerp(0f, backdropShift(size.height, target, insetPx), f)
+            // Negative: the surplus goes to the *bottom*, where the sheet is,
+            // which means the content moves up. See [backdropScale].
+            translationY = lerp(0f, -backdropShift(size.height, target, insetPx), f)
             shape = clipShape
             clip = f > 0f
         }
@@ -377,7 +385,7 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         // content stop being the same rectangle and the band shows down one
         // side of it. Applied outside the scale, because `translationY` on a
         // `graphicsLayer` is in the *parent's* coordinates and is not scaled.
-        geometry.matrix.translate(0f, shift)
+        geometry.matrix.translate(0f, -shift)
         geometry.matrix.translate(size.width / 2f, size.height / 2f)
         geometry.matrix.scale(scale - overlap, scale - overlap)
         geometry.matrix.translate(-size.width / 2f, -size.height / 2f)
