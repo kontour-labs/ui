@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -310,6 +311,30 @@ private fun CompactCatalog(
 ) {
     var drawerOpen by remember { mutableStateOf(false) }
 
+    /**
+     * The destination the drawer has been asked for, applied once it has gone.
+     *
+     * Reported from a phone: tapping a destination "just does nothing for half a
+     * second" and only then animates. `DrawerSelectCostDiagnostic` measures where
+     * that goes, and it is not the drawer. Setting `selected` and clearing
+     * `drawerOpen` in the same lambda puts both in the same snapshot, so the
+     * frame that starts the exit animation is also the frame that composes and
+     * measures a whole destination for the first time — 66.4ms here against
+     * 13.0ms for the exit on its own, and the following eight frames run at
+     * 15-32ms instead of 11-14. A phone is several times slower again, and one
+     * frame that long at the start of a gesture is a tap that did nothing.
+     *
+     * Holding the choice and applying it when the drawer's content leaves
+     * composition costs nothing in what a reader sees: the drawer covers most of
+     * a phone on its way out, so the page behind it is not being read. What they
+     * get instead is an exit that begins on the frame they tapped.
+     *
+     * The row still moves the moment it is pressed — the indicator below reads
+     * `pending` first — so the drawer answers immediately even though the page
+     * does not.
+     */
+    var pending by remember { mutableStateOf<Int?>(null) }
+
     Scaffold(
         topBar = {
             TopBar(
@@ -336,9 +361,19 @@ private fun CompactCatalog(
     }
 
     ModalNavDrawer(visible = drawerOpen, onDismissRequest = { drawerOpen = false }) {
+        // The overlay host keeps an entry composed for the whole of its exit and
+        // disposes it on the frame it is finally gone — see `EntryHost` — so this
+        // is the end of the animation, measured rather than timed. A duration
+        // here would be a guess that goes stale with `motion.tweenExit`.
+        DisposableEffect(Unit) {
+            onDispose {
+                pending?.let(onSelectedChange)
+                pending = null
+            }
+        }
         pages.forEachIndexed { index, page ->
-            item(page.title, page.icon, selected = index == selected) {
-                onSelectedChange(index)
+            item(page.title, page.icon, selected = index == (pending ?: selected)) {
+                pending = index
                 drawerOpen = false
             }
         }

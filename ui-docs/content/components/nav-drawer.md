@@ -48,6 +48,53 @@ same one they pressed.
 
 ---
 
+## Swap the destination when the drawer has gone, not when it is tapped
+
+The obvious lambda — set the destination, close the drawer — puts both in one
+snapshot, so **the frame that starts the exit animation is also the frame that
+composes a whole destination for the first time**. On a phone that reads as a
+tap that did nothing, followed half a second later by a drawer already partway
+out. Reported exactly that way. Measured, with the page swap and the drawer's
+exit each on their own:
+
+```
+  arm          f1     f2     f3     f4     f5     f6     f7     f8
+  both       66.4   32.5   18.9   20.3   27.7   27.0   20.7   20.3
+  drawer     13.0   13.2   12.0   13.2   12.8   14.3   14.2   14.2
+```
+
+66.4ms against 13.0 for the exit on its own — and it is not only the first
+frame. The new destination goes on composing for the whole of the animation, so
+the exit janks for its full length as well as starting late.
+
+Hold the choice and apply it when the drawer has finished leaving. The overlay
+host keeps an entry composed for the whole of its exit, so `onDispose` inside the
+drawer's content is that moment, measured rather than timed:
+
+```kotlin
+var pending by remember { mutableStateOf<String?>(null) }
+
+ModalNavDrawer(visible = open, onDismissRequest = { open = false }) {
+    DisposableEffect(Unit) {
+        onDispose { pending?.let { selected = it }; pending = null }
+    }
+    item("Home", selected = (pending ?: selected) == "Home") {
+        pending = "Home"
+        open = false
+    }
+}
+```
+
+Nothing is lost by waiting: the drawer covers most of a phone on its way out, so
+the page behind it is not being read. Reading `pending` first is what keeps the
+answer immediate — the marker travels to the row the moment it is pressed, and
+only the page waits.
+
+A destination cheap enough to compose in a frame does not need this. One built
+from a `LazyColumn` of cards is not that.
+
+---
+
 ## Accessibility
 
 `ModalNavDrawer` sets `paneTitle` (`Theme.strings.navigation` by default), so a
