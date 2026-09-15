@@ -132,6 +132,8 @@ fun ListSectionBasics() {
     ListSection(
         title = { +"Appearance" },
         description = { +"How the app looks on this device" },
+        // Above the rows is what the group *is*; below them is what it *does*.
+        footer = { +"Always dark keeps the screen dark even when the system is light." },
     ) {
         SettingRow(position = ListItemPosition.First, onClick = { save() }) {
             +"Theme"

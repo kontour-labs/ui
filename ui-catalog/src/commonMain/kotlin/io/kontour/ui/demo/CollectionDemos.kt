@@ -112,13 +112,32 @@ internal val ExpandingListItemDemo = ComponentDemo(slug = "expanding-list-item")
     }
 }
 
-internal val ListSectionDemo = ComponentDemo(slug = "list-section") {
+/**
+ * The sentence under the rows, which is the slot the page explains and the
+ * demo did not show.
+ *
+ * A knob rather than always on, because the two readings are different: with a
+ * footer the section is a setting *and* its consequence, and without one it is
+ * a group of rows. `description` sits above and says what the group is; this
+ * sits below and says what it does.
+ */
+private val sectionFooter = Knob.Flag("Footer", initial = true)
+
+internal val ListSectionDemo = ComponentDemo(
+    slug = "list-section",
+    knobs = listOf(sectionFooter),
+) {
     var theme by remember { mutableStateOf(0) }
     val themes = listOf("Match system", "Always light", "Always dark")
     ListSection(
         modifier = Modifier.fillMaxWidth(),
         title = { +"Appearance" },
         description = { +"How the app looks on this device" },
+        footer = if (this[sectionFooter]) {
+            { +"Always dark keeps the screen dark even when the system is light." }
+        } else {
+            null
+        },
     ) {
         SettingRow(
             position = ListItemPosition.First,
