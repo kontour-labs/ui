@@ -1,6 +1,6 @@
 # `Toolbar`
 
-*Also on this page: `ToolbarDivider`.*
+*Also on this page: `VerticalToolbar`, `ToolbarDivider`.*
 
 <!--sample:ToolbarBasics-->
 ```kotlin
