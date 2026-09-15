@@ -6,6 +6,7 @@ Things the user presses to make something happen.
 |---|---|---|
 | [`Button`](button.md) | An action with a name | An `IconButton`, when there is room for the word |
 | [`IconButton`](icon-button.md) | An action with no room for a name | A `Button`, whenever there is room |
+| [`TextButton`](text-button.md) | A pressable word at the size of the text | A `Button`, when it is a control and not a word |
 | [`IconToggleButton`](icon-toggle-button.md) | An icon that is on or off — favourite, mute | A `Switch`, when the state deserves a label |
 | [`FloatingActionButton`](fab.md) | The one action a whole screen exists for | A `Button`, for anything else |
 | [`ExtendedFloatingActionButton`](extended-fab.md) | A FAB whose icon needs a word beside it | `FloatingActionButton`, when the icon carries it |

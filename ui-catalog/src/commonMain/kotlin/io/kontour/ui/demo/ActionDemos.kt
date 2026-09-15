@@ -17,6 +17,7 @@ import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.ChevronRight
 import com.composables.icons.tabler.outline.CurrentLocation
+import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Navigation
 import com.composables.icons.tabler.outline.Plus
@@ -34,6 +35,8 @@ import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.components.action.SplitButton
+import io.kontour.ui.components.action.TextButton
+import io.kontour.ui.components.action.TextIconButton
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.display.Spinner
@@ -85,6 +88,44 @@ internal val IconButtonDemo = ComponentDemo(
         rotation = if (this[iconButtonRotated]) 90f else 0f,
         enabled = this[iconButtonEnabled],
     )
+}
+
+// --- TextButton / TextIconButton ------------------------------------------
+
+private val textButtonEnabled = Knob.Flag("Enabled", initial = true)
+
+/**
+ * Both text buttons at once, against a line of prose.
+ *
+ * One demo rather than two because the point of either is the size it takes from
+ * the text beside it, and a specimen on its own shows a coloured word with
+ * nothing to be the same size as.
+ */
+internal val TextButtonDemo = ComponentDemo(
+    slug = "text-button",
+    knobs = listOf(textButtonEnabled),
+) {
+    val enabled = this[textButtonEnabled]
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+        ) {
+            Text("Perth Underground", style = Theme.typography.titleSmall)
+            TextIconButton(
+                icon = Tabler.Outline.InfoCircle,
+                contentDescription = "About this stop",
+                onClick = { echo("About") },
+                enabled = enabled,
+            )
+        }
+        TextButton(onClick = { echo("Replacements") }, enabled = enabled) {
+            +"See replacement buses"
+        }
+    }
 }
 
 // --- IconToggleButton -----------------------------------------------------
@@ -303,6 +344,7 @@ internal val SpinnerDemo = ComponentDemo(slug = "spinner") {
 internal val actionDemos = listOf(
     ButtonDemo,
     IconButtonDemo,
+    TextButtonDemo,
     IconToggleButtonDemo,
     FloatingActionButtonDemo,
     ExtendedFabDemo,

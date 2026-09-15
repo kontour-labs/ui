@@ -1,16 +1,19 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bike
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
+import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Navigation
 import com.composables.icons.tabler.outline.Plus
@@ -30,10 +33,15 @@ import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.components.action.SplitButton
-import io.kontour.ui.components.display.Spinner
+import io.kontour.ui.components.action.TextButton
+import io.kontour.ui.components.action.TextIconButton
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
+import io.kontour.ui.components.display.Spinner
+import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.linkedText
 import io.kontour.ui.overlay.ScrimStyle
+import io.kontour.ui.theme.Theme
 
 @Composable
 fun ButtonBasics() {
@@ -191,4 +199,33 @@ fun SplitButtonBasics() {
     ) {
         +"Save"
     }
+}
+
+@Composable
+fun TextButtonBasics() {
+    TextButton(onClick = { forgot() }) {
+        +"Forgot your password?"
+    }
+}
+
+@Composable
+fun TextIconButtonBasics() {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Perth Underground", style = Theme.typography.titleSmall)
+        TextIconButton(
+            icon = Tabler.Outline.InfoCircle,
+            contentDescription = "About this stop",
+            onClick = { explain() },
+        )
+    }
+}
+
+@Composable
+fun InlineLink() {
+    Text(
+        linkedText {
+            +"Services are suspended between Perth and Midland. "
+            link("See replacement buses") { replacements() }
+        }
+    )
 }

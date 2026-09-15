@@ -30,6 +30,7 @@ import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
+import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Stack
@@ -44,6 +45,8 @@ import io.kontour.ui.components.action.FabMenu
 import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.action.TextButton
+import io.kontour.ui.components.action.TextIconButton
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.action.Toolbar
@@ -373,6 +376,26 @@ val componentRegistry: List<ComponentSpec> = buildList {
             }
         )
     }
+
+    add(
+        ComponentSpec("TextButton", Role.Button) { modifier, enabled, onClick ->
+            TextButton(onClick = onClick, modifier = modifier, enabled = enabled) {
+                +"Forgot your password?"
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("TextIconButton", Role.Button) { modifier, enabled, onClick ->
+            TextIconButton(
+                icon = Tabler.Outline.InfoCircle,
+                contentDescription = "About this stop",
+                onClick = onClick,
+                modifier = modifier,
+                enabled = enabled,
+            )
+        }
+    )
 
     add(
         ComponentSpec("IconButton", Role.Button) { modifier, enabled, onClick ->

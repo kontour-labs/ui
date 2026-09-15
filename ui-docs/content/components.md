@@ -13,7 +13,7 @@ prose that is about the family rather than any one of them.
 
 | Family | | |
 |---|---|---|
-| [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `IconToggleButton` `FloatingActionButton` `ExtendedFloatingActionButton` `FabMenu` `SplitButton` `ButtonGroup` `Toolbar` |
+| [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `TextButton` `TextIconButton` `IconToggleButton` `FloatingActionButton` `ExtendedFloatingActionButton` `FabMenu` `SplitButton` `ButtonGroup` `Toolbar` |
 | [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `TriStateCheckbox` `RadioButton` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `Slider` `RangeSlider` `Stepper` `Rating` `ColourSwatchPicker` |
 | [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `NumberField` `PhoneField` `EmailField` `Select` `MultiSelect` `Combobox` `TextSelectionToolbar` `rememberImeChain` |
 | [**Date and time**](components/date-time.md) | Calendars and clocks | `CalendarMonth` `DatePicker` `DateRangePicker` `TimePicker` `TimeField` `WheelPicker` `RelativeTimeText` `DateTimeFormats` |

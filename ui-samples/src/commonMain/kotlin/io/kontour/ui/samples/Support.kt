@@ -37,6 +37,9 @@ internal fun nearby() = Unit
 internal fun saveAndClose() = Unit
 internal fun saveCopy() = Unit
 internal fun showTour() = Unit
+internal fun forgot() = Unit
+internal fun explain() = Unit
+internal fun replacements() = Unit
 
 /** A handful of them, where a sample needs a list to iterate. */
 internal val stops = listOf(Stop("Perth Underground", 4), Stop("Elizabeth Quay", 3))
