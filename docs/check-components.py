@@ -369,14 +369,17 @@ MAX_UNSWEPT_ENUMS = 9
 
 # Only goes down. See rule 16.
 #
-# Five, and the criterion earns every one of them. `isNewPassword` is an
-# autofill hint with nothing to render; `matchHeightConstraintsFirst` and
-# `propagateMinConstraints` are layout escape hatches on `AspectRatioBox` and
+# Four, and the criterion earns every one of them. `matchHeightConstraintsFirst`
+# and `propagateMinConstraints` are layout escape hatches on `AspectRatioBox` and
 # `Surface`, pressed by nobody because there is nothing to look at;
 # `MenuItem.multiple` changes what a screen reader announces and is set by
 # `MultiSelect` at `Select.kt:233`, so it is exercised without being named; and
 # `NavBarItem.showLabel` is handed down from `NavBar.showLabels`, which the
 # nav-surfaces demo *does* sweep.
+#
+# It was five until `isNewPassword` got a knob — an autofill hint with nothing to
+# render, which turned out to be worth pressing anyway because the keyboard it
+# asks for is the thing a reader is checking.
 #
 # It was sixteen before round 22. Twelve of those were features that shipped
 # switched off and stayed that way — the chip morph whose own KDoc carries the
@@ -1407,7 +1410,7 @@ def main() -> int:
             f"{', '.join(internal)}"
         )
 
-    # Rule 19 — the library buzzes for eleven things, and no more.
+    # Rule 19 — the library buzzes for ten things, and no more.
     #
     # See `haptic_sites`. A ratchet on a total nobody was in a position to see
     # while it grew from a good instruction to fifty-seven call sites.
@@ -1425,7 +1428,7 @@ def main() -> int:
 
     # Rule 20 — a corner is a squircle unless the thing it is on is a circle.
     #
-    # See `circles`. `pill` survives for the twenty-two places that are genuinely
+    # See `circles`. `pill` survives for the twenty-four places that are genuinely
     # round — square boxes, exempt from the capsule cap; a `RoundedCornerShape`
     # literal anywhere but the token that defines it is a component that has
     # stopped tracking the scale.
