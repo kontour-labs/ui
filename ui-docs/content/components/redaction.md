@@ -46,6 +46,16 @@ loads on its own. The node still measures and lays out exactly as it would have,
 which is the point: a placeholder the size of the real thing is a layout that
 does not jump when the data lands.
 
+**The ink is a faded version of the content, not a grey.** `Skeleton` fills with
+`surfaceSunken`, which is right for a block drawn on a page and useless over a
+row: a `ListItem`'s own container is `surfaceSunken` too, so a redacted row came
+out as one flat slab with nothing in it. Redaction takes its colour from
+`LocalContentColour` instead — the one value that is always right for the
+surface in hand, because `Surface` sets it from the ground it paints. A bar on a
+dark card is light and a bar on a light page is dark, with no token having to
+guess which. It is also the better model: a placeholder for text ought to be a
+faded version of the text.
+
 **Text's bars come from the real text layout**, which is why they live in `Text`
 rather than in the modifier. A modifier sees a node's size and nothing else, so
 the best it could do over a paragraph is one rectangle the shape of the whole

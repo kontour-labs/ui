@@ -6,7 +6,9 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -117,9 +119,46 @@ fun Modifier.redacted(
             }
         }
         .clip(shape)
-        .skeletonFill()
+        .then(redactedFill())
         // After the fill, which draws behind. This is what stops the real
         // content drawing at all — the fill has already painted by the time the
         // chain reaches here.
         .drawWithContent { }
+}
+
+/**
+ * The ink a redaction draws in, derived from the content it stands for.
+ *
+ * Not a surface token, and the specimen is why: a redacted `ListItem` draws on
+ * `surfaceSunken`, which is what `Skeleton` fills with, so the bars came out
+ * invisible and two rows rendered as two flat slabs. A `Skeleton` knows the
+ * ground it is on — a page — and a redaction does not, because it is drawn over
+ * whatever the caller already built.
+ *
+ * So it is taken from [io.kontour.ui.foundation.LocalContentColour] instead,
+ * which is the one thing that is always right for the surface in hand: `Surface`
+ * sets it from the ground it paints, so a bar on a dark card is light and a bar
+ * on a light page is dark, with no token having to guess which. It is also the
+ * right *model* — a placeholder for text ought to be a faded version of the
+ * text, not a shape in an unrelated grey.
+ *
+ * The two alphas are held apart by enough for the sweep to read and kept low
+ * enough that a screen of them is quiet. They are literals rather than tokens
+ * deliberately: the ratio between a placeholder and its own content is a fact
+ * about what a placeholder is, not a dial a brand reaches for.
+ */
+@Composable
+internal fun redactionColours(): Pair<Color, Color> {
+    val ink = LocalContentColour.current.takeOrElse { Theme.colours.content }
+    return ink.copy(alpha = RedactionBase) to ink.copy(alpha = RedactionHighlight)
+}
+
+private const val RedactionBase = 0.10f
+private const val RedactionHighlight = 0.18f
+
+/** [skeletonFill] in [redactionColours]. */
+@Composable
+internal fun redactedFill(): Modifier {
+    val (base, highlight) = redactionColours()
+    return Modifier.skeletonFill(base = base, highlight = highlight)
 }

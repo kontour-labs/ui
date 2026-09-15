@@ -1,5 +1,7 @@
 package io.kontour.ui.contract
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,26 +15,26 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertTriangle
+import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Stack
 import com.composables.icons.tabler.outline.Star
+import com.composables.icons.tabler.outline.Train
 import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonGroup
@@ -42,63 +44,56 @@ import io.kontour.ui.components.action.FabMenu
 import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
-import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.action.IconToggleButton
-import io.kontour.ui.components.datetime.RelativeTimeText
-import io.kontour.ui.components.display.CircularProgress
-import io.kontour.ui.components.display.LinearProgress
-import io.kontour.ui.components.display.Spinner
-import io.kontour.ui.components.display.StepProgress
-import io.kontour.ui.components.datetime.CalendarMonth
-import io.kontour.ui.components.datetime.DatePicker
-import io.kontour.ui.components.datetime.DateRangePicker
-import io.kontour.ui.components.datetime.TimeField
-import io.kontour.ui.components.datetime.TimePicker
-import io.kontour.ui.components.datetime.WheelPicker
-import io.kontour.ui.overlay.OverlayHost
-import io.kontour.ui.overlay.ToastHost
-import io.kontour.ui.overlay.rememberToastHostState
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalTime
-import io.kontour.ui.components.display.Accordion
-import io.kontour.ui.components.display.AnimatedCounter
-import io.kontour.ui.components.display.AnimatedBanner
-import io.kontour.ui.components.display.Banner
-import io.kontour.ui.components.display.BannerTone
-import io.kontour.ui.components.display.Callout
+import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.action.VerticalToolbar
+import io.kontour.ui.components.datetime.CalendarMonth
+import io.kontour.ui.components.datetime.DatePicker
+import io.kontour.ui.components.datetime.DateRangePicker
+import io.kontour.ui.components.datetime.RelativeTimeText
+import io.kontour.ui.components.datetime.TimeField
+import io.kontour.ui.components.datetime.TimePicker
+import io.kontour.ui.components.datetime.WheelPicker
+import io.kontour.ui.components.display.Accordion
+import io.kontour.ui.components.display.AnimatedBanner
+import io.kontour.ui.components.display.AnimatedCounter
+import io.kontour.ui.components.display.Banner
+import io.kontour.ui.components.display.BannerTone
+import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Carousel
+import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdIcons
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
+import io.kontour.ui.components.display.KeyValueList
+import io.kontour.ui.components.display.LinearProgress
 import io.kontour.ui.components.display.PageIndicator
 import io.kontour.ui.components.display.PageIndicatorStyle
-import io.kontour.ui.components.display.rememberCarouselState
-import io.kontour.ui.components.display.KeyValueList
+import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.display.Stat
-import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.display.StepProgress
+import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ExpandingListItem
+import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemPosition
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.Scrollbar
+import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.components.list.SwipeToDismiss
 import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberReorderableState
 import io.kontour.ui.components.list.rememberSwipeActionsState
-import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.components.list.settingValue
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
 import io.kontour.ui.components.selection.RadioButton
+import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.Rating
-import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.selection.Slider
@@ -108,11 +103,11 @@ import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.TextField
-import io.kontour.ui.foundation.SystemIcons
+import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Surface
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.marquee
-import io.kontour.ui.theme.Theme
 import io.kontour.ui.nav.NavBarItem
 import io.kontour.ui.nav.NavDrawerGroup
 import io.kontour.ui.nav.NavDrawerItem
@@ -121,8 +116,16 @@ import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavRailItem
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
+import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.ToastHost
+import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.sheet.DragHandle
+import io.kontour.ui.theme.Theme
 import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
 
 /**
  * One extra picture of a component, in a state it cannot be caught in at rest.
@@ -829,6 +832,39 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     onClick = onActivate,
                     enabled = enabled,
                 )
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "Redacted",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 200,
+        ) { modifier, _, _ ->
+            // Two rows, the second long enough to wrap, because the whole claim
+            // is that the bars come from the real text layout: a wrapped line
+            // has to produce two bars with a short second one, and a single
+            // rectangle over the paragraph is the thing this replaces.
+            Redacted {
+                Column(
+                    modifier = modifier.width(SpecimenProseWidth),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ListItem {
+                        +"Perth Underground"
+                        supporting { +"08:14 · Platform 2" }
+                        leading { +Tabler.Outline.Train }
+                    }
+                    ListItem {
+                        +"Elizabeth Quay"
+                        supporting { +"A longer supporting line, so that it wraps" }
+                        leading { +Tabler.Outline.Bus }
+                    }
+                }
             }
         }
     )

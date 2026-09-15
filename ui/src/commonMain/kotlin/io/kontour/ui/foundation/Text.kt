@@ -348,7 +348,7 @@ private fun rememberTextRedaction(): TextRedaction {
 
     val fill = when {
         !redacted -> Modifier
-        shape != null -> Modifier.clip(shape).skeletonFill().drawWithContent { }
+        shape != null -> Modifier.clip(shape).then(redactedFill()).drawWithContent { }
         // First pass: the layout has not been reported yet, so there is nothing
         // to draw bars from. Draw nothing at all rather than the glyphs — a
         // frame of readable text in the middle of a loading screen is the one

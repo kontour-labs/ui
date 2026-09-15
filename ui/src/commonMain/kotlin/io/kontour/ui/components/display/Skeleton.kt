@@ -19,9 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -91,16 +93,30 @@ fun Skeleton(
  * line boxes — and get the shimmer in that shape for free.
  */
 @Composable
-internal fun Modifier.skeletonFill(angle: Float = 0f): Modifier {
+internal fun Modifier.skeletonFill(
+    angle: Float = 0f,
+    /**
+     * The ground the placeholder is drawn in, and `Unspecified` to derive one.
+     *
+     * [Skeleton] passes nothing and gets `surfaceSunken`, which is right for a
+     * block drawn on a page. **Redaction cannot use that**, and the specimen
+     * said so plainly: a redacted `ListItem` draws its bars in `surfaceSunken`
+     * on a container that is already `surfaceSunken`, so two rows came out as
+     * two flat slabs with nothing in them. A placeholder has to contrast with
+     * whatever it happens to be sitting on, and only the caller knows that.
+     */
+    base: Color = Color.Unspecified,
+    highlight: Color = Color.Unspecified,
+): Modifier {
     val colours = Theme.colours
     val reduceMotion = Theme.motion.reduceMotion
 
-    val base = colours.surfaceSunken
-    val highlight = if (colours.isDark) {
-        colours.outline
-    } else {
+    val base = if (base.isSpecified) base else colours.surfaceSunken
+    val highlight = when {
+        highlight.isSpecified -> highlight
+        colours.isDark -> colours.outline
         // Lighter than the base rather than darker: a dark band reads as content.
-        colours.surface
+        else -> colours.surface
     }
 
     // Not registered under reduced motion, where the branch below does not draw
