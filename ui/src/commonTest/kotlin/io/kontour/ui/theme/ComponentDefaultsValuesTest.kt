@@ -130,7 +130,7 @@ class ComponentDefaultsValuesTest {
         assertEquals(96.dp, d.commandPaletteTopInset)
         assertEquals(8.dp, d.coachmarkSpotlightPadding)
         assertEquals(24.dp, d.backdropBlurRadius)
-        assertEquals(0.94f, d.backdropScaleBack)
+        assertEquals(12.dp, d.backdropInset)
         assertEquals(0.58f, d.glassAlpha)
         assertEquals(0.94f, d.glassOpaqueAlpha)
         assertEquals(14.dp, d.glassBlurRadius)
@@ -206,7 +206,7 @@ class ComponentDefaultsValuesTest {
                 commandPaletteTopInset = 96.dp,
                 coachmarkSpotlightPadding = 8.dp,
                 backdropBlurRadius = 24.dp,
-                backdropScaleBack = 0.94f,
+                backdropInset = 12.dp,
                 glassAlpha = 0.58f,
                 glassOpaqueAlpha = 0.94f,
                 glassBlurRadius = 14.dp,

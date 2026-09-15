@@ -183,7 +183,20 @@ data class ComponentDefaults(
     val coachmarkSpotlightPadding: Dp = 8.dp,
     val backdropBlurRadius: Dp = 24.dp,
     /** How far the page behind a sheet or drawer recedes. */
-    val backdropScaleBack: Float = 0.94f,
+    /**
+     * How far the content behind a modal is inset while it is open.
+     *
+     * A **distance**, where it used to be a scale of `0.94`, and the swap is the
+     * whole of "the insets around the screen are not uniform". A uniform scale
+     * insets a rectangle by a fraction of each *axis*, so on a 390x844 phone
+     * 0.94 left 11.7dp at the sides and 25.3dp at the top — more than double,
+     * and it reads as a gap above the receded screen rather than a frame around
+     * it.
+     *
+     * 12dp, and `overlayBackdrop` makes the top and the two sides land on it
+     * exactly. What it cannot make uniform is the fourth edge; see there.
+     */
+    val backdropInset: Dp = 12.dp,
     val glassAlpha: Float = 0.58f,
     /** What a glass surface falls back to at the high-contrast tier. */
     val glassOpaqueAlpha: Float = 0.94f,

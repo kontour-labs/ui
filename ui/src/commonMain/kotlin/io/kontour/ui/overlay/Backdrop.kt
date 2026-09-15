@@ -127,13 +127,51 @@ object BackdropDefaults {
     val BlurRadius: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.backdropBlurRadius
 
-    /** How far back the presenting content sits under a sheet. */
-    val ScaleBack: Float
-        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.backdropScaleBack
+    /** How far in from the screen's edge the presenting content sits under a sheet. */
+    val Inset: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.backdropInset
 }
 
 /**
- * [BackdropDefaults.ScaleBack], or no scale at all when the reader has asked for
+ * The transform that insets the content behind a modal by a uniform margin.
+ *
+ * ### Why a uniform scale could not do it
+ *
+ * Scaling a rectangle insets it by a fraction of each *axis*, so one number
+ * gives two different margins on any screen that is not square: `0.94` on a
+ * 390x844 phone left 11.7dp at the sides and 25.3dp at the top. That is what was
+ * reported — the receded screen read as having a gap above it rather than a
+ * frame around it.
+ *
+ * ### Why not simply scale each axis separately
+ *
+ * Because that distorts. Mapping 390x844 into a 12dp frame needs 0.938 across
+ * and 0.972 down, and a 3.5% difference between them turns every avatar into a
+ * slight ellipse. A placeholder for a screen should not be the wrong shape.
+ *
+ * ### What this does instead
+ *
+ * Scales **uniformly, from the width**, so both side margins are exactly the
+ * inset, and then translates *down* by whatever vertical slack that leaves over.
+ * The top margin lands on the inset too, and the surplus collects at the bottom
+ * — which is the one edge a bottom sheet is covering anyway. Three edges uniform
+ * and the fourth hidden, with no distortion, which is the trade iOS makes.
+ *
+ * On a window wider than it is tall there is no surplus to move — the slack from
+ * a width-derived scale is smaller than the inset — so the translation clamps at
+ * zero and the top settles wherever the uniform scale puts it. A modal over a
+ * landscape window is a centred dialog rather than a bottom sheet, so this is
+ * the case that matters least.
+ */
+internal fun backdropScale(width: Float, insetPx: Float): Float =
+    if (width <= 0f) 1f else (1f - 2f * insetPx / width).coerceIn(0f, 1f)
+
+/** The downward shift that puts the *top* margin on the inset too. See [backdropScale]. */
+internal fun backdropShift(height: Float, scale: Float, insetPx: Float): Float =
+    ((1f - scale) * height / 2f - insetPx).coerceAtLeast(0f)
+
+/**
+ * [BackdropDefaults.Inset], or no inset at all when the reader has asked for
  * reduced motion.
  *
  * **`Motion`'s helpers cannot express this.** `tweenDefault` and `tweenSlow`
@@ -159,8 +197,8 @@ object BackdropDefaults {
  */
 @Composable
 @ReadOnlyComposable
-private fun resolvedScaleBack(): Float =
-    if (Theme.motion.reduceMotion) 1f else BackdropDefaults.ScaleBack
+private fun resolvedInset(): Dp =
+    if (Theme.motion.reduceMotion) 0.dp else BackdropDefaults.Inset
 
 /**
  * Blurs, and optionally pushes back, everything drawn inside this node while an
@@ -196,8 +234,8 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
     val clipShape: Shape = Theme.shapes.extraLarge
     // Read here rather than in the lambda below: `graphicsLayer` runs at draw
     // time, and a theme value has to be captured in composition.
-    val scaleBack = resolvedScaleBack()
-    val scaling = style.scales && scaleBack < 1f
+    val insetPx = with(LocalDensity.current) { resolvedInset().toPx() }
+    val scaling = style.scales && insetPx > 0f
     if (!blurring && !scaling) return this
 
     return graphicsLayer {
@@ -212,7 +250,7 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
             // flash. A blur samples beyond what it is blurring, and left to
             // itself it treats everything outside as *transparent* — so the
             // layer's own edge fades out over the blur radius, and this layer's
-            // edge is the whole screen. Scaled back by `ScaleBack`, that fade
+            // edge is the whole screen. Inset by `Inset`, that fade
             // lands exactly where the reporter saw it: a soft halo hugging the
             // receding content, showing whatever the app is sitting on. Clamping
             // extends the edge pixels instead, so the content stays opaque to
@@ -223,9 +261,13 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
         }
 
         if (scaling) {
-            val scale = lerp(1f, scaleBack, f)
+            val target = backdropScale(size.width, insetPx)
+            val scale = lerp(1f, target, f)
             scaleX = scale
             scaleY = scale
+            // The surplus goes to the bottom, where the sheet is. See
+            // [backdropScale] for why this is not two scales.
+            translationY = lerp(0f, backdropShift(size.height, target, insetPx), f)
             shape = clipShape
             clip = f > 0f
         }
@@ -235,7 +277,7 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
 /**
  * Fills the band a receding sheet leaves around the content.
  *
- * Content scaled to 94% pulls away from every edge, and what shows through is
+ * Content inset from the screen pulls away from every edge, and what shows through is
  * whatever is under the host — usually the window's own background, usually the
  * same colour the content was, so the recession reads as nothing at all. Black
  * behind it is what makes it read as depth, and it is what iOS puts there.
@@ -282,7 +324,7 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         0f
     }
     val backing = Theme.colours.background
-    val scaleBack = resolvedScaleBack()
+    val insetPx = with(LocalDensity.current) { resolvedInset().toPx() }
 
     return drawBehind {
         val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
@@ -326,9 +368,16 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         // taken deliberately here rather than by accident. The difference is
         // that it is a single pixel and it is the same pixel all the way round,
         // where that bug was a whole corner radius and only in the corners.
-        val scale = lerp(1f, scaleBack, f)
+        val target = backdropScale(size.width, insetPx)
+        val scale = lerp(1f, target, f)
+        val shift = lerp(0f, backdropShift(size.height, target, insetPx), f)
         val overlap = 2f * SeamOverlap / minOf(size.width, size.height)
         geometry.matrix.reset()
+        // The same shift the content's layer applies, or the hole and the
+        // content stop being the same rectangle and the band shows down one
+        // side of it. Applied outside the scale, because `translationY` on a
+        // `graphicsLayer` is in the *parent's* coordinates and is not scaled.
+        geometry.matrix.translate(0f, shift)
         geometry.matrix.translate(size.width / 2f, size.height / 2f)
         geometry.matrix.scale(scale - overlap, scale - overlap)
         geometry.matrix.translate(-size.width / 2f, -size.height / 2f)
