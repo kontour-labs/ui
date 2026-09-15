@@ -840,6 +840,12 @@ val componentRegistry: List<ComponentSpec> = buildList {
             activatedByClick = false,
             expectsMinimumTarget = false,
             underContract = false,
+            // Three targets and a rule, stacked. The default card is 120dp
+            // tall and this is not — the first golden recorded it with the
+            // divider and the third button cropped off the bottom, which is a
+            // picture of a bar that does not exist. Only ever to *fit*: the
+            // crop takes back whatever this does not use.
+            renderHeight = 200,
         ) { modifier, enabled, onActivate ->
             VerticalToolbar(modifier) {
                 IconButton(
