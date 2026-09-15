@@ -30,8 +30,19 @@
       <Testables>
       </Testables>
    </TestAction>
+   <!-- Release, not Debug, and this is deliberate rather than left at Xcode's
+        default. `embedAndSignAppleFrameworkForXcode` reads CONFIGURATION to pick
+        which Kotlin framework to build, so a Debug run links a Kotlin/Native
+        binary compiled without optimisation — the whole Compose runtime, this
+        library's layout and every animation in it. `docs/building/testing.md`
+        has said "release, not debug" about the Android host since the frame
+        readout was written; the first version of this scheme did not apply the
+        same rule here, and the gallery was reported as "not at all smooth".
+        The cost is a slow first build, because Kotlin/Native optimises the whole
+        graph. Switch this to Debug in Product > Scheme > Edit Scheme when you
+        actually need breakpoints. -->
    <LaunchAction
-      buildConfiguration = "Debug"
+      buildConfiguration = "Release"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"

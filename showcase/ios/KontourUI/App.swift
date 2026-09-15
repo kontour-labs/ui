@@ -29,14 +29,36 @@ struct KontourUIApp: App {
     var body: some Scene {
         WindowGroup {
             CatalogView()
-                // Compose does its own keyboard avoidance — `WindowInsets.ime`
-                // is a first-class token in this library and the sheets read it
-                // — so letting SwiftUI also inset for the keyboard would move
-                // the content twice. Every other safe-area edge is left alone
-                // on purpose: `ComposeUIViewController` reports those to Compose
-                // as window insets, which is what `NavBar` and `BottomSheet`
-                // already consume.
-                .ignoresSafeArea(.keyboard)
+                // Every edge and every region, which is this host's one real
+                // decision and the reason it is spelled out.
+                //
+                // This library is edge-to-edge by construction. `TopBar` paints
+                // its `Surface` across the full width and *then* applies
+                // `windowInsetsPadding(WindowInsets.topEdges)` inside it, so the
+                // background runs under the status bar while the title sits
+                // below it; `NavBar` does the same at the bottom with the home
+                // indicator. `MainActivity` gets there by calling
+                // `enableEdgeToEdge()`, and this is the same statement in
+                // SwiftUI's vocabulary.
+                //
+                // Anything less hurts twice, which is how the first version of
+                // this file was found to be wrong. `.ignoresSafeArea(.keyboard)`
+                // ignores the *keyboard* region only, so SwiftUI went on
+                // shrinking the view to the safe area: the bars' backgrounds
+                // stopped at the boundary instead of reaching under the system
+                // chrome, and UIKit still propagated the window's
+                // `safeAreaInsets` into the hosted controller, so Compose padded
+                // for a status bar it had already been moved clear of. Reported
+                // as "the top bar and bottom bar cut off the background" and
+                // "the content is way too inset at the top" — two symptoms, one
+                // modifier.
+                //
+                // The keyboard is included in `.all` and wants to be: Compose
+                // has its own IME handling, `WindowInsets.ime` is a first-class
+                // token here, and `sheetEdges` unions it in for exactly the
+                // surfaces that hold a text field. SwiftUI insetting as well
+                // would move those twice.
+                .ignoresSafeArea()
         }
     }
 }

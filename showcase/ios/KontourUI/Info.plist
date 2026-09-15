@@ -18,6 +18,12 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<!-- Without this, iOS caps the app at 60Hz on a ProMotion phone whatever
+	     the display is capable of, and Compose Multiplatform's own plist sanity
+	     check says so at launch. It was missing from the first version of this
+	     file and a reader had to add it by hand. -->
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

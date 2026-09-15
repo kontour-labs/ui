@@ -38,6 +38,24 @@ of it:
       `cd` that lands on the repository root
   12. the shared scheme exists and names the target by its real identifier
 
+Three more were added after the host was first run on a phone, because all three
+of the defects reported were things this file could have caught and did not:
+
+  13. `App.swift` ignores the safe area on **every** edge. This library is
+      edge-to-edge — `TopBar` paints its background full-width and pads its
+      content with `WindowInsets.topEdges` inside — so a host that lets SwiftUI
+      shrink the view to the safe area gets bar backgrounds cut off at the
+      boundary *and* content inset twice.
+  14. `Info.plist` sets `CADisableMinimumFrameDurationOnPhone`. Without it iOS
+      caps the app at 60Hz on a ProMotion display, and Compose Multiplatform's
+      own plist check complains at launch.
+  15. the scheme's Run action uses a **Release** configuration.
+      `embedAndSignAppleFrameworkForXcode` picks the Kotlin framework from
+      `CONFIGURATION`, so a Debug run links a Kotlin/Native binary built without
+      optimisation — this repository has told Android readers "release, not
+      debug" since the frame readout was written, and the iOS host shipped
+      without the same rule.
+
 What is left unchecked is what only Xcode can answer: whether the app launches,
 whether a static Kotlin framework drags in every system framework it needs, and
 whether `:ui`'s seven bundled fonts reach the app bundle through Compose
@@ -484,16 +502,87 @@ else:
                     "this as a scheme with a missing target"
                 )
 
+        # 15. Run in Release.
+        for launch in scheme.getElementsByTagName("LaunchAction"):
+            if launch.getAttribute("buildConfiguration") != "Release":
+                fail(
+                    "the scheme's Run action is set to "
+                    f"{launch.getAttribute('buildConfiguration') or '(nothing)'} "
+                    "rather than Release. `embedAndSignAppleFrameworkForXcode` "
+                    "reads CONFIGURATION to choose which Kotlin framework to "
+                    "build, so this links a Kotlin/Native binary compiled "
+                    "without optimisation — the Compose runtime, this library's "
+                    "layout and every animation in it. It is the same rule "
+                    "`:showcase:android:installRelease` follows, and judging how "
+                    "a gallery feels from a debug build is judging the wrong "
+                    "thing"
+                )
+
 # ---------------------------------------------------------------------------
-# Also: the Info.plist has to be a property list
+# 13. The host has to let Compose reach the edges of the window
+# ---------------------------------------------------------------------------
+#
+# Matched on the modifier rather than on behaviour, which is the most a text
+# file can do — but it is the difference between the two spellings that was the
+# defect, and they are distinguishable on sight. `.ignoresSafeArea()` and
+# `.ignoresSafeArea(.all)` cover every region; `.ignoresSafeArea(.keyboard)` and
+# `.ignoresSafeArea(.container, edges: .top)` do not.
+
+IGNORES_ALL = re.compile(r"\.ignoresSafeArea\(\s*(?:\.all\s*)?\)")
+IGNORES_SOME = re.compile(r"\.ignoresSafeArea\(\s*[^)\s][^)]*\)")
+SWIFT_COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
+
+
+def code_only(text: str) -> str:
+    """Swift with its comments blanked out.
+
+    Necessary in both directions, and the canary for this rule is what showed
+    it. The paragraph above the modifier *names* the wrong spelling in order to
+    explain why it is wrong — so without this, the failure message quoted a
+    string out of a comment rather than the code it was complaining about, and,
+    worse, a correct-looking modifier written only in a comment would have
+    satisfied the rule while the code beneath it did the wrong thing.
+    """
+    return SWIFT_COMMENT.sub(lambda m: " " * len(m.group(0)), text)
+
+
+swift_sources = sorted(HOST.rglob("*.swift"))
+if swift_sources:
+    swift_text = code_only("\n".join(f.read_text() for f in swift_sources))
+    if not IGNORES_ALL.search(swift_text):
+        narrowed = IGNORES_SOME.search(swift_text)
+        fail(
+            "no `.ignoresSafeArea()` covering every region in the host's Swift"
+            + (f" — it says `{narrowed.group(0)}` instead" if narrowed else "")
+            + ". This library is edge-to-edge: `TopBar` paints its background "
+            "across the full width and applies `WindowInsets.topEdges` to its "
+            "content inside that, so a view SwiftUI has shrunk to the safe area "
+            "shows the bar's background cut off at the boundary and its content "
+            "inset twice — once by SwiftUI and again by Compose, which is still "
+            "handed the window's insets. `MainActivity` says the same thing as "
+            "`enableEdgeToEdge()`"
+        )
+
+# ---------------------------------------------------------------------------
+# 14. The frame-rate key, and the Info.plist being a plist at all
 # ---------------------------------------------------------------------------
 
 for oid, path in on_disk.items():
-    if path.name == "Info.plist" and path.exists():
-        try:
-            plistlib.loads(path.read_bytes())
-        except Exception as problem:  # noqa: BLE001
-            fail(f"{path.relative_to(ROOT)} is not a valid plist: {problem}")
+    if path.name != "Info.plist" or not path.exists():
+        continue
+    try:
+        info = plistlib.loads(path.read_bytes())
+    except Exception as problem:  # noqa: BLE001
+        fail(f"{path.relative_to(ROOT)} is not a valid plist: {problem}")
+        continue
+    if info.get("CADisableMinimumFrameDurationOnPhone") is not True:
+        fail(
+            f"{path.relative_to(ROOT)} does not set "
+            "CADisableMinimumFrameDurationOnPhone to true. iOS then caps the app "
+            "at 60Hz on a ProMotion display whatever the panel can do, and "
+            "Compose Multiplatform's own plist sanity check says so at launch — "
+            "which is how this was found, by a reader adding the key by hand"
+        )
 
 # ---------------------------------------------------------------------------
 
