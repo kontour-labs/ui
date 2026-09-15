@@ -2,6 +2,9 @@ package io.kontour.ui.components.display
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -11,13 +14,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -25,11 +33,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.SpringToken
 import io.kontour.ui.theme.Theme
+import kotlin.time.Duration
+import kotlinx.coroutines.delay
 
 /**
  * A number that rolls to its new value instead of being replaced.
@@ -104,10 +115,56 @@ fun AnimatedCounter(
      * places for the number depending on whether it animated.
      */
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
+    /**
+     * How long the digits wiggle before the number falls.
+     *
+     * `ZERO` — off — and it only ever applies to a **decrease**. A number going
+     * up is good news and arrives as fast as it likes; a number going down is a
+     * seat gone, a balance spent, a minute lost, and the report was that it
+     * happens with no warning at all.
+     *
+     * The counter cannot see the future, so it makes one: a drop is *held* for
+     * this long, wiggled, and only then rolled. What the reader gets is a few
+     * seconds of "something is about to change" before it does, which is the
+     * thing being asked for; what it costs is that the drawn number lags the
+     * hoisted [value] by exactly this much while the warning runs. That is the
+     * trade, and it is why this is opt-in and zero by default rather than a
+     * behaviour every counter in an app suddenly has.
+     *
+     * A second drop landing mid-warning restarts nothing: the wiggle continues
+     * and the roll, when it comes, goes to wherever the value has reached. So a
+     * value falling every second does not queue a second of warning per step.
+     *
+     * Ignored under reduced motion, which takes the delay with it — a reader who
+     * has asked for less movement should not also be shown a stale number.
+     */
+    warnBefore: Duration = Duration.ZERO,
     contentDescription: String? = null,
 ) {
     val motion = Theme.motion
-    val text = format(value)
+
+    // What is actually drawn, which is `value` except while a fall is being
+    // announced. See [warnBefore].
+    var shown by remember { mutableIntStateOf(value) }
+    var warning by remember { mutableStateOf(false) }
+
+    LaunchedEffect(value, warnBefore, motion.reduceMotion) {
+        val falling = value < shown
+        if (!falling || warnBefore <= Duration.ZERO || motion.reduceMotion) {
+            warning = false
+            shown = value
+            return@LaunchedEffect
+        }
+        // Already warning: the wiggle running is the announcement, and this
+        // effect will be relaunched by the value it lands on.
+        if (warning) return@LaunchedEffect
+        warning = true
+        delay(warnBefore)
+        warning = false
+        shown = value
+    }
+
+    val text = format(shown)
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
 
@@ -142,14 +199,52 @@ fun AnimatedCounter(
     // changes, and the previous value is written *after* composition — so a
     // recomposition that changes nothing else does not flip the direction, and
     // a jump from 14 to 3 still rolls downward. It went down, however far.
-    val previous = remember { PreviousValue(value) }
-    val goingUp = remember(value) { value >= previous.value }
-    SideEffect { previous.value = value }
+    val previous = remember { PreviousValue(shown) }
+    val goingUp = remember(shown) { shown >= previous.value }
+    SideEffect { previous.value = shown }
+
+    // The wiggle itself: a small horizontal shake, on the whole number rather
+    // than per digit, because it is one object saying something about itself.
+    //
+    // An `Animatable` driven by an effect rather than `rememberInfiniteTransition`,
+    // and that is not a style choice. An infinite transition runs for as long as
+    // it is composed — so every counter in an app would carry a perpetual
+    // animation to be ready for a warning most of them never give, which is the
+    // exact shape of a defect this repository has already fixed once under the
+    // heading of animations running for nobody. This one exists between the drop
+    // and the roll and at no other time.
+    val wobble = remember { Animatable(0f) }
+    LaunchedEffect(warning) {
+        if (!warning) {
+            wobble.snapTo(0f)
+            return@LaunchedEffect
+        }
+        val leg = tween<Float>(WigglePeriodMillis, easing = LinearEasing)
+        while (true) {
+            wobble.animateTo(1f, leg)
+            wobble.animateTo(-1f, leg)
+        }
+    }
+    val amplitude = with(LocalDensity.current) { WiggleAmplitude.toPx() }
 
     Row(
-        modifier = modifier.semantics {
-            this.contentDescription = contentDescription ?: text
-        },
+        modifier = modifier
+            .graphicsLayer { translationX = wobble.value * amplitude }
+            .semantics {
+                // What is drawn, not what is pending.
+                //
+                // The other way round is tempting — a screen reader gets no
+                // wiggle, so the warning does not exist for it, and announcing
+                // the number that is coming would spare it the delay. It is
+                // wrong: a sighted user of a screen reader would hear one number
+                // and see another, and the invariant a counter's description
+                // has always had is that it says what the counter says.
+                //
+                // The delay is the cost of the warning and it is paid in every
+                // channel. `warnBefore` is opt-in and zero by default for that
+                // reason.
+                this.contentDescription = contentDescription ?: text
+            },
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -226,3 +321,16 @@ object AnimatedCounterDefaults {
      */
     val Roll: SpringToken = SpringToken(dampingRatio = 1f, stiffness = 1400f)
 }
+
+/**
+ * How far the digits travel each way while a fall is being announced.
+ *
+ * A private top-level value rather than a field on `AnimatedCounterDefaults`,
+ * for the reason the literals ratchet exists: this is a fact about what a
+ * wiggle is, not a dial a brand reaches for. 1.5dp is small enough to read as
+ * a tremor on a headline figure and large enough to see on a body one.
+ */
+private val WiggleAmplitude: Dp = 1.5.dp
+
+/** One there-and-back. Fast enough to read as agitation rather than as drift. */
+private const val WigglePeriodMillis: Int = 90

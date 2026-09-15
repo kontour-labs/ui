@@ -28,6 +28,29 @@ reader announces "one", "four", "space", "m", "i", "n".
 
 ---
 
+**`warnBefore` makes the counter flinch before a number falls.** Off by default,
+and only ever on a **decrease**: a number going up is good news and arrives as
+fast as it likes, while a number going down is a seat gone, a balance spent, a
+minute lost — and the report was that it happens with no warning at all.
+
+The counter cannot see the future, so it makes one. A drop is *held* for
+`warnBefore`, the digits wiggle, and only then does the roll happen. What a
+reader gets is a couple of seconds of "something is about to change" before it
+does; what it costs is that the drawn number lags the hoisted `value` for
+exactly that long. That is the trade, and it is why this is opt-in rather than
+something every counter in an app quietly starts doing.
+
+A second drop landing mid-warning restarts nothing — the wiggle carries on and
+the roll, when it comes, goes to wherever the value has reached — so a value
+falling every second does not queue a second of warning per step.
+
+The wiggle is an `Animatable` driven between the drop and the roll, not an
+infinite transition: an infinite one runs for as long as it is composed, so
+every counter in an app would carry a perpetual animation to be ready for a
+warning most of them never give.
+
+---
+
 ## Accessibility
 
 The announced value is `contentDescription`, defaulting to the text, set on the
@@ -41,3 +64,8 @@ rather than "4".
 It is not a live region: it does not announce itself when it changes. Where the
 change is the point — a departure time counting down — that is
 [`RelativeTimeText`](relative-time-text.md), which is.
+
+The description follows **what is drawn**, including while a fall is being held.
+Announcing the pending number instead would spare a screen reader the delay, and
+would mean a sighted user of one hears a number they cannot see. The delay is
+the cost of the warning and it is paid in every channel.
