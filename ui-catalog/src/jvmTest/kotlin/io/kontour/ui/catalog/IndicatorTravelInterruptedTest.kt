@@ -118,6 +118,90 @@ class IndicatorTravelInterruptedTest {
     }
 
     /**
+     * The marker's left edge on each frame after the selection changes twice.
+     *
+     * Selection goes to the far item, then back to the one it started on
+     * [changeAt] frames later — the "changed my mind" tap, and the one
+     * interruption a single `lastKey` could not tell from a resize, because the
+     * new target is exactly the key the marker last settled on.
+     */
+    private fun tapBack(changeAt: Int, frames: Int = 24): List<Float> {
+        var selected by mutableStateOf(0)
+        var marker = 0f
+        val path = mutableListOf<Float>()
+        Scene(1400, 200, reduceMotion = false) {
+            val state = rememberSelectionIndicatorState()
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SelectionIndicatorBox(
+                    state = state,
+                    sizing = IndicatorSizing.Fill,
+                    modifier = Modifier.width(400.dp).height(60.dp),
+                    indicator = {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(Color.Black)
+                                .onGloballyPositioned { marker = it.positionInRoot().x }
+                        )
+                    },
+                ) {
+                    Row(Modifier.fillMaxSize()) {
+                        items.forEachIndexed { index, item ->
+                            Box(
+                                Modifier
+                                    .width(100.dp)
+                                    .fillMaxHeight()
+                                    .selectionIndicatorItem(item, index == selected)
+                            )
+                        }
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(30)
+            selected = 3
+            repeat(frames) { frame ->
+                if (frame == changeAt) selected = 0
+                scene.frame()
+                path += marker
+            }
+        }
+        return path
+    }
+
+    /**
+     * Changing your mind mid-travel animates back rather than snapping back.
+     *
+     * The reported defect, and the one the resize test could not see. While the
+     * marker travels from item 0 to item 3, item 0 *is* the settled key — so a
+     * tap on it produced `movedItem = false`, took the branch written for "same
+     * item, new rect", and covered the whole return in one frame.
+     *
+     * Measured the same way as the resize: against the fastest frame of an
+     * uninterrupted travel of the same length.
+     */
+    @Test
+    fun tappingBackMidTravelAnimatesRatherThanSnapping() {
+        val interrupted = tapBack(changeAt = 3)
+        val undisturbed = travel(resizeAt = Int.MAX_VALUE)
+
+        val biggest = interrupted.zipWithNext { a, b -> abs(b - a) }.maxOrNull() ?: 0f
+        val natural = undisturbed.zipWithNext { a, b -> abs(b - a) }.maxOrNull() ?: 0f
+
+        assertTrue(
+            biggest <= natural * 2f,
+            "the marker moved ${biggest}px in one frame after the selection " +
+                "returned to where it started, against ${natural}px in the " +
+                "fastest frame of an uninterrupted travel. A target equal to the " +
+                "settled key is only a resize when nothing is in flight; while a " +
+                "travel is running it is a new destination and has to be sprung " +
+                "to.\npath: " +
+                interrupted.joinToString(" ") { it.toInt().toString() } +
+                "\nundisturbed: " + undisturbed.joinToString(" ") { it.toInt().toString() },
+        )
+    }
+
+    /**
      * The marker does not teleport when the row resizes mid-travel.
      *
      * Measured as the largest single-frame step. A spring's biggest step is a

@@ -329,7 +329,21 @@ fun SelectionIndicatorBox(
     val bounds = remember { Animatable(Rect.Zero, Rect.VectorConverter) }
     val alpha = remember { Animatable(0f) }
     var measured by remember { mutableStateOf(false) }
-    var lastKey by remember { mutableStateOf<Any?>(null) }
+
+    // Two keys, because one cannot answer both questions asked of it.
+    //
+    // `settledKey` is where the marker last *arrived*. `headingTo` is where an
+    // in-flight travel is aimed, set before the spring and cleared only when it
+    // completes — so a cancelled travel leaves it set, which is the whole point.
+    //
+    // There used to be one key, advanced after the travel, and it could not
+    // tell an interrupted travel from a resize. Tapping the segment the marker
+    // was travelling *away from* — the "changed my mind" tap, and the commonest
+    // interruption there is — produced a target equal to the settled key,
+    // which is indistinguishable from "same item, new rect", and took the
+    // snap branch. The marker teleported back.
+    var settledKey by remember { mutableStateOf<Any?>(null) }
+    var headingTo by remember { mutableStateOf<Any?>(null) }
 
     LaunchedEffect(resolved, state.targetKey) {
         val target = resolved
@@ -340,7 +354,9 @@ fun SelectionIndicatorBox(
             return@LaunchedEffect
         }
 
-        val movedItem = state.targetKey != lastKey
+        // In flight, whoever the finger has since chosen.
+        val travelling = headingTo != null
+        val movedItem = state.targetKey != settledKey
 
         // A marker that is not on screen has no position worth keeping.
         //
@@ -354,7 +370,13 @@ fun SelectionIndicatorBox(
         //
         // Faded out is the same situation as never drawn, so it takes the same
         // branch: put it where it is going and fade it up there.
-        val hidden = alpha.value < 1f
+        // Faded *out*, not merely mid-fade.
+        //
+        // This read `alpha.value < 1f`, which is true for the whole of the
+        // fade-in that follows every travel — so a selection made in that
+        // window snapped, for a marker the user could already see most of.
+        // Gone is what this branch is about, and gone is near zero.
+        val hidden = alpha.value < FadedOut
 
         when {
             // First appearance, or a return from nothing. Neither should slide
@@ -363,9 +385,16 @@ fun SelectionIndicatorBox(
                 bounds.snapTo(target)
                 measured = true
             }
-            // Same item, new rect: the window resized or the type scale changed.
-            // A spring chasing a resize reads as lag, not as motion.
-            !movedItem -> bounds.snapTo(target)
+            // Same item, new rect, and nothing in flight: the window resized or
+            // the type scale changed. A spring chasing a resize reads as lag,
+            // not as motion.
+            //
+            // `!travelling` is what makes this safe to snap. A rect that
+            // changes *during* a travel is the same statement about the
+            // destination and not a reason to abandon the spring, and a target
+            // that changes back to where the marker started is a new
+            // destination however much it looks like the old one.
+            !travelling && !movedItem -> bounds.snapTo(target)
             // Reduced motion asks for opacity instead of travel, which is exactly
             // what a bar sliding the width of the screen is. Documented in
             // `Motion`: "transition presets swap movement for opacity".
@@ -382,12 +411,15 @@ fun SelectionIndicatorBox(
             // Deliberately not `springBouncy`: its own token doc says it is
             // suppressed entirely under reduced motion, and a selection marker
             // should not change character that much between the two settings.
-            else -> bounds.animateTo(target, motion.springOrTween(motion.springDefault))
+            else -> {
+                headingTo = state.targetKey
+                bounds.animateTo(target, motion.springOrTween(motion.springDefault))
+            }
         }
 
         // **After** the travel, not before it.
         //
-        // `lastKey` answers "has this item already been arrived at", and the
+        // `settledKey` answers "has this item already been arrived at", and the
         // branch above spends the whole length of a spring inside `animateTo`.
         // This effect restarts whenever the target rect changes — a rail
         // expanding, a window resizing, a container re-measuring under the
@@ -397,13 +429,20 @@ fun SelectionIndicatorBox(
         // **abandoned the spring**: the marker covered the rest of the distance
         // in a single frame.
         //
+        // `headingTo` is cleared here for the mirror-image reason. It answers
+        // "is a travel in flight", which is the question that keeps the resize
+        // branch away from an interruption, and a travel is only finished once
+        // the spring returns.
+        //
         // Measured with a row that changes width three frames into a travel:
         // 858px in one frame, against 103px in the fastest frame of the same
         // travel left alone. See `IndicatorTravelInterruptedTest`.
         //
-        // A cancelled coroutine never reaches this line, which is exactly the
-        // property wanted: a travel that did not finish has not claimed its key.
-        lastKey = state.targetKey
+        // A cancelled coroutine never reaches these lines, which is exactly the
+        // property wanted: a travel that did not finish has neither claimed its
+        // key nor stopped being in flight.
+        settledKey = state.targetKey
+        headingTo = null
         alpha.animateTo(1f, motion.tweenFast())
     }
 
@@ -440,7 +479,7 @@ fun SelectionIndicatorBox(
      */
     val rect = when {
         bounds.isRunning -> bounds.value
-        state.targetKey == lastKey -> resolved ?: bounds.value
+        state.targetKey == settledKey -> resolved ?: bounds.value
         else -> bounds.value
     }
     val visible = measured
@@ -466,7 +505,7 @@ fun SelectionIndicatorBox(
             // raised during the layout pass is serviced before the frame draws.
             val live = when {
                 bounds.isRunning -> bounds.value
-                state.targetKey == lastKey ->
+                state.targetKey == settledKey ->
                     state.target?.let {
                         resolveIndicatorBounds(sizing, it, density, layoutDirection)
                     } ?: bounds.value
@@ -613,3 +652,16 @@ private fun SelectionIndicatorState.reportIfPossible(
         ),
     )
 }
+
+/**
+ * Below this the marker counts as gone rather than as arriving.
+ *
+ * `alpha` animates to 1 after every travel, so "not fully opaque" describes the
+ * tail of a perfectly normal transition as well as a marker that has faded out.
+ * Treating the two alike made a selection landing in that window snap instead of
+ * travel, for a marker the user could already see most of. A tenth is well
+ * inside the fade's first frames and well above the zero a faded-out marker
+ * rests at.
+ */
+private const val FadedOut = 0.1f
+
