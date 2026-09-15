@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.withTimeoutOrNull
@@ -318,12 +319,26 @@ fun LazyItemScope.ReorderableItem(
 
     // Read at gesture time, exactly like `currentIndex` above and for exactly the
     // same reason — see `reorderDrag`.
-    val immediate by rememberUpdatedState(handleIcon != null || !modality.needsLargeTargets)
+    //
+    // It used to read `handleIcon != null || !modality.needsLargeTargets`, one
+    // value for the whole row, because a handle meant the row itself was not
+    // draggable at all. Now that both are, the question splits: **the row** waits
+    // for a long press on a touchscreen, because a lazy list has a scroll to
+    // steal; **the handle** never does, because a grip has nothing to steal.
+    val pointerImmediate by rememberUpdatedState(!modality.needsLargeTargets)
 
-    val drags = Modifier.reorderDrag(
+    val rowDrags = Modifier.reorderDrag(
         state = state,
         enabled = enabled,
-        immediate = { immediate },
+        immediate = { pointerImmediate },
+        currentIndex = { currentIndex },
+        feedback = feedback,
+    )
+
+    val handleDrags = Modifier.reorderDrag(
+        state = state,
+        enabled = enabled,
+        immediate = { true },
         currentIndex = { currentIndex },
         feedback = feedback,
     )
@@ -342,7 +357,12 @@ fun LazyItemScope.ReorderableItem(
                 // A small lift, not a large one. The row is still in the list.
                 scaleX = 1f + 0.02f * lift
                 scaleY = 1f + 0.02f * lift
-                shadowElevation = 8f * lift
+                // In *pixels*, which `graphicsLayer` does not say and this
+                // used to assume otherwise: a bare `8f` is 8dp at 1x, 4 at 2x
+                // and 2.7 at 3x, so the lift got shallower the better the
+                // screen. Nothing caught it because every golden is rendered at
+                // one density.
+                shadowElevation = ReorderLift.toPx() * lift
                 // Without this the shadow is a rectangle whatever the row is.
                 this.shape = shadowShape
                 clip = false
@@ -361,10 +381,18 @@ fun LazyItemScope.ReorderableItem(
                     }
                 }
             }
-            // Only when there is no handle. With one, the row itself stays
-            // free — which is the point of asking for a handle: a row that is
-            // also a link cannot afford to swallow a long press.
-            .then(if (handleIcon == null) drags else Modifier)
+            // Always, handle or not.
+            //
+            // This used to be `if (handleIcon == null)`, and the reasoning was
+            // sound as far as it went: a row that is also a link cannot afford
+            // to swallow a long press. What it missed is that asking for a
+            // handle does not stop the row being a row — every platform's own
+            // editable list lets you drag by either — so turning the grip on
+            // took the whole row's gesture away with it.
+            //
+            // The long press is what keeps the link safe, and the row still
+            // waits for one. The handle is the part that does not.
+            .then(rowDrags)
     ) {
         if (handleIcon == null) {
             content()
@@ -373,11 +401,11 @@ fun LazyItemScope.ReorderableItem(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (handleSide == ReorderHandleSide.Start) {
-                ReorderGrip(handleIcon, enabled, drags)
+                ReorderGrip(handleIcon, enabled, handleDrags)
             }
             Box(Modifier.weight(1f)) { content() }
             if (handleSide == ReorderHandleSide.End) {
-                ReorderGrip(handleIcon, enabled, drags)
+                ReorderGrip(handleIcon, enabled, handleDrags)
             }
         }
     }
@@ -456,37 +484,70 @@ private fun Modifier.reorderDrag(
     // keyed on anything that changes *during* a gesture; what changes gets read
     // when the gesture asks for it.
     this.pointerInput(state) {
+        // Whether *this* node is the one holding the row.
+        //
+        // The row and its handle are two of these over overlapping areas, and
+        // both see every down — `awaitFirstDown(requireUnconsumed = false)`.
+        // Movement sorts them out by itself, because the winner consumes and the
+        // long-press loop gives up the moment its finger travels. A press held
+        // *still* on the grip does not: the row's half-second would elapse, fire
+        // a `LongPress`, and start a drag the grip is about to start again.
+        //
+        // So starting is conditional on nobody having the row, and everything
+        // after it is conditional on this node having been the one that took it.
+        // Without the second half a node that never started would still call
+        // `stop()` on the drag that did.
+        var owned = false
+
         val onStart: (Offset) -> Unit = {
-            // Only where a long press is what started it. `LongPress` announces
-            // that a threshold was reached and the row is now yours to move —
-            // on the [immediate] path there is no threshold to announce, and
-            // firing it there was a haptic for a mouse-down on a grip.
-            if (!immediate()) feedback.perform(FeedbackIntent.LongPress)
-            state.start(currentIndex())
+            if (state.draggingIndex == null) {
+                owned = true
+                // Only where a long press is what started it. `LongPress`
+                // announces that a threshold was reached and the row is now
+                // yours to move — on the [immediate] path there is no threshold
+                // to announce, and firing it there was a haptic for a
+                // mouse-down on a grip.
+                if (!immediate()) feedback.perform(FeedbackIntent.LongPress)
+                state.start(currentIndex())
+            }
         }
         val onDrag: (PointerInputChange, Offset) -> Unit = { change, amount ->
-            change.consume()
-            state.drag(amount.y)
+            if (owned) {
+                change.consume()
+                state.drag(amount.y)
+            }
         }
         val onEnd: () -> Unit = {
-            // Lighter than the reorders it follows: `SegmentFrequentTick`
-            // against their `SegmentTick`. A drop is a confirmation that the row
-            // has landed, not news — the news already happened, once per gap the
-            // row crossed. `GestureEnd`, which this used to be, is a thud, and a
-            // thud at the end of a run of clicks reads as the gesture having
-            // gone wrong.
-            feedback.perform(FeedbackIntent.Tick)
-            state.stop()
+            if (owned) {
+                owned = false
+                // Lighter than the reorders it follows. A drop is a
+                // confirmation that the row has landed, not news — the news
+                // already happened, once per gap the row crossed. `GestureEnd`,
+                // which this used to be, is a thud, and a thud at the end of a
+                // run of clicks reads as the gesture having gone wrong.
+                feedback.perform(FeedbackIntent.Tick)
+                state.stop()
+            }
         }
         detectReorderDrag(
             immediate = immediate,
             onDragStart = onStart,
             onDrag = onDrag,
             onDragEnd = onEnd,
-            onDragCancel = { state.stop() },
+            onDragCancel = { if (owned) { owned = false; state.stop() } },
         )
     }
 }
+
+/**
+ * How far the dragged row lifts off the list.
+ *
+ * A `Dp`, because `graphicsLayer.shadowElevation` is in pixels and the number
+ * that was there was neither — a raw `8f` that meant 8dp on a 1x desktop and
+ * 2.7dp on a 3x phone, which is most of the lift gone on the device the gesture
+ * is actually made on.
+ */
+private val ReorderLift: Dp = 8.dp
 
 /**
  * How far a finger may wander during the hold and still be holding still.
