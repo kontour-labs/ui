@@ -174,6 +174,9 @@ fun Slider(
     // ticker's own rate limit rather than anything this component decides.
     val ticker = rememberDetentTicker()
 
+    // Read here rather than inside `drawWithCache`, which is not a composable.
+    val tickSize = Theme.componentDefaults.sliderTickSize
+
     /**
      * Where the finger actually is, in fractions of the track. `NaN` when no
      * drag is in progress.
@@ -455,6 +458,7 @@ fun Slider(
                 )
                 .drawWithCache {
                     val trackHeightPx = SliderTrackHeight.toPx()
+                    val tickPx = tickSize.toPx()
                     val thumbRadiusPx = SliderThumbRadius.toPx()
                     val thumbReachPx = SliderThumbReach.toPx()
                     val centreY = size.height / 2f
@@ -488,16 +492,17 @@ fun Slider(
                             cornerRadius = CornerRadius(trackHeightPx / 2f),
                         )
 
-                        if (showTicks && steps > 0) {
-                            val stepCount = steps + 1
-                            for (i in 0..stepCount) {
-                                val x = trackLeft + trackWidth * i / stepCount
-                                drawCircle(
-                                    color = if (x <= thumbX) colours.onPrimary else colours.contentSubtle,
-                                    radius = trackHeightPx * 0.22f,
-                                    center = Offset(x, centreY),
-                                )
-                            }
+                        if (showTicks) {
+                            sliderTicks(
+                                trackLeft = trackLeft,
+                                trackWidth = trackWidth,
+                                centreY = centreY,
+                                steps = steps,
+                                diameterPx = tickPx,
+                                coveredColour = colours.onPrimary,
+                                uncoveredColour = colours.contentSubtle,
+                                covered = { x -> x <= thumbX },
+                            )
                         }
 
                         sliderThumb(

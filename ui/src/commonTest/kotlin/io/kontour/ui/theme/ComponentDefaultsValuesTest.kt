@@ -75,6 +75,11 @@ class ComponentDefaultsValuesTest {
     fun controlMetricsAreWhatTheyWere() {
         assertEquals(6.dp, d.segmentedTrackPadding)
         assertEquals(6.dp, d.toolbarPadding)
+        // Not a transcription from a pre-sweep `*Defaults` object like its
+        // neighbours: there was nothing to transcribe. The tick was
+        // `trackHeight * 0.22f` inline in two files, which is 1.76dp and is the
+        // number the report was about.
+        assertEquals(3.dp, d.sliderTickSize)
     }
 
     @Test
@@ -165,6 +170,7 @@ class ComponentDefaultsValuesTest {
                 pressScaleMedium = 0.95f,
                 segmentedTrackPadding = 6.dp,
                 toolbarPadding = 6.dp,
+                sliderTickSize = 3.dp,
                 listItemMinHeight = 48.dp,
                 listItemTwoLineMinHeight = 64.dp,
                 listItemSpacing = 2.dp,

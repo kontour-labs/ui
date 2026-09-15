@@ -107,3 +107,44 @@ internal fun DrawScope.sliderThumb(
         cornerRadius = CornerRadius((r - ringPx).coerceAtLeast(0f)),
     )
 }
+
+/**
+ * The detent marks along a slider's track.
+ *
+ * One drawing, because there were two and they had drifted into being the same
+ * arithmetic written twice — `trackHeight * 0.22f`, in `Slider` and in
+ * `RangeSlider`, differing only in how each decides whether a mark is covered.
+ * That is the shape [sliderThumb] is already in and for the same reason.
+ *
+ * **Sized, not derived.** The old factor worked out at 1.76dp across on a 4dp
+ * track, which is under two pixels at 1x: the report was that the ticks are not
+ * obvious enough, and the measurement is why. It reads
+ * `Theme.componentDefaults.sliderTickSize` now, so the mark is a value a design
+ * system sets rather than a ratio to the bar it sits on.
+ *
+ * @param covered Whether the mark at this position has been passed — the filled
+ *   side of a slider, or the inside of a range's band. The two controls answer
+ *   it differently, and it is the only thing they do not share.
+ */
+internal fun DrawScope.sliderTicks(
+    trackLeft: Float,
+    trackWidth: Float,
+    centreY: Float,
+    steps: Int,
+    diameterPx: Float,
+    coveredColour: Color,
+    uncoveredColour: Color,
+    covered: (x: Float) -> Boolean,
+) {
+    if (steps <= 0) return
+    val stepCount = steps + 1
+    val radius = diameterPx / 2f
+    for (i in 0..stepCount) {
+        val x = trackLeft + trackWidth * i / stepCount
+        drawCircle(
+            color = if (covered(x)) coveredColour else uncoveredColour,
+            radius = radius,
+            center = Offset(x, centreY),
+        )
+    }
+}

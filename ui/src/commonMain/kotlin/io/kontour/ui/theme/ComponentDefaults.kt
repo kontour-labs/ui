@@ -113,6 +113,20 @@ data class ComponentDefaults(
     // --- Controls ---
     val segmentedTrackPadding: Dp = 6.dp,
     val toolbarPadding: Dp = 6.dp,
+    /**
+     * How wide a detent mark on a slider's track is drawn.
+     *
+     * 3dp, on a 4dp track. It was `trackHeight * 0.22f` — a literal, and one
+     * that worked out at **1.76dp across**, which is under two pixels at 1x and
+     * is why the report was that the ticks are not obvious enough. A mark that
+     * says "the value stops here" has to be findable while a thumb is covering
+     * part of the track.
+     *
+     * Three quarters of the track rather than all of it: a tick as tall as the
+     * bar it sits in stops reading as a mark on the track and starts reading as
+     * a break in it.
+     */
+    val sliderTickSize: Dp = 3.dp,
 
     // --- Rows and lists ---
     val listItemMinHeight: Dp = 48.dp,

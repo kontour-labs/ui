@@ -227,6 +227,9 @@ fun RangeSlider(
     /** See [Slider]'s: the shared ticker, which is also where the rate limit is. */
     val ticker = rememberDetentTicker()
 
+    // Read here rather than inside `drawWithCache`, which is not a composable.
+    val tickSize = Theme.componentDefaults.sliderTickSize
+
     /**
      * Where the press landed, kept for the gesture that never moves.
      *
@@ -637,6 +640,7 @@ fun RangeSlider(
                     )
                     .drawWithCache {
                         val trackHeightPx = SliderTrackHeight.toPx()
+                        val tickPx = tickSize.toPx()
                         val thumbRadiusPx = SliderThumbRadius.toPx()
                         val thumbReachPx = SliderThumbReach.toPx()
                         val centreY = size.height / 2f
@@ -668,17 +672,21 @@ fun RangeSlider(
                                 cornerRadius = CornerRadius(trackHeightPx / 2f),
                             )
 
-                            if (showTicks && steps > 0) {
-                                val stepCount = steps + 1
-                                for (i in 0..stepCount) {
-                                    val x = trackLeft + trackWidth * i / stepCount
-                                    val inBand = x in startX..endX
-                                    drawCircle(
-                                        color = if (inBand) colours.onPrimary else colours.contentSubtle,
-                                        radius = trackHeightPx * 0.22f,
-                                        center = Offset(x, centreY),
-                                    )
-                                }
+                            if (showTicks) {
+                                sliderTicks(
+                                    trackLeft = trackLeft,
+                                    trackWidth = trackWidth,
+                                    centreY = centreY,
+                                    steps = steps,
+                                    diameterPx = tickPx,
+                                    coveredColour = colours.onPrimary,
+                                    uncoveredColour = colours.contentSubtle,
+                                    // The band between the thumbs, not the run
+                                    // up to one: that is the only difference
+                                    // between this and `Slider`, and it is why
+                                    // the shared drawing takes a predicate.
+                                    covered = { x -> x in startX..endX },
+                                )
                             }
 
                             val startThumb =
