@@ -974,6 +974,52 @@ resources, nothing here has ever exercised the iOS resource path, and the
 failure mode is fallback type on the first screen rather than an error — so it
 has to be looked at rather than waited for.
 
+#### First-run jank on iOS is not the thing this repository already explains
+
+The second run on a phone reported that the *first* animation of a kind is
+janky and later ones are fine. That is the same shape as a sentence already in
+`FrameReadout`'s docstring — "opening a sheet for the first time runs a great
+deal of code for the first time … a terrible first open and a fine second one" —
+and **that explanation does not transfer**, which is worth stating before
+somebody reaches for it.
+
+That sentence is about a debug build on the JVM or Android: no baseline profile,
+so the first pass through any code path is interpreted and the second is
+compiled. Kotlin/Native is ahead-of-time compiled. There is no interpreter and no
+JIT on iOS, so whatever is slow the first time is slow for a different reason.
+
+Three candidates, none of them measured, and this container cannot measure any
+of them — it has no GPU and no iOS runner:
+
+1. **Skia's Metal pipeline compilation.** A blur, a drop shadow, a rounded clip
+   and a run of text each need a pipeline compiled the first time they are drawn.
+   That would make the cost *per kind of drawing*, paid once per kind.
+2. **First composition of the animated content**, which happens *during* the
+   animation that reveals it. That would make the cost *per screen*.
+3. **Kotlin/Native's lazy top-level initialisation.** File-level state
+   initialises on first access, and this library has a great deal of it —
+   palettes, shape scales, and every `ImageVector` an icon set builds on demand.
+   Per file, once.
+
+#### The experiment that would tell them apart
+
+Worth writing down rather than guessing at, because the three have different
+fixes and only one of them is even the library's to make. With **Frame times**
+on, note the worst frame for:
+
+1. the very first sheet opened after launch;
+2. the same sheet opened again;
+3. the first *dialog* opened after several sheets.
+
+If 3 is slow like 1, the cost is per kind of drawing and the answer is pipeline
+compilation — cause 1. If 3 is fast, it is per content, and causes 2 or 3 are in
+play. If 2 is also slow, none of the three is right and the model is wrong.
+
+Until one of those numbers exists, no fix should land: a warm-up pass that draws
+every shadow and blur offscreen at launch is the obvious remedy for cause 1, is
+pure cost for causes 2 and 3, and would be exactly the "fix aimed at a story"
+this file has a section about.
+
 #### The readout's thresholds are a 60Hz assumption
 
 `FrameReadout` colours the worst frame green below 16.7ms, amber below 33.3ms

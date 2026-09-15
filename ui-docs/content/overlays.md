@@ -205,6 +205,33 @@ walk into content behind a modal is a modal in name only.
 
 Each overlay gets a `traversalIndex` above the content, in stack order.
 
+### A press on nothing puts the keyboard away
+
+`OverlayHost` also owns the other half of focus, which is losing it. A press that
+reaches the root without anything else handling it takes focus off whatever holds
+it — in practice a text field, its caret and its keyboard.
+
+Compose does not do this on its own: a field takes focus and keeps it until
+something asks for it back, and empty page never asks. Without this, tapping
+anywhere outside a field left the keyboard up on every platform.
+
+The rule is narrow, and reads consumption rather than hit-testing:
+
+- a control that handled the press — a button, another field — consumes it, so
+  nothing here fires;
+- a drag cancels the gesture, so **scrolling past a focused field does not
+  dismiss the keyboard**;
+- nothing here consumes, so no other gesture is affected and no click action
+  appears in the semantics tree.
+
+```kotlin
+OverlayHost(clearFocusOnTap = false) { … }
+```
+
+Turn it off for a screen built to hold the keyboard up — a chat composer, a
+search-as-you-type page — where dropping focus on a stray press is the wrong
+answer.
+
 ---
 
 ## The queue
