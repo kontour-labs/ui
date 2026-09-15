@@ -394,7 +394,12 @@ fun MenuItem(
                 if (selected) this.selected = true
             }
             .minimumTouchTarget()
-            .padding(horizontal = Theme.spacing.xxs)
+            // No horizontal inset of its own. The panel already pads by `xxs`
+            // on all four sides, and this used to add a second `xxs` across —
+            // so a row's highlight sat 8dp inside the panel at the sides and
+            // 4dp at the top and bottom, which reads as a menu with the wrong
+            // margins. It also made the corner wrong: `inset(xxs)` is the
+            // concentric radius for a 4dp inset, and the sides were at 8.
             .clip(Theme.shapes.container.inset(Theme.spacing.xxs))
             .pointerCursor(enabled = enabled)
             .clickable(
