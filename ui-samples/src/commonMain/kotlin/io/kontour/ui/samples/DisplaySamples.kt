@@ -1,42 +1,31 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Check
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import io.kontour.ui.components.display.Accordion
-import io.kontour.ui.components.display.AnimatedCounter
-import io.kontour.ui.components.display.Card
-import io.kontour.ui.components.display.Carousel
-import io.kontour.ui.components.display.KeyValueList
-import io.kontour.ui.components.display.PageIndicator
-import io.kontour.ui.components.display.Stat
-import io.kontour.ui.components.display.StatTrend
-import io.kontour.ui.components.display.rememberCarouselState
-import io.kontour.ui.foundation.Text
-import io.kontour.ui.motion.PageTransition
-import io.kontour.ui.motion.sharedBounds
-import io.kontour.ui.motion.marquee
-import kotlinx.coroutines.launch
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.dp
+import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bell
+import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.Star
+import com.composables.icons.tabler.outline.Train
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.display.Accordion
+import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.Avatar
 import io.kontour.ui.components.display.AvatarGroup
 import io.kontour.ui.components.display.AvatarSize
@@ -45,17 +34,31 @@ import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Banner
 import io.kontour.ui.components.display.BannerTone
 import io.kontour.ui.components.display.Callout
+import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
-import io.kontour.ui.components.display.EmptyState
-import io.kontour.ui.components.display.LinearProgress
+import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.CircularProgress
+import io.kontour.ui.components.display.EmptyState
+import io.kontour.ui.components.display.KeyValueList
+import io.kontour.ui.components.display.LinearProgress
+import io.kontour.ui.components.display.PageIndicator
 import io.kontour.ui.components.display.Skeleton
+import io.kontour.ui.components.display.Stat
+import io.kontour.ui.components.display.StatTrend
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.display.rememberCarouselState
+import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.foundation.Redacted
+import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.PageTransition
+import io.kontour.ui.motion.marquee
+import io.kontour.ui.motion.sharedBounds
 import io.kontour.ui.theme.Theme
+import kotlinx.coroutines.launch
 
 @Composable
 fun StatBasics() {
@@ -304,4 +307,15 @@ fun PageIndicatorBasics() {
         state = carousel,
         onPageSelect = { page -> scope.launch { carousel.scrollToPage(page) } },
     )
+}
+
+@Composable
+fun RedactionBasics() {
+    Redacted(departures == null) {
+        ListItem {
+            +(departures?.first()?.name ?: "Perth Underground")
+            supporting { +(departures?.first()?.detail ?: "08:14 · Platform 2") }
+            leading { +Tabler.Outline.Train }
+        }
+    }
 }

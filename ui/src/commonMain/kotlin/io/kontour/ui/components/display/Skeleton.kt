@@ -70,6 +70,28 @@ fun Skeleton(
      */
     angle: Float = 0f,
 ) {
+    Box(
+        modifier
+            .clearAndSetSemantics { }
+            .clip(shape)
+            .skeletonFill(angle)
+    )
+}
+
+/**
+ * The shimmer itself, as a modifier that fills whatever it is put on.
+ *
+ * Extracted when redaction arrived. [Skeleton] is a *box* you draw instead of
+ * your content; `Modifier.redacted` draws the same surface over content that
+ * is already there and already the right shape. Those are two components' worth
+ * of arrangement and one drawing, and the drawing is this.
+ *
+ * It fills its whole node and paints **behind** content rather than over it,
+ * which is what lets a caller clip it to something — a shape, a path of text
+ * line boxes — and get the shimmer in that shape for free.
+ */
+@Composable
+internal fun Modifier.skeletonFill(angle: Float = 0f): Modifier {
     val colours = Theme.colours
     val reduceMotion = Theme.motion.reduceMotion
 
@@ -99,11 +121,8 @@ fun Skeleton(
         )
     }
 
-    Box(
-        modifier
-            .clearAndSetSemantics { }
-            .clip(shape)
-            .then(
+    return this
+        .then(
                 if (reduceMotion) {
                     Modifier.background(base)
                 } else {
@@ -148,7 +167,6 @@ fun Skeleton(
                     }
                 }
             )
-    )
 }
 
 /**

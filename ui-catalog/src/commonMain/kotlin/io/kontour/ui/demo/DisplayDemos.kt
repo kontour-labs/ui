@@ -22,6 +22,7 @@ import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.Star
+import com.composables.icons.tabler.outline.Train
 import com.composables.icons.tabler.outline.User
 import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
@@ -60,7 +61,9 @@ import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.TimelineItem
 import io.kontour.ui.components.display.rememberCarouselState
+import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.marquee
 import io.kontour.ui.theme.Theme
@@ -277,6 +280,31 @@ internal val TimelineDemo = ComponentDemo(
         TimelineItem(connector = ConnectorStyle.None, nodeColour = Color(0xFF1B5E20)) {
             Text("Elizabeth Quay", style = Theme.typography.titleSmall)
             Text("08:31", style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
+        }
+    }
+}
+
+private val redactionOn = Knob.Flag("Loading", initial = true)
+
+internal val RedactionDemo = ComponentDemo(
+    slug = "redaction",
+    knobs = listOf(redactionOn),
+) {
+    // The same rows either way. That is the whole demonstration: nothing here
+    // is a second, placeholder-shaped copy of the layout — flip the knob and the
+    // ink comes back.
+    Redacted(this[redactionOn]) {
+        Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+            ListItem {
+                +"Perth Underground"
+                supporting { +"08:14 · Platform 2 · on time" }
+                leading { +Tabler.Outline.Train }
+            }
+            ListItem {
+                +"Elizabeth Quay"
+                supporting { +"A longer line, so the bar under it wraps and the second one comes out short" }
+                leading { +Tabler.Outline.Bus }
+            }
         }
     }
 }
@@ -513,6 +541,7 @@ internal val displayDemos = listOf(
     BannerDemo,
     CalloutDemo,
     TimelineDemo,
+    RedactionDemo,
     SkeletonDemo,
     EmptyStateDemo,
     AccordionDemo,

@@ -13,6 +13,7 @@ Things that show rather than take input.
 | [`StepProgress`](progress.md) | A known number of steps | `LinearProgress`, for a continuous fraction |
 | [`Spinner`](spinner.md) | Work is happening, duration unknown | `LinearProgress`, when you know the fraction |
 | [`Skeleton`](skeleton.md) | The shape of content that is loading | `Spinner`, when the shape is knowable |
+| [`Redacted` / `Modifier.redacted`](redaction.md) | Draws a real layout as a placeholder of itself |
 | [`EmptyState`](empty-state.md) | Nothing here, and that is fine | `ErrorState` — see below |
 | [`ErrorState`](empty-state.md) | Something went wrong | `EmptyState` — see below |
 | [`Banner`](banner.md) | A message about the screen you are on | `Toast`, for something you just did |

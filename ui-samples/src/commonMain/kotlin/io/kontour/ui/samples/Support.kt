@@ -62,3 +62,9 @@ internal fun suggest() = Unit
 /** The body of a sheet, where the sheet rather than its contents is the subject. */
 @Composable
 internal fun Departures() = Unit
+
+/** A departure that has not arrived yet, for the redaction example. */
+internal class Departure(val name: String, val detail: String)
+
+/** Null while it loads, which is the state the example is about. */
+internal val departures: List<Departure>? = null

@@ -139,7 +139,15 @@ private fun IconBox(
     }
 
     Box(
-        modifier = modifier.then(semantics).size(boxSize),
+        modifier = modifier
+            .then(semantics)
+            .size(boxSize)
+            // A rounded square of the icon's own size, when the subtree is
+            // standing in for content that has not arrived. On the box rather
+            // than on the glyph: an icon's ink fills a different fraction of its
+            // box for every glyph in a set, so redacting the ink would give a
+            // row of placeholders that are all slightly different sizes.
+            .redacted(),
         contentAlignment = Alignment.Center,
     ) {
         Image(
