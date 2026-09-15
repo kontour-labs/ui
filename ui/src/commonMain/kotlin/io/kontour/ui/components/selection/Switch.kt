@@ -23,6 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -123,14 +125,37 @@ fun Switch(
         if (onCheckedChange == null && interactionSource == null && row != null) row else interactions
     val pressed by pressSource.collectIsPressedAsState()
 
-    val trackColour by animateColorAsState(
-        targetValue = when {
-            !enabled -> colours.contentDisabled
-            checked -> colours.primary
-            else -> colours.outlineStrong
-        },
+    /**
+     * The track's two ends. **The travel between them is the thumb's position**,
+     * read in the draw block, not a tween of its own.
+     *
+     * It used to be one `animateColorAsState` keyed on [checked], and that is a
+     * fixed-duration crossfade fired by the commit. On a tap the two happened to
+     * roughly coincide; on a *drag* they could not. The thumb follows the finger
+     * one to one, so a slow drag holds it anywhere it likes — and the track
+     * behind it stayed one colour, then repainted itself over 150ms the instant
+     * the midpoint went by, whatever the finger was doing. Two events for one
+     * movement, which is the same mistake the thumb's stretch already had taken
+     * out of it.
+     *
+     * Interpolated from the position instead, a drag half way across is a track
+     * half way across, and a tap crossfades on the position spring's own timing
+     * because that is what is driving it. `Color.lerp` blends through Oklab, so
+     * the midpoint of grey to a saturated primary is not the muddy step that
+     * interpolating sRGB channels gives.
+     *
+     * What still animates here is the one axis the position cannot express:
+     * enabled to disabled, where both ends move at once and the thumb does not.
+     */
+    val trackOff by animateColorAsState(
+        targetValue = if (enabled) colours.outlineStrong else colours.contentDisabled,
         animationSpec = motion.tweenFast(),
-        label = "switchTrack",
+        label = "switchTrackOff",
+    )
+    val trackOn by animateColorAsState(
+        targetValue = if (enabled) colours.primary else colours.contentDisabled,
+        animationSpec = motion.tweenFast(),
+        label = "switchTrackOn",
     )
     // The thumb does not change colour, in either direction. A switch has one
     // moving part and one thing that changes behind it; recolouring the thumb as
@@ -334,14 +359,29 @@ fun Switch(
             )
             .size(width = TrackWidth, height = TrackHeight)
     ) {
-        val trackRadius = size.height / 2f
+        val f = fraction.value.coerceIn(0f, 1f)
 
         // One filled capsule, no outline over it. An outline on a filled track
         // would have to be a third colour to be visible at all, and a switch
         // does not need a third colour.
-        drawRoundRect(
-            color = trackColour,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackRadius),
+        //
+        // **`Theme.shapes.control`'s own outline, not a `drawRoundRect`.** The
+        // shape scale is a squircle scale, and this was the one pill in the
+        // library drawing plain circular corners while naming the same token as
+        // the buttons beside it — reported as switches not having "that same
+        // smoothing factor as things like buttons which are pill-shaped", which
+        // is exactly what it was. `SquircleShape` saturates the short edge of a
+        // capsule and eases into the long one, so the change is at the ends of
+        // a 48dp track and it is the thing that makes a switch and a `Button`
+        // read as one system.
+        //
+        // It costs a path lookup per frame and no path *building*: the track is
+        // a fixed 48x28 and the shape is one remembered instance, so every call
+        // after the first hits `SquircleShape`'s ring cache. See
+        // `SquirclePathCacheTest`.
+        drawOutline(
+            outline = shape.createOutline(size, layoutDirection, this),
+            color = lerp(trackOff, trackOn, f),
         )
 
         // Drawn to the box it was *given*, not the box it asked for.
@@ -356,7 +396,6 @@ fun Switch(
         val thumbPx = ThumbSize.toPx().coerceAtMost(size.width)
         val interior = (size.width - paddingPx * 2f).coerceAtLeast(0f)
         val room = (interior - thumbPx).coerceAtLeast(0f)
-        val f = fraction.value.coerceIn(0f, 1f)
 
         /**
          * The other half of the stretch, read from the thumb's own speed.
@@ -398,6 +437,17 @@ fun Switch(
         val left = paddingPx + room * f - grow * f
         val top = (size.height - thumbPx).coerceAtLeast(0f) / 2f
 
+        // **The thumb stays a circular capsule, and that is the shape scale's own
+        // answer rather than an exception to it.** At rest it is a 24dp square at
+        // capsule radius, which saturates on *both* edges — so `SquircleShape`
+        // returns a true circle for it, the same as an `IconButton`, an `Avatar`
+        // or a radio ring. There is nothing to smooth and nothing to match.
+        //
+        // In flight it is 24 by 30 and a squircle would have a little room on the
+        // long edge, worth about half a pixel. It would also be a fresh path
+        // every frame, under a finger, past every cache: `SliderThumb` refused
+        // that trade for the same reason and at the same size, and refusing it
+        // twice is more consistent than paying for it once.
         drawRoundRect(
             color = thumbColour,
             topLeft = Offset(left.coerceIn(0f, (size.width - stretchedWidth).coerceAtLeast(0f)), top),

@@ -34,6 +34,27 @@ not — the answer is not *no* fill but a fill dark enough. It is
 `outlineStrong`, the token that exists to bound an interactive control at the 3:1
 WCAG asks for, and it is checked against every ground a switch can land on.
 
+**The track's colour is the thumb's position, not a tween about it.** It used to
+be a 150ms crossfade fired by the commit, which on a tap roughly coincided with
+the travel and on a *drag* could not: the thumb follows your finger one to one,
+so a slow drag holds it anywhere it likes, and the track behind it stayed one
+colour and then repainted itself the instant the midpoint went by, whatever the
+finger was doing. Interpolated from the position instead, a drag half way across
+is a track half way across, and a tap crossfades on the position spring's own
+timing — the same correction the thumb's stretch already had. The blend is
+through Oklab, so the middle of grey to a saturated primary is a colour rather
+than a muddy step. Enabled to disabled is still a tween: that is the one change
+the thumb's position cannot express.
+
+**The track is a squircle, like every other pill in the library.** It was the one
+that was not — it named `Theme.shapes.control`, the same token a `Button` takes,
+and then drew plain circular corners into a canvas, which is what "switches don't
+have that same smoothing factor as things like buttons" turned out to mean. It
+draws the shape's own outline now. The thumb stays a true circle, and that is the
+shape scale's answer rather than an exception to it: a square at capsule radius
+saturates on both edges, so `SquircleShape` returns a circle for it — the same as
+an `IconButton`, an `Avatar` or a radio ring.
+
 ---
 
 **Drag the thumb, and it goes over at the midpoint.** A switch is the most
