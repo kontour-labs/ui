@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -13,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.Check
@@ -23,6 +25,10 @@ import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.ChipGroup
+import io.kontour.ui.components.selection.ColourFormat
+import io.kontour.ui.components.selection.ColourPicker
+import io.kontour.ui.components.selection.ColourPickerDefaults
+import io.kontour.ui.components.selection.ColourPickerMode
 import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
@@ -408,6 +414,44 @@ internal val ColourSwatchPickerDemo = ComponentDemo(slug = "colour-swatch-picker
     )
 }
 
+// --- ColourPicker ---------------------------------------------------------
+
+private val pickerMode =
+    Knob.Choice("Mode", ColourPickerMode.entries.toList(), ColourPickerMode.Spectrum)
+private val pickerFormat =
+    Knob.Choice("Notation", ColourFormat.entries.toList(), ColourFormat.Hex)
+private val pickerAlpha = Knob.Flag("Opacity")
+private val pickerField = Knob.Flag("Value field", initial = true)
+private val pickerSwatches = Knob.Flag("Swatches", initial = true)
+
+internal val ColourPickerDemo = ComponentDemo(
+    slug = "colour-picker",
+    knobs = listOf(pickerMode, pickerFormat, pickerAlpha, pickerField, pickerSwatches),
+) {
+    var colour by remember { mutableStateOf(Color(0xFF1E88E5)) }
+    // Keyed on the knob so flipping it *sets* the mode rather than fighting the
+    // switch inside the picker, which the reader can also work. The same bargain
+    // the modal sheet demo strikes with its Open knob.
+    var mode by remember(this[pickerMode]) { mutableStateOf(this[pickerMode]) }
+    var format by remember(this[pickerFormat]) { mutableStateOf(this[pickerFormat]) }
+
+    ColourPicker(
+        colour = colour,
+        onColourChange = { colour = it },
+        modifier = Modifier.width(PickerWidth),
+        mode = mode,
+        onModeChange = { mode = it },
+        alphaSlider = this[pickerAlpha],
+        valueField = this[pickerField],
+        format = format,
+        onFormatChange = { format = it },
+        swatches = if (this[pickerSwatches]) ColourPickerDefaults.Swatches else emptyList(),
+    )
+}
+
+/** Narrow enough to be a sheet's worth of picker, wide enough for four fields. */
+private val PickerWidth = 320.dp
+
 internal val selectionDemos = listOf(
     CheckboxDemo,
     TriStateCheckboxDemo,
@@ -422,4 +466,5 @@ internal val selectionDemos = listOf(
     StepperDemo,
     RatingDemo,
     ColourSwatchPickerDemo,
+    ColourPickerDemo,
 )

@@ -16,6 +16,8 @@ import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.Walk
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.ChipGroup
+import io.kontour.ui.components.selection.ColourPicker
+import io.kontour.ui.components.selection.ColourPickerMode
 import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.RadioButton
@@ -221,4 +223,22 @@ fun RadioButtonBasics() {
         +"Train"
         leading { RadioButton(selected = mode == "Train", onClick = null) }
     }
+}
+
+@Composable
+fun ColourPickerBasics() {
+    var accent by remember { mutableStateOf(Color(0xFF1E88E5)) }
+
+    ColourPicker(colour = accent, onColourChange = { accent = it })
+}
+
+@Composable
+fun ColourPickerParts() {
+    // A label colour: the eight we offer, and nothing to invent a ninth with.
+    ColourPicker(
+        colour = label,
+        onColourChange = { label = it },
+        mode = ColourPickerMode.Palette,
+        valueField = false,
+    )
 }

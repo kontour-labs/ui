@@ -112,6 +112,14 @@ data class Strings(
     /** The overflow control on a selection toolbar that has outgrown its row. */
     val more: String = "More",
 
+    // Colour picker
+    /** The saturation-and-value square. */
+    val colourArea: String = "Saturation and brightness",
+    val colourHue: String = "Hue",
+    val colourOpacity: String = "Opacity",
+    /** The notation the colour is written in — hex, RGB, HSV, HSL. */
+    val colourFormat: String = "Colour format",
+
     // Navigation
     val navigation: String = "Navigation",
     val closeNavigation: String = "Close navigation",

@@ -2,6 +2,7 @@ package io.kontour.ui.samples
 
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.list.ListItem
 
 /**
@@ -38,6 +39,9 @@ internal fun saveAndClose() = Unit
 internal fun saveCopy() = Unit
 internal fun showTour() = Unit
 internal fun forgot() = Unit
+
+/** A colour the app is holding for something the reader named. */
+internal var label: Color = Color(0xFF43A047)
 internal fun explain() = Unit
 internal fun replacements() = Unit
 
