@@ -152,7 +152,7 @@ private fun defaultContentColourFor(background: Color): Color {
         colours.background,
         colours.surface,
         colours.surfaceSunken,
-        colours.surfaceTrack,
+        colours.surfaceIndicator,
         colours.surfaceRaised,
         -> colours.content
         colours.surfaceInverse -> colours.onSurfaceInverse

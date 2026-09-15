@@ -35,31 +35,37 @@ import kotlin.test.assertTrue
  * segmented thumb against its own track was checked by nothing, in any test, in
  * any module. Measured by hand it was **1.07:1 in dark and 1.08 in light**.
  *
- * ### This floor is a house floor, and it used to be WCAG's
+ * ### The floor, and the two schemes that meet it differently
  *
  * It was `3.0` — WCAG 1.4.11, what identifying a control's state is held to —
- * and it passed because the thumb was drawn with a 1dp `outlineStrong` border.
- * That border is gone, at a reader's request, and the number below is the honest
- * consequence rather than a quiet relabelling.
+ * and it passed because the thumb was drawn with a 1dp `outlineStrong` border
+ * in every scheme. That border was removed at a reader's request and the floor
+ * came down to the honest consequence, `1.45`, carried by a fill on a track
+ * token dark enough to show it.
  *
- * **Why 3:1 was not available without it.** No two greys in one monochrome ramp
- * reach 3:1. A white thumb needs a `#959595` track, which is not a recessed
- * ground at all but a dark bar. The choice was a permanent visible line around
- * every selected segment or a fill that falls short of a boundary's standard,
- * and the line was what a reader objected to.
+ * The ground is `surfaceSunken` now — the same well a filled text field uses,
+ * because a segmented control and a text field two greys apart read as two
+ * design systems — and the two schemes answer it from opposite ends:
  *
- * **What carries the state now**, in place of one line: the fill, at 1.52–1.54
- * across the built-in schemes rather than 1.08 — this is what
- * `ColourScheme.surfaceTrack` was added for, a ground dark enough for a thumb
- * that does not drag every code block and text field down with it; the shadow
- * under the thumb, which works in light and is why light and dark are not the
- * same case; and the label, which goes `contentMuted` → `content` when a
- * segment is selected and is the one carrier that survives a reader who cannot
- * distinguish the greys at all.
+ * | scheme | carrier | measured | floor |
+ * |---|---|---|---|
+ * | dark | `surfaceIndicator` | **1.59:1** | 1.45 |
+ * | dark/high-contrast | the same | **1.94:1** | 1.45 |
+ * | light | the shadow, and the label | **1.17:1** | 1.15 |
+ * | light/high-contrast | the same | **1.16:1** | 1.15 |
  *
- * It is the trade iOS makes with its own segmented control, and it is a trade
- * rather than a free win: someone who could find the old border and cannot find
- * this fill has lost something real. What they have not lost is the label.
+ * Dark comes out further apart than the arrangement it replaces (1.53 and
+ * 1.52), on a quieter ground, with no border. Light cannot: white is the top of
+ * the ramp and the well is `#F6F6F6`, so its fill is 1.08:1 whatever token it
+ * reads, and `elevation.medium` under it is worth **0.09** of a ratio.
+ *
+ * **A hairline was built and measured and reaches 3.60:1** — WCAG 1.4.11
+ * outright — and was rejected on the rendering rather than the number: on a
+ * near-white ground a 1dp `outlineStrong` is a hard dark stroke around the
+ * selected segment, which is the apology an earlier round already removed once.
+ *
+ * So there are two floors, because there are two situations. Neither is 3:1 and
+ * the library does not claim otherwise.
  *
  * ### Why this is a render and not a scheme walk
  *
@@ -87,23 +93,25 @@ class IndicatorVisibilityTest {
                 for (tier in ContrastLevel.entries) {
                     if (theme.resolveTier(tier) != tier) continue
                     val name = "${theme.name}/${if (dark) "dark" else "light"}/$tier"
+                    val required = if (dark) DarkFloor else LightFloor
                     val ratio = edgeContrast(theme, dark, tier)
-                    if (ratio < Required) weak += "  · $name: ${(ratio * 100).toInt() / 100.0}:1"
+                    if (ratio < required) {
+                        weak += "  · $name: ${(ratio * 100).toInt() / 100.0}:1, needs $required:1"
+                    }
                 }
             }
         }
         assertTrue(
             weak.isEmpty(),
-            "the selected segment does not stand out from its track by $Required:1:\n" +
+            "the selected segment does not stand out from its ground:\n" +
                 weak.joinToString("\n") +
-                "\nThe thumb has no border: it is a lighter fill on `surfaceTrack`, " +
-                "a shadow in light, and a label that darkens to `content`. The fill " +
-                "is most of that, and it measures 1.52-1.54 in the built-in schemes. " +
-                "A failure here is one of three things: `SegmentedControl` no longer " +
-                "drawing `surfaceTrack`, a scheme whose track sits too close to its " +
-                "thumb, or a theme that set the track and forgot to lift the thumb " +
-                "off it — which is what GTurbo did, at 1.28:1, before its " +
-                "`Raised` was corrected.",
+                "\nThe ground is `surfaceSunken`. Dark separates on fill — " +
+                "`surfaceIndicator`, 1.59:1 and 1.94:1 — and light cannot separate " +
+                "on fill at all, so the two are held to different numbers. A " +
+                "failure here is one of three things: `SegmentedControl` no longer " +
+                "drawing `surfaceIndicator`, a scheme whose indicator sits too close " +
+                "to its well, or a theme that set the well and forgot to lift the " +
+                "indicator off it — which is what GTurbo did, at 1.28:1.",
         )
     }
 
@@ -158,6 +166,25 @@ class IndicatorVisibilityTest {
             val ratio = contrastRatio(colourAt(bitmap, x, y), track)
             if (ratio > best) best = ratio
         }
+
+        // And down the thumb's *bottom* edge, which is where the shadow is.
+        //
+        // The row above only ever saw the fill: a drop shadow has a positive
+        // `offsetY`, so at a row above the label there is nothing of it to
+        // find, and this file used to say so in its own KDoc — "the shadow is
+        // real and a reader gets it, but it falls outside the row this samples".
+        // That was a fair disclaimer while the fill carried every scheme. It is
+        // not fair now that light has nothing *but* the shadow, because then
+        // the instrument is measuring the one carrier that was removed.
+        //
+        // Taken a few pixels inside the thumb's left edge rather than at its
+        // centre, so the label's glyphs cannot be mistaken for an edge — the
+        // same care the row above takes, in the other axis.
+        val column = edge + GlyphClearance
+        for (dy in 0..BottomWindow) {
+            val ratio = contrastRatio(colourAt(bitmap, column, y + dy), track)
+            if (ratio > best) best = ratio
+        }
         return best
     }
 
@@ -180,7 +207,64 @@ class IndicatorVisibilityTest {
          * samples, so do not read a passing number here as evidence the shadow
          * is doing any work.
          */
-        const val Required = 1.45f
+        /**
+         * What dark is held to, and it is the old number unchanged.
+         *
+         * `surfaceIndicator` reaches 1.59:1 in plain dark and 1.94:1 at the
+         * enhanced tier, so the floor has headroom rather than having been
+         * moved to fit. GTurbo, the one out-of-tree theme in the tree, sits at
+         * 1.57.
+         */
+        const val DarkFloor = 1.45f
+
+        /**
+         * What light is held to, and it is a smaller number for a real reason.
+         *
+         * Light cannot separate a thumb on fill. White is the top of the ramp
+         * and `surfaceSunken` is `#F6F6F6`, so the pair is 1.08:1 whatever
+         * token the thumb reads, and `elevation.medium` under it is worth 0.09
+         * — measured, not estimated: the whole edge comes to 1.17:1.
+         *
+         * **A hairline was built and measured and reaches 3.60:1**, clearing
+         * WCAG 1.4.11 outright, and it was rejected on the rendering: on a
+         * near-white ground a 1dp `outlineStrong` is a hard dark stroke around
+         * the selected segment, which is the apology an earlier round removed.
+         * The number was better and the control was worse. That is the trade
+         * this constant records.
+         *
+         * So light is carried by the shadow and by the label going
+         * `contentMuted` to `content` — iOS's own segmented control makes the
+         * same trade at 1.15:1. 1.15 rather than 1.17 so a font metric or an
+         * antialiasing change does not turn a rendering detail into a failure;
+         * it is close enough to the measurement to catch the thing this
+         * actually guards, which is the shadow being dropped or the ground
+         * being changed under the thumb.
+         *
+         * **This is not WCAG 1.4.11 and the library does not claim it is.** The
+         * accessibility page says so in the same words.
+         */
+        const val LightFloor = 1.15f
+
+        /** Far enough inside the thumb to clear the label, near enough to stay on it. */
+        const val GlyphClearance = 8
+
+        /**
+         * How far below the sampling row to look, in pixels at 2x.
+         *
+         * Derived, and the derivation is the point: the control is 44dp tall
+         * and centred, so at 2x its bottom edge is 44px under the centre and
+         * the sampling row starts 22px above it. The thumb is inset by a 6dp
+         * `segmentedTrackPadding`, putting its bottom edge 54px down and the
+         * track's 66px down.
+         *
+         * 64 stops **two pixels inside the track**, and that is the whole of
+         * the number. At 90 this ran off the track onto the page and picked up
+         * the enhanced tier's `contrastEdge()` outline — a strong step that
+         * belongs to the track's own border, not to the thumb's edge — and the
+         * light enhanced scheme "passed" at a stroke it does not draw. An
+         * instrument that leaves the control measures something else.
+         */
+        const val BottomWindow = 58
 
         /**
          * How far either side of the boundary to look, in pixels.

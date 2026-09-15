@@ -35,33 +35,39 @@ Four built-in schemes: light, dark, and a high-contrast variant of each.
 | `background` | `#FFFFFF` | `#121212` | The page |
 | `surface` | `#FFFFFF` | `#221E29` | Cards, sheets, menus |
 | `surfaceSunken` | `#F6F6F6` | `#1A1820` | Wells: input fills, code blocks, table stripes |
-| `surfaceTrack` | `#D0D0D0` | `#000000` | The ground a moving indicator runs in |
+| `surfaceIndicator` | `#FFFFFF` | `#403852` | The fill of a moving indicator — a segmented thumb |
 | `surfaceRaised` | `#FFFFFF` | `#302B3B` | Above `surface` — menus over cards |
 | `surfaceInverse` | `#121212` | `#F4F1F8` | Toasts, tooltips |
 | `onSurfaceInverse` | `#FFFFFF` | `#121212` | Content on `surfaceInverse` |
 
-**A well and a track are not the same ground, and that is why there are two.**
-`surfaceSunken` is quiet on purpose — 1.08:1 under the page in light — because
-it is a hint that content is inset, and a page of code blocks in a loud well is
-a page of grey boxes. `surfaceTrack` is the opposite: something slides along it
-whose position *is* the control's state, so it has to be far enough under that
-thing to show it. A segmented thumb reads **1.54:1** on it in light and 1.53 in
-dark, against 1.08 when both jobs were one token.
+**A moving indicator gets a token for the thing that moves, not for the ground
+under it.** A segmented control and a wheel picker both run in `surfaceSunken`,
+the same well a filled text field uses — one ground, so a form and a control
+next to it read as one system. What separates the thumb is `surfaceIndicator`,
+and it is the *only* value a theme has to get right for this.
 
-They were one token, and the cost of that was paid twice: tuning it for the
-track turned every code block grey, and tuning it for the well left the thumb
-needing a border to be seen at all.
+There used to be a track token instead, and the ground kept paying for the
+thumb: tuning it dark enough turned every code block grey, and tuning it quiet
+enough left the thumb needing a border. Moving the thumb costs a fill nothing
+else draws.
 
-In dark the track is pure black and the *thumb* rises instead — a track cannot
-go below black, but `surfaceRaised` can come up to meet it, which is why dark
-separates marginally better than light rather than worse.
+In dark it reads **1.59:1** on the well, and **1.94:1** at the enhanced tier —
+both further apart than the track arrangement managed. Light cannot separate on
+fill at all: white is the top of the ramp and the well is `#F6F6F6`, so it is
+1.08:1 whatever the token says.
 
-**What this does not reach.** Three is what WCAG asks of a control's boundary,
-and no two greys in one ramp get there — that needs a mid-grey track, which is
-a dark bar rather than a ground. A selected segment is identified by this fill,
-by the shadow under it in light, and by its label darkening from `contentMuted`
-to `content`. A selected *chip* is bounded instead, because a tint 1.29:1 from
-the page genuinely cannot carry it alone.
+**So light is carried by its shadow and its label instead**, and measures
+1.17:1 end to end — the shadow is `elevation.medium` rather than `low`, raised
+for exactly this, and worth 0.09 of that ratio. A 1dp `outlineStrong` hairline
+was built and measured and reaches 3.60:1, clearing WCAG's 3:1 outright; it was
+rejected on the rendering rather than the number, because on a near-white ground
+that line is a hard dark stroke around the selected segment. The number was
+better and the control was worse.
+
+The selected label darkening from `contentMuted` to `content` is the carrier
+that survives a reader who cannot separate the greys at all, and it is why this
+is a trade rather than a quiet loss. It is the same trade iOS makes, at a
+measured 1.15:1.
 
 ### Content
 

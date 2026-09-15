@@ -127,7 +127,7 @@ class HighContrastWideningTest {
             "light.background" to (highContrastLightColourScheme(background = Ink).background == Ink),
             "light.surface" to (highContrastLightColourScheme(surface = Ink).surface == Ink),
             "light.surfaceSunken" to (highContrastLightColourScheme(surfaceSunken = Ink).surfaceSunken == Ink),
-            "light.surfaceTrack" to (highContrastLightColourScheme(surfaceTrack = Ink).surfaceTrack == Ink),
+            "light.surfaceIndicator" to (highContrastLightColourScheme(surfaceIndicator = Ink).surfaceIndicator == Ink),
             "light.surfaceRaised" to (highContrastLightColourScheme(surfaceRaised = Ink).surfaceRaised == Ink),
             "light.surfaceInverse" to (highContrastLightColourScheme(surfaceInverse = Ink).surfaceInverse == Ink),
             "light.onSurfaceInverse" to (highContrastLightColourScheme(onSurfaceInverse = Ink).onSurfaceInverse == Ink),
@@ -156,7 +156,7 @@ class HighContrastWideningTest {
             "dark.background" to (highContrastDarkColourScheme(background = Ink).background == Ink),
             "dark.surface" to (highContrastDarkColourScheme(surface = Ink).surface == Ink),
             "dark.surfaceSunken" to (highContrastDarkColourScheme(surfaceSunken = Ink).surfaceSunken == Ink),
-            "dark.surfaceTrack" to (highContrastDarkColourScheme(surfaceTrack = Ink).surfaceTrack == Ink),
+            "dark.surfaceIndicator" to (highContrastDarkColourScheme(surfaceIndicator = Ink).surfaceIndicator == Ink),
             "dark.surfaceRaised" to (highContrastDarkColourScheme(surfaceRaised = Ink).surfaceRaised == Ink),
             "dark.surfaceInverse" to (highContrastDarkColourScheme(surfaceInverse = Ink).surfaceInverse == Ink),
             "dark.onSurfaceInverse" to (highContrastDarkColourScheme(onSurfaceInverse = Ink).onSurfaceInverse == Ink),
@@ -212,7 +212,7 @@ class HighContrastWideningTest {
             differ("background", a.background, b.background),
             differ("surface", a.surface, b.surface),
             differ("surfaceSunken", a.surfaceSunken, b.surfaceSunken),
-            differ("surfaceTrack", a.surfaceTrack, b.surfaceTrack),
+            differ("surfaceIndicator", a.surfaceIndicator, b.surfaceIndicator),
             differ("surfaceRaised", a.surfaceRaised, b.surfaceRaised),
             differ("surfaceInverse", a.surfaceInverse, b.surfaceInverse),
             differ("onSurfaceInverse", a.onSurfaceInverse, b.onSurfaceInverse),
@@ -385,6 +385,18 @@ private fun legacyHighContrastDark(
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
 ): ColourScheme = darkColourScheme(
+    // The one line that is not in the pasted original, and it is here because
+    // the original could not have had it. Both dark factories defaulted their
+    // segmented ground to `Palette.Black`, so the body had nothing to override
+    // and the field fell through identically. `surfaceIndicator` replaced that
+    // ground with the thumb's own fill and the two tiers now hold *different*
+    // values on purpose — 1.59:1 in plain dark, 1.94:1 here — so falling
+    // through would compare this tier against the other one's.
+    //
+    // Stated rather than deleted: the widening this file proves is still
+    // exactly as transcribed, and a reviewer diffing against `git show` should
+    // find this line and no other.
+    surfaceIndicator = Palette.InkHcIndicator,
     scrim = Color(0xC2000000),
     overlayHover = Color(0x24FFFFFF),
     overlayPressed = Color(0x47FFFFFF),

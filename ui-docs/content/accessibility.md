@@ -94,23 +94,30 @@ and enhanced, light and dark. In light a shadow separated them; the dark
 elevation scale draws its shadows *black*, so on a near-black track there was
 nothing left to darken and the thumb disappeared.
 
-It is a distinct ground now. `surfaceTrack` is tuned for exactly this and
-nothing else, so the thumb reads **1.54:1** in light and 1.53 in dark without
-the well — every code block, table and text field on this site — having to
-darken with it. In dark the track goes to black and the thumb rises to
-`surfaceRaised`, since a track cannot go below black but a thumb can come up.
+The **thumb** is the distinct token now, not the ground. Both grounds went back
+to `surfaceSunken` — the same well every code block, table and text field uses —
+and `surfaceIndicator` lifts the thumb off it: **1.59:1** in dark and **1.94:1**
+at the enhanced tier, both further apart than the separate-track arrangement
+managed, and neither needing a border.
 
-**This does not reach the 3:1 WCAG asks of a boundary, and that is a choice
-rather than an oversight.** No two greys in one ramp reach it; a white thumb
-needs a mid-grey track, which stops being a ground and becomes a dark bar. An
-earlier version drew a hard grey line around the selected segment to get there,
-and it read as an apology for a fill that was not doing its job.
+Light is the scheme that cannot. White is the top of the ramp and the well is
+`#F6F6F6`, so the fill is 1.08:1 whatever token it reads, and a shadow is worth
+0.09 of a ratio on a ground that pale — measured, a borderless light thumb comes
+to 1.17:1.
 
-So the selected state is carried three ways instead of one: the fill, the shadow
-under the thumb in light, and the label moving from `contentMuted` to `content`
-— the last of which survives a reader who cannot separate the greys at all. It
-is the same trade iOS makes, and it is a trade: someone who could find the old
-border and cannot find this fill has lost something real.
+**So light is carried by its shadow and its label, and measures 1.17:1.** That
+does not reach the 3:1 WCAG asks of a control's boundary, and it is a choice
+rather than an oversight: a 1dp `outlineStrong` hairline was built and measured
+and reaches 3.60:1, and was rejected because on a near-white ground it is a hard
+dark stroke around the selected segment — the apology for a fill not doing its
+job that an earlier round already removed once.
+
+So the selected state is carried more than once everywhere: the fill in dark,
+the shadow in light, and in both the label moving from `contentMuted` to
+`content` — the last of which survives a reader who cannot separate the greys at
+all. It is the same trade iOS makes with its own segmented control, at a
+measured 1.15:1, and it is a trade: someone who could find the old `#D0D0D0`
+ground and cannot find this shadow has lost something real.
 
 A selected **chip** still takes `outlineStrong`, because a tint 1.29:1 from the
 page genuinely cannot carry it alone. `contrastFailures` walks `outlineStrong`

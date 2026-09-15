@@ -104,19 +104,27 @@ private val Well = Color(0xFF1C1B1C)
  * The ground a segmented thumb runs in. Under [Ground], not over it.
  *
  * A theme outside this library has to answer the same question the built-in
- * schemes do — what separates a selected segment from its track — and GTurbo
- * had not, because until now there was no token to answer it with. Its whole
- * ramp lives between `#0A0A0B` and `#201F20`, so the track goes to pure black
- * and [Raised] comes up to meet it.
+ * schemes do — what separates a selected segment from the ground it slides on
+ * — and GTurbo had not, because until now there was no token to answer it with.
+ *
+ * It used to answer it from the bottom: the track went to pure black and
+ * [Raised] came up to meet it. The ground is [Well] now, the same one every
+ * text field uses, so the answer is all at this end — **1.57:1 over [Well]**,
+ * where [Raised] would have been 1.21:1. A theme that set the ground and forgot
+ * to lift the thumb is exactly what `IndicatorVisibilityTest` caught here at
+ * 1.28:1, and this is the token that makes it one value to get right instead of
+ * a whole ramp.
  */
-private val Track = Color(0xFF000000)
+private val Indicator = Color(0xFF3E3C40)
 
 /**
- * Menus over cards, and the selected segment.
+ * Menus over cards.
  *
- * Lifted from `#201F20`, which put a thumb 1.28:1 over a black track — under
- * the floor `IndicatorVisibilityTest` holds, and a fair thing for that test to
- * have caught in a theme nobody had checked this way.
+ * Lifted from `#201F20` when it was *also* the selected segment and read 1.28:1
+ * over a black track — under the floor `IndicatorVisibilityTest` holds, and a
+ * fair thing for that test to have caught in a theme nobody had checked this
+ * way. [Indicator] is the segment now; this kept the lift, because the five
+ * tokens below moved with it and the reason they moved is the lesson.
  *
  * **Five other tokens moved with it, and that is the interesting part.** This is
  * a *ground*, so text sits on it: at `#201F20` [LineStrong] read 3.01:1 here,
@@ -232,7 +240,7 @@ private fun gTurboStandardColours(): ColourScheme = darkColourScheme(
     background = Ground,
     surface = Card,
     surfaceSunken = Well,
-    surfaceTrack = Track,
+    surfaceIndicator = Indicator,
     surfaceRaised = Raised,
     surfaceInverse = Ink,
     onSurfaceInverse = Ground,
@@ -378,7 +386,7 @@ private fun gTurboEnhancedColours(): ColourScheme = highContrastDarkColourScheme
     background = Ground,
     surface = Card,
     surfaceSunken = Well,
-    surfaceTrack = Track,
+    surfaceIndicator = Indicator,
     surfaceRaised = Raised,
     surfaceInverse = Ink,
     onSurfaceInverse = Ground,

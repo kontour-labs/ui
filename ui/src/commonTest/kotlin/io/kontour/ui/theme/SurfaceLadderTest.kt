@@ -15,10 +15,10 @@ import kotlin.test.assertTrue
  * surface ground, and for the whole life of this library that pairing measured
  * **1.08:1** with nothing anywhere saying so.
  *
- * ### Why the pairing this asserts changed
+ * ### Why the pairing this asserts changed, twice
  *
  * The first fix pushed `surfaceSunken` down until `surface` stood out on it —
- * 1.25–1.30 across the four schemes — and put a 1dp `outlineStrong` border
+ * 1.25-1.30 across the four schemes — and put a 1dp `outlineStrong` border
  * round the thumb, because 1.30 is still nowhere near the 3:1 WCAG 1.4.11 asks
  * of anything identifying a control's state.
  *
@@ -28,48 +28,56 @@ import kotlin.test.assertTrue
  * every code block, table, text field and card, so a page of documentation went
  * grey so that a segmented thumb could be seen.
  *
- * So the ground split. [ColourScheme.surfaceSunken] went back to being quiet,
- * and [ColourScheme.surfaceTrack] took the one job that needed a loud ground.
- * This file asserts the pairing that now carries the state, which is **the
- * thumb against the track**:
+ * So the ground split, and a track token took the one job that needed a loud
+ * ground. That held the floor and cost something else: a segmented control and
+ * a text field on one screen were two greys apart and read as two design
+ * systems. Which is the report that moved it again — this time from the other
+ * end. The ground went back to [ColourScheme.surfaceSunken] for good, the track
+ * token is gone, and [ColourScheme.surfaceIndicator] lifts the **thumb** off
+ * the well instead:
  *
- * | scheme | thumb | on track | ratio | was |
+ * | scheme | thumb | on ground | ratio | was |
  * |---|---|---|---|---|
- * | light | `surface` `#FFFFFF` | `#D0D0D0` | 1.54 | 1.08 |
- * | light/high-contrast | `surface` `#FFFFFF` | `#D0D0D0` | 1.54 | 1.14 |
- * | dark | `surfaceRaised` `#302B3B` | `#000000` | 1.53 | 1.08 |
- * | dark/high-contrast | `surfaceRaised` `#302942` | `#000000` | 1.52 | 1.08 |
+ * | dark | `#403852` | `#1A1820` | **1.59** | 1.53 |
+ * | dark/high-contrast | `#453D58` | `#0B0910` | **1.94** | 1.52 |
+ * | light | `#FFFFFF` | `#F6F6F6` | *1.08* | 1.54 |
+ * | light/high-contrast | `#FFFFFF` | `#F0F0F0` | *1.11* | 1.54 |
  *
- * ### Dark is the interesting one
+ * ### Light is not asserted, and that is the cost
  *
- * The previous round concluded dark's ladder was exhausted, and the reasoning
- * was sound given what it was trying to do: the well was already at black, so
- * there was nowhere further down to go, and the top could not rise because
- * `outlineStrong` has to clear 3:1 against the *lightest* surface.
+ * Both dark schemes come out **further apart than the arrangement they
+ * replace**, which is the part worth knowing: the thumb was always the better
+ * end to move, and the round that declared dark's ladder exhausted was only
+ * ever trying to move the bottom of it.
  *
- * It was moving the wrong end. Dark puts the track at black and lifts the
- * **thumb** to `surfaceRaised`, which is 1.53:1 — better than light manages —
- * off the ramp that had been declared finished. That is why the light and dark
- * numbers above are within 0.01 of each other rather than dark trailing.
+ * Light cannot be moved at all. White is the top of the ramp and the well is
+ * `#F6F6F6`; no value of `surfaceIndicator` changes 1.08:1, so asserting a
+ * floor there would be asserting something no palette can satisfy.
  *
- * ### What this floor is, and is not
+ * So light does not carry it with a fill. It carries it with the shadow —
+ * `elevation.medium`, raised from `low` for exactly this — and with the label
+ * going `contentMuted` to `content`, and the whole edge measures **1.17:1**.
+ * The shadow is worth 0.09 of that: a soft shadow on a near-white ground has
+ * very little to darken, and this is the measurement rather than an estimate.
  *
- * It is a house floor. It is **not** WCAG 1.4.11, and the library no longer
- * claims to meet that here. No two greys in one monochrome ramp reach 3:1 —
- * a white thumb needs a `#959595` track, which is a dark bar rather than a
- * ground — so the choice was a permanent border or a fill that falls short,
- * and the border was the thing a reader objected to.
+ * A 1dp `outlineStrong` hairline was built and measured and reaches **3.60:1**,
+ * clearing WCAG 1.4.11 outright. It was rejected on the rendering: on a
+ * near-white ground that line is a hard dark stroke around the selected
+ * segment, which is the visible apology for a fill not doing its job that an
+ * earlier round already removed once. The number was better and the control was
+ * worse. `IndicatorVisibilityTest` holds light to 1.15 and dark to 1.45, which
+ * is two floors because there are two situations, and neither is 3:1.
  *
- * What identifies the selected segment is three things together: this fill, the
- * shadow under the thumb in light, and the label moving `contentMuted` →
- * `content`. `IndicatorVisibilityTest` photographs the first of those and
- * measures the step across a real thumb's edge; the two halves are a pair.
+ * `IndicatorVisibilityTest` photographs a real control and measures the step
+ * across the thumb's edge, which is the only instrument that can see a line or
+ * a shadow at all. A token pair cannot, so this file asserts only the fill, and
+ * only where a fill is the answer.
  *
  * ### What is deliberately not asserted
  *
- * - **`surface` on `surfaceSunken`.** Back to 1.08 in light and by design. A
- *   well is a hint that content is inset, not a boundary, and a filled field
- *   that has to shout is a page of grey boxes. That was the whole complaint.
+ * - **`surface` on `surfaceSunken`.** 1.08 in light and by design. A well is a
+ *   hint that content is inset, not a boundary, and a filled field that has to
+ *   shout is a page of grey boxes. That was the whole complaint.
  * - **`surfaceRaised` on `surface`.** In light both are pure white and the
  *   ratio is 1.00, on purpose: a card on a white page is separated by its
  *   shadow, which is what `Elevation` is for.
@@ -85,22 +93,20 @@ class SurfaceLadderTest {
         Scheme("dark/high-contrast", highContrastDarkColourScheme()),
     )
 
-    /**
-     * The thumb a segmented control draws, per scheme.
-     *
-     * Mirrors `SegmentedControl`'s own choice rather than restating a colour:
-     * light uses `surface`, dark lifts to `surfaceRaised` because its track is
-     * already at black. If that component's rule changes and this does not, the
-     * two disagree and this test is measuring a thumb nobody draws.
-     */
-    private val ColourScheme.thumb: Color
-        get() = if (isDark) surfaceRaised else surface
-
     @Test
-    fun theSelectedSegmentSeparatesFromItsTrack() {
+    fun theSelectedSegmentSeparatesFromItsGround() {
         val weak = mutableListOf<String>()
         for ((name, c) in schemes) {
-            check(weak, name, "thumb on surfaceTrack", c.thumb, c.surfaceTrack, ThumbFloor)
+            // Dark only. Light's thumb is white on a near-white well and no
+            // palette can change that — see this class's KDoc for what carries
+            // it there instead, and `IndicatorVisibilityTest` for the
+            // measurement that can see it.
+            if (c.isDark) {
+                check(
+                    weak, name, "surfaceIndicator on surfaceSunken",
+                    c.surfaceIndicator, c.surfaceSunken, ThumbFloor,
+                )
+            }
             check(weak, name, "accent.container on surface", c.accent.container, c.surface, ContainerFloor)
         }
         assertTrue(
@@ -109,10 +115,11 @@ class SurfaceLadderTest {
                 weak.joinToString("\n") +
                 "\nThis is the pairing `contrastFailures` cannot see: it uses the " +
                 "surface tokens only as grounds, never against each other. A " +
-                "segmented thumb on its track is this number, and it was 1.08:1 in " +
-                "every scheme before `surfaceTrack` existed to carry it. Since the " +
-                "thumb has no border any more, this fill is most of what says which " +
-                "segment is selected — read this class's KDoc before lowering it.",
+                "segmented thumb on its well is this number, and it was 1.08:1 in " +
+                "every scheme before `surfaceIndicator` existed to carry it. Since " +
+                "the thumb has no border any more, this fill is most of what says " +
+                "which segment is selected in dark — read this class's KDoc before " +
+                "lowering it.",
         )
     }
 
@@ -134,11 +141,14 @@ class SurfaceLadderTest {
         /**
          * What a fill that *identifies a state* has to clear.
          *
-         * The measured floor across the four schemes is 1.52, at the dark
-         * enhanced tier, and the others sit at 1.53–1.54. Set just under that
-         * rather than at it: the track is bounded from the other side by
-         * `contentMuted` staying legible on it at the enhanced tier, so there is
-         * roughly one step of room and no point pretending to more.
+         * The measured floor across the two schemes this applies to is 1.59,
+         * at plain dark, with the enhanced tier at 1.94. Kept at 1.5 rather
+         * than raised to meet them: the number is the floor a *consumer's*
+         * scheme has to clear, and the built-in ones having headroom over it is
+         * not a reason to spend that headroom. GTurbo, the one out-of-tree
+         * theme in the tree, sits at 1.57.
+         *
+         * Light is not held to this at all, and cannot be — see the KDoc.
          */
         const val ThumbFloor = 1.5f
 

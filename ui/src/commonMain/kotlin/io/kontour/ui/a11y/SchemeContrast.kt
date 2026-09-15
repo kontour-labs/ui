@@ -50,7 +50,7 @@ data class ContrastFailure(
  * Two. [ColourScheme.outlineStrong] against the *fills* it has to bound, as
  * well as against the grounds — a tint that cannot separate itself has to be
  * bounded, and this is the promise that makes bounding it possible. And
- * [ColourScheme.surfaceTrack], which is a ground but not one of the four, so it
+ * [ColourScheme.surfaceIndicator], which is a fill rather than a ground, so it
  * is walked against only the two foregrounds that actually land on it. Both
  * have the reason written at the walk.
  *
@@ -95,28 +95,24 @@ fun contrastFailures(scheme: ColourScheme, tier: ContrastLevel): List<ContrastFa
         check("focusRing", scheme.focusRing, groundName, ground, nonText)
     }
 
-    // A segmented control's labels, on the track they sit in.
+    // A segmented control's selected label, on the thumb it sits on.
     //
-    // Deliberately not an entry in `grounds` above, which would walk all five
-    // foregrounds against it. Only two of them land on a track — the selected
-    // label is `content`, the unselected ones are `contentMuted` — and the
-    // other three would be held to a ground nothing draws them on.
+    // One check where there used to be three, because the ground moved. The
+    // track was a token of its own and had to be walked as a ground nothing
+    // else used; the track is `surfaceSunken` now, which is already one of the
+    // four above, so the unselected labels are covered there and only the
+    // *selected* one needs its own pairing — it is `content`, drawn on
+    // `surfaceIndicator`.
     //
-    // The two that are excused are excused for a reason, not because they fail.
-    // `contentSubtle` is never a segment label. And `outlineStrong` reads
-    // 2.38:1 on the light track, which would have been a defect right up until
-    // the thumb stopped being bounded: its 3:1-against-every-fill contract
-    // exists so that a fill unable to separate itself can be given an edge, and
-    // a track is the one ground in the scheme with nothing drawn around it. Put
-    // `surfaceTrack` in `grounds` and you get a failure that describes a line
-    // no component draws.
-    //
-    // What keeps the track honest instead is that `contentMuted` has to stay
-    // legible on it, and at the enhanced tier that is 7:1 — which is what fixes
-    // how dark the track may go. See `Palette.Grey300`.
-    check("content", scheme.content, "surfaceTrack", scheme.surfaceTrack, bodyText)
-    check("contentMuted", scheme.contentMuted, "surfaceTrack", scheme.surfaceTrack, bodyText)
-    check("focusRing", scheme.focusRing, "surfaceTrack", scheme.surfaceTrack, nonText)
+    // Deliberately not an entry in `grounds`, which would walk all five
+    // foregrounds against it. `contentMuted` and `contentSubtle` are never
+    // drawn on a thumb, and `outlineStrong` is not either: its
+    // 3:1-against-every-fill contract exists so that a fill unable to separate
+    // itself can be given an edge, and a thumb is deliberately unbounded. Put
+    // `surfaceIndicator` in `grounds` and you get a failure that describes a
+    // line no component draws.
+    check("content", scheme.content, "surfaceIndicator", scheme.surfaceIndicator, bodyText)
+    check("focusRing", scheme.focusRing, "surfaceIndicator", scheme.surfaceIndicator, nonText)
 
     // Source code, on the one ground it is ever drawn on.
     //
@@ -175,7 +171,7 @@ fun contrastFailures(scheme: ColourScheme, tier: ContrastLevel): List<ContrastFa
     //
     // The tokens below are the fills that are *bounded*, and a segmented
     // control's thumb is deliberately no longer among them: it separates on
-    // fill, and `surfaceTrack` exists so that it can. What remains is
+    // fill, and `surfaceIndicator` exists so that it can. What remains is
     // `accent.container` and the grounds — a selected chip is a tint 1.29:1
     // from the page, so what says it is selected is the border round it.
     //

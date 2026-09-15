@@ -117,20 +117,32 @@ data class ColourScheme(
     /** Wells and inset areas: input fills, code blocks, table stripes. */
     val surfaceSunken: Color,
     /**
-     * The ground a moving indicator runs in: a segmented track, a wheel's band.
+     * The fill of a moving indicator: a segmented control's thumb.
      *
-     * Distinct from [surfaceSunken] because the two want opposite things. A well
-     * is a hint that content is inset and should stay quiet — a page of code
-     * blocks in a loud well is a page of grey boxes. A track has something
-     * sliding along it whose position *is* the control's state, so it has to be
-     * far enough under that thing to show it.
+     * The *ground* it runs in is [surfaceSunken] — the same well a filled text
+     * field uses — so a segmented control and a text field on one screen read as
+     * one system. They did not: the track was a token of its own, two steps
+     * darker than the well, and the pair looked like two design systems next to
+     * each other.
      *
-     * They were one token until a reader disliked what holding both jobs cost:
-     * making a segmented thumb visible turned every code block on the
-     * documentation site grey, and the thumb still needed a border on top. This
-     * is the token that lets the track go dark on its own.
+     * This is the other end of the same problem, and it is the end worth moving.
+     * The old token made the *ground* darker so a white thumb could sit on it,
+     * which is why a page of code blocks went grey the first time it was tried
+     * and why the track had to be split back out afterwards. Lifting the thumb
+     * instead costs one fill nothing else draws, and in dark it lands **further
+     * from its ground than the arrangement it replaces** — 1.59:1 against
+     * 1.53:1, and 1.94:1 in the enhanced tier against 1.52:1.
+     *
+     * **In light it carries nothing**, and that is the honest cost. White is
+     * already the top of the ramp, so a white thumb on a `#F6F6F6` well is
+     * 1.08:1 and no value of this token can change it. What identifies the
+     * selected segment in light is the shadow under the thumb and the label
+     * going [contentMuted] to [content] — the same trade iOS makes, whose own
+     * segmented control measures 1.15:1. `IndicatorVisibilityTest` measures the
+     * shadow where it actually falls, and `SurfaceLadderTest` holds the fill
+     * floor for the two schemes that can meet it.
      */
-    val surfaceTrack: Color,
+    val surfaceIndicator: Color,
     /** Above [surface]: menus over cards, elevated dialogs. */
     val surfaceRaised: Color,
     /** Inverted ground for toasts and tooltips. */
@@ -158,16 +170,15 @@ data class ColourScheme(
      * is the border around it, and that border is this.
      *
      * It is **not** what identifies a segmented control's selected segment, and
-     * used to be. That thumb is now a lighter fill on a
-     * [surfaceTrack] dark enough to show it — 1.53:1 or so, depending on the
-     * scheme — with a shadow under it in light and the label going from
-     * `contentMuted` to `content`. Three carriers rather than a line, which is
-     * a deliberate step away from the 3:1 a boundary would give; see
-     * `SurfaceLadderTest` for the floor those carriers hold and
-     * `IndicatorVisibilityTest` for what is given up.
+     * used to be. That thumb is [surfaceIndicator] on a [surfaceSunken] ground
+     * — 1.59:1 in dark and 1.94:1 in the enhanced tier — with a shadow under it
+     * in light and the label going from `contentMuted` to `content`. Three
+     * carriers rather than a line, which is a deliberate step away from the 3:1
+     * a boundary would give; see `SurfaceLadderTest` for the floor those
+     * carriers hold and `IndicatorVisibilityTest` for what is given up.
      *
-     * [surfaceTrack] is therefore not in the fill half of the walk. Nothing
-     * bounds a track.
+     * [surfaceIndicator] is therefore not in the fill half of the walk. Nothing
+     * bounds a thumb.
      */
     val outlineStrong: Color,
     /** The faintest rule the scheme offers, for dense lists. */
@@ -259,7 +270,7 @@ fun lightColourScheme(
     background: Color = Palette.White,
     surface: Color = Palette.White,
     surfaceSunken: Color = Palette.Grey50,
-    surfaceTrack: Color = Palette.Grey300,
+    surfaceIndicator: Color = Palette.White,
     surfaceRaised: Color = Palette.White,
     surfaceInverse: Color = Palette.Ink,
     onSurfaceInverse: Color = Palette.White,
@@ -326,7 +337,7 @@ fun lightColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
-    surfaceTrack = surfaceTrack,
+    surfaceIndicator = surfaceIndicator,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,
@@ -359,7 +370,7 @@ fun darkColourScheme(
     background: Color = Palette.Ink,
     surface: Color = Palette.Slate850,
     surfaceSunken: Color = Palette.Slate900,
-    surfaceTrack: Color = Palette.Black,
+    surfaceIndicator: Color = Palette.SlateIndicator,
     surfaceRaised: Color = Palette.Slate800,
     surfaceInverse: Color = Palette.Paper,
     onSurfaceInverse: Color = Palette.Ink,
@@ -423,7 +434,7 @@ fun darkColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
-    surfaceTrack = surfaceTrack,
+    surfaceIndicator = surfaceIndicator,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,
@@ -512,7 +523,7 @@ fun highContrastLightColourScheme(
     background: Color = Palette.White,
     surface: Color = Palette.White,
     surfaceSunken: Color = Palette.GreyHcSunken,
-    surfaceTrack: Color = Palette.Grey300,
+    surfaceIndicator: Color = Palette.White,
     surfaceRaised: Color = Palette.White,
     surfaceInverse: Color = Palette.Black,
     onSurfaceInverse: Color = Palette.White,
@@ -596,7 +607,7 @@ fun highContrastLightColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
-    surfaceTrack = surfaceTrack,
+    surfaceIndicator = surfaceIndicator,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,
@@ -640,7 +651,7 @@ fun highContrastDarkColourScheme(
     background: Color = Palette.Black,
     surface: Color = Palette.InkHcSurface,
     surfaceSunken: Color = Palette.InkHcSunken,
-    surfaceTrack: Color = Palette.Black,
+    surfaceIndicator: Color = Palette.InkHcIndicator,
     surfaceRaised: Color = Palette.InkHcRaised,
     surfaceInverse: Color = Palette.White,
     onSurfaceInverse: Color = Palette.Black,
@@ -713,7 +724,7 @@ fun highContrastDarkColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
-    surfaceTrack = surfaceTrack,
+    surfaceIndicator = surfaceIndicator,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,

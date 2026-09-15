@@ -214,6 +214,23 @@ object Palette {
      * thumb is drawn in once the track drops to black under it.
      */
     val Slate800 = Color(0xFF302B3B)
+
+    /**
+     * The selected segment's fill in dark, and nothing else.
+     *
+     * A job rather than a step on the ramp, which is why it is named like
+     * [InkHcRaised] and not like [Slate700]. The ground under a segmented thumb
+     * used to be [Black] so that [Slate800] could sit 1.53:1 above it; the
+     * ground is [Slate900] now — the same well every text field uses — and
+     * [Slate800] is only 1.28:1 on that. Moving the *thumb* up instead reaches
+     * **1.59:1**, which is better than the arrangement it replaces.
+     *
+     * Deliberately not [Slate700], which is 1.50:1 on the nose and is already
+     * `outline` in dark. A fill and a line wanting the same value is how two
+     * roles end up impossible to tell apart.
+     */
+    val SlateIndicator = Color(0xFF403852)
+
     val Slate700 = Color(0xFF3C3547)
     val Slate600 = Color(0xFF7C7484)
     val Slate500 = Color(0xFF9A93A2)
@@ -278,6 +295,15 @@ object Palette {
 
     /** The enhanced tier's well in dark, a step under [Black]'s page rather than on it. */
     val InkHcSunken = Color(0xFF0B0910)
+
+    /**
+     * The enhanced tier's selected segment: **1.94:1** on [InkHcSunken].
+     *
+     * The tier's counterpart to [SlateIndicator], and further up than it for the
+     * reason the tier exists — [InkHcRaised] reads 1.43:1 on this tier's well,
+     * which is under the floor, where it used to read 1.52:1 on [Black].
+     */
+    val InkHcIndicator = Color(0xFF453D58)
     val SlateHcMuted = Color(0xFFD6CFE0)
     val SlateHcSubtle = Color(0xFFBFB6CC)
     val SlateHcDisabled = Color(0xFF8A8296)

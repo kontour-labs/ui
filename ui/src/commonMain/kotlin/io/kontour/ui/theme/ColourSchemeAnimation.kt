@@ -160,7 +160,7 @@ internal fun lerpColourScheme(start: ColourScheme, stop: ColourScheme, fraction:
     background = lerp(start.background, stop.background, fraction),
     surface = lerp(start.surface, stop.surface, fraction),
     surfaceSunken = lerp(start.surfaceSunken, stop.surfaceSunken, fraction),
-    surfaceTrack = lerp(start.surfaceTrack, stop.surfaceTrack, fraction),
+    surfaceIndicator = lerp(start.surfaceIndicator, stop.surfaceIndicator, fraction),
     surfaceRaised = lerp(start.surfaceRaised, stop.surfaceRaised, fraction),
     surfaceInverse = lerp(start.surfaceInverse, stop.surfaceInverse, fraction),
     onSurfaceInverse = lerp(start.onSurfaceInverse, stop.onSurfaceInverse, fraction),

@@ -183,7 +183,7 @@ fun SegmentedControl(
             .selectableGroup()
             .height(height)
             .clip(outerShape)
-            .background(colours.surfaceTrack, outerShape)
+            .background(colours.surfaceSunken, outerShape)
             .then(
                 contrastEdge()?.let { Modifier.border(it, outerShape) } ?: Modifier
             )
@@ -240,43 +240,77 @@ fun SegmentedControl(
                         scaleX = 1f + reach.coerceAtMost(MaxSegmentStretch)
                     },
                 shape = innerShape,
-                // The fill separates the thumb, and it took a token to do it.
+                // One token, no branch on the scheme.
                 //
-                // Both of these used to be one colour apart from their track:
-                // `surface` on `surfaceSunken`, 1.08:1, which is nothing. It was
-                // reported from a phone as the selected segment being "almost
-                // invisible in both dark themes", and the first fix was a 1dp
-                // `outlineStrong` border at every tier — the only carrier that
-                // worked in dark, where `kontourElevation(dark = true)` draws
-                // its shadows *black* and a shadow on a near-black track has
-                // nothing left to darken.
+                // This used to read `isDark -> surfaceRaised else -> surface`,
+                // because the two schemes were solving the problem from
+                // opposite ends: light darkened the *ground* under a white
+                // thumb, dark could not (its ground was already black) and
+                // raised the thumb instead. `surfaceIndicator` is the raise,
+                // done once, for both.
                 //
-                // The border was then disliked, which was fair: a hard grey line
-                // around a thumb is a visible apology for a fill that is not
-                // doing its job. `surfaceTrack` is the fill doing its job. It
-                // exists precisely so the ground under the thumb can go dark
-                // without dragging every code block and text field down with it,
-                // which is what a single `surfaceSunken` forced.
+                // The ground is `surfaceSunken` — the well a filled text field
+                // uses. That was the report: a segmented control and a text
+                // field on one screen were two greys apart and read as two
+                // design systems. The cost is paid per scheme and it is not the
+                // same cost:
                 //
-                // Light drops the track to `#D0D0D0` under a white thumb, 1.54:1.
-                // Dark cannot drop its track any further — it is already black —
-                // so it **raises the thumb** instead, to `surfaceRaised`, for
-                // 1.53:1. The round that declared dark's ladder exhausted was
-                // only ever trying to move the bottom of it.
+                //   dark      1.28:1 if the thumb had stayed put -> **1.59:1**
+                //   dark/high 1.43:1 -> **1.94:1**
+                //   light     **1.08:1**, and nothing can change it
                 //
-                // What this does not claim is WCAG 1.4.11's 3:1. No two greys in
-                // one ramp reach it — that needs a `#959595` track, which is a
-                // dark bar and not a ground — so the state is carried by three
-                // things at once instead of by one line: this fill, the shadow
-                // below in light, and the label going `contentMuted` -> `content`
-                // at :348. `IndicatorVisibilityTest` holds the floor and records
-                // what was given up.
-                colour = when {
-                    !enabled -> colours.surfaceSunken
-                    colours.isDark -> colours.surfaceRaised
-                    else -> colours.surface
-                },
-                shadow = if (enabled) Theme.elevation.low else Shadow.None,
+                // Dark ends up further apart than the arrangement it replaces.
+                // Light cannot: white is the top of the ramp and the well is
+                // `#F6F6F6`. So in light the fill carries nothing and the other
+                // two carriers do the work — the shadow, raised a step to
+                // `medium` for exactly this, and the label going `contentMuted`
+                // -> `content` below. It is the trade iOS makes, whose own
+                // segmented control measures 1.15:1, and it is a real loss for
+                // a reader who could find the old ground and cannot find this
+                // shadow. What they have not lost is the label.
+                //
+                // A shadow is no help in dark — `kontourElevation(dark = true)`
+                // draws black, and black on a near-black well has nothing to
+                // darken — which is the whole reason dark had to move the thumb
+                // rather than lean on elevation like light does.
+                // Disabled is `surface`, not `surfaceSunken`: the ground is
+                // `surfaceSunken` now, so the old disabled fill would be the
+                // ground exactly and the thumb would vanish rather than grey
+                // out. WCAG exempts a disabled control from the ratio, but it
+                // does not excuse a control you cannot see the state of.
+                colour = if (enabled) colours.surfaceIndicator else colours.surface,
+                shadow = if (enabled) Theme.elevation.medium else Shadow.None,
+                // No border, in any scheme, and light pays for that.
+                //
+                // Dark does not need one: `surfaceIndicator` is 1.59:1 off the
+                // well and 1.94:1 at the enhanced tier, both further apart than
+                // the separate-track arrangement managed.
+                //
+                // Light cannot have one on those terms. White is the top of the
+                // ramp and the ground is `#F6F6F6`, so the fill is 1.08:1
+                // whatever token it reads, and the shadow — `medium` rather
+                // than `low`, raised for exactly this — is worth **0.09** of a
+                // ratio on a ground that pale. Measured end to end the light
+                // thumb comes to **1.17:1**, against the 1.45 this control is
+                // held to in dark and the 1.54 it used to have.
+                //
+                // A 1dp `outlineStrong` hairline was built and measured and
+                // reaches **3.60:1**, clearing WCAG 1.4.11 outright. It was
+                // rejected on sight, and the rendering is the argument: on a
+                // near-white ground that line is a hard dark stroke around the
+                // selected segment, which is the "visible apology for a fill
+                // that is not doing its job" an earlier round already removed
+                // once. The number was better and the control was worse.
+                //
+                // So light is carried by the shadow and by the label going
+                // `contentMuted` -> `content` below — the same two carriers
+                // iOS's own segmented control has, at a measured 1.15:1. The
+                // label is the one that survives a reader who cannot separate
+                // the greys at all, and it is the reason this is a defensible
+                // trade rather than a quiet loss. `IndicatorVisibilityTest`
+                // holds light to what light can actually do and dark to what
+                // dark can, which is two floors because there are two
+                // situations.
                 content = {},
             )
         },
