@@ -37,6 +37,7 @@ import io.kontour.ui.components.action.TextButton
 import io.kontour.ui.components.action.TextIconButton
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
+import io.kontour.ui.components.action.VerticalToolbar
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.linkedText
@@ -138,6 +139,16 @@ fun ToolbarBasics() {
             )
             item(onClick = { zoomIn() }, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
         }
+        ToolbarDivider()
+        IconButton(Tabler.Outline.Stack, "Map layers", onClick = { openLayers() })
+    }
+}
+
+@Composable
+fun VerticalToolbarBasics() {
+    VerticalToolbar {
+        IconButton(Tabler.Outline.Plus, "Zoom in", onClick = { zoomIn() })
+        IconButton(Tabler.Outline.Minus, "Zoom out", onClick = { zoomOut() })
         ToolbarDivider()
         IconButton(Tabler.Outline.Stack, "Map layers", onClick = { openLayers() })
     }
