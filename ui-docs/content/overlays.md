@@ -123,6 +123,21 @@ sheet is a surface you sit in.
 alone leaves it legible and distracting. It is a deliberate choice with a cost,
 not the default.
 
+**The recede is a distance, not a ratio.** `BackdropDefaults.Inset` is 12dp, and
+the reason it is a `Dp` is that one scale factor gives two different margins on
+any screen that is not square: `0.94` on a 390x844 phone left 11.7dp at the sides
+and 25.3dp at the top, so the receded screen read as having a gap above it rather
+than a frame around it. Scaling each axis separately would fix the margins and
+distort the content — 0.938 across against 0.972 down turns every avatar into a
+slight ellipse.
+
+So it scales **uniformly, from the width**, which puts both side margins exactly
+on the inset, and then moves the content *up* by the vertical slack that leaves
+over. The top margin lands on the inset too and the surplus collects at the
+bottom, which is the one edge a bottom sheet is covering anyway: three edges
+uniform, the fourth hidden, nothing distorted. Under `reduceMotion` the inset is
+`0.dp` and nothing moves at all.
+
 This is a real backdrop filter, not the two-pass trick `GlassSurface` documents.
 The difference is that behind a modal there is exactly one node — the host
 composes the whole app as a single full-size sibling of the overlay stack — and

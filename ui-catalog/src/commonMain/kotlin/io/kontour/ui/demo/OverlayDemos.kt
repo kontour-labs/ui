@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,13 +44,17 @@ import io.kontour.ui.overlay.AlertDialog
 import io.kontour.ui.overlay.Command
 import io.kontour.ui.overlay.CommandPalette
 import io.kontour.ui.overlay.ContextMenuArea
+import io.kontour.ui.overlay.BackdropStyle
 import io.kontour.ui.overlay.Dialog
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.LoadingOverlay
 import io.kontour.ui.overlay.MenuDivider
 import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.MenuSectionHeader
+import io.kontour.ui.overlay.LocalOverlayHost
+import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.ScrimStyle
@@ -461,12 +468,29 @@ internal val CommandPaletteDemo = ComponentDemo(
  */
 private val hostScrim = Knob.Choice("Scrim", ScrimStyle.entries.toList(), ScrimStyle.Dimmed)
 
-internal val OverlayHostDemo = ComponentDemo(slug = "overlay-host", knobs = listOf(hostScrim)) {
+/**
+ * What the host does to the content *behind* an entry, past dimming it.
+ *
+ * Reachable from nowhere else in the gallery, and for a structural reason:
+ * `BackdropStyle` is a constructor property of `OverlayEntry` rather than a
+ * parameter of a composable, so the rule that asks whether every enum a
+ * component takes is on a knob cannot see it — and neither could a reader,
+ * because `Dialog` and `Popover` **derive** it from the scrim and do not offer
+ * it. Blur for anything that dims, none for anything that does not.
+ *
+ * Which is why this demo pushes its own entry rather than opening a `Dialog`.
+ * That is also the more honest picture of the page: `OverlayHost`'s subject is
+ * the stack and the entry, not a dialog's chrome.
+ */
+private val hostBackdrop = Knob.Choice("Backdrop", BackdropStyle.entries.toList(), BackdropStyle.Blur)
+
+internal val OverlayHostDemo = ComponentDemo(
+    slug = "overlay-host",
+    knobs = listOf(hostScrim, hostBackdrop),
+) {
     var open by remember { mutableStateOf(false) }
-    val scrim = this[hostScrim]
-    val dimmed = scrim == ScrimStyle.Dimmed
     // Two stages side by side would be the honest picture, but the point is
-    // simpler than that: this card has its own host, so the dialog stays inside
+    // simpler than that: this card has its own host, so the entry stays inside
     // the border. Without one it would find the site's host and cover the page.
     Stage {
         Button(
@@ -475,34 +499,115 @@ internal val OverlayHostDemo = ComponentDemo(slug = "overlay-host", knobs = list
             modifier = Modifier.align(Alignment.Center),
         ) { +"Open something" }
 
-        if (dimmed) {
-            Dialog(visible = open, onDismissRequest = { open = false }) {
-                Text("Contained", style = Theme.typography.titleSmall)
-                Text(
-                    "The scrim stops at this card's edge, because the nearest " +
-                        "host is the one inside it.",
-                    style = Theme.typography.bodySmall,
-                    colour = Theme.colours.contentMuted,
-                )
-            }
-        } else {
-            // The two undimmed scrims differ in one thing and it is not what
-            // they look like: `Transparent` still eats the pointer events aimed
-            // past it, and `None` lets them through to the button underneath.
-            Popover(visible = open, onDismissRequest = { open = false }, scrim = scrim) {
-                Text(
-                    if (scrim == ScrimStyle.Transparent) {
-                        "Transparent: blocked, but not dimmed — what a menu wants."
-                    } else {
-                        "None: not dimmed and not blocked — press the button again " +
-                            "and it still answers."
-                    },
-                    style = Theme.typography.bodySmall,
-                )
-            }
-        }
+        HostEntry(
+            open = open,
+            scrim = this@ComponentDemo[hostScrim],
+            backdrop = this@ComponentDemo[hostBackdrop],
+            onClose = { open = false },
+        )
     }
 }
+
+/**
+ * One entry, pushed by hand, so both knobs reach it.
+ *
+ * Shown and hidden from an effect rather than declared, because that is the
+ * shape of the API this page is about: `show` takes a whole `OverlayEntry` and
+ * replaces any entry with the same key, which is how changing a knob while the
+ * thing is open swaps it in place instead of stacking a second one.
+ *
+ * The panel is plain — no settle-in transform, because the modifier the
+ * library's own overlays use for that is internal. Which suits the subject:
+ * everything moving here is behind the panel rather than in it.
+ */
+@Composable
+private fun HostEntry(
+    open: Boolean,
+    scrim: ScrimStyle,
+    backdrop: BackdropStyle,
+    onClose: () -> Unit,
+) {
+    val host = LocalOverlayHost.current
+    val key = remember { Any() }
+
+    LaunchedEffect(open, scrim, backdrop) {
+        if (!open) {
+            host.hide(key)
+            return@LaunchedEffect
+        }
+        host.show(
+            OverlayEntry(
+                key = key,
+                layer = OverlayLayer.Dialog,
+                scrim = scrim,
+                backdrop = backdrop,
+                trapFocus = scrim == ScrimStyle.Dimmed,
+                onDismiss = onClose,
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Surface(
+                        modifier = Modifier.padding(Theme.spacing.lg).widthIn(max = 400.dp),
+                        shape = Theme.shapes.panel,
+                        colour = Theme.colours.surfaceRaised,
+                        shadow = Theme.elevation.overlay,
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(Theme.spacing.md),
+                            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+                        ) {
+                            Text("Contained", style = Theme.typography.titleSmall)
+                            Text(
+                                text = scrimNote(scrim) + " " + backdropNote(scrim, backdrop),
+                                style = Theme.typography.bodySmall,
+                                colour = Theme.colours.contentMuted,
+                            )
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    // The gallery swaps pages by leaving this composition, and an entry the host
+    // still holds would outlive the demo that pushed it.
+    DisposableEffect(key) { onDispose { host.hide(key) } }
+}
+
+/**
+ * The scrims differ in one thing, and it is not what they look like.
+ *
+ * `Transparent` still eats the pointer events aimed past it; `None` lets them
+ * through to the button underneath.
+ */
+private fun scrimNote(scrim: ScrimStyle): String = when (scrim) {
+    ScrimStyle.Dimmed -> "Dimmed: the scrim stops at this card's edge, because the " +
+        "nearest host is the one inside it."
+
+    ScrimStyle.Transparent -> "Transparent: blocked, but not dimmed — what a menu wants."
+    ScrimStyle.None -> "None: not dimmed and not blocked — press the button again and " +
+        "it still answers."
+}
+
+/**
+ * Why the Backdrop knob does nothing on two of the three scrims.
+ *
+ * The host only takes a backdrop from an entry that dims — the scrim and the
+ * recede are one movement, and half of one is worse than neither. `Knob` has no
+ * conditional, so the caption is the only place that can be said.
+ */
+private fun backdropNote(scrim: ScrimStyle, backdrop: BackdropStyle): String =
+    if (scrim != ScrimStyle.Dimmed) {
+        "The backdrop needs a dimmed scrim, so it is doing nothing here."
+    } else {
+        when (backdrop) {
+            BackdropStyle.None -> "No backdrop: the text behind is untouched."
+            BackdropStyle.Blur -> "Blur: the text behind softens, and cannot be read past."
+            BackdropStyle.Scale -> "Scale: the card behind recedes by an inset and shifts " +
+                "down, the way one card slides under another."
+            BackdropStyle.BlurAndScale -> "Both, which is the dear one — a blur is a " +
+                "full-screen render on every frame it is open."
+        }
+    }
 
 internal val SelectionIndicatorDemo = ComponentDemo(slug = "selection-indicator") {
     var selected by remember { mutableStateOf(0) }

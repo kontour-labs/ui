@@ -174,7 +174,13 @@ object BackdropDefaults {
 internal fun backdropScale(width: Float, insetPx: Float): Float =
     if (width <= 0f) 1f else (1f - 2f * insetPx / width).coerceIn(0f, 1f)
 
-/** The downward shift that puts the *top* margin on the inset too. See [backdropScale]. */
+/**
+ * How far to move the content *up* to put the top margin on the inset too.
+ *
+ * A magnitude, so both call sites negate it. See [backdropScale], which argues
+ * the direction at length — a uniform scale leaves equal slack top and bottom,
+ * and closing the top down to the inset moves the content toward the top.
+ */
 internal fun backdropShift(height: Float, scale: Float, insetPx: Float): Float =
     ((1f - scale) * height / 2f - insetPx).coerceAtLeast(0f)
 

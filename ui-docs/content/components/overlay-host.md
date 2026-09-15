@@ -1,6 +1,6 @@
 # `OverlayHost`
 
-*Also on this page: `ScrimStyle`.*
+*Also on this page: `ScrimStyle`, `BackdropStyle`.*
 
 Where everything that draws over the screen actually renders. Installed once, at
 the root, inside the theme.
@@ -27,6 +27,22 @@ whole page, scrim and all. Both are correct and only one is usually wanted.
 lets pointers through, `Transparent` blocks without dimming — which is what a
 menu wants, so a tap outside closes it without the screen going grey — and
 `Dimmed` does both.
+
+`BackdropStyle` says what happens to the content *behind* an entry, past dimming
+it: `None` leaves it alone, `Blur` softens it, `Scale` insets it by
+`BackdropDefaults.Inset` the way one card slides under another, and
+`BlurAndScale` does both. It is a property of `OverlayEntry` rather than a
+parameter of a component, because **components derive it** — `Dialog` and
+`Popover` take the default, which follows the scrim: blur for anything that dims,
+nothing for anything that does not. A dropdown sits over content the reader is
+still using and has no business softening it.
+
+**A backdrop needs a dimmed scrim.** The host only takes one from an entry that
+dims, because the scrim and the recede are one movement and half of it is worse
+than neither. Set `backdrop` on an undimmed entry and nothing happens.
+
+The blur is not free — see [the overlay guide](../overlays.md) for what it costs
+per frame, and why sheets recede rather than blur.
 
 The stack, the queue, back handling and focus order are in
 [the overlay guide](../overlays.md).
