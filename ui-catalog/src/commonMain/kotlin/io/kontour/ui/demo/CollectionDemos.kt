@@ -19,11 +19,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Archive
 import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.GripVertical
 import com.composables.icons.tabler.outline.Moon
+import com.composables.icons.tabler.outline.Pin
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.display.Tag
@@ -177,7 +179,49 @@ internal val SettingRowDemo = ComponentDemo(slug = "setting-row") {
     }
 }
 
-internal val SwipeActionsDemo = ComponentDemo(slug = "swipe-actions") {
+/**
+ * How many actions the trailing side offers, up to the cap.
+ *
+ * Three is `SwipeActionsDefaults.MaxActionsPerSide` and a fourth now throws at
+ * composition — a cap worth having, because one target is 88dp and three of them
+ * are 264dp of a phone's width. Nothing in the repository drew more than one
+ * until this knob, so the strip the cap exists to bound had never been looked at:
+ * the same gap `handleIcon` was in for two rounds.
+ *
+ * Starts at one, which is both the common case and the safe one — the semantics
+ * sweep floors at nine actions across this family with a `>=`, so more is always
+ * fine and fewer is the only way to break it.
+ */
+private val swipeActionCount = Knob.Choice("Actions", listOf(1, 2, 3), 1, name = { "$it" })
+
+internal val SwipeActionsDemo = ComponentDemo(
+    slug = "swipe-actions",
+    knobs = listOf(swipeActionCount),
+) {
+    // The first stays the full-swipe action whatever the count: a full swipe
+    // runs the *first* action of the side, so moving it would change two things
+    // at once.
+    val trailing = listOf(
+        SwipeAction(
+            label = "Remove",
+            icon = Tabler.Outline.Trash,
+            onAction = { echo("Removed") },
+            background = Theme.colours.danger.solid,
+            isFullSwipeAction = true,
+        ),
+        SwipeAction(
+            label = "Archive",
+            icon = Tabler.Outline.Archive,
+            onAction = { echo("Archived") },
+            background = Theme.colours.warning.solid,
+        ),
+        SwipeAction(
+            label = "Pin",
+            icon = Tabler.Outline.Pin,
+            onAction = { echo("Pinned") },
+            background = Theme.colours.accent.solid,
+        ),
+    )
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
@@ -188,15 +232,7 @@ internal val SwipeActionsDemo = ComponentDemo(slug = "swipe-actions") {
             colour = Theme.colours.contentMuted,
         )
         SwipeActions(
-            end = listOf(
-                SwipeAction(
-                    label = "Remove",
-                    icon = Tabler.Outline.Trash,
-                    onAction = { echo("Removed") },
-                    background = Theme.colours.danger.solid,
-                    isFullSwipeAction = true,
-                ),
-            ),
+            end = trailing.take(this@ComponentDemo[swipeActionCount]),
             start = listOf(
                 SwipeAction(
                     label = "Favourite",
