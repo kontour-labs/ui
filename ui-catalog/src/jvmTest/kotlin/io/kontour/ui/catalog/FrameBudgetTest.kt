@@ -2,6 +2,8 @@ package io.kontour.ui.catalog
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * A frame's budget is the display's, not sixty a second.
@@ -45,6 +47,52 @@ class FrameBudgetTest {
                 "a frame at ${hz}Hz is 1000/$hz ms; this is the number the " +
                     "worst-frame colour is compared against, and at 60 it has " +
                     "to be exactly the 167 that used to be hardcoded",
+            )
+        }
+    }
+
+    /**
+     * A stall is a frame, and a quarter of a second used to disqualify one.
+     *
+     * The filter's job is to throw away the gap left by leaving the app and
+     * coming back, and at 250ms it was throwing away real stalls instead — which
+     * is how a first sheet open that visibly skipped frames came back as 40.4ms,
+     * the worst frame that happened to survive.
+     */
+    @Test
+    fun aStallCountsAsAFrameAndAnAbsenceDoesNot() {
+        for (ms in listOf(8L, 17L, 40L, 250L, 400L, 900L, 1_999L)) {
+            assertTrue(
+                isFrame(ms * 1_000_000L),
+                "a ${ms}ms frame is a frame — it is exactly what this readout " +
+                    "exists to show, and the filter used to drop everything " +
+                    "past 250ms as if the app had been backgrounded",
+            )
+        }
+        for (ms in listOf(2_001L, 5_000L, 60_000L)) {
+            assertFalse(
+                isFrame(ms * 1_000_000L),
+                "${ms}ms is longer than any stall worth the name; counting it " +
+                    "would let one task switch ruin the window it sits in",
+            )
+        }
+        assertFalse(isFrame(0), "a zero-length gap is not a frame")
+        assertFalse(isFrame(-1), "a clock that went backwards is not a frame")
+    }
+
+    /**
+     * And a stall lands in the red band rather than merely being recorded.
+     *
+     * The peak line is coloured by the same [verdictFor] the worst line uses, so
+     * this is what a reader actually sees when a once-per-launch stall is held.
+     */
+    @Test
+    fun aStallIsRedOnEveryDisplay() {
+        for (hz in listOf(60, 90, 120)) {
+            assertEquals(
+                FrameVerdict.Worse,
+                verdictFor(worstTenths = 3_000, displayHz = hz),
+                "300ms at ${hz}Hz",
             )
         }
     }

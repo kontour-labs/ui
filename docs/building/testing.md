@@ -804,6 +804,7 @@ Counts are therefore the gates.
 |---|---|---|
 | `PhaseCounts` + `Modifier.countPhases` | `ui/src/commonTest/…/PhaseCounts.kt` | measures, placements, draws |
 | `ElevationCacheTest` | `ui/src/commonTest/…/foundation/` | how many times an unchanged elevated surface re-rasterises its shadow |
+| `FirstOpenCostDiagnostic` | `:ui-catalog` | *times* every frame of an opening sheet, first open against later ones — diagnostic only |
 | the `Counted` pattern | `OverlayRecompositionTest` | recompositions |
 | `SheetState.anchorRebuilds` | `:ui`, production code | anchor rebuilds per frame |
 | `IdleAnimationTest` + `Scene.stillAnimating` | `:ui-catalog` | whether a still screen wants another frame |
@@ -1047,23 +1048,68 @@ of them — it has no GPU and no iOS runner:
    palettes, shape scales, and every `ImageVector` an icon set builds on demand.
    Per file, once.
 
-#### The experiment that would tell them apart
+#### The first number asked for was the instrument's ceiling, not the frame's
 
-Worth writing down rather than guessing at, because the three have different
-fixes and only one of them is even the library's to make. With **Frame times**
-on, note the worst frame for:
+Asked for frame times on a first sheet open that "jumped between a few frames and
+was then open", the answer came back **40.4ms worst, on iOS and on Android** —
+the same figure on two different GPUs.
 
-1. the very first sheet opened after launch;
-2. the same sheet opened again;
-3. the first *dialog* opened after several sheets.
+That was read here as strong evidence: Skia compiling a Metal pipeline would not
+land on the same millisecond as Vulkan, so the cause had to be CPU-bound and
+therefore reproducible on this machine. **The inference was unsound, and the
+reason is in this file's own instrument.** `FrameReadout` discarded any frame over
+a quarter of a second as "the app was in the background". A stall worse than that
+was dropped, so both platforms reported the worst frame that happened to survive
+the filter — and two runs of the same code against the same ceiling landing in
+the same place says nothing about what caused the stall.
 
-If 3 is slow like 1, the cost is per kind of drawing and the answer is pipeline
-compilation — cause 1. If 3 is fast, it is per content, and causes 2 or 3 are in
-play. If 2 is also slow, none of the three is right and the model is wrong.
+A coincidence between two platforms is evidence about whatever they share. They
+shared the filter.
 
-Until one of those numbers exists, no fix should land: a warm-up pass that draws
-every shadow and blur offscreen at launch is the obvious remedy for cause 1, is
-pure cost for causes 2 and 3, and would be exactly the "fix aimed at a story"
+The filter is two seconds now, and the readout holds a **peak** — the worst frame
+since it was switched on — because a rolling two-second window has moved on by the
+time anybody looks up from the thing they just pressed. A once-per-launch stall
+was gone before it could be read.
+
+#### And the JVM does not reproduce it
+
+`FirstOpenCostDiagnostic` times every frame of an opening sheet, in three arms
+inside one JVM so the JIT is equally warm: a new scene with new content, the same
+scene opened twice, and a new scene with **different text and different icons**.
+That third arm is the discriminator — a fresh scene re-composes either way, so if
+it is slow while the second open is fast, what costs is filling caches keyed by
+content rather than composing a tree.
+
+    arm            f1     f2     f3     f4     f5     f6    …    f12
+    first         5.4   54.4    5.5   18.4   21.5   24.5         29.3
+    again         4.1   55.3    3.7   16.0   19.6   22.1         26.6
+    different     4.1   60.3    4.0   16.6   20.0   22.1         26.6
+
+**There is no first-open effect here at all.** The three arms agree within noise,
+and the one expensive frame — f2, at 54-60ms — is expensive on *every* open,
+including the second. The ramp from f4 onwards is the sheet arriving: more of it
+on screen each frame, and a growing dimmed backdrop behind it.
+
+So the cause is something this container does not do. That narrows the candidates
+rather than settling them, and it is worth keeping the negative result: the next
+person to reach for "the first open composes more than a later one" has a table
+saying it does not, measured.
+
+#### What would settle it
+
+A real number, from the fixed readout: open the first sheet after launch and read
+the **peak** line rather than the worst. If it is in the hundreds of milliseconds,
+the three candidates above are still live and the next step is to tell them apart
+by *kind* — a first sheet, then a first dialog after several sheets, then the same
+sheet again. If the peak is 40ms after all, then the animation is not losing
+frames to a stall and the fault is in how it starts, which is a different hunt:
+`EntryHost` begins its spring from a `LaunchedEffect`, so the animation's first
+sample is taken on the frame after composition, and a long frame there advances
+play time rather than delaying it.
+
+Until one of those numbers exists, no fix should land. A warm-up pass that draws
+every shadow and blur offscreen at launch is the obvious remedy for pipeline
+compilation, pure cost for the other two, and exactly the "fix aimed at a story"
 this file has a section about.
 
 #### The readout's thresholds are a 60Hz assumption
