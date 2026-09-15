@@ -380,6 +380,30 @@ class SheetState internal constructor(
     /** True while it is animating or being dragged. */
     val isMoving: Boolean get() = anchoredState.isAnimationRunning
 
+    /**
+     * True while a **finger** is moving the sheet, as opposed to code.
+     *
+     * The signal `FeedbackIntent.DragThreshold`'s own documentation said was
+     * missing, in as many words: [targetDetent] "changes the instant a drag
+     * passes the threshold", which is exactly the moment worth reporting, and
+     * nothing distinguished it from the same field changing because someone
+     * called [animateTo]. A sheet that buzzes when it is opened programmatically
+     * is worse than one that is silent, so the tick waited for this.
+     *
+     * Fed from the drag's `MutableInteractionSource` rather than from a flag the
+     * gesture sets, because that is the one place the distinction already
+     * exists: `anchoredDraggable` emits `DragInteraction.Start` for a finger and
+     * nothing at all for an animation.
+     *
+     * Covers the sheet's own drag — the handle, the surface — and not a list
+     * inside it scrolled past its top, which reaches the sheet through the
+     * nested-scroll connection. That is a scroll being handed on rather than a
+     * sheet being dragged, and it is quiet for the same reason a flick down a
+     * list is.
+     */
+    var draggedByHand: Boolean by mutableStateOf(false)
+        internal set
+
     /** True when any part of the sheet is on screen. */
     val isVisible: Boolean get() = currentDetent != SheetDetent.Hidden ||
         targetDetent != SheetDetent.Hidden

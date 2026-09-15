@@ -295,7 +295,7 @@ of those, and everything else is silent:
 
 | Fires | Where | Why |
 |---|---|---|
-| A **detent crossed under a finger** | `Slider`, `RangeSlider`, `WheelPicker`, `SegmentedControl`, `TabBar` swipe, `ReorderableItem` | The finger is between two values and the eye is on something else. This is the case haptics exist for. All of them go through `DetentTicker` now, which is where the once-per-crossing guard and the rate limit both live. |
+| A **detent crossed under a finger** | `Slider`, `RangeSlider`, `WheelPicker`, `SegmentedControl`, `TabBar` swipe, `ReorderableItem`, `BottomSheet` | The finger is between two values and the eye is on something else. This is the case haptics exist for. All of them go through `DetentTicker` now, which is where the once-per-crossing guard and the rate limit both live. |
 | A **threshold passed** | `PullToRefresh`, `SwipeActions`, `Switch` dragged | What letting go will do has just changed, and nothing on screen said so first. |
 | A **long press becoming a gesture** | `Menu`, `Tooltip`, `ReorderableItem` | The press has been held long enough to mean something. Nothing has visibly happened yet, which is exactly why it needs reporting. |
 | A **destructive question arriving** | `AlertDialog(destructive = true)` | The only one that fires *before* the thing it is about. Optional — see `hapticWarning`. |
@@ -322,7 +322,9 @@ confirmation when the action ran, and a settle when the row came back. A
 opening a `TimePicker` was three buzzes for arriving at a screen.
 
 Eleven sites are left, and one has been added since — the switch's, argued for
-on its own row below. The rule that removed the other forty-six is the one in
+on its own row below. The sheet's detent tick is not among them: it goes through
+`DetentTicker`, which is a single call site for the whole library, so a
+component joining it costs nothing. The rule that removed the other forty-six is the one in
 bold above, and what holds the line is a count rather than a review: the build
 fails if that number goes up without the table going with it. Components are held to it by intent rather than by
 haptic, which is the stronger claim — one that performs no intent is silent
@@ -346,6 +348,7 @@ removal is the row it is on.
 | `PullToRefresh` | `DragThreshold` | `DragThreshold` | Kept whole: it is the one moment that says letting go will do something. |
 | `SwipeActions` | `Tick` per action width, `DragThreshold`, `Confirm` on run, `GestureEnd` on settle | `DragThreshold` | Four intents across one swipe. `actionWidth` is arithmetic, not an anchor. |
 | `Switch` | `Selection` on tap, and on the crossing, and on release | `DragThreshold` on the **crossing** of a drag | The one addition since the audit, and the only site it has gained. A tap is still silent — it is a decision you are watching. A drag is not: the switch commits as the thumb goes over the midpoint, so what letting go will do changes under the finger with nothing on screen having said so. |
+| `BottomSheet` | — | `Tick` per detent **dragged** across | The one the audit left open on purpose. `targetDetent` is the right signal and changes the instant a drag passes the threshold, but nothing told that apart from the same field changing because code called `animateTo` — and a sheet that buzzes when it is opened programmatically is worse than one that is silent. `SheetState.draggedByHand` is that distinction, taken from the drag's own interaction source. Costs nothing against the ceiling: it goes through `DetentTicker` like every other detent. |
 | `AlertDialog` | — | `Warn`, for a destructive alert | The one addition, and the only haptic that fires for something that has **not** happened yet. Opt-out; inert on a non-destructive alert however it is set. |
 | `Menu`, `Tooltip` | `LongPress` | `LongPress` | The press has been held long enough to mean something and nothing visible has happened yet. |
 | `Menu` item | `Selection` | — | A menu item is a button. |

@@ -3,6 +3,8 @@ package io.kontour.ui.sheet
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -24,9 +26,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -35,6 +37,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -51,14 +56,12 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Color
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.foundation.Surface
-import io.kontour.ui.overlay.LocalOverlayHost
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.overlay.BackdropStyle
+import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
@@ -199,6 +202,36 @@ fun BottomSheet(
     val settleSpec: FiniteAnimationSpec<Float> = motion.springOrTween(motion.springGentle)
 
     val overscroll = rememberSheetOverscroll(state, settleSpec)
+    // What tells a finger from an `animateTo`. See `SheetState.draggedByHand`.
+    val dragInteractions = remember { MutableInteractionSource() }
+    LaunchedEffect(dragInteractions, state) {
+        var held = 0
+        dragInteractions.interactions.collect { interaction ->
+            when (interaction) {
+                is DragInteraction.Start -> held++
+                is DragInteraction.Stop, is DragInteraction.Cancel -> held--
+            }
+            state.draggedByHand = held > 0
+        }
+    }
+
+    // One tick per detent the sheet is dragged across, and none for a sheet
+    // opened in code. Through `DetentTicker` like every other detent in the
+    // library, which is also why it costs nothing against the haptics ceiling:
+    // the ceiling counts direct `perform` calls and the ticker is one of them
+    // for the whole library.
+    val ticker = rememberDetentTicker()
+    LaunchedEffect(state) {
+        snapshotFlow { state.draggedByHand to state.targetDetent }
+            .collect { (dragging, detent) ->
+                // The index in the sheet's *own* list, which is reassignable —
+                // a sheet whose detents depend on what is in it changes them
+                // mid-life, and an index out of a stale copy would tick for a
+                // move that did not happen.
+                if (dragging) ticker.at(state.detents.indexOf(detent)) else ticker.reset()
+            }
+    }
+
     val fling = AnchoredDraggableDefaults.flingBehavior(
         state = state.anchoredState,
         positionalThreshold = SheetDefaults.PositionalThreshold,
@@ -281,6 +314,7 @@ fun BottomSheet(
                                 state = state.anchoredState,
                                 orientation = SheetOrientation,
                                 flingBehavior = fling,
+                                interactionSource = dragInteractions,
                                 // Lets the sheet be pulled above its top detent
                                 // and springs it back — see `SheetOverscroll`.
                                 overscrollEffect = overscroll,
