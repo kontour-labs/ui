@@ -237,7 +237,7 @@ added in.
 
 | Intent | Constant | Web | iOS | Android |
 |---|---|---|---|---|
-| `Tick` | `VirtualKey` | 0, 20ms | light impact | 5 |
+| `Tick` | per platform | 0, 20ms | **selection tick** | 5 |
 | `Selection` | `ContextClick` | 12ms | medium impact | 23 |
 | `DragThreshold` | `GestureThresholdActivate` | 12ms | light impact | **34** |
 | `LongPress` | `LongPress` | 0, 30ms | medium impact | 3 |
@@ -259,12 +259,24 @@ It was no better elsewhere. `SegmentFrequentTick` and `SegmentTick` are the
 indistinguishable there; and both are Android 14 constants, so below that they
 did nothing at all.
 
-**There is no lighter tier that is still felt.** Below `Tick`'s 20ms the web
-patterns are 12ms and 6ms, and 6ms is the silence above. So a component that
-wants a *finer* tick — the wheel picker, spinning past a row every few
-milliseconds — does not get a lighter intent. It gets the same one, less often:
-`DetentTicker` will not fire twice inside 80ms, which is a quarter duty cycle
-against a 20ms pulse rather than the continuous buzz that was reported.
+**On the web there is no lighter tier that is still felt.** Below `Tick`'s 20ms
+the patterns are 12ms and 6ms, and 6ms is the silence above. There is felt and
+not felt, and no scale between them.
+
+**iOS is not that platform**, and `Tick` is the one intent whose constant
+differs because of it. There is no spin-up to clear, and Apple ships a generator
+for exactly this — `UISelectionFeedbackGenerator.selectionChanged()`, the tick
+under the system's own pickers and the lightest thing on the device. `Tick`
+takes it there and keeps `VirtualKey` on the web and on Android, where the
+softer constant is API 34 and so is nothing on most of the installed base. It is
+the only platform seam in the feedback mapping, and it is one value wide.
+
+Either way a component that wants a *finer* tick — the wheel picker, spinning
+past a row every few milliseconds — does not get a lighter intent. It gets the
+same one, less often: `DetentTicker` will not fire twice inside 80ms, which is a
+quarter duty cycle against a 20ms pulse rather than the continuous buzz that was
+reported. No constant soft enough to survive a flung wheel is a constant at
+all.
 
 **Where haptics do not happen at all**, written down so it is not re-reported as
 a bug:

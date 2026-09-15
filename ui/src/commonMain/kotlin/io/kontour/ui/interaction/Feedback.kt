@@ -8,6 +8,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import io.kontour.ui.platform.platformTickHaptic
 
 /**
  * What just happened, from the user's point of view.
@@ -176,7 +177,7 @@ val Feedback: FeedbackDispatcher
  *
  * | Intent | Constant | Web | iOS | Android |
  * |---|---|---|---|---|
- * | [FeedbackIntent.Tick] | `VirtualKey` | 0, 20ms | light impact | 5 |
+ * | [FeedbackIntent.Tick] | per platform — see [io.kontour.ui.platform.platformTickHaptic] | 0, 20ms | **selection tick** | 5 |
  * | [FeedbackIntent.Selection] | `ContextClick` | 12ms | medium impact | 23 |
  * | [FeedbackIntent.DragThreshold] | `GestureThresholdActivate` | 12ms | light impact | **34** |
  * | [FeedbackIntent.LongPress] | `LongPress` | 0, 30ms | medium impact | 3 |
@@ -205,17 +206,25 @@ val Feedback: FeedbackDispatcher
  * distinct generator from [FeedbackIntent.Selection] on iOS, and available back
  * to API 5 on Android.
  *
- * ### There is no lighter tier that is still felt
+ * ### There is no lighter tier that is still felt — on the web
  *
  * The wheel picker wants a *finer* tick than a slider does, and the obvious
- * shape for that is a second intent mapped to something lighter. There is
- * nothing to map it to: below `VirtualKey` the web patterns are 12ms and 6ms,
- * and 6ms is the silence this whole change is about. A "light" intent would
- * reintroduce the bug on the one component that fires most often.
+ * shape for that is a second intent mapped to something lighter. On the web
+ * there is nothing to map it to: below `VirtualKey` the patterns are 12ms and
+ * 6ms, and 6ms is the silence this whole change is about. A "light" intent
+ * would reintroduce the bug on the one component that fires most often. There
+ * is felt and not felt, and no scale between them.
  *
- * So the wheel gets the same tick as everything else and is quietened by
- * **rate** instead — see [DetentTicker]. On the web an intensity scale does not
- * exist; there is felt and not felt.
+ * **iOS is not that platform**, which is what the round that wrote this
+ * paragraph did not separate out. It has no spin-up to clear, and it has
+ * `UISelectionFeedbackGenerator` — a generator whose whole purpose is the tick
+ * under a picker. So the lighter tier exists there and is taken, through
+ * [io.kontour.ui.platform.platformTickHaptic], while the web and Android keep
+ * the constant the measurement chose.
+ *
+ * The **rate** limit stays either way and is the part that is not
+ * platform-specific: a flung wheel crosses a row every 8ms, and no constant
+ * soft enough to survive that is a constant at all. See [DetentTicker].
  *
  * ### The gaps this leaves, named rather than hidden
  *
@@ -231,23 +240,32 @@ internal fun rememberDefaultFeedbackDispatcher(
     level: HapticsLevel = HapticsLevel.Full,
 ): FeedbackDispatcher {
     val haptics: HapticFeedback = LocalHapticFeedback.current
-    // No `expect`/`actual` here, deliberately, and it is worth writing down
-    // because the shape of the code invites one. `HapticFeedbackType` is a
-    // *common* Compose type, and each platform's `LocalHapticFeedback` already
-    // resolves it natively: on iOS `CupertinoHapticFeedback` routes these onto
-    // `UIImpactFeedbackGenerator`, `UISelectionFeedbackGenerator.selectionChanged`
-    // and `UINotificationFeedbackGenerator` with Success and Error types. The
-    // names below read as Android's `HapticFeedbackConstants` because that is
-    // where the vocabulary came from, not because that is where it goes. A
-    // platform seam added here would duplicate the toolkit's, and would be worse
-    // than it.
+    // Almost no `expect`/`actual` here, and the exception is the interesting
+    // part. `HapticFeedbackType` is a *common* Compose type and each platform's
+    // `LocalHapticFeedback` already resolves it natively: on iOS
+    // `CupertinoHapticFeedback` routes these onto `UIImpactFeedbackGenerator`,
+    // `UISelectionFeedbackGenerator.selectionChanged` and
+    // `UINotificationFeedbackGenerator`. The names below read as Android's
+    // `HapticFeedbackConstants` because that is where the vocabulary came from,
+    // not because that is where it goes. So a seam per intent would duplicate
+    // the toolkit's and be worse than it.
+    //
+    // That holds for every intent whose platforms want the *same* constant, and
+    // exactly one does not. `Tick` is on `VirtualKey` because of a measurement,
+    // and the measurement was a web one — 6ms is under the motor's spin-up and
+    // 20ms is not. iOS has no motor floor and does have a generator built for
+    // this case, so there the same constant is an *impact* per detent where a
+    // selection tick was wanted. `platformTickHaptic` is that one value, and
+    // `platform/Feedback.kt` argues it per platform.
     return remember(haptics, level) {
         FeedbackDispatcher { intent ->
             if (!level.allows(intent)) return@FeedbackDispatcher
             haptics.performHapticFeedback(
                 when (intent) {
                     FeedbackIntent.Selection -> HapticFeedbackType.ContextClick
-                    FeedbackIntent.Tick -> HapticFeedbackType.VirtualKey
+                    // The one value that is not the same everywhere. See
+                    // [io.kontour.ui.platform.platformTickHaptic].
+                    FeedbackIntent.Tick -> platformTickHaptic
                     FeedbackIntent.Confirm -> HapticFeedbackType.Confirm
                     FeedbackIntent.Reject -> HapticFeedbackType.Reject
                     FeedbackIntent.Warn -> HapticFeedbackType.Reject
