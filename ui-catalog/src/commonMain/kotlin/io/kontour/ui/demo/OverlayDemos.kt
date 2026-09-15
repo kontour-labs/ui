@@ -48,6 +48,9 @@ import io.kontour.ui.overlay.MenuDivider
 import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.MenuSectionHeader
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.overlay.OverlaySide
+import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.overlay.SubMenu
 import io.kontour.ui.overlay.ToastHost
@@ -173,8 +176,30 @@ internal val AlertDialogDemo = ComponentDemo(
     }
 }
 
-internal val PopoverDemo = ComponentDemo(slug = "popover") {
+/**
+ * Which side of its anchor a popover opens on, and how it lines up along it.
+ *
+ * Two knobs rather than one because they are two independent questions and the
+ * pair is where the arrow gets interesting: `Bottom` with `Start` puts the arrow
+ * near the left end of the panel's top edge, and the same `Start` with `End` as
+ * the side puts it near the top of the left edge. Neither is visible from a
+ * table.
+ *
+ * `side` is a *preference*: an overlay with no room below flips above regardless,
+ * which is a thing to see rather than to read about, and pressing this near the
+ * edge of the stage is how.
+ */
+private val popoverSide = Knob.Choice("Side", OverlaySide.entries.toList(), OverlaySide.Bottom)
+private val popoverAlignment =
+    Knob.Choice("Align", OverlayAlignment.entries.toList(), OverlayAlignment.Center)
+
+internal val PopoverDemo = ComponentDemo(
+    slug = "popover",
+    knobs = listOf(popoverSide, popoverAlignment),
+) {
     var open by remember { mutableStateOf(false) }
+    val side = this[popoverSide]
+    val alignment = this[popoverAlignment]
     Stage {
         Box(Modifier.align(Alignment.Center)) {
             IconButton(
@@ -182,7 +207,12 @@ internal val PopoverDemo = ComponentDemo(slug = "popover") {
                 contentDescription = "About this route",
                 onClick = { open = !open },
             )
-            Popover(visible = open, onDismissRequest = { open = false }) {
+            Popover(
+                visible = open,
+                onDismissRequest = { open = false },
+                side = side,
+                alignment = alignment,
+            ) {
                 Text("Route 950", style = Theme.typography.titleSmall)
                 Text(
                     "Runs every 15 minutes until 11pm, then every 30 minutes " +
@@ -420,11 +450,21 @@ internal val CommandPaletteDemo = ComponentDemo(
     }
 }
 
-private val hostScrim = Knob.Choice("Scrim", listOf("Dimmed", "Transparent"))
+/**
+ * What the host puts between an overlay and the page under it.
+ *
+ * Built from `ScrimStyle.entries` rather than from two strings, which is not
+ * tidying: a knob spelled out by hand cannot be tied back to the type it drives,
+ * so the gate that asks whether every value of every enum is reachable could not
+ * see this one — and the hand-written pair was missing `None`, the value where
+ * the page underneath stays clickable.
+ */
+private val hostScrim = Knob.Choice("Scrim", ScrimStyle.entries.toList(), ScrimStyle.Dimmed)
 
 internal val OverlayHostDemo = ComponentDemo(slug = "overlay-host", knobs = listOf(hostScrim)) {
     var open by remember { mutableStateOf(false) }
-    val dimmed = this[hostScrim] == "Dimmed"
+    val scrim = this[hostScrim]
+    val dimmed = scrim == ScrimStyle.Dimmed
     // Two stages side by side would be the honest picture, but the point is
     // simpler than that: this card has its own host, so the dialog stays inside
     // the border. Without one it would find the site's host and cover the page.
@@ -446,9 +486,17 @@ internal val OverlayHostDemo = ComponentDemo(slug = "overlay-host", knobs = list
                 )
             }
         } else {
-            Popover(visible = open, onDismissRequest = { open = false }) {
+            // The two undimmed scrims differ in one thing and it is not what
+            // they look like: `Transparent` still eats the pointer events aimed
+            // past it, and `None` lets them through to the button underneath.
+            Popover(visible = open, onDismissRequest = { open = false }, scrim = scrim) {
                 Text(
-                    "Transparent: blocked, but not dimmed — what a menu wants.",
+                    if (scrim == ScrimStyle.Transparent) {
+                        "Transparent: blocked, but not dimmed — what a menu wants."
+                    } else {
+                        "None: not dimmed and not blocked — press the button again " +
+                            "and it still answers."
+                    },
                     style = Theme.typography.bodySmall,
                 )
             }

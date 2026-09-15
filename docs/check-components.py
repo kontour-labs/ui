@@ -348,16 +348,23 @@ def claimed_symbols() -> set[str]:
 # is nowhere near zero and reads the same way.
 # Only goes down. See rule 14.
 #
-# Nine, and what is in it is as interesting as the number. `ContrastLevel` and
+# **Two, and both are the same kind of thing.** `ContrastLevel` and
 # `HapticsLevel` are parameters of `KontourTheme`, which no component demo will
-# ever sweep — the site's own settings panel drives them instead. Excusing those
-# two would need either a list of names, which this file's whole argument is
-# against, or a second derived rule with one customer. A ceiling is not a claim
-# that it should be zero; it is a claim that it should not grow.
+# ever sweep — the site's own settings panel drives them instead. Excusing them
+# would need either a list of names, which this file's whole argument is against,
+# or a second derived rule with one customer. A ceiling is not a claim that it
+# should be zero; it is a claim that it should not grow — and at two it is now
+# also a claim about what is left, which is nothing a component owns.
 #
-# The other seven are all reachable and all worth a knob: `FabPosition`,
-# `OverlaySide` and `OverlayAlignment` in every direction, `NavExpandPlacement`,
-# `NavigationSuiteType`, `PaneFocus` and `ScrimStyle`.
+# It was nine for several rounds, and the other seven were named right here as
+# "all reachable and all worth a knob": `FabPosition`, `OverlaySide` and
+# `OverlayAlignment`, `NavExpandPlacement`, `NavigationSuiteType`, `PaneFocus`
+# and `ScrimStyle`. They have knobs now. `ScrimStyle` is the one worth reading
+# twice: its demo already *had* a control, spelled out as two strings, so the
+# reader could press it and this rule could not see it — and the hand-written
+# pair was missing `None`, the value where the page underneath stays clickable.
+# A knob built from `entries` cannot be short of a value; one built from a list
+# of names is short of one the moment somebody adds it.
 #
 # `ReorderHandleSide` came off this list in Round 27, and how is the argument
 # for the rule. It was named here as worth a knob for two rounds. It got one
@@ -365,7 +372,7 @@ def claimed_symbols() -> set[str]:
 # the parameter that makes the side mean anything, had **zero call sites**
 # anywhere in the repository. The side was unswept because the feature was
 # unrendered, and the ceiling is what kept saying so.
-MAX_UNSWEPT_ENUMS = 9
+MAX_UNSWEPT_ENUMS = 2
 
 # Only goes down. See rule 16.
 #

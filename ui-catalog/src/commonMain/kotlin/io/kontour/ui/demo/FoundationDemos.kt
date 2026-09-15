@@ -29,6 +29,7 @@ import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.adaptive.AspectRatioBox
 import io.kontour.ui.adaptive.ListDetailPaneScaffold
+import io.kontour.ui.adaptive.FabPosition
 import io.kontour.ui.adaptive.PaneFocus
 import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.SupportingPaneScaffold
@@ -166,7 +167,17 @@ internal val ScrimDemo = ComponentDemo(slug = "scrim", knobs = listOf(scrimDim))
 
 // --- Adaptive -------------------------------------------------------------
 
-internal val ScaffoldDemo = ComponentDemo(slug = "scaffold") {
+/**
+ * Where the floating action button sits.
+ *
+ * Worth pressing rather than reading, because the choice is about reach rather
+ * than about taste: `End` is under a right thumb, `Start` under a left one, and
+ * `Center` is the compromise a bar of navigation underneath usually forces.
+ */
+private val scaffoldFab = Knob.Choice("FAB", FabPosition.entries.toList(), FabPosition.End)
+
+internal val ScaffoldDemo = ComponentDemo(slug = "scaffold", knobs = listOf(scaffoldFab)) {
+    val fabPosition = this[scaffoldFab]
     Box(
         Modifier
             .fillMaxWidth()
@@ -176,6 +187,7 @@ internal val ScaffoldDemo = ComponentDemo(slug = "scaffold") {
     ) {
         Scaffold(
             topBar = { TopBar { +"Favourites" } },
+            fabPosition = fabPosition,
             floatingActionButton = {
                 FloatingActionButton(
                     icon = Tabler.Outline.Star,
@@ -218,15 +230,28 @@ private val paneShape = Knob.Choice("Scaffold", listOf("List and detail", "Main 
 
 private val paneResizable = Knob.Flag("Resizable")
 
+/**
+ * Which pane a narrow window is showing.
+ *
+ * The state the scaffold is *driven* by, and the whole of what collapsing
+ * means: wide enough for two panes it changes nothing, and narrow enough for
+ * one it decides which one. Pressing it is the only way to see the second half
+ * of that without a tablet.
+ */
+private val paneFocus = Knob.Choice("Focus", PaneFocus.entries.toList(), PaneFocus.List)
+
 internal val PaneScaffoldDemo = ComponentDemo(
     slug = "pane-scaffold",
-    knobs = listOf(paneShape, paneResizable),
+    knobs = listOf(paneShape, paneFocus, paneResizable),
 ) {
     if (this@ComponentDemo[paneShape] == "Main and supporting") {
         SupportingPaneDemoBody()
         return@ComponentDemo
     }
-    var focus by remember { mutableStateOf(PaneFocus.List) }
+    // Keyed on the knob, so the knob *sets* the pane and the list below can
+    // still navigate from it — the same bargain the modal sheet demo strikes
+    // with its Open knob.
+    var focus by remember(this[paneFocus]) { mutableStateOf(this[paneFocus]) }
     var selected by remember { mutableStateOf(1) }
     val stops = listOf("Perth Underground", "Elizabeth Quay", "Perth Busport", "McIver")
 

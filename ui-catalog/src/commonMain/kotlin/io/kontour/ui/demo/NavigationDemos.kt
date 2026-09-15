@@ -47,6 +47,8 @@ import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavRail
+import io.kontour.ui.nav.NavExpandPlacement
+import io.kontour.ui.nav.NavigationSuiteType
 import io.kontour.ui.nav.NavSearch
 import io.kontour.ui.nav.NavigationSuiteScaffold
 import io.kontour.ui.nav.Pagination
@@ -147,9 +149,22 @@ private val barSearch = Knob.Flag("Search in the bar")
 
 private val barBackdrop = Knob.Flag("Backdrop")
 
+/**
+ * Where an expanded search panel goes, which is a choice about thumbs.
+ *
+ * `AboveKeyboard` keeps the panel where the finger already is and runs its
+ * content upward from the control; `TopOfScreen` reads downward in the order a
+ * list normally does and puts the control furthest from the thumb. Only means
+ * anything with **Search in the bar** on, and does nothing visible until the
+ * field is expanded — which is exactly why it is worth a knob rather than a
+ * sentence.
+ */
+private val barSearchPlacement =
+    Knob.Choice("Panel", NavExpandPlacement.entries.toList(), NavExpandPlacement.AboveKeyboard)
+
 internal val NavSurfacesDemo = ComponentDemo(
     slug = "nav-surfaces",
-    knobs = listOf(barStyle, barLabels, barBackdrop, barSearch),
+    knobs = listOf(barStyle, barLabels, barBackdrop, barSearch, barSearchPlacement),
 ) {
     var selected by remember { mutableStateOf(1) }
     var expanded by remember { mutableStateOf(false) }
@@ -176,6 +191,7 @@ internal val NavSurfacesDemo = ComponentDemo(
                         if (this@ComponentDemo[barSearch]) {
                             NavSearch(
                                 state = navSearch,
+                                placement = this@ComponentDemo[barSearchPlacement],
                                 placeholder = "Search stops",
                                 searchIcon = Tabler.Outline.Search,
                                 onSearch = { echo("Search: $it") },
@@ -218,7 +234,23 @@ internal val NavItemDemo = ComponentDemo(slug = "nav-item") {
     }
 }
 
-internal val NavigationSuiteScaffoldDemo = ComponentDemo(slug = "navigation-suite-scaffold") {
+/**
+ * Which of the three surfaces the scaffold shows.
+ *
+ * The scaffold's whole job is picking one from the window's width, and this
+ * **overrides** that — `type` is the parameter an app reaches for when it wants
+ * a rail on a phone in landscape, and it is the only way a reader sees the other
+ * two surfaces without a tablet. `Bar` is what a card this narrow would have
+ * chosen for itself, so the default setting shows the automatic answer.
+ */
+private val suiteType =
+    Knob.Choice("Surface", NavigationSuiteType.entries.toList(), NavigationSuiteType.Bar)
+
+internal val NavigationSuiteScaffoldDemo = ComponentDemo(
+    slug = "navigation-suite-scaffold",
+    knobs = listOf(suiteType),
+) {
+    val type = this[suiteType]
     var selected by remember { mutableStateOf(1) }
     // Its own `WindowSizeClassProvider`, so the scaffold picks bar, rail or
     // drawer from the size of *this box* rather than of the reader's browser.
@@ -228,6 +260,7 @@ internal val NavigationSuiteScaffoldDemo = ComponentDemo(slug = "navigation-suit
             NavigationSuiteScaffold(
                 items = destinations(selected) { selected = it },
                 selectedIndex = selected,
+                type = type,
             ) { contentPadding ->
                 Box(
                     Modifier.fillMaxSize().padding(bottom = contentPadding),
