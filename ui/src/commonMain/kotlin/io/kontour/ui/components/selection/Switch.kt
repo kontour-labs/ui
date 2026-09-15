@@ -206,16 +206,6 @@ fun Switch(
 
     val feedback = LocalFeedback.current
 
-    /**
-     * Whether the thumb leans against the finger on the way across.
-     *
-     * Off under reduced motion, where the thumb tracks the finger exactly. The
-     * strain is motion in the sense that preference means — an element moving
-     * differently from the input that drives it — and a toggle that resists is
-     * a toggle a reader has to watch.
-     */
-    val resist = !motion.reduceMotion
-
     // Springs to wherever `checked` now is, starting from wherever the thumb now
     // is. Keyed on `dragging` as well as on `checked`, so it also runs when a
     // drag ends without changing anything — a short drag, or a caller that
@@ -296,21 +286,26 @@ fun Switch(
                                 dragTarget(side)
                             }
 
-                            scope.launch {
-                                val target = thumbTargetFor(dragAccumulator, committed, resist)
-                                if (crossed) {
-                                    // The click. The target jumps when the
-                                    // midpoint goes over, and a spring is what
-                                    // makes that read as the thumb going with
-                                    // it rather than being reassigned.
-                                    fraction.animateTo(
-                                        target,
-                                        motion.springOrTween(motion.springSnappy),
-                                    )
-                                } else {
-                                    fraction.snapTo(target)
-                                }
-                            }
+                            // The thumb tracks the finger, one to one.
+                            //
+                            // It briefly did not: it sat on the detent it had
+                            // committed to and was pulled part of the way
+                            // toward the finger by `SliderDefaults.DetentPull`,
+                            // which is the ticked slider's mechanism and is
+                            // right there and wrong here. A slider's thumb
+                            // crosses most of a screen, so travelling 45% of
+                            // the way reads as strain. This track is **20dp**.
+                            // The same ratio moves the thumb 9dp while the
+                            // finger moves 20 and then jumps it when the
+                            // midpoint goes over, which does not read as
+                            // resistance at that size — it reads as a control
+                            // that is not keeping up, and then a glitch.
+                            //
+                            // What survives from that attempt is the part that
+                            // was about behaviour rather than feel: the commit
+                            // below happens at the midpoint rather than on
+                            // release.
+                            scope.launch { fraction.snapTo(dragAccumulator) }
                         },
                         orientation = Orientation.Horizontal,
                         interactionSource = interactions,
@@ -410,34 +405,4 @@ fun Switch(
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(thumbPx / 2f),
         )
     }
-}
-
-/**
- * Where the thumb is drawn while a finger is on it.
- *
- * Not where the finger is. The thumb sits on the detent it has committed to,
- * pulled part of the way toward the finger by [SliderDefaults.DetentPull] —
- * which is the ticked slider's mechanism, the same constant, and the reason the
- * two controls feel related rather than merely both draggable.
- *
- * What that buys is a toggle that leans against you. Drag from off toward the
- * middle and the thumb travels less than half as far as the finger does; cross
- * the midpoint and the detent underneath changes, so the target jumps forward
- * and the thumb springs after it. The resistance and the click are the same
- * arithmetic seen from either side of the crossing.
- *
- * The pull is folded into the **target** rather than added to the drawn value,
- * for the reason `Slider` records at length: added on top, the two terms move in
- * opposite directions the instant a detent is crossed and the thumb jumps
- * backwards before setting off.
- *
- * @param finger Where the gesture has got to, `0f` to `1f` across the travel.
- * @param committed Which end the gesture has decided on.
- * @param resist False under reduced motion, where the thumb tracks the finger
- *   exactly and there is nothing to strain against.
- */
-private fun thumbTargetFor(finger: Float, committed: Boolean, resist: Boolean): Float {
-    if (!resist) return finger
-    val detent = if (committed) 1f else 0f
-    return detent + (finger - detent) * SliderDefaults.DetentPull
 }

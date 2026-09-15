@@ -45,14 +45,12 @@ for the thumb, not a drag position and a separate resting animation that have to
 agree. It works inside a `SelectionRow` too, where the row still owns the tap —
 the row publishes its own toggle for the switch to drag against.
 
-**The thumb leans against you on the way across.** It sits on the end it has
-committed to and is pulled part of the way toward your finger, so it travels
-less than half as far as you do — and then the midpoint goes over, the end
-underneath changes, and it springs after you. That is the ticked slider's
-mechanism and literally its constant, `SliderDefaults.DetentPull`, which is why
-the two feel related. Under reduced motion the thumb tracks the finger exactly:
-the strain is an element moving differently from the input driving it, which is
-the thing that preference is about.
+**The thumb tracks your finger one to one.** It briefly did not — it leaned
+against you, using the ticked slider's `SliderDefaults.DetentPull` — and that is
+right on a slider and wrong here. A slider's thumb crosses most of a screen, so
+travelling 45% of the way reads as strain. This track is **20dp**: the same
+ratio moves the thumb 9dp while your finger moves 20 and then jumps it at the
+midpoint, which reads as a control that is not keeping up, and then a glitch.
 
 It is also the one place in the library a switch buzzes. Crossing the midpoint
 fires `FeedbackIntent.DragThreshold` — what letting go will do has just changed,
