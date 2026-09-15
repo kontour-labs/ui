@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
@@ -162,8 +163,11 @@ fun RadioButton(
  *     options = listOf(Depart.Now, Depart.At, Depart.ArriveBy),
  *     selected = departMode,
  *     onSelectedChange = viewModel::setDepartMode,
- *     label = { it.label },
- * )
+ * ) { mode ->
+ *     +mode.label
+ *     leading { +mode.icon }
+ *     supporting { +mode.detail }
+ * }
  * ```
  *
  * Owning the selection here rather than at each button is what lets the group
@@ -171,8 +175,15 @@ fun RadioButton(
  * position within the set. It also makes the invalid state — two selected, or
  * none — unrepresentable.
  *
- * @param label Renders each option's row. Defaults to a plain [SelectionRow],
- *   which makes the whole row tappable.
+ * @param option Fills one option's row, in the [ListItemScope] vocabulary every
+ *   other row in the library uses. It used to be a `label: (T) -> String` with
+ *   a `supporting: ((T) -> String?)?` beside it, which is two thirds of that
+ *   scope reimplemented as parameters and cannot hold the third: an option
+ *   could not carry an icon at all, which is what this is for.
+ *
+ *   The **trailing** slot is not yours. The group fills it with the button
+ *   after this runs, because that button is what makes the row a radio option
+ *   rather than a list row — put a leading icon in [ListItemScope.leading].
  */
 @Composable
 fun <T> RadioGroup(
@@ -181,25 +192,27 @@ fun <T> RadioGroup(
     onSelectedChange: (T) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    label: (T) -> String,
-    supporting: ((T) -> String?)? = null,
+    option: ListItemScope.(T) -> Unit,
 ) {
     // See `SelectionGroupPress`: this is what lets the option losing the
     // selection hear about the press on the one taking it.
     val groupPress = remember { SelectionGroupPress() }
     CompositionLocalProvider(LocalSelectionGroupPress provides groupPress) {
         Column(modifier.selectableGroup()) {
-            options.forEach { option ->
-                val isSelected = option == selected
-                val supportingText = supporting?.invoke(option)
+            options.forEach { value ->
+                val isSelected = value == selected
                 SelectionRow(
                     selected = isSelected,
-                    onSelectedChange = { onSelectedChange(option) },
+                    onSelectedChange = { onSelectedChange(value) },
                     enabled = enabled,
                     role = Role.RadioButton,
                 ) {
-                    +label(option)
-                    if (supportingText != null) supporting { +supportingText }
+                    option(value)
+                    // After the caller's block, deliberately. `ListItemScope`
+                    // records the last writer for each slot, so the button
+                    // cannot be displaced by a row that fills `trailing` — and
+                    // a radio group whose option has no radio button in it is
+                    // not a radio group.
                     trailing {
                         RadioButton(
                             selected = isSelected,

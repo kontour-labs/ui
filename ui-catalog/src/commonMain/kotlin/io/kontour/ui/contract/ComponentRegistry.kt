@@ -68,6 +68,7 @@ import io.kontour.ui.components.display.BannerTone
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
+import io.kontour.ui.components.action.VerticalToolbar
 import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdIcons
@@ -833,6 +834,38 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
+        ComponentSpec(
+            "VerticalToolbar",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+        ) { modifier, enabled, onActivate ->
+            VerticalToolbar(modifier) {
+                IconButton(
+                    icon = Tabler.Outline.Plus,
+                    contentDescription = "Zoom in",
+                    onClick = onActivate,
+                    enabled = enabled,
+                )
+                IconButton(
+                    icon = Tabler.Outline.Minus,
+                    contentDescription = "Zoom out",
+                    onClick = onActivate,
+                    enabled = enabled,
+                )
+                ToolbarDivider()
+                IconButton(
+                    icon = Tabler.Outline.Stack,
+                    contentDescription = "Map layers",
+                    onClick = onActivate,
+                    enabled = enabled,
+                )
+            }
+        }
+    )
+
+    add(
         // The interactive one. Each mark is a `Role.RadioButton` inside a
         // `selectableGroup`, so the roles and targets belong to the marks; the
         // row is the group. `RatingTest` covers the read-only half, which is a
@@ -1358,8 +1391,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 onSelectedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
-                label = { it },
-            )
+            ) { option -> +option }
         }
     )
 

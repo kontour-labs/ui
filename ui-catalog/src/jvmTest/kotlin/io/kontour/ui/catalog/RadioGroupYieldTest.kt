@@ -57,8 +57,7 @@ class RadioGroupYieldTest {
                     selected = selected,
                     onSelectedChange = { selected = it },
                     modifier = Modifier.reportBounds { bounds = it },
-                    label = { it },
-                )
+                ) { option -> +option }
             }
         }.use { scene ->
             val settled = scene.frames(30)

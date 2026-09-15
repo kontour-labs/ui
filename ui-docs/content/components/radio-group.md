@@ -8,9 +8,11 @@ RadioGroup(
     options = Mode.entries,
     selected = mode,
     onSelectedChange = { mode = it },
-    label = { it.displayName },
-    supporting = { it.explanation },
-)
+) { option ->
+    +option.displayName
+    leading { +option.icon }
+    supporting { +option.explanation }
+}
 ```
 
 **Use `RadioGroup` rather than loose buttons.** Owning the selection there is
@@ -19,7 +21,16 @@ reader announce "option 2 of 5". It also makes the invalid states — two
 selected, or none — unrepresentable.
 
 It is generic in the option type, so the caller keeps their own enum or data
-class and supplies `label` rather than mapping to strings and back.
+class rather than mapping to strings and back, and fills each row through the
+same `ListItemScope` vocabulary every other row in the library uses — `+` for
+the label, `leading {}` for an icon, `supporting {}` for the line underneath.
+
+That slot replaced a `label: (T) -> String` with a `supporting: ((T) -> String?)?`
+beside it, which was two thirds of the scope reimplemented as parameters and
+could not hold the third: **an option could not carry an icon at all.** The
+`trailing` slot is not yours — the group fills it with the radio button after
+your block runs, because that button is what makes the row an option rather
+than a list row.
 
 **Reach for a `RadioGroup` above a [`Select`](select.md)** when
 there are three or four options and room to show them. A select hides its

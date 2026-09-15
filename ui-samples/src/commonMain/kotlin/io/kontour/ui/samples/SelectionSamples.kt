@@ -6,14 +6,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.ArrowsRightLeft
+import com.composables.icons.tabler.outline.Bolt
 import com.composables.icons.tabler.outline.Check
+import com.composables.icons.tabler.outline.Walk
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.ChipGroup
 import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.selection.FilterChip
+import io.kontour.ui.components.selection.RadioButton
 import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.Rating
@@ -24,7 +29,6 @@ import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.selection.TriStateCheckbox
 import kotlin.math.roundToInt
-import io.kontour.ui.components.selection.RadioButton
 
 @Composable
 fun CheckboxBasics() {
@@ -57,9 +61,11 @@ fun RadioGroupBasics() {
         options = Mode.entries,
         selected = mode,
         onSelectedChange = { mode = it },
-        label = { it.displayName },
-        supporting = { it.explanation },
-    )
+    ) { option ->
+        +option.displayName
+        leading { +option.icon }
+        supporting { +option.explanation }
+    }
 }
 
 @Composable
@@ -184,10 +190,14 @@ fun RatingBasics() {
 
 // --- The caller's own types -------------------------------------------------
 
-internal enum class Mode(val displayName: String, val explanation: String) {
-    Fastest("Fastest", "Shortest total travel time"),
-    FewestChanges("Fewest changes", "Fewer transfers, possibly slower"),
-    LeastWalking("Least walking", "Shortest distance on foot"),
+internal enum class Mode(
+    val displayName: String,
+    val explanation: String,
+    val icon: ImageVector,
+) {
+    Fastest("Fastest", "Shortest total travel time", Tabler.Outline.Bolt),
+    FewestChanges("Fewest changes", "Fewer transfers, possibly slower", Tabler.Outline.ArrowsRightLeft),
+    LeastWalking("Least walking", "Shortest distance on foot", Tabler.Outline.Walk),
 }
 
 internal enum class RouteColor(val displayName: String, val colour: Color) {

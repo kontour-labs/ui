@@ -16,7 +16,9 @@ import androidx.compose.ui.state.ToggleableState
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.Check
+import com.composables.icons.tabler.outline.Ship
 import com.composables.icons.tabler.outline.Sparkles
+import com.composables.icons.tabler.outline.Train
 import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
@@ -118,8 +120,16 @@ internal val RadioGroupDemo = ComponentDemo(
         selected = mode,
         onSelectedChange = { mode = it },
         enabled = this[radioGroupEnabled],
-        label = { it },
-    )
+    ) { option ->
+        +option
+        leading {
+            +when (option) {
+                "Bus" -> Tabler.Outline.Bus
+                "Train" -> Tabler.Outline.Train
+                else -> Tabler.Outline.Ship
+            }
+        }
+    }
 }
 
 private val switchEnabled = Knob.Flag("Enabled", initial = true)
