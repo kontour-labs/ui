@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
@@ -122,6 +123,15 @@ fun TextField(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
 
+    // The requester the frame hands a press to.
+    //
+    // A chain already owns one — `rememberImeChain` needs it to move focus down
+    // a form — and taking it when it is there keeps one requester on one node.
+    // Without a chain there was none at all, which is why the frame had nothing
+    // to focus and the field's padding did nothing.
+    val ownRequester = remember { FocusRequester() }
+    val requester = imeChain?.requester ?: ownRequester
+
     val selectionColours = remember(colours) {
         TextSelectionColors(
             handleColor = colours.cursor,
@@ -179,6 +189,17 @@ fun TextField(
                 editable = enabled && !readOnly,
                 enabled = enabled,
             ),
+        // A press anywhere on the frame puts the caret in the field.
+        //
+        // Not gated on `readOnly`: a read-only field is still focusable and its
+        // text is still selectable, which is the whole reason foundation has
+        // that flag rather than `enabled`. It is gated on `enabled`, because a
+        // disabled field should not take focus from wherever it currently is.
+        onFrameTap = if (enabled) {
+            { requester.requestFocus() }
+        } else {
+            null
+        },
     ) {
         val contentColour = if (enabled) colours.content else colours.contentDisabled
 
@@ -191,16 +212,12 @@ fun TextField(
                     state = state,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .then(
-                            // The requester belongs on the input itself, not on
-                            // the frame — focusing the frame would put the
-                            // caret nowhere.
-                            if (imeChain != null) {
-                                Modifier.focusRequester(imeChain.requester)
-                            } else {
-                                Modifier
-                            }
-                        )
+                        // The requester belongs on the input itself, not on the
+                        // frame — focusing the frame would put the caret
+                        // nowhere. Always present now rather than only with a
+                        // chain, because the frame needs something to aim a
+                        // press at either way.
+                        .focusRequester(requester)
                         .semantics {
                             // The visible [label] is a sibling `Text` in the
                             // scaffold, one node up and to the side, so nothing

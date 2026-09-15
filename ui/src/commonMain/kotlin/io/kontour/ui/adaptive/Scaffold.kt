@@ -14,6 +14,7 @@ import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.input.clearFocusOnTap
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.Theme
 
@@ -65,6 +66,20 @@ fun Scaffold(
     containerColour: Color = Theme.colours.background,
     contentColour: Color = Theme.colours.content,
     contentWindowInsets: WindowInsets = WindowInsets.safeDrawing,
+    /**
+     * Whether pressing the screen somewhere nothing wanted takes focus off the
+     * field that has it.
+     *
+     * On, because "I tapped away from the text box and the keyboard stayed up"
+     * is the behaviour nobody asks for. `OverlayHost` has carried this rule for
+     * a while and is bounded by its own box, so an app whose root is a
+     * `Scaffold` and not a host had it nowhere — see
+     * [io.kontour.ui.input.clearFocusOnTap], which is the rule itself and can go
+     * on any root.
+     *
+     * Off for a screen that manages focus itself.
+     */
+    clearFocusOnTap: Boolean = true,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val direction = LocalLayoutDirection.current
@@ -75,7 +90,11 @@ fun Scaffold(
     val insetEnd = insets.calculateEndPadding(direction)
     val fabMargin = ScaffoldDefaults.FabMargin
 
-    Surface(modifier = modifier.fillMaxSize(), colour = containerColour, contentColour = contentColour) {
+    Surface(
+        modifier = modifier.fillMaxSize().clearFocusOnTap(clearFocusOnTap),
+        colour = containerColour,
+        contentColour = contentColour,
+    ) {
         SubcomposeLayout(Modifier.fillMaxSize()) { constraints ->
             val width = constraints.maxWidth
             val height = constraints.maxHeight

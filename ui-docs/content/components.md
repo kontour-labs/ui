@@ -23,7 +23,7 @@ prose that is about the family rather than any one of them.
 | [**Overlays**](components/overlays.md) | Things drawn over everything | `OverlayHost` `Dialog` `AlertDialog` `DropdownMenu` `SubMenu` `ContextMenuArea` `Popover` `Tooltip` `Toast` `LoadingOverlay` `CommandPalette` |
 | [**Sheets**](components/sheets.md) | Bottom and side panels | `BottomSheet` `ModalBottomSheet` `SideSheet` `SheetHeader` `DragHandle` |
 | [**Adaptive**](components/adaptive.md) | Layout and motion by window | `Scaffold` `ListDetailPaneScaffold` `WindowSizeClass` `AspectRatioBox` `GlassSurface` `PageTransition` `Motion.*` |
-| [**Foundation**](components/foundation.md) | What the rest is built from | `Text` `Icon` `Surface` `HorizontalDivider` `VerticalDivider` `Scrim` `SelectionIndicatorBox` |
+| [**Foundation**](components/foundation.md) | What the rest is built from | `Text` `Icon` `Surface` `HorizontalDivider` `VerticalDivider` `Scrim` `SelectionIndicatorBox` `Modifier.clearFocusOnTap` |
 
 Cross-cutting reading:
 [tokens](tokens.md) ·

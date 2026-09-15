@@ -49,6 +49,7 @@ import io.kontour.ui.foundation.Scrim
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.VerticalDivider
+import io.kontour.ui.input.clearFocusOnTap
 import io.kontour.ui.motion.GlassSurface
 import io.kontour.ui.motion.atmosphere
 import io.kontour.ui.nav.TopBar
@@ -453,7 +454,38 @@ internal val TextToolbarDemo = ComponentDemo(
     }
 }
 
+private val clearFocusEnabled = Knob.Flag("Clears focus on tap", initial = true)
+
+internal val ClearFocusOnTapDemo = ComponentDemo(
+    slug = "modifier-clear-focus-on-tap",
+    knobs = listOf(clearFocusEnabled),
+) {
+    val name = rememberTextFieldState()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clearFocusOnTap(this[clearFocusEnabled])
+            .clip(Theme.shapes.medium)
+            .background(Theme.colours.surfaceSunken)
+            .padding(Theme.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+    ) {
+        TextField(state = name, label = "Name")
+        // The point of the demo is the part with nothing in it: focus the
+        // field, then press here. With the knob off the caret stays put, which
+        // is the comparison — a screenshot of either state looks identical, so
+        // the knob is the only way this reads as a behaviour at all.
+        Box(Modifier.fillMaxWidth().height(72.dp))
+        Text(
+            "Focus the field, then press the empty space below it.",
+            style = Theme.typography.bodySmall,
+            colour = Theme.colours.contentMuted,
+        )
+    }
+}
+
 internal val foundationDemos = listOf(
+    ClearFocusOnTapDemo,
     TextDemo,
     IconDemo,
     SurfaceDemo,

@@ -10,6 +10,7 @@ The primitives every other component is built from.
 | [`HorizontalDivider` / `VerticalDivider`](divider.md) | Decorative rules |
 | [`Scrim`](scrim.md) | Dims and blocks input behind a modal |
 | [`SelectionIndicatorBox`](selection-indicator.md) | The travelling pill behind a selected destination |
+| [`Modifier.clearFocusOnTap`](modifier-clear-focus-on-tap.md) | Puts the keyboard away when a press lands on nothing |
 
 `Surface` setting `LocalContentColour` is what makes `Text` and `Icon` need no
 colour argument in the common case: a surface says what it is, and its content

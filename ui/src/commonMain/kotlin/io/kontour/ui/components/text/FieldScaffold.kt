@@ -12,6 +12,9 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
@@ -85,6 +90,21 @@ internal fun FieldScaffold(
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     frameModifier: Modifier = Modifier,
+    /**
+     * Called when the frame is pressed somewhere nothing else claimed.
+     *
+     * The frame is a good deal bigger than the thing you can type in. A field is
+     * `max(52dp, text + 24dp)` tall and the input inside it is one line of
+     * `bodyMedium`, so on a single-line field roughly the top and bottom third
+     * of what looks like the text box does nothing at all when pressed — and
+     * neither does the horizontal padding, because the input only fills the
+     * weighted area between the slots. A box that looks like one target and
+     * behaves like a smaller one centred inside it is the report this answers.
+     *
+     * Null leaves the frame inert, which is right for a field whose frame is
+     * already a control: `Select`'s whole frame opens a menu.
+     */
+    onFrameTap: (() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
     val motion = Theme.motion
@@ -163,6 +183,7 @@ internal fun FieldScaffold(
                 .background(containerColour, shape)
                 .border(borderWidth, borderColour, shape)
                 .then(frameModifier)
+                .then(if (onFrameTap != null) Modifier.frameTap(onFrameTap) else Modifier)
                 // Each side is padded for what is actually on it. A glyph does
                 // not fill its own box, so an icon padded like text reads as
                 // further in than the text beside it — see
@@ -309,6 +330,36 @@ internal fun FieldScaffold(
                     colour = if (isError) colours.error else colours.helper,
                 )
             }
+        }
+    }
+}
+
+/**
+ * A press on the frame that nothing inside it wanted.
+ *
+ * The pass discipline is the whole of it, and it is the same one
+ * `OverlayHost.clearFocusOnTap` uses at the other end of the tree — worth
+ * matching, because the two have to agree or a press on a field's padding
+ * focuses it and is then immediately cleared by the host above.
+ *
+ * Down on **Initial**, so nothing can hide the gesture from this node. Release
+ * on **Main**, by which point every child has had its chance: a trailing
+ * `IconButton`, the text input's own caret placement, a leading affordance. If
+ * one of them took it, `isConsumed` says so and this stands down.
+ *
+ * And it **consumes** when it acts, which the host's rule does not. That is the
+ * difference between the two: clearing focus is what happens when a press
+ * belonged to nobody, so it must not claim it; this press belonged to the
+ * field, and saying so is what stops the host clearing the focus it just asked
+ * for.
+ */
+private fun Modifier.frameTap(onTap: () -> Unit): Modifier = pointerInput(onTap) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        val release = waitForUpOrCancellation()
+        if (release != null && !release.isConsumed) {
+            release.consume()
+            onTap()
         }
     }
 }
