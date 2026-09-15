@@ -22,7 +22,8 @@ Twenty-two rules:
   3. Every component page is linked from its category index. A page nothing
      points at is a page nobody reads, and the split is the moment to create
      one by accident.
-  4. Every page has an interactive demo, and every demo has a page.
+  4. Every page has an interactive demo, every demo has a page, and every
+     demo is in a family the gallery renders.
   5. Every public `@Composable` in `:ui` is claimed by some page — the one rule
      anchored to the library rather than to a list, and so the only one that
      could have caught a component nobody remembered to register.
@@ -119,6 +120,15 @@ COMPOSABLE_HEADER = re.compile(
     r"((?:internal |private |public )?)fun (?:<[^>]*> )?(?:(\w+)\.)?(\w+)\s*\("
 )
 
+# `internal val ToolbarDemo = ComponentDemo(`, and the family list that has to
+# name it: `internal val actionDemos = listOf(ButtonDemo, IconButtonDemo, …)`.
+#
+# `[^)]*` closes on the right paren because a family list holds bare identifiers
+# and nothing else. That is worth keeping true — a `listOf` with a call in it
+# would make this stop at the wrong paren rather than fail loudly.
+DEMO_DECLARATION = re.compile(r"\bval (\w+)\s*=\s*ComponentDemo\(")
+FAMILY_LIST = re.compile(r"\bval (\w+Demos)\s*=\s*listOf\(([^)]*)\)", re.S)
+
 
 
 def registry_path() -> Path:
@@ -169,20 +179,75 @@ def page_symbols(path: Path) -> list[str]:
 MAX_WITHOUT_DEMO = 1  # unchanged: the overlay and sheet pages arrived with theirs
 
 
-def demo_slugs() -> set[str]:
-    """Every `ComponentDemo(slug = ...)` in `:ui-catalog`.
+def demo_files() -> list[Path]:
+    """Every `*Demos.kt` in `:ui-catalog`.
 
     Found by walking rather than by a hardcoded path, for the reason
     `registry_components` does: the registry file has already moved once, and a
     hardcoded path turns this guard into a stack trace the day it moves again.
+
+    `Demos.kt` matches the glob as well as the eleven family files, which is
+    deliberate — `demoFamilies` lives there and `unlisted_demos` needs it.
     """
+    return [path for path in Path("ui-catalog/src").rglob("*Demos.kt") if "build" not in path.parts]
+
+
+def demo_slugs() -> set[str]:
+    """Every `ComponentDemo(slug = ...)` in `:ui-catalog`."""
     found: set[str] = set()
-    for path in Path("ui-catalog/src").rglob("*Demos.kt"):
-        if "build" in path.parts:
-            continue
+    for path in demo_files():
         found |= set(re.findall(r'ComponentDemo\(\s*slug\s*=\s*"([^"]+)"', path.read_text()))
         found |= set(re.findall(r'ComponentDemo\(\s*"([^"]+)"', path.read_text()))
     return found
+
+
+def unlisted_demos() -> list[str]:
+    """Demos, and families, that nothing the gallery reads ever names.
+
+    Every rule about demos finds them the way `demo_slugs` does — by regexing a
+    declaration out of the file text. So a `ComponentDemo` declared as a
+    top-level val and never put in its family's `listOf(...)` satisfies rules 4,
+    6, 7, 14 and 16 while drawing nowhere at all. `demoFamilies` is what
+    `Catalog`'s pages, `componentDemos` and the documentation site's per-page
+    demo every one derive from, and a val nothing names is in none of them.
+
+    The same hole is one level up, where a family list nobody adds to
+    `demoFamilies` costs a whole page of the gallery rather than one card, so
+    both halves are checked here.
+    """
+    declared: dict[str, Path] = {}
+    families: dict[str, Path] = {}
+    listed: set[str] = set()
+    gallery: Path | None = None
+
+    for path in demo_files():
+        text = path.read_text()
+        if "val demoFamilies" in text:
+            gallery = path
+        for name in DEMO_DECLARATION.findall(text):
+            declared[name] = path
+        for family, members in FAMILY_LIST.findall(text):
+            families[family] = path
+            listed |= set(re.findall(r"\w+", members))
+
+    if gallery is None:
+        return ["no `*Demos.kt` declares `demoFamilies`, so the gallery has no pages"]
+
+    # Every word in that file, not the `listOf` alone: `demoFamilies` wraps each
+    # list in a `DemoFamily(...)`, and a regex that brace-matched through those
+    # would be a parser. A family named only in a KDoc there would slip through,
+    # which is a smaller hole than the one this closes.
+    named_by_the_gallery = set(re.findall(r"\w+", gallery.read_text()))
+
+    return [
+        f"`{name}` in {path.name} is a `ComponentDemo` that no family lists"
+        for name, path in sorted(declared.items())
+        if name not in listed
+    ] + [
+        f"`{family}` in {path.name} is a demo family `demoFamilies` does not hold"
+        for family, path in sorted(families.items())
+        if family not in named_by_the_gallery
+    ]
 
 
 def public_composables() -> dict[str, Path]:
@@ -1039,7 +1104,8 @@ def main() -> int:
                 f"and does not explain"
             )
 
-    # Rule 4 — a page has an interactive demo, and a demo has a page.
+    # Rule 4 — a page has an interactive demo, a demo has a page, and a demo is
+    # in a family.
     #
     # The demos are what a reader presses. They live beside `componentRegistry`
     # in `:ui-catalog` and are hand-written, one per page, because the registry's
@@ -1063,6 +1129,17 @@ def main() -> int:
             f"{len(without)} pages have no demo, and the ceiling is "
             f"{MAX_WITHOUT_DEMO}. Lower the ceiling when you add one; raising it "
             f"is going backwards. Without: {', '.join(without)}"
+        )
+
+    # The third half, and the one the other two cannot see: both of them find a
+    # demo by regexing its declaration, so a demo nothing lists passes them
+    # while rendering nowhere. No ceiling — the count is zero today and a
+    # ratchet at zero for something with no legacy is a constant nobody needs.
+    for offender in unlisted_demos():
+        problems.append(
+            f"{offender}, so it renders nowhere in the app while satisfying "
+            f"every rule that only counts declarations — add it to the "
+            f"`listOf(...)` at the end of its file"
         )
 
     # Rule 5 — every public component in the library is documented somewhere.
