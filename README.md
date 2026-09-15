@@ -92,7 +92,14 @@ framework needs Xcode. It builds `:ui-catalog`'s `Catalog.framework` from a Run
 Script phase, so there is nothing to run first — and its Run action is set to
 **Release**, because `embedAndSignAppleFrameworkForXcode` picks the Kotlin
 framework from the configuration and a Debug one is built without optimisation.
-The first build is slow for the same reason.
+
+The first build is slow for the same reason, and on a cold machine it also pulls
+a Kotlin/Native toolchain. If you would rather watch that somewhere it is
+visible than inside Xcode's log, build the framework from a terminal first:
+
+```sh
+./gradlew :ui-catalog:linkReleaseFrameworkIosSimulatorArm64
+```
 
 The gallery is also where most of the tests live: the contract suite, the
 screenshot goldens, and the specimen registry that drives the per-component

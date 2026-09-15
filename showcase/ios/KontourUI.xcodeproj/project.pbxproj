@@ -134,7 +134,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Builds `:ui-catalog`'s Catalog.framework for whichever SDK, configuration\n# and architecture Xcode is building, then copies it where the linker and the\n# app bundle expect it. Every one of those is read from Xcode's environment by\n# the Gradle task, which is why this phase takes no arguments.\n#\n# `alwaysOutOfDate` because Gradle decides what is up to date here, not Xcode:\n# this phase has no declared outputs it could compare, and a phase with none is\n# skipped rather than run. Gradle's own up-to-date check is the fast path.\n#\n# `ENABLE_USER_SCRIPT_SANDBOXING` is NO in the build settings for this: Gradle\n# writes under the repository as well as under the build directory, and the\n# sandbox denies that with an error that names a file rather than the cause.\ncd \"$SRCROOT/../..\"\n./gradlew --no-daemon :ui-catalog:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "# Builds `:ui-catalog`'s Catalog.framework for whichever SDK, configuration\n# and architecture Xcode is building, then copies it where the linker and the\n# app bundle expect it. Every one of those is read from Xcode's environment by\n# the Gradle task, which is why this phase takes no arguments.\n#\n# `alwaysOutOfDate` because Gradle decides what is up to date here, not Xcode:\n# this phase has no declared outputs it could compare, and a phase with none is\n# skipped rather than run. Gradle's own up-to-date check is the fast path.\n#\n# `ENABLE_USER_SCRIPT_SANDBOXING` is NO in the build settings for this: Gradle\n# writes under the repository as well as under the build directory, and the\n# sandbox denies that with an error that names a file rather than the cause.\n#\n# **No `--no-daemon`, and that was here once.** It was copied from the CI\n# workflow, where a container runs one build and exits and a daemon is waste.\n# An Xcode phase is the opposite case: it runs on every build, so the daemon\n# is the whole difference between a warm rebuild and paying JVM startup and\n# configuration every time. Worse, it broke two ways at once — Gradle's\n# Tooling API rejects the flag outright, so building through Android Studio\n# failed with `Unknown command-line option '--no-daemon'`, and a daemonless\n# build cannot share the caches with the daemon an open IDE already holds, so\n# it blocks on their locks with nothing on screen to say so.\n#\n# `--console=plain` because Xcode's log is a file, not a terminal: the rich\n# console redraws itself with control characters and a long first build looks\n# like nothing happening. Plain prints the downloads and the task names, which\n# is what tells you Kotlin/Native is fetching a toolchain rather than hanging.\nset -eu\ncd \"$SRCROOT/../..\"\n./gradlew --console=plain :ui-catalog:embedAndSignAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -193,6 +193,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
