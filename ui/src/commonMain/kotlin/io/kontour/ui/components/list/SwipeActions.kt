@@ -181,8 +181,25 @@ object SwipeActionsDefaults {
     val ActionWidth: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.swipeActionWidth
 
-    /** Fraction of the row's width past which a full swipe fires. */
-    const val FullSwipeThreshold: Float = 0.6f
+    /**
+     * How far between two anchors a release has to be to carry on to the next.
+     *
+     * 0.55, from 0.4, and it is the whole of "the swipe is too fiddly". At 0.4 a
+     * release two fifths of the way anywhere carried on, so a row revealed its
+     * actions on a gesture that was half a mind to and a full swipe committed
+     * from a little over a third of the way across. Apple's mail asks for a
+     * deliberate distance, and just past half is what deliberate measures.
+     *
+     * Raising it is the only lever there is. The version of
+     * `AnchoredDraggableDefaults.flingBehavior` this is on takes a positional
+     * threshold and a snap spec and nothing else — there is no velocity
+     * parameter, so a fast flick cannot be asked for separately. `BottomSheet`
+     * records the same gap for the same reason.
+     */
+    val PositionalThreshold: (Float) -> Float = { distance -> distance * 0.55f }
+
+    /** The most actions one side will take. See [SwipeActions]. */
+    const val MaxActionsPerSide: Int = 3
 
     /**
      * How many pixels of row one pixel of sideways scroll moves.
@@ -224,10 +241,13 @@ object SwipeActionsDefaults {
  * way — same thresholds, same settle, same fling.
  *
  * @param start Actions revealed by swiping toward the trailing edge, following
- *   the layout direction. Conventionally the constructive ones.
+ *   the layout direction. Conventionally the constructive ones. **At most
+ *   [SwipeActionsDefaults.MaxActionsPerSide]** — three 88dp targets is 264dp of
+ *   travel, which is most of a phone's width already; a fourth cannot be
+ *   reached on one and the row has run out of places to put it.
  * @param end Revealed by swiping toward the leading edge. Conventionally the
  *   destructive ones, since that is the direction people already flick to
- *   delete.
+ *   delete. Same limit.
  */
 @Composable
 fun SwipeActions(
@@ -241,6 +261,22 @@ fun SwipeActions(
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
+    // Named in the message along with the parameter, which is the house rule the
+    // degenerate-input sweep settled on: a precondition that says only "3" leaves
+    // the reader to find out which of two lists it meant.
+    require(start.size <= SwipeActionsDefaults.MaxActionsPerSide) {
+        "SwipeActions: start has ${start.size} actions and takes at most " +
+            "${SwipeActionsDefaults.MaxActionsPerSide}. Three 88dp targets is " +
+            "264dp of travel and most of a phone's width; a fourth cannot be " +
+            "reached. Put the rest in a menu or on the detail screen."
+    }
+    require(end.size <= SwipeActionsDefaults.MaxActionsPerSide) {
+        "SwipeActions: end has ${end.size} actions and takes at most " +
+            "${SwipeActionsDefaults.MaxActionsPerSide}. Three 88dp targets is " +
+            "264dp of travel and most of a phone's width; a fourth cannot be " +
+            "reached. Put the rest in a menu or on the detail screen."
+    }
+
     val motion = Theme.motion
     val scope = rememberCoroutineScope()
     val feedback = LocalFeedback.current
@@ -335,7 +371,23 @@ fun SwipeActions(
         snapshotFlow { state.anchoredState.offset }.collect { offset ->
             if (offset.isNaN() || actionWidthPx <= 0f) return@collect
 
-            val commitAt = width * SwipeActionsDefaults.FullSwipeThreshold
+            // Where the commit actually becomes inevitable, rather than a
+            // number beside it.
+            //
+            // This was `width * 0.6f`, a constant of its own, and it described
+            // nothing: the commit is decided by `AnchoredDraggableState`, which
+            // settles onto the committed anchor once a release is
+            // `PositionalThreshold` of the way from the revealed one to it. So
+            // the buzz fired at six tenths of the row while the point of no
+            // return moved with the action count and the row's width, and on a
+            // narrow row with two actions the two were a long way apart.
+            //
+            // Derived, they are the same point by construction, which is the
+            // only way a haptic that means "past here, letting go deletes it"
+            // can keep meaning it.
+            val revealed = maxOf(abs(startTravel), abs(endTravel))
+            val commitAt = revealed +
+                SwipeActionsDefaults.PositionalThreshold(width - revealed)
             val past = width > 0f && abs(offset) >= commitAt
             if (past && !pastThreshold) feedback.perform(FeedbackIntent.DragThreshold)
             pastThreshold = past
@@ -344,7 +396,7 @@ fun SwipeActions(
 
     val fling = AnchoredDraggableDefaults.flingBehavior(
         state = state.anchoredState,
-        positionalThreshold = { distance -> distance * 0.4f },
+        positionalThreshold = SwipeActionsDefaults.PositionalThreshold,
         animationSpec = motion.springOrTween(motion.springDefault),
     )
 
