@@ -80,6 +80,7 @@ import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.Scrollbar
@@ -1441,6 +1442,53 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
+        // A container, so no role and nothing to press: the rows inside it are
+        // the controls and they have their own specimens above.
+        //
+        // Drawn **with its footer**, which is the one slot the page is actually
+        // about and the one nothing pictured. It is `bodySmall` in
+        // `contentMuted` under the rows, and the whole question a reader has
+        // about it — does it read as part of the group or as a stray caption —
+        // is a question about a picture.
+        ComponentSpec(
+            name = "ListSection",
+            role = null,
+            expectsMinimumTarget = false,
+            activatedByClick = false,
+            underContract = false,
+            renderHeight = 240,
+        ) { modifier, enabled, onClick ->
+            ListSection(
+                // Measured, like every other specimen whose content is prose: a
+                // section fills the width it is given, and the render canvas
+                // gives it none, so unconstrained it asked for 433dp and the
+                // footer never wrapped.
+                modifier = modifier.widthIn(max = SpecimenProseWidth),
+                title = { +"Appearance" },
+                description = { +"How the app looks on this device" },
+                footer = { +"Always dark keeps the screen dark even in daylight." },
+            ) {
+                SettingRow(
+                    onClick = onClick,
+                    enabled = enabled,
+                    position = ListItemPosition.First,
+                ) {
+                    +"Theme"
+                    trailing { settingValue("Always dark") }
+                }
+                SettingRow(
+                    onClick = onClick,
+                    enabled = enabled,
+                    position = ListItemPosition.Last,
+                ) {
+                    +"Text size"
+                    trailing { settingValue("Default") }
+                }
+            }
+        }
+    )
+
+    add(
         // The one group in the library that is a *set* of controls. Tagged on
         // the column, asserted on the chosen radio inside it — same shape as
         // `SegmentedControl` above, and for the same reason: a column has no
@@ -1467,11 +1515,22 @@ val componentRegistry: List<ComponentSpec> = buildList {
     // touch target, and a key cap has none of those and is not failing anything
     // by not having them.
     //
-    // Two components are still missing even from here, and deliberately.
+    // Three components are still missing even from here, and deliberately.
     // `ConfirmHost` draws nothing until something asks it a question and
     // `ContextMenuArea` draws nothing until a right-click, so a card of either
     // would show only the child inside it. They need a specimen that captures
     // the *open* state, which is a bigger frame than this one.
+    //
+    // `BottomSheet` is missing for a different reason: its geometry *is* the
+    // window. This canvas is 300x120dp, centred and cropped to the ink, and what
+    // a sheet means — at the bottom edge of a screen, with the content behind it
+    // receding — is exactly what does not survive that crop. A sheet drawn in the
+    // middle of a card is a picture of a sheet's surface and not of a sheet. It is
+    // also the best-covered component in the suite from real windows already
+    // (`SheetGeometryTest`, `SheetFloorTest`, `FloatingSheetTest`,
+    // `SheetOvershootTest`, `SheetPeekAnchorSettleTest`, `SheetDraggableTest`,
+    // `phone/sheets.png`), and `DragHandle` below is the part of one this card can
+    // honestly show.
 
     add(
         ComponentSpec("Kbd", role = null, underContract = false) { modifier, _, _ ->
