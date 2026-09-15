@@ -3,8 +3,13 @@ package io.kontour.ui.components.display
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
 import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,20 +19,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,11 +41,11 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
@@ -49,11 +55,13 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
-import io.kontour.ui.foundation.Surface
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.foundation.Surface
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 
 object CarouselDefaults {
@@ -205,6 +213,41 @@ fun Carousel(
     val count = state.count
     val current = state.currentPage
 
+    // One tick per page crossed **under a finger**, and none for a page reached
+    // any other way.
+    //
+    // A carousel's pages are detents in the strictest sense — the card snaps to
+    // one and rests there — and the eye is on the card rather than on a counter,
+    // which is the case the policy names. What it must not do is report a page
+    // arrived at by `scrollToPage`: the accessibility actions, the indicator's
+    // dots and an autoplay all call it, and a carousel that buzzes when a dot is
+    // clicked is buzzing for something the reader is already watching.
+    //
+    // So the same distinction a sheet draws, from the same kind of signal: the
+    // list's own interaction source for a touch scroll, and the pointer drag's
+    // for the desktop path, which does not go through the list at all.
+    val dragInteractions = remember { MutableInteractionSource() }
+    var dragging by remember { mutableStateOf(false) }
+    LaunchedEffect(state.listState, dragInteractions) {
+        var held = 0
+        merge(
+            state.listState.interactionSource.interactions,
+            dragInteractions.interactions,
+        ).collect { interaction ->
+            when (interaction) {
+                is DragInteraction.Start -> held++
+                is DragInteraction.Stop, is DragInteraction.Cancel -> held--
+            }
+            dragging = held > 0
+        }
+    }
+    val ticker = rememberDetentTicker()
+    LaunchedEffect(state) {
+        snapshotFlow { dragging to state.currentPage }.collect { (byHand, page) ->
+            if (byHand) ticker.at(page) else ticker.reset()
+        }
+    }
+
     LazyRow(
         modifier = modifier
             .fillMaxWidth()
@@ -226,6 +269,7 @@ fun Carousel(
                             state.listState.dispatchRawDelta(-delta)
                         },
                         orientation = Orientation.Horizontal,
+                        interactionSource = dragInteractions,
                         // `currentPage` is the page nearest the viewport centre,
                         // so this settles on whichever one the drag left showing
                         // — the same answer the fling behaviour would give.

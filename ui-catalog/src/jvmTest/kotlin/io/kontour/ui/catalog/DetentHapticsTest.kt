@@ -24,6 +24,9 @@ import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.datetime.WheelPicker
+import io.kontour.ui.components.display.Carousel
+import io.kontour.ui.components.display.CarouselState
+import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.SwipeAction
@@ -40,6 +43,8 @@ import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.nav.tabSwipe
 import io.kontour.ui.overlay.AlertDialog
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.ToastHost
+import io.kontour.ui.overlay.ToastHostState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -654,6 +659,137 @@ class DetentHapticsTest {
             emptyList(), opened(destructive = false, hapticWarning = true),
             "a non-destructive alert warned when asked to. There is nothing there " +
                 "to warn about.",
+        )
+    }
+
+    /**
+     * A carousel dragged across pages ticks; one moved in code says nothing.
+     *
+     * Both halves, because the half that matters is the silent one. A page is a
+     * detent in the strictest sense — the card snaps to it and rests there — but
+     * `scrollToPage` is what the accessibility actions, the indicator's dots and
+     * any autoplay call, and a carousel that buzzes when a dot is clicked is
+     * buzzing for something the reader is already watching.
+     */
+    @Test
+    fun aCarouselTicksForPagesDraggedAcrossAndNotForOnesScrolledToInCode() {
+        val dragged = mutableListOf<FeedbackIntent>()
+        var bounds = Rect.Zero
+        lateinit var state: CarouselState
+
+        Scene(width = 400, height = 300) {
+            Recording(dragged) {
+                state = rememberCarouselState(pageCount = { 5 })
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    Carousel(
+                        state = state,
+                        contentDescription = "Stop photos",
+                        modifier = Modifier.fillMaxWidth().height(200.dp)
+                            .reportBounds { bounds = it },
+                    ) { page ->
+                        Box(Modifier.fillMaxWidth().height(200.dp).background(Color.Gray)) {
+                            io.kontour.ui.foundation.Text("Page $page")
+                        }
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            // Slowly enough that the ticker's 80ms floor is not what is being
+            // measured — see `DetentTicker.MinimumTickInterval`.
+            scene.drag(
+                from = bounds.alongX(0.9f),
+                to = bounds.alongX(0.05f),
+                steps = 24,
+                paceMillis = 12,
+            )
+            scene.frames(20)
+        }
+
+        assertTrue(
+            dragged.isNotEmpty() && dragged.all { it == FeedbackIntent.Tick },
+            "dragging a carousel across pages fired ${dragged.summary()}. A page " +
+                "is a detent: the card snaps to it and rests there, and the eye " +
+                "is on the card rather than on a counter.",
+        )
+
+        val inCode = mutableListOf<FeedbackIntent>()
+        var target by mutableStateOf(0)
+        Scene(width = 400, height = 300) {
+            Recording(inCode) {
+                val carousel = rememberCarouselState(pageCount = { 5 })
+                androidx.compose.runtime.LaunchedEffect(target) {
+                    carousel.scrollToPage(target)
+                }
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    Carousel(
+                        state = carousel,
+                        contentDescription = "Stop photos",
+                        modifier = Modifier.fillMaxWidth().height(200.dp),
+                    ) { page ->
+                        Box(Modifier.fillMaxWidth().height(200.dp).background(Color.Gray)) {
+                            io.kontour.ui.foundation.Text("Page $page")
+                        }
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            target = 3
+            scene.frames(40)
+        }
+
+        assertEquals(
+            emptyList(), inCode,
+            "a carousel scrolled to a page in code fired ${inCode.summary()}. " +
+                "`scrollToPage` is what the accessibility actions and the " +
+                "indicator's dots call, and every one of those is something the " +
+                "reader is watching happen.",
+        )
+    }
+
+    /**
+     * A toast swiped past its dismiss point reports once, and only there.
+     *
+     * The same shape as the swipe row above and for the same reason: what
+     * letting go will do has just changed, and the card slides under the finger
+     * whether or not it is past the point of no return, so nothing on screen
+     * says which.
+     */
+    @Test
+    fun aSwipedToastFiresOnceAtItsDismissPoint() {
+        val felt = mutableListOf<FeedbackIntent>()
+        val host = ToastHostState()
+
+        Scene(width = 400, height = 700) {
+            Recording(felt) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().background(Color.White))
+                    ToastHost(host)
+                }
+            }
+        }.use { scene ->
+            scene.frames(2)
+            host.show("Trip removed")
+            scene.frames(30)
+            // Down and off the bottom edge, which is the way a bottom-anchored
+            // toast leaves.
+            scene.drag(
+                from = Offset(200f, 620f),
+                to = Offset(200f, 700f),
+                steps = 24,
+                release = false,
+                paceMillis = 8,
+            )
+            scene.frames(4)
+        }
+
+        assertEquals(
+            listOf(FeedbackIntent.DragThreshold), felt,
+            "swiping a toast past its dismiss point fired ${felt.summary()}. One " +
+                "report, at the one moment in the gesture that has a consequence " +
+                "— and the threshold is derived from the release's own condition, " +
+                "so the two cannot come to mean different things.",
         )
     }
 

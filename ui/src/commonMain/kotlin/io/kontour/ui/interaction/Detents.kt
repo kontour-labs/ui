@@ -52,10 +52,37 @@ import kotlin.time.TimeSource
  * // when the gesture ends:
  * ticker.reset()
  * ```
+ *
+ * ### A threshold is a detent with two sides
+ *
+ * `rememberDetentTicker(FeedbackIntent.DragThreshold)` and an index of 0 or 1
+ * gives the other shape the policy allows: **one** report as a drag passes the
+ * point where letting go would do something, and one more if it comes back.
+ *
+ * ```kotlin
+ * val latch = rememberDetentTicker(FeedbackIntent.DragThreshold)
+ * // in the drag:
+ * latch.at(if (past) 1 else 0)
+ * ```
+ *
+ * It is the same mechanism and not an analogy for it: what makes a threshold
+ * report once is exactly the guard that makes a detent report once, and the
+ * hand-rolled `var armed = true` that every threshold would otherwise carry is
+ * the thing this class exists to stop being written six times. `Toast` uses it
+ * this way; so can a caller — see the theming guide's note on adding your own.
  */
 @Stable
 class DetentTicker internal constructor(
     private val feedback: FeedbackDispatcher,
+    /**
+     * What it performs on a crossing.
+     *
+     * [FeedbackIntent.Tick] for a detent, which is what this is for and the
+     * default. [FeedbackIntent.DragThreshold] for a two-sided threshold, which
+     * is the same guard doing the same job for the other row of the policy
+     * table.
+     */
+    private val intent: FeedbackIntent = FeedbackIntent.Tick,
     private val clock: TimeSource = TimeSource.Monotonic,
 ) {
 
@@ -82,7 +109,7 @@ class DetentTicker internal constructor(
             last = index
             val since = lastFired
             if (since == null || since.elapsedNow() >= MinimumTickInterval) {
-                feedback.perform(FeedbackIntent.Tick)
+                feedback.perform(intent)
                 lastFired = clock.markNow()
             }
         }
@@ -122,11 +149,16 @@ class DetentTicker internal constructor(
     }
 }
 
-/** Remembers a [DetentTicker] wired to the current [LocalFeedback]. */
+/**
+ * Remembers a [DetentTicker] wired to the current [LocalFeedback].
+ *
+ * @param intent What a crossing performs. Leave it for a detent; pass
+ *   [FeedbackIntent.DragThreshold] for a threshold, with an index of 0 or 1.
+ */
 @Composable
-fun rememberDetentTicker(): DetentTicker {
+fun rememberDetentTicker(intent: FeedbackIntent = FeedbackIntent.Tick): DetentTicker {
     val feedback = LocalFeedback.current
-    return remember(feedback) { DetentTicker(feedback) }
+    return remember(feedback, intent) { DetentTicker(feedback, intent) }
 }
 
 /**

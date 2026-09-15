@@ -35,7 +35,7 @@ class DetentTickerTest {
         // crossing is reported.
         val clock = TestTimeSource()
         val recorder = Recorder()
-        val ticker = DetentTicker(recorder, clock)
+        val ticker = DetentTicker(recorder, clock = clock)
 
         ticker.at(0f)
         repeat(9) { step ->
@@ -58,7 +58,7 @@ class DetentTickerTest {
         // 20ms of motor time each that is a motor that never stops.
         val clock = TestTimeSource()
         val recorder = Recorder()
-        val ticker = DetentTicker(recorder, clock)
+        val ticker = DetentTicker(recorder, clock = clock)
 
         ticker.at(0f)
         repeat(60) { row ->
@@ -85,7 +85,7 @@ class DetentTickerTest {
         // it exists for.
         val clock = TestTimeSource()
         val recorder = Recorder()
-        val ticker = DetentTicker(recorder, clock)
+        val ticker = DetentTicker(recorder, clock = clock)
 
         ticker.at(0f)
         clock += 100.milliseconds
@@ -109,7 +109,7 @@ class DetentTickerTest {
         // drag that starts on a detent has not crossed one.
         val clock = TestTimeSource()
         val recorder = Recorder()
-        val ticker = DetentTicker(recorder, clock)
+        val ticker = DetentTicker(recorder, clock = clock)
 
         ticker.at(4f)
 
@@ -127,7 +127,7 @@ class DetentTickerTest {
         // hand, whatever they are to the code.
         val clock = TestTimeSource()
         val recorder = Recorder()
-        val ticker = DetentTicker(recorder, clock)
+        val ticker = DetentTicker(recorder, clock = clock)
 
         ticker.at(0f)
         clock += 100.milliseconds

@@ -62,6 +62,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.interaction.DragClaim
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.freeDragOwning
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonColours
@@ -889,6 +891,30 @@ private fun ToastCard(
     /** This card's own measured height, for the swipe threshold and the band. */
     var height by remember { mutableFloatStateOf(0f) }
 
+    /**
+     * Whether letting go now would send the card away.
+     *
+     * One expression, read by the buzz during the drag and by the release that
+     * acts on it. Written twice they drift, which is the defect `SwipeActions`
+     * shipped: a threshold constant beside a commit decided somewhere else, and
+     * a buzz that stopped meaning what it said as the row's width changed.
+     *
+     * Read live rather than captured — `pull` and `height` both move during the
+     * gesture, and `freeDragOwning` reads its handlers at call time for exactly
+     * this reason.
+     */
+    fun dismissesOnRelease(): Boolean {
+        val travelled = pull.value
+        return !refusesToLeave(travelled, towardEdge) &&
+            travelled.getDistance() >= height * ToastDefaults.SwipeAway
+    }
+
+    // One report, at the one moment in a swipe that has a consequence. Through
+    // the shared ticker with two positions rather than a `perform` and a hand
+    // rolled `var armed`: see `DetentTicker`, which is where the once-per-
+    // crossing guard lives for the whole library.
+    val threshold = rememberDetentTicker(FeedbackIntent.DragThreshold)
+
     // Measured from the front card's edge rather than from the pill's own, so a
     // pill shorter than the card still clears it by `Peek`.
     val towards = if (towardEdge) -1 else 1
@@ -981,6 +1007,24 @@ private fun ToastCard(
                                 // one level up, because a band is a function of
                                 // the whole pull and not of one delta at a time.
                                 pull.value += delta
+
+                                // One report, as the card passes the point where
+                                // letting go dismisses it.
+                                //
+                                // The threshold is **derived from the release's
+                                // own condition** rather than written beside it,
+                                // so the two cannot drift: the same expression
+                                // decides the buzz here and the dismissal below.
+                                // `SwipeActions` learned that the hard way, with
+                                // a constant of its own that stopped meaning
+                                // "past here, letting go deletes it".
+                                //
+                                // Through the ticker rather than a `perform`, so
+                                // the once-per-crossing guard and the rate limit
+                                // are the library's one copy of each — and so
+                                // dragging back inside the threshold reports the
+                                // change of mind too, which is the same news.
+                                threshold.at(if (dismissesOnRelease()) 1 else 0)
                             },
                             onEnd = {
                                 // Read from the accumulator, not from `swipe`.
@@ -995,12 +1039,8 @@ private fun ToastCard(
                                 // never drawn, zero. Measured: a 120px swipe
                                 // straight at the edge read as 0px and refused
                                 // to dismiss.
-                                val travelled = pull.value
-                                val far = height * ToastDefaults.SwipeAway
-                                if (
-                                    !refusesToLeave(travelled, towardEdge) &&
-                                    travelled.getDistance() >= far
-                                ) {
+                                threshold.reset()
+                                if (dismissesOnRelease()) {
                                     state.dismiss(toast.id)
                                 } else {
                                     // Sprung, not snapped. Letting go below the
