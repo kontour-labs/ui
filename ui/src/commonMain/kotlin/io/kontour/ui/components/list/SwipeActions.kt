@@ -196,7 +196,11 @@ object SwipeActionsDefaults {
      * parameter, so a fast flick cannot be asked for separately. `BottomSheet`
      * records the same gap for the same reason.
      */
-    val PositionalThreshold: (Float) -> Float = { distance -> distance * 0.55f }
+    val PositionalThreshold: (Float) -> Float
+        @Composable @ReadOnlyComposable get() {
+            val fraction = Theme.componentDefaults.swipePositionalThreshold
+            return { distance -> distance * fraction }
+        }
 
     /** The most actions one side will take. See [SwipeActions]. */
     const val MaxActionsPerSide: Int = 3
@@ -281,6 +285,10 @@ fun SwipeActions(
     val scope = rememberCoroutineScope()
     val feedback = LocalFeedback.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+
+    // Read once. Both the fling and the haptic's point of no return use it, and
+    // they have to be the same number or the buzz stops marking the commit.
+    val threshold = SwipeActionsDefaults.PositionalThreshold
 
     var width by remember { mutableFloatStateOf(0f) }
     val actionWidthPx = with(density) { actionWidth.toPx() }
@@ -386,8 +394,7 @@ fun SwipeActions(
             // only way a haptic that means "past here, letting go deletes it"
             // can keep meaning it.
             val revealed = maxOf(abs(startTravel), abs(endTravel))
-            val commitAt = revealed +
-                SwipeActionsDefaults.PositionalThreshold(width - revealed)
+            val commitAt = revealed + threshold(width - revealed)
             val past = width > 0f && abs(offset) >= commitAt
             if (past && !pastThreshold) feedback.perform(FeedbackIntent.DragThreshold)
             pastThreshold = past
@@ -396,7 +403,7 @@ fun SwipeActions(
 
     val fling = AnchoredDraggableDefaults.flingBehavior(
         state = state.anchoredState,
-        positionalThreshold = SwipeActionsDefaults.PositionalThreshold,
+        positionalThreshold = threshold,
         animationSpec = motion.springOrTween(motion.springDefault),
     )
 

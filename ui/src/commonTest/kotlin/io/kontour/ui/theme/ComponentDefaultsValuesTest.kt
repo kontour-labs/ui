@@ -87,6 +87,7 @@ class ComponentDefaultsValuesTest {
         assertEquals(48.dp, d.listItemMinHeight)
         assertEquals(64.dp, d.listItemTwoLineMinHeight)
         assertEquals(2.dp, d.listItemSpacing)
+        assertEquals(0.55f, d.swipePositionalThreshold)
         assertEquals(6.dp, d.scrollbarThickness)
         assertEquals(10.dp, d.scrollbarHoveredThickness)
         assertEquals(88.dp, d.swipeActionWidth)
@@ -174,6 +175,7 @@ class ComponentDefaultsValuesTest {
                 listItemMinHeight = 48.dp,
                 listItemTwoLineMinHeight = 64.dp,
                 listItemSpacing = 2.dp,
+                swipePositionalThreshold = 0.55f,
                 scrollbarThickness = 6.dp,
                 scrollbarHoveredThickness = 10.dp,
                 swipeActionWidth = 88.dp,

@@ -133,6 +133,18 @@ data class ComponentDefaults(
     val listItemTwoLineMinHeight: Dp = 64.dp,
     /** Between a row's label and its supporting line. */
     val listItemSpacing: Dp = 2.dp,
+    /**
+     * How far between two swipe anchors a release has to be to carry on.
+     *
+     * 0.55, from 0.4. At two fifths a row revealed its actions on a gesture that
+     * was half a mind to and a full swipe committed from a little over a third
+     * of the way across, which is the "too fiddly" report. It is here rather
+     * than in `SwipeActionsDefaults` because how hard a row is to swipe is a
+     * feel a design system picks, not a fact about the component — and because
+     * it is the only lever there is: the fling underneath takes a positional
+     * threshold and no velocity.
+     */
+    val swipePositionalThreshold: Float = 0.55f,
     val scrollbarThickness: Dp = 6.dp,
     val scrollbarHoveredThickness: Dp = 10.dp,
     val swipeActionWidth: Dp = 88.dp,
