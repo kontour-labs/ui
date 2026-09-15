@@ -382,14 +382,26 @@ fun TabBarScope.Tab(
         // tabs of one width each read as a row shoved to the left, with the
         // indicator under a label that is no longer above it.
         //
-        // `Arrangement.Center` with the gap moved onto the badge, and not
-        // `spacedBy(xs, CenterHorizontally)` which says the same thing more
-        // neatly. That form makes this row — itself a weighted child of the bar
-        // — never reach an idle frame: `ComponentContractTest` spins in
-        // `waitForIdle` until its one-minute deadline, on all six contracts at
-        // once. Swapping only the arrangement fixes it, so the cause is in
-        // there somewhere; it has not been chased further than that.
-        horizontalArrangement = Arrangement.Center,
+        // **This used to be `Arrangement.Center` with the gap carried by the
+        // badge, and the reason was a hang nobody had found.** The tidier form
+        // made this row — itself a weighted child of the bar — never reach an
+        // idle frame: `ComponentContractTest` spun in `waitForIdle` to its
+        // one-minute deadline, on all six contracts at once, and swapping only
+        // the arrangement fixed it. The note left behind said the cause was in
+        // there somewhere and had not been chased further.
+        //
+        // Chased: it does not reproduce. Not in the hand-built shape — a
+        // weighted row inside a weighted row, arranged this way — and not in
+        // the real component, and not in `ComponentContractTest`, which passes
+        // all seven. Something between then and now fixed it, and a workaround
+        // whose cause has stopped existing is a workaround that makes the code
+        // read as though it still does.
+        //
+        // `TabArrangementLoopTest` is what keeps that honest. It asks the same
+        // question with a frame count instead of a deadline, so if this ever
+        // comes back it comes back as a named failure in seconds rather than as
+        // six tests timing out.
+        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // The label yields to the badge rather than the other way round. A
@@ -431,8 +443,11 @@ fun TabBarScope.Tab(
         // Beside the label, not over it. `BadgedBox` overlays its badge on the
         // top-right of what it wraps, which is right for an icon and lands on
         // the last two letters of a word.
-        // The gap the row's arrangement would normally provide — see above.
-        if (badge != null) Badge(count = badge, modifier = Modifier.padding(start = Theme.spacing.xs))
+        //
+        // No padding of its own: the row's arrangement carries the gap again,
+        // which is what it is for. It was a `padding(start = xs)` for as long as
+        // the arrangement could not be `spacedBy` — see above.
+        if (badge != null) Badge(count = badge)
     }
 }
 
