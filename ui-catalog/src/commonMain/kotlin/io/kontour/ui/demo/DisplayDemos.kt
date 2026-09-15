@@ -3,6 +3,7 @@ package io.kontour.ui.demo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,6 +47,8 @@ import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.EmptyState
 import io.kontour.ui.components.display.ErrorState
 import io.kontour.ui.components.display.Kbd
+import io.kontour.ui.components.display.KbdDefaults
+import io.kontour.ui.components.display.KbdIcons
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.LinearProgress
 import io.kontour.ui.components.display.PageIndicator
@@ -68,6 +71,8 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.marquee
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 private val cardVariant = Knob.Choice("Variant", CardVariant.entries.toList())
 private val cardClickable = Knob.Flag("Clickable")
@@ -377,7 +382,25 @@ internal val AccordionDemo = ComponentDemo(slug = "accordion") {
     }
 }
 
-internal val AnimatedCounterDemo = ComponentDemo(slug = "animated-counter") {
+/**
+ * Whether a falling number is announced before it falls.
+ *
+ * A flag and not a choice: `warnBefore` is a `Duration`, and the question a
+ * reader has is whether it warns rather than for how long.
+ *
+ * On by default, because the warning is invisible until a value drops and a
+ * reader who presses "Tick down" once with it off has learned nothing about the
+ * parameter. That is only safe because `AnimatedCounter` drops `warnBefore`
+ * entirely under `reduceMotion` and the response harness sets it — 1.5s is
+ * longer than the thirty frames it settles for. If that gate ever moves, this
+ * knob makes the counter look dead to `EverythingRespondsTest`.
+ */
+private val counterWarn = Knob.Flag("Warn before dropping", initial = true)
+
+internal val AnimatedCounterDemo = ComponentDemo(
+    slug = "animated-counter",
+    knobs = listOf(counterWarn),
+) {
     var minutes by remember { mutableStateOf(14) }
     Row(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
@@ -387,14 +410,21 @@ internal val AnimatedCounterDemo = ComponentDemo(slug = "animated-counter") {
             value = minutes,
             format = { "$it min" },
             style = Theme.typography.headlineSmall,
+            warnBefore = if (this@ComponentDemo[counterWarn]) 1.5.seconds else Duration.ZERO,
         )
         Button(
-            onClick = { minutes = (minutes + 12) % 60 },
+            onClick = {
+                minutes = (minutes + 12) % 60
+                echo("Advance")
+            },
             variant = ButtonVariant.Secondary,
             size = ButtonSize.Small,
         ) { +"Advance" }
         Button(
-            onClick = { minutes = if (minutes == 0) 1 else minutes - 1 },
+            onClick = {
+                minutes = if (minutes == 0) 1 else minutes - 1
+                echo("Tick down")
+            },
             variant = ButtonVariant.Ghost,
             size = ButtonSize.Small,
         ) { +"Tick down" }
@@ -517,15 +547,63 @@ internal val KeyValueListDemo = ComponentDemo(
     }
 }
 
-internal val KbdDemo = ComponentDemo(slug = "kbd") {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Kbd { +"⌘" }
-        Kbd { +"K" }
+/**
+ * The nine keys Tabler draws, as an icon and as a character.
+ *
+ * Paired rather than listed twice, so the knob is one `if` and the two rows
+ * cannot drift apart.
+ */
+private val KbdKeys = listOf(
+    KbdIcons.Command to KbdDefaults.Command,
+    KbdIcons.Shift to KbdDefaults.Shift,
+    KbdIcons.Return to KbdDefaults.Return,
+    KbdIcons.Backspace to KbdDefaults.Backspace,
+    KbdIcons.Tab to KbdDefaults.Tab,
+    KbdIcons.CapsLock to KbdDefaults.CapsLock,
+    KbdIcons.PageUp to KbdDefaults.PageUp,
+    KbdIcons.PageDown to KbdDefaults.PageDown,
+    KbdIcons.Space to KbdDefaults.Space,
+)
+
+/**
+ * Icons against characters, which is the page's own argument made pressable.
+ *
+ * `Kbd`'s KDoc *measures* what a character costs — rendered against its own
+ * 20dp cap, ⌘ sits 1.0dp high and ⇧ 0.5dp low, a point and a half of difference
+ * between two caps side by side — and a paragraph is the wrong place to settle
+ * that. Flipped, the misalignment is the thing a reader sees.
+ *
+ * This demo used to draw `Kbd { +"⌘" }`, which is the one thing the page and the
+ * compiled sample both tell a reader not to do.
+ */
+private val kbdIcons = Knob.Flag("Icons", initial = true)
+
+internal val KbdDemo = ComponentDemo(slug = "kbd", knobs = listOf(kbdIcons)) {
+    val icons = this[kbdIcons]
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Kbd { if (icons) +KbdIcons.Command else +KbdDefaults.Command }
+            Kbd { +"K" }
+            Text(
+                "opens the command palette",
+                style = Theme.typography.bodySmall,
+                colour = Theme.colours.contentMuted,
+            )
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        ) {
+            KbdKeys.forEach { (icon, character) ->
+                Kbd { if (icons) +icon else +character }
+            }
+        }
         Text(
-            "opens the command palette",
+            "⌥ and ⌃ stay characters because the bundled mono draws them. ⎋ and " +
+                "⌦ stay characters because nothing draws them.",
             style = Theme.typography.bodySmall,
             colour = Theme.colours.contentMuted,
         )

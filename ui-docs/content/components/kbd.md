@@ -21,10 +21,15 @@ inside the em — measured against its own 20dp cap, ⌘ sits a point high and �
 a point low, which is a point and a half of difference between two caps sitting
 side by side. An icon's bounds are its drawing, so it lands in the middle.
 
-`KbdIcons` covers ⌘, ⇧, ⏎ and ⌫. The rest stay characters, because there is no
-drawn counterpart for them and a hand-made one would only be there to complete a
-table. Pick one style and keep to it inside a single shortcut: a stroke icon is
-lighter than the type beside it, so mixing the two in one row shows.
+`KbdIcons` covers nine: ⌘, ⇧, ⏎, ⌫, ⇥, ⇪, ⇞, ⇟ and ␣. **⎋ and ⌦ stay
+characters** because there is no drawn counterpart for either under any name, and
+a hand-made one would only be there to complete a table. **⌥ and ⌃ stay
+characters for the opposite reason**: the bundled mono subset carries them, so
+they already render in the library's own type.
+
+Pick one style and keep to it inside a single shortcut: a stroke icon is lighter
+than the type beside it, so mixing the two in one row shows. The demo above
+flips between them, which is the only way to see the point and a half.
 
 It has no role, no disabled state and no touch target, which is why it is in the
 registry as a render-only specimen — see
