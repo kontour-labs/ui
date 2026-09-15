@@ -71,10 +71,12 @@ fun outfitFontFamily(): FontFamily {
  * `Kbd`'s documented fallback spread worse rather than better, which is the one
  * thing this was supposed to fix.
  *
- * Nine `KbdDefaults` symbols still fall back, because upstream JetBrains Mono
- * does not draw them either: ⏎ ⌫ ⌦ ⎋ ⇥ ⇪ ⇞ ⇟ ␣. Measured, not assumed —
- * `KbdIcons` remains the answer for the four it covers, and `Kbd`'s own KDoc
- * says why.
+ * Two `KbdDefaults` symbols still fall back, because upstream JetBrains Mono
+ * does not draw them either: ⌦ and ⎋. It was nine — ⏎ ⌫ ⌦ ⎋ ⇥ ⇪ ⇞ ⇟ ␣ —
+ * and `KbdIcons` now covers seven of them, having been short by five for as long
+ * as it claimed Tabler had no tab, caps lock or page keys. It does; they are
+ * filed under the arrows they draw. Measured against the artifact, not assumed,
+ * which is the only reason the old number was wrong for as long as it was.
  *
  * Ligatures are **off**: the `calt` feature is dropped in the subset. A
  * documentation site that silently redraws `!=` as `≠` is showing the reader

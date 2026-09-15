@@ -13,14 +13,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.ArrowBigUp
-import com.composables.icons.tabler.outline.Backspace
-import com.composables.icons.tabler.outline.Command
-import com.composables.icons.tabler.outline.CornerDownLeft
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.ArrowBarToRight
+import com.composables.icons.tabler.outline.ArrowBigUp
+import com.composables.icons.tabler.outline.ArrowBigUpLine
+import com.composables.icons.tabler.outline.Backspace
+import com.composables.icons.tabler.outline.ChevronsDown
+import com.composables.icons.tabler.outline.ChevronsUp
+import com.composables.icons.tabler.outline.Command
+import com.composables.icons.tabler.outline.CornerDownLeft
+import com.composables.icons.tabler.outline.Space
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
@@ -134,11 +139,26 @@ fun Kbd(
  * Compose exposes no ink bounds, only advance boxes — so the only way to centre
  * one exactly is to draw it ourselves. These land within a quarter of a point.
  *
- * **Four, not sixteen.** These are the keys Tabler actually draws. There is no
- * ⌥, ⌃, ⎋, ⇥, ⇪, ⌦, ⇞ or ⇟ in the set, and there is no point adding a
- * hand-drawn one just to complete a table: the characters render, and the ones
- * this covers are the ones that go wrong most visibly because they are the ones
- * on every shortcut.
+ * **Nine, not sixteen, and it used to be four.** These are the keys Tabler
+ * actually draws, and the list was short by five because four of them are filed
+ * under names that do not read like a key: a tab is an `ArrowBarToRight`, caps
+ * lock an `ArrowBigUpLine`, and the two page keys are `ChevronsUp` and
+ * `ChevronsDown`. Checked against the artifact rather than against memory, which
+ * is how the old claim — "there is no ⇥, ⇪, ⇞ or ⇟ in the set" — turned out
+ * to be about the search rather than about the set.
+ *
+ * The five that arrived are also, exactly, five of the nine `KbdDefaults`
+ * characters the bundled JetBrains Mono subset cannot draw, because upstream
+ * does not draw them either — see `Typography`. Those fall back to whatever
+ * face the platform has, which is the inconsistency bundling a font was meant
+ * to remove, so for them an icon is not a preference but the only way to get
+ * the library's own type on a key cap.
+ *
+ * **⌦ and ⎋ remain characters and nothing else.** Tabler draws no forward
+ * delete and no escape under any name, and a hand-drawn one to complete a table
+ * is still not worth it. ⌥ and ⌃ stay characters too, but for the opposite
+ * reason: the subset *does* carry them, so they render in the library's own
+ * mono already.
  *
  * ```kotlin
  * Kbd { +KbdIcons.Command; +"K" }
@@ -167,6 +187,21 @@ object KbdIcons {
 
     /** ⌫ — backspace, the one that deletes backwards. */
     val Backspace: ImageVector get() = Tabler.Outline.Backspace
+
+    /** ⇥ — tab. Filed under the arrow it draws rather than the key it is. */
+    val Tab: ImageVector get() = Tabler.Outline.ArrowBarToRight
+
+    /** ⇪ — caps lock: the shift arrow with the line under it. */
+    val CapsLock: ImageVector get() = Tabler.Outline.ArrowBigUpLine
+
+    /** ⇞ — page up. */
+    val PageUp: ImageVector get() = Tabler.Outline.ChevronsUp
+
+    /** ⇟ — page down. */
+    val PageDown: ImageVector get() = Tabler.Outline.ChevronsDown
+
+    /** ␣ — the space bar, where a blank cap would read as a mistake. */
+    val Space: ImageVector get() = Tabler.Outline.Space
 }
 
 object KbdDefaults {
