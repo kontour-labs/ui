@@ -44,6 +44,7 @@ import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
@@ -52,6 +53,7 @@ import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.inset
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 object SegmentedControlDefaults {
     /**
@@ -142,6 +144,15 @@ fun SegmentedControl(
     val scope = rememberCoroutineScope()
 
     /**
+     * What a drag pushing past either end of the track does instead of nothing.
+     *
+     * Scaled to a **segment**, which is what the thumb is: the same limit the
+     * lean's stretch is already capped at, so the squash and the lean are one
+     * deformation with two sources rather than two that can disagree.
+     */
+    val band = rememberRubberBand()
+
+    /**
      * Where the finger is along the track, or `NaN` before the first drag.
      *
      * Kept after the finger lifts rather than cleared, so the thumb relaxes back
@@ -224,18 +235,28 @@ fun SegmentedControl(
                         }
 
                         translationX = lean
+                        // The end stop, which the clamp above turns into a wall.
+                        // The wall stays — the thumb must not leave the track —
+                        // and the part of the push it refused comes back as
+                        // deformation instead.
+                        val squash = band.offset * engaged
                         // Anchored on the edge it is leaving, so the thumb
                         // elongates toward the segment it is heading for rather
                         // than swelling in place. The slider's thumb does the
                         // same thing with the same signal.
+                        //
+                        // `lean` is zero at a stop, because the wall took it —
+                        // so the squash has to carry the direction or a push off
+                        // the left end pivots the wrong way and grows out of the
+                        // track.
                         transformOrigin = TransformOrigin(
-                            pivotFractionX = if (lean >= 0f) 0f else 1f,
+                            pivotFractionX = if (lean + squash >= 0f) 0f else 1f,
                             pivotFractionY = 0.5f,
                         )
                         val reach = if (trackWidth <= 0f || options.isEmpty()) {
                             0f
                         } else {
-                            abs(lean) / (trackWidth / options.size)
+                            (abs(lean) + abs(squash)) / (trackWidth / options.size)
                         }
                         scaleX = 1f + reach.coerceAtMost(MaxSegmentStretch)
                     },
@@ -373,12 +394,32 @@ fun SegmentedControl(
                     // number: every change of the gesture is delivered here and
                     // the deltas of a pointer's whole path sum to its path.
                     onDelta = { dx ->
-                        fingerX += dx
+                        // A finger coming back closes the stretch it opened
+                        // before the thumb moves again, or one gesture reads as
+                        // two motions.
+                        val offered = dx - band.payBack(dx)
+                        fingerX += offered
                         selectAt(fingerX)
+                        // Past the track is the only wall a segmented control
+                        // has. `selectAt` already quantises, so this is the part
+                        // of the finger the control cannot answer.
+                        val past = when {
+                            fingerX > trackWidth -> fingerX - trackWidth
+                            fingerX < 0f -> fingerX
+                            else -> 0f
+                        }
+                        if (past != 0f && !motion.reduceMotion && options.isNotEmpty()) {
+                            band.pull(past, trackWidth / options.size * MaxSegmentStretch)
+                        }
                     },
                     onEnd = {
                         dragging = false
                         ticker.reset()
+                        // The spring `engaged` already runs on, so the lean's
+                        // collapse and the squash's recovery are one motion.
+                        scope.launch {
+                            band.release(motion.springOrTween(motion.springSnappy))
+                        }
                     },
                 )
         ) {

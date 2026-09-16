@@ -36,6 +36,7 @@ import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.LocalRowInteractionSource
@@ -229,6 +230,26 @@ fun Switch(
     val travel = TrackWidth - ThumbSize - ThumbPadding * 2
     val travelPx = with(LocalDensity.current) { travel.toPx() }
 
+    /**
+     * What a drag pushing past either end does instead of nothing.
+     *
+     * The accumulator is clamped to `0..1`, so a finger that carries on past the
+     * end used to be spending pixels on a control that had stopped answering.
+     * The rejected part goes here and comes out as the thumb squashing in the
+     * direction it is being pushed, then springing back on release.
+     *
+     * **Scaled to the thumb, not to the travel**, which is the thing
+     * `SliderDefaults.DetentPull` got wrong when it was tried here: a switch's
+     * track is 20dp, so anything sized to the travel is either invisible or
+     * throws the thumb off the finger. The limit below is the thumb's own
+     * maximum deformation, so a 20dp track and a 300dp one both give a thumb
+     * that visibly compresses by the same proportion of itself.
+     */
+    val band = rememberRubberBand()
+
+    /** The thumb's own maximum deformation, which is what the squash is scaled to. */
+    val thumbSquashPx = with(LocalDensity.current) { ThumbSize.toPx() } * (ThumbStretch - 1f)
+
     val feedback = LocalFeedback.current
 
     // Springs to wherever `checked` now is, starting from wherever the thumb now
@@ -295,8 +316,18 @@ fun Switch(
                 if (dragTarget != null && enabled) {
                     Modifier.draggable(
                         state = rememberDraggableState { delta ->
-                            dragAccumulator =
-                                (dragAccumulator + delta / travelPx).coerceIn(0f, 1f)
+                            // A finger coming back closes the stretch it opened
+                            // before the thumb itself moves again, or one
+                            // gesture reads as two motions.
+                            val offered = delta - band.payBack(delta)
+                            val raw = dragAccumulator + offered / travelPx
+                            dragAccumulator = raw.coerceIn(0f, 1f)
+                            if (!motion.reduceMotion) {
+                                band.pull(
+                                    (raw - dragAccumulator) * travelPx,
+                                    thumbSquashPx,
+                                )
+                            }
 
                             val side = dragAccumulator >= 0.5f
                             val crossed = side != committed
@@ -351,6 +382,10 @@ fun Switch(
                             // settled on — including back, if the caller
                             // declined the change.
                             dragging = false
+                            // Bouncy rather than snappy, matching `pressStretch`
+                            // above: a switch is small enough that a little
+                            // overshoot reads as rubber rather than as wobble.
+                            band.release(motion.springOrTween(motion.springBouncy))
                         },
                     )
                 } else {
@@ -417,7 +452,12 @@ fun Switch(
          */
         val speed = (abs(fraction.velocity) / StretchAtSpeed).coerceIn(0f, 1f)
         val travelStretch = if (motion.reduceMotion) 1f else 1f + (ThumbStretch - 1f) * speed
-        val thumbStretch = maxOf(pressStretch, travelStretch)
+        // The end stop, as deformation rather than as a dead zone. The growth is
+        // split by the room available just below, and at either end every bit of
+        // the spare room is *behind* the thumb — so this comes out as a squash
+        // in the direction of the push with no extra arithmetic.
+        val squashStretch = 1f + abs(band.offset) / thumbPx
+        val thumbStretch = maxOf(pressStretch, maxOf(travelStretch, squashStretch))
 
         // The stretch grows *into the padding it has room for*, split between
         // the two sides in proportion to how much room each has.

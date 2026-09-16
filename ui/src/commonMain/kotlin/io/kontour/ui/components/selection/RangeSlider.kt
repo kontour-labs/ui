@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
@@ -44,6 +45,7 @@ import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /**
  * A range with two thumbs on one track — a departure window, a fare band.
@@ -251,6 +253,19 @@ fun RangeSlider(
 
     /** See [Slider]'s: the shared ticker, which is also where the rate limit is. */
     val ticker = rememberDetentTicker()
+
+    /**
+     * What a drag pushing past the **track's** ends does instead of nothing.
+     *
+     * Only 0 and 1. The inner stop — a thumb brought up against the other one —
+     * already reads as being shoved, because the pushed thumb deforms through
+     * the reach below; a band there would be a second deformation of the same
+     * contact and would need one instance per thumb to know which.
+     */
+    val band = rememberRubberBand()
+    val thumbSquashPx = with(LocalDensity.current) {
+        SliderThumbRadius.toPx() * SliderDefaults.MaxStretch
+    }
 
     // Read here rather than inside `drawWithCache`, which is not a composable.
     val tickSize = Theme.componentDefaults.sliderTickSize
@@ -520,6 +535,11 @@ fun RangeSlider(
     val reachStart = if (activeThumb == Thumb.End && pushing) ownReachEnd else ownReachStart
     val reachEnd = if (activeThumb == Thumb.Start && pushing) ownReachStart else ownReachEnd
 
+    // The end stop's squash belongs to the thumb the finger is on, and to that
+    // one only — the other has not hit anything.
+    val squashStart = if (activeThumb == Thumb.Start) band.offset else 0f
+    val squashEnd = if (activeThumb == Thumb.End) band.offset else 0f
+
     Box(
         modifier = modifier
             .semantics {
@@ -651,12 +671,31 @@ fun RangeSlider(
                                     Thumb.Start -> 0f to (1f - gapFraction)
                                     else -> gapFraction to 1f
                                 }
-                                dragFraction = (from + signed / widthPx)
-                                    .coerceIn(reach.first, reach.second)
+                                val offered = signed - band.payBack(signed)
+                                val raw = from + offered / widthPx
+                                dragFraction = raw.coerceIn(reach.first, reach.second)
+                                // Measured against the **track**, not against
+                                // `reach`: running into the other thumb is a
+                                // shove and already looks like one, and only
+                                // the ends of the range are a wall.
+                                val past = when {
+                                    raw > 1f -> raw - 1f
+                                    raw < 0f -> raw
+                                    else -> 0f
+                                }
+                                if (past != 0f && !motion.reduceMotion) {
+                                    band.pull(past * widthPx, thumbSquashPx)
+                                }
                                 emit(activeThumb, dragFraction)
                             }
                         },
                         onEnd = {
+                            // The same spring the thumbs settle on, so the
+                            // squash unwinds as they land rather than as a
+                            // second animation over the top.
+                            scope.launch {
+                                band.release(motion.springOrTween(motion.springSnappy))
+                            }
                             // A press that never moved is a tap, and a tap
                             // moves the nearer thumb to it.
                             //
@@ -741,9 +780,19 @@ fun RangeSlider(
                             }
 
                             val startThumb =
-                                DrawnThumb(startX, reachStart * trackWidth, startScale, startAspect)
+                                DrawnThumb(
+                                    startX,
+                                    reachStart * trackWidth + squashStart,
+                                    startScale,
+                                    startAspect,
+                                )
                             val endThumb =
-                                DrawnThumb(endX, reachEnd * trackWidth, endScale, endAspect)
+                                DrawnThumb(
+                                    endX,
+                                    reachEnd * trackWidth + squashEnd,
+                                    endScale,
+                                    endAspect,
+                                )
 
                             // Painter order is the whole of "which one can I
                             // see", so the one under the finger goes last.

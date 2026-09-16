@@ -29,6 +29,14 @@ import kotlin.math.abs
  * lifted here so the sheet and the wheel picker share one, rather than the
  * second one to want it growing a copy.
  *
+ * Used by the sheet's overshoot, the wheel picker's, and the end stop of every
+ * control a finger can push past the end of — `Slider`, `RangeSlider`, `Switch`
+ * and `SegmentedControl`, each of which feeds [offset] into the deformation it
+ * already had. `PullToRefresh` and `Toast` keep their own arithmetic on purpose:
+ * one is unbounded by design, because its progress has to go on climbing past 1
+ * to drive the arc, and the other is a stateless function of the whole
+ * accumulated pull where this is incremental.
+ *
  * Purely visual by construction. Nothing here touches the scrollable it belongs
  * to: [offset] is applied at draw or layout by whoever owns it, so no anchor,
  * index or settled value knows the stretch happened, and letting go returns

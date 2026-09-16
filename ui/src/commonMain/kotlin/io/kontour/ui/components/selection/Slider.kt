@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
@@ -44,6 +45,7 @@ import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 // Shared with `RangeSlider`, which is the same track with a second thumb on it.
 // Two copies of these would be two sliders that drift apart by a pixel.
@@ -173,6 +175,19 @@ fun Slider(
     // step — and no faster than a hand can tell two ticks apart, which is the
     // ticker's own rate limit rather than anything this component decides.
     val ticker = rememberDetentTicker()
+
+    /**
+     * What a drag pushing past either end of the range does instead of nothing.
+     *
+     * Scaled to the **thumb**, not to the track: the limit is the thumb's own
+     * maximum deformation, so the squash is the same proportion of itself on a
+     * 60dp slider and a 600dp one, and it feeds the reach the thumb already
+     * stretches by.
+     */
+    val band = rememberRubberBand()
+    val thumbSquashPx = with(LocalDensity.current) {
+        SliderThumbRadius.toPx() * SliderDefaults.MaxStretch
+    }
 
     // Read here rather than inside `drawWithCache`, which is not a composable.
     val tickSize = Theme.componentDefaults.sliderTickSize
@@ -443,11 +458,26 @@ fun Slider(
                         // emitted value is quantised and the caller may not take
                         // it at all, and either would lose the remainder.
                         val from = if (dragFraction.isNaN()) fraction else dragFraction
-                        dragFraction = (from + signed / widthPx).coerceIn(0f, 1f)
+                        // A finger coming back closes the stretch it opened
+                        // before the value starts moving again, or one gesture
+                        // reads as two motions.
+                        val offered = signed - band.payBack(signed)
+                        val raw = from + offered / widthPx
+                        dragFraction = raw.coerceIn(0f, 1f)
+                        // Emitted first and always. A press at the very end of
+                        // the track has to answer before anything is pulled, or
+                        // the last pixel of the slider stops reporting.
                         emit(dragFraction)
+                        if (!motion.reduceMotion) {
+                            band.pull((raw - dragFraction) * widthPx, thumbSquashPx)
+                        }
                     },
                     onEnd = {
                         ticker.reset()
+                        // The same spring the thumb settles on, so the squash
+                        // unwinds as the thumb lands on its detent rather than
+                        // as a second animation over the top of it.
+                        scope.launch { band.release(motion.springOrTween(motion.springSnappy)) }
                         // Releasing hands the thumb back to the settled value, so
                         // it springs the last of the way onto the detent rather
                         // than staying wherever the finger let go.
@@ -511,7 +541,11 @@ fun Slider(
                             radiusPx = thumbRadiusPx,
                             scale = thumbScale,
                             aspect = thumbAspect,
-                            reachPx = thumbReach * trackWidth,
+                            // Plus whatever the end stop is holding: `sliderThumb`
+                            // already clamps this to `MaxStretch` and extends one
+                            // side only, so a squash at either end is the reach
+                            // machinery with a second source.
+                            reachPx = thumbReach * trackWidth + band.offset,
                             // A ring of the page colour keeps the thumb legible
                             // where it overlaps the filled track.
                             ringColour = colours.surface,

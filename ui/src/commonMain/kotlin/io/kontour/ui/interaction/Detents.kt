@@ -160,23 +160,3 @@ fun rememberDetentTicker(intent: FeedbackIntent = FeedbackIntent.Tick): DetentTi
     val feedback = LocalFeedback.current
     return remember(feedback, intent) { DetentTicker(feedback, intent) }
 }
-
-/**
- * How far a drag actually travels once it is past where it is allowed to go.
- *
- * A drag pinned hard at its limit reads as the gesture having been dropped —
- * the finger keeps moving and nothing does. Letting it travel a fraction of the
- * overshoot says "this is as far as it goes" while keeping the contact.
- *
- * Two of these already existed, at two different values and in two different
- * files: `PullToRefresh.Resistance` at 0.4 and `Toast.Resistance` at 0.33. This
- * is the third, and it exists so that it is not a fourth constant.
- *
- * @param overshoot How far past the limit the finger has gone.
- * @param factor The share of it the element takes. Lower is stiffer.
- */
-fun rubberBand(overshoot: Float, factor: Float = DefaultResistance): Float =
-    overshoot * factor
-
-/** Stiff enough to read as a wall, loose enough to read as contact. */
-const val DefaultResistance: Float = 0.35f
