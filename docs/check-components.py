@@ -861,6 +861,41 @@ def defaults_literals() -> int:
     return total
 
 
+# A gesture handler handed a callable reference to a local function.
+#
+# `onStart = ::report` and `onStart = { report(it) }` read as the same thing and
+# are not. A lambda literal has its transitive captures — including the
+# *parameters* of any local function it calls — recorded as memoization keys, so
+# the compiler rebuilds it when they change. A reference to a local function has
+# no captures at the reference site, so it is built once at first composition and
+# handed back for the life of the composable, holding whatever its enclosing
+# parameters were at birth. `ownedDrag`'s own `rememberUpdatedState` cannot save
+# it: that faithfully stores the latest instance it is given, and it is given the
+# same first-composition instance every time.
+#
+# **This has cost two rounds.** `RangeSlider` first — "move one end, then the
+# other, and the first one goes back where it started" — and then `ColourPicker`,
+# where a hue set on the track reverted to the picker's birth hue on the next
+# press in the area. One occurrence reads as a quirk of one component; two read
+# as a shape, and this is the cheapest possible net for it.
+#
+# The rule is spelling rather than semantics, and deliberately so: the correct
+# fix is `rememberUpdatedState`, but a reviewer cannot see a missing one, and can
+# see a `::`.
+DRAG_HANDLER_REFERENCE = re.compile(r"\bon(?:Start|Delta|End)\s*=\s*::")
+
+
+def drag_handlers_by_reference() -> list[str]:
+    """Drag handlers passed as `::localFunction`, which capture at birth."""
+    offenders = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        for match in DRAG_HANDLER_REFERENCE.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            offenders.append(f"{path.name}:{line} `{match.group().strip()}`")
+    return offenders
+
+
 def unread_component_defaults() -> list[str]:
     """`ComponentDefaults` fields no component reads."""
     root = Path("ui/src/commonMain/kotlin")
@@ -1610,6 +1645,22 @@ def main() -> int:
             f"reads is API that ships dead, and looks identical to one that "
             f"works. Wire it through the component's `*Defaults` object, or "
             f"take it off"
+        )
+
+    # Rule 25 — a drag handler is a lambda, never a reference to a local function.
+    #
+    # See `drag_handlers_by_reference`. The one that cost two rounds, and the one
+    # a reviewer cannot see: `::report` reads as the tidier spelling of
+    # `{ report(it) }` and is a closure frozen at first composition.
+    by_reference = drag_handlers_by_reference()
+    if by_reference:
+        problems.append(
+            f"{len(by_reference)} drag handler(s) are a reference to a local "
+            f"function rather than a lambda: {', '.join(by_reference)} — a "
+            f"reference has no captures at the reference site, so it is built "
+            f"once and holds the parameters the composable was born with. Spell "
+            f"it `{{ report(it) }}` and read any hoisted value through "
+            f"`rememberUpdatedState`"
         )
 
     if problems:

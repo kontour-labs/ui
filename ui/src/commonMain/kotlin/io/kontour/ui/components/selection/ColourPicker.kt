@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -301,6 +302,30 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
      */
     val edge = rememberDetentTicker()
 
+    /**
+     * The hue this handler reports against, read live rather than captured.
+     *
+     * **`report` is called from a drag handler, and a drag handler outlives the
+     * composition that built it.** The `hsv` parameter is a plain value: a
+     * closure over it holds whatever it was at the moment the closure was built,
+     * and `ownedDrag`'s own `rememberUpdatedState` cannot help, because it
+     * faithfully stores the latest *instance* it is handed and it is handed the
+     * same first-composition instance every time.
+     *
+     * The symptom was a hue set on the track reverting to the one the picker was
+     * born with, on the first frame of the next gesture in the area — and then
+     * the rest of that gesture faithfully continuing from the reverted value.
+     * `OwnedDrag`'s KDoc records the identical bug in `RangeSlider`, where it
+     * read as "move one end, then the other, and the first one goes back where
+     * it started".
+     *
+     * Reading through `rememberUpdatedState` makes the handler immune to *any*
+     * staleness in how it is delivered, rather than depending on the compiler
+     * rebuilding a closure — which it turned out to do for this composable and
+     * not for the one below, for reasons neither of them should have to rely on.
+     */
+    val liveHsv by rememberUpdatedState(hsv)
+
     fun report(position: Offset) {
         if (box.width <= 0f || box.height <= 0f) return
         at = position
@@ -308,7 +333,7 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
         val down = position.y / box.height
         edge.at(wall(across) + 3 * wall(down))
         onHsvChange(
-            hsv.copy(
+            liveHsv.copy(
                 saturation = across.coerceIn(0f, 1f),
                 value = 1f - down.coerceIn(0f, 1f),
             )
@@ -330,7 +355,7 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
                 interactionSource = null,
                 scope = scope,
                 claimsOn = DragClaim.Press,
-                onStart = ::report,
+                onStart = { report(it) },
                 onDelta = { report(at + it) },
                 onEnd = { edge.reset() },
             )
@@ -375,6 +400,9 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
      */
     val cells = rememberDetentTicker()
 
+    /** Live, for the reason `SaturationValueArea` gives at length. */
+    val liveHsv by rememberUpdatedState(hsv)
+
     fun report(position: Offset) {
         if (box.width <= 0f || box.height <= 0f) return
         at = position
@@ -384,7 +412,7 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
             .toInt().coerceIn(0, PaletteRows - 1)
         cells.at(row * PaletteColumns + column)
         onHsvChange(
-            hsv.copy(
+            liveHsv.copy(
                 saturation = (column + 1).toFloat() / PaletteColumns,
                 value = 1f - row.toFloat() / PaletteRows,
             )
@@ -402,7 +430,7 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
                 interactionSource = null,
                 scope = scope,
                 claimsOn = DragClaim.Press,
-                onStart = ::report,
+                onStart = { report(it) },
                 onDelta = { report(at + it) },
                 onEnd = { cells.reset() },
             )

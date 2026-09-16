@@ -110,6 +110,31 @@ internal enum class DragClaim {
  * [io.kontour.ui.components.selection.Slider] is one — was never affected,
  * which is exactly why this went unnoticed for as long as it did.
  *
+ * ### It happened again, and the second time says what the first could not
+ *
+ * `ColourPicker` lost a hue the same way: set one on the track, press in the
+ * spectrum, and the hue reverted to the colour the picker was born with — then
+ * the rest of that gesture faithfully continued from the reverted value. One
+ * bad emission, always on the press, always the birth value.
+ *
+ * **The `rememberUpdatedState` here could not prevent it**, and that is the part
+ * worth understanding. It stores the latest *instance* it is handed. The picker
+ * handed it `onStart = ::report` — a reference to a *local* function — which the
+ * compiler memoizes with no captures at the reference site, so it is the same
+ * first-composition instance on every recomposition. This local was faithfully
+ * storing a stale closure.
+ *
+ * A lambda literal would not have been: the compiler records the transitive
+ * captures of a lambda's body, including the parameters of any local function it
+ * calls, so `{ report(it) }` is rebuilt when they change. The two spellings read
+ * as the same thing. `check-components.py`'s rule 25 now bans the one that is
+ * not, because a reviewer cannot see a missing `rememberUpdatedState` and can see
+ * a `::`.
+ *
+ * The honest summary of both rounds: **a drag handler outlives the composition
+ * that built it, so anything it reads from a parameter has to be read live.**
+ * This local does that for the handlers; each handler has to do it for its own.
+ *
  * @param claimsOn Whether the down itself is the gesture or only the movement
  *   after it. See [DragClaim]; it decides whether a tap survives.
  * @param onStart Called with the position the drag is taken at, in this node's

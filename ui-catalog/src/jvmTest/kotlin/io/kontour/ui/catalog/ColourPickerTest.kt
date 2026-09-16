@@ -189,6 +189,139 @@ class ColourPickerTest {
     }
 
     /**
+     * A hue set on the track survives a drag in the area afterwards.
+     *
+     * Reported, reproduced, and unexplained for a round: move the hue track, then
+     * drag the spectrum, and the hue reverts to the one the picker was *born*
+     * with. Never to an intermediate value, and always on the first frame of the
+     * area gesture.
+     *
+     * ### Why nothing here caught it
+     *
+     * Every other case in this file exercises exactly one control per scene.
+     * `theHueSurvivesATripThroughBlack` is the closest, and it starts from the
+     * birth colour — so the area's hue and the picker's hue are the same number
+     * and a stale one is indistinguishable from a fresh one. It takes two
+     * controls in one scene to tell them apart, and until now no test used two.
+     *
+     * ### What it is
+     *
+     * `SaturationValueArea` passed its drag's `onStart` as `::report`, a callable
+     * reference to a local function. A lambda literal has its transitive captures
+     * recorded as memoization keys, so it is rebuilt when the hue changes; a
+     * reference to a local function has no captures at the reference site, so it
+     * is built once at first composition and handed back for the life of the
+     * picker — holding the `hsv` parameter it was born with. `onStart` fires once
+     * per gesture, on the press, which is the single bad emission; `onDelta` is a
+     * lambda and faithfully continues from whatever that write left behind.
+     *
+     * `OwnedDrag`'s KDoc records the same bug in `RangeSlider`, in the same
+     * words, with "range" for "hue".
+     */
+    @Test
+    fun aHueSetOnTheTrackSurvivesADragInTheArea() {
+        val start = Color(0xFF1E88E5)
+        val born = start.toHsv().hue
+        val trackY = (16 + 200 + 10) * 2f
+
+        // The track on its own first, to learn where it leaves the hue. The
+        // second scene repeats this drag exactly, so the number carries over.
+        val trackOnly = picker(start) {
+            // Leftward, well clear of either end.
+            drag(
+                from = Offset(x = (16 + 160) * 2f, y = trackY),
+                to = Offset(x = (16 + 60) * 2f, y = trackY),
+                steps = 8,
+            )
+        }
+        val hueTrackLeft = trackOnly.last().toHsv().hue
+        assertTrue(
+            abs(hueTrackLeft - born) > 20f,
+            "the track drag only moved the hue from $born to $hueTrackLeft, which " +
+                "is not far enough for a revert to be visible. This test is " +
+                "measuring the wrong thing.",
+        )
+
+        // And now the same drag with an area gesture after it, in one scene.
+        val both = picker(start) {
+            drag(
+                from = Offset(x = (16 + 160) * 2f, y = trackY),
+                to = Offset(x = (16 + 60) * 2f, y = trackY),
+                steps = 8,
+            )
+            frames(2)
+            drag(from = areaCentre, to = areaCentre + Offset(40f, 0f), steps = 6)
+        }
+
+        // And the same thing as a tap, which is the gesture with no `onDelta`
+        // after it to paper over a bad first emission.
+        val tapped = picker(start) {
+            drag(
+                from = Offset(x = (16 + 160) * 2f, y = trackY),
+                to = Offset(x = (16 + 60) * 2f, y = trackY),
+                steps = 8,
+            )
+            frames(2)
+            tap(areaCentre)
+        }
+        val afterTap = tapped.last().toHsv().hue
+        assertTrue(
+            abs(afterTap - hueTrackLeft) < 2f,
+            "tapping the area after moving the hue track left the hue at " +
+                "$afterTap, where the track had put it at $hueTrackLeft. A tap is " +
+                "one emission with nothing after it, so it is the gesture that " +
+                "shows a stale first write rather than hiding it.",
+        )
+
+        val landed = both.last().toHsv().hue
+        assertTrue(
+            abs(landed - born) > 20f,
+            "after moving the hue track and then dragging the area, the hue is " +
+                "$landed — the colour this picker was born holding was $born. The " +
+                "area handed back a hue it captured at first composition, so one " +
+                "gesture undid the one before it.",
+        )
+        assertTrue(
+            abs(landed - hueTrackLeft) < 2f,
+            "the area drag moved the hue from $hueTrackLeft to $landed. Dragging " +
+                "the saturation and value axes must not touch the third one at " +
+                "all — that is the whole reason the picker keeps an `Hsv` rather " +
+                "than round-tripping a `Color`.",
+        )
+    }
+
+    /**
+     * And the palette, which carries the identical gesture wiring.
+     *
+     * Worth its own case rather than trusting the spectrum's: the two areas are
+     * separate composables with separately written drag handlers, and the second
+     * one was copied from the first — including what was wrong with it.
+     */
+    @Test
+    fun aHueSetOnTheTrackSurvivesATapInThePalette() {
+        val start = Color(0xFF1E88E5)
+        val born = start.toHsv().hue
+        val trackY = (16 + 200 + 10) * 2f
+
+        val seen = picker(start, mode = ColourPickerMode.Palette) {
+            drag(
+                from = Offset(x = (16 + 160) * 2f, y = trackY),
+                to = Offset(x = (16 + 60) * 2f, y = trackY),
+                steps = 8,
+            )
+            frames(2)
+            tap(areaCentre)
+        }
+
+        val landed = seen.last().toHsv().hue
+        assertTrue(
+            abs(landed - born) > 20f,
+            "after moving the hue track and then tapping the palette, the hue is " +
+                "$landed against a birth hue of $born",
+        )
+    }
+
+    /**
      * Palette mode is a palette, and it still has a hue.
      *
      * It used to be neither. The mode guarded the area, the hue track *and* the

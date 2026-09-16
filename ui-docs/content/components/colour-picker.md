@@ -65,6 +65,17 @@ colour area, and it is checked on every build.
 `colour` is still the source of truth, and anything arriving from outside the
 picker's own gestures is adopted.
 
+**Keeping the hue is not the same as reading it live, and the difference cost a
+round.** The picker kept its hue correctly and then handed a stale copy of it to
+the area's drag handler: a hue set on the track reverted to the one the picker was
+born with on the very next press in the spectrum, and the rest of that gesture
+continued from the reverted value. The cause was a handler spelled `::report`
+rather than `{ report(it) }` — a reference to a local function is memoized once
+at first composition and holds the parameters it was born with, where a lambda
+literal is rebuilt when they change. The two spellings look identical and are not.
+Both areas read the hue through `rememberUpdatedState` now, which is immune to
+how the handler is delivered rather than dependent on it.
+
 ---
 
 ## Typing, and the loop a bound field would otherwise be
