@@ -290,17 +290,14 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
     val strings = Theme.strings
     val pure = remember(hsv.hue) { Hsv(hsv.hue, 1f, 1f).toColour() }
 
-    /**
-     * The finger running out of spectrum, reported once per wall arrived at.
-     *
-     * Two axes and therefore four walls, packed into one index as
-     * `x + 3 * y` with each term in `-1..1`. Any change of one or more fires, so
-     * leaving the middle reports, and reaching a corner from an edge reports
-     * again — which is right: the second wall is news the first one did not give.
-     * The spacing between the two is the shared rate floor's problem, not this
-     * arithmetic's.
-     */
-    val edge = rememberDetentTicker()
+    // **Running out of spectrum reports nothing.**
+    //
+    // There was a ticker here, packing four walls into one index. It went with
+    // the rest of the library's end stops: a finger that has run into the side of
+    // the square can see the cursor sitting against it, so a buzz there reports
+    // the most visible thing on screen. The palette grid below keeps its tick —
+    // a cell crossed under a fingertip is a value changing where the finger is,
+    // which is the case a haptic is actually for.
 
     /**
      * The hue this handler reports against, read live rather than captured.
@@ -331,7 +328,6 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
         at = position
         val across = position.x / box.width
         val down = position.y / box.height
-        edge.at(wall(across) + 3 * wall(down))
         onHsvChange(
             liveHsv.copy(
                 saturation = across.coerceIn(0f, 1f),
@@ -357,7 +353,9 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
                 claimsOn = DragClaim.Press,
                 onStart = { report(it) },
                 onDelta = { report(at + it) },
-                onEnd = { edge.reset() },
+                // Nothing to unwind: the cursor is wherever it was left and the
+                // walls report nothing to latch. It used to reset the edge ticker.
+                onEnd = {},
             )
             .semantics { contentDescription = strings.colourArea }
     ) {
@@ -535,21 +533,12 @@ private fun Track(
     var width by remember { mutableFloatStateOf(0f) }
     var at by remember { mutableFloatStateOf(0f) }
 
-    /**
-     * Either end of the track, reported once per arrival.
-     *
-     * The press arms it — a press lands on the canvas, so its fraction is inside
-     * `0..1` and the first call can only ever be the middle. It is a drag that
-     * runs off the end, and that is the one this has something to say about.
-     */
-    val edge = rememberDetentTicker()
-
+    // Silent at either end, like every other end stop in the library — see the
+    // note where the spectrum's ticker used to be.
     fun report(x: Float) {
         if (width <= 0f) return
         at = x
-        val fraction = x / width
-        edge.at(wall(fraction))
-        onFractionChange(fraction.coerceIn(0f, 1f))
+        onFractionChange((x / width).coerceIn(0f, 1f))
     }
 
     Canvas(
@@ -573,7 +562,8 @@ private fun Track(
                 claimsOn = DragClaim.Press,
                 onStart = { report(it.x) },
                 onDelta = { report(at + it) },
-                onEnd = { edge.reset() },
+                // As above: nothing is latched across a gesture here any more.
+                onEnd = {},
             )
             .semantics {
                 contentDescription = label
@@ -623,20 +613,6 @@ private fun DrawScope.cursor(at: Offset) {
         style = Stroke(stroke * 2f),
     )
     drawCircle(color = Color.White, radius = radius, center = centre, style = Stroke(stroke))
-}
-
-/**
- * Which side of a `0..1` axis a fraction has run off, as -1, 0 or 1.
- *
- * Shared by the spectrum and the tracks so the two cannot come to disagree about
- * where an edge is. The slop is a fraction of a pixel on any real control: a
- * press landing exactly on the last pixel reports 1.0 and is not a refusal, so
- * the comparison has to be strict.
- */
-private fun wall(fraction: Float): Int = when {
-    fraction > 1f -> 1
-    fraction < 0f -> -1
-    else -> 0
 }
 
 /**

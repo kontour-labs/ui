@@ -370,21 +370,28 @@ class DetentHapticsTest {
     }
 
     /**
-     * A finger pushing past the end of a slider is told, once.
+     * A finger pushing past the end of a slider is told nothing at all.
      *
-     * The sibling of the tap case above, and the pair of them is the distinction:
-     * a tap *onto* a detent has crossed nothing, and a drag *against* the end of
-     * the range has run out of value while the finger is still moving. The second
-     * is the one nothing else on screen says at the moment it becomes true — the
-     * thumb has already stopped, and a thumb that is not moving looks identical
-     * whether the finger has stopped too.
+     * This asserted the opposite for one round, and the argument it was built on
+     * is worth keeping because it is the one that lost. It said: a tap *onto* a
+     * detent has crossed nothing, and a drag *against* the end has run out of
+     * value while the finger is still moving, which nothing on screen says at the
+     * moment it becomes true — the thumb has already stopped, and a thumb that is
+     * not moving looks the same whether the finger stopped with it.
+     *
+     * What that missed is that the thumb is not only stopped, it is *squashing*
+     * against the wall and springing back off it. The end stop is the most
+     * conspicuous thing the control does. Reported, and it went — along with the
+     * same report on `RangeSlider`, the colour picker's edges, the carousel's
+     * first and last page and the wheel picker's ends, which were five ways of
+     * saying one thing that did not need saying once.
      *
      * A continuous slider, deliberately. With `steps` the detent ticks would
-     * drown the one report under test and counting them would prove nothing about
-     * either.
+     * drown the silence under test — and the detents are exactly what must *not*
+     * have gone quiet, which is `aSteppedSliderTicks…` next door.
      */
     @Test
-    fun aSliderReportsReachingTheEndOfItsRangeOnceAndNotPerFrame() {
+    fun aSliderSaysNothingReachingTheEndOfItsRange() {
         val felt = mutableListOf<FeedbackIntent>()
         var value by mutableStateOf(0.5f)
         var bounds = Rect.Zero
@@ -414,10 +421,11 @@ class DetentHapticsTest {
 
         assertTrue(value >= 1f, "the drag never reached the end, so this proves nothing")
         assertEquals(
-            listOf(FeedbackIntent.Tick), felt,
-            "a drag off the end of a slider fired ${felt.summary()}. One arrival is " +
-                "one report: not a tick per frame for the seven frames the finger " +
-                "spent past the end, and not silence either.",
+            emptyList(), felt,
+            "a drag off the end of a slider fired ${felt.summary()}. The thumb has " +
+                "stopped and is visibly squashing against the wall, so there is " +
+                "nothing here a haptic could add that the reader is not already " +
+                "looking at.",
         )
     }
 

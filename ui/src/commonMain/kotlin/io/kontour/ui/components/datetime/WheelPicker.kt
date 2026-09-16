@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.theme.Theme
@@ -157,20 +156,19 @@ fun <T> WheelPicker(
     val flingBehavior = rememberSnapFlingBehavior(listState)
     val ticker = rememberDetentTicker()
 
-    /**
-     * The first or last value arriving under a finger still turning the drum.
-     *
-     * [FeedbackIntent.Reject] rather than a tick, and deliberately the heaviest
-     * thing in the library short of a destructive warning. A wheel is turned
-     * without being looked at — that is most of the point of a drum — so running
-     * out of hours is the one report here the eye is genuinely not getting, and a
-     * light tap among nineteen detent ticks would be indistinguishable from one
-     * of them.
-     *
-     * A second ticker rather than a second index on [ticker], which is counting
-     * rows: the two spaces are unrelated and one `at` cannot serve both.
-     */
-    val endStop = rememberDetentTicker(FeedbackIntent.Reject)
+    // **Running out of hours reports nothing now, and this was the strongest
+    // case for keeping one.**
+    //
+    // There was a `FeedbackIntent.Reject` here — the heaviest thing in the
+    // library short of a destructive warning — on the argument that a drum is
+    // turned without being looked at, so the end of the list is the one wall the
+    // eye is genuinely not getting. The argument survives and the report does
+    // not: it was one of a set, every other member of which was reporting
+    // something plainly visible, and a rule that holds everywhere except for one
+    // component is how the last haptic sweep got to fifty-seven call sites. The
+    // drum still stretches and springs back at its ends, and the per-row ticks
+    // above are untouched — a hand turning a wheel is being told about every row
+    // it crosses, so the row it stops on is not news.
     val currentOnSelect by rememberUpdatedState(onSelectedChange)
 
     /**
@@ -274,11 +272,8 @@ fun <T> WheelPicker(
      * that scrolls because a drum ran out of numbers is a page nobody asked to
      * scroll.
      */
-    val containment = remember(band, bandLimit, wheelMotion, endStop) {
+    val containment = remember(band, bandLimit, wheelMotion) {
         object : NestedScrollConnection {
-            /** Whether this gesture has handed [endStop] a starting index yet. */
-            private var armed = false
-
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 // Before the drum is offered anything. A finger coming back
                 // closes the stretch it opened before the rows start moving
@@ -303,22 +298,6 @@ fun <T> WheelPicker(
                 // A finger only: a settling animation running out of list is
                 // the drum putting itself straight, not something to stretch.
                 if (source == NestedScrollSource.UserInput) {
-                    // Armed from inside the drum on the gesture's first frame:
-                    // a flick that starts on the first row and pulls further is
-                    // the case this is for, and there the very first pass is
-                    // already the refusal. Without the arming call the ticker
-                    // would take it as its starting index and say nothing.
-                    if (!armed) {
-                        endStop.at(0)
-                        armed = true
-                    }
-                    endStop.at(
-                        when {
-                            available.y > WheelUnconsumed -> 1
-                            available.y < -WheelUnconsumed -> -1
-                            else -> 0
-                        }
-                    )
                     band.pull(available.y, bandLimit)
                 }
 
@@ -337,8 +316,6 @@ fun <T> WheelPicker(
                 // suspends until the whole settle is over, and a band that
                 // waits for it is a band that hangs open for half a second.
                 scope.launch { band.release(wheelMotion.springOrTween(wheelMotion.springGentle)) }
-                armed = false
-                endStop.reset()
                 return Velocity.Zero
             }
 
@@ -837,11 +814,3 @@ private fun lerp(start: Float, stop: Float, fraction: Float): Float =
  */
 private const val WheelOverscrollRows = 1.5f
 
-/**
- * How much of a scroll the drum has to decline before it counts as an end stop.
- *
- * A pixel of slop rather than an exact zero. A nested-scroll pass leaves
- * fractions of a pixel unconsumed from rounding in the middle of the list, and a
- * strict `> 0f` reads those as the end of the hours.
- */
-private const val WheelUnconsumed = 0.5f
