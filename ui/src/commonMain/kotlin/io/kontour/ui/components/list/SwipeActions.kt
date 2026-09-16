@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -446,7 +447,21 @@ fun SwipeActions(
             // already carried better: the threshold fires a distinct
             // `DragThreshold` tick, felt rather than watched, on the frame it is
             // crossed.
-            val stripColour = revealed.last().background
+            // **The nearest action's colour, not the furthest.**
+            //
+            // The ground behind the row is the strip the row is sliding off, so
+            // it should be the colour of whatever it is sliding off *onto* —
+            // which is the action closest to it. Which end of the list that is
+            // depends on the side, and this used to take `last()` for both: the
+            // actions are laid out in caller order, packed to the start on a
+            // rightward swipe and to the end on a leftward one, so the row sits
+            // after them in the first case and before them in the second.
+            //
+            // Trailing actions are the common arrangement, so the visible effect
+            // was the ground showing the *far* action's colour — a row sliding
+            // off Remove onto a band of Pin.
+            val stripColour = if (settled > 0f) revealed.last().background
+            else revealed.first().background
 
             // The area the row has vacated, plus just enough tucked under the
             // row to fill the wedge its rounded corner cuts away.
@@ -489,12 +504,48 @@ fun SwipeActions(
                     }
             )
 
+            // **The panels travel with the row, rather than waiting at the edge
+            // of the screen for it to arrive.**
+            //
+            // They used to be pinned to the container: `matchParentSize` with
+            // the whole set packed against the far edge. At full reveal that
+            // looks right — the first action ends up against the row — but on
+            // the way there the row uncovers the container's edge *first*, so
+            // the panel a half-open swipe shows is the one furthest from the
+            // row. Swiping a row onto Remove, Archive and Pin showed Pin until
+            // the gesture was nearly complete.
+            //
+            // Anchored to the row's own edge instead, so the set slides in
+            // behind it and the first thing uncovered is the panel the row is
+            // about to reach. The offset is read in the layout phase from the
+            // same live position the row uses, so the two cannot drift apart by
+            // a frame.
             Row(
-                modifier = Modifier.matchParentSize(),
+                modifier = Modifier
+                    .matchParentSize()
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val live = state.anchoredState.offset
+                        val width = constraints.maxWidth.toFloat()
+                        val x = when {
+                            live.isNaN() || live == 0f -> 0f
+                            // Trailing: the set starts where the row's trailing
+                            // edge now is, and runs off the far side.
+                            live < 0f -> width + live
+                            // Leading: the set *ends* where the row's leading
+                            // edge now is.
+                            else -> live - width
+                        }
+                        layout(placeable.width, placeable.height) {
+                            placeable.place(x.roundToInt(), 0)
+                        }
+                    },
+                // Packed against the row, which is the opposite edge from the
+                // one the offset above has moved the whole set past.
                 horizontalArrangement = if (settled > 0f) {
-                    Arrangement.Start
-                } else {
                     Arrangement.End
+                } else {
+                    Arrangement.Start
                 },
             ) {
                 revealed.forEach { action ->
