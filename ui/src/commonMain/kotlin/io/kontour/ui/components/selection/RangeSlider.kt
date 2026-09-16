@@ -42,6 +42,7 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
@@ -158,7 +159,31 @@ fun RangeSlider(
      * the same trap that took a frame down from inside `Switch`'s draw. A caller
      * that asks for more separation than exists gets the whole track instead.
      */
-    val gap = minDistance.coerceIn(0f, span.coerceAtLeast(0f))
+    /**
+     * And **rounded up onto the step grid**, because a stepped slider has no
+     * values between its notches.
+     *
+     * The minimum used to be added to the dragged thumb's value after it had
+     * been snapped, so with a step of 1 and a minimum of 1.5 the shoved thumb
+     * came to rest on `start + 1.5` — half a step off the grid, on a value the
+     * tick marks say does not exist and that dragging *that* thumb can never
+     * reproduce, because its own first delta re-snaps and jumps it half a step.
+     * The dragged thumb's own ceiling was off-grid for the same reason, which
+     * made the last part-step of track a dead zone it sat pinned in.
+     *
+     * Up rather than to nearest: a minimum that rounded down would be quietly
+     * violated, and a caller who asks for 1.5 steps of clearance on a slider
+     * that only has whole ones is asking for two.
+     */
+    val gap = run {
+        val asked = minDistance.coerceIn(0f, span.coerceAtLeast(0f))
+        if (steps <= 0 || span == 0f || asked == 0f) {
+            asked
+        } else {
+            val stepSize = span / (steps + 1)
+            (ceil(asked / stepSize) * stepSize).coerceAtMost(span)
+        }
+    }
 
     fun fractionOf(v: Float) = if (span == 0f) 0f else ((v - valueRange.start) / span).coerceIn(0f, 1f)
 
@@ -411,10 +436,21 @@ fun RangeSlider(
      * Answered from the *values*, which are exact, rather than from the drawn
      * positions, which are two springs. `startFraction` sits at `endFraction -
      * gapFraction` for exactly as long as the end thumb is pushing the start
-     * one, and the epsilon is there because both sides came through a division.
+     * one.
+     *
+     * The tolerance is **float noise and nothing else**. It used to be
+     * `CoincidenceEpsilon`, a per-cent of the track, which is most of a step on a
+     * ten-notch slider — so the weld engaged before the thumbs were in contact
+     * and held on after they had parted. Removing it outright is the other
+     * mistake, and the suite caught it: both sides come through a division, so on
+     * about one frame in twenty-five the difference lands a hair above the gap,
+     * the weld drops for that frame alone, and the pushed thumb is drawn at its
+     * lagging spring — which is the two merging into one shape. Sized to the
+     * arithmetic instead: well under a pixel on any real track, and orders above
+     * the error.
      */
     val pushing = activeThumb != Thumb.None &&
-        endFraction - startFraction <= gapFraction + CoincidenceEpsilon
+        endFraction - startFraction <= gapFraction + ContactTolerance
 
     /**
      * The two, drawn as one body while they are in contact.
@@ -427,16 +463,31 @@ fun RangeSlider(
      * broke contact, rang, and was recaptured. That is the jumping around.
      *
      * A shoved thumb has no dynamics of its own. While it is in contact it is
-     * welded to the one doing the shoving and drawn exactly a gap away from it,
-     * and it goes back to its own spring the moment the range opens again.
+     * welded to the one doing the shoving and drawn a gap away from it, and it
+     * goes back to its own spring the moment the range opens again.
+     *
+     * **The weld holds it away and never pulls it back**, which is the second
+     * half and was missing. Written as an assignment, the pushed thumb sat at
+     * exactly `dragged ± gap` — and `easedStart` follows the finger continuously
+     * through `DetentPull`, in *both* directions. So reversing the drag dragged
+     * the pushed thumb home with it, sub-step, until the snapped value finally
+     * crossed a whole notch and let go. Reported as the two being glued together
+     * until the dragged one got a tick clear, which is exactly what it was.
+     *
+     * A `minOf` was tried once before and reverted because the pushed thumb's
+     * spring could overshoot past the clamp and take the drawing back, so it
+     * broke contact and rang. What makes it hold this time is the line above:
+     * `pushing` is a question about the values, and it now asks it without an
+     * epsilon, so the weld engages and releases on the same frame the values do
+     * rather than a per-cent of the track early and late.
      */
     val drawnStart = if (activeThumb == Thumb.End && pushing) {
-        (easedEnd - gapFraction).coerceIn(0f, 1f)
+        minOf(easedStart, easedEnd - gapFraction).coerceIn(0f, 1f)
     } else {
         easedStart
     }
     val drawnEnd = if (activeThumb == Thumb.Start && pushing) {
-        (easedStart + gapFraction).coerceIn(0f, 1f)
+        maxOf(easedEnd, easedStart + gapFraction).coerceIn(0f, 1f)
     } else {
         easedEnd
     }
@@ -828,3 +879,14 @@ private enum class Thumb { Start, End, None }
  * 1% difference is three pixels — inside anyone's aim.
  */
 private const val CoincidenceEpsilon = 0.01f
+
+/**
+ * How far apart two fractions may be and still count as touching.
+ *
+ * A thousandth of a per-cent of the track — 0.07px on a 700px slider, so it can
+ * never be seen, and four orders above the error left by dividing a value by its
+ * range. Deliberately *not* [CoincidenceEpsilon], which answers a different
+ * question — which thumb a press belongs to — and is a per-cent of the track
+ * because a finger is.
+ */
+private const val ContactTolerance = 1e-4f
