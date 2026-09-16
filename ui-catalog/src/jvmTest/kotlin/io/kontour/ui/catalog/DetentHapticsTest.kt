@@ -349,17 +349,43 @@ class DetentHapticsTest {
             //
             // Paced in *real* time as well as frames, because this counts ticks
             // and the shared ticker's rate limit runs on a wall clock — see
-            // `Scene.drag`. Forty steps 20ms apart is a deliberate 800ms drag,
-            // which crosses its ten detents about 80ms apart. Unpaced the same
-            // drag takes almost no real time at all and the limit swallows half
-            // of them, which is a true statement about a gesture no hand makes.
-            it.drag(bounds.alongX(0.02f), bounds.alongX(0.98f), steps = 40, paceMillis = 20)
+            // `Scene.drag`. Unpaced, the same drag takes almost no real time at
+            // all and the limit swallows half of them, which is a true statement
+            // about a gesture no hand makes.
+            //
+            // **Thirty, not twenty, and the ten milliseconds are the difference
+            // between a test and a coin toss.** Forty samples across ten detents
+            // is four per detent *on average*, and the boundaries do not line up
+            // with the samples: measured, the crossings alternate between four
+            // steps apart and three, which at a 20ms pace came out at 110ms and
+            // **80-86ms** against a floor of exactly 80. Three gaps a run sat
+            // within a millisecond or two of it, so whether they were felt was
+            // decided by how long the JIT and the machine took over a frame —
+            // and a run that lost all three reported seven ticks against a band
+            // of `8..12`.
+            //
+            // At 30ms the same two gaps are 112ms and 150ms. That is 40% of
+            // clearance rather than 2%, and it is also the speed the component
+            // was measured at on the built site: `MinimumTickInterval` records
+            // real detents crossed "about 160ms apart", where the old pacing
+            // made this drag twice as fast as any hand.
+            //
+            // Forty samples stays. Twenty was tried and is worse for a different
+            // reason: two steps per detent means one delta occasionally carries
+            // two boundaries, `at` reports the second only, and the count comes
+            // back nine — a merge the pacing cannot fix.
+            it.drag(bounds.alongX(0.02f), bounds.alongX(0.98f), steps = 40, paceMillis = 30)
             it.frames(4)
         }
 
         val ticks = dragged.count { it == FeedbackIntent.Tick }
+        // Ten boundaries, ten ticks, and the band is one either side rather than
+        // two. It was `8..12` while the pacing above had three of the ten
+        // crossings sitting on the rate floor, which is a band wide enough to
+        // pass a run that dropped two of them for no reason anybody could see.
+        // With the clearance the drag has now, a missing tick is a defect.
         assertTrue(
-            ticks in 8..12,
+            ticks in 9..11,
             "dragging across ten steps produced $ticks ticks " +
                 "(${dragged.summary()}). Ten boundaries were crossed.",
         )
