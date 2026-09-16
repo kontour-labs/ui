@@ -393,13 +393,22 @@ fun MenuItem(
                 }
                 if (selected) this.selected = true
             }
-            .minimumTouchTarget()
-            // No horizontal inset of its own. The panel already pads by `xxs`
-            // on all four sides, and this used to add a second `xxs` across —
-            // so a row's highlight sat 8dp inside the panel at the sides and
-            // 4dp at the top and bottom, which reads as a menu with the wrong
-            // margins. It also made the corner wrong: `inset(xxs)` is the
-            // concentric radius for a 4dp inset, and the sides were at 8.
+            // `fill`, so the row that lights up is the row the finger gets.
+            //
+            // No horizontal inset of its own either. The panel already pads by
+            // `xxs` on all four sides, and this used to add a second `xxs`
+            // across — so a row's highlight sat 8dp inside the panel at the
+            // sides and 4dp at the top and bottom. Removing that inset was only
+            // half the fix and made the other half visible: a reserved target
+            // *centres* its content, so on a phone the highlight was a 36dp row
+            // in a 48dp slot and the margins read 4dp at the sides against 10dp
+            // top and bottom — the same complaint, the other way round. Filling
+            // the target puts all four at 4dp and makes the row 48dp tall,
+            // which is what it was always claiming to be.
+            //
+            // It also fixes the corner: `inset(xxs)` is the concentric radius
+            // for a 4dp inset, and now every side really is at 4.
+            .minimumTouchTarget(fill = true)
             .clip(Theme.shapes.container.inset(Theme.spacing.xxs))
             .pointerCursor(enabled = enabled)
             .clickable(

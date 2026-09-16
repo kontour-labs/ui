@@ -49,9 +49,22 @@ import kotlin.math.max
  * @param enabled Pass `false` for a component that is decorative or whose hit
  *   area is deliberately managed by a parent — a segment inside a slider track,
  *   for instance. Prefer leaving it on.
+ * @param fill Grow the content to the reserved target instead of centring it in
+ *   there. Off by default, because the default is the right answer for a control
+ *   with a drawn shape: a 20dp checkbox that filled its target would be a 48dp
+ *   checkbox.
+ *
+ *   On for a **row**, where the reserved slack is the difference between the
+ *   thing you press and the thing that lights up. A menu row is content plus
+ *   8dp of padding — about 36dp — floating in a 48dp slot, so its highlight, its
+ *   clip and its press ripple all stopped 6dp short of the target top and
+ *   bottom while reaching the panel's edge at the sides. That reads as a menu
+ *   with 10dp of margin above its first row and 4dp beside it, which is what was
+ *   reported. Nothing about it is visible on a desktop, where the minimum is
+ *   24dp and a row already clears it.
  */
-fun Modifier.minimumTouchTarget(enabled: Boolean = true): Modifier =
-    if (enabled) this then MinimumTouchTargetElement else this
+fun Modifier.minimumTouchTarget(enabled: Boolean = true, fill: Boolean = false): Modifier =
+    if (enabled) this then MinimumTouchTargetElement(fill) else this
 
 /** WCAG 2.2 SC 2.5.8 "Target Size (Minimum)": 24×24 CSS pixels. */
 val pointerMinTouchTarget: Dp = 24.dp
@@ -78,17 +91,22 @@ val pointerMinTouchTarget: Dp = 24.dp
  */
 internal val LocalTouchTargetOwnedByParent = staticCompositionLocalOf { false }
 
-private object MinimumTouchTargetElement : ModifierNodeElement<MinimumTouchTargetNode>() {
-    override fun create() = MinimumTouchTargetNode()
-    override fun update(node: MinimumTouchTargetNode) = Unit
-    override fun hashCode() = "MinimumTouchTarget".hashCode()
-    override fun equals(other: Any?) = other === this
+private data class MinimumTouchTargetElement(
+    private val fill: Boolean,
+) : ModifierNodeElement<MinimumTouchTargetNode>() {
+    override fun create() = MinimumTouchTargetNode(fill)
+
+    override fun update(node: MinimumTouchTargetNode) {
+        node.fill = fill
+    }
+
     override fun InspectorInfo.inspectableProperties() {
         name = "minimumTouchTarget"
+        properties["fill"] = fill
     }
 }
 
-private class MinimumTouchTargetNode :
+private class MinimumTouchTargetNode(var fill: Boolean) :
     Modifier.Node(),
     LayoutModifierNode,
     CompositionLocalConsumerModifierNode {
@@ -97,13 +115,12 @@ private class MinimumTouchTargetNode :
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
-        val placeable = measurable.measure(constraints)
-
         // A parent that has taken the duty on gets no expansion here — see
         // [LocalTouchTargetOwnedByParent]. Read in `measure` rather than in
         // composition so a group can wrap children it did not compose itself.
         if (currentValueOf(LocalTouchTargetOwnedByParent)) {
-            return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            val owned = measurable.measure(constraints)
+            return layout(owned.width, owned.height) { owned.place(0, 0) }
         }
 
         val modality = currentValueOf(LocalInputModality)
@@ -113,6 +130,28 @@ private class MinimumTouchTargetNode :
             pointerMinTouchTarget
         }
         val minimumPx = minimum.roundToPx()
+
+        // The whole of [fill] is here: raise the *minimum* the content is
+        // measured against rather than measuring it loose and centring it.
+        // Everything below then holds unchanged — the `max` is already
+        // satisfied and the centring places at zero — so one branch covers both
+        // behaviours and there is no second path to keep in step.
+        //
+        // The incoming maximum still wins, for the reason the `coerceAtMost`
+        // below gives: inside a constrained row, growing past it pushes
+        // siblings off the screen.
+        val placeable = measurable.measure(
+            if (fill) {
+                constraints.copy(
+                    minWidth = max(constraints.minWidth, minimumPx)
+                        .coerceAtMost(constraints.maxWidth),
+                    minHeight = max(constraints.minHeight, minimumPx)
+                        .coerceAtMost(constraints.maxHeight),
+                )
+            } else {
+                constraints
+            }
+        )
 
         // Never exceed the incoming maximum: inside a constrained row, growing
         // past it would push siblings off screen — a worse outcome than a

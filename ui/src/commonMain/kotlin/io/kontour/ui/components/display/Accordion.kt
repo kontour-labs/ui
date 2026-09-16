@@ -96,7 +96,13 @@ fun Accordion(
                     role = Role.Button
                     stateDescription = if (expanded) expandedLabel else collapsedLabel
                 }
-                .minimumTouchTarget()
+                // `fill`, for the reason `MenuItem` gives: a header is a row,
+                // and a row's highlight should be the row you press. One line
+                // of `titleSmall` inside 12dp of padding is 44dp, so on Android
+                // it sat 2dp short of its target at the top and bottom while
+                // reaching the full width. Less visible than a menu's 6dp and
+                // the same defect.
+                .minimumTouchTarget(fill = true)
                 .focusRing(interactions, shape)
                 .clip(shape)
                 .pointerCursor(enabled = enabled)
