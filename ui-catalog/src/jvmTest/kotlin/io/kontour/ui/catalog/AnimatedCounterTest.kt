@@ -17,6 +17,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -142,33 +143,49 @@ class AnimatedCounterTest {
      * Read during the **hold**, before the roll: `warnBefore` keeps the old
      * number on screen, so every column that differs from the rest state in that
      * window differs because it is being shaken.
+     *
+     * A short hold here rather than [HoldSeconds], because the shake is at the
+     * *end* of one — see [theNumberIsHeldStillUntilTheShake] — so a hold nothing
+     * can outlast is a hold whose shake never arrives. [ShortHoldMillis] is long
+     * enough that the wait before the tremor is a real wait and short enough that
+     * a second or so of wall clock reaches the far side of it.
+     *
+     * [Scene.renderUntil] rather than a frame count, and for the reason its own
+     * documentation gives: what is being waited for is a `delay`, which runs on
+     * the wall clock, and this scene's frames do not. The elapsed-time assertion
+     * is the other half of the claim — the tremor may not arrive *early*.
      */
     @Test
-    fun onlyTheDigitsAboutToChangeShakeDuringTheWarning() {
+    fun onlyTheDigitsAboutToChangeShakeAtTheEndOfTheWarning() {
         val value = mutableStateOf(1200)
         Scene(width = Width, height = Height, density = Density.toFloat()) {
-            Counter(value, warn = HoldSeconds.seconds)
+            Counter(value, warn = ShortHoldMillis.milliseconds)
         }.use { scene ->
             val rest = scene.frames(10)
             val thousands = rest.firstInkRun()
 
             value.value = 1199
-            // The frame of the shake that has travelled furthest, rather than a
-            // frame number. The offset passes back through zero at every turning
-            // point, and the shake does not start on the frame the value changes
-            // — the effect has to see it, set `warning`, recompose, and launch an
-            // animation that then wants a frame of its own. Picking a number
-            // means picking a phase, and a test that samples near a turning point
-            // reports "nothing moved" for a counter that is moving 3px.
-            val moved = (0 until ShakeSearchFrames)
-                .map { rest.changedColumnsAgainst(scene.frames(1)) }
-                .maxBy { it.size }
+            val started = System.nanoTime()
+            val shaking = scene.renderUntil(timeoutMillis = ShakeTimeoutMillis) {
+                rest.changedColumnsAgainst(it).isNotEmpty()
+            }
+            val elapsed = (System.nanoTime() - started) / 1_000_000
+
             assertTrue(
-                moved.isNotEmpty(),
-                "nothing moved in the first ${ShakeSearchFrames} frames after 1200 " +
-                    "became 1199 with a ${HoldSeconds}s warning — the announcement is " +
-                    "the whole point of the hold",
+                shaking != null,
+                "nothing moved within ${ShakeTimeoutMillis}ms of 1200 becoming 1199 " +
+                    "with a ${ShortHoldMillis}ms warning — the announcement is the " +
+                    "whole point of the hold",
             )
+            assertTrue(
+                elapsed >= LeadInFloorMillis,
+                "the digits moved ${elapsed}ms after the drop, and the tremor is " +
+                    "supposed to sit at the end of a ${ShortHoldMillis}ms hold — at " +
+                    "least ${LeadInFloorMillis}ms of it. A shake at the front leaves " +
+                    "the reader watching a still number for the rest of the warning, " +
+                    "which is what was reported.",
+            )
+            val moved = rest.changedColumnsAgainst(requireNotNull(shaking))
             assertTrue(
                 moved.none { it in thousands },
                 "the thousands digit occupies columns ${thousands.first}.." +
@@ -181,47 +198,63 @@ class AnimatedCounterTest {
     }
 
     /**
-     * And it stops shaking well before the hold is over.
+     * And the number is perfectly still until then.
      *
-     * The two used to be one number: the wiggle ran `while (true)` for exactly as
-     * long as `warnBefore`, so a warning long enough to read was a tremor long
-     * enough to look like a fault. `warnBefore` means the hold now and nothing
-     * else.
+     * Two defects, one assertion. The wiggle used to run `while (true)` for
+     * exactly as long as `warnBefore`, so a warning long enough to read was a
+     * tremor long enough to look like a fault. Bounding it fixed the length and
+     * left it at the front, so a 1.5s warning shook for 450ms and then stood
+     * still for a second — reported as the wiggle stopping for a moment before
+     * the counter ticks down. A warning is only a warning if it is next to what
+     * it warns of, so the stillness comes first now and the tremor runs out onto
+     * the roll.
      *
-     * Asserted through [Scene.stillAnimating] rather than by diffing pixels,
-     * because it is the stronger claim: a settled scene has no invalidations at
-     * all, so this catches a wiggle that has gone still at an amplitude of zero
-     * while continuing to ask for frames — which is the defect this repository
-     * keeps finding under the heading of animations running for nobody.
+     * What that means here is that a hold nothing can outlast is a hold in which
+     * **nothing happens at all** — no pixels move, and nothing asks for a frame.
+     * The second half is the stronger of the two: a settled scene has no
+     * invalidations, so this catches a wiggle that has gone still at an amplitude
+     * of zero while continuing to ask for frames, which is the defect this
+     * repository keeps finding under the heading of animations running for
+     * nobody.
      *
-     * The hold is measured in **real** seconds and the wiggle in frames, and that
-     * mismatch is what makes the test possible: `delay` runs on the wall clock
-     * and `animateTo` runs on this scene's clock, so sixty renders cost a second
-     * of frame time and nothing like a second of real time. A ten-second hold is
-     * still going.
+     * The hold is measured in **real** seconds and every animation in frames, and
+     * that mismatch is what makes the test possible: `delay` runs on the wall
+     * clock and `animateTo` runs on this scene's clock, so sixty renders cost a
+     * second of frame time and nothing like a second of real time. A ten-second
+     * hold is still going.
      */
     @Test
-    fun theShakeEndsLongBeforeTheHoldDoes() {
+    fun theNumberIsHeldStillUntilTheShake() {
         val value = mutableStateOf(1200)
         Scene(width = Width, height = Height, density = Density.toFloat()) {
             Counter(value, warn = HoldSeconds.seconds)
         }.use { scene ->
-            scene.frames(10)
+            val rest = scene.frames(10)
             value.value = 1199
             scene.advance(3)
             assertTrue(
-                scene.stillAnimating(),
-                "the warning was not animating three frames in, so either the " +
-                    "shake never started or the hold was skipped",
+                !scene.stillAnimating(),
+                "something was animating three frames into a ${HoldSeconds}s hold. " +
+                    "The tremor belongs at the far end of it, and nothing else in " +
+                    "this component moves while the old number is being held.",
             )
+
+            repeat(ShakeSearchFrames) {
+                assertTrue(
+                    rest.changedColumnsAgainst(scene.frames(1)).isEmpty(),
+                    "a column moved inside the first ${ShakeSearchFrames} frames of a " +
+                        "${HoldSeconds}s hold — the shake is back at the front, which " +
+                        "puts a second of stillness between it and the roll it is " +
+                        "warning about",
+                )
+            }
 
             scene.advance(ShakeSettledFrames)
             assertTrue(
                 !scene.stillAnimating(),
-                "still animating ${ShakeSettledFrames} frames into the warning. Two " +
-                    "there-and-backs at a 90ms leg is about 450ms of frame time " +
-                    "including the settle, and this is well past that — so the " +
-                    "wiggle is running for as long as the hold again.",
+                "still animating ${ShakeSettledFrames} frames into the warning, and " +
+                    "the shake has not been reached yet — so something is running " +
+                    "for the length of the hold again.",
             )
 
             // And the number on screen is still the old one, or the assertion
@@ -357,5 +390,33 @@ class AnimatedCounterTest {
          * still nowhere near the hold.
          */
         const val ShakeSettledFrames = 45
+
+        /**
+         * A hold short enough that its far end is reachable in wall-clock time.
+         *
+         * The mirror of [HoldSeconds], and both are needed because the tremor and
+         * the wait before it are measured on different clocks. 900ms against a
+         * 450ms tremor leaves about 450ms of stillness first, which is a real
+         * wait on any machine and a fraction of a second to sit through.
+         *
+         * The tremor is cut short by the roll here and would not be on a device:
+         * the remaining 450ms is *frame* time, which is about a second of wall
+         * clock in this harness, and the hold ends on the wall clock. Everything
+         * asserted above happens on the tremor's first visible frame, so the
+         * truncation does not reach it.
+         */
+        const val ShortHoldMillis = 900L
+
+        /**
+         * The earliest the tremor may appear in a [ShortHoldMillis] warning.
+         *
+         * `delay` will not return early, so this is a floor rather than an
+         * estimate: 900 − 450 is 450, and 350 leaves room for the clock being
+         * read a frame late without leaving room for a shake at the front.
+         */
+        const val LeadInFloorMillis = 350L
+
+        /** Generous: the wait is under a second and a frame here can cost 45ms. */
+        const val ShakeTimeoutMillis = 15_000L
     }
 }

@@ -16,10 +16,11 @@ import kotlin.time.Duration.Companion.seconds
  * A fall is held and announced; a rise is not.
  *
  * The counter cannot see the future, so `warnBefore` makes one: a decrease is
- * held for that long, wiggled, and only then rolled. The two halves worth
- * pinning are that the *drawn* number really does lag — otherwise there is
- * nothing to warn about — and that an increase is untouched, because a number
- * going up is good news and delaying it would be a bug wearing a feature.
+ * held for that long, wiggled at the end of it, and only then rolled. The two
+ * halves worth pinning here are that the *drawn* number really does lag —
+ * otherwise there is nothing to warn about — and that an increase is untouched,
+ * because a number going up is good news and delaying it would be a bug wearing
+ * a feature.
  */
 @OptIn(ExperimentalTestApi::class)
 class AnimatedCounterWarningTest {
