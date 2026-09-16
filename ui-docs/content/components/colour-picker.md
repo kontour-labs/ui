@@ -42,6 +42,14 @@ colour", so an app that means the first should not offer the second — a brand
 picker with a full spectrum in it invites an off-brand answer. Pass
 `onModeChange` only when both are genuinely allowed.
 
+**The mode chooses the area and nothing else.** `Spectrum` gives the continuous
+saturation-and-value square; `Palette` gives the same two axes as a grid of
+forty discrete cells, which is faster to answer because a cell is a target and
+there is nothing to aim at. Both keep the hue track underneath, and both take
+the opacity track if `alphaSlider` is on — a palette built from a single hue is
+a column of greys, so dropping the hue with the square would not leave a palette
+at all.
+
 ---
 
 ## It keeps a hue, not a colour

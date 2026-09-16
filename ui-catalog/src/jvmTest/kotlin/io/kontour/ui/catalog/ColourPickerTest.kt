@@ -12,6 +12,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.ColourPicker
+import io.kontour.ui.components.selection.ColourPickerMode
 import io.kontour.ui.foundation.toHsv
 import kotlin.math.abs
 import kotlin.test.Test
@@ -38,6 +39,8 @@ class ColourPickerTest {
 
     private fun picker(
         start: Color,
+        valueField: Boolean = false,
+        mode: ColourPickerMode = ColourPickerMode.Spectrum,
         block: Scene.() -> Unit,
     ): List<Color> {
         val seen = mutableListOf<Color>()
@@ -48,8 +51,9 @@ class ColourPickerTest {
                     colour = colour,
                     onColourChange = { colour = it; seen += it },
                     modifier = Modifier.padding(16.dp).width(320.dp),
+                    mode = mode,
                     swatches = emptyList(),
-                    valueField = false,
+                    valueField = valueField,
                 )
             }
         }.use { scene ->
@@ -146,6 +150,76 @@ class ColourPickerTest {
                 "started at $hue. A picker that reads its hue back out of the " +
                 "colour loses it the moment the colour is black, and the whole " +
                 "of the area then belongs to red.",
+        )
+    }
+
+    /**
+     * The far end of the hue track is the far end, not the near one.
+     *
+     * The track's fraction used to be `hue % 360`, and `Track` reports a clamped
+     * `0..1` — so the right edge emitted 360, the wrap mapped it to 0 and the
+     * cursor teleported the width of the control while the colour under it did
+     * not change at all. Red is both ends of the wheel, which is why it looked
+     * like nothing and felt like a fault.
+     */
+    @Test
+    fun theHueTrackDoesNotJumpBackAtItsFarEnd() {
+        val start = Color(0xFF1E88E5)
+        // Below the area: 180dp of area at 1.6 aspect, then the track.
+        val trackY = (16 + 200 + 10) * 2f
+        val seen = picker(start) {
+            drag(
+                from = Offset(x = (16 + 160) * 2f, y = trackY),
+                to = Offset(x = (16 + 318) * 2f, y = trackY),
+                steps = 12,
+            )
+        }
+
+        assertTrue(seen.isNotEmpty(), "the drag along the hue track reported nothing")
+        val hue = seen.last().toHsv().hue
+        // Either end of the wheel is red, so the colour cannot tell the two
+        // apart — the fraction can. Anything that wrapped lands near zero.
+        assertTrue(
+            hue > 180f,
+            "dragging to the right-hand end of the hue track left the hue at " +
+                "$hue. The far end wrapped back to the near one, which is the " +
+                "cursor jumping the width of the track under a finger that has " +
+                "not moved.",
+        )
+    }
+
+    /**
+     * Palette mode is a palette, and it still has a hue.
+     *
+     * It used to be neither. The mode guarded the area, the hue track *and* the
+     * opacity track together, with nothing in the `else`, so `Palette` with no
+     * swatches rendered a lone hex box and there was no way to choose a colour
+     * at all. The grid replaces the area; everything under it stays.
+     */
+    @Test
+    fun thePaletteGridPicksAColourAndKeepsItsHueTrack() {
+        val start = Color(0xFF1E88E5)
+        val picked = picker(start, mode = ColourPickerMode.Palette) {
+            tap(areaCentre)
+        }
+        assertTrue(
+            picked.isNotEmpty(),
+            "tapping the middle of a palette reported no colour — the grid is " +
+                "not there, or it is not answering",
+        )
+
+        val trackY = (16 + 200 + 10) * 2f
+        val hues = picker(start, mode = ColourPickerMode.Palette) {
+            drag(
+                from = Offset(x = (16 + 160) * 2f, y = trackY),
+                to = Offset(x = (16 + 60) * 2f, y = trackY),
+                steps = 8,
+            )
+        }
+        assertTrue(
+            hues.isNotEmpty() && abs(hues.last().toHsv().hue - start.toHsv().hue) > 5f,
+            "the hue track under a palette did not move the hue — a palette of " +
+                "one hue is a column of greys, which is why both modes keep it",
         )
     }
 }

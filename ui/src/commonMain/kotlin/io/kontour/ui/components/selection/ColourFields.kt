@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -106,11 +107,25 @@ internal fun ColourFields(
             )
         }
 
+        // Bottom, not centre, and the swatch is then lifted to the box's middle.
+        //
+        // Every field here is a *column* — a label, a 6dp gap, then the input
+        // box — so centring the row centred a 28dp swatch against ~67dp of
+        // stack and left it sitting about 11dp above the box it is labelling.
+        // It got worse with the type scale, because the label grows and the box
+        // does not. Bottom-aligning lines the boxes up with each other, and the
+        // padding below puts the swatch's middle exactly on the box's middle,
+        // derived from the two sizes rather than guessed.
         Row(
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Bottom,
         ) {
-            Preview(colour)
+            Preview(
+                colour = colour,
+                modifier = Modifier.padding(
+                    bottom = (Theme.sizing.controlHeightMedium - PreviewSize) / 2,
+                ),
+            )
             when (format) {
                 ColourFormat.Hex -> HexField(colour, onColourChange, enabled, withAlpha)
                 ColourFormat.Rgb -> RgbFields(colour, onColourChange, enabled)
@@ -136,9 +151,9 @@ internal fun ColourFields(
  * transparent and one fading to the surface behind it are the same picture.
  */
 @Composable
-private fun Preview(colour: Color) {
+private fun Preview(colour: Color, modifier: Modifier = Modifier) {
     Box(
-        Modifier
+        modifier
             .size(PreviewSize)
             .clip(Theme.shapes.small)
             .drawBehind {

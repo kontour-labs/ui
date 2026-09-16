@@ -44,6 +44,7 @@ import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.freeDragOwning
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.theme.Theme
+import kotlin.math.roundToInt
 
 /**
  * How a colour is chosen.
@@ -54,10 +55,19 @@ import io.kontour.ui.theme.Theme
  * off-brand answer.
  */
 enum class ColourPickerMode {
-    /** A saturation-and-value area with a hue track under it. Any colour at all. */
+    /** A continuous saturation-and-value area. Any colour at all. */
     Spectrum,
 
-    /** The swatches and nothing else. A fixed set, chosen by eye. */
+    /**
+     * The same two axes as a grid of discrete squares.
+     *
+     * For picking *a* colour rather than an exact one — a label, a calendar, a
+     * highlighter. A grid answers faster because there is nothing to aim at: a
+     * cell is a target, and the forty of them are a set somebody can learn.
+     *
+     * Both modes keep the hue track, because a palette of one hue is a palette
+     * of greys and blues. What changes is the area above it.
+     */
     Palette,
 }
 
@@ -149,7 +159,14 @@ fun ColourPicker(
      */
     fun pick(picked: Color) {
         val next = picked.toHsv()
-        val hueless = next.saturation == 0f || next.value == 0f
+        // A threshold rather than `== 0f`, because exactly zero is the one case
+        // that did not need catching. A `Color` is eight bits a channel, so a
+        // colour one or two units off the grey axis still has a hue and it is a
+        // hue derived from almost nothing — at the spectrum's left and bottom
+        // edges that is several degrees per channel step, which is enough to
+        // swing the track visibly. Below one step of chroma there is no hue
+        // worth taking, so the picker keeps the one it is already holding.
+        val hueless = next.saturation <= ChannelStep || next.value <= ChannelStep
         emit(
             next = if (hueless) next.copy(hue = hsv.hue) else next,
             nextAlpha = picked.alpha,
@@ -169,12 +186,18 @@ fun ColourPicker(
             )
         }
 
-        if (mode == ColourPickerMode.Spectrum) {
-            SaturationValueArea(hsv, { emit(next = it) }, enabled)
-            HueTrack(hsv.hue, { emit(next = hsv.copy(hue = it)) }, enabled)
-            if (alphaSlider) {
-                AlphaTrack(alpha, hsv.toColour(), { emit(nextAlpha = it) }, enabled)
-            }
+        // The mode chooses the *area*, and nothing else. Both need a hue to
+        // work in — a palette built from one hue is a column of greys — and
+        // both take opacity if the caller asked for it. Palette used to drop
+        // all three, which left `swatches = emptyList()` rendering a lone hex
+        // box and no way at all to choose a colour.
+        when (mode) {
+            ColourPickerMode.Spectrum -> SaturationValueArea(hsv, { emit(next = it) }, enabled)
+            ColourPickerMode.Palette -> PaletteGrid(hsv, { emit(next = it) }, enabled)
+        }
+        HueTrack(hsv.hue, { emit(next = hsv.copy(hue = it)) }, enabled)
+        if (alphaSlider) {
+            AlphaTrack(alpha, hsv.toColour(), { emit(nextAlpha = it) }, enabled)
         }
 
         if (swatches.isNotEmpty()) {
@@ -308,12 +331,100 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
     }
 }
 
+/**
+ * The same two axes as [SaturationValueArea], quantised into cells.
+ *
+ * Drawn rather than composed. Forty cells is forty layout nodes and forty draw
+ * calls for what is forty filled rectangles on one canvas, and the area beneath
+ * a finger has to keep up with the finger — the spectrum is one canvas for the
+ * same reason, and this is the same picture with the gradient stepped.
+ *
+ * A cell is chosen by rounding the position rather than by hit-testing, so a
+ * drag across the grid reports every cell it crosses and the edges cannot have
+ * gaps between them.
+ */
+@Composable
+private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) {
+    val scope = rememberCoroutineScope()
+    var box by remember { mutableStateOf(Size.Zero) }
+    var at by remember { mutableStateOf(Offset.Zero) }
+    val strings = Theme.strings
+
+    fun report(position: Offset) {
+        if (box.width <= 0f || box.height <= 0f) return
+        at = position
+        val column = ((position.x / box.width) * PaletteColumns)
+            .toInt().coerceIn(0, PaletteColumns - 1)
+        val row = ((position.y / box.height) * PaletteRows)
+            .toInt().coerceIn(0, PaletteRows - 1)
+        onHsvChange(
+            hsv.copy(
+                saturation = (column + 1).toFloat() / PaletteColumns,
+                value = 1f - row.toFloat() / PaletteRows,
+            )
+        )
+    }
+
+    Canvas(
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(AreaAspect)
+            .clip(Theme.shapes.small)
+            .onSizeChanged { box = it.toSize() }
+            .freeDragOwning(
+                enabled = enabled,
+                interactionSource = null,
+                scope = scope,
+                claimsOn = DragClaim.Press,
+                onStart = ::report,
+                onDelta = { report(at + it) },
+                onEnd = {},
+            )
+            .semantics { contentDescription = strings.colourArea }
+    ) {
+        val cell = Size(size.width / PaletteColumns, size.height / PaletteRows)
+        for (row in 0 until PaletteRows) {
+            for (column in 0 until PaletteColumns) {
+                drawRect(
+                    color = Hsv(
+                        hue = hsv.hue,
+                        saturation = (column + 1).toFloat() / PaletteColumns,
+                        value = 1f - row.toFloat() / PaletteRows,
+                    ).toColour(),
+                    topLeft = Offset(column * cell.width, row * cell.height),
+                    size = cell,
+                )
+            }
+        }
+
+        // Marked in the middle of its cell, with the same ring the spectrum
+        // uses, so switching modes moves the picture and not the vocabulary.
+        val column = (hsv.saturation.coerceIn(0f, 1f) * PaletteColumns - 1f)
+            .roundToInt().coerceIn(0, PaletteColumns - 1)
+        val row = ((1f - hsv.value.coerceIn(0f, 1f)) * PaletteRows)
+            .toInt().coerceIn(0, PaletteRows - 1)
+        cursor(
+            Offset(
+                (column + 0.5f) * cell.width,
+                (row + 0.5f) * cell.height,
+            )
+        )
+    }
+}
+
 /** The whole wheel, left to right, with the current hue marked. */
 @Composable
 private fun HueTrack(hue: Float, onHueChange: (Float) -> Unit, enabled: Boolean) {
     val strings = Theme.strings
     Track(
-        fraction = (((hue % 360f) + 360f) % 360f) / 360f,
+        // Clamped, **not** wrapped. `Track` coerces its fraction to 0..1, so the
+        // right edge reports 1 and the hue comes back as 360 — and a wrap maps
+        // 360 to 0, which put the cursor at the far left while the colour under
+        // it was unchanged. Red at both ends is the whole reason the gradient
+        // has seven stops; `Hsv` says as much, that 360 and 0 are one colour and
+        // both are accepted. So the wrap belongs to whoever is converting, and
+        // what is drawn is simply where the finger is.
+        fraction = (hue.coerceIn(0f, 360f)) / 360f,
         onFractionChange = { onHueChange(it * 360f) },
         enabled = enabled,
         label = strings.colourHue,
@@ -497,5 +608,24 @@ private val TrackHeight: Dp = 20.dp
 private val CursorRadius: Dp = 7.dp
 private val CursorStroke: Dp = 2.dp
 private const val CursorShadowAlpha = 0.28f
+
+/**
+ * One eight-bit channel step, with room for the float that carried it.
+ *
+ * What "this colour has no hue worth keeping" means in a space that only has
+ * 256 values an axis. Below it the chroma is a rounding artefact and the hue
+ * derived from it is noise.
+ */
+private const val ChannelStep = 1f / 255f + 1e-5f
+
+/**
+ * Forty cells, and the shape of them is why.
+ *
+ * Eight by five against [AreaAspect]'s 1.6 makes every cell square, which is the
+ * one thing a grid of colours has to get right — a row of oblongs reads as a
+ * gradient that has been cut up rather than as a set of choices.
+ */
+private const val PaletteColumns = 8
+private const val PaletteRows = 5
 internal val ChequerSquare: Dp = 5.dp
 internal val ChequerGrey = Color(0xFFCCCCCC)
