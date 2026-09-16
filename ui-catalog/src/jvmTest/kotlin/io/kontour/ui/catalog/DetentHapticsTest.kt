@@ -431,6 +431,23 @@ class DetentHapticsTest {
      *
      * Both halves, because the first one alone would pass against a floor that
      * simply never let anything through twice.
+     *
+     * ### Nothing is rendered between the two taps
+     *
+     * The floor runs on a wall clock and [Scene.frame] encodes a PNG and decodes
+     * it back through `ImageIO`, which is far more work than drawing the frame
+     * was. Two frames between the taps is two image codecs, and under a full
+     * suite that is comfortably more than the eighty milliseconds being tested —
+     * so this asserted "one rattle" and got two, in the one run where the machine
+     * was busy. A test that goes red under load is red in exactly the place it
+     * matters.
+     *
+     * Pointer events dispatch synchronously and a click handler runs inside that
+     * dispatch, so both taps land with nothing but event plumbing between them.
+     * That is not a gesture a hand makes, and it is not meant to be: what is
+     * under test is that two components share *one* floor rather than keeping one
+     * each, and the interval itself is measured next door against a
+     * `TestTimeSource` where a clock can be driven rather than waited on.
      */
     @Test
     fun twoComponentsTappedTogetherReportOnceAndSeparatelyReportTwice() {
@@ -458,7 +475,8 @@ class DetentHapticsTest {
             }.use { scene ->
                 scene.frames(3)
                 scene.tap(first.center)
-                scene.frames(2)
+                // Real time, and only when a gap is wanted. See the note above on
+                // why the zero case renders nothing at all.
                 if (gapMillis > 0) scene.renderUntil(timeoutMillis = gapMillis) { false }
                 scene.tap(second.center)
                 scene.frames(2)
@@ -467,9 +485,10 @@ class DetentHapticsTest {
             return felt
         }
 
+        val together = tapped(gapMillis = 0)
         assertEquals(
-            listOf(FeedbackIntent.Tap), tapped(gapMillis = 0),
-            "two boxes ticked in the same instant fired ${tapped(0).summary()}. A " +
+            listOf(FeedbackIntent.Tap), together,
+            "two boxes ticked in the same instant fired ${together.summary()}. A " +
                 "hand does not feel components, and two pulses that close together " +
                 "are one pulse to it — which is the same argument the interval came " +
                 "from in the first place.",
@@ -477,11 +496,12 @@ class DetentHapticsTest {
         // Comfortably past the floor, so a slow frame either side cannot eat the
         // margin. This is real time, not frame time: the floor runs on a wall
         // clock precisely so that it is measuring the hand rather than the render.
+        val apart = tapped(gapMillis = 200)
         assertEquals(
-            listOf(FeedbackIntent.Tap, FeedbackIntent.Tap), tapped(gapMillis = 200),
-            "two boxes ticked a fifth of a second apart reported once. The floor is " +
-                "there to thin a stream, not to make the second control in a form " +
-                "inert.",
+            listOf(FeedbackIntent.Tap, FeedbackIntent.Tap), apart,
+            "two boxes ticked a fifth of a second apart fired ${apart.summary()}. " +
+                "The floor is there to thin a stream, not to make the second control " +
+                "in a form inert.",
         )
     }
 
