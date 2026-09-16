@@ -5,6 +5,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import kotlin.math.abs
 
 /**
  * One slider thumb, stretched by how far it is from where it is trying to be.
@@ -43,6 +44,10 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
  *   is on top of it and along one axis only.
  * @param aspect How much wider than tall the thumb is: 1 at rest, growing
  *   towards [SliderDefaults.ThumbAspect] while it is held.
+ * @param squashPx How hard the thumb is being pushed into a wall it cannot pass
+ *   — signed the same way as [reachPx], and a *shortening* rather than a
+ *   stretch. Its own channel rather than a second contributor to [reachPx],
+ *   which is what it used to be: see the note in the body.
  * @param ringPx The page-coloured ring that keeps the thumb legible where it
  *   overlaps the filled track. A constant width rather than a scaled one: a
  *   border that thickens as the thumb grows reads as the thumb changing weight.
@@ -54,6 +59,7 @@ internal fun DrawScope.sliderThumb(
     scale: Float,
     aspect: Float,
     reachPx: Float,
+    squashPx: Float = 0f,
     ringColour: Color,
     fillColour: Color,
     ringPx: Float,
@@ -88,8 +94,42 @@ internal fun DrawScope.sliderThumb(
     // smoothing is worth about 0.9px.
     val halfWidth = r * aspect
 
-    val left = centreX - halfWidth + minOf(reach, 0f)
-    val right = centreX + halfWidth + maxOf(reach, 0f)
+    val stretchedLeft = centreX - halfWidth + minOf(reach, 0f)
+    val stretchedRight = centreX + halfWidth + maxOf(reach, 0f)
+
+    // **A wall shortens the thumb. It does not lengthen it.**
+    //
+    // [squashPx] used to be summed into [reachPx] at the call sites, so the
+    // stretch above handled it — which meant pushing into the end of the track
+    // made the thumb *grow*, backwards, away from the wall, because growing
+    // towards where it is trying to be is exactly what the reach is for. It was
+    // built to the word "stretching" in the report and the report meant the
+    // other thing: pushing into something that will not move squashes the thing
+    // doing the pushing.
+    //
+    // Its own channel rather than a sign convention on the old one. The two are
+    // very nearly exclusive in practice — at a stop the target is clamped to the
+    // end, so there is no gap left for the reach to describe — but they are
+    // different arithmetic on the same edges, and summing them made one of the
+    // two impossible to express at all.
+    //
+    // Normalised against the band's own limit rather than against `limit` above:
+    // both sliders hand the band `radiusPx * MaxStretch`, and `limit` carries the
+    // touch growth on top, so dividing by it would under-read the squash by
+    // however much the thumb had swollen under the finger.
+    val squashLimit = radiusPx * SliderDefaults.MaxStretch
+    val squeeze = if (squashLimit <= 0f) {
+        0f
+    } else {
+        (abs(squashPx) / squashLimit).coerceIn(0f, 1f) * ThumbSquash
+    }
+    // Pinned against whichever end was pushed into: the leading edge stays on the
+    // wall and the trailing one comes in to meet it, so the thumb visibly
+    // shortens against the stop and springs back out of it. `Switch` does the
+    // same thing to its own thumb at the same amplitude.
+    val lost = (stretchedRight - stretchedLeft) * squeeze
+    val left = if (squashPx > 0f) stretchedLeft + lost else stretchedLeft
+    val right = if (squashPx > 0f) stretchedRight else stretchedRight - lost
 
     drawRoundRect(
         color = ringColour,
@@ -107,6 +147,22 @@ internal fun DrawScope.sliderThumb(
         cornerRadius = CornerRadius((r - ringPx).coerceAtLeast(0f)),
     )
 }
+
+/**
+ * How much of its length a thumb loses pushing into a wall, at the band's limit.
+ *
+ * 0.16, the same as `Switch`'s thumb, and deliberately the same rather than
+ * coincidentally: a squash is a squash, and two controls in one library that
+ * deform by visibly different amounts under the same gesture is the class of
+ * inconsistency `SliderThumb` exists to remove for the two sliders. Written out
+ * in both places because the two components share no other arithmetic and a
+ * constant reaching across the package would be the wrong seam for a number this
+ * small.
+ *
+ * Big enough to read on a 24dp thumb — about 4dp off the long axis at the band's
+ * limit — and small enough that the thumb still looks like itself.
+ */
+private const val ThumbSquash: Float = 0.16f
 
 /**
  * The detent marks along a slider's track.

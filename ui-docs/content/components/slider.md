@@ -44,6 +44,20 @@ they are shorter rather than fainter, so the coarse scale stays readable at a
 glance without taking the fine one below the contrast floor. Worth it on a scale
 somebody reads a position off; noise on one with many steps already.
 
+**Push past either end and the thumb squashes against it.** A slider that stops
+dead at its limit has a boundary the finger cannot feel — the gesture simply
+stops answering, which reads as the control having broken rather than as having
+finished. The part of the push the clamp refused goes into a rubber band, at
+diminishing returns, and comes back as the thumb shortening along the axis of the
+push with its leading edge pinned to the wall. It springs back on release.
+
+It grew, briefly, and that was the wrong shape: the band was summed into the
+stretch that makes a thumb reach toward where it is trying to get to, and at an
+end stop there is nowhere it is trying to get to — so the thumb elongated
+backwards, away from the stop it had just run into. `Switch` and
+`SegmentedControl` give at their ends in the same direction and by the same
+proportion of themselves.
+
 **Pass `stateDescription`.** Without it the announcement is a bare percentage,
 which is rarely what the number means.
 

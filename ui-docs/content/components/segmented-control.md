@@ -76,6 +76,16 @@ rather than on each segment: a drag from "Depart" to "Arrive" leaves the segment
 it began in, and a per-segment handler loses the pointer at the boundary. Taps
 still belong to the segment under them.
 
+**Carry it past the last segment and the thumb squashes against the end.** The
+lean above is clamped at the track's walls — the thumb must not leave the track —
+and the part of the push the clamp refused goes into a rubber band, coming back
+as the thumb shortening from its *trailing* edge while the leading one stays on
+the wall. The two are never both live, which is what lets one `transformOrigin`
+serve them: at a wall the lean is zero because the clamp took it, and anywhere
+else the band is at rest. They want opposite anchors, so getting that wrong is
+not subtle — the thumb narrows by exactly as much, from the wrong end, and reads
+as retreating from the stop rather than as compressing into it.
+
 The drag is *owned*: from the first pixel the finger travels, the control takes
 the whole gesture and a scrolling page above it cannot take it back. Without
 that, whether the thumb moved at all depended on the angle — the control and the

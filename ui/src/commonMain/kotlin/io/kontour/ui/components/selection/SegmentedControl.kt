@@ -95,6 +95,20 @@ object SegmentedControlDefaults {
 private const val MaxSegmentStretch = 0.2f
 
 /**
+ * How much of its width the thumb loses pushing into an end of the track.
+ *
+ * 0.16, matching `Switch`'s thumb and a slider's, because a squash that is worth
+ * having is worth being the same size everywhere — a reader who has felt one
+ * control give at its end should recognise the next one.
+ *
+ * Smaller than [MaxSegmentStretch] rather than equal to it, and the asymmetry is
+ * the point: a stretch has a whole segment of empty track to grow into and a
+ * squash is eating the thumb's own label. A fifth off the width of "Keyboard"
+ * would be an ellipsis, which is a different message.
+ */
+private const val SegmentSquash = 0.16f
+
+/**
  * A row of mutually exclusive options, presented as one control.
  *
  * ```
@@ -324,30 +338,59 @@ fun SegmentedControl(
                         }
 
                         translationX = lean
+                        val segmentWidth =
+                            if (segments == 0) 0f else trackWidth / segments
+
                         // The end stop, which the clamp above turns into a wall.
                         // The wall stays — the thumb must not leave the track —
                         // and the part of the push it refused comes back as
                         // deformation instead.
-                        val squash = band.offset * engaged
-                        // Anchored on the edge it is leaving, so the thumb
-                        // elongates toward the segment it is heading for rather
-                        // than swelling in place. The slider's thumb does the
-                        // same thing with the same signal.
                         //
-                        // `lean` is zero at a stop, because the wall took it —
-                        // so the squash has to carry the direction or a push off
-                        // the left end pivots the wrong way and grows out of the
-                        // track.
-                        transformOrigin = TransformOrigin(
-                            pivotFractionX = if (lean + squash >= 0f) 0f else 1f,
-                            pivotFractionY = 0.5f,
-                        )
-                        val reach = if (trackWidth <= 0f || options.isEmpty()) {
+                        // **A shortening, not a stretch.** It was a stretch, on
+                        // the reasoning that the thumb should elongate toward the
+                        // segment it is heading for; at an end stop there is no
+                        // segment it is heading for, and what a push into an
+                        // immovable wall does to the thing pushing is squash it.
+                        // The first version grew the thumb backwards off the end
+                        // of the track it had just been stopped by.
+                        val squash = band.offset * engaged
+                        val squeeze = if (segmentWidth <= 0f) {
                             0f
                         } else {
-                            (abs(lean) + abs(squash)) / (trackWidth / options.size)
+                            (abs(squash) / (segmentWidth * MaxSegmentStretch))
+                                .coerceIn(0f, 1f) * SegmentSquash
                         }
-                        scaleX = 1f + reach.coerceAtMost(MaxSegmentStretch)
+
+                        // **The lean and the squash are never both live, which is
+                        // what lets one pivot serve them both.** `lean` is the
+                        // pull toward the finger *after* the `coerceIn` above,
+                        // and the band only stretches when that same clamp
+                        // refused a delta — so at a wall the lean is pinned to
+                        // zero and the squash carries everything, and anywhere
+                        // else the band is at rest and the squash is zero.
+                        //
+                        // They want opposite pivots, which is why it matters. A
+                        // stretch is anchored on the edge it is leaving so the
+                        // thumb reaches toward where it is going. A squash is
+                        // anchored on the edge against the wall so the thumb
+                        // shortens into it. Reading them off one signed sum
+                        // picked the wrong one for whichever was non-zero.
+                        transformOrigin = TransformOrigin(
+                            pivotFractionX = when {
+                                squash > 0f -> 1f
+                                squash < 0f -> 0f
+                                lean >= 0f -> 0f
+                                else -> 1f
+                            },
+                            pivotFractionY = 0.5f,
+                        )
+                        val reach = if (segmentWidth <= 0f) {
+                            0f
+                        } else {
+                            abs(lean) / segmentWidth
+                        }
+                        scaleX =
+                            (1f + reach.coerceAtMost(MaxSegmentStretch)) * (1f - squeeze)
                     },
                 shape = innerShape,
                 // One token, no branch on the scheme.

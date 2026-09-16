@@ -276,18 +276,9 @@ fun RangeSlider(
      */
     val band = rememberRubberBand()
 
-    /**
-     * Reaching an end of the *range*, reported once per arrival.
-     *
-     * The ends only — running into the other thumb is a shove, which already
-     * looks and feels like one through the reach the thumbs deform by, and a
-     * report there would announce the wall the user can see moving.
-     *
-     * A second ticker rather than a second index on [ticker], for the reason given
-     * on `Slider.endStop`: `at` compares against whatever it was last handed, and
-     * one ticker counting two different things fires on every switch between them.
-     */
-    val endStop = rememberDetentTicker()
+    // No report at either end of the range — see the note where `Slider`'s used
+    // to be. The thumb has stopped and is visibly giving under the push, which is
+    // the whole of the news.
     val thumbSquashPx = with(LocalDensity.current) {
         SliderThumbRadius.toPx() * SliderDefaults.MaxStretch
     }
@@ -650,8 +641,6 @@ fun RangeSlider(
                             }
                             carrying = false
                             emitted = null
-                            // Armed inside the track — see `Slider.endStop`.
-                            endStop.at(0)
                         },
                         onDelta = { delta ->
                             val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
@@ -710,9 +699,6 @@ fun RangeSlider(
                                     raw < 0f -> raw
                                     else -> 0f
                                 }
-                                // Reported off `past` rather than off the band,
-                                // so it still fires with reduced motion on.
-                                endStop.at(if (past > 0f) 1 else if (past < 0f) -1 else 0)
                                 if (past != 0f && !motion.reduceMotion) {
                                     band.pull(past * widthPx, thumbSquashPx)
                                 }
@@ -750,7 +736,6 @@ fun RangeSlider(
                                 )
                             }
                             ticker.reset()
-                            endStop.reset()
                             dragFraction = Float.NaN
                             pressFraction = Float.NaN
                             carrying = false
@@ -816,14 +801,16 @@ fun RangeSlider(
                             val startThumb =
                                 DrawnThumb(
                                     startX,
-                                    reachStart * trackWidth + squashStart,
+                                    reachStart * trackWidth,
+                                    squashStart,
                                     startScale,
                                     startAspect,
                                 )
                             val endThumb =
                                 DrawnThumb(
                                     endX,
-                                    reachEnd * trackWidth + squashEnd,
+                                    reachEnd * trackWidth,
+                                    squashEnd,
                                     endScale,
                                     endAspect,
                                 )
@@ -860,6 +847,7 @@ fun RangeSlider(
                                     scale = drawn.scale,
                                     aspect = drawn.aspect,
                                     reachPx = drawn.reach,
+                                    squashPx = drawn.squash,
                                     ringColour = colours.surface,
                                     fillColour = activeColour,
                                     ringPx = SliderThumbRing.toPx(),
@@ -947,10 +935,20 @@ private fun ThumbSemantics(
 /** Which thumb a gesture is moving. */
 /**
  * One thumb's drawing, so the loop below reads as two thumbs rather than as a
- * list of quadruples. Each carries its own scale and aspect: a range slider has
+ * list of quintuples. Each carries its own scale and aspect: a range slider has
  * two handles and only one of them is ever in your hand.
+ *
+ * [reach] and [squash] are separate for the reason `sliderThumb` gives: one
+ * lengthens the thumb towards where it is trying to be and the other shortens it
+ * against a wall it cannot pass, and they used to be added together.
  */
-private class DrawnThumb(val x: Float, val reach: Float, val scale: Float, val aspect: Float)
+private class DrawnThumb(
+    val x: Float,
+    val reach: Float,
+    val squash: Float,
+    val scale: Float,
+    val aspect: Float,
+)
 
 private enum class Thumb { Start, End, None }
 
