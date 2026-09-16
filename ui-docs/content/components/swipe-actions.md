@@ -8,6 +8,21 @@ gesture exists. `rememberSwipeActionsState(initialValue = SwipeValue.End)` start
 a row already open, and `state.animateTo(SwipeValue.End)` moves an already-drawn
 one — which is how you would hint at the gesture on first run.
 
+**Order runs from the screen edge in toward the row**, on both sides. So the
+*first* action of a list is the one furthest from the row, and the last is the
+panel that appears against its edge as the swipe opens. The reason is the full
+swipe: carrying a row all the way runs the first action of the side, and what a
+full swipe looks like is that action growing from the edge until it has the whole
+row. The other way up, the action a full swipe commits to was the one hard
+against the row, and the one at the edge was the one it would never run.
+
+The panels travel with the row rather than waiting at the edge of the screen for
+it to arrive, so the set slides in behind it and the ground under the row is the
+colour of the action it is about to reach. Pinned to the container instead, a
+half-open swipe uncovered the container's edge first — so the panel on screen for
+most of the gesture was the one furthest from the row, whatever colour the strip
+behind it was.
+
 An action shows its label only where there is room for one. A single-line row is
 48dp and an icon above a label wants 59, so on short rows the icon stands alone —
 the label still reaches the screen reader through the row's custom action either

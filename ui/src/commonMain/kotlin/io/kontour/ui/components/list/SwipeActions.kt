@@ -245,6 +245,14 @@ object SwipeActionsDefaults {
  * [io.kontour.ui.sheet.SheetState], so a swipe and a sheet drag behave the same
  * way — same thresholds, same settle, same fling.
  *
+ * **Order runs from the screen edge in toward the row**, on both sides. So the
+ * *first* action of a list is the one furthest from the row, and the last one is
+ * the panel that appears against its edge as the swipe opens. That is the
+ * convention swipe rows use everywhere, and the reason is the full swipe:
+ * carrying a row all the way runs the first action of the side, and what a full
+ * swipe looks like is that action growing from the edge until it has the whole
+ * row.
+ *
  * @param start Actions revealed by swiping toward the trailing edge, following
  *   the layout direction. Conventionally the constructive ones. **At most
  *   [SwipeActionsDefaults.MaxActionsPerSide]** — three 88dp targets is 264dp of
@@ -427,10 +435,29 @@ fun SwipeActions(
         val offset = state.anchoredState.offset
         val settled = if (offset.isNaN()) 0f else offset
 
-        // Whichever side is being revealed, drawn beneath the row.
+        // Whichever side is being revealed, drawn beneath the row — and the
+        // trailing set **backwards**.
+        //
+        // The declared order runs from the screen edge in toward the row, on
+        // both sides. On the leading side that is already what a `Row` does:
+        // the set is packed against the row, so the first action lands at the
+        // container's edge and the last one against the row. On the trailing
+        // side the same packing runs the other way round, so the list has to be
+        // reversed to say the same thing.
+        //
+        // It is the convention every platform's swipe rows use, and the reason
+        // is the full swipe. Carrying a row all the way runs the *first* action
+        // of the side, and a full swipe is that action taking over the whole
+        // row — so the first action is the one at the far edge, growing toward
+        // the finger as the gesture goes on. With the order the other way up,
+        // the action a full swipe commits to was the one hard against the row
+        // and the one at the edge was the one it would never run.
+        //
+        // `asReversed` rather than `reversed`: a view, not a copy, so this is
+        // not three allocations per frame of a drag.
         val revealed = when {
             settled > 0f -> start
-            settled < 0f -> end
+            settled < 0f -> end.asReversed()
             else -> emptyList()
         }
         if (revealed.isNotEmpty()) {
@@ -450,16 +477,16 @@ fun SwipeActions(
             // **The nearest action's colour, not the furthest.**
             //
             // The ground behind the row is the strip the row is sliding off, so
-            // it should be the colour of whatever it is sliding off *onto* —
-            // which is the action closest to it. Which end of the list that is
-            // depends on the side, and this used to take `last()` for both: the
-            // actions are laid out in caller order, packed to the start on a
-            // rightward swipe and to the end on a leftward one, so the row sits
-            // after them in the first case and before them in the second.
+            // it is the colour of whatever it is sliding *onto* — the action
+            // closest to it. Which end of `revealed` that is depends on the
+            // side, because the two sides pack against the row from opposite
+            // directions: the leading set ends at the row, the trailing set
+            // starts at it.
             //
-            // Trailing actions are the common arrangement, so the visible effect
-            // was the ground showing the *far* action's colour — a row sliding
-            // off Remove onto a band of Pin.
+            // This took `last()` for both, which is the furthest action on one
+            // side and the nearest on the other. Trailing actions are the common
+            // arrangement, so what a reader saw was a row sliding off one colour
+            // onto a band of another.
             val stripColour = if (settled > 0f) revealed.last().background
             else revealed.first().background
 
@@ -520,6 +547,9 @@ fun SwipeActions(
             // about to reach. The offset is read in the layout phase from the
             // same live position the row uses, so the two cannot drift apart by
             // a frame.
+            //
+            // Which panel that is, is `revealed`'s business rather than this
+            // block's — see the reversal above.
             Row(
                 modifier = Modifier
                     .matchParentSize()
