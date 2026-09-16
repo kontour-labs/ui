@@ -84,7 +84,6 @@ class DetentTicker internal constructor(
      * table.
      */
     private val intent: FeedbackIntent = FeedbackIntent.Tick,
-    clock: TimeSource = TimeSource.Monotonic,
     /**
      * The rate floor, shared with every other light haptic in the composition.
      *
@@ -93,10 +92,15 @@ class DetentTicker internal constructor(
      * holding it feels one rattle rather than three. With a dozen components now
      * reporting a tap it would be plainly wrong.
      *
-     * Defaulted from [clock] so a test can still drive the limit with a
-     * `TestTimeSource` without knowing the floor exists.
+     * **Required, and it took the ticker's `clock` with it.** There used to be a
+     * `clock: TimeSource = TimeSource.Monotonic` here for a test to drive the
+     * limit with a `TestTimeSource`, and once the limit moved out the clock was
+     * a parameter whose only purpose was to build the default for this one.
+     * A ticker does not own a clock any more; the thing that rate-limits owns
+     * the clock, and a test that drives the limit constructs the floor it is
+     * driving.
      */
-    private val floor: FeedbackFloor = FeedbackFloor(clock),
+    private val floor: FeedbackFloor,
 ) {
 
     private var last: Float = Float.NaN
