@@ -688,11 +688,15 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // Stepped, which is the case the ticks are for and which nothing
                 // rendered. `showTicks` defaults from `steps` now, and a default
                 // with no picture behind it is a default that drifts.
+                // With minor ticks, because the two tiers only mean anything
+                // beside each other: a major mark is only "major" if there is a
+                // shorter one to compare it with.
                 RenderState("stepped") { modifier ->
                     Slider(
                         value = 0.5f,
                         onValueChange = {},
                         steps = 4,
+                        minorTicks = 1,
                         modifier = modifier,
                     )
                 },
@@ -721,6 +725,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         value = 0.25f..0.75f,
                         onValueChange = {},
                         steps = 4,
+                        minorTicks = 1,
                         modifier = modifier,
                     )
                 },

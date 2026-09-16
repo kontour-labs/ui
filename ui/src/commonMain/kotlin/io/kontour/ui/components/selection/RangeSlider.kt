@@ -105,6 +105,18 @@ fun RangeSlider(
     minDistance: Float = 0f,
     steps: Int = 0,
     /**
+     * Marks drawn *between* the [steps], for a scale a finger reads by feel.
+     *
+     * How many go in each gap, so `steps = 4, minorTicks = 1` is a mark every
+     * half step. Zero, the default, is the coarse scale alone.
+     *
+     * They are drawn shorter than the major marks rather than fainter, and they
+     * are not detents: the value still lands on a step. What they add is a
+     * finer reading of where the thumb is between two of them, which is what an
+     * instrument dial's fine graduations are for.
+     */
+    minorTicks: Int = 0,
+    /**
      * Whether to draw a dot on the track at each detent.
      *
      * **On whenever the slider is stepped**, which is what a stepped slider is
@@ -731,6 +743,7 @@ fun RangeSlider(
                     .drawWithCache {
                         val trackHeightPx = SliderTrackHeight.toPx()
                         val tickPx = tickSize.toPx()
+                        val tickHeightPx = SliderTickHeight.toPx()
                         val thumbRadiusPx = SliderThumbRadius.toPx()
                         val thumbReachPx = SliderThumbReach.toPx()
                         val centreY = size.height / 2f
@@ -768,7 +781,9 @@ fun RangeSlider(
                                     trackWidth = trackWidth,
                                     centreY = centreY,
                                     steps = steps,
-                                    diameterPx = tickPx,
+                                    minorTicks = minorTicks,
+                                    widthPx = tickPx,
+                                    heightPx = tickHeightPx,
                                     coveredColour = colours.onPrimary,
                                     uncoveredColour = colours.contentSubtle,
                                     // The band between the thumbs, not the run

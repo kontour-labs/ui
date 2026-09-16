@@ -116,11 +116,35 @@ internal fun DrawScope.sliderThumb(
  * `RangeSlider`, differing only in how each decides whether a mark is covered.
  * That is the shape [sliderThumb] is already in and for the same reason.
  *
- * **Sized, not derived.** The old factor worked out at 1.76dp across on a 4dp
- * track, which is under two pixels at 1x: the report was that the ticks are not
- * obvious enough, and the measurement is why. It reads
- * `Theme.componentDefaults.sliderTickSize` now, so the mark is a value a design
- * system sets rather than a ratio to the bar it sits on.
+ * **Two shapes, because they say two different things.** A major mark is a bar
+ * that *crosses* the track: these were dots at a factor of the track height —
+ * 1.76dp across on a 4dp track, under two pixels at 1x — and the report was that
+ * they are not obvious enough. A dot on a bar is the hardest mark to see there
+ * is, because it shares the track's own axis and can only differ from it in
+ * colour. A bar differs in *shape*, and stays legible when the two colours are
+ * close.
+ *
+ * A minor mark stays a dot, and that is the point of it: it is a finer reading
+ * between two notches, and it should read as subordinate at a glance rather than
+ * as a shorter bar somebody has to measure against its neighbours. They
+ * subdivide each step, so `steps = 4, minorTicks = 1` is a dot halfway between
+ * every pair of bars.
+ *
+ * There is room for the bars. The track is 4dp but the control is 44dp and this
+ * draws unclipped and centred, so a mark up to about the thumb's own diameter is
+ * still inside its silhouette — and the thumb is painted after, over the top.
+ *
+ * **The colour rule follows the shape, and only the dots take it.** A dot lives
+ * *inside* the 4dp track, so on the filled side it has to be drawn in the fill's
+ * contrasting tone or it vanishes — which is what `onPrimary` has always been
+ * for. A bar does not need that: it is legible where it stands proud, against
+ * the page. Giving the bars the same treatment made every one of them punch a
+ * white gap through the fill, so a stepped slider arrived as a **dashed line** —
+ * a worse misreading than invisible dots were, because it looks like a property
+ * of the track rather than a scale drawn over it.
+ *
+ * So the fill runs solid under the bars and is dotted by the minor marks exactly
+ * as it used to be.
  *
  * @param covered Whether the mark at this position has been passed — the filled
  *   side of a slider, or the inside of a range's band. The two controls answer
@@ -131,20 +155,32 @@ internal fun DrawScope.sliderTicks(
     trackWidth: Float,
     centreY: Float,
     steps: Int,
-    diameterPx: Float,
+    minorTicks: Int,
+    widthPx: Float,
+    heightPx: Float,
     coveredColour: Color,
     uncoveredColour: Color,
     covered: (x: Float) -> Boolean,
 ) {
     if (steps <= 0) return
-    val stepCount = steps + 1
-    val radius = diameterPx / 2f
-    for (i in 0..stepCount) {
-        val x = trackLeft + trackWidth * i / stepCount
-        drawCircle(
-            color = if (covered(x)) coveredColour else uncoveredColour,
-            radius = radius,
-            center = Offset(x, centreY),
-        )
+    val everyMinor = minorTicks.coerceAtLeast(0) + 1
+    val divisions = (steps + 1) * everyMinor
+    val radius = CornerRadius(widthPx / 2f)
+    for (i in 0..divisions) {
+        val x = trackLeft + trackWidth * i / divisions
+        if (i % everyMinor == 0) {
+            drawRoundRect(
+                color = uncoveredColour,
+                topLeft = Offset(x - widthPx / 2f, centreY - heightPx / 2f),
+                size = Size(widthPx, heightPx),
+                cornerRadius = radius,
+            )
+        } else {
+            drawCircle(
+                color = if (covered(x)) coveredColour else uncoveredColour,
+                radius = widthPx / 2f,
+                center = Offset(x, centreY),
+            )
+        }
     }
 }

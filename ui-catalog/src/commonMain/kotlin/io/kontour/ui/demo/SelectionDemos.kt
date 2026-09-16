@@ -265,9 +265,18 @@ private val sliderSteps = Knob.Flag("Stepped")
 private val sliderTicks = Knob.Flag("Ticks", initial = true)
 private val sliderEnabled = Knob.Flag("Enabled", initial = true)
 
+/**
+ * Marks between the marks, which is the half a still picture cannot argue.
+ *
+ * On, because the coarse scale is what a slider has always drawn and the
+ * question is what the fine one adds — a reader who has to turn it on to see it
+ * has already been told the answer.
+ */
+private val sliderMinorTicks = Knob.Flag("Minor ticks", initial = true)
+
 internal val SliderDemo = ComponentDemo(
     slug = "slider",
-    knobs = listOf(sliderSteps, sliderTicks, sliderEnabled),
+    knobs = listOf(sliderSteps, sliderTicks, sliderMinorTicks, sliderEnabled),
 ) {
     var amount by remember { mutableStateOf(0.35f) }
     var stepped by remember { mutableStateOf(3f) }
@@ -280,6 +289,7 @@ internal val SliderDemo = ComponentDemo(
                 onValueChange = { stepped = it },
                 valueRange = 1f..5f,
                 steps = 3,
+                minorTicks = if (this@ComponentDemo[sliderMinorTicks]) 1 else 0,
                 showTicks = ticks,
                 enabled = enabled,
                 modifier = Modifier.fillMaxWidth(),

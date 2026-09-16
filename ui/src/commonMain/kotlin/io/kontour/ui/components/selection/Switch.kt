@@ -55,6 +55,14 @@ private val ThumbPadding = 2.dp
 private const val ThumbStretch = 1.25f
 
 /**
+ * How much of itself the thumb gives up at an end stop.
+ *
+ * A sixth, which is plainly visible on a 24dp thumb and still leaves something
+ * recognisably round. More reads as the thumb deflating.
+ */
+private const val ThumbSquash = 0.16f
+
+/**
  * The speed, in track-fractions per second, at which the stretch is full.
  *
  * `springSnappy` carries the thumb across its whole travel in about a fifth of
@@ -423,7 +431,7 @@ fun Switch(
         //
         // `Modifier.size` states a preference, and a `Row` that has run out of
         // width hands out less — or nothing. The thumb used to be clamped with
-        // `coerceIn(0f, size.width - stretchedWidth)`, and `coerceIn` **throws**
+        // `coerceIn(0f, size.width - thumbWidth)`, and `coerceIn` **throws**
         // on an inverted range: a switch measured narrower than its own thumb
         // took the frame down with it, from inside draw, where there is nothing
         // to catch it. A switch squeezed to nothing should look squeezed.
@@ -452,12 +460,7 @@ fun Switch(
          */
         val speed = (abs(fraction.velocity) / StretchAtSpeed).coerceIn(0f, 1f)
         val travelStretch = if (motion.reduceMotion) 1f else 1f + (ThumbStretch - 1f) * speed
-        // The end stop, as deformation rather than as a dead zone. The growth is
-        // split by the room available just below, and at either end every bit of
-        // the spare room is *behind* the thumb — so this comes out as a squash
-        // in the direction of the push with no extra arithmetic.
-        val squashStretch = 1f + abs(band.offset) / thumbPx
-        val thumbStretch = maxOf(pressStretch, maxOf(travelStretch, squashStretch))
+        val thumbStretch = maxOf(pressStretch, travelStretch)
 
         // The stretch grows *into the padding it has room for*, split between
         // the two sides in proportion to how much room each has.
@@ -474,7 +477,30 @@ fun Switch(
         // the give was always meant to be.
         val stretchedWidth = (thumbPx * thumbStretch).coerceAtMost(maxOf(interior, thumbPx))
         val grow = stretchedWidth - thumbPx
-        val left = paddingPx + room * f - grow * f
+        val reached = paddingPx + room * f - grow * f
+
+        // **The end stop compresses the thumb; it does not lengthen it.**
+        //
+        // The first version fed the band into `thumbStretch` above, on the
+        // reasoning that all the spare room at either end is behind the thumb so
+        // the growth would go there by itself. It does — and growing *backwards*
+        // away from the wall is a stretch, which is the opposite of what pushing
+        // into a wall looks like. It read as the thumb getting fat.
+        //
+        // A squash is shorter along the axis of the push with the leading edge
+        // pinned, so the thumb visibly shortens against the end it has run into
+        // and springs back out of it. Applied to the width here rather than to
+        // the stretch above, because it has to move the edge that is *not*
+        // against the wall and the stretch has no way to say which one that is.
+        val squeeze = if (thumbSquashPx <= 0f) {
+            0f
+        } else {
+            (abs(band.offset) / thumbSquashPx).coerceIn(0f, 1f) * ThumbSquash
+        }
+        val thumbWidth = stretchedWidth * (1f - squeeze)
+        // Pinned against whichever end was pushed into: on the right, the lost
+        // width comes off the left edge.
+        val left = reached + if (band.offset > 0f) stretchedWidth - thumbWidth else 0f
         val top = (size.height - thumbPx).coerceAtLeast(0f) / 2f
 
         // **The thumb stays a circular capsule, and that is the shape scale's own
@@ -490,8 +516,8 @@ fun Switch(
         // twice is more consistent than paying for it once.
         drawRoundRect(
             color = thumbColour,
-            topLeft = Offset(left.coerceIn(0f, (size.width - stretchedWidth).coerceAtLeast(0f)), top),
-            size = Size(stretchedWidth, thumbPx),
+            topLeft = Offset(left.coerceIn(0f, (size.width - thumbWidth).coerceAtLeast(0f)), top),
+            size = Size(thumbWidth, thumbPx),
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(thumbPx / 2f),
         )
     }

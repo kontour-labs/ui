@@ -25,12 +25,24 @@ against anything. Each step crossed on a stepped slider fires a tick haptic, so 
 user changing a value without looking can feel the detents — which is most of the
 point of having steps.
 
-**The dots are opt-in.** `steps` no longer draws them; `showTicks` does. A row of
-dots turns a slider into a diagram of its own implementation, and on a short
+**The marks are opt-in.** `steps` no longer draws them; `showTicks` does. A row
+of marks turns a slider into a diagram of its own implementation, and on a short
 track with many steps they merge into a dashed line that reads as texture rather
 than as information. The detent is still there either way — the thumb still
 resists and still ticks. Turn them on where the count is small and *is* the
 point: five ratings, four zoom levels.
+
+**They are bars, and they used to be dots.** A dot on a track shares the track's
+own axis, so it can only ever differ from it in colour — which made them hard to
+pick out at any size worth drawing. A bar *crosses* the track, which is a
+difference in shape, and it stays legible when the two colours are close.
+
+`minorTicks` puts marks **between** the steps, drawn at half height:
+`steps = 4, minorTicks = 1` is a mark every half step with the halves short.
+They are graduations rather than detents — the value still lands on a step — and
+they are shorter rather than fainter, so the coarse scale stays readable at a
+glance without taking the fine one below the contrast floor. Worth it on a scale
+somebody reads a position off; noise on one with many steps already.
 
 **Pass `stateDescription`.** Without it the announcement is a bare percentage,
 which is rarely what the number means.

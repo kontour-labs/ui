@@ -53,6 +53,19 @@ internal val SliderTrackHeight = 4.dp
 internal val SliderThumbRadius = 12.dp
 
 /**
+ * How far a detent mark crosses the track.
+ *
+ * Ten against a 4dp track, so a mark stands proud on both sides and reads as
+ * *crossing* the track rather than as sitting on it — which is the whole reason
+ * these are bars now and not dots. Still well inside the 24dp thumb that is
+ * painted over the top.
+ *
+ * Here rather than on `ComponentDefaults` for the reason its neighbours are: it
+ * is the shape of a mark, not a dimension a consumer sets.
+ */
+internal val SliderTickHeight = 10.dp
+
+/**
  * Half the thumb's resting width — the distance its edge reaches from its centre.
  *
  * The track is inset by this at each end so the thumb has room to sit at 0 and
@@ -96,6 +109,18 @@ fun Slider(
     enabled: Boolean = true,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     steps: Int = 0,
+    /**
+     * Marks drawn *between* the [steps], for a scale a finger reads by feel.
+     *
+     * How many go in each gap, so `steps = 4, minorTicks = 1` is a mark every
+     * half step. Zero, the default, is the coarse scale alone.
+     *
+     * They are drawn shorter than the major marks rather than fainter, and they
+     * are not detents: the value still lands on a step. What they add is a
+     * finer reading of where the thumb is between two of them, which is what an
+     * instrument dial's fine graduations are for.
+     */
+    minorTicks: Int = 0,
     /**
      * Whether to draw a dot on the track at each detent.
      *
@@ -489,6 +514,7 @@ fun Slider(
                 .drawWithCache {
                     val trackHeightPx = SliderTrackHeight.toPx()
                     val tickPx = tickSize.toPx()
+                    val tickHeightPx = SliderTickHeight.toPx()
                     val thumbRadiusPx = SliderThumbRadius.toPx()
                     val thumbReachPx = SliderThumbReach.toPx()
                     val centreY = size.height / 2f
@@ -528,7 +554,9 @@ fun Slider(
                                 trackWidth = trackWidth,
                                 centreY = centreY,
                                 steps = steps,
-                                diameterPx = tickPx,
+                                minorTicks = minorTicks,
+                                widthPx = tickPx,
+                                heightPx = tickHeightPx,
                                 coveredColour = colours.onPrimary,
                                 uncoveredColour = colours.contentSubtle,
                                 covered = { x -> x <= thumbX },
