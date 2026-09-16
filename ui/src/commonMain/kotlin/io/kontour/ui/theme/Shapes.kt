@@ -529,3 +529,52 @@ private data class OutsetCornerSize(val base: CornerSize, val gap: Dp) : CornerS
         return base.toPx(inner, density) + grow
     }
 }
+
+/**
+ * This shape, but never rounder than [floor] — or unchanged when [floor] is null.
+ *
+ * The sibling of [inset] and [outset], and the one the receded screen behind a
+ * sheet needs. That screen has to be concentric with the **display**, and the
+ * display's radius comes from the platform where the platform will say: on a
+ * phone with a 55dp corner the library's own `extraLarge` is far too square and
+ * a 34dp panel inside a 55dp bezel reads as an accident rather than as a screen
+ * stepping back.
+ *
+ * Null passes through untouched, which is the ordinary case: only two platforms
+ * can answer, and a square display or a desktop window keeps exactly the corner
+ * the theme gave it.
+ *
+ * ### Why this is a `CornerSize` and not arithmetic at the call site
+ *
+ * `max(theme.extraLarge, device)` looks like one line until you try to write it.
+ * A [CornerSize] can be a percentage or a capped capsule, so there is no radius
+ * to compare against until there is a size and a density — the comparison has to
+ * defer exactly as [InsetCornerSize]'s subtraction does.
+ *
+ * It is also the only way to write it *at all* under the literals ratchet in
+ * `check-components.py`: a caller reaching for the number would have to name
+ * `34.dp` somewhere new, and the rule is that geometry lives on
+ * [io.kontour.ui.theme.ComponentDefaults] and is resolved out of the token
+ * rather than restated. A `CornerSize` resolves the token; a `Dp` at the call
+ * site restates it.
+ */
+fun CornerBasedShape.atLeast(floor: Dp?): CornerBasedShape =
+    if (floor == null) this else copy(
+        topStart = MaxCornerSize(topStart, floor),
+        topEnd = MaxCornerSize(topEnd, floor),
+        bottomEnd = MaxCornerSize(bottomEnd, floor),
+        bottomStart = MaxCornerSize(bottomStart, floor),
+    )
+
+/**
+ * A [CornerSize] that resolves to another one, or to [floor], whichever is larger.
+ *
+ * Deferred for the same reason [InsetCornerSize] is. It resolves the base against
+ * the box it is handed and changes nothing else about it — unlike its two
+ * siblings there is no gap here, so there is no other box to reconstruct.
+ */
+@Immutable
+private data class MaxCornerSize(val base: CornerSize, val floor: Dp) : CornerSize {
+    override fun toPx(shapeSize: Size, density: Density): Float =
+        maxOf(base.toPx(shapeSize, density), with(density) { floor.toPx() })
+}

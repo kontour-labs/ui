@@ -1,6 +1,17 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import io.kontour.ui.adaptive.edges
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.ui.unit.Density
+import io.kontour.ui.platform.platformDeviceCornerRadius
+import io.kontour.ui.theme.atLeast
+import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.addOutline
@@ -151,12 +162,18 @@ object BackdropDefaults {
  *
  * ### What this does instead
  *
- * Scales **uniformly, from the width**, so both side margins are exactly the
- * inset, and then moves the content *up* by whatever vertical slack that leaves
- * over. The top margin lands on the inset too, and the surplus collects at the
- * bottom — which is the one edge a bottom sheet is covering anyway. Three edges
- * uniform and the fourth hidden, with no distortion, which is the trade iOS
- * makes.
+ * Scales **uniformly**, so there is no distortion, and then moves the content
+ * *up* by whatever vertical slack that leaves over. The top margin lands on the
+ * inset, and the surplus collects at the bottom — which is the one edge a bottom
+ * sheet is covering anyway.
+ *
+ * The scale is the tighter of two constraints rather than the width alone. The
+ * first puts both side margins exactly on the inset. The second keeps the inset
+ * below whatever the system has parked at the bottom of the window, and it is
+ * there because of what happens when it is not: see the note in the body. So the
+ * invariant is *top on the inset, sides at least the inset, bottom at least the
+ * inset above the bar* — sides exactly on it only when nothing is docked down
+ * there, which is every gesture-navigation phone and every desktop window.
  *
  * Up, not down, and the first version had it the other way round. A uniform
  * scale leaves the same slack top and bottom; putting the *top* on the inset
@@ -171,8 +188,31 @@ object BackdropDefaults {
  * landscape window is a centred dialog rather than a bottom sheet, so this is
  * the case that matters least.
  */
-internal fun backdropScale(width: Float, insetPx: Float): Float =
-    if (width <= 0f) 1f else (1f - 2f * insetPx / width).coerceIn(0f, 1f)
+internal fun backdropScale(
+    width: Float,
+    height: Float,
+    insetPx: Float,
+    bottomInsetPx: Float,
+): Float {
+    if (width <= 0f) return 1f
+    val fromWidth = 1f - 2f * insetPx / width
+    // The second constraint, and the reported one. A width-derived scale leaves
+    // vertical slack, [backdropShift] spends `insetPx` of it on the top, and
+    // whatever is left collects at the bottom — which is fine until something
+    // opaque is sitting there. On a 390x844 phone at a 12dp inset the slack is
+    // about 52dp, 12 goes to the top, and the 40 left over is swallowed whole by
+    // a 48dp three-button navigation bar. There is no bottom frame at all, and
+    // the recede stops reading as a screen stepping back and starts reading as
+    // the page sliding underneath something.
+    //
+    // So: scale small enough that the inset survives *below* the bar too, and
+    // take whichever of the two constraints binds. With gesture navigation the
+    // bottom inset is a few dp and this term never wins; with three buttons the
+    // side margins grow to about 16.6dp on that phone, which is the price and is
+    // cheaper than having no bottom edge.
+    val fromHeight = if (height <= 0f) 1f else 1f - (2f * insetPx + bottomInsetPx) / height
+    return minOf(fromWidth, fromHeight).coerceIn(0f, 1f)
+}
 
 /**
  * How far to move the content *up* to put the top margin on the inset too.
@@ -215,6 +255,111 @@ private fun resolvedInset(): Dp =
     if (Theme.motion.reduceMotion) 0.dp else BackdropDefaults.Inset
 
 /**
+ * Whatever the system has parked along the bottom of the window, in pixels.
+ *
+ * **`edges` rather than `safeDrawing`, and the difference is the keyboard.**
+ * `WindowInsets.edges` is deliberately the system bars and the display cutout
+ * and *not* the IME — see its own note — so a keyboard opening does not make the
+ * screen recede further. `safeDrawing` includes the IME, and a screen that steps
+ * back another 300dp when a field is focused inside the sheet in front of it is
+ * a worse fault than the one this parameter exists to fix.
+ *
+ * Zero on a JVM scene, which is why the existing backdrop tests are unaffected:
+ * an `ImageComposeScene` has no bars, so the new constraint never binds and the
+ * width-derived scale is still the answer. That is the check that this only
+ * changes the case it was written for.
+ */
+/**
+ * Thirteen clip shapes, one per step of the recede.
+ *
+ * ### The corner is the snap
+ *
+ * At `f = 0.01` the content is still full size and suddenly has a 34dp corner cut
+ * out of it. That is the reported "it just snaps into place", and it is a corner
+ * rather than a scale: the travel is 12dp over 220ms and reads as smooth, while
+ * the radius arrives whole on the first frame that clips at all.
+ *
+ * So the radius ramps too — from the **display's own** at rest, where the clip is
+ * invisible because the bezel already draws that curve, to the settled one when
+ * the screen is fully back. On a phone that reports a 55dp corner it is a change
+ * of about 12dp over 12dp of travel, which is the concentric answer arriving
+ * gradually. On a display that says nothing it is a ramp from square, which is
+ * still honest: at `f = 0.01` a full-size screen has a 0.3dp corner rather than a
+ * 34dp one.
+ *
+ * ### Why thirteen and not one per frame
+ *
+ * A shape whose corner depends on `f` is a new shape every frame, and
+ * [backdropGround] already records what that costs: `createOutline` misses the
+ * squircle path cache on each one *and* evicts the entries every other container
+ * on screen is using. Quantising `f` to twelve steps makes it thirteen cache
+ * entries for the whole animation instead of sixty a second, and twelve steps
+ * over a 12dp change is a dp a step — under the threshold where a reader could
+ * see the quantisation even if they were looking for it.
+ *
+ * ### The floor is the theme's, and only where the platform is silent
+ *
+ * `atLeast(device - gap)` rather than `atLeast(device).inset(gap)`: both are
+ * concentric on a phone that answers, and this one leaves every desktop, every
+ * browser and every pre-API-31 Android exactly the corner they have today. A
+ * change that only fires where new information arrived is easier to trust than
+ * one that quietly restyles the platforms that told us nothing.
+ */
+@Composable
+private fun backdropClipShapes(gap: Dp): List<CornerBasedShape> {
+    val device = platformDeviceCornerRadius()
+    val settled = Theme.shapes.extraLarge.atLeast(device?.minus(gap))
+    val resting = device ?: 0.dp
+    return remember(settled, resting) {
+        List(RampSteps + 1) { step ->
+            settled.rampedFrom(resting, step.toFloat() / RampSteps)
+        }
+    }
+}
+
+/** Which of [backdropClipShapes] a fraction lands on. */
+private fun rampStep(f: Float): Int = (f * RampSteps).roundToInt().coerceIn(0, RampSteps)
+
+/**
+ * This shape's corners, interpolated from a flat [start] radius at [fraction] 0.
+ *
+ * Private to the backdrop rather than a third sibling of `inset` and `outset` in
+ * `Shapes`: those two express a relationship between two boxes and are reached
+ * for all over the library, and this expresses one frame of one animation.
+ */
+private fun CornerBasedShape.rampedFrom(start: Dp, fraction: Float): CornerBasedShape = copy(
+    topStart = RampCornerSize(topStart, start, fraction),
+    topEnd = RampCornerSize(topEnd, start, fraction),
+    bottomEnd = RampCornerSize(bottomEnd, start, fraction),
+    bottomStart = RampCornerSize(bottomStart, start, fraction),
+)
+
+/**
+ * A [CornerSize] part of the way from a flat radius to another corner size.
+ *
+ * Deferred for the reason every corner size here is: the target may be a
+ * percentage, and a percentage of what is not known until there is a size and a
+ * density to resolve it against.
+ */
+@Immutable
+private data class RampCornerSize(
+    val target: CornerSize,
+    val start: Dp,
+    val fraction: Float,
+) : CornerSize {
+    override fun toPx(shapeSize: Size, density: Density): Float {
+        val from = with(density) { start.toPx() }
+        val to = target.toPx(shapeSize, density)
+        return from + (to - from) * fraction
+    }
+}
+
+@Composable
+private fun backdropBottomInset(): Float =
+    WindowInsets.edges.only(WindowInsetsSides.Bottom)
+        .getBottom(LocalDensity.current).toFloat()
+
+/**
  * Blurs, and optionally pushes back, everything drawn inside this node while an
  * overlay above it asks for it.
  *
@@ -245,10 +390,12 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
 
     val radiusPx = with(LocalDensity.current) { BackdropDefaults.BlurRadius.toPx() }
     val blurring = style.blurs && LocalBackdropBlur.current && platformSupportsBackdropBlur
-    val clipShape: Shape = Theme.shapes.extraLarge
     // Read here rather than in the lambda below: `graphicsLayer` runs at draw
     // time, and a theme value has to be captured in composition.
-    val insetPx = with(LocalDensity.current) { resolvedInset().toPx() }
+    val insetDp = resolvedInset()
+    val clipShapes = backdropClipShapes(insetDp)
+    val insetPx = with(LocalDensity.current) { insetDp.toPx() }
+    val bottomInsetPx = backdropBottomInset()
     val scaling = style.scales && insetPx > 0f
     if (!blurring && !scaling) return this
 
@@ -275,14 +422,19 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
         }
 
         if (scaling) {
-            val target = backdropScale(size.width, insetPx)
+            val target = backdropScale(size.width, size.height, insetPx, bottomInsetPx)
             val scale = lerp(1f, target, f)
             scaleX = scale
             scaleY = scale
             // Negative: the surplus goes to the *bottom*, where the sheet is,
             // which means the content moves up. See [backdropScale].
             translationY = lerp(0f, -backdropShift(size.height, target, insetPx), f)
-            shape = clipShape
+            // Quantised, so this is one of thirteen shapes built once rather
+            // than a new one per frame — see [backdropClipShapes].
+            shape = clipShapes[rampStep(f)]
+            // Left as it was. Now that the radius starts at the display's own,
+            // clipping at `f → 0+` clips to a curve the bezel is already drawing,
+            // so there is nothing here to soften.
             clip = f > 0f
         }
     }
@@ -313,12 +465,18 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
  *
  * That is a guess about the caller, and the one place it is visibly wrong is
  * worth naming: an app whose root paints *nothing* shows this ring against
- * whatever its window is, instead of showing the window through the halo.
- * The catalog's sheet demos frame their stage exactly that way — a
- * `surface`-coloured `Surface` with its own `OverlayHost` in it — and
- * `phone/sheets` photographs the ring because of it. The alternative is to keep letting the page through, which is the
- * defect. Between guessing the colour of a root that paints one and showing a
- * white browser page under a dark app, the guess wins.
+ * whatever its window is, instead of showing the window through the halo. The
+ * catalog's sheet demos frame their stage exactly that way — a `surface`-coloured
+ * `Surface` with its own `OverlayHost` in it.
+ *
+ * **No golden photographs it**, which this note used to claim one did. The phone
+ * screenshots all render with `reduceMotion = true`, so the inset is zero, the
+ * content never recedes and there is no band for a ring to sit in. Worth stating
+ * plainly rather than leaving a reader to go looking for the picture.
+ *
+ * The alternative is to keep letting the page through, which is the defect.
+ * Between guessing the colour of a root that paints one and showing a white
+ * browser page under a dark app, the guess wins.
  *
  * Drawn on the *host*, before its children, rather than under the content layer
  * — anything inside that layer is scaled and blurred along with everything else.
@@ -327,7 +485,12 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
 internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropStyle): Modifier {
     if (!style.scales) return this
 
-    val clipShape: Shape = Theme.shapes.extraLarge
+    // `insetDp` rather than `inset`: there is a second `inset` further down in
+    // this function, the halo's scale delta, and it is a fraction rather than a
+    // distance. Two locals a few lines apart with one name and two units is the
+    // kind of thing that reads fine and resolves wrong.
+    val insetDp = resolvedInset()
+    val clipShapes = backdropClipShapes(insetDp)
     val geometry = remember { GroundGeometry() }
 
     // No blur, no halo, and therefore no ring: the content's edge is hard and
@@ -338,7 +501,11 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         0f
     }
     val backing = Theme.colours.background
-    val insetPx = with(LocalDensity.current) { resolvedInset().toPx() }
+    val insetPx = with(LocalDensity.current) { insetDp.toPx() }
+    // The same number the content's layer uses. Both have to agree or the hole
+    // and the content stop being the same rectangle — which is the fault the
+    // shift below already documents, in a second dimension.
+    val bottomInsetPx = backdropBottomInset()
 
     return drawBehind {
         val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
@@ -360,10 +527,19 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         // one per frame: the shrunken size changes every frame, so `createOutline`
         // missed the shape's path cache on each one *and* evicted the entries
         // every other container on screen was using.
-        if (geometry.size != size) {
+        //
+        // The step joins the size as a cache key now that the corner ramps. It
+        // is the reason the ramp is quantised at all: thirteen rebuilds across
+        // the whole animation is a cost this cache absorbs, and one per frame is
+        // the cost it was written to avoid.
+        val step = rampStep(f)
+        if (geometry.size != size || geometry.step != step) {
             geometry.hole.reset()
-            geometry.hole.addOutline(clipShape.createOutline(size, layoutDirection, this))
+            geometry.hole.addOutline(
+                clipShapes[step].createOutline(size, layoutDirection, this)
+            )
             geometry.size = size
+            geometry.step = step
         }
 
         // A pixel tighter than the content, and that pixel is the third of the
@@ -382,7 +558,7 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         // taken deliberately here rather than by accident. The difference is
         // that it is a single pixel and it is the same pixel all the way round,
         // where that bug was a whole corner radius and only in the corners.
-        val target = backdropScale(size.width, insetPx)
+        val target = backdropScale(size.width, size.height, insetPx, bottomInsetPx)
         val scale = lerp(1f, target, f)
         val shift = lerp(0f, backdropShift(size.height, target, insetPx), f)
         val overlap = 2f * SeamOverlap / minOf(size.width, size.height)
@@ -495,4 +671,17 @@ private class GroundGeometry {
 
     val matrix = Matrix()
     var size: Size? = null
+
+    /** Which of the ramp's thirteen shapes [hole] was built from. */
+    var step: Int = -1
 }
+
+/**
+ * How many steps the corner's ramp is quantised to.
+ *
+ * Twelve, for thirteen shapes counting both ends. The change being quantised is
+ * about twelve dp on a phone that reports its corner, so this is a dp a step —
+ * below what a reader can see in a 220ms animation, and far below what a path
+ * cache can absorb at sixty rebuilds a second.
+ */
+private const val RampSteps = 12

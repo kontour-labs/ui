@@ -2,6 +2,7 @@ package io.kontour.ui.theme
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
@@ -34,6 +35,72 @@ class ConcentricTest {
     /** A box big enough that no proportional corner saturates on it. */
     private fun CornerBasedShape.radius(): Float =
         topStart.toPx(Size(400f, 400f), density)
+
+    /**
+     * A floor, for a corner that has to be at least as round as something else.
+     *
+     * The case is the receded screen behind a sheet, which has to be concentric
+     * with the **display** — and the display's radius comes from the platform,
+     * on the two platforms that will say. A 34dp panel sitting inside a 55dp
+     * bezel is the same mistake as a mis-nested corner anywhere else, just at the
+     * largest scale the library draws at.
+     */
+    @Test
+    fun aFloorRaisesACornerAndNeverLowersIt() {
+        val base = RoundedCornerShape(20.dp)
+
+        assertEquals(
+            43f, base.atLeast(43.dp).radius(),
+            "a 20dp corner floored at 43dp came out ${base.atLeast(43.dp).radius()}. " +
+                "The floor is what makes a receded screen concentric with a rounded " +
+                "display rather than square inside it.",
+        )
+        assertEquals(
+            20f, base.atLeast(8.dp).radius(),
+            "a floor below the corner changed it. `atLeast` raises and never lowers, " +
+                "or a brand with a rounder token would lose it to a squarer device.",
+        )
+    }
+
+    @Test
+    fun aNullFloorLeavesTheShapeAloneEntirely() {
+        // The ordinary case, and the one that matters most: only two platforms
+        // can report a display corner, so every desktop, every browser and every
+        // Android below API 31 arrives here with null — and has to come out with
+        // exactly the corner the theme gave it. A change that quietly restyles
+        // the platforms that told us nothing is a change nobody asked for.
+        val base = RoundedCornerShape(20.dp)
+        assertEquals(
+            20f, base.atLeast(null).radius(),
+            "a null floor changed the corner",
+        )
+        assertSame(
+            base, base.atLeast(null),
+            "a null floor rebuilt the shape. It is the common path and it should " +
+                "not allocate, and an identical-but-new shape also misses the " +
+                "squircle path cache that every container on screen shares.",
+        )
+    }
+
+    @Test
+    fun aFloorDefersLikeEveryOtherCornerSizeHere() {
+        // The reason this is a `CornerSize` rather than `max()` at the call site.
+        // A percentage has no radius until there is a box, so the comparison has
+        // to happen at resolve time — exactly as `inset`'s subtraction does.
+        val proportional = RoundedCornerShape(percent = 50)
+
+        // 50% of a 400x400 box is 200, comfortably above the floor.
+        assertEquals(
+            200f, proportional.atLeast(30.dp).radius(),
+            "a floor beat a 50% corner on a 400px box, so it was compared against " +
+                "something other than the resolved radius",
+        )
+        // And on a small box the same shape resolves below the floor.
+        assertEquals(
+            30f, proportional.atLeast(30.dp).topStart.toPx(Size(40f, 40f), density),
+            "on a 40px box a 50% corner is 20px and the 30dp floor should win",
+        )
+    }
 
     private fun shapeIn(content: @Composable (@Composable () -> Unit) -> Unit): Float {
         var radius = Float.NaN

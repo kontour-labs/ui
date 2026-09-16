@@ -131,12 +131,55 @@ than a frame around it. Scaling each axis separately would fix the margins and
 distort the content — 0.938 across against 0.972 down turns every avatar into a
 slight ellipse.
 
-So it scales **uniformly, from the width**, which puts both side margins exactly
-on the inset, and then moves the content *up* by the vertical slack that leaves
-over. The top margin lands on the inset too and the surplus collects at the
-bottom, which is the one edge a bottom sheet is covering anyway: three edges
-uniform, the fourth hidden, nothing distorted. Under `reduceMotion` the inset is
-`0.dp` and nothing moves at all.
+So it scales **uniformly**, and then moves the content *up* by the vertical slack
+that leaves over, which puts the top margin on the inset and collects the surplus
+at the bottom — the one edge a bottom sheet is covering anyway.
+
+The scale is the tighter of **two** constraints. The first puts both side margins
+exactly on the inset. The second keeps the inset below whatever the system has
+docked at the bottom of the window, and it exists because of what happens when it
+does not: on a 390x844 phone the surplus is about 40dp, which a 48dp three-button
+navigation bar swallows whole. There is no bottom frame at all, and a screen with
+a frame on three sides does not read as a screen stepping back — it reads as the
+page sliding underneath something. Reported exactly that way, and worse with
+three-button navigation on.
+
+So the invariant is *top on the inset, sides and bottom at least the inset*. The
+sides are exactly on it whenever nothing is docked down there, which is every
+gesture-navigation phone and every desktop window; with a bar they grow to about
+16.6dp on that phone. Wider sides are the price of a uniform scale, and the
+alternative is the ellipse above.
+
+The bottom inset comes from `WindowInsets.edges` and **not** `safeDrawing`, which
+is the difference between excluding the keyboard and including it. A screen that
+steps back another 300dp when a field inside the sheet in front of it takes focus
+is a worse fault than the one this fixes.
+
+Under `reduceMotion` the inset is `0.dp` and nothing moves at all.
+
+### The corner is concentric where the platform will say, and ramps either way
+
+Two rounded rectangles nested inside each other with different radii is the most
+legible way to make an inset look accidental, and a receded screen is nested
+inside the **display**. Android reports its window's rounded corner from API 31
+and iOS has `_displayCornerRadius`; where either answers, the receded screen's
+corner is floored at the device's own less the inset, so it sits concentric with
+the bezel instead of square inside it. Where neither answers — every desktop,
+every browser, Android below 31 — the corner is exactly what it was before, which
+is the theme's `extraLarge`.
+
+The radius also **ramps** with the recede rather than arriving whole. That was the
+other half of the report: the travel is 12dp over 220ms and reads as smooth, but
+the clip switched on at the first non-zero frame with its full radius, so a 34dp
+bite appeared in each corner of a screen that had not visibly moved yet. It now
+grows from the display's own corner at rest — where a clip is invisible, because
+the bezel already draws that curve — to the settled one.
+
+A shape whose corner depends on the animation's fraction is a new shape every
+frame, which would miss the squircle path cache sixty times a second *and* evict
+what every other container on screen is using. So the fraction is quantised to
+twelve steps and thirteen shapes are built once: about a dp a step on a phone
+that reports its corner, which is under what anyone can see.
 
 This is a real backdrop filter, not the two-pass trick `GlassSurface` documents.
 The difference is that behind a modal there is exactly one node — the host

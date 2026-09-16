@@ -192,8 +192,12 @@ data class ComponentDefaults(
      * and it reads as a gap above the receded screen rather than a frame around
      * it.
      *
-     * 12dp, and `overlayBackdrop` makes the top and the two sides land on it
-     * exactly. What it cannot make uniform is the fourth edge; see there.
+     * 12dp, and `overlayBackdrop` makes the **top** land on it exactly and holds
+     * the other three at *at least* it. The sides are exactly 12 whenever nothing
+     * is docked along the bottom of the window — every gesture-navigation phone,
+     * every desktop window — and grow a few dp when something is, because a
+     * three-button navigation bar would otherwise swallow the bottom frame whole.
+     * The arithmetic and the measurement are with the scale itself.
      */
     val backdropInset: Dp = 12.dp,
     /**
