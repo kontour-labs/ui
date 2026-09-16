@@ -10,3 +10,11 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
  * answers.
  */
 internal actual val platformTickHaptic: HapticFeedbackType = HapticFeedbackType.SegmentTick
+
+
+/**
+ * The same generator the detent tick uses, and for the same reason: there is
+ * nothing lighter on the device than `selectionChanged()`, and a tap is exactly
+ * the case it was built for.
+ */
+internal actual val platformTapHaptic: HapticFeedbackType = HapticFeedbackType.SegmentTick

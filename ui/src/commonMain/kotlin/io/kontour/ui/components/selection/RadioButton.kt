@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.input.focusRing
@@ -52,6 +53,7 @@ fun RadioButton(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    val tap = rememberTapFeedback()
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
@@ -119,7 +121,7 @@ fun RadioButton(
                 if (onClick != null) {
                     Modifier.pointerCursor(enabled = enabled).selectable(
                         selected = selected,
-                        onClick = onClick,
+                        onClick = { tap(); onClick() },
                         enabled = enabled,
                         role = Role.RadioButton,
                         interactionSource = interactions,

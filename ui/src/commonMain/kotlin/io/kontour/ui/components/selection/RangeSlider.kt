@@ -275,6 +275,19 @@ fun RangeSlider(
      * contact and would need one instance per thumb to know which.
      */
     val band = rememberRubberBand()
+
+    /**
+     * Reaching an end of the *range*, reported once per arrival.
+     *
+     * The ends only — running into the other thumb is a shove, which already
+     * looks and feels like one through the reach the thumbs deform by, and a
+     * report there would announce the wall the user can see moving.
+     *
+     * A second ticker rather than a second index on [ticker], for the reason given
+     * on `Slider.endStop`: `at` compares against whatever it was last handed, and
+     * one ticker counting two different things fires on every switch between them.
+     */
+    val endStop = rememberDetentTicker()
     val thumbSquashPx = with(LocalDensity.current) {
         SliderThumbRadius.toPx() * SliderDefaults.MaxStretch
     }
@@ -637,6 +650,8 @@ fun RangeSlider(
                             }
                             carrying = false
                             emitted = null
+                            // Armed inside the track — see `Slider.endStop`.
+                            endStop.at(0)
                         },
                         onDelta = { delta ->
                             val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
@@ -695,6 +710,9 @@ fun RangeSlider(
                                     raw < 0f -> raw
                                     else -> 0f
                                 }
+                                // Reported off `past` rather than off the band,
+                                // so it still fires with reduced motion on.
+                                endStop.at(if (past > 0f) 1 else if (past < 0f) -1 else 0)
                                 if (past != 0f && !motion.reduceMotion) {
                                     band.pull(past * widthPx, thumbSquashPx)
                                 }
@@ -732,6 +750,7 @@ fun RangeSlider(
                                 )
                             }
                             ticker.reset()
+                            endStop.reset()
                             dragFraction = Float.NaN
                             pressFraction = Float.NaN
                             carrying = false

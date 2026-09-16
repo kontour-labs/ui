@@ -8,3 +8,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
  * third answer for a case nobody can feel.
  */
 internal actual val platformTickHaptic: HapticFeedbackType = HapticFeedbackType.VirtualKey
+
+
+/** Academic, as above: no motor, and the handler returns immediately. */
+internal actual val platformTapHaptic: HapticFeedbackType = HapticFeedbackType.VirtualKey

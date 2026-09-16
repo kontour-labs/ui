@@ -2,6 +2,7 @@ package io.kontour.ui.catalog
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,6 +33,7 @@ import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
 import io.kontour.ui.components.list.rememberReorderableState
+import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.Rating
 import io.kontour.ui.components.selection.SegmentedControl
@@ -52,18 +54,23 @@ import kotlin.test.assertTrue
 /**
  * What the library is allowed to buzz for.
  *
- * The policy, in one sentence: **a haptic reports something the user could not
- * otherwise tell, and there are four of those.** A detent crossed under a
- * finger, a threshold passed that changes what letting go will do, a long press
- * reaching the point where it becomes a gesture, and a destructive question
- * arriving. Everything else — pressing a button, tapping a switch, choosing a
- * date, tapping a tab, opening a menu, landing on a step you tapped — is the
- * user doing something they are watching happen, and a buzz adds nothing to it.
+ * Two tiers, and the four [io.kontour.ui.interaction.HapticsLevel]s exist to
+ * hold them apart. **An outcome reports something the user could not otherwise
+ * tell** — a detent crossed under a finger, a threshold passed that changes what
+ * letting go will do, a long press becoming a gesture, a destructive question
+ * arriving — and survives every level above `Off`. **A tap acknowledges a
+ * press** on a discrete control, says nothing the eye is not also being told,
+ * and is therefore the thing a level can drop.
  *
- * The switch is the one component on both sides of that line, and it is the
- * only site added since the audit: tapping it is silent, and dragging it past
- * its midpoint reports, because the drag commits there and nothing on screen
- * says so first.
+ * Silent at every level is the third case: a press that already carries its own
+ * visible answer and has no discrete commit behind it. A [Button], a tab, a menu
+ * item, a page control, a navigation destination, a stepped slider tapped
+ * mid-track. The commonest interaction in the library is the one that must not
+ * buzz.
+ *
+ * The switch is on both lists, and both halves are below: a tap reports like the
+ * checkbox beside it, and a drag reports again at the midpoint, where the
+ * gesture commits with nothing on screen having said so first.
  *
  * The previous policy was "make it tactile", and fifty-seven call sites took
  * that literally. Every `clickable` in the library fired, every `toggleable`
@@ -73,13 +80,21 @@ import kotlin.test.assertTrue
  * which is the correct reading of a component set that vibrates when you look at
  * it.
  *
+ * The correction overshot in one place, and this round walks that back. A
+ * checkbox that answers nothing while the switch beside it does is a settings
+ * list where half the rows read as broken. The fix is not fifty-seven sites
+ * again — it is one light intent, performed through one helper, that a level can
+ * switch off.
+ *
  * ### Why "no intent" is stronger than "no haptic"
  *
  * These record [FeedbackIntent]s, not platform haptics. A component that
  * performs no intent is silent at *every* [io.kontour.ui.interaction.HapticsLevel]
  * and under every consumer's replacement dispatcher, because there is nothing
  * for a level or a mapping to let through. Asserting an empty list is therefore
- * the whole claim, and it needs no `Full`/`Essential`/`Off` sweep to make it.
+ * the whole claim for a component that must never buzz, and it needs no sweep
+ * over the levels to make it. What each level *does* let through is asserted
+ * once against the levels themselves, rather than once per component.
  *
  * ### Recorded through `LocalFeedback`
  *
@@ -130,22 +145,25 @@ class DetentHapticsTest {
     }
 
     /**
-     * A switch is two gestures and only one of them is worth reporting.
+     * A switch is two gestures and each reports its own thing.
      *
-     * It used to be on the silent list whole, on the argument that "a toggle is
-     * a decision the user made and can see the result of". That is still true
-     * of a *tap*, and it was true of a drag too while the drag reported on
-     * release — nothing changed until the finger lifted, so there was no moment
-     * to announce.
+     * It was silent whole, on the argument that "a toggle is a decision the user
+     * made and can see the result of" — and the argument holds for the switch
+     * looked at alone. It stopped holding in a settings list, where the checkbox
+     * a row above answers a press and this one did not, so the control that moves
+     * the most on screen was the one that felt dead. A tap acknowledges now, at
+     * the lightest intent there is and only from `Standard` upwards.
      *
-     * The drag commits at the midpoint now. Crossing it changes what letting go
-     * will do, with nothing on screen having said so first, which is the
-     * `DragThreshold` row of the policy table word for word. So the switch is
-     * the one component on both lists, and this asserts both halves — the tap
-     * silent, the drag exactly one fire, no more.
+     * The drag is a different report and not a louder version of the same one.
+     * It commits at the midpoint, crossing it changes what letting go will do,
+     * and nothing on screen says so first — the `DragThreshold` row of the policy
+     * table word for word. So both halves are here: the tap exactly one [Tap],
+     * the drag exactly one threshold and no tick per frame on the way.
+     *
+     * [FeedbackIntent.Tap]: io.kontour.ui.interaction.FeedbackIntent.Tap
      */
     @Test
-    fun aSwitchIsSilentTappedAndReportsTheCrossingOnceDragged() {
+    fun aSwitchAcknowledgesATapAndReportsTheCrossingOnceDragged() {
         val tapped = mutableListOf<FeedbackIntent>()
         val dragged = mutableListOf<FeedbackIntent>()
         var checked by mutableStateOf(false)
@@ -169,10 +187,13 @@ class DetentHapticsTest {
             scene.frames(6)
         }
         assertEquals(
-            emptyList(), tapped,
-            "tapping a switch fired ${tapped.summary()}. It was named in the " +
-                "original report: a toggle you press is a decision you made and " +
-                "can see the result of.",
+            listOf(FeedbackIntent.Tap), tapped,
+            "tapping a switch fired ${tapped.summary()}, where one `Tap` was " +
+                "wanted. The switch was silent for a release, and the report was " +
+                "that it feels dead next to a checkbox that is not — so it " +
+                "acknowledges, once, at the lightest intent the device has. Not " +
+                "`Selection` and not `Tick`: a level has to be able to keep a " +
+                "slider's detents and drop this.",
         )
 
         checked = false
@@ -190,8 +211,22 @@ class DetentHapticsTest {
         )
     }
 
+    /**
+     * Dragging across a rating taps per star, and never more than one a star.
+     *
+     * This asserted silence, on the true observation that there are no real
+     * detents here — five drawings on one continuous track, with the eye on them
+     * the whole way across. What the observation missed is that the drag is how
+     * the value is *chosen*, and each star it passes is a value it has taken; a
+     * control you set with your thumb and feel nothing from is a control you
+     * check by looking, which is the thing the haptic was for.
+     *
+     * So the count is what matters rather than the silence. `Tap` per star, not
+     * per frame, which is the shared rate floor doing its job across a drag that
+     * recomposes forty times.
+     */
     @Test
-    fun aRatingDragFiresNothing() {
+    fun aRatingDragTapsPerStarAndNotPerFrame() {
         val felt = mutableListOf<FeedbackIntent>()
         var score by mutableStateOf(0f)
         var bounds = Rect.Zero
@@ -209,16 +244,35 @@ class DetentHapticsTest {
             }
         }.use { scene ->
             scene.frames(3)
-            scene.drag(bounds.alongX(0.05f), bounds.alongX(0.95f), steps = 24)
+            // Paced in real time, because this counts taps and the shared rate
+            // floor runs on a wall clock — see `Scene.drag`. Thirty steps 20ms
+            // apart is a 600ms sweep across five marks, so each one is taken
+            // about 150ms after the last and the floor is the backstop rather
+            // than the thing under measurement. Unpaced the same drag takes
+            // almost no real time and the floor collapses it to one tap, which
+            // is a true statement about a gesture no hand makes.
+            scene.drag(
+                bounds.alongX(0.05f),
+                bounds.alongX(0.95f),
+                steps = 30,
+                paceMillis = 20,
+            )
             scene.frames(3)
         }
 
         assertTrue(score > 0f, "the drag never reached the rating")
-        assertEquals(
-            emptyList(), felt,
-            "dragging across a rating fired ${felt.summary()}. There are no real " +
-                "detents here — the marks are five drawings on one continuous " +
-                "track, and the eye is on them the whole way across.",
+        assertTrue(
+            felt.isNotEmpty() && felt.all { it == FeedbackIntent.Tap },
+            "dragging across a rating fired ${felt.summary()}. Each star the " +
+                "finger passes is a value taken, which is a `Tap` — and nothing " +
+                "heavier, because there is no detent here to snap to.",
+        )
+        assertTrue(
+            felt.size in 3..5,
+            "a drag across five marks fired ${felt.size} taps (${felt.summary()}). " +
+                "Five values are taken across this sweep, so five is the answer; " +
+                "anything near thirty is one per frame and one is the rate floor " +
+                "having swallowed the gesture.",
         )
     }
 
@@ -312,6 +366,122 @@ class DetentHapticsTest {
         assertTrue(
             dragged.none { it != FeedbackIntent.Tick },
             "the drag fired something other than detents: ${dragged.summary()}",
+        )
+    }
+
+    /**
+     * A finger pushing past the end of a slider is told, once.
+     *
+     * The sibling of the tap case above, and the pair of them is the distinction:
+     * a tap *onto* a detent has crossed nothing, and a drag *against* the end of
+     * the range has run out of value while the finger is still moving. The second
+     * is the one nothing else on screen says at the moment it becomes true — the
+     * thumb has already stopped, and a thumb that is not moving looks identical
+     * whether the finger has stopped too.
+     *
+     * A continuous slider, deliberately. With `steps` the detent ticks would
+     * drown the one report under test and counting them would prove nothing about
+     * either.
+     */
+    @Test
+    fun aSliderReportsReachingTheEndOfItsRangeOnceAndNotPerFrame() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var value by mutableStateOf(0.5f)
+        var bounds = Rect.Zero
+
+        Scene(width = 600, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                    Slider(
+                        value = value,
+                        onValueChange = { value = it },
+                        modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            // Mid-track to well past the right-hand end, so the last third of the
+            // gesture is entirely against the wall.
+            scene.drag(
+                bounds.alongX(0.5f),
+                bounds.alongX(1.4f),
+                steps = 20,
+                paceMillis = 20,
+            )
+            scene.frames(4)
+        }
+
+        assertTrue(value >= 1f, "the drag never reached the end, so this proves nothing")
+        assertEquals(
+            listOf(FeedbackIntent.Tick), felt,
+            "a drag off the end of a slider fired ${felt.summary()}. One arrival is " +
+                "one report: not a tick per frame for the seven frames the finger " +
+                "spent past the end, and not silence either.",
+        )
+    }
+
+    /**
+     * Two components inside eighty milliseconds are one rattle.
+     *
+     * The shared floor, proven where it actually matters rather than on the class
+     * that implements it. `KontourTheme` hands one `FeedbackFloor` to every light
+     * haptic under it, so a stepper and a checkbox that have never heard of each
+     * other are rate-limited against *each other* and not each against itself.
+     *
+     * Both halves, because the first one alone would pass against a floor that
+     * simply never let anything through twice.
+     */
+    @Test
+    fun twoComponentsTappedTogetherReportOnceAndSeparatelyReportTwice() {
+        fun tapped(gapMillis: Long): List<FeedbackIntent> {
+            val felt = mutableListOf<FeedbackIntent>()
+            var on by mutableStateOf(false)
+            var also by mutableStateOf(false)
+            var first = Rect.Zero
+            var second = Rect.Zero
+            Scene(width = 400, height = 300) {
+                Recording(felt) {
+                    Column(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                        Checkbox(
+                            checked = on,
+                            onCheckedChange = { on = it },
+                            modifier = Modifier.reportBounds { first = it },
+                        )
+                        Checkbox(
+                            checked = also,
+                            onCheckedChange = { also = it },
+                            modifier = Modifier.reportBounds { second = it },
+                        )
+                    }
+                }
+            }.use { scene ->
+                scene.frames(3)
+                scene.tap(first.center)
+                scene.frames(2)
+                if (gapMillis > 0) scene.renderUntil(timeoutMillis = gapMillis) { false }
+                scene.tap(second.center)
+                scene.frames(2)
+            }
+            assertTrue(on && also, "one of the two taps never landed")
+            return felt
+        }
+
+        assertEquals(
+            listOf(FeedbackIntent.Tap), tapped(gapMillis = 0),
+            "two boxes ticked in the same instant fired ${tapped(0).summary()}. A " +
+                "hand does not feel components, and two pulses that close together " +
+                "are one pulse to it — which is the same argument the interval came " +
+                "from in the first place.",
+        )
+        // Comfortably past the floor, so a slow frame either side cannot eat the
+        // margin. This is real time, not frame time: the floor runs on a wall
+        // clock precisely so that it is measuring the hand rather than the render.
+        assertEquals(
+            listOf(FeedbackIntent.Tap, FeedbackIntent.Tap), tapped(gapMillis = 200),
+            "two boxes ticked a fifth of a second apart reported once. The floor is " +
+                "there to thin a stream, not to make the second control in a form " +
+                "inert.",
         )
     }
 

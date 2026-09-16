@@ -613,7 +613,7 @@ MAX_POLICY_DRIFT = 0
 HAPTIC_POLICY_ROW = re.compile(r"^\|\s*A \*\*[^|]+\|([^|]*)\|", re.M)
 
 # A component that fires, either directly or through the shared ticker.
-PERFORMS = re.compile(r"\bperform\(|\brememberDetentTicker\(")
+PERFORMS = re.compile(r"\bperform\(|\brememberDetentTicker\(|\brememberTapFeedback\(")
 
 # Two files whose component is not their filename. Written out rather than
 # guessed: `Reorderable.kt` holds `ReorderableItem`, and the warning lives in

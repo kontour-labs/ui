@@ -2,6 +2,7 @@ package io.kontour.ui.interaction
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.remember
 import kotlin.math.abs
 import kotlin.time.Duration
@@ -83,11 +84,22 @@ class DetentTicker internal constructor(
      * table.
      */
     private val intent: FeedbackIntent = FeedbackIntent.Tick,
-    private val clock: TimeSource = TimeSource.Monotonic,
+    clock: TimeSource = TimeSource.Monotonic,
+    /**
+     * The rate floor, shared with every other light haptic in the composition.
+     *
+     * It used to be a `TimeMark` on each ticker, which was already quietly wrong
+     * — a `TimePicker` is three `WheelPicker`s with three tickers, and the hand
+     * holding it feels one rattle rather than three. With a dozen components now
+     * reporting a tap it would be plainly wrong.
+     *
+     * Defaulted from [clock] so a test can still drive the limit with a
+     * `TestTimeSource` without knowing the floor exists.
+     */
+    private val floor: FeedbackFloor = FeedbackFloor(clock),
 ) {
 
     private var last: Float = Float.NaN
-    private var lastFired: TimeMark? = null
 
     /**
      * Reports which detent the gesture is now on, ticking if it has changed.
@@ -107,11 +119,7 @@ class DetentTicker internal constructor(
             // *next* crossing fires immediately and the limit does nothing on a
             // fast drag — which is the only place it is needed.
             last = index
-            val since = lastFired
-            if (since == null || since.elapsedNow() >= MinimumTickInterval) {
-                feedback.perform(intent)
-                lastFired = clock.markNow()
-            }
+            if (floor.claim(intent)) feedback.perform(intent)
         }
     }
 
@@ -121,9 +129,10 @@ class DetentTicker internal constructor(
     /** Ends the gesture. The next [at] arms rather than fires. */
     fun reset() {
         last = Float.NaN
-        // Deliberately *not* clearing `lastFired`. Two gestures a few
-        // milliseconds apart are one continuous rattle to the hand, whatever
-        // they are to the code.
+        // Deliberately *not* clearing the floor. Two gestures a few milliseconds
+        // apart are one continuous rattle to the hand, whatever they are to the
+        // code — and the floor is shared now, so it is not this ticker's to
+        // clear in any case.
     }
 
     companion object {
@@ -158,5 +167,62 @@ class DetentTicker internal constructor(
 @Composable
 fun rememberDetentTicker(intent: FeedbackIntent = FeedbackIntent.Tick): DetentTicker {
     val feedback = LocalFeedback.current
-    return remember(feedback, intent) { DetentTicker(feedback, intent) }
+    val floor = LocalFeedbackFloor.current
+    return remember(feedback, intent, floor) { DetentTicker(feedback, intent, floor = floor) }
 }
+
+/**
+ * One rate floor for every light haptic under a theme.
+ *
+ * The argument for the interval is on [DetentTicker.MinimumTickInterval]; the
+ * argument for *sharing* it is that a floor per component is a floor per
+ * component, and a hand does not feel components. A slider's ticks and a chip's
+ * tap forty milliseconds later are one rattle to the person holding the phone.
+ *
+ * Gates the light intents only — [FeedbackIntent.Tap] and [FeedbackIntent.Tick].
+ * An outcome has to arrive when it happens, and outcomes do not come in streams:
+ * a threshold swallowed because a slider ticked forty milliseconds ago is a
+ * gesture that silently changed meaning. So [claim] takes the intent and answers
+ * yes to anything heavier, which is also why the switch's midpoint can go
+ * through a ticker without becoming droppable.
+ *
+ * It is here rather than in the dispatcher because the tests install their own
+ * dispatcher: a floor there would be invisible to them, and the stepped-slider
+ * assertion that counts ticks across a 40-step drag exists precisely because
+ * this is in common code on a wall clock.
+ */
+@Stable
+internal class FeedbackFloor(private val clock: TimeSource = TimeSource.Monotonic) {
+
+    private var lastFired: TimeMark? = null
+
+    /**
+     * True if [intent] may fire now, recording the firing when it does.
+     *
+     * Anything that is not light passes straight through and does not reset the
+     * clock either — an outcome is not part of the stream the floor is thinning.
+     */
+    fun claim(intent: FeedbackIntent): Boolean {
+        if (!intent.isLight) return true
+        val since = lastFired
+        if (since != null && since.elapsedNow() < DetentTicker.MinimumTickInterval) return false
+        lastFired = clock.markNow()
+        return true
+    }
+}
+
+/**
+ * Whether [FeedbackFloor] may drop this intent.
+ *
+ * The two that arrive in streams. [FeedbackIntent.Selection] is deliberately
+ * absent: it fires once per reorder, which is once per gap a row crossed, and a
+ * reorder the hand does not feel is a reorder the eye has to go looking for.
+ */
+private val FeedbackIntent.isLight: Boolean
+    get() = this == FeedbackIntent.Tap || this == FeedbackIntent.Tick
+
+/**
+ * The floor in force. A default instance so a component outside a theme still
+ * rate-limits itself rather than throwing.
+ */
+internal val LocalFeedbackFloor = staticCompositionLocalOf { FeedbackFloor() }

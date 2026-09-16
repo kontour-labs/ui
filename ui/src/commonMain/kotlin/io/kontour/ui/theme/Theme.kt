@@ -15,6 +15,8 @@ import io.kontour.ui.input.rememberInputModalityState
 import io.kontour.ui.input.trackInputModality
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.HapticsLevel
+import io.kontour.ui.interaction.FeedbackFloor
+import io.kontour.ui.interaction.LocalFeedbackFloor
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.rememberDefaultFeedbackDispatcher
 import io.kontour.ui.platform.platformPrefersHighContrast
@@ -167,10 +169,11 @@ fun KontourTheme(
      * This decides how many of them fire at all, and is the one an app is likely
      * to want to put behind a user-facing setting.
      */
-    haptics: HapticsLevel = HapticsLevel.Full,
+    haptics: HapticsLevel = HapticsLevel.Standard,
     feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(haptics),
     content: @Composable () -> Unit,
 ) {
+    val feedbackFloor = remember { FeedbackFloor() }
     // A nested KontourTheme — a screen forcing dark mode, say — re-provides the
     // token locals but must not install a second modality tracker: two Boxes
     // observing the same pointer stream is wasted work, and the inner one would
@@ -222,6 +225,10 @@ fun KontourTheme(
         LocalContentColour provides resolvedColours.content,
         LocalTextStyle provides typography.bodyMedium,
         LocalFeedback provides feedback,
+        // One floor per theme, so every light haptic under it shares a rate
+        // limit. A floor per component is a floor per component, and a hand does
+        // not feel components.
+        LocalFeedbackFloor provides feedbackFloor,
     ) {
         if (alreadyTracking) {
             content()

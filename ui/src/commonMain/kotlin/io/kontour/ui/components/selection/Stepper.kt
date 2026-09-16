@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
@@ -145,6 +146,8 @@ fun Stepper(
             candidates.maxOf { measurer.measure(format(it), valueStyle).size.width }.toDp()
         }
     }
+    val tap = rememberTapFeedback()
+
 
     Row(
         modifier = modifier.semantics {
@@ -159,6 +162,7 @@ fun Stepper(
             icon = SystemIcons.Dash,
             contentDescription = decrementLabel,
             onClick = {
+                tap()
                 onValueChange((shown - step).coerceIn(range))
             },
             enabled = canDecrement,
@@ -198,6 +202,7 @@ fun Stepper(
             icon = SystemIcons.Plus,
             contentDescription = incrementLabel,
             onClick = {
+                tap()
                 onValueChange((shown + step).coerceIn(range))
             },
             enabled = canIncrement,

@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
@@ -386,6 +387,7 @@ private fun DayCell(
     dragging: Boolean,
     onSelectedChange: (LocalDate) -> Unit,
 ) {
+    val tap = rememberTapFeedback()
     val colours = Theme.colours
     val motion = Theme.motion
     val interactions = remember { MutableInteractionSource() }
@@ -608,6 +610,7 @@ private fun DayCell(
                     enabled = enabled,
                     role = Role.Button,
                     onClick = {
+                        tap()
                         onSelectedChange(date)
                     },
                 ),

@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
@@ -207,6 +208,7 @@ fun FilterChip(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit
 ) {
+    val tap = rememberTapFeedback()
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
@@ -251,7 +253,7 @@ fun FilterChip(
             .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,
-                onClick = onClick,
+                onClick = { tap(); onClick() },
                 enabled = enabled,
                 role = Role.Checkbox,
                 interactionSource = interactions,

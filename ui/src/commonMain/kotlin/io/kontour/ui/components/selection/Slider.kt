@@ -214,6 +214,21 @@ fun Slider(
         SliderThumbRadius.toPx() * SliderDefaults.MaxStretch
     }
 
+    /**
+     * Reaching an end of the range, reported once per arrival.
+     *
+     * A second ticker rather than a second index on [ticker], because the two
+     * live in different spaces — one counts steps and this one counts which wall
+     * the finger is against — and `at` compares against whatever it was last
+     * given. Sharing it would make the last step before the end fire twice and
+     * the first step back fire not at all.
+     *
+     * Latched on the *clamp* rather than on `band.offset`, so it still reports
+     * with reduced motion on, where nothing is pulled and nothing deforms. A user
+     * who has asked for less movement has not asked for less news.
+     */
+    val endStop = rememberDetentTicker()
+
     // Read here rather than inside `drawWithCache`, which is not a composable.
     val tickSize = Theme.componentDefaults.sliderTickSize
 
@@ -472,6 +487,12 @@ fun Slider(
                         // Not carrying yet: the value is at the finger, and the
                         // thumb travels there. See [carrying].
                         carrying = false
+                        // Armed inside the track, so a press *on* the end thumb
+                        // followed by a push outwards still reports. Without
+                        // this the first delta of that gesture is the ticker's
+                        // arming call and the one end stop the user is leaning
+                        // on is the one that never fires.
+                        endStop.at(0)
                         emit(dragFraction)
                     },
                     onDelta = { delta ->
@@ -493,12 +514,16 @@ fun Slider(
                         // the track has to answer before anything is pulled, or
                         // the last pixel of the slider stops reporting.
                         emit(dragFraction)
+                        // Signed, so a sweep that runs off one end and onto the
+                        // other reports at both rather than staying latched.
+                        endStop.at(if (raw > 1f) 1 else if (raw < 0f) -1 else 0)
                         if (!motion.reduceMotion) {
                             band.pull((raw - dragFraction) * widthPx, thumbSquashPx)
                         }
                     },
                     onEnd = {
                         ticker.reset()
+                        endStop.reset()
                         // The same spring the thumb settles on, so the squash
                         // unwinds as the thumb lands on its detent rather than
                         // as a second animation over the top of it.

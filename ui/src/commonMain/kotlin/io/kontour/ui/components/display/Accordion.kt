@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
@@ -83,6 +84,7 @@ fun Accordion(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val tap = rememberTapFeedback()
     val slots = listItemSlots(header)
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val motion = Theme.motion
@@ -112,6 +114,7 @@ fun Accordion(
                     indication = kontourIndication(shape, pressScale = 1f),
                     enabled = enabled,
                     onClick = {
+                        tap()
                         onExpandedChange(!expanded)
                     },
                 )

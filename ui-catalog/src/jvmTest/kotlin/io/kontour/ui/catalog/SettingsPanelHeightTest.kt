@@ -36,17 +36,40 @@ import kotlin.test.assertTrue
  *
  * The gallery's sheet, 380dp wide:
  *
- * | device font scale | height |
- * |---|---|
- * | 100% | 728dp |
- * | 130% | 751dp |
- * | 200% | 863dp |
+ * | device font scale | was | now | added by |
+ * |---|---|---|---|
+ * | 100% | 728dp | **826dp** | Haptics: a label and a four-segment control |
+ * | 130% | 751dp | **854dp** | the same |
+ * | 200% | 863dp | **978dp** | the same |
  *
  * A Pixel-class phone is 915dp tall and gives up roughly 48dp of that to its
- * status bar and gesture inset, so **200% is already inside the last 20dp of the
- * window**. A 640dp phone — a 5" device, which `minSdk = 29` still admits —
- * crops the panel at every text size, and did before this round too: the panel
- * measured about 672dp without the new row.
+ * status bar and gesture inset. Before this round 200% sat inside the last 20dp
+ * of that window; **it is now past the bottom of it by about 110dp.** A 640dp
+ * phone — a 5" device, which `minSdk = 29` still admits — cropped the panel at
+ * every text size before this round too: it measured about 672dp when the file
+ * was written.
+ *
+ * ### What the Haptics row cost, and why it was spent anyway
+ *
+ * Roughly a hundred dp at every scale, for one label and one `SegmentedControl` —
+ * the same shape as Text size and Input modality above it, and the same cost. It
+ * is the most expensive row in the panel per setting it offers, and the
+ * alternative that would be cheaper is a `Select`, which is one row instead of
+ * two and hides the four options behind a tap.
+ *
+ * The control stays as it is, for two reasons that are both about this panel
+ * rather than about haptics. Four levels visible at once is the *only* way a
+ * reader compares them, and comparing is the whole gesture here: somebody
+ * changing this is deciding between "less" and "none", not selecting a known
+ * value. And the third `SegmentedControl` in a column of three is a row a reader
+ * already knows how to read, where a lone dropdown among them would be a fourth
+ * idiom on a panel that has three.
+ *
+ * What it does mean is that **the scroll is now load-bearing at every font scale
+ * on a small phone, and at 200% on any phone.** That was already true at 200% and
+ * is now true more widely, and the next row added here should be the one that
+ * finally reorders the panel by what a reader reaches for rather than appending
+ * to it.
  *
  * ### So this is a ratchet, not a guarantee
  *
@@ -101,12 +124,12 @@ class SettingsPanelHeightTest {
         assertTrue(
             over.isEmpty(),
             "the display settings grew:\n" + over.joinToString("\n") +
-                "\nAt 200% this panel already runs to within about 20dp of a " +
-                "Pixel-class window, and past the bottom of a 5\" one. It " +
+                "\nAt 200% this panel already runs past the bottom of a " +
+                "Pixel-class window, and past a 5\" one at every text size. It " +
                 "scrolls, so nothing is unreachable — but the rows down there " +
-                "are Text size and Input modality, the two a reader at 200% type " +
-                "opened the panel to change. Raise a ceiling deliberately, with " +
-                "a note saying what moved.",
+                "are Text size, Haptics and Input modality, which are the ones a " +
+                "reader at 200% type opened the panel to change. Raise a ceiling " +
+                "deliberately, with a note saying what moved.",
         )
     }
 
@@ -139,6 +162,6 @@ class SettingsPanelHeightTest {
          * that lets a row land unnoticed, which is the whole thing this is here
          * to prevent. Legitimate growth edits these numbers and says why.
          */
-        val Ceilings = listOf(1f to 728, 1.3f to 751, 2f to 863)
+        val Ceilings = listOf(1f to 826, 1.3f to 854, 2f to 978)
     }
 }

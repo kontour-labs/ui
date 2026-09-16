@@ -43,6 +43,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
@@ -53,6 +56,7 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.action.ButtonSize
@@ -248,9 +252,63 @@ fun Carousel(
         }
     }
 
+    /**
+     * The first and last page refusing to go any further.
+     *
+     * Read off nested scroll rather than off the state, because the state cannot
+     * tell the two cases apart: `canScrollBackward` is already false when page
+     * one is merely *showing*, and what is worth reporting is a finger that asked
+     * for more and got nothing. `available` in [NestedScrollConnection.onPostScroll]
+     * is exactly that — the part of the drag the list declined — and nested scroll
+     * is the one seam that sees a touch drag here, since the `draggable` below is
+     * the list's ancestor and only ever gets what the list did not want.
+     *
+     * `UserInput` only. A fling that coasts into the last page is not a hand being
+     * told anything; it is a hand that already let go.
+     */
+    val limit = rememberDetentTicker()
+    val limitScroll = remember(limit) {
+        object : NestedScrollConnection {
+            /** Whether this gesture has handed the ticker a starting index yet. */
+            private var armed = false
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset {
+                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                // Armed from inside the track on the gesture's first frame, so a
+                // drag that starts *at* a limit and pushes outwards still
+                // reports. `at` arms on its first call after a reset, and for
+                // this signal the first call is routinely already the news.
+                if (!armed) {
+                    limit.at(0)
+                    armed = true
+                }
+                // Leftward is negative, and leftward is toward the last page.
+                limit.at(
+                    when {
+                        available.x < -UnconsumedDrag -> 1
+                        available.x > UnconsumedDrag -> -1
+                        else -> 0
+                    }
+                )
+                return Offset.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                armed = false
+                limit.reset()
+                return Velocity.Zero
+            }
+        }
+    }
+
     LazyRow(
         modifier = modifier
             .fillMaxWidth()
+            .nestedScroll(limitScroll)
             // Draggable with a pointer, not only scrollable with a finger.
             //
             // A `LazyRow` answers touch and the wheel, and on desktop that is
@@ -666,3 +724,13 @@ private fun firmSnapFlingBehaviour(listState: LazyListState): FlingBehavior {
     }
     return remember(provider, decay, snap) { snapFlingBehavior(provider, decay, snap) }
 }
+
+/**
+ * How much of a drag has to go unconsumed before the carousel calls it a wall.
+ *
+ * A pixel of slop rather than an exact zero. A nested-scroll pass routinely
+ * leaves a fraction of a pixel on the table from rounding partway through the
+ * track, and a strict `!= 0f` reads that as an end stop and rattles halfway
+ * along the strip.
+ */
+private const val UnconsumedDrag = 0.5f

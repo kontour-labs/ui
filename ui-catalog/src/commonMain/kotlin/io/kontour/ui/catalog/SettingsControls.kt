@@ -14,6 +14,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.theme.ContrastLevel
+import io.kontour.ui.interaction.HapticsLevel
 import io.kontour.ui.theme.Theme
 
 /**
@@ -170,6 +171,18 @@ fun DisplaySettingsControls(
     )
 
     Text(
+        text = "Haptics",
+        style = Theme.typography.labelMedium,
+        modifier = Modifier.padding(top = Theme.spacing.sm),
+    )
+    SegmentedControl(
+        options = hapticsLevels.map { it.name },
+        selected = hapticsLevels.indexOf(settings.haptics).coerceAtLeast(0),
+        onSelectedChange = { settings.haptics = hapticsLevels[it] },
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    Text(
         text = "Input modality",
         style = Theme.typography.labelMedium,
         modifier = Modifier.padding(top = Theme.spacing.sm),
@@ -206,6 +219,22 @@ fun DisplaySettingsControls(
  *
  * `SettingsLabelFitTest` holds every one of those measurements.
  */
+/**
+ * The four levels, in the order they are declared, which is quietest first.
+ *
+ * `entries` rather than a hand-written list, so a fifth level cannot be added to
+ * the library and quietly stay out of the one control that offers them. The
+ * labels are the enum's own names for the same reason — a display string here
+ * would be a second name for each level with nothing keeping the two in step.
+ *
+ * **They do not all fit at 200% type**, and this is the third control in this
+ * panel with that problem: `Standard` is eight characters in four segments, where
+ * `Keyboard` already measured 124dp against an 84dp segment. Naming them `Std`
+ * would fit and would be the wrong fix, for the same reason `Keys` was — see
+ * `SettingsLabelFitTest`, which pins all three and says what the real one is.
+ */
+val hapticsLevels: List<HapticsLevel> = HapticsLevel.entries
+
 val textScales: List<Pair<String, Float?>> = listOf(
     "Auto" to null,
     "85" to 0.85f,

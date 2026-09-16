@@ -33,7 +33,7 @@ internal fun SettingsPanel(settings: CatalogSettings, systemDark: Boolean) {
     // No padding of its own: the only caller is a `Popover`, and `PopoverPanel`
     // already wraps its content in a `Column` with exactly this padding and this
     // arrangement. Padding twice spent 32 of the popover's 320dp cap on nothing,
-    // which is 8dp off every segment of the two `SegmentedControl`s below — the
+    // which is 8dp off every segment of the three `SegmentedControl`s below — the
     // difference between "Keyboard" fitting and arriving as "Keyboar".
     Column(
         modifier = Modifier.fillMaxWidth(),

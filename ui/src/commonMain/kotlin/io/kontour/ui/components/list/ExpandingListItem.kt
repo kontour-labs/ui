@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.foundation.Icon
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -87,6 +88,7 @@ fun ExpandingListItem(
     interactionSource: MutableInteractionSource? = null,
     content: ListGroupScope.() -> Unit,
 ) {
+    val tap = rememberTapFeedback()
     val motion = Theme.motion
     val children = ListGroupScope().apply(content).rows
 
@@ -105,7 +107,7 @@ fun ExpandingListItem(
         ListItem(
             enabled = enabled,
             onClick = if (opens) {
-                { onExpandedChange(!expanded) }
+                { tap(); onExpandedChange(!expanded) }
             } else {
                 null
             },

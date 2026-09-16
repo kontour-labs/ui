@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
@@ -115,6 +116,7 @@ private fun Swatch(
     size: Dp,
     automaticIcon: ImageVector?,
 ) {
+    val tap = rememberTapFeedback()
     val scheme = Theme.colours
     val motion = Theme.motion
     val interactions = remember { MutableInteractionSource() }
@@ -174,6 +176,7 @@ private fun Swatch(
                 enabled = enabled,
                 role = Role.RadioButton,
                 onClick = {
+                    tap()
                     onSelectedChange()
                 },
             ),

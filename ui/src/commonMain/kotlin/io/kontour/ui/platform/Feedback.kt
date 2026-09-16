@@ -44,3 +44,26 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
  * | Desktop | `VirtualKey` | No motor; the handler returns immediately whatever this says |
  */
 internal expect val platformTickHaptic: HapticFeedbackType
+
+/**
+ * The constant behind [io.kontour.ui.interaction.FeedbackIntent.Tap].
+ *
+ * The second entry in this file, and the argument for it is the same shape as
+ * the first one's: a tap wants **the lightest thing that is still felt**, and
+ * what that is differs by platform in a way a common constant cannot express.
+ *
+ * Where a lighter tier exists it is taken. Where it does not, this is the same
+ * pulse as [platformTickHaptic] — and saying so is the honest version, because
+ * the alternative is a scale that reads as four levels of intensity and is two
+ * on half the devices.
+ *
+ * ### What each platform answers, and why
+ *
+ * | | | |
+ * |---|---|---|
+ * | iOS | `SegmentTick` | `selectionChanged()`, the lightest thing on the device — genuinely lighter than an impact |
+ * | Android | `SegmentTick` on API 34+, else `VirtualKey` | the soft constant exists from 34; below it, `VirtualKey` rather than silence, because a tap that does nothing is worse than one 20ms too heavy |
+ * | Web | `VirtualKey` | 20ms is the only pattern above the motor's spin-up; 12 and 6 are not felt |
+ * | Desktop | `VirtualKey` | no motor, and the handler returns immediately whatever this says |
+ */
+internal expect val platformTapHaptic: HapticFeedbackType

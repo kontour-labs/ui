@@ -32,13 +32,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.LocalRowToggle
 import io.kontour.ui.theme.Theme
@@ -118,6 +119,8 @@ fun Switch(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    val tap = rememberTapFeedback()
+    val crossing = rememberDetentTicker(FeedbackIntent.DragThreshold)
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
@@ -258,8 +261,6 @@ fun Switch(
     /** The thumb's own maximum deformation, which is what the squash is scaled to. */
     val thumbSquashPx = with(LocalDensity.current) { ThumbSize.toPx() } * (ThumbStretch - 1f)
 
-    val feedback = LocalFeedback.current
-
     // Springs to wherever `checked` now is, starting from wherever the thumb now
     // is. Keyed on `dragging` as well as on `checked`, so it also runs when a
     // drag ends without changing anything — a short drag, or a caller that
@@ -294,6 +295,13 @@ fun Switch(
                     Modifier.pointerCursor(enabled = enabled).toggleable(
                         value = checked,
                         onValueChange = {
+                            // A tapped switch reports like the checkbox beside
+                            // it. It used to be silent on the argument that a
+                            // thumb crossing a 20dp track is obvious enough —
+                            // which is true of the switch alone and wrong in a
+                            // settings list, where the control above it ticks
+                            // and this one does not.
+                            tap()
                             onCheckedChange(it)
                         },
                         enabled = enabled,
@@ -344,9 +352,14 @@ fun Switch(
                                 // The one thing here the eye is not already
                                 // being told: what letting go will do has just
                                 // changed. `DragThreshold` is the intent for
-                                // exactly that, and a tap still reports
-                                // nothing — see `DetentHapticsTest`.
-                                feedback.perform(FeedbackIntent.DragThreshold)
+                                // exactly that.
+                                //
+                                // Through the ticker rather than performed
+                                // directly, because a midpoint is a two-sided
+                                // threshold — the same guard, doing the same
+                                // job, and it shares the rate floor with every
+                                // other light haptic instead of keeping its own.
+                                crossing.at(if (side) 1f else 0f)
                                 dragTarget(side)
                             }
 
@@ -380,6 +393,14 @@ fun Switch(
                             dragAccumulator = fraction.value
                             committed = checked
                             dragging = true
+                            // Armed at the side the thumb starts on, so the
+                            // first crossing *reports* rather than being taken
+                            // as the ticker's starting index. Every other
+                            // `DetentTicker` is armed by a gesture that begins
+                            // on a detent and reports the ones after it; this
+                            // one has exactly one crossing to give, so arming it
+                            // on that crossing would silence the whole gesture.
+                            crossing.at(if (checked) 1f else 0f)
                         },
                         onDragStopped = {
                             // Nothing to report here any more: the midpoint did
@@ -390,6 +411,7 @@ fun Switch(
                             // settled on — including back, if the caller
                             // declined the change.
                             dragging = false
+                            crossing.reset()
                             // Bouncy rather than snappy, matching `pressStretch`
                             // above: a switch is small enough that a little
                             // overshoot reads as rubber rather than as wobble.

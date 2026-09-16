@@ -38,6 +38,7 @@ import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.SpringToken
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.theme.Theme
 import kotlin.time.Duration
 import kotlinx.coroutines.delay
@@ -142,6 +143,7 @@ fun AnimatedCounter(
     contentDescription: String? = null,
 ) {
     val motion = Theme.motion
+    val tap = rememberTapFeedback()
 
     // What is actually drawn, which is `value` except while a fall is being
     // announced. See [warnBefore].
@@ -150,6 +152,14 @@ fun AnimatedCounter(
 
     LaunchedEffect(value, warnBefore, motion.reduceMotion) {
         val falling = value < shown
+        // Down is the one direction worth reporting, and the report is the whole
+        // reason the warning exists at all: a number that rises is good news the
+        // reader can take at their leisure, and a number that falls is a seat
+        // count or a time remaining that they may be about to act on. It fires
+        // whether or not there is a `warnBefore` to hold it, and whether or not
+        // motion is reduced — a reader who has asked for less movement is exactly
+        // the one the drop is quietest for.
+        if (falling) tap()
         if (!falling || warnBefore <= Duration.ZERO || motion.reduceMotion) {
             warning = false
             shown = value

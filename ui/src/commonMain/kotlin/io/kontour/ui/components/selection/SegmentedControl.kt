@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
@@ -117,6 +118,7 @@ fun SegmentedControl(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
+    val tap = rememberTapFeedback()
     if (options.isEmpty()) return
 
     val colours = Theme.colours
@@ -448,6 +450,7 @@ fun SegmentedControl(
                         .selectable(
                             selected = selected,
                             onClick = {
+                                tap()
                                 onSelectedChange(index)
                             },
                             enabled = enabled,

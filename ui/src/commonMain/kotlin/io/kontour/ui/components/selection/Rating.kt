@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
@@ -113,6 +114,7 @@ fun Rating(
     stateDescription: ((Float) -> String)? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    val tap = rememberTapFeedback()
     val empty = icon ?: SystemIcons.Star
     val full = filledIcon ?: SystemIcons.StarFilled
     val clamped = value.coerceIn(0f, count.toFloat())
@@ -177,6 +179,12 @@ fun Rating(
             else -> (index + 1).toFloat()
         }
         if (next == currentValue) return
+        // Once per value taken, which under a drag is once per mark the finger
+        // passes. The guard above is what makes that true: this runs on every
+        // moved frame and returns on all but the few that change anything, so
+        // the tap is per star and not per frame, and the shared rate floor is
+        // the backstop rather than the mechanism.
+        tap()
         currentChange(next)
     }
 
@@ -256,7 +264,12 @@ fun Rating(
                     .pointerCursor(enabled = enabled)
                     .selectable(
                         selected = markValue <= selected,
-                        onClick = { onValueChange(markValue.toFloat()) },
+                        // The keyboard and assistive-tech path, and the only one
+                        // that reaches here — the row consumes the pointer on the
+                        // initial pass, so this and `setFromX` never both answer
+                        // the same input. Both acknowledge, because a checkbox
+                        // activated from the keyboard does.
+                        onClick = { tap(); onValueChange(markValue.toFloat()) },
                         enabled = enabled,
                         role = androidx.compose.ui.semantics.Role.RadioButton,
                         interactionSource = interactions,

@@ -43,6 +43,7 @@ import io.kontour.ui.foundation.toHsv
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.freeDragOwning
 import io.kontour.ui.interaction.horizontalDragOwning
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
@@ -288,13 +289,28 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
     val strings = Theme.strings
     val pure = remember(hsv.hue) { Hsv(hsv.hue, 1f, 1f).toColour() }
 
+    /**
+     * The finger running out of spectrum, reported once per wall arrived at.
+     *
+     * Two axes and therefore four walls, packed into one index as
+     * `x + 3 * y` with each term in `-1..1`. Any change of one or more fires, so
+     * leaving the middle reports, and reaching a corner from an edge reports
+     * again — which is right: the second wall is news the first one did not give.
+     * The spacing between the two is the shared rate floor's problem, not this
+     * arithmetic's.
+     */
+    val edge = rememberDetentTicker()
+
     fun report(position: Offset) {
         if (box.width <= 0f || box.height <= 0f) return
         at = position
+        val across = position.x / box.width
+        val down = position.y / box.height
+        edge.at(wall(across) + 3 * wall(down))
         onHsvChange(
             hsv.copy(
-                saturation = (position.x / box.width).coerceIn(0f, 1f),
-                value = 1f - (position.y / box.height).coerceIn(0f, 1f),
+                saturation = across.coerceIn(0f, 1f),
+                value = 1f - down.coerceIn(0f, 1f),
             )
         )
     }
@@ -316,7 +332,7 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
                 claimsOn = DragClaim.Press,
                 onStart = ::report,
                 onDelta = { report(at + it) },
-                onEnd = {},
+                onEnd = { edge.reset() },
             )
             .semantics { contentDescription = strings.colourArea }
     ) {
@@ -350,6 +366,15 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
     var at by remember { mutableStateOf(Offset.Zero) }
     val strings = Theme.strings
 
+    /**
+     * A cell crossed under the finger — the strictest kind of detent there is,
+     * since the colour visibly steps rather than sliding.
+     *
+     * Flattened to `row * columns + column`, so a sideways move differs by one
+     * and a vertical one by a row's width. Both are a crossing and both fire.
+     */
+    val cells = rememberDetentTicker()
+
     fun report(position: Offset) {
         if (box.width <= 0f || box.height <= 0f) return
         at = position
@@ -357,6 +382,7 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
             .toInt().coerceIn(0, PaletteColumns - 1)
         val row = ((position.y / box.height) * PaletteRows)
             .toInt().coerceIn(0, PaletteRows - 1)
+        cells.at(row * PaletteColumns + column)
         onHsvChange(
             hsv.copy(
                 saturation = (column + 1).toFloat() / PaletteColumns,
@@ -378,7 +404,7 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
                 claimsOn = DragClaim.Press,
                 onStart = ::report,
                 onDelta = { report(at + it) },
-                onEnd = {},
+                onEnd = { cells.reset() },
             )
             .semantics { contentDescription = strings.colourArea }
     ) {
@@ -481,10 +507,21 @@ private fun Track(
     var width by remember { mutableFloatStateOf(0f) }
     var at by remember { mutableFloatStateOf(0f) }
 
+    /**
+     * Either end of the track, reported once per arrival.
+     *
+     * The press arms it — a press lands on the canvas, so its fraction is inside
+     * `0..1` and the first call can only ever be the middle. It is a drag that
+     * runs off the end, and that is the one this has something to say about.
+     */
+    val edge = rememberDetentTicker()
+
     fun report(x: Float) {
         if (width <= 0f) return
         at = x
-        onFractionChange((x / width).coerceIn(0f, 1f))
+        val fraction = x / width
+        edge.at(wall(fraction))
+        onFractionChange(fraction.coerceIn(0f, 1f))
     }
 
     Canvas(
@@ -508,7 +545,7 @@ private fun Track(
                 claimsOn = DragClaim.Press,
                 onStart = { report(it.x) },
                 onDelta = { report(at + it) },
-                onEnd = {},
+                onEnd = { edge.reset() },
             )
             .semantics {
                 contentDescription = label
@@ -558,6 +595,20 @@ private fun DrawScope.cursor(at: Offset) {
         style = Stroke(stroke * 2f),
     )
     drawCircle(color = Color.White, radius = radius, center = centre, style = Stroke(stroke))
+}
+
+/**
+ * Which side of a `0..1` axis a fraction has run off, as -1, 0 or 1.
+ *
+ * Shared by the spectrum and the tracks so the two cannot come to disagree about
+ * where an edge is. The slop is a fraction of a pixel on any real control: a
+ * press landing exactly on the last pixel reports 1.0 and is not a refusal, so
+ * the comparison has to be strict.
+ */
+private fun wall(fraction: Float): Int = when {
+    fraction > 1f -> 1
+    fraction < 0f -> -1
+    else -> 0
 }
 
 /**

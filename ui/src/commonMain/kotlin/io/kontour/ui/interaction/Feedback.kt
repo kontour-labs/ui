@@ -8,6 +8,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import io.kontour.ui.platform.platformTapHaptic
 import io.kontour.ui.platform.platformTickHaptic
 
 /**
@@ -24,6 +25,25 @@ import io.kontour.ui.platform.platformTickHaptic
 enum class FeedbackIntent {
     /** A value changed: a toggle flipped, a radio selected, a chip filtered. */
     Selection,
+
+    /**
+     * A control acknowledged a press — the lightest thing the device can do.
+     *
+     * **Not [Selection], and the four levels are why.** "A detent crossed under
+     * a finger" and "the thing you pressed answered you" are different enough
+     * that somebody should be able to keep one and drop the other, and an intent
+     * that means both cannot be filtered apart.
+     *
+     * It is honestly lighter only where the platform has something lighter:
+     * `UISelectionFeedbackGenerator` on iOS, the API-34 segment tick on recent
+     * Android. On the web and on older Android it is the same 20ms pulse as
+     * [Tick], because below that nothing is felt at all — see
+     * [io.kontour.ui.platform.platformTapHaptic], which argues it per platform.
+     *
+     * Shares [Tick]'s rate floor rather than having its own. A hand feels one
+     * rattle, not one per component.
+     */
+    Tap,
 
     /**
      * A discrete step was crossed: a slider tick, a picker detent, a segment.
@@ -98,29 +118,44 @@ enum class FeedbackIntent {
  * It is a real setting rather than a debug switch. Continuous feedback is the
  * kind most likely to be unwelcome: a slider ticking through forty detents is
  * delightful once and wearing on a long form, and some users find it actively
- * unpleasant. [Essential] keeps the feedback that reports an *outcome* and drops
+ * unpleasant. [Reduced] keeps the feedback that reports an *outcome* and drops
  * the feedback that reports *progress*.
  */
 enum class HapticsLevel {
-    /** Every intent. The default. */
-    Full,
+    /** Nothing. For a kiosk, a test, or a user who has asked for silence. */
+    Off,
 
     /**
      * Outcomes only — a confirmation, a refusal, a threshold crossed, a long
-     * press. The continuous ones ([FeedbackIntent.Tick],
-     * [FeedbackIntent.Selection], [FeedbackIntent.KeyPress]) are dropped, so a
-     * drag still reports arriving somewhere without buzzing the whole way there.
+     * press. The ones that report *progress* ([FeedbackIntent.Tap],
+     * [FeedbackIntent.Tick], [FeedbackIntent.Selection],
+     * [FeedbackIntent.KeyPress]) are dropped, so a drag still reports arriving
+     * somewhere without buzzing the whole way there.
+     *
+     * This was called `Essential` and is the same set, less the new [Tap].
      */
-    Essential,
+    Reduced,
 
-    /** Nothing. For a kiosk, a test, or a user who has asked for silence. */
-    Off,
+    /**
+     * Everything a control does under a finger. **The default.**
+     *
+     * Taps, detents, thresholds and outcomes. What it leaves out is
+     * [FeedbackIntent.KeyPress], which is the one intent nothing in the library
+     * performs and the only one that is decorative rather than reporting
+     * something a reader could not otherwise tell.
+     */
+    Standard,
+
+    /** Every intent, [FeedbackIntent.KeyPress] included. */
+    Full,
     ;
 
     internal fun allows(intent: FeedbackIntent): Boolean = when (this) {
         Full -> true
         Off -> false
-        Essential -> when (intent) {
+        Standard -> intent != FeedbackIntent.KeyPress
+        Reduced -> when (intent) {
+            FeedbackIntent.Tap,
             FeedbackIntent.Tick,
             FeedbackIntent.Selection,
             FeedbackIntent.KeyPress,
@@ -237,7 +272,7 @@ val Feedback: FeedbackDispatcher
  */
 @Composable
 internal fun rememberDefaultFeedbackDispatcher(
-    level: HapticsLevel = HapticsLevel.Full,
+    level: HapticsLevel = HapticsLevel.Standard,
 ): FeedbackDispatcher {
     val haptics: HapticFeedback = LocalHapticFeedback.current
     // Almost no `expect`/`actual` here, and the exception is the interesting
@@ -263,6 +298,9 @@ internal fun rememberDefaultFeedbackDispatcher(
             haptics.performHapticFeedback(
                 when (intent) {
                     FeedbackIntent.Selection -> HapticFeedbackType.ContextClick
+                    // The second value that is not the same everywhere, and it
+                    // had to argue for itself. See [platformTapHaptic].
+                    FeedbackIntent.Tap -> platformTapHaptic
                     // The one value that is not the same everywhere. See
                     // [io.kontour.ui.platform.platformTickHaptic].
                     FeedbackIntent.Tick -> platformTickHaptic
@@ -276,6 +314,33 @@ internal fun rememberDefaultFeedbackDispatcher(
                 }
             )
         }
+    }
+}
+
+/**
+ * A press acknowledged, rate-limited, ready to call from a click handler.
+ *
+ * ```kotlin
+ * val tap = rememberTapFeedback()
+ * Checkbox(checked = on, onCheckedChange = { tap(); onCheckedChange(it) })
+ * ```
+ *
+ * **One helper rather than a `perform` at each site**, and the reason is not
+ * tidiness. Every light haptic in a composition shares one rate floor, so a
+ * chip row answering three taps in quick succession is one tick and not three;
+ * putting the call behind a single function is what makes that true by
+ * construction rather than by each caller remembering. It is also the only
+ * reason a dozen components can report a tap without the audit's ceiling on
+ * haptic call sites moving, which is a ceiling worth keeping.
+ *
+ * Silent at [HapticsLevel.Reduced] and below, which is the level's whole point.
+ */
+@Composable
+fun rememberTapFeedback(): () -> Unit {
+    val feedback = LocalFeedback.current
+    val floor = LocalFeedbackFloor.current
+    return remember(feedback, floor) {
+        { if (floor.claim(FeedbackIntent.Tap)) feedback.perform(FeedbackIntent.Tap) }
     }
 }
 
