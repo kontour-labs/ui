@@ -14,6 +14,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
@@ -121,6 +127,12 @@ fun SegmentedControl(
     val tap = rememberTapFeedback()
     if (options.isEmpty()) return
 
+    // Only here to put `constraints` in scope for the fit decision below — the
+    // control has to know how wide it is *before* it decides which way to run,
+    // and that is a measurement no modifier can hand it. The caller's modifier
+    // goes on this node, so the width it establishes is the one being divided.
+    BoxWithConstraints(modifier) {
+
     val colours = Theme.colours
     val motion = Theme.motion
     val outerShape = Theme.shapes.field
@@ -186,15 +198,54 @@ fun SegmentedControl(
         label = "segmentStrain",
     )
 
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val labelStyle = Theme.typography.labelMedium
+
+    /**
+     * Whether the labels have to stop sharing one row.
+     *
+     * **Measured, not guessed**, and measured against the same number the
+     * ellipsis decision is made from: the widest label at `labelMedium` against
+     * the width one segment would get.
+     *
+     * At 200% type "Keyboard" is 124dp against an 84dp segment, and `Standard` is
+     * 119.5dp against the same — so two of the settings panel's three segmented
+     * controls cut their own labels, on the one accessibility setting whose whole
+     * purpose is to make text readable. Wrapping to a second line does not help:
+     * `Keyboard`, `Standard` and `200` are single unbreakable words, so
+     * `maxLines = 2` changes nothing at all.
+     *
+     * It cannot oscillate. Stacking changes the height and never the width, so
+     * the number the decision is made from is the same before and after it.
+     */
+    // Read out here: `TrackPadding` is a `@ReadOnlyComposable` property off the
+    // theme, and `remember`'s calculation is not a composable context.
+    val trackPadding = SegmentedControlDefaults.TrackPadding
+    val stacked = remember(options, measurer, constraints.maxWidth, density, labelStyle, trackPadding) {
+        val track = with(density) { constraints.maxWidth.toDp() } - trackPadding * 2
+        val each = track / options.size
+        val widest = options.maxOf { measurer.measure(it, labelStyle).size.width }
+        with(density) { widest.toDp() } > each
+    }
+
     SelectionIndicatorBox(
         state = indicator,
         // The thumb is exactly the segment it marks. Sized from the measured
         // segment rather than `maxWidth / options.size`, so segments no longer
         // have to be equal width — which the previous implementation required.
         sizing = IndicatorSizing.Fill,
-        modifier = modifier
+        modifier = Modifier
             .selectableGroup()
-            .height(height)
+            // `heightIn`, not `height`. An exact height is a promise the type
+            // cannot keep: the content box is this less 12dp of track padding —
+            // 36dp on Android, 32dp elsewhere — while a 14sp label with a 1.20
+            // line height grows linearly, crossing 32dp at about 1.9x and 36dp at
+            // about 2.14x. Past that the clip on each segment cut the glyphs top
+            // and bottom, with no vertical equivalent of an ellipsis to mark it.
+            // Nothing moves at the default scale, where the label fits with room
+            // to spare.
+            .heightIn(min = if (stacked) height * options.size else height)
             .clip(outerShape)
             .background(colours.surfaceSunken, outerShape)
             .then(
@@ -366,7 +417,15 @@ fun SegmentedControl(
             currentChange(index)
         }
 
-        Row(
+        // The drag belongs to a row and only to a row. `selectAt` quantises
+        // `x / trackWidth` into equal buckets along one axis, and stacked there
+        // is no such axis — a vertical drag over stacked segments would also be
+        // competing with the page scroller for its own direction. The taps are
+        // per-segment and untouched, which is the whole interaction at a text
+        // size where this fires.
+        val track: Modifier = if (stacked) {
+            Modifier.fillMaxWidth()
+        } else {
             Modifier
                 .fillMaxWidth()
                 .fillMaxHeight()
@@ -424,62 +483,114 @@ fun SegmentedControl(
                         }
                     },
                 )
-        ) {
-            options.forEachIndexed { index, option ->
-                val selected = index == selected
-                val interactions = remember { MutableInteractionSource() }
+        }
 
-                val labelColour by animateColorAsState(
-                    targetValue = when {
-                        !enabled -> colours.contentDisabled
-                        selected -> colours.content
-                        else -> colours.contentMuted
-                    },
-                    animationSpec = motion.tweenFast(),
-                    label = "segmentLabel",
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .selectionIndicatorItem(option, selected)
-                        .focusRing(interactions, innerShape)
-                        .clip(innerShape)
-                        .pointerCursor(enabled = enabled)
-                        .selectable(
-                            selected = selected,
-                            onClick = {
-                                tap()
-                                onSelectedChange(index)
-                            },
-                            enabled = enabled,
-                            role = Role.RadioButton,
-                            interactionSource = interactions,
-                            // The sliding thumb is the feedback; a wash on top of
-                            // it would fight with the movement.
-                            indication = null,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    ProvideTextStyle(Theme.typography.labelMedium) {
-                        // Ellipsis rather than `Text`'s default clip, for the
-                        // reason `TabBar` gives for the same decision: a control
-                        // that divides its width evenly *expects* a long label to
-                        // run out of room, and a word cut mid-stroke reads as a
-                        // different word rather than a shortened one. "Keyboard"
-                        // was arriving as "Keyboar", and as "Keybo" at 130% type
-                        // — the accessibility setting making the loss worse, with
-                        // nothing on screen marking it.
-                        Text(
-                            text = option,
-                            colour = labelColour,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+        // `weight` is a `RowScope` member and `fillMaxWidth` is what a column
+        // wants, so the per-segment modifier cannot be hoisted out of the
+        // container — which is why [SegmentedOption] takes it rather than
+        // building it. Everything else about a segment is identical either way.
+        if (stacked) {
+            Column(track) {
+                options.forEachIndexed { index, option ->
+                    SegmentedOption(
+                        // Stacked, each segment is its own row and therefore its
+                        // own touch target: `height` less the track's padding
+                        // would be 36dp on Android, under the minimum. Side by
+                        // side they share the control's, which is the bargain the
+                        // control's own height already strikes.
+                        modifier = Modifier.fillMaxWidth().heightIn(min = height),
+                        option = option,
+                        selected = index == selected,
+                        enabled = enabled,
+                        shape = innerShape,
+                        onClick = { tap(); onSelectedChange(index) },
+                    )
                 }
             }
+        } else {
+            Row(track) {
+                options.forEachIndexed { index, option ->
+                    SegmentedOption(
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        option = option,
+                        selected = index == selected,
+                        enabled = enabled,
+                        shape = innerShape,
+                        onClick = { tap(); onSelectedChange(index) },
+                    )
+                }
+            }
+        }
+    }
+    }
+}
+
+/**
+ * One option, in whichever direction the track is running.
+ *
+ * Extracted when the control learned to stack, for a reason that is Kotlin's
+ * rather than the design's: `Modifier.weight` belongs to `RowScope` and has no
+ * meaning in a column, so the two containers cannot share a modifier and the
+ * segment has to take one. Nothing else about an option depends on the
+ * direction.
+ */
+@Composable
+private fun SegmentedOption(
+    modifier: Modifier,
+    option: String,
+    selected: Boolean,
+    enabled: Boolean,
+    shape: Shape,
+    onClick: () -> Unit,
+) {
+    val colours = Theme.colours
+    val motion = Theme.motion
+    val interactions = remember { MutableInteractionSource() }
+
+    val labelColour by animateColorAsState(
+        targetValue = when {
+            !enabled -> colours.contentDisabled
+            selected -> colours.content
+            else -> colours.contentMuted
+        },
+        animationSpec = motion.tweenFast(),
+        label = "segmentLabel",
+    )
+
+    Box(
+        modifier = modifier
+            .selectionIndicatorItem(option, selected)
+            .focusRing(interactions, shape)
+            .clip(shape)
+            .pointerCursor(enabled = enabled)
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                enabled = enabled,
+                role = Role.RadioButton,
+                interactionSource = interactions,
+                // The sliding thumb is the feedback; a wash on top of it would
+                // fight with the movement.
+                indication = null,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        ProvideTextStyle(Theme.typography.labelMedium) {
+            // The floor under the stacking above rather than the answer to it.
+            //
+            // A track that cannot fit its labels lays them out in rows now, so
+            // this is reached only by a single word wider than the *whole*
+            // control — where there is nothing else to do. It matters that it is
+            // an ellipsis and not `Text`'s default clip, for the reason `TabBar`
+            // gives: a word cut mid-stroke reads as a different word rather than
+            // a shortened one, and "Keyboard" arriving as "Keyboar" is a label
+            // that lies rather than one that is short.
+            Text(
+                text = option,
+                colour = labelColour,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

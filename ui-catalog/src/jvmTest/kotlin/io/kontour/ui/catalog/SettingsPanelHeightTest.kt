@@ -9,6 +9,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -36,11 +37,23 @@ import kotlin.test.assertTrue
  *
  * The gallery's sheet, 380dp wide:
  *
- * | device font scale | was | now | added by |
- * |---|---|---|---|
- * | 100% | 728dp | **826dp** | Haptics: a label and a four-segment control |
- * | 130% | 751dp | **854dp** | the same |
- * | 200% | 863dp | **978dp** | the same |
+ * | device font scale | was | +Haptics | +stacking | added by |
+ * |---|---|---|---|---|
+ * | 100% | 728dp | 826dp | **826dp** | Haptics: a label and a four-segment control |
+ * | 130% | 751dp | 854dp | **854dp** | the same |
+ * | 200% | 863dp | 978dp | **1273dp** | two controls laying their options out in rows |
+ *
+ * The third column is the one worth reading. `SegmentedControl` stacks its
+ * options into full-width rows when its labels stop fitting, rather than cutting
+ * them — so at 200% both `Haptics` and `Input modality` become four rows each,
+ * and the panel gains about 150dp apiece. **Nothing changes at 100% or 130%**,
+ * where the labels still fit side by side, which is why those two columns are
+ * identical.
+ *
+ * That is the trade taken deliberately: a reader at 200% gets a much longer panel
+ * and can read every option in it, where before they got a shorter panel with
+ * `Keyboar…` and `Standar…` in it — on the one accessibility setting whose whole
+ * purpose is to make text legible.
  *
  * A Pixel-class phone is 915dp tall and gives up roughly 48dp of that to its
  * status bar and gesture inset. Before this round 200% sat inside the last 20dp
@@ -50,6 +63,7 @@ import kotlin.test.assertTrue
  * was written.
  *
  * ### What the Haptics row cost, and why it was spent anyway
+ *
  *
  * Roughly a hundred dp at every scale, for one label and one `SegmentedControl` —
  * the same shape as Text size and Input modality above it, and the same cost. It
@@ -134,23 +148,39 @@ class SettingsPanelHeightTest {
     }
 
     /**
-     * And at the site's popover width, which is narrower and no taller.
+     * And at the site's popover width, where narrowing now *does* make it taller.
      *
      * `PopoverPanel` caps its width at 320dp and spends 16dp a side on padding.
-     * The check is that narrowing does not make the panel *taller* — a label
-     * that wrapped, or a segmented control that grew a second line, would show
-     * up here and nowhere else.
+     * This used to assert that narrowing could not make the panel taller, on the
+     * reasoning that "a label that wrapped, or a segmented control that grew a
+     * second line, would show up here and nowhere else".
+     *
+     * **That is now the intended behaviour rather than the fault.** A segmented
+     * control whose labels stop fitting lays them out in rows, and the thing that
+     * makes labels stop fitting is exactly a narrower track. So the assertion is
+     * inverted into a measurement: how much taller, pinned, so that a change in
+     * the threshold shows up as a number moving rather than as a boolean that was
+     * always going to be true.
+     *
+     * 144dp is one four-option control stacking — `4 × 48dp` of rows against the
+     * 48dp it occupied in a line. Which control it is depends on this harness
+     * rather than on the site: it renders `SettingsSheetContent`, which carries
+     * the *sheet's* own padding, so at 288dp the control ends up with a 244dp
+     * track where the real popover gives it 276. `SettingsLabelFitTest` measures
+     * the real one, and says every label still fits there at 100%.
      */
     @Test
     fun narrowingToThePopoverDoesNotMakeItTaller() {
         val wide = heightDp(widthDp = 380, fontScale = 1f)
         val narrow = heightDp(widthDp = 288, fontScale = 1f)
-        assertTrue(
-            narrow <= wide,
+        assertEquals(
+            NarrowGrowth, narrow - wide,
             "the panel is ${narrow}dp at the popover's 288dp of content width " +
-                "against ${wide}dp at the sheet's 380dp. Something wrapped when " +
-                "it got narrow, which on the site means a popover that runs " +
-                "further down the window than it did before.",
+                "against ${wide}dp at the sheet's 380dp, a difference of " +
+                "${narrow - wide}dp where ${NarrowGrowth}dp was measured. That " +
+                "difference is a segmented control stacking, so a change in it is " +
+                "a change in when the stacking fires — which is worth looking at " +
+                "rather than worth a boolean.",
         )
     }
 
@@ -162,6 +192,14 @@ class SettingsPanelHeightTest {
          * that lets a row land unnoticed, which is the whole thing this is here
          * to prevent. Legitimate growth edits these numbers and says why.
          */
-        val Ceilings = listOf(1f to 826, 1.3f to 854, 2f to 978)
+        val Ceilings = listOf(1f to 826, 1.3f to 854, 2f to 1273)
+
+        /**
+         * How much taller the panel is at the popover's width than at the sheet's.
+         *
+         * One four-option `SegmentedControl` laying its options out in rows:
+         * `4 × 48dp` against the 48dp a single line occupies.
+         */
+        const val NarrowGrowth = 144
     }
 }

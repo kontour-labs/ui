@@ -24,16 +24,35 @@ premise.
 ### When the labels do not fit
 
 The track is divided evenly between the segments, so a long label on a narrow
-control is *expected* to run out of room — and what runs out **ellipsises**, the
-same as a [`TabBar`](tab-bar.md) tab and for the same reason: "Keyboard" cut to
-"Keyboar" reads as a different word, where "Keybo…" reads as a shortened one.
+control is *expected* to run out of room. **When one does, the options stop
+sharing a row and stack into full-width rows instead** — one per option, every
+label drawn whole.
 
-Note "short" in the paragraph above is relative to the *control's* width, not to
-the label. Four segments in 244dp is 61dp each, which "Keyboard" already exceeds
-at the default type scale — and a reader who has turned text size up makes every
-segment tighter without making the control wider. If your labels are ellipsising
-at 100%, that is the signal to reach for a `RadioGroup` or a `Select`, not to
-shorten the words.
+Note "short" is relative to the *control's* width, not to the label. Four
+segments in 244dp is 58dp each — the track is the control less 6dp of padding a
+side, which an earlier version of this page forgot — and "Keyboard" exceeds that
+at the default type scale, so a control that narrow stacks. A reader who has
+turned text size up makes every segment tighter without making the control wider,
+which is why this is a text-size question as much as a layout one: at 200% both
+`Standard` and `Keyboard` are about twice their segment's width.
+
+Wrapping to a second line is not the answer and was tried: `Keyboard`, `Standard`
+and `200` are single unbreakable words, so a second line gets nothing.
+
+Stacked, the control drops its horizontal drag and keeps its taps. The drag
+quantises a position along one axis into equal buckets, and stacked there is no
+such axis — a vertical drag would also be competing with the page for its own
+direction. Tapping an option is the whole interaction at a size where this fires.
+
+**The control also grows taller with the type.** Its height used to be pinned at
+`max(controlHeightMedium, minTouchTarget)` whatever the text size, and a 14sp
+label with a 1.20 line height passes that box at around 2.1×, at which point the
+glyphs were clipped top and bottom with no ellipsis to mark it. It is a minimum
+now rather than a fixed height.
+
+If your labels stack at 100%, that is still the signal to reach for a
+`RadioGroup` or a `Select` — stacking keeps the words readable, but four rows of
+one option each is a radio group wearing a segmented control's clothes.
 
 The indicator is a single surface that **slides** between positions rather than
 each segment fading its own background — that is what makes it read as one

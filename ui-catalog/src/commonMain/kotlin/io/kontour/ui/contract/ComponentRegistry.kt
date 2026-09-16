@@ -1346,11 +1346,22 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // and it must not quietly stop testing that because a caller
                 // found more room.
                 //
+                // **What it photographs has changed, and the picture is the
+                // point.** The control stacks its options into full-width rows
+                // when they stop fitting rather than cutting them, so this
+                // specimen is four rows now instead of one line of truncated
+                // words. That is the fix working; the golden moved when it
+                // landed, and a reader comparing the two sees exactly what was
+                // traded for what.
+                //
                 // The width is fixed here rather than left to the render card
-                // because the card is generous and the defect only exists when
-                // the control is starved. `WidthSweepTest` cannot see this: it
-                // measures ink spilling *out* of the box, and clipped text keeps
-                // every pixel inside — that is what clipping is.
+                // because the card is generous and the behaviour only exists when
+                // the control is starved. `WidthSweepTest` still cannot see any
+                // of this: it measures ink spilling *out* of the box, and both a
+                // clipped label and a stacked one keep every pixel inside.
+                // `SegmentedTypeScaleTest` is what watches it, by comparing how
+                // much label ink is drawn against how much the same labels draw
+                // with room.
                 RenderState("squeezed") { modifier ->
                     SegmentedControl(
                         options = listOf("Auto", "Touch", "Mouse", "Keyboard"),
