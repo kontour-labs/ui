@@ -2,7 +2,6 @@ package io.kontour.ui.theme
 
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.geometry.Size
@@ -54,7 +53,7 @@ val CapsuleCap: Dp = 18.dp
  * | [extraLarge] | 34dp | Sheets, hero panels |
  * | [control] | half its height, up to [CapsuleCap] | Buttons, chips, switches |
  * | [field] | half its height, up to [CapsuleCap] | Text fields, selects, time fields |
- * | [pill] | fully round | Avatars, scrollbars, swatches, day cells, FABs |
+ * | [pill] | half its shorter side, uncapped | Avatars, scrollbars, swatches, day cells, FABs |
  * | [sheet] | 34dp top only | Bottom sheets |
  * | [sideSheet] | 34dp leading only | Side sheets |
  *
@@ -91,32 +90,42 @@ val CapsuleCap: Dp = 18.dp
  * had a corner from a different design system to the card. The cost is bounded by
  * [SquircleShape]'s path cache.
  *
- * [pill] survives for the things that are round because of what they *are* rather
- * than because of how tall they happen to be: an avatar, a scrollbar thumb, a
- * status dot, the ring round a radio button, a colour swatch, an icon button, a
- * day cell. Everything else that reads as a lozenge — a chip, a toast, a nav
- * indicator, a skeleton line — is [capsule], which is the same silhouette with
- * the family's own curvature.
+ * **[pill] was the last exception and is not one any more.** It was a
+ * `RoundedCornerShape(percent = 50)` — a true circular arc, argued for on the
+ * grounds that the things reaching for it genuinely *are* circles. On a square
+ * box that argument costs nothing either way, because [CapsuleCornerSize] on a
+ * square leaves no straight edge for the smoothing to ease into and the squircle
+ * collapses onto the circle: the two differ by the cubic path's approximation of
+ * an arc, a fraction of a pixel at the rim and nothing at all in the middle.
+ * Swapping every square [capsule] in the library to [pill] moved 29 goldens and
+ * not one of them by more than a one-pixel rim, which is the same measurement
+ * read in the other direction.
  *
- * ### Naming one costs nothing to look at, and decides what the cap does
+ * What it *did* cost was everything reaching for [pill] that is **not** square —
+ * a tag, a skeleton's line, a nav indicator, a pull-to-refresh badge, a day
+ * cell's range caps. Those were circular ends on a lozenge in a family of
+ * squircles, which is the mismatch [capsule] exists to name, and they were
+ * getting it from the token that was supposed to be the safe one. And it meant a
+ * theme's `smoothing` moved every rung but this one.
  *
- * On a *square* box the two are the same picture. [capsule] resolves to half the
- * shorter side, which on a square leaves no straight edge for the smoothing to
- * ease into, so the squircle collapses onto the circle [pill] draws — they differ
- * only by the cubic path's approximation of an arc, which is a fraction of a
- * pixel at the rim and nothing at all in the middle. Swapping every square
- * [capsule] in the library to [pill] moved 29 goldens and not one of them by more
- * than a one-pixel rim.
+ * ### The two capsules differ by the cap, and by nothing else
  *
- * So the choice is not about today's render. It is about [CapsuleCornerSize]'s
- * cap: a capped [capsule] on a 50dp box is an 18dp rounded square, and a [pill]
- * on the same box is still a circle. A day cell is the case that makes this
- * concrete — its fill, its "today" ring and its range caps have to agree with
- * each other, and they only do if none of them is capped.
+ * [pill] and [capsule] are both [CapsuleCornerSize] — half the shorter side.
+ * [capsule] stops at [CapsuleCap]; [pill] does not stop. That was always the real
+ * distinction and it used to be buried under a difference in curvature that had
+ * no business being there.
+ *
+ * A capped [capsule] on a 50dp box is an 18dp rounded square, and a [pill] on the
+ * same box is still fully round. Two cases make it concrete. A day cell's fill,
+ * its "today" ring and its range caps have to agree with each other, and they
+ * only do if none of them is capped. And a switch's track is 28dp against a thumb
+ * drawn at half its own height: cap the track at 10dp in a theme that asks for it
+ * and the 12dp thumb no longer sits concentric inside it, which is what
+ * [Shapes.pill] on the track fixes.
  *
  * A selection indicator used to be on that list and is not any more. A 56x32
  * travelling pill is not a circle; it is a lozenge behind a row of controls that
- * are squircles, which is exactly the mismatch this token pair exists to name.
+ * are capped, which is exactly the mismatch this token pair exists to name.
  *
  * ### Ask for what a thing *is*
  *
@@ -150,7 +159,20 @@ data class Shapes(
     val medium: CornerBasedShape = SquircleShape(22.dp),
     val large: CornerBasedShape = SquircleShape(28.dp),
     val extraLarge: CornerBasedShape = SquircleShape(34.dp),
-    val pill: CornerBasedShape = RoundedCornerShape(percent = 50),
+    /**
+     * Round from what a thing *is*, rather than from how tall it happens to be.
+     *
+     * An avatar, a scrollbar thumb, a status dot, the ring round a radio button,
+     * a colour swatch, an icon button, a day cell, a switch's track. Half the
+     * shorter side with **no cap**, which is the whole of the difference between
+     * this and [capsule]: a theme that caps its capsules at 10dp still gets a
+     * fully round avatar, and still gets a switch whose track and thumb are
+     * concentric.
+     *
+     * A squircle, like every other rung. It used to be a true circular arc, and
+     * see [Shapes] for why that was the wrong exception to keep.
+     */
+    val pill: CornerBasedShape = SquircleShape(CapsuleCornerSize()),
 
     /**
      * A capsule, drawn as a squircle. The shape [pill] should have been.
@@ -319,10 +341,11 @@ fun kontourShapes(
         medium = md,
         large = lg,
         extraLarge = xl,
-        // Not a squircle and not affected by [smoothing]: a true circular arc is
-        // what this token *is*, and the shapes that reach for it — an avatar, a
-        // status dot, a radio ring — are circles rather than rounded boxes.
-        pill = RoundedCornerShape(percent = 50),
+        // The same rule as [capsule] with the cap taken off, and it follows
+        // [smoothing] like every other rung — which it did not when it was a
+        // plain circular arc, so a theme could not soften a tag or a nav
+        // indicator without softening everything else.
+        pill = SquircleShape(CapsuleCornerSize(), smoothing),
         capsule = capsule,
         control = capsule,
         field = SquircleShape(CapsuleCornerSize(cap = capsuleCap), smoothing),

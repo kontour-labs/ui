@@ -673,7 +673,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 24
+MAX_CIRCLES = 25
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -684,16 +684,24 @@ ROUNDED_RECT = re.compile(r"\bRoundedCornerShape\s*\(")
 def circles() -> list[str]:
     """Files still asking for `Shapes.pill`, and files hand-rolling a rounded rect.
 
-    Two ceilings for one rule: **a corner in this library is a squircle unless
-    the thing it is on is a circle.**
+    Two ceilings for one rule: **a corner in this library tracks the scale, and
+    only takes the uncapped rule when the thing it is on is round from what it
+    is.**
 
-    `pill` is the circle. It is a true arc and it is right for an avatar, a
-    status dot, the ring round a radio button, a scrollbar thumb, an icon button,
-    a colour swatch, a day cell — things that are round because of what they
-    *are*, on a box that is square. Everything else that was reaching for it
-    wanted a *lozenge*, and a lozenge with circular ends beside a family of
-    squircles is the mismatch the shape scale exists to remove; `Shapes.capsule`
-    is the same silhouette with the family's curvature.
+    `pill` is the uncapped one. It is right for an avatar, a status dot, the ring
+    round a radio button, a scrollbar thumb, an icon button, a colour swatch, a
+    day cell, a switch's track — things whose roundness is a property of the
+    thing rather than of how tall it happens to be. Everything else that was
+    reaching for it wanted a *lozenge* that stops growing, and that is
+    `Shapes.capsule`, which is the same rule with `CapsuleCap` on it.
+
+    **`pill` used to be a `RoundedCornerShape(percent = 50)` and is not any
+    more.** It is a `SquircleShape(CapsuleCornerSize())` — the same curvature as
+    every other rung, the same radius as `capsule` up to the cap, differing from
+    it only in not stopping. That removes the second job this rule used to do,
+    which was keeping a circular arc away from lozenges; what is left is the job
+    it was written for, which is keeping the *uncapped* rule away from things a
+    theme is entitled to cap.
 
     **22 to 24, and it is the same sweep finishing rather than a new argument.**
     Round 26 moved "the ten circles" onto `pill` so the 18dp cap could not reach
@@ -729,11 +737,20 @@ def circles() -> list[str]:
     square, and the evidence is that switching it changes no pixel by more than
     a rim.
 
+    **24 to 25, for the switch's track.** The one site added since is the
+    exception to the square-box test above, and it earns it on the other half of
+    the rule. A switch is a 24dp thumb inside a 28dp track, and the thumb is a
+    `drawRoundRect` at half its own height — a number, not a token, because a
+    draw call has nothing to consult. So the track has to be uncapped or the two
+    stop being concentric the moment a theme lowers `capsuleCap`: at 10dp the
+    track came out at 10 against a thumb at 12, which was reported. Not a square
+    box, and not a lozenge either — a capsule whose partner cannot be capped.
+
     The second count is stricter and is a ban rather than a ratchet.
-    `RoundedCornerShape` appears exactly once in `:ui`, to define `pill` itself.
-    A literal anywhere else is a component that has stopped tracking the scale —
-    which is how the last drift started, one reasonable-looking call site at a
-    time.
+    `RoundedCornerShape` no longer appears in `:ui` at all; it used to appear
+    exactly once, to define `pill`, and that exemption went with the definition.
+    A literal anywhere is a component that has stopped tracking the scale — which
+    is how the last drift started, one reasonable-looking call site at a time.
 
     Not counted, and worth naming so the gap is deliberate rather than missed:
     the seventeen `drawRoundRect` calls. A `CornerRadius` on a `RoundRect` cannot
@@ -754,11 +771,14 @@ def circles() -> list[str]:
 
 
 def hand_rolled_rounded_rects() -> list[str]:
-    """`RoundedCornerShape` literals outside the one that defines `pill`."""
+    """`RoundedCornerShape` literals anywhere in `:ui`.
+
+    There used to be an exemption for `Shapes.kt`, which held the only legitimate
+    one. `pill` is a `SquircleShape` now, so the exemption has nothing left to
+    exempt and the ban is total.
+    """
     offenders: list[str] = []
     for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
-        if path.name == "Shapes.kt":
-            continue
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
         count = len(ROUNDED_RECT.findall(text))
         if count:
@@ -1545,30 +1565,31 @@ def main() -> int:
             f"of them"
         )
 
-    # Rule 20 — a corner is a squircle unless the thing it is on is a circle.
+    # Rule 20 — the uncapped corner is for things that are round from what they are.
     #
-    # See `circles`. `pill` survives for the twenty-four places that are genuinely
-    # round — square boxes, exempt from the capsule cap; a `RoundedCornerShape`
-    # literal anywhere but the token that defines it is a component that has
-    # stopped tracking the scale.
+    # See `circles`. `pill` survives for the twenty-five places that must not be
+    # capped — square boxes, and the switch's track, whose partner is drawn at
+    # half its own height and has no token to cap; a `RoundedCornerShape` literal
+    # anywhere at all is a component that has stopped tracking the scale.
     round_shapes = circles()
     circular = sum(int(e.rsplit("(", 1)[1].rstrip(")")) for e in round_shapes)
     if circular > MAX_CIRCLES:
         problems.append(
             f"{circular} uses of `Shapes.pill` in :ui, over the ceiling of "
-            f"{MAX_CIRCLES}: {', '.join(round_shapes)} — `pill` is a true "
-            f"circular arc and belongs on things that are round because of what "
-            f"they are, on a box that is square. A lozenge wants "
-            f"`Shapes.capsule`, which is the same silhouette with the family's "
-            f"own curvature — and which is capped, where `pill` is not"
+            f"{MAX_CIRCLES}: {', '.join(round_shapes)} — `pill` is the uncapped "
+            f"corner and belongs on things that are round because of what they "
+            f"are, on a box that is square. A lozenge wants `Shapes.capsule`, "
+            f"which is the same rule with `CapsuleCap` on it, so a theme that "
+            f"squares off its controls can reach it"
         )
 
     literals = hand_rolled_rounded_rects()
     if len(literals) > MAX_ROUNDED_RECT_SHAPES:
         problems.append(
             f"{len(literals)} file(s) build a `RoundedCornerShape` by hand: "
-            f"{', '.join(literals)} — the only one in :ui defines `Shapes.pill`. "
-            f"A literal elsewhere is a corner that has stopped tracking the scale"
+            f"{', '.join(literals)} — there are none left in :ui now that "
+            f"`Shapes.pill` is a squircle. A literal is a corner that has "
+            f"stopped tracking the scale"
         )
 
     # Rule 21 — an overlay says whether it takes focus away from the app.

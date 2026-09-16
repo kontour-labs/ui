@@ -124,7 +124,21 @@ fun Switch(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
-    val shape = Theme.shapes.control
+    // `pill` rather than `control`, and the reason is the thumb below.
+    //
+    // The thumb is drawn at `thumbPx / 2f` — half its own height, with no cap,
+    // because a `drawRoundRect` has no token to consult. The track was reading
+    // `Theme.shapes.control`, which *is* capped, so a theme that lowers
+    // `capsuleCap` lowers one of the two and not the other: at `capsuleCap =
+    // 10.dp` the 28dp track came out at 10 against a 24dp thumb at 12, where
+    // concentricity wants `thumb + ThumbPadding` = 14. Reported as switches no
+    // longer being concentric, and it was exactly that.
+    //
+    // `pill` is the same `CapsuleCornerSize` with the cap taken off, so the two
+    // now track each other by construction at every `capsuleCap` a theme picks.
+    // In the default theme nothing moves: `CapsuleCap` is 18dp and half of 28 is
+    // 14, so `control` was never reaching the cap here anyway.
+    val shape = Theme.shapes.pill
     val scope = rememberCoroutineScope()
 
     // A switch inside a `SelectionRow` has no callback of its own — the row owns
@@ -430,15 +444,18 @@ fun Switch(
         // would have to be a third colour to be visible at all, and a switch
         // does not need a third colour.
         //
-        // **`Theme.shapes.control`'s own outline, not a `drawRoundRect`.** The
-        // shape scale is a squircle scale, and this was the one pill in the
-        // library drawing plain circular corners while naming the same token as
-        // the buttons beside it — reported as switches not having "that same
-        // smoothing factor as things like buttons which are pill-shaped", which
-        // is exactly what it was. `SquircleShape` saturates the short edge of a
-        // capsule and eases into the long one, so the change is at the ends of
-        // a 48dp track and it is the thing that makes a switch and a `Button`
-        // read as one system.
+        // **A shape's own outline, not a `drawRoundRect`.** The shape scale is a
+        // squircle scale, and this was the one pill in the library drawing plain
+        // circular corners while naming the same token as the buttons beside it
+        // — reported as switches not having "that same smoothing factor as
+        // things like buttons which are pill-shaped", which is exactly what it
+        // was. `SquircleShape` saturates the short edge of a capsule and eases
+        // into the long one, so the change is at the ends of a 48dp track and it
+        // is the thing that makes a switch and a `Button` read as one system.
+        //
+        // Still a squircle now that it reads `Theme.shapes.pill` rather than
+        // `Theme.shapes.control` — `pill` is one too. See `shape` above for why
+        // the uncapped one is the right of the two.
         //
         // It costs a path lookup per frame and no path *building*: the track is
         // a fixed 48x28 and the shape is one remembered instance, so every call

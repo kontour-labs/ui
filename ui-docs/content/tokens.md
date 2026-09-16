@@ -300,7 +300,7 @@ same `of(n)` is a sign that value wants a name.
 | `medium` | 22dp | Cards, list groups, menus |
 | `large` | 28dp | Dialogs, large cards |
 | `extraLarge` | 34dp | Sheets, hero panels |
-| `pill` | 50% | Avatars, scrollbars, indicators, both FABs, `FabMenu`, a floating `NavBar` |
+| `pill` | 50%, uncapped | Avatars, scrollbars, indicators, both FABs, `FabMenu`, a floating `NavBar`, a `Switch`'s track |
 | `sheet` | 34dp top only | Bottom sheets |
 | `sideSheet` | 34dp leading only | Side sheets |
 
@@ -533,16 +533,32 @@ The exceptions fall out of the same rule rather than a list. A square box at
 capsule radius is saturated on *both* edges, so it has nothing to ease onto in
 either direction and stays a true circle: an `IconButton`, an `Avatar`, a status
 dot, the ring round a `RadioButton`, a colour swatch, a day cell. `pill` remains
-for those, and `capsule` — the squircle of the same silhouette — is what a
-lozenge asks for: a chip, a toast, a nav indicator, a skeleton line.
+for those, and `capsule` is what a lozenge asks for: a chip, a toast, a nav
+indicator, a skeleton line.
+
+**`pill` and `capsule` are the same corner and differ only in whether they
+stop.** Both are half the shorter side; `capsule` stops at the cap and `pill`
+does not. `pill` used to differ in a second way — it was a true circular arc
+rather than a squircle — and that was a mistake with two costs. Everything
+reaching for it that was *not* square got circular ends on a lozenge in a family
+of squircles, which is the exact mismatch these two tokens exist to name: a tag,
+a skeleton's line, a nav indicator, a pull-to-refresh badge, a day cell's range
+caps. And a theme's `smoothing` moved every rung except this one. On a square box
+the change is invisible — a saturated corner has no straight run to ease into, so
+the squircle collapses onto the arc and the two differ by a fraction of a pixel
+at the rim.
 
 Those components **name** `pill` rather than inheriting it from `control`, and
 that is a deliberate change: on a square box the two draw the same picture, so
 the name buys nothing you can see today. What it buys is an exemption from the
 cap below. A capped `capsule` on a 50dp box is an 18dp rounded square; a `pill`
-on the same box is still a circle. A day cell is the case that makes it
-concrete — its fill, its "today" ring and its range caps only agree with each
-other if none of them is capped.
+on the same box is still fully round. Two cases make it concrete. A day cell's
+fill, its "today" ring and its range caps only agree with each other if none of
+them is capped. And a `Switch`'s track is 28dp tall against a thumb drawn at half
+its own *measured* height — a number, because a `drawRoundRect` has no token to
+consult — so a theme that sets `capsuleCap = 10.dp` capped the track at 10 and
+left the thumb at 12, and the two stopped being concentric. Reported, and fixed
+by the track naming `pill`.
 
 **What is still drawn as a plain rounded rect, and why.** Seventeen places paint
 a corner with `drawRoundRect` rather than clipping to a shape, and a

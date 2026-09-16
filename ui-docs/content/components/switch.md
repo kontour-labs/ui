@@ -55,6 +55,18 @@ shape scale's answer rather than an exception to it: a square at capsule radius
 saturates on both edges, so `SquircleShape` returns a circle for it — the same as
 an `IconButton`, an `Avatar` or a radio ring.
 
+**And the track names `Theme.shapes.pill` rather than `Theme.shapes.control`,
+because the thumb cannot be capped.** The thumb is a `drawRoundRect` at half its
+own height — 12dp on a 24dp thumb, a number rather than a token, because a draw
+call has no shape to consult. The track was reading the capped rule, so a theme
+setting `capsuleCap = 10.dp` brought the 28dp track down to 10 and left the thumb
+at 12, where concentricity wants the track to be the thumb *plus* the 2dp of
+padding around it — 14. Reported as switches no longer being concentric in a
+theme that squares its controls off, and that was exactly it. `pill` is the same
+rule uncapped, so the two now track each other at whatever cap a theme picks. In
+the default theme nothing moves: the cap is 18dp and half of 28 is 14, so it was
+never reached here anyway.
+
 ---
 
 **Drag the thumb, and it goes over at the midpoint.** A switch is the most

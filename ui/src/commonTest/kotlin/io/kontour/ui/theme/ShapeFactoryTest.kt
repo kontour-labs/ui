@@ -1,11 +1,11 @@
 package io.kontour.ui.theme
 
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
 
 /**
  * [kontourShapes] with no arguments is [Shapes], and that is the point.
@@ -64,22 +64,27 @@ class ShapeFactoryTest {
      * mistaken for a rounded-rectangle design: restating the scale to change one
      * property loses the property being changed in the noise of the twelve
      * fields that did not.
+     *
+     * **`pill` used to be excluded from this and no longer is.** It was a
+     * `RoundedCornerShape(percent = 50)`, so a theme asking for no continuous
+     * corners got them everywhere except on a tag, a skeleton's line, a nav
+     * indicator and a day cell's range caps — one token's worth of a different
+     * design system, in the places least able to hide it. Now it is the same
+     * `CapsuleCornerSize` as `capsule` with the cap taken off, which was always
+     * the distinction the two were for.
      */
     @Test
-    fun smoothingReachesEveryRungAndLeavesThePillAlone() {
+    fun smoothingReachesEveryRungIncludingThePill() {
         val plain = kontourShapes(smoothing = 0f)
-        val rungs = listOf(plain.extraSmall, plain.small, plain.medium, plain.large, plain.extraLarge)
+        val rungs = listOf(
+            plain.extraSmall, plain.small, plain.medium, plain.large, plain.extraLarge, plain.pill,
+        )
         val unsmoothed = rungs.filterIsInstance<SquircleShape>().count { it.smoothing == 0f }
         assertEquals(
             rungs.size, unsmoothed,
             "$unsmoothed of ${rungs.size} rungs took smoothing = 0f; a scale with " +
                 "two smoothings in it is a scale whose corners do not match, " +
                 "which is what SquircleShape.DefaultSmoothing warns about",
-        )
-        assertTrue(
-            plain.pill is RoundedCornerShape,
-            "pill is a true circular arc by definition — an avatar, a status dot, " +
-                "a radio ring — and smoothing has nothing to say about it",
         )
     }
 
@@ -89,5 +94,43 @@ class ShapeFactoryTest {
         assertEquals(SquircleShape(CapsuleCornerSize(cap = 10.dp)), capped.capsule)
         assertEquals(capped.capsule, capped.control, "control is the capsule, named for what presses it")
         assertEquals(capped.capsule, capped.field, "a field caps at the same place a control does")
+    }
+
+    /**
+     * The cap is the *only* thing between `pill` and `capsule`, at every cap.
+     *
+     * Reported against GTurbo, which sets `capsuleCap = 10.dp`: a switch stopped
+     * being concentric. A switch is a 24dp thumb with 2dp of padding inside a
+     * 28dp track, and the thumb is a `drawRoundRect` at half its own height — a
+     * number, because a draw call has no token to consult. So the track has to
+     * be uncapped or the pair comes apart the moment a theme lowers the cap: at
+     * 10dp the track resolved to `min(14, 10)` against a thumb still at 12,
+     * where concentricity wants the track to be the thumb plus its padding.
+     *
+     * Asserted here as an identity on the tokens rather than on the switch,
+     * because the switch is downstream of it and this is where it can be wrong.
+     */
+    @Test
+    fun aLowCapSquaresTheCapsuleAndLeavesThePillAlone() {
+        val capped = kontourShapes(capsuleCap = 10.dp)
+        val track = Size(48f, 28f)
+        val density = Density(1f)
+
+        assertEquals(
+            10f, capped.capsule.topStart.toPx(track, density),
+            "the cap is doing its job — a 28dp box wants 14 and is held at 10",
+        )
+        assertEquals(
+            14f, capped.pill.topStart.toPx(track, density),
+            "and `pill` is the same rule without it, which is the whole of the " +
+                "difference between the two and the reason a switch's track " +
+                "names this one",
+        )
+        assertEquals(
+            capped.pill.topStart.toPx(track, density),
+            24f / 2f + 2f,
+            "concentric with a 24dp thumb drawn at half its own height, inside " +
+                "2dp of padding — the arithmetic the report was about",
+        )
     }
 }
