@@ -34,11 +34,28 @@ fast as it likes, while a number going down is a seat gone, a balance spent, a
 minute lost — and the report was that it happens with no warning at all.
 
 The counter cannot see the future, so it makes one. A drop is *held* for
-`warnBefore`, the digits wiggle, and only then does the roll happen. What a
-reader gets is a couple of seconds of "something is about to change" before it
-does; what it costs is that the drawn number lags the hoisted `value` for
-exactly that long. That is the trade, and it is why this is opt-in rather than
-something every counter in an app quietly starts doing.
+`warnBefore`, the digits about to change shake, and only then does the roll
+happen. What a reader gets is a couple of seconds of "something is about to
+change" before it does; what it costs is that the drawn number lags the hoisted
+`value` for exactly that long. That is the trade, and it is why this is opt-in
+rather than something every counter in an app quietly starts doing.
+
+**Only the digits that are going to move shake, and they shake for a fixed
+length.** Both were reported. The tremor used to be a `translationX` on the whole
+row — one object saying something about itself, which sounds right and tells the
+reader only that *something* is changing, where the useful half of the message is
+*which* part of the figure is about to go. And it used to run for exactly as long
+as `warnBefore`, because one number controlled the hold and the shake together:
+a warning long enough to read was a tremor long enough to look like a fault. It
+is two there-and-backs now, about 360ms, whatever the hold is.
+
+The positions are compared **right-aligned**, which matters on the transition
+that is easiest to get wrong: 1000 falling to 999 changes length, so matching
+index for index from the left marks all four positions as moving when what has
+actually happened is that three digits changed and a leading 1 went away.
+
+Neighbouring cells shake in opposite phase. Without that, two adjacent changing
+digits read as the whole number sliding — which is the thing this replaced.
 
 A second drop landing mid-warning restarts nothing — the wiggle carries on and
 the roll, when it comes, goes to wherever the value has reached — so a value

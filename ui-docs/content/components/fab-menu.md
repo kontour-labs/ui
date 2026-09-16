@@ -26,9 +26,9 @@ a rotation does not usefully transform.
 
 | | |
 |---|---|
-| `Vertical` | The default. Labelled, because a column has room. |
-| `Horizontal` | A row beside the button. |
-| `Fan` | An arc. Icons only — a diagonal leaves a label nowhere to go. |
+| `Vertical` | The default. Labelled beside each item, because a column has room. |
+| `Horizontal` | A row beside the button. Labelled **above each item and turned 45°**. |
+| `Fan` | An arc. Icons only — its items already sit at angles with no clear direction to turn a label into. |
 
 All three pick which way to open from where the button finds itself in the
 window: bottom-right opens up and to the left, top-left opens down and to the
@@ -36,6 +36,27 @@ right, and nothing has to be told which corner it is in. Where the room runs out
 the spacing **compresses** rather than clamping — clamping each item to the
 window independently puts every item past the wall on the same point, and three
 actions become one pile with two of them unreachable.
+
+**A row used to be unlabelled**, and that was the arrangement where a reader most
+needed telling what three unmarked icons do. Laid flat there is genuinely nowhere
+to put the words — two items are 8dp apart and a label is forty wide — so they go
+above their buttons and lean.
+
+The angle is arithmetic rather than taste. Two labels turned by θ and sitting `d`
+apart have `d × sin θ` of clearance between them measured perpendicular to the
+text, so at 45° items 48dp apart leave 34dp for a chip about 28dp tall, and at 30°
+the same items leave 24dp and the chips touch. Steeper than 45° starts to read as
+vertical text and buys height nothing needs.
+
+Note that the compression above interacts with this: a menu with less room than
+it wants gets a tighter step, and a tight enough step will overlap its labels
+before it overlaps its buttons. A speed dial in a corner has the room; one in the
+middle of a narrow window does not, and that is the case to check when the labels
+look crowded.
+
+Assistive tech was never affected by any of this. Every item has always been
+*named* — the labels were emitted and simply not drawn — so this is a visual
+change rather than an accessibility one, however it was reported.
 
 **The items render into the [`OverlayHost`](../overlays.md)**, anchored to the
 FAB, for the reason a menu does: a FAB sits in a corner, and items expanding out

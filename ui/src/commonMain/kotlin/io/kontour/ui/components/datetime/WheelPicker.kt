@@ -3,6 +3,7 @@ package io.kontour.ui.components.datetime
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.rememberScrollableState
@@ -21,9 +22,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -149,6 +152,7 @@ fun <T> WheelPicker(
     // written first — see `RubberBand`.
     val band = rememberRubberBand()
     val bandLimit = with(LocalDensity.current) { (itemHeight * WheelOverscrollRows).toPx() }
+    val itemPx = with(LocalDensity.current) { itemHeight.toPx() }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = selected)
     val flingBehavior = rememberSnapFlingBehavior(listState)
     val ticker = rememberDetentTicker()
@@ -168,6 +172,23 @@ fun <T> WheelPicker(
      */
     val endStop = rememberDetentTicker(FeedbackIntent.Reject)
     val currentOnSelect by rememberUpdatedState(onSelectedChange)
+
+    /**
+     * Whether the drum is being turned by this component rather than by a finger.
+     *
+     * `reset()` is enough where the move is a *jump* — `scrollToItem` produces
+     * exactly one emission and the re-arm swallows exactly it, which is how the
+     * caller-driven path below works. A tap animates, and an animation crosses
+     * every row between here and there, so one re-arm would swallow the first and
+     * report the rest: tapping four rows down would buzz three times for a
+     * gesture that crossed nothing under the finger.
+     *
+     * There is no state on `LazyListState` that answers this — `animateScrollToItem`
+     * sets `isScrollInProgress` exactly as a fling does, which is the distinction
+     * the infinite drum below gets for free because its animation runs on an
+     * `Animatable` and its gestures run on a `scrollableState`.
+     */
+    var driving by remember { mutableStateOf(false) }
 
     // The item under the centre line is the first visible one, because the list
     // is padded by exactly `edgeItems` rows at each end.
@@ -195,7 +216,10 @@ fun <T> WheelPicker(
     // which is the same guard six other components already share.
     LaunchedEffect(listState) {
         snapshotFlow { centredIndex }.collect { index ->
-            ticker.at(index)
+            // Re-armed rather than ignored while this component is driving, so
+            // the next real drag does not fire for the row it starts on — the
+            // same reasoning as the caller-driven path below.
+            if (driving) ticker.reset() else ticker.at(index)
             currentOnSelect(index)
         }
     }
@@ -351,6 +375,46 @@ fun <T> WheelPicker(
                         val event = awaitPointerEvent()
                         if (event.type == PointerEventType.Scroll) {
                             event.changes.forEach { it.consume() }
+                        }
+                    }
+                }
+            }
+            /**
+             * Tapping a row you can see turns the drum to it.
+             *
+             * Reported as missing, and it was: the rows are bare boxes with a
+             * `Text` in them and nothing anywhere handled a click, so the only
+             * way to reach a value two rows up was to drag the drum.
+             *
+             * A `pointerInput` on the container rather than a `selectable` on each
+             * row, and the reason is the semantics tree. `selectable` would make
+             * twenty-four rows twenty-four stops for a screen reader and a
+             * keyboard, where the drum is deliberately *one* control with a state
+             * description — so the affordance a pointer wanted would have cost the
+             * two input methods that already had a working way in. This adds
+             * nothing to the tree.
+             *
+             * Which row is worked out from where the tap landed rather than from
+             * hit-testing, for the same reason the rows' fade is: the centre row
+             * is at the container's middle by construction, every row is
+             * `itemHeight` tall, and one division is cheaper and more robust than
+             * twenty-four position callbacks.
+             *
+             * Above the list in the chain, so it runs after the list on the main
+             * pass and sees only a press the list declined — which a tap is,
+             * since the list claims a gesture once it travels.
+             */
+            .pointerInput(items.size, itemPx) {
+                detectTapGestures { at ->
+                    val rows = ((at.y - size.height / 2f) / itemPx).roundToInt()
+                    val target = (centredIndex + rows).coerceIn(0, items.lastIndex)
+                    if (target == centredIndex) return@detectTapGestures
+                    scope.launch {
+                        driving = true
+                        try {
+                            listState.animateScrollToItem(target)
+                        } finally {
+                            driving = false
                         }
                     }
                 }
@@ -519,6 +583,33 @@ private fun <T> InfiniteWheel(
      * false for both animations. Re-arming rather than ignoring is what keeps
      * the next real drag from firing for the row it starts on.
      */
+    /**
+     * The same tap-to-turn as the finite drum, by the short way round.
+     *
+     * No `driving` flag is needed here: this wheel's ticker is already gated on
+     * `scrollState.isScrollInProgress`, which is the finger and the fling it
+     * threw and is false for an `Animatable`. So the animation below is silent by
+     * the same rule that already silenced a caller setting the value.
+     *
+     * `shortestTurn` is not needed either, and that is worth saying because it is
+     * what the caller-driven path uses: a row the reader can *see* is, by
+     * definition, the nearest representative of its value, so the number of rows
+     * from the centre to the tap is the turn. Going through `shortestTurn` would
+     * throw that away and occasionally turn the long way past a row the finger
+     * was pointing at.
+     */
+    val tapToTurn: (Offset, Float) -> Unit = { at, height ->
+        val rows = ((at.y - height / 2f) / itemPx).roundToInt()
+        if (rows != 0) {
+            scope.launch {
+                offset.animateTo(
+                    targetValue = offset.value + rows * itemPx,
+                    animationSpec = motion.springOrTween(motion.springSnappy),
+                )
+            }
+        }
+    }
+
     val scrollState = rememberScrollableState { delta ->
         // Every pixel, always. There is no end to over-scroll past, so nothing
         // is ever left over for a parent to take — which is the other half of
@@ -606,7 +697,13 @@ private fun <T> InfiniteWheel(
                 // Reversed: dragging up turns the drum forwards, the way it does
                 // on every wheel in the library and on the platform's own.
                 reverseDirection = true,
-            ),
+            )
+            // Last in the chain and therefore outermost, so it runs after the
+            // scroll and the drag have both declined the press — see `tapToTurn`
+            // for why this is a pointer node and not a row of `selectable`s.
+            .pointerInput(items.size, itemPx) {
+                detectTapGestures { at -> tapToTurn(at, size.height.toFloat()) }
+            },
         contentAlignment = Alignment.TopStart,
     ) {
         Box(

@@ -31,6 +31,22 @@ Set `infinite = true` and there are no ends to feel. That is a decision about
 whether the *values* wrap — hours and months do, a list of countries does not —
 rather than about how the ends behave.
 
+**Tapping a row you can see turns the drum to it**, on both kinds. It used to be
+a drag or nothing: the rows are boxes with text in them and nothing anywhere
+handled a click, so reaching a value two rows up meant dragging the drum by
+exactly two rows. On a phone that is a gesture; with a mouse it is a gesture
+nobody makes.
+
+It is a pointer surface on the container rather than a click handler per row, and
+that is deliberate. Making each row `selectable` would turn a 24-hour drum into
+24 stops for a screen reader and a keyboard, where the whole point of the control
+is that it is *one* value with a state description. The two input methods that
+already had a working way in should not pay for the one that did not.
+
+The turn is silent, which is the harder half. An animated scroll crosses every row
+between here and there, and none of those is a detent a finger crossed — a buzz
+per row would be four for a gesture in which nothing was felt.
+
 **Reach for a [`Select`](select.md) instead** inside a form. A drum
 is right when the value is one of a long ordered run and the user is adjusting
 it; a select is right when they are choosing from a list.

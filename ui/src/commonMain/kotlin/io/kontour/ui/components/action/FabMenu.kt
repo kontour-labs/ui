@@ -21,6 +21,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
@@ -218,9 +219,12 @@ object FabMenuDefaults {
  * @param itemBorder The hairline that keeps a light item off a light page — see
  *   [FabMenuDefaults.itemBorder]. Null on a menu that only ever floats over
  *   photography or a map, where the shadow already does the work.
- * @param showLabels Drawn beside each item. On for [FabMenuLayout.Vertical],
- *   off for the other two, where the items sit at angles that leave a label
- *   nowhere to go. Every item is still *named* for a screen reader either way.
+ * @param showLabels Drawn beside each item, or above it and rotated for
+ *   [FabMenuLayout.Horizontal]. On for both of those and off for
+ *   [FabMenuLayout.Fan], whose items already sit at angles with no clear
+ *   direction to rotate a label into. Every item is still *named* for a screen
+ *   reader either way — the labels were emitted and not drawn, which is why this
+ *   was a visual change rather than an accessibility one.
  * @param scrim [ScrimStyle.Transparent] by default — taps outside close the menu
  *   but nothing dims, so the FAB does not grey out under its own menu. Pass
  *   [ScrimStyle.Dimmed] where the actions deserve the whole screen's attention.
@@ -236,7 +240,7 @@ fun FabMenu(
     size: FabSize = FabSize.Medium,
     itemSize: FabSize = FabSize.Small,
     layout: FabMenuLayout = FabMenuLayout.Vertical,
-    showLabels: Boolean = layout == FabMenuLayout.Vertical,
+    showLabels: Boolean = layout != FabMenuLayout.Fan,
     expandedIcon: ImageVector? = null,
     expandedContentDescription: String = Theme.strings.close,
     shape: Shape = Theme.shapes.pill,
@@ -458,7 +462,38 @@ private fun FabMenuItems(
                 if (showLabels) {
                     Box(
                         Modifier
-                            .graphicsLayer { alpha = fractions[index].value }
+                            .graphicsLayer {
+                                alpha = fractions[index].value
+                                // A row of buttons has nowhere to put a
+                                // horizontal label: the gap between two items is
+                                // 8dp and the words are forty. Above and turned
+                                // is the arrangement that fits, and it fits for a
+                                // reason worth stating — two parallel lines at
+                                // 45°, one per item, have `spacing × sin 45°` of
+                                // perpendicular clearance between them, so items
+                                // 56dp apart leave 40dp for a 32dp chip. Laid
+                                // flat above their buttons the same labels would
+                                // overlap by most of their length.
+                                if (layout == FabMenuLayout.Horizontal) {
+                                    rotationZ = -HorizontalLabelAngle
+                                    // About the chip's own bottom-left corner,
+                                    // which is `itemRoom` inside this box rather
+                                    // than at its edge — the padding is the
+                                    // fade's shadow buffer, and pivoting on the
+                                    // box would swing the chip 24dp off its
+                                    // button.
+                                    transformOrigin = TransformOrigin(
+                                        pivotFractionX =
+                                            if (size.width > 0f) roomPx / size.width else 0f,
+                                        pivotFractionY =
+                                            if (size.height > 0f) {
+                                                (size.height - roomPx) / size.height
+                                            } else {
+                                                1f
+                                            },
+                                    )
+                                }
+                            }
                             .padding(itemRoom)
                     ) {
                     Surface(
@@ -607,7 +642,9 @@ private fun FabMenuItems(
                 if (label.width > 0 && label.height > 0) {
                     placeLabel(
                         label, button, point, geometry.labelOnLeft,
-                        labelGapPx, container, marginPx, roomPx,
+                        above = layout == FabMenuLayout.Horizontal,
+                        gap = labelGapPx, container = container,
+                        margin = marginPx, room = roomPx,
                     )
                 }
             }
@@ -615,22 +652,50 @@ private fun FabMenuItems(
     }
 }
 
-/** Beside its button, on the side the menu decided has room. */
+/**
+ * Beside its button on the side the menu decided has room, or above it turned.
+ *
+ * Both placeables are `room` larger on every side than the thing drawn inside
+ * them — see `itemRoom`, which buys the fade a buffer big enough to hold each
+ * item's shadow. Every gap here is between the *drawn* edges, so the padding
+ * comes back off; leave it in and every label sits 24dp further from its button
+ * than it is supposed to.
+ */
 private fun Placeable.PlacementScope.placeLabel(
     label: Placeable,
     button: Placeable,
     point: Offset,
     onLeft: Boolean,
+    above: Boolean,
     gap: Float,
     container: IntSize,
     margin: Float,
     room: Float,
 ) {
-    // Both placeables are `room` larger on every side than the thing drawn
-    // inside them — see `itemRoom`, which buys the fade a buffer big enough to
-    // hold each item's shadow. The gap is between the *drawn* edges, so the
-    // padding comes back off here; leave it in and every label sits 24dp
-    // further from its button than it is supposed to.
+    if (above) {
+        // The rotation is the label's own layer and does not change what it
+        // measured, so this places the *unrotated* chip with its bottom-left
+        // corner `gap` above the button's centre — and that corner is the pivot,
+        // so the chip swings up and to the right from exactly there.
+        val chipWidth = label.width - 2f * room
+        val chipHeight = label.height - 2f * room
+        // Where the turned chip actually reaches. A `w × h` rectangle rotated
+        // 45° about its bottom-left corner puts its furthest corner
+        // `(w + h) / √2` above that point, `w / √2` to the right of it — and
+        // `h / √2` to the *left*, which is the one that is easy to forget and is
+        // why the low clamp is not simply the margin.
+        val right = chipWidth * DiagonalComponent
+        val left = chipHeight * DiagonalComponent
+        val pivotY = point.y - button.height / 2f + room - gap
+        val low = margin + left - room
+        val high = container.width - margin - right - room
+        label.place(
+            x = (point.x - room).coerceIn(low, high.coerceAtLeast(low)).toInt(),
+            y = (pivotY - label.height + room).toInt(),
+        )
+        return
+    }
+
     val edge = button.width / 2f - room + gap
     val x = if (onLeft) point.x - edge - label.width + room else point.x + edge - room
     label.place(
@@ -787,3 +852,24 @@ private fun fabMenuGeometry(
 
     return FabMenuGeometry(points = points, labelOnLeft = labelOnLeft)
 }
+
+/**
+ * How far a horizontal menu's labels lean, in degrees counter-clockwise.
+ *
+ * 45° rather than a gentler angle, and the number is doing arithmetic rather
+ * than taste. Two labels turned by θ and sitting `d` apart have `d × sin θ` of
+ * perpendicular clearance between them, so the angle is what decides whether
+ * they collide: at 30° three items 56dp apart leave 28dp for a chip about 32dp
+ * tall and they touch, and at 45° they leave 40dp and they do not. Steeper than
+ * 45° reads as vertical text and costs height for clearance nothing needs.
+ */
+private const val HorizontalLabelAngle = 45f
+
+/**
+ * `cos 45°`, which at this angle is also `sin 45°`.
+ *
+ * Written out rather than computed, and named for what it is rather than for the
+ * number: both reaches of a chip turned by [HorizontalLabelAngle] are one of its
+ * own dimensions times this, and the two being equal is why one constant serves.
+ */
+private const val DiagonalComponent = 0.70710678f

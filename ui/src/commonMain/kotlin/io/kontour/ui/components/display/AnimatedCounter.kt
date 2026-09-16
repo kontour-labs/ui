@@ -117,15 +117,22 @@ fun AnimatedCounter(
      */
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
     /**
-     * How long the digits wiggle before the number falls.
+     * How long the old number is held before a fall is rolled.
      *
      * `ZERO` — off — and it only ever applies to a **decrease**. A number going
      * up is good news and arrives as fast as it likes; a number going down is a
      * seat gone, a balance spent, a minute lost, and the report was that it
      * happens with no warning at all.
      *
+     * **This is the hold, and not the length of the wiggle.** One number used to
+     * mean both, so a two-second warning shook for two seconds — long past the
+     * point where a tremor reads as an announcement. The digits about to change
+     * now shake for a fixed couple of cycles at the start of the hold and are
+     * still for the rest of it, so a long warning is a held number rather than a
+     * vibrating one.
+     *
      * The counter cannot see the future, so it makes one: a drop is *held* for
-     * this long, wiggled, and only then rolled. What the reader gets is a few
+     * this long, wiggled at the front of that, and only then rolled. What the reader gets is a few
      * seconds of "something is about to change" before it does, which is the
      * thing being asked for; what it costs is that the drawn number lags the
      * hoisted [value] by exactly this much while the warning runs. That is the
@@ -213,8 +220,36 @@ fun AnimatedCounter(
     val goingUp = remember(shown) { shown >= previous.value }
     SideEffect { previous.value = shown }
 
-    // The wiggle itself: a small horizontal shake, on the whole number rather
-    // than per digit, because it is one object saying something about itself.
+    /**
+     * Which drawn positions are about to change, right-aligned.
+     *
+     * The wiggle used to be on the whole `Row`, on the argument that the number
+     * is one object saying something about itself. The report was that it should
+     * be the digits that are about to move, and that is the better reading: the
+     * announcement is *which* part of the figure is going, and shaking the whole
+     * thing says only that something is.
+     *
+     * Right-aligned because a formatted number can change length — 1000 falls to
+     * 999 — so comparing index for index from the left marks every position as
+     * moving on exactly the transition where three of the four genuinely do and
+     * the leading 1 is disappearing rather than changing. Counting from the right
+     * makes the shift explicit, and a position with nothing opposite it is a
+     * position that is going away, which counts as moving.
+     */
+    val moving = remember(text, warning, value, format) {
+        if (!warning) {
+            BooleanArray(text.length)
+        } else {
+            val next = format(value)
+            val shift = text.length - next.length
+            BooleanArray(text.length) { index ->
+                val opposite = index - shift
+                opposite !in next.indices || next[opposite] != text[index]
+            }
+        }
+    }
+
+    // The wiggle itself: a small horizontal shake, per changing digit.
     //
     // An `Animatable` driven by an effect rather than `rememberInfiniteTransition`,
     // and that is not a style choice. An infinite transition runs for as long as
@@ -223,6 +258,13 @@ fun AnimatedCounter(
     // exact shape of a defect this repository has already fixed once under the
     // heading of animations running for nobody. This one exists between the drop
     // and the roll and at no other time.
+    //
+    // **Bounded, where it used to run for as long as `warnBefore`.** One number
+    // controlled both how long the figure was held and how long it shook, so a
+    // two-second warning was a two-second tremor — which stops reading as an
+    // announcement somewhere around the third cycle and starts reading as a
+    // fault. `warnBefore` now means only how long the old number is held, and
+    // the shake is [WiggleCycles] there-and-backs whatever that is.
     val wobble = remember { Animatable(0f) }
     LaunchedEffect(warning) {
         if (!warning) {
@@ -230,16 +272,20 @@ fun AnimatedCounter(
             return@LaunchedEffect
         }
         val leg = tween<Float>(WigglePeriodMillis, easing = LinearEasing)
-        while (true) {
+        repeat(WiggleCycles) {
             wobble.animateTo(1f, leg)
             wobble.animateTo(-1f, leg)
         }
+        // Back to rest rather than stopping wherever the last leg left it, or a
+        // warning that outlives its wiggle holds the digits 1.5dp off centre for
+        // the remainder — visible on a headline figure as a number that is
+        // slightly crooked.
+        wobble.animateTo(0f, leg)
     }
     val amplitude = with(LocalDensity.current) { WiggleAmplitude.toPx() }
 
     Row(
         modifier = modifier
-            .graphicsLayer { translationX = wobble.value * amplitude }
             .semantics {
                 // What is drawn, not what is pending.
                 //
@@ -264,7 +310,26 @@ fun AnimatedCounter(
                     targetState = character,
                     transitionSpec = { rollSpec(goingUp, motion) },
                     label = "digit$index",
-                    modifier = Modifier.width(digitWidth),
+                    modifier = Modifier
+                        .width(digitWidth)
+                        // Opposite phases on neighbouring cells, which is what
+                        // keeps two adjacent changing digits from reading as the
+                        // whole number sliding again — the thing this replaced.
+                        //
+                        // Unclipped, so 1.5dp of the tremor crosses into the
+                        // next cell. Accepted rather than clipped: a cell is
+                        // exactly a digit wide, so clipping would shave the edge
+                        // off the glyph at the extremes of every cycle, and a
+                        // digit that loses a column of pixels is a worse artefact
+                        // than one that briefly overlaps its neighbour's
+                        // whitespace.
+                        .graphicsLayer {
+                            translationX = if (moving.getOrElse(index) { false }) {
+                                wobble.value * amplitude * if (index % 2 == 0) 1f else -1f
+                            } else {
+                                0f
+                            }
+                        },
                 ) { digit ->
                     Box(Modifier.width(digitWidth), Alignment.Center) {
                         Text(
@@ -342,5 +407,16 @@ object AnimatedCounterDefaults {
  */
 private val WiggleAmplitude: Dp = 1.5.dp
 
-/** One there-and-back. Fast enough to read as agitation rather than as drift. */
+/** One leg. Fast enough to read as agitation rather than as drift. */
 private const val WigglePeriodMillis: Int = 90
+
+/**
+ * How many there-and-backs a warning shakes for, however long it is held.
+ *
+ * Two, which at a 90ms leg is 360ms of tremor and a 90ms settle back to centre.
+ * It used to be "for as long as `warnBefore`", and one number meaning both was
+ * the defect: a warning long enough to be read was a wiggle long enough to look
+ * like a fault. Two cycles is enough to be seen and short enough that the eye
+ * arrives at a still number.
+ */
+private const val WiggleCycles: Int = 2

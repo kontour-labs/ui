@@ -297,9 +297,9 @@ internal val SplitButtonDemo = ComponentDemo(
 
 private val fabMenuLayout = Knob.Choice("Layout", FabMenuLayout.entries.toList())
 
-// Follows the layout by default — a vertical stack has room beside it for a
-// label and a fan does not — so this is the knob that shows the default is a
-// default rather than a rule.
+// Follows the layout by default — a stack has room beside it for a label, a row
+// has room above it for a turned one, and a fan has neither — so this is the
+// knob that shows the default is a default rather than a rule.
 private val fabMenuLabels = Knob.Flag("Labels", initial = true)
 
 internal val FabMenuDemo = ComponentDemo(
@@ -324,7 +324,7 @@ internal val FabMenuDemo = ComponentDemo(
             icon = Tabler.Outline.Plus,
             contentDescription = "Add",
             layout = layout,
-            showLabels = labels && layout == FabMenuLayout.Vertical,
+            showLabels = labels && layout != FabMenuLayout.Fan,
             modifier = Modifier.align(Alignment.BottomEnd),
         ) {
             item(Tabler.Outline.Star, "Save stop", onClick = save)
