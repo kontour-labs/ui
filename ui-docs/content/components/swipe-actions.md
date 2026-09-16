@@ -16,6 +16,14 @@ full swipe looks like is that action growing from the edge until it has the whol
 row. The other way up, the action a full swipe commits to was the one hard
 against the row, and the one at the edge was the one it would never run.
 
+All of that mirrors, and the mirroring is the framework's rather than the
+component's: `anchoredDraggable` reverses a horizontal drag under RTL and
+`Modifier.offset {}` mirrors the placement it is given, so the offset everything
+here works in is a *logical* one — positive is toward the trailing edge in both
+directions. Flipping it a second time by hand is what made a swiped row in Arabic
+vacate a strip of bare page, with the anchors naming one side and the drawing
+looking for the other.
+
 The panels travel with the row rather than waiting at the edge of the screen for
 it to arrive, so the set slides in behind it and the ground under the row is the
 colour of the action it is about to reach. Pinned to the container instead, a

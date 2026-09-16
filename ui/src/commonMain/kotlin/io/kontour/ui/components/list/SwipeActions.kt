@@ -302,16 +302,28 @@ fun SwipeActions(
     var width by remember { mutableFloatStateOf(0f) }
     val actionWidthPx = with(density) { actionWidth.toPx() }
 
-    // Physical direction: "start" actions are revealed by dragging toward the
-    // trailing edge, which is +x in LTR and -x in RTL.
-    val startTravel = start.size * actionWidthPx * (if (isRtl) -1f else 1f)
-    val endTravel = -end.size * actionWidthPx * (if (isRtl) -1f else 1f)
+    // **The offset is a *logical* one: positive is toward the trailing edge, in
+    // both layout directions.**
+    //
+    // Both ends of it are already mirrored by the framework, which is the part
+    // that was missed. `anchoredDraggable` reverses a horizontal drag's deltas
+    // under RTL, and `Modifier.offset {}` — `placeRelative` underneath — mirrors
+    // the placement it is given. So the value that arrives here has been through
+    // two flips and is measured from the leading edge either way.
+    //
+    // These lines flipped it a third time. The anchors came out mirrored against
+    // everything that reads them, so in RTL a swipe toward the trailing edge
+    // settled on `SwipeValue.End` while the drawing — correctly reading the
+    // logical sign — looked for the `start` actions, found none, and drew
+    // nothing at all. A row swiped in Arabic vacated a strip of bare page.
+    val startTravel = start.size * actionWidthPx
+    val endTravel = -end.size * actionWidthPx
 
     // A full swipe commits without waiting for a tap.
     val fullStart = start.firstOrNull { it.isFullSwipeAction }
     val fullEnd = end.firstOrNull { it.isFullSwipeAction }
 
-    LaunchedEffect(width, start.size, end.size, isRtl, fullStart, fullEnd) {
+    LaunchedEffect(width, start.size, end.size, fullStart, fullEnd) {
         if (width <= 0f) return@LaunchedEffect
         // Past the reveal, and off the far edge. There has to be an *anchor*
         // out there for the drag to reach it: the commit threshold used to be
@@ -319,7 +331,7 @@ fun SwipeActions(
         // reveal (88dp per action), so `AnchoredDraggableState` clamped the
         // offset long before the threshold and the commit could never fire on
         // anything wider than about 147dp. Which is every list row.
-        val commit = width * (if (isRtl) -1f else 1f)
+        val commit = width
         state.anchoredState.updateAnchors(
             DraggableAnchors {
                 SwipeValue.Resting at 0f
@@ -520,10 +532,19 @@ fun SwipeActions(
                         val revealedWidth = abs(live).coerceAtMost(size.width)
                         val tuck = revealedWidth.coerceAtMost(size.height / 2f)
                         val painted = (revealedWidth + tuck).coerceAtMost(size.width)
+                        // The one place the logical offset has to become a
+                        // physical one: a `DrawScope` is not mirrored, so this
+                        // has to say which side of the canvas the row vacated
+                        // rather than which side of itself.
+                        //
+                        // `live > 0f` means the row moved toward the trailing
+                        // edge and left the *leading* one bare — the left in
+                        // LTR and the right in RTL, which is what the second
+                        // half of this comparison carries.
                         drawRect(
                             color = stripColour,
                             topLeft = Offset(
-                                x = if (live > 0f) 0f else size.width - painted,
+                                x = if ((live > 0f) != isRtl) 0f else size.width - painted,
                                 y = 0f,
                             ),
                             size = Size(painted, size.height),
@@ -565,9 +586,16 @@ fun SwipeActions(
                             // Leading: the set *ends* where the row's leading
                             // edge now is.
                             else -> live - width
+                            // Both measured from the container's *leading* edge,
+                            // which is what `placeRelative` below wants.
                         }
                         layout(placeable.width, placeable.height) {
-                            placeable.place(x.roundToInt(), 0)
+                            // `placeRelative`, not `place`. The offset above is
+                            // logical — see `startTravel` — and `place` is the
+                            // one that does *not* mirror, so the set travelled
+                            // the right distance in the wrong direction under
+                            // RTL and left the row's edge entirely.
+                            placeable.placeRelative(x.roundToInt(), 0)
                         }
                     },
                 // Packed against the row, which is the opposite edge from the
