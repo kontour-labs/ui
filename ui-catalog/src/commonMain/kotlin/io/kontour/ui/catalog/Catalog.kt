@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,12 +15,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -312,7 +314,7 @@ private fun CompactCatalog(
     var drawerOpen by remember { mutableStateOf(false) }
 
     /**
-     * The destination the drawer has been asked for, applied once it has gone.
+     * The destination the drawer has been asked for, applied one frame later.
      *
      * Reported from a phone: tapping a destination "just does nothing for half a
      * second" and only then animates. `DrawerSelectCostDiagnostic` measures where
@@ -320,20 +322,49 @@ private fun CompactCatalog(
      * `drawerOpen` in the same lambda puts both in the same snapshot, so the
      * frame that starts the exit animation is also the frame that composes and
      * measures a whole destination for the first time — 66.4ms here against
-     * 13.0ms for the exit on its own, and the following eight frames run at
-     * 15-32ms instead of 11-14. A phone is several times slower again, and one
-     * frame that long at the start of a gesture is a tap that did nothing.
+     * 13.0ms for the exit on its own. A phone is several times slower again, and
+     * one frame that long at the start of a gesture is a tap that did nothing.
      *
-     * Holding the choice and applying it when the drawer's content leaves
-     * composition costs nothing in what a reader sees: the drawer covers most of
-     * a phone on its way out, so the page behind it is not being read. What they
-     * get instead is an exit that begins on the frame they tapped.
+     * The first fix held the choice until the drawer's content left composition,
+     * which bought the exit its frame back and cost 150ms before the page
+     * changed — reported, in turn, as the screen changing only after the drawer
+     * had gone.
+     *
+     * **One frame is enough**, and the same measurement says why: 47.6ms is the
+     * destination's *first* frame and every frame after it is 4.5-7.4ms. So the
+     * expensive frame only has to miss the one frame that starts the exit; after
+     * that, two pages on screen together cost about 12ms and the fade is
+     * affordable. Frame one is the drawer alone, frame two composes the
+     * destination behind it at zero opacity, and the rest is a cross-fade
+     * running out with the drawer.
+     *
+     * A frame, not a delay: `withFrameNanos` is the thing being waited for, so
+     * this cannot go stale against a display's refresh rate the way a duration
+     * would.
+     *
+     * **A cross-fade was tried here and measured worse**, which is the opposite
+     * of what it was expected to do. Wrapping this in an `AnimatedContent` puts
+     * two whole destinations on screen together — two `LazyColumn`s, two sets of
+     * per-card overlay hosts, and two compositing layers carrying the scale and
+     * the alpha — and the fade's eight middle frames came out at 37-46ms against
+     * 22-29 for the cut. The arithmetic that suggested it was affordable added
+     * the destination's *settled* cost, 5.8ms, and not the cost of drawing it
+     * through a layer. `DrawerSelectCostDiagnostic` keeps the arm so the number
+     * is on record rather than the conclusion.
      *
      * The row still moves the moment it is pressed — the indicator below reads
-     * `pending` first — so the drawer answers immediately even though the page
-     * does not.
+     * `pending` first — so the drawer answers on the frame it is tapped either
+     * way.
      */
     var pending by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(pending) {
+        val next = pending ?: return@LaunchedEffect
+        // Let the frame that starts the exit go by with only the drawer on it.
+        withFrameNanos { }
+        onSelectedChange(next)
+        pending = null
+    }
 
     Scaffold(
         topBar = {
@@ -361,16 +392,6 @@ private fun CompactCatalog(
     }
 
     ModalNavDrawer(visible = drawerOpen, onDismissRequest = { drawerOpen = false }) {
-        // The overlay host keeps an entry composed for the whole of its exit and
-        // disposes it on the frame it is finally gone — see `EntryHost` — so this
-        // is the end of the animation, measured rather than timed. A duration
-        // here would be a guess that goes stale with `motion.tweenExit`.
-        DisposableEffect(Unit) {
-            onDispose {
-                pending?.let(onSelectedChange)
-                pending = null
-            }
-        }
         pages.forEachIndexed { index, page ->
             item(page.title, page.icon, selected = index == (pending ?: selected)) {
                 pending = index

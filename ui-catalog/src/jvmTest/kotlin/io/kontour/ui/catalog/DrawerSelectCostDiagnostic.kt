@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runDesktopComposeUiTest
 import io.kontour.ui.adaptive.Scaffold
+import io.kontour.ui.motion.Transitions
 import io.kontour.ui.nav.ModalNavDrawer
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
@@ -44,9 +46,11 @@ import kotlin.test.assertTrue
  *
  * | arm | what changes on the measured frame | a slow arm means |
  * |---|---|---|
- * | `both` | the page **and** the drawer, together — today | nothing yet; the reported case |
+ * | `both` | the page **and** the drawer, together | nothing yet; the first reported case |
  * | `drawer` | the drawer only, page left alone | the exit animation is itself expensive |
  * | `page` | the page only, drawer already shut | composing a destination is the cost |
+ * | `deferred` | the drawer, then the page one frame later — today | the slack is not enough |
+ * | `crossfade` | `deferred`, with the two destinations faded between | a fade is not affordable |
  *
  * `drawer` is the control. If `both` is slow and `drawer` is fast, the dead time
  * is the page, and the fix is about *when* the swap happens rather than about
@@ -56,15 +60,32 @@ import kotlin.test.assertTrue
  *
  * ```
  *   arm          f1     f2     f3     f4     f5     f6     f7     f8
- *   both       66.4   32.5   18.9   20.3   27.7   27.0   20.7   20.3
- *   drawer     13.0   13.2   12.0   13.2   12.8   14.3   14.2   14.2
- *   page       47.6    7.4    4.8    4.9    5.3    4.6    4.8    4.5
+ *   both       78.6   44.9   24.4   26.3   28.8   28.8   29.6   28.4
+ *   drawer     17.7   17.0   14.9   17.0   17.3   19.1   18.1   18.2
+ *   page       54.8    9.1    5.7    5.4    5.5    5.5    5.6    6.2
+ *   deferred   16.8   60.9   40.8   24.7   25.4   32.2   29.0   24.8
+ *   crossfade  18.9   75.3   38.6   43.3   39.8   39.8   42.8   39.3
  * ```
  *
- * The page, and not only on the first frame: composing a destination goes on
- * costing through the whole of the exit, so the animation janks for its full
- * length as well as starting late. `CompactCatalog` holds the choice and applies
- * it when the drawer's content leaves composition.
+ * The page, and it is a **first-frame** cost: composing a destination is 54.8ms
+ * once and 5.5ms for ever after. So the fix is about which frame pays it.
+ *
+ * `both` pays it on the frame the finger lifts, which is a tap that does
+ * nothing. Holding the choice until the drawer's content left composition cured
+ * that and cost 150ms before anything changed, which was reported in turn as the
+ * screen only changing after the drawer had gone. `deferred` gives the exit its
+ * first frame alone and lets the destination compose on the second: the tap is
+ * answered in 16.8ms and the expensive frame lands inside a moving animation,
+ * where a drop is far less legible than a stall before one.
+ *
+ * **`crossfade` is the arm that answers a question rather than proposing a fix.**
+ * Fading between the two destinations looked affordable on the arithmetic —
+ * `page` settles at 5.5ms — and is not: two `LazyColumn`s, two sets of per-card
+ * overlay hosts and two compositing layers carrying the scale and the alpha come
+ * to 37-46ms a frame for the whole length of the fade, against 22-29 for the
+ * cut. The settled cost of a destination is not the cost of drawing one through
+ * a layer. Kept as an arm so the number is on record and nobody has to try it
+ * twice.
  *
  * A discarded warm-up runs first, for the reason `FirstOpenCostDiagnostic`
  * records: the first measurement in a JVM measures the JIT.
@@ -84,10 +105,24 @@ class DrawerSelectCostDiagnostic {
         val both = frameCosts(changePage = true, closeDrawer = true)
         val drawer = frameCosts(changePage = false, closeDrawer = true)
         val page = frameCosts(changePage = true, closeDrawer = false, openDrawer = false)
+        val deferred = frameCosts(changePage = true, closeDrawer = true, deferPage = true)
+        val crossfade = frameCosts(
+            changePage = true,
+            closeDrawer = true,
+            deferPage = true,
+            crossFade = true,
+        )
 
         println("tapping a destination in the modal drawer, ms per frame")
         println("  arm      " + (1..Frames).joinToString(" ") { "f$it".padStart(6) })
-        for ((name, costs) in listOf("both" to both, "drawer" to drawer, "page" to page)) {
+        val arms = listOf(
+            "both" to both,
+            "drawer" to drawer,
+            "page" to page,
+            "deferred" to deferred,
+            "crossfade" to crossfade,
+        )
+        for ((name, costs) in arms) {
             println("  ${name.padEnd(9)}" + costs.joinToString(" ") { it.ms().padStart(6) })
         }
         println()
@@ -114,6 +149,8 @@ class DrawerSelectCostDiagnostic {
         changePage: Boolean,
         closeDrawer: Boolean,
         openDrawer: Boolean = true,
+        deferPage: Boolean = false,
+        crossFade: Boolean = false,
     ): List<Long> {
         var selected by mutableIntStateOf(Origin)
         var drawerOpen by mutableStateOf(false)
@@ -126,7 +163,19 @@ class DrawerSelectCostDiagnostic {
                     OverlayHost(Modifier.fillMaxSize()) {
                         Scaffold {
                             Box(Modifier.fillMaxSize().padding(it)) {
-                                pages[selected].content(Modifier.fillMaxWidth())
+                                if (crossFade) {
+                                    val spec = Transitions.fadeThrough(fast = true)
+                                    AnimatedContent(
+                                        targetState = selected,
+                                        transitionSpec = { spec },
+                                        modifier = Modifier.fillMaxSize(),
+                                        label = "destination",
+                                    ) { page ->
+                                        pages[page].content(Modifier.fillMaxWidth())
+                                    }
+                                } else {
+                                    pages[selected].content(Modifier.fillMaxWidth())
+                                }
                             }
                         }
                         ModalNavDrawer(
@@ -147,15 +196,20 @@ class DrawerSelectCostDiagnostic {
                 settle()
             }
 
-            // The tap, as `CompactCatalog` writes it: one snapshot carrying both.
-            if (changePage) selected = Target
+            // The tap. Originally one snapshot carrying both, which is what put
+            // the destination's first frame on the frame that starts the exit.
+            if (changePage && !deferPage) selected = Target
             if (closeDrawer) drawerOpen = false
 
-            repeat(Frames) {
+            repeat(Frames) { index ->
                 val started = System.nanoTime()
                 mainClock.advanceTimeByFrame()
                 waitForIdle()
                 costs += System.nanoTime() - started
+                // One frame of slack, which is what `withFrameNanos` buys the
+                // app: the exit gets its first frame to itself and the
+                // destination composes behind it on the second.
+                if (changePage && deferPage && index == 0) selected = Target
             }
         }
         return costs
