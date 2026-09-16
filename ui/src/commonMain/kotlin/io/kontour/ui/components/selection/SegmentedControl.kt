@@ -16,7 +16,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.graphics.Shape
@@ -229,6 +228,48 @@ fun SegmentedControl(
         with(density) { widest.toDp() } > each
     }
 
+    /**
+     * How tall one segment's content has to be, which the type decides.
+     *
+     * The same measurement the fit decision above is made from, read on the other
+     * axis. `height` less the track's padding is the box a label used to be given
+     * whatever the text size — 36dp on Android, 32dp elsewhere — and a 14sp line
+     * with a 1.20 line height passes that at about 2.14x, after which the
+     * segment's own clip cut the glyphs top and bottom with nothing marking it.
+     */
+    val labelHeight = remember(options, measurer, density, labelStyle) {
+        with(density) { options.maxOf { measurer.measure(it, labelStyle).size.height }.toDp() }
+    }
+
+    /** One segment's content box: at least what it used to be, and at least the type. */
+    val segmentHeight = maxOf(height - trackPadding * 2, labelHeight)
+
+    /**
+     * A stacked segment is its own row and therefore its own touch target.
+     *
+     * Side by side they share the control's, which is the bargain `height`
+     * already strikes — but `segmentHeight` alone would be 36dp on Android, under
+     * the minimum, once each option is a row of its own.
+     */
+    val stackedRow = maxOf(segmentHeight, Theme.sizing.minTouchTarget)
+
+    /**
+     * The control's height, **exact** rather than a minimum.
+     *
+     * `heightIn(min = …)` was the obvious spelling and is wrong here: it leaves
+     * the incoming maximum in place, and the track inside carries `fillMaxHeight`
+     * — which used to fill an exact 44dp and would instead fill whatever the
+     * caller happened to offer. A specimen card 120dp tall drew a 120dp control.
+     *
+     * So the height is still exact and is *computed* instead of pinned, from the
+     * same measurement everything else here is derived from.
+     */
+    val outerHeight = if (stacked) {
+        stackedRow * options.size + trackPadding * 2
+    } else {
+        maxOf(height, segmentHeight + trackPadding * 2)
+    }
+
     SelectionIndicatorBox(
         state = indicator,
         // The thumb is exactly the segment it marks. Sized from the measured
@@ -237,15 +278,10 @@ fun SegmentedControl(
         sizing = IndicatorSizing.Fill,
         modifier = Modifier
             .selectableGroup()
-            // `heightIn`, not `height`. An exact height is a promise the type
-            // cannot keep: the content box is this less 12dp of track padding —
-            // 36dp on Android, 32dp elsewhere — while a 14sp label with a 1.20
-            // line height grows linearly, crossing 32dp at about 1.9x and 36dp at
-            // about 2.14x. Past that the clip on each segment cut the glyphs top
-            // and bottom, with no vertical equivalent of an ellipsis to mark it.
-            // Nothing moves at the default scale, where the label fits with room
-            // to spare.
-            .heightIn(min = if (stacked) height * options.size else height)
+            // Exact, and computed — see `outerHeight`. A constant height is the
+            // promise the type could not keep; a *minimum* is a different fault,
+            // because the track inside fills whatever it is given.
+            .height(outerHeight)
             .clip(outerShape)
             .background(colours.surfaceSunken, outerShape)
             .then(
@@ -498,7 +534,7 @@ fun SegmentedControl(
                         // would be 36dp on Android, under the minimum. Side by
                         // side they share the control's, which is the bargain the
                         // control's own height already strikes.
-                        modifier = Modifier.fillMaxWidth().heightIn(min = height),
+                        modifier = Modifier.fillMaxWidth().height(stackedRow),
                         option = option,
                         selected = index == selected,
                         enabled = enabled,

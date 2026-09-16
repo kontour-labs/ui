@@ -41,12 +41,12 @@ import kotlin.test.assertTrue
  * |---|---|---|---|---|
  * | 100% | 728dp | 826dp | **826dp** | Haptics: a label and a four-segment control |
  * | 130% | 751dp | 854dp | **854dp** | the same |
- * | 200% | 863dp | 978dp | **1273dp** | two controls laying their options out in rows |
+ * | 200% | 863dp | 978dp | **1205dp** | two controls laying their options out in rows |
  *
  * The third column is the one worth reading. `SegmentedControl` stacks its
  * options into full-width rows when its labels stop fitting, rather than cutting
  * them — so at 200% both `Haptics` and `Input modality` become four rows each,
- * and the panel gains about 150dp apiece. **Nothing changes at 100% or 130%**,
+ * and the panel gains about 115dp apiece. **Nothing changes at 100% or 130%**,
  * where the labels still fit side by side, which is why those two columns are
  * identical.
  *
@@ -192,14 +192,15 @@ class SettingsPanelHeightTest {
          * that lets a row land unnoticed, which is the whole thing this is here
          * to prevent. Legitimate growth edits these numbers and says why.
          */
-        val Ceilings = listOf(1f to 826, 1.3f to 854, 2f to 1273)
+        val Ceilings = listOf(1f to 826, 1.3f to 854, 2f to 1205)
 
         /**
          * How much taller the panel is at the popover's width than at the sheet's.
          *
          * One four-option `SegmentedControl` laying its options out in rows:
-         * `4 × 48dp` against the 48dp a single line occupies.
+         * four content boxes of 32dp against the 44dp a single line occupies,
+         * plus the track's padding either way.
          */
-        const val NarrowGrowth = 144
+        const val NarrowGrowth = 96
     }
 }

@@ -1362,7 +1362,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // `SegmentedTypeScaleTest` is what watches it, by comparing how
                 // much label ink is drawn against how much the same labels draw
                 // with room.
-                RenderState("squeezed") { modifier ->
+                // Tall enough for four stacked rows: the specimen is starved on
+                // purpose, so it is the one that stacks.
+                RenderState("squeezed", height = 260) { modifier ->
                     SegmentedControl(
                         options = listOf("Auto", "Touch", "Mouse", "Keyboard"),
                         selected = 0,
