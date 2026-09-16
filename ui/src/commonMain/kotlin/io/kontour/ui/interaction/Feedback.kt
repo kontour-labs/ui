@@ -132,7 +132,8 @@ enum class HapticsLevel {
      * [FeedbackIntent.KeyPress]) are dropped, so a drag still reports arriving
      * somewhere without buzzing the whole way there.
      *
-     * This was called `Essential` and is the same set, less the new [Tap].
+     * This was called `Essential` and is the same set, less the new
+     * [FeedbackIntent.Tap].
      */
     Reduced,
 
