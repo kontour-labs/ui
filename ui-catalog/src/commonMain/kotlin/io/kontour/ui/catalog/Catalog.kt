@@ -32,6 +32,7 @@ import com.composables.icons.tabler.outline.AdjustmentsHorizontal
 import com.composables.icons.tabler.outline.Calendar
 import com.composables.icons.tabler.outline.Click
 import com.composables.icons.tabler.outline.Forms
+import com.composables.icons.tabler.outline.Activity
 import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.LayoutBottombar
 import com.composables.icons.tabler.outline.LayoutGrid
@@ -87,10 +88,14 @@ internal class Page(
  * The fix is not a check that notices the drift. It is the removal of the second
  * list: a demo can only be added to `demoFamilies`, and these pages are that.
  *
- * Two survive by hand because they are not component demos and never could be:
- * `About` is what the gallery is, and `Tokens` is the palette, the type scale
- * and the shape ladder — the one page where a *theme* can be judged rather than
- * a component.
+ * Three survive by hand because they are not component demos and never could be:
+ * `About` is what the gallery is, `Tokens` is the palette, the type scale and
+ * the shape ladder — the one page where a *theme* can be judged rather than a
+ * component — and `Frames` is an instrument. The last of those is the newest and
+ * has the sharpest reason: a full-screen generic-path clip sat under every sheet
+ * in the library for three rounds of profiling because the JVM suite prices a
+ * mask as pixel work and a GPU prices it as an architectural penalty. The
+ * measurement had to move to the device. See [FramesPage].
  *
  * `internal` rather than private so the test suite can render each one on its
  * own. That is not a courtesy: the shell's goldens only ever show the page that
@@ -104,6 +109,9 @@ internal val pages: List<Page> = listOf(
     // handed the library nothing about what it is or where the writing is.
     Page("About", Tabler.Outline.InfoCircle) { Scrolling(it) { AboutShowcase(Modifier.fillMaxWidth()) } },
     Page("Tokens", Tabler.Outline.Palette) { Scrolling(it) { ThemeShowcase(Modifier.fillMaxWidth()) } },
+    // Not `Scrolling`: it scrolls itself, because the workload inside it is a
+    // lazy list that has to be flickable on its own.
+    Page("Frames", Tabler.Outline.Activity) { FramesPage(it) },
 ) + demoFamilies.map { family ->
     Page(family.name, family.icon) { modifier -> DemoFamilyPage(family, modifier) }
 }
