@@ -111,13 +111,20 @@ images in the docs.
 ./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
           :ui:checkKdocSamples :ui-catalog:jvmTest :ui-docs:jvmTest \
           :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples \
+          :ui:compileIosMainKotlinMetadata \
+          :ui-catalog:compileIosMainKotlinMetadata \
           :ui:dokkaGenerateHtml
 python3 docs/check-links.py
 python3 docs/check-components.py
 ```
 
-Twelve gates, all on the JVM, no emulator and no simulator. Each exists because
-something drifted past a review — what each asks and what each has caught is in
+Fourteen gates, no emulator and no simulator. Twelve run on the JVM; the two
+`compileIosMainKotlinMetadata` tasks type-check the iOS source sets — UIKit
+cinterop included — from a Linux host, which is as far as this repository can
+follow a platform actual. They are here because an iOS-only defect shipped:
+`platformReportAppearance` fed its own reader, and nothing compiled the file it
+was in. Each gate exists because something drifted past a review — what each
+asks and what each has caught is in
 [`docs/building/testing.md`](docs/building/testing.md).
 
 ## Releasing

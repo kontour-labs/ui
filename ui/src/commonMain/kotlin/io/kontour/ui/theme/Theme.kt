@@ -1,6 +1,5 @@
 package io.kontour.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -22,6 +21,7 @@ import io.kontour.ui.interaction.rememberDefaultFeedbackDispatcher
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.platform.platformReportAppearance
+import io.kontour.ui.platform.platformSystemDark
 
 /**
  * The design system's tokens, for reading inside a composable.
@@ -156,9 +156,30 @@ object Theme {
  *   advice is to measure your own target rather than take either number.
  *   `docs/measure-web.mjs` is the instrument, and it takes a `--click`.
  */
+/**
+ * Whether the **device** is set to dark, which is not `isSystemInDarkTheme()`.
+ *
+ * Public because the difference is a trap for any application that offers a dark
+ * switch of its own, and this library makes that trap: [KontourTheme] tells the
+ * host what appearance it is drawing, and on iOS the only property that says so
+ * is also the one Compose Multiplatform reads its system theme back out of. An
+ * app that reports dark and then asks `isSystemInDarkTheme()` what the device is
+ * set to gets `true`, whatever the phone says.
+ *
+ * So an application with a **"follow the device" setting** should resolve it
+ * through this and not through Compose's own. An application that simply follows
+ * the system and has no switch can use either; there is no override installed to
+ * read back.
+ *
+ * `io.kontour.ui.platform.platformSystemDark` has the mechanism and the reason
+ * per platform.
+ */
+@Composable
+fun deviceInDarkTheme(): Boolean = platformSystemDark()
+
 @Composable
 fun KontourTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = deviceInDarkTheme(),
     contrast: ContrastLevel = if (platformPrefersHighContrast()) ContrastLevel.High else ContrastLevel.Standard,
     reduceMotion: Boolean = platformPrefersReducedMotion(),
     backdropBlur: Boolean = true,

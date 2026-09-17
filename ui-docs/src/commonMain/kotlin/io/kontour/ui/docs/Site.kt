@@ -69,7 +69,7 @@ import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.demo.theme.DemoThemeProvider
 import io.kontour.ui.theme.Theme
-import androidx.compose.foundation.isSystemInDarkTheme
+import io.kontour.ui.theme.deviceInDarkTheme
 
 /**
  * The documentation site.
@@ -96,7 +96,10 @@ import androidx.compose.foundation.isSystemInDarkTheme
  */
 @Composable
 fun Site(settings: CatalogSettings = rememberCatalogSettings()) {
-    val systemDark = isSystemInDarkTheme()
+    // `deviceInDarkTheme()`, not Compose's own: this app has a dark switch
+    // *and* reports its appearance to the host, and on iOS those are the
+    // same property. See `deviceInDarkTheme`.
+    val systemDark = deviceInDarkTheme()
     val route = rememberRoute()
 
     // Outside the theme, exactly as `Catalog` does it: font scale is a platform

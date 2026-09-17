@@ -1,6 +1,5 @@
 package io.kontour.ui.catalog
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,6 +66,7 @@ import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.deviceInDarkTheme
 
 /** One page of the gallery. */
 internal class Page(
@@ -178,7 +178,10 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
     var settingsOpen by remember { mutableStateOf(false) }
 
     val density = LocalDensity.current
-    val systemDark = isSystemInDarkTheme()
+    // `deviceInDarkTheme()`, not Compose's own: this app has a dark switch
+    // *and* reports its appearance to the host, and on iOS those are the
+    // same property. See `deviceInDarkTheme`.
+    val systemDark = deviceInDarkTheme()
     val systemHighContrast = platformPrefersHighContrast()
     val systemReduceMotion = platformPrefersReducedMotion()
 

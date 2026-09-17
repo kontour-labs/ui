@@ -30,3 +30,47 @@ import androidx.compose.runtime.Composable
  */
 @Composable
 internal expect fun platformReportAppearance(dark: Boolean)
+
+/**
+ * What the **device** is set to, which is not always what the window says.
+ *
+ * `isSystemInDarkTheme()` is Compose's own and is the obvious thing to read. On
+ * iOS it is also the thing this library has already written to, and that is a
+ * closed loop rather than a subtlety:
+ *
+ * - [platformReportAppearance]'s iOS actual sets `overrideUserInterfaceStyle` on
+ *   the application's windows, which is what puts UIKit chrome and any system
+ *   sheet on the same side as the canvas. It overrides the trait environment for
+ *   the whole view hierarchy beneath it.
+ * - Compose Multiplatform's iOS scene reads its system theme out of that same
+ *   trait environment — the hosting view controller's
+ *   `traitCollection.userInterfaceStyle`, pushed into `LocalSystemTheme` from
+ *   `traitCollectionDidChange`. Confirmed in the shipped `ui` klib for
+ *   1.12.0-rc01 rather than assumed.
+ *
+ * So an application that reports its appearance and then asks what the device is
+ * set to gets its own answer back. Reported from an iPhone in light mode: turn
+ * the app's dark switch on, then turn "follow device" on, and dark does not go
+ * away — because by then the device *is* dark, as far as anything can tell.
+ *
+ * Android and web have the same reporter and no loop: one sets system-bar icon
+ * tint flags, which nothing reads back, and the other sets `color-scheme`, which
+ * does not feed `prefers-color-scheme`.
+ *
+ * ### Two halves, and the second is what actually closes it
+ *
+ * This reads a source the override cannot reach — on iOS, the **screen's** trait
+ * collection rather than a window's. That is necessary and not sufficient,
+ * because a window pinned by an override stops reporting device changes at all,
+ * so nothing recomposes when the device changes.
+ *
+ * The other half is in the reporter: it installs an override only when the
+ * application's appearance **differs** from the device's, and clears it back to
+ * unspecified when they agree. An app that is following the device therefore has
+ * no override installed, its window follows the device live, and this function
+ * and `isSystemInDarkTheme()` agree. An app that is pinned has an override and a
+ * poisoned window — and the only moment its device value matters again is when
+ * the reader asks to follow the device, which is a tap, which recomposes.
+ */
+@Composable
+internal expect fun platformSystemDark(): Boolean

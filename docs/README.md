@@ -139,6 +139,8 @@ longer works fails the build.
 ./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
           :ui:checkKdocSamples :ui-catalog:jvmTest :ui-docs:jvmTest \
           :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples \
+          :ui:compileIosMainKotlinMetadata \
+          :ui-catalog:compileIosMainKotlinMetadata \
           :ui:dokkaGenerateHtml
 python3 docs/check-links.py
 python3 docs/check-components.py

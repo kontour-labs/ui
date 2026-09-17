@@ -1,5 +1,6 @@
 package io.kontour.ui.platform
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 
@@ -29,3 +30,27 @@ internal val reportedAppearances = mutableListOf<Boolean>()
 internal actual fun platformReportAppearance(dark: Boolean) {
     SideEffect { reportedAppearances += dark }
 }
+
+/**
+ * What the "device" is set to, which on the JVM is whatever a test says.
+ *
+ * Desktop has no loop to break — nothing here writes anything a reader could
+ * read back — so the honest actual would be `isSystemInDarkTheme()`. It is a
+ * settable field instead, and that is the whole point of it: the invariant this
+ * function exists for is **iOS-only and cannot be run anywhere in this
+ * repository**. The iOS source set is type-checked here — that is what
+ * `:ui:compileIosMainKotlinMetadata` is in the gate for — but there is no iOS
+ * test source set and no simulator, so nothing executes it.
+ *
+ * What *can* be run is the contract: reporting an appearance must not change
+ * what the device says it is. A field the test owns makes that a real assertion
+ * instead of a comment, and `AppearanceReportTest` is where it is made.
+ *
+ * `null` means "nobody has said", and then this defers to Compose, which is what
+ * a desktop application actually wants.
+ */
+internal var systemDarkOverride: Boolean? = null
+
+@Composable
+internal actual fun platformSystemDark(): Boolean =
+    systemDarkOverride ?: isSystemInDarkTheme()
