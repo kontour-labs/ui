@@ -185,6 +185,116 @@ class EndStopSquashTest {
     }
 
     /**
+     * And it can be dragged back without letting go.
+     *
+     * Reported in as many words: *"if I drag far enough and it gets squashed,
+     * then I can't drag it back the other way without first letting go, and then
+     * grabbing again"*. Letting go was not a workaround — it was the only thing
+     * that reset the accumulator.
+     *
+     * `RubberBand.payBack` did its half correctly: a finger coming home closes
+     * the stretch it opened before the content moves again. What undid it was
+     * the very next line, which re-pulled the band to its limit from an
+     * overshoot that had not changed, because `fingerX` was still far past the
+     * track. The band closed and reopened on the same frame, forever.
+     *
+     * So this drags well past the end, then drags back **without lifting**, and
+     * asks whether the thumb moved. It is deliberately a different question from
+     * the squash tests above: those ask what the thumb's shape does, and this
+     * asks whether the control is answering at all.
+     *
+     * ### A progression ladder was tried here and does not work
+     *
+     * [aSliderThumbSquashesFurtherTheFurtherItIsPushed] is the natural companion
+     * and it was written for this control first. It passed on the defect, which
+     * is worse than not existing, and the reason is worth keeping so nobody
+     * writes it again.
+     *
+     * Two things defeat it. The thumb is a *surface* a few greys from the well
+     * it sits in, so the only threshold that can find its edge is one low enough
+     * to find its **shadow** too — at a firmer threshold the widest run across
+     * the row is a thirteen-pixel label glyph that never moves — and the
+     * shadow's gradient crosses that threshold at a place that wobbles several
+     * pixels as the thumb lands on different subpixels. That is a third of the
+     * whole 24px signal.
+     *
+     * And the compounding does not show up between two depths anyway. The old
+     * arithmetic pulled by the *total* overshoot each frame, so it ran away only
+     * while the finger kept moving past the stop — which is also when the
+     * correct arithmetic is pulling hardest. Both reach the limit; the broken
+     * one just gets there sooner. What separates them is what happens when the
+     * finger comes **back**, which is this test.
+     */
+    @Test
+    fun aSegmentedThumbComesBackWithoutLettingGo() {
+        segmented { scene, bounds, row, track ->
+            val from = bounds.alongX(FromSegment)
+            val past = Offset(bounds.right + Overshoot, bounds.center.y)
+            scene.press(from)
+            walk(scene, from, past)
+            val pushed = requireNotNull(scene.frames(2).fillRun(bounds, row, track)) {
+                "no thumb found while pushing past the end of the track"
+            }
+
+            // Back to the first segment, still down.
+            walk(scene, past, from)
+            val returned = requireNotNull(scene.frames(Settle).fillRun(bounds, row, track)) {
+                "no thumb found after dragging back"
+            }
+            scene.release(from)
+
+            assertTrue(
+                returned.first < pushed.first - Segment,
+                "the thumb sat at ${pushed.first}..${pushed.last} pushed past the " +
+                    "end of the track, and at ${returned.first}..${returned.last} " +
+                    "after the finger came all the way back to the first segment " +
+                    "without lifting. It has not moved a segment's width, so the " +
+                    "control is not answering the finger any more: the band is " +
+                    "being refilled from a stale overshoot on every frame that " +
+                    "pays it back.",
+            )
+        }
+    }
+
+    /**
+     * A segmented control, its probe row, and the track's own colour.
+     *
+     * Three tests want the same scene and the same two readings off it, and the
+     * readings are the fiddly part — the track's colour has to be sampled from a
+     * column the thumb is not on, or the run being measured is "everything that
+     * is not the thumb".
+     *
+     * So the probe is at the **far** end. Every one of these starts on the first
+     * segment, which is where the thumb is at the moment the colour is read; the
+     * first draft probed the near end, read the thumb's own fill as the track,
+     * and measured the complement of the thumb — a 315px "thumb" in a control
+     * whose segments are 144px, and every reading the wrong way round.
+     */
+    private fun segmented(
+        body: (scene: Scene, bounds: Rect, row: Int, track: Int) -> Unit,
+    ) {
+        var selected by mutableStateOf(0)
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 240) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                SegmentedControl(
+                    options = listOf("One", "Two", "Three"),
+                    selected = selected,
+                    onSelectedChange = { selected = it },
+                    modifier = Modifier.width(240.dp).reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            assertTrue(bounds.width > 0f, "the segmented control never reported a size")
+            val row = bounds.center.y.toInt()
+            val track = scene.frames(1).getRGB((bounds.right - TrackProbe).toInt(), row)
+            body(scene, bounds, row, track)
+        }
+    }
+
+    /**
      * And it goes on squashing for as long as the finger goes on pushing.
      *
      * The report: *"it feels like there's just 2 states at the moment: squashed
@@ -341,6 +451,7 @@ class EndStopSquashTest {
         /** Each step of the pull has to move the thumb by more than an edge. */
         const val Gradient = 2
 
+
         /** Inside the switch, on the side the thumb starts. */
         const val SwitchGrab = 0.2f
 
@@ -366,6 +477,9 @@ class EndStopSquashTest {
 
         /** Two antialiased edges and the odd rounded pixel. */
         const val Tolerance = 3
+
+        /** A third of a 240dp control at density 2, less its padding. Comfortably under a segment. */
+        const val Segment = 120
     }
 }
 

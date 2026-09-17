@@ -549,9 +549,13 @@ fun SegmentedControl(
                     scope = scope,
                     claimsOn = DragClaim.Movement,
                     onStart = { offset ->
-                        fingerX = offset.x
+                        // Clamped like every later frame is: a press can land in
+                        // the track's own padding, and an accumulator that
+                        // starts outside the track is the thing this control
+                        // used to get wrong for the whole gesture.
+                        fingerX = offset.x.coerceIn(0f, trackWidth.coerceAtLeast(0f))
                         dragging = true
-                        selectAt(offset.x)
+                        selectAt(fingerX)
                     },
                     // Accumulated rather than read off the change, because this
                     // reports movement rather than position. It comes to the same
@@ -562,18 +566,34 @@ fun SegmentedControl(
                         // before the thumb moves again, or one gesture reads as
                         // two motions.
                         val offered = dx - band.payBack(dx)
-                        fingerX += offered
+
+                        // **The band is handed the part of *this* delta the
+                        // track refused, not the total distance past it.**
+                        //
+                        // `fingerX` used to run on unclamped, and the overshoot
+                        // was recomputed from it every frame and passed whole to
+                        // `band.pull` — which is incremental, so it compounded.
+                        // At a limit's distance past the stop a single frame
+                        // absorbs about 63% of the remaining room, so the band
+                        // reached its limit in two or three frames and stayed
+                        // there however much further the finger went.
+                        //
+                        // Worse, it could not be undone. `payBack` closes the
+                        // band against the finger coming home, and then the very
+                        // same frame re-pulled it to the limit, because
+                        // `fingerX` was still far past the track. Reported as
+                        // not being able to drag back the other way without
+                        // letting go first — which was literally the only way
+                        // out, since lifting is what resets `fingerX`.
+                        //
+                        // `Switch`, `Slider` and `RangeSlider` all do it this
+                        // way already: clamp the accumulator, hand the band the
+                        // remainder. This control was the one that did not.
+                        val raw = fingerX + offered
+                        fingerX = raw.coerceIn(0f, trackWidth.coerceAtLeast(0f))
                         selectAt(fingerX)
-                        // Past the track is the only wall a segmented control
-                        // has. `selectAt` already quantises, so this is the part
-                        // of the finger the control cannot answer.
-                        val past = when {
-                            fingerX > trackWidth -> fingerX - trackWidth
-                            fingerX < 0f -> fingerX
-                            else -> 0f
-                        }
-                        if (past != 0f && !motion.reduceMotion && options.isNotEmpty()) {
-                            band.pull(past, endStopTravelPx)
+                        if (!motion.reduceMotion && options.isNotEmpty()) {
+                            band.pull(raw - fingerX, endStopTravelPx)
                         }
                     },
                     onEnd = {
