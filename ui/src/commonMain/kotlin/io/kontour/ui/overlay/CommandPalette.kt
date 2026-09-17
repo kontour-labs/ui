@@ -311,7 +311,10 @@ private fun PaletteBody(
         // rather than one panel. `inset` is the rule the shape scale exists for:
         // an inner radius is its container's less the gap between them.
         val gap = Theme.spacing.xs
-        val inner = Theme.shapes.panel.inset(gap)
+        val panel = Theme.shapes.panel
+        // Remembered: see `SquirclePaths`. A fresh `copy` per composition is a
+        // fresh modifier for the node that clips to it.
+        val inner = remember(panel, gap) { panel.inset(gap) }
 
         Column(
             modifier = Modifier.padding(gap),

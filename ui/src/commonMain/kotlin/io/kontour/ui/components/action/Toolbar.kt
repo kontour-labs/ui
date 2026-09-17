@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -269,7 +270,13 @@ object ToolbarDefaults {
      * derived, which is the first version of this that says what it means.
      */
     val Shape: CornerBasedShape
-        @Composable get() = Theme.shapes.control.outset(ContentPadding)
+        @Composable get() {
+            val control = Theme.shapes.control
+            val padding = ContentPadding
+            // Remembered: every read of this property built another shape, and a
+            // toolbar reads it on each recomposition. See `SquirclePaths`.
+            return remember(control, padding) { control.outset(padding) }
+        }
 
     /**
      * Shorter than the toolbar, so the rule floats rather than butting into the

@@ -22,7 +22,6 @@ import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.foundation.Icon
 import androidx.compose.foundation.shape.CornerBasedShape
-import io.kontour.ui.theme.lerpCorners
 import io.kontour.ui.theme.Theme
 
 /**
@@ -169,8 +168,12 @@ fun ExpandingListItem(
 private fun headerShape(position: ListItemPosition, fraction: Float): CornerBasedShape {
     val base = ListItemDefaults.Shape
     val inner = ListItemDefaults.InnerCorner
-    return position.shape(base, inner)
-        .lerpCorners(position.opening(true).shape(base, inner), fraction)
+    // Quantised rather than built per frame — see `rememberMorphedShape`.
+    return rememberMorphedShape(
+        from = position.shape(base, inner),
+        to = position.opening(true).shape(base, inner),
+        fraction = fraction,
+    )
 }
 
 /**

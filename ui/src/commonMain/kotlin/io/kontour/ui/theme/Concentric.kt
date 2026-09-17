@@ -154,7 +154,12 @@ fun ProvideConcentric(
 @Composable
 fun Shapes.concentric(orElse: CornerBasedShape = control): CornerBasedShape {
     val container = LocalConcentricContainer.current ?: return orElse
-    return container.shape.inset(container.padding)
+    // Remembered, which matters more here than at any single call site: this is
+    // the shared helper the rest of the library is supposed to reach for, so a
+    // shape rebuilt here is one rebuilt everywhere. See `SquirclePaths`.
+    return remember(container.shape, container.padding) {
+        container.shape.inset(container.padding)
+    }
 }
 
 /**
@@ -184,5 +189,8 @@ fun Shapes.concentric(orElse: CornerBasedShape = control): CornerBasedShape {
 @Composable
 fun Modifier.concentric(extra: Dp = 0.dp): Modifier {
     val container = LocalConcentricContainer.current ?: return this
-    return clip(container.shape.inset(container.padding + extra))
+    val shape = remember(container.shape, container.padding, extra) {
+        container.shape.inset(container.padding + extra)
+    }
+    return clip(shape)
 }

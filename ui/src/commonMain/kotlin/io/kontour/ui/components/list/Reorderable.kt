@@ -48,7 +48,6 @@ import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import androidx.compose.animation.core.Animatable
-import io.kontour.ui.theme.lerpCorners
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -294,8 +293,16 @@ fun LazyItemScope.ReorderableItem(
             settled = position
         }
     }
-    val shadowShape = shape ?: settled.shape(base, inner)
-        .lerpCorners(position.shape(base, inner), morph.value)
+    // Quantised, so a row morphing between two positions is one of thirteen
+    // shapes rather than a new one per frame — and this one feeds a
+    // `graphicsLayer`'s `shape` below, so a rebuild takes the shadow's blur with
+    // it. See `rememberMorphedShape`.
+    val morphed = rememberMorphedShape(
+        from = settled.shape(base, inner),
+        to = position.shape(base, inner),
+        fraction = morph.value,
+    )
+    val shadowShape = shape ?: morphed
     val modality = LocalInputModality.current
     val dragging = state.draggingIndex == index
 

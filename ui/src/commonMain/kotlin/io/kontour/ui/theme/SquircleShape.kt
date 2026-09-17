@@ -72,25 +72,6 @@ class SquircleShape(
     val smoothing: Float = DefaultSmoothing,
 ) : CornerBasedShape(topStart, topEnd, bottomEnd, bottomStart) {
 
-    /**
-     * The last few paths this shape built, newest overwriting oldest.
-     *
-     * One entry was enough while a shape instance belonged to one component. It
-     * is not now that the semantic tokens alias the scale — `Shapes.container`
-     * *is* `Shapes.medium`, one object shared by every card, row, menu, popover
-     * and drawer on screen. Two containers at different sizes evicted each
-     * other, so both rebuilt their path on every draw, and building one is four
-     * corners of trigonometry and twelve cubic segments.
-     *
-     * Written round-robin rather than least-recently-used: with a handful of
-     * live sizes the two orders keep the same set, and a plain cursor has no
-     * bookkeeping to get wrong. Not synchronised — a shape is used from the
-     * thread that draws it, and the worst a race can do here is rebuild a path
-     * that had already been built.
-     */
-    private val cache = arrayOfNulls<CachedPath>(CacheEntries)
-    private var cursor = 0
-
     override fun copy(
         topStart: CornerSize,
         topEnd: CornerSize,
@@ -118,18 +99,11 @@ class SquircleShape(
         val bottomRight = if (ltr) bottomEnd else bottomStart
         val bottomLeft = if (ltr) bottomStart else bottomEnd
 
-        for (entry in cache) {
-            // Null means the cache has not filled yet, and it fills in order, so
-            // there is nothing past the first hole to look at.
-            if (entry == null) break
-            if (entry.matches(size, topLeft, topRight, bottomRight, bottomLeft)) {
-                return Outline.Generic(entry.path)
-            }
-        }
+        val cached = SquirclePaths.find(size, topLeft, topRight, bottomRight, bottomLeft, smoothing)
+        if (cached != null) return Outline.Generic(cached)
 
         val path = buildPath(size, topLeft, topRight, bottomRight, bottomLeft)
-        cache[cursor] = CachedPath(size, topLeft, topRight, bottomRight, bottomLeft, path)
-        cursor = (cursor + 1) % cache.size
+        SquirclePaths.put(size, topLeft, topRight, bottomRight, bottomLeft, smoothing, path)
         return Outline.Generic(path)
     }
 
@@ -391,16 +365,6 @@ class SquircleShape(
          */
         const val DefaultSmoothing: Float = 0.6f
 
-        /**
-         * How many distinct sizes one shape instance remembers a path for.
-         *
-         * Four covers what a screen actually holds — a card, a list row, a menu
-         * and a popover are four sizes, and everything else on screen repeats
-         * one of them. A miss is a rebuild, so a larger cache only helps a
-         * screen that already has more distinct containers than it has room to
-         * show.
-         */
-        private const val CacheEntries = 4
     }
 }
 
@@ -488,12 +452,131 @@ private class CachedPath(
     private val topRight: Float,
     private val bottomRight: Float,
     private val bottomLeft: Float,
+    private val smoothing: Float,
     val path: Path,
 ) {
-    fun matches(size: Size, topLeft: Float, topRight: Float, bottomRight: Float, bottomLeft: Float): Boolean =
+    fun matches(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+        smoothing: Float,
+    ): Boolean =
         this.size == size &&
             this.topLeft == topLeft &&
             this.topRight == topRight &&
             this.bottomRight == bottomRight &&
-            this.bottomLeft == bottomLeft
+            this.bottomLeft == bottomLeft &&
+            this.smoothing == smoothing
+}
+
+/**
+ * Every squircle path built lately, for the whole process rather than per shape.
+ *
+ * ### Why it cannot belong to the instance
+ *
+ * It did, four entries deep, and that was already tight: the semantic tokens
+ * alias the scale — `Shapes.container` **is** `Shapes.medium`, one object shared
+ * by every card, row, menu, popover and drawer on screen — so four distinct
+ * sizes is an ordinary page rather than a busy one.
+ *
+ * What it could not cover at all is a **derived** shape. `inset`, `outset`,
+ * `atLeast` and `lerpCorners` all go through `copy`, which is a new
+ * `SquircleShape` with an empty cache, and nine call sites build one *in
+ * composition* without remembering it. Every recomposition therefore threw the
+ * cache away and rebuilt the path — four corners of trigonometry and twelve
+ * cubic segments — and two of those sites do it on every frame of an animation
+ * with the result feeding a `graphicsLayer` shadow, which re-rasterises the blur
+ * with it.
+ *
+ * Keyed on what a path *is* rather than on who asked for it, two instances that
+ * resolve to the same corners share one entry, so a fresh `copy` of a shape
+ * already on screen is free. The `remember`s at those call sites are still worth
+ * having and are still there; this is what makes forgetting one cost a lookup
+ * instead of a rebuild.
+ *
+ * ### Direct-mapped, not searched
+ *
+ * One slot per hash, collisions evict. A miss costs a rebuild, which is what the
+ * old cache paid on every miss anyway, and the lookup stays a single array read
+ * however large this grows — where a linear scan would put the cost of the cache
+ * on the page that needs it least.
+ *
+ * Not synchronised, which is the same trade the per-instance array made: a shape
+ * is used from the thread that draws it, entries are immutable once written, and
+ * the worst a race can do is rebuild a path that had already been built.
+ *
+ * ### One `Path` handed to several callers
+ *
+ * As before. Two cards of the same size shared an object under the old cache
+ * too; what is new is that two cards of the same size with *different* shape
+ * instances do. Nothing in the library mutates a path it did not build —
+ * `backdropGround` copies into its own through `addOutline`, which is the one
+ * place that takes an outline apart.
+ */
+private object SquirclePaths {
+
+    /**
+     * Enough for a page, and a power of two so the mask below is the modulo.
+     *
+     * A screen holds a few dozen distinct container sizes once list rows, menus,
+     * chips and badges are counted. 128 entries is a few kilobytes of references
+     * against a rebuild each, which is the cheapest thing in this file to be
+     * generous with.
+     */
+    private const val Capacity = 128
+
+    private val entries = arrayOfNulls<CachedPath>(Capacity)
+
+    fun find(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+        smoothing: Float,
+    ): Path? {
+        val entry = entries[slot(size, topLeft, topRight, bottomRight, bottomLeft, smoothing)]
+        return entry?.takeIf {
+            it.matches(size, topLeft, topRight, bottomRight, bottomLeft, smoothing)
+        }?.path
+    }
+
+    fun put(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+        smoothing: Float,
+        path: Path,
+    ) {
+        entries[slot(size, topLeft, topRight, bottomRight, bottomLeft, smoothing)] =
+            CachedPath(size, topLeft, topRight, bottomRight, bottomLeft, smoothing, path)
+    }
+
+    /**
+     * The bits of a float rather than the float, so `-0f` and `0f` do not collide
+     * with each other's entries and a `NaN` cannot make every lookup a hit.
+     */
+    private fun slot(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+        smoothing: Float,
+    ): Int {
+        var hash = size.width.toRawBits()
+        hash = hash * 31 + size.height.toRawBits()
+        hash = hash * 31 + topLeft.toRawBits()
+        hash = hash * 31 + topRight.toRawBits()
+        hash = hash * 31 + bottomRight.toRawBits()
+        hash = hash * 31 + bottomLeft.toRawBits()
+        hash = hash * 31 + smoothing.toRawBits()
+        // Folded, because the low bits of a multiply-by-31 chain over float bits
+        // are far less varied than the high ones and the mask only keeps the low.
+        return (hash xor (hash ushr 16)) and (Capacity - 1)
+    }
 }

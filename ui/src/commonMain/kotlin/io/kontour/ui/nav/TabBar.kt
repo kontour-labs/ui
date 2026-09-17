@@ -151,6 +151,20 @@ fun TabBar(
     content: @Composable TabBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
+
+    // The marker's own corner, built once rather than per frame.
+    //
+    // Concentric with the tab it sits in rather than sharing a token with it:
+    // both are above `small`, so both would stop at `CapsuleCap` and the 4dp
+    // ring would close to nothing at the corners. The inset is read from the
+    // same `xxs` the sizing below uses, so the two cannot drift apart.
+    //
+    // Hoisted out of the `indicator` lambda and remembered, because that lambda
+    // runs on every frame the marker travels and `inset` returns a fresh
+    // `SquircleShape` each time. See `SquirclePaths`.
+    val indicatorInset = Theme.spacing.xxs
+    val tabShape = Theme.shapes.control
+    val indicatorShape = remember(tabShape, indicatorInset) { tabShape.inset(indicatorInset) }
     // Through `Surface` rather than a bare `Modifier.background`, which is what
     // `NavBar`, `NavRail`, `NavDrawer` and `Scaffold` all do with their own
     // container colour. The difference is `LocalContentColour`: a bar given a
@@ -211,13 +225,9 @@ fun TabBar(
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                // Concentric with the tab it sits in rather than
-                                // sharing a token with it. Both are above `small`,
-                                // so both would stop at `CapsuleCap` and the 4dp
-                                // ring would close to nothing at the corners. The
-                                // inset is read from the same `xxs` the sizing
-                                // above uses, so the two cannot drift apart.
-                                .clip(Theme.shapes.control.inset(Theme.spacing.xxs))
+                                // See `indicatorShape`, which is where this is
+                                // built and why it is not built here.
+                                .clip(indicatorShape)
                                 .background(indicatorColour)
                         )
                     },

@@ -376,6 +376,15 @@ fun MenuItem(
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
+    // One shape for the clip and the indication, remembered.
+    //
+    // It was the same expression written twice, and `inset` returns a fresh
+    // `SquircleShape` through `copy` — so a menu row built two of them per
+    // recomposition and handed each to a different node. See `SquirclePaths`.
+    val panelShape = Theme.shapes.container
+    val rowInset = Theme.spacing.xxs
+    val rowShape = remember(panelShape, rowInset) { panelShape.inset(rowInset) }
+
     val contentColour = when {
         !enabled -> colours.contentDisabled
         destructive -> colours.danger.solid
@@ -409,16 +418,13 @@ fun MenuItem(
             // It also fixes the corner: `inset(xxs)` is the concentric radius
             // for a 4dp inset, and now every side really is at 4.
             .minimumTouchTarget(fill = true)
-            .clip(Theme.shapes.container.inset(Theme.spacing.xxs))
+            .clip(rowShape)
             .pointerCursor(enabled = enabled)
             .clickable(
                 interactionSource = interactions,
                 // A menu row is a big target; scaling it makes the whole menu
                 // look like it is wobbling.
-                indication = kontourIndication(
-                    Theme.shapes.container.inset(Theme.spacing.xxs),
-                    pressScale = 1f,
-                ),
+                indication = kontourIndication(rowShape, pressScale = 1f),
                 enabled = enabled,
                 onClick = onClick,
             )

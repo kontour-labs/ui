@@ -151,7 +151,11 @@ fun SegmentedControl(
     val outerShape = Theme.shapes.field
     // Concentric by construction rather than by picking the token one rung down
     // and trusting the padding to match the step.
-    val innerShape = outerShape.inset(SegmentedControlDefaults.TrackPadding)
+    // Remembered rather than derived per composition: `inset` returns a fresh
+    // `SquircleShape` through `copy`, and a new instance is a new modifier for
+    // every node that takes it. See `SquirclePaths`.
+    val outerPadding = SegmentedControlDefaults.TrackPadding
+    val innerShape = remember(outerShape, outerPadding) { outerShape.inset(outerPadding) }
     // At least a fingertip tall, whatever the control height token says.
     //
     // A segmented control is one control made of parts, so it owns the touch
