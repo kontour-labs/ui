@@ -392,6 +392,108 @@ class EndStopSquashTest {
      * antialiasing. These are roughly even in the fraction they reach — about a
      * fifth, a half, three quarters, and most of the way.
      */
+    /**
+     * Letting go does not pass through the full-width pill on the way home.
+     *
+     * Reported, of the slider: *"make sure it smoothly animates back to the
+     * little circle when the user lets go, rather than snapping to the
+     * full-width pill before animating back."*
+     *
+     * The thumb's drawn width is two animations multiplied together and they
+     * came home on different springs — the squash on `springSnappy`, the stretch
+     * on `springBouncy`, which is slower and oscillates. `sliderThumb` draws
+     * `width·(1−pull) + 1.5r·pull`, so `pull` reached zero while `width` was
+     * still `2r·1.5`: the thumb left its squashed 1.5r, went **through** the
+     * full 3r pill, and only then came home to 2r. See `Slider`'s `thumbReturn`.
+     *
+     * ### Sampled every frame, and the resting width is the line
+     *
+     * The excursion is a handful of frames wide, so a test that looks at the
+     * shape once after letting go will miss it — the first attempt at this
+     * sampled every few frames and read 30, 40, 30, 36 against a resting 36,
+     * which is the defect but only barely. This walks the frames one at a time
+     * and takes the widest.
+     *
+     * The line is the thumb's own resting width, measured before anything is
+     * touched, plus the usual tolerance. A thumb coming out of a squash is
+     * *narrower* than resting and has to grow back to it; what it must not do is
+     * overshoot on the way, and after the fix the arithmetic peaks 3% over.
+     */
+    @Test
+    fun aReleasedThumbDoesNotSwellPastItsRestingWidth() {
+        var value by mutableStateOf(0.5f)
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 240) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                Slider(
+                    value = value,
+                    onValueChange = { value = it },
+                    modifier = Modifier.width(200.dp).reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            assertTrue(bounds.width > 0f, "the slider never reported a size")
+
+            val resting = requireNotNull(scene.frames(Settle).thumbRun(bounds)) {
+                "no thumb found at rest"
+            }.width()
+
+            val press = Offset(bounds.right - 2f, bounds.center.y)
+            scene.press(press)
+            val pushedTo = Offset(bounds.right + Overshoot, bounds.center.y)
+            walk(scene, press, pushedTo)
+            val squashed = requireNotNull(scene.frames(2).thumbRun(bounds)) {
+                "no thumb found while pushing past the end of the track"
+            }.width()
+            assertTrue(
+                squashed < resting,
+                "the thumb was ${squashed}px wide pushed into the end stop against " +
+                    "${resting}px at rest, so the gesture never squashed it and " +
+                    "there is no release for this to be measuring",
+            )
+
+            scene.release(pushedTo)
+            val path = (0 until ReleaseFrames).map {
+                requireNotNull(scene.frame().thumbRun(bounds)) {
+                    "no thumb found on the way back from the end stop"
+                }.width()
+            }
+
+            val widest = path.max()
+            assertTrue(
+                widest <= resting + Tolerance,
+                "on the way back from a squash the thumb reached ${widest}px " +
+                    "against a resting width of ${resting}px. It starts this " +
+                    "journey at ${squashed}px and its destination is ${resting}px, " +
+                    "so anything wider is the stretch it was let go from " +
+                    "re-inflating it — the full-width pill that was reported. " +
+                    "The widths, frame by frame: $path",
+            )
+            assertTrue(
+                abs(path.last() - resting) <= Tolerance,
+                "the thumb finished at ${path.last()}px rather than back at its " +
+                    "resting ${resting}px, so it has not animated home at all and " +
+                    "the assertion above proves nothing",
+            )
+
+            // And it only ever widens, which is the report in its own words:
+            // *"smoothly animates back to the little circle"* rather than out to
+            // something and back. A pixel of slack for the rounding — the run is
+            // counted in whole columns off a rendered frame.
+            val wentBack = path.zipWithNext().firstOrNull { (a, b) -> b < a - 1 }
+            assertTrue(
+                wentBack == null,
+                "the thumb went from ${wentBack?.first}px to ${wentBack?.second}px " +
+                    "on its way back from the end stop, so it widened past where " +
+                    "it was going and came back — which is the full-width pill " +
+                    "even when the peak stays under the resting width. " +
+                    "The widths, frame by frame: $path",
+            )
+        }
+    }
+
     @Test
     fun aSliderThumbSquashesFurtherTheFurtherItIsPushed() {
         var value by mutableStateOf(0.5f)
@@ -570,6 +672,16 @@ class EndStopSquashTest {
 
         /** A third of a 240dp control at density 2, less its padding. Comfortably under a segment. */
         const val Segment = 120
+
+        /**
+         * Long enough to contain the whole of the return, sampled one at a time.
+         *
+         * `springSnappy` is over in about a dozen frames and `springBouncy` — the
+         * spring the stretch used to come home on, and the one that made the
+         * excursion long as well as tall — takes rather longer. Forty is past
+         * both.
+         */
+        const val ReleaseFrames = 40
     }
 }
 

@@ -232,28 +232,61 @@ fun RangeSlider(
      */
     fun held(thumb: Thumb): Boolean = active && activeThumb == thumb && !motion.reduceMotion
 
+    /**
+     * The grab is bouncy; the return is not, and the return is the reported bug.
+     *
+     * *"Make sure it smoothly animates back to the little circle when the user
+     * lets go, rather than snapping to the full-width pill before animating
+     * back."* A thumb's drawn width is not one animation but two multiplied
+     * together, and they used to come home on different springs:
+     *
+     * - the squash, through `RubberBand.release` on `springSnappy` — damping
+     *   0.9, stiffness 1400, over in a few frames;
+     * - the stretch, through the scale and aspect below on `springBouncy` —
+     *   damping 0.45, stiffness 900, slower and oscillating.
+     *
+     * `sliderThumb` draws `width·(1−pull) + 1.5r·pull`, so the fast spring
+     * returned `pull` to zero while `width` was still `2r·1.5`: the thumb went
+     * from its squashed 1.5r **through** the full 3r pill and only then home to
+     * 2r. A 100% excursion, in the direction of the shape the finger had just
+     * let go of.
+     *
+     * One spring for the return fixes it without touching the grab, which is
+     * where the bounce belongs. With a shared `g: 1 → 0` the drawn width is
+     * `2r·(1 + 0.25g − 0.5g²)`, peaking at `g = 0.25` — **3% over resting size**,
+     * a settle rather than an excursion, against 50% before.
+     *
+     * `springSnappy` for the return rather than a bouncy band, because the
+     * band's is the one that has to be over quickly: it is describing a wall the
+     * finger is no longer pushing against.
+     */
+    fun thumbReturn(thumb: Thumb) = motion.springOrTween<Float>(
+        if (held(thumb)) motion.springBouncy else motion.springSnappy
+    )
+
     val startScale by animateFloatAsState(
         targetValue = if (held(Thumb.Start)) 1.25f else 1f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
+        animationSpec = thumbReturn(Thumb.Start),
         label = "rangeSliderStartThumb",
     )
     val endScale by animateFloatAsState(
         targetValue = if (held(Thumb.End)) 1.25f else 1f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
+        animationSpec = thumbReturn(Thumb.End),
         label = "rangeSliderEndThumb",
     )
 
     // A circle at rest that lengthens into a capsule while it is held. Shares
     // the spring with the scale above, so a thumb grows and stretches as one
-    // gesture rather than two overlapping ones.
+    // gesture rather than two overlapping ones — and comes home on the same
+    // spring as the squash, which is what `thumbReturn` is for.
     val startAspect by animateFloatAsState(
         targetValue = if (held(Thumb.Start)) SliderDefaults.ThumbAspect else 1f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
+        animationSpec = thumbReturn(Thumb.Start),
         label = "rangeSliderStartAspect",
     )
     val endAspect by animateFloatAsState(
         targetValue = if (held(Thumb.End)) SliderDefaults.ThumbAspect else 1f,
-        animationSpec = motion.springOrTween(motion.springBouncy),
+        animationSpec = thumbReturn(Thumb.End),
         label = "rangeSliderEndAspect",
     )
 
@@ -710,7 +743,30 @@ fun RangeSlider(
                             // squash unwinds as they land rather than as a
                             // second animation over the top.
                             scope.launch {
-                                band.release(motion.springOrTween(motion.springSnappy))
+                                // **Slower than the stretch, and that is the whole
+                                // fix.** The thumb's drawn width is
+                                // `width·(1−pull) + 1.5r·pull`, so a squash that
+                                // unwinds while `width` is still a stretched capsule
+                                // takes the thumb *out* through the full pill on its way
+                                // home — reported as "snapping to the full-width pill
+                                // before animating back".
+                                //
+                                // Matching the two springs was the obvious answer and it
+                                // is not enough: traced frame by frame, a shared spring
+                                // still peaks 9.8% over resting size, because `width`
+                                // starts at `2r·1.25·1.5` and the lerp between a wide
+                                // number and a narrow one bulges in the middle whatever
+                                // rate they share.
+                                //
+                                // Letting the stretch get home *first* removes the bulge
+                                // rather than shrinking it. Once `width` is back to `2r`
+                                // the same expression reads `2r·(1−pull) + 1.5r·pull`,
+                                // which climbs from the squashed size to the resting one
+                                // and cannot exceed it. `springGentle` is 300 against
+                                // `springSnappy`'s 1400 — a little over twice as slow,
+                                // and critically damped, so the squash eases out from
+                                // under a wall that is no longer being pushed.
+                                band.release(motion.springOrTween(motion.springGentle))
                             }
                             // A press that never moved is a tap, and a tap
                             // moves the nearer thumb to it.

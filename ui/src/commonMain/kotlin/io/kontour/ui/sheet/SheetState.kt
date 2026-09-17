@@ -680,26 +680,6 @@ class SheetState internal constructor(
     }
 
     /**
-     * Hands scroll between the sheet and whatever scrolls inside it.
-     *
-     * The rule: dragging *down* moves the inner list until it reaches its top,
-     * then moves the sheet. Dragging *up* moves the sheet until it is fully
-     * expanded, then moves the list. Without it, a sheet with a `LazyColumn`
-     * inside is either undraggable or unscrollable, depending on which
-     * modifier won.
-     *
-     * @param settleSpec How the sheet finishes its travel once a fling hands
-     *   over. **The same spec the sheet's own `flingBehavior` uses**, and it is
-     *   a parameter for that reason: two settling policies on one sheet is a
-     *   sheet that arrives differently depending on whether the gesture started
-     *   on the handle or in the list.
-     *
-     *   It also has to be passed rather than assumed, because the alternative is
-     *   the overload that takes a velocity — and that one *throws* on a state
-     *   built without positional and velocity thresholds, which this one is.
-     *   Scrolling anything inside a sheet crashed on it.
-     */
-    /**
      * Settles at the detent a flick was **aimed at**, not the one it was nearest
      * when the finger left.
      *
@@ -777,6 +757,26 @@ class SheetState internal constructor(
         return aimed
     }
 
+    /**
+     * Hands scroll between the sheet and whatever scrolls inside it.
+     *
+     * The rule: dragging *down* moves the inner list until it reaches its top,
+     * then moves the sheet. Dragging *up* moves the sheet until it is fully
+     * expanded, then moves the list. Without it, a sheet with a `LazyColumn`
+     * inside is either undraggable or unscrollable, depending on which
+     * modifier won.
+     *
+     * @param settleSpec How the sheet finishes its travel once a fling hands
+     *   over. **The same spec the sheet's own `flingBehavior` uses**, and it is
+     *   a parameter for that reason: two settling policies on one sheet is a
+     *   sheet that arrives differently depending on whether the gesture started
+     *   on the handle or in the list.
+     *
+     *   It also has to be passed rather than assumed, because the alternative is
+     *   the overload that takes a velocity — and that one *throws* on a state
+     *   built without positional and velocity thresholds, which this one is.
+     *   Scrolling anything inside a sheet crashed on it.
+     */
     internal fun nestedScrollConnection(
         settleSpec: AnimationSpec<Float>,
     ): NestedScrollConnection =
