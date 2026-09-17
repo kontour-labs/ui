@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import platform.Foundation.valueForKey
 import platform.UIKit.UIScreen
 
 /**
