@@ -1,6 +1,8 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.InternalComposeUiApi
@@ -13,6 +15,7 @@ import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.scene.ComposeScenePointer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.toSize
 import io.kontour.ui.theme.KontourTheme
@@ -43,12 +46,41 @@ class Scene(
     content: @Composable () -> Unit,
 ) : AutoCloseable {
 
+    /**
+     * The reader's type size, changeable **while the scene is running**.
+     *
+     * The missing half of the font-scale sweep, and the reason it was missing is
+     * that `Density(density)` takes one argument: every scene in the repository
+     * ran at a font scale of exactly 1, so nothing here could reproduce a defect
+     * that needs the type size to change *under* something.
+     *
+     * A `Density` is not only a dp-to-pixel ratio. Compose's pointer input reads
+     * one, and `SuspendingPointerInputModifierNode` **resets its handler** when
+     * that density changes — which cancels whatever gesture was in flight. A
+     * control that does its own bookkeeping in `onEnd` therefore has a way to
+     * never reach it, and a Text size control is the one screen in an app that
+     * can do it to itself by being used.
+     */
+    private val fontScale = mutableStateOf(1f)
+
     private val scene = ImageComposeScene(
         width = width,
         height = height,
         density = Density(density),
     ) {
-        KontourTheme(darkTheme = darkTheme, reduceMotion = reduceMotion) { content() }
+        CompositionLocalProvider(LocalDensity provides Density(density, fontScale.value)) {
+            KontourTheme(darkTheme = darkTheme, reduceMotion = reduceMotion) { content() }
+        }
+    }
+
+    /**
+     * Changes the type size, as the reader would, mid-composition.
+     *
+     * Takes effect on the next rendered frame. See [fontScale] for what that
+     * costs a gesture that is already running.
+     */
+    fun typeScale(scale: Float) {
+        fontScale.value = scale
     }
 
     private var nanos = 0L

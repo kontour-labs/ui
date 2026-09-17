@@ -12,6 +12,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -231,45 +232,79 @@ private fun Modifier.ownedDrag(
             // every ripple and every press state that the user finished, which is
             // the opposite of what happened.
             var cancelled = false
-            while (true) {
-                val event = awaitPointerEvent()
-                val change: PointerInputChange? = event.changes.firstOrNull { it.id == down.id }
-                if (change == null) {
-                    cancelled = true
-                    break
-                }
-                if (!change.pressed) {
-                    // The up as well, but only once this is genuinely a drag.
-                    // Leaving it unconsumed let a clickable parent count the
-                    // whole gesture as a tap on release; consuming it for a
-                    // press that never moved would eat the tap this deliberately
-                    // stayed out of the way of.
-                    if (press != null) change.consume()
-                    break
-                }
-                val delta = change.positionChange()
-                if (press == null) {
-                    // Nothing has happened yet, so nothing is claimed and the
-                    // event is left for whoever else wants it.
-                    if (delta == Offset.Zero) continue
-                    claim(change.position)
-                }
-                // Every change, both axes. See above: the cross-axis half is what
-                // the scroller would otherwise use to win the race, and a second
-                // finger on the same control is a second way to lose it.
-                event.changes.forEach { it.consume() }
-                currentDelta(delta)
-            }
-
-            press?.let { started ->
-                interactionSource?.let { source ->
-                    scope.launch {
-                        source.emit(
-                            if (cancelled) DragInteraction.Cancel(started) else DragInteraction.Stop(started)
-                        )
+            try {
+                while (true) {
+                    val event = awaitPointerEvent()
+                    val change: PointerInputChange? = event.changes.firstOrNull { it.id == down.id }
+                    if (change == null) {
+                        cancelled = true
+                        break
                     }
+                    if (!change.pressed) {
+                        // The up as well, but only once this is genuinely a drag.
+                        // Leaving it unconsumed let a clickable parent count the
+                        // whole gesture as a tap on release; consuming it for a
+                        // press that never moved would eat the tap this deliberately
+                        // stayed out of the way of.
+                        if (press != null) change.consume()
+                        break
+                    }
+                    val delta = change.positionChange()
+                    if (press == null) {
+                        // Nothing has happened yet, so nothing is claimed and the
+                        // event is left for whoever else wants it.
+                        if (delta == Offset.Zero) continue
+                        claim(change.position)
+                    }
+                    // Every change, both axes. See above: the cross-axis half is what
+                    // the scroller would otherwise use to win the race, and a second
+                    // finger on the same control is a second way to lose it.
+                    event.changes.forEach { it.consume() }
+                    currentDelta(delta)
                 }
-                currentEnd()
+            } catch (stopped: CancellationException) {
+                // **The coroutine itself going away, which the loop cannot see.**
+                //
+                // The `break` above covers a gesture that ends badly. It does not
+                // cover this function not being here any more, and Compose has a
+                // reason to do that which has nothing to do with pointers:
+                // `SuspendingPointerInputModifierNode` resets its handler when
+                // the node's `Density` changes, and a `Density` carries the font
+                // scale. So a **Text size screen** — the one screen in an app
+                // where using a control changes the type scale the control is
+                // laid out with — cancels this mid-drag, every time, while the
+                // finger is still down.
+                //
+                // Reported as controls going weird when the text size changes,
+                // "but only sometimes", with a picture of a segmented control's
+                // thumb a fifth too wide and sitting between two segments. That
+                // is a control whose `dragging` is still true: the end of the
+                // gesture was the line after the loop, and the loop never
+                // returned. `StrandedThumbTest` is the reproduction.
+                //
+                // What this cannot do is carry the gesture on. The handler
+                // restarts waiting for a fresh `awaitFirstDown`, and a finger
+                // that is already down never sends another one — so the drag
+                // ends where the finger was when the scale changed. That is the
+                // honest outcome and it is a settled control, which is the whole
+                // difference from the report.
+                cancelled = true
+                throw stopped
+            } finally {
+                press?.let { started ->
+                    interactionSource?.let { source ->
+                        scope.launch {
+                            source.emit(
+                                if (cancelled) {
+                                    DragInteraction.Cancel(started)
+                                } else {
+                                    DragInteraction.Stop(started)
+                                }
+                            )
+                        }
+                    }
+                    currentEnd()
+                }
             }
         }
     }

@@ -407,8 +407,11 @@ private fun BufferedImage.thumbRun(bounds: Rect): IntRange? {
  *
  * The scan stops short of the control's edges. The track is inset from them by
  * its padding, and a border and a shadow live in that gap.
+ *
+ * Internal rather than private because `StrandedThumbTest` reads the same thumb
+ * the same way, and two copies of a fill-versus-fill threshold would drift.
  */
-private fun BufferedImage.fillRun(
+internal fun BufferedImage.fillRun(
     bounds: Rect,
     row: Int,
     track: Int,
