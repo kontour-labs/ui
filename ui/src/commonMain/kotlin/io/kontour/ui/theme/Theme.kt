@@ -42,8 +42,30 @@ import io.kontour.ui.platform.platformReportAppearance
  * component contract test that ships alongside it.
  */
 object Theme {
+    /**
+     * The scheme in effect, which during a cross-fade is not the one the local
+     * carries.
+     *
+     * See [ThemeFadeState]. The static local holds the fade's **target** so that
+     * providing it costs one whole-subtree invalidation per theme change rather
+     * than one per frame; the frames in between come off a handle whose identity
+     * does not move, and reading them here is a snapshot read, so a composable
+     * that reads a colour recomposes and one that does not is left alone.
+     *
+     * The handle applies only while the value the local carries is the same
+     * object it was installed against. Anything else — `ProvideTokens`, or a
+     * caller providing `LocalColourScheme` directly — was set closer and wins.
+     */
     val colours: ColourScheme
-        @Composable @ReadOnlyComposable get() = LocalColourScheme.current
+        @Composable @ReadOnlyComposable get() {
+            val provided = LocalColourScheme.current
+            val fading = LocalThemeFade.current
+            return if (fading != null && fading.targetColours === provided) {
+                fading.fade.colours
+            } else {
+                provided
+            }
+        }
 
     val typography: Typography
         @Composable @ReadOnlyComposable get() = LocalTypography.current
@@ -54,8 +76,17 @@ object Theme {
     val spacing: Spacing
         @Composable @ReadOnlyComposable get() = LocalSpacing.current
 
+    /** @see colours — the elevation scale travels with the scheme and resolves the same way. */
     val elevation: Elevation
-        @Composable @ReadOnlyComposable get() = LocalElevation.current
+        @Composable @ReadOnlyComposable get() {
+            val provided = LocalElevation.current
+            val fading = LocalThemeFade.current
+            return if (fading != null && fading.targetElevation === provided) {
+                fading.fade.elevation
+            } else {
+                provided
+            }
+        }
 
     val motion: Motion
         @Composable @ReadOnlyComposable get() = LocalMotion.current
@@ -135,11 +166,19 @@ fun KontourTheme(
      * Whether a change of scheme cross-fades rather than cutting.
      *
      * On, because every other state change in the library animates and switching
-     * to dark mode is the largest one there is. See `animatedColorScheme` for
-     * what it costs: the scheme feeds a static composition local, so the fade
-     * recomposes the whole application for its duration. That is the right trade
-     * for a rare, deliberate change and the wrong one for anything frequent, so
-     * an app driving [colours] from something that moves should turn it off.
+     * to dark mode is the largest one there is.
+     *
+     * What it costs is a frame's work for every composable that reads a colour,
+     * for the fade's duration — see `animatedTheme`. It used to cost the whole
+     * application recomposing once per frame, because the scheme fed a static
+     * composition local directly; it feeds that local the fade's *target* now
+     * and the frames go through a handle that tracks its readers, so the
+     * difference is between "everything, a dozen times" and "the things that are
+     * changing colour".
+     *
+     * Still the right trade for a rare, deliberate change and still the wrong
+     * one for anything frequent, so an app driving [colours] from something that
+     * moves should turn it off.
      */
     animateThemeChanges: Boolean = true,
     colours: ColourScheme = remember(darkTheme, contrast) { kontourColourScheme(darkTheme, contrast) },
@@ -191,9 +230,16 @@ fun KontourTheme(
     val faded = if (animateThemeChanges) {
         animatedTheme(colours, elevation, motion)
     } else {
-        ThemeFade(colours, elevation)
+        null
     }
-    val resolvedColours = faded.colours
+    // Written before the content composes, and read by `Theme.colours` from
+    // anywhere below. A plain field rather than snapshot state on purpose:
+    // nothing should recompose because the *target* was re-stated, and it is
+    // set on every composition of this function, which is the only place the
+    // static locals below are provided from.
+    faded?.targetColours = colours
+    faded?.targetElevation = elevation
+    val resolvedColours = faded?.fade?.colours ?: colours
 
     // The host's chrome — Android's status and navigation bars, iOS's status
     // bar, a browser's scrollbars and address bar — takes its colours from a
@@ -211,11 +257,17 @@ fun KontourTheme(
     if (!alreadyTracking) platformReportAppearance(colours.isDark)
 
     CompositionLocalProvider(
-        LocalColourScheme provides resolvedColours,
+        // **The target, not the frame.** This is a static local, so providing it
+        // invalidates everything below — which is right for a theme change and
+        // ruinous once a fade provides a new scheme sixty times a second. The
+        // frames go through `LocalThemeFade`, which never changes identity, and
+        // `Theme.colours` puts the two back together.
+        LocalColourScheme provides colours,
         LocalTypography provides typography,
         LocalShapes provides shapes,
         LocalSpacing provides spacing,
-        LocalElevation provides faded.elevation,
+        LocalElevation provides elevation,
+        LocalThemeFade provides faded,
         LocalMotion provides motion,
         LocalSizing provides sizing,
         LocalComponentDefaults provides componentDefaults,
@@ -271,8 +323,13 @@ private const val NOT_IN_THEME =
  * the wrong trade and is the right one here — a token change *is* a change to
  * everything below it, and a tracking local would pay for read bookkeeping on
  * every `Theme.spacing` in the library to avoid a recomposition that has to
- * happen anyway. `animateThemeChanges` is where the cost shows up, and
- * `KontourTheme`'s KDoc says so at the parameter.
+ * happen anyway.
+ *
+ * It holds because what this carries changes **once** per theme change. A fade
+ * used to provide a new scheme per frame through here, which is a dozen full-app
+ * recompositions in a row and was measured on a phone as a 99.9ms peak; the
+ * frames go through [LocalThemeFade] now and this carries the fade's target. See
+ * `Theme.colours`, which is where a reader meets the two.
  *
  * ### They throw rather than defaulting
  *
@@ -281,6 +338,21 @@ private const val NOT_IN_THEME =
  * fix.
  */
 val LocalColourScheme = staticCompositionLocalOf<ColourScheme> { error(NOT_IN_THEME) }
+
+/**
+ * The fade [LocalColourScheme] is the target of, or null when nothing is fading.
+ *
+ * Internal, and it stays internal: [LocalColourScheme] is public so that a
+ * caller can *provide* a scheme for a subtree, and this is the mechanism by
+ * which a provided one is recognised and obeyed rather than something anybody
+ * needs to hand a value to. Providing the scheme is still the whole public
+ * story; `Theme.colours` is where the two meet.
+ *
+ * Null rather than throwing, unlike every local beside it, because a theme with
+ * `animateThemeChanges = false` legitimately has no fade and the absence is the
+ * answer rather than a mistake.
+ */
+internal val LocalThemeFade = staticCompositionLocalOf<ThemeFadeState?> { null }
 
 /** @see LocalColourScheme */
 val LocalTypography = staticCompositionLocalOf<Typography> { error(NOT_IN_THEME) }
@@ -373,7 +445,14 @@ fun ProvideTokens(
     strings: Strings = LocalStrings.current,
     content: @Composable () -> Unit,
 ) {
-    val outgoingColours = LocalColourScheme.current
+    // What is actually in effect above, which mid-fade is not what the local
+    // carries — see `Theme.colours`. The test below is "was this inherited from
+    // the theme", and comparing against the fade's target instead would answer
+    // no on every frame of one.
+    val outgoingColours = Theme.colours
+    // And what will be in effect below: a caller who did not change the scheme
+    // has not stopped the fade, so the ink goes on fading with it.
+    val incomingColours = if (colours === LocalColourScheme.current) outgoingColours else colours
     val outgoingTypography = LocalTypography.current
 
     val contentColour = LocalContentColour.current
@@ -390,7 +469,11 @@ fun ProvideTokens(
         LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
         LocalContentColour provides
-            if (contentColour == outgoingColours.content) colours.content else contentColour,
+            if (contentColour == outgoingColours.content) {
+                incomingColours.content
+            } else {
+                contentColour
+            },
         LocalTextStyle provides
             if (textStyle == outgoingTypography.bodyMedium) typography.bodyMedium else textStyle,
         content = content,

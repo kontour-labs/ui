@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,6 +22,41 @@ import androidx.compose.ui.graphics.lerp
 internal class ThemeFade(val colours: ColourScheme, val elevation: Elevation)
 
 /**
+ * A handle on a fade in progress, whose **identity never changes**.
+ *
+ * The reason there is a handle at all rather than a value. [LocalColourScheme]
+ * is a `staticCompositionLocalOf`, which does not track reads: providing a new
+ * value invalidates the entire subtree under the provider. That is the right
+ * trade for a token family — see the note on the local — right up until the
+ * value changes sixty times a second, which is what a fade does. A theme change
+ * was measured at a 99.9ms peak frame on a phone, and about thirteen full-app
+ * recompositions is the floor under it.
+ *
+ * So the static locals get the fade's **target**, which changes once, and this
+ * gets the frames in between. [fade] is snapshot state, so a composable that
+ * reads a colour registers with it and one that does not is untouched.
+ *
+ * ### [targetColours] and [targetElevation] are identities, not values
+ *
+ * `ProvideTokens` and any caller may provide `LocalColourScheme` for a subtree,
+ * and below that point this handle is describing a fade between two schemes
+ * neither of which is in effect any more. `Theme.colours` uses it only while the
+ * value the static local carries is *the same object* this was installed
+ * against; anything else was provided by something closer and wins.
+ *
+ * Identity rather than equality, because two equal schemes from different
+ * providers are still different intentions, and the cheap test is the correct
+ * one here.
+ */
+@Stable
+internal class ThemeFadeState(initial: ThemeFade) {
+    var fade: ThemeFade by mutableStateOf(initial)
+
+    var targetColours: ColourScheme = initial.colours
+    var targetElevation: Elevation = initial.elevation
+}
+
+/**
  * Cross-fades between themes instead of cutting.
  *
  * Switching to dark mode, changing the accent, or moving contrast tier used to
@@ -36,18 +72,26 @@ internal class ThemeFade(val colours: ColourScheme, val elevation: Elevation)
  * transition where every one of them starts and ends together — so this runs
  * **one** float and lerps the scheme from it.
  *
- * ### What it costs, and why that is the right trade anyway
+ * ### What it used to cost, and the argument that was wrong
  *
  * [LocalColourScheme] is a `staticCompositionLocalOf`, so a new scheme
- * invalidates the whole content subtree — the entire application, once per
- * frame, for the length of the fade. That is the exact cost round 18 removed
- * from the window size class, and it is being spent deliberately here: a theme
+ * invalidates the whole content subtree. This used to provide one **per frame**,
+ * which meant the entire application recomposed about a dozen times in a row as
+ * fast as the device could manage — and the note here defended it: a theme
  * change is a rare, deliberate, user-initiated event, and it is *supposed* to
- * repaint everything. A window resize is neither of those things, which is why
- * one animates and the other must not.
+ * repaint everything.
  *
- * It is still a few hundred milliseconds of full recomposition, so it is a
- * parameter rather than a fact — see `KontourTheme`'s `animateThemeChanges`.
+ * It is. Once. Twelve times is not twelve times more correct, and a phone
+ * reported the difference as a 99.9ms peak frame.
+ *
+ * So the static local gets the fade's **target**, which changes once, and the
+ * frames in between go through [ThemeFadeState], whose identity never moves and
+ * whose field is snapshot state. A composable that reads a colour recomposes on
+ * every frame of a fade, which it must; one that does not is untouched.
+ * `ThemeFadeRecompositionTest` holds both halves of that.
+ *
+ * It is still a whole-app repaint, so it stays a parameter rather than a fact —
+ * see `KontourTheme`'s `animateThemeChanges`.
  *
  * ### The elevation scale travels with it
  *
@@ -76,28 +120,38 @@ internal fun animatedTheme(
     colours: ColourScheme,
     elevation: Elevation,
     motion: Motion,
-): ThemeFade {
-    val target = ThemeFade(colours, elevation)
-    var from by remember { mutableStateOf(target) }
-    var to by remember { mutableStateOf(target) }
+): ThemeFadeState {
+    val state = remember { ThemeFadeState(ThemeFade(colours, elevation)) }
     val fraction = remember { Animatable(1f) }
 
     LaunchedEffect(colours, elevation) {
-        if (colours == to.colours && elevation == to.elevation) return@LaunchedEffect
-        from = lerpTheme(from, to, fraction.value)
-        to = ThemeFade(colours, elevation)
+        val to = ThemeFade(colours, elevation)
+        if (state.fade.colours == to.colours && state.fade.elevation == to.elevation) {
+            state.fade = to
+            return@LaunchedEffect
+        }
+        // Where the fade actually is, which is what interrupting one has to
+        // start from. It used to be reconstructed here as
+        // `lerpTheme(from, to, fraction.value)`; it is simply the last frame
+        // written now, because the frames are written rather than derived.
+        val from = state.fade
         fraction.snapTo(0f)
-        fraction.animateTo(1f, motion.tweenDefault())
+        // **Written from the animation, not read in composition.**
+        //
+        // The fraction used to be a state read in the body of this function, so
+        // `KontourTheme` recomposed on every frame of a fade and re-provided a
+        // new scheme to a static local — which is the whole-subtree
+        // invalidation this is here to stop. Nothing reads the fraction now: the
+        // animation pushes each frame into [ThemeFadeState.fade] from a
+        // coroutine, and the only composables that recompose are the ones that
+        // read a colour out of it.
+        fraction.animateTo(1f, motion.tweenDefault()) {
+            state.fade = lerpTheme(from, to, value)
+        }
+        state.fade = to
     }
 
-    val f = fraction.value
-    return remember(from, to, f) {
-        when {
-            f >= 1f -> to
-            f <= 0f -> from
-            else -> lerpTheme(from, to, f)
-        }
-    }
+    return state
 }
 
 /**
