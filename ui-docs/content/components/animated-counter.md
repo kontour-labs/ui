@@ -33,35 +33,34 @@ and only ever on a **decrease**: a number going up is good news and arrives as
 fast as it likes, while a number going down is a seat gone, a balance spent, a
 minute lost — and the report was that it happens with no warning at all.
 
-The counter cannot see the future, so it makes one. A drop is *held* for
-`warnBefore`, the digits about to change shake at the end of that, and only then
-does the roll happen. What a reader gets is a couple of seconds of "something is about to
-change" before it does; what it costs is that the drawn number lags the hoisted
-`value` for exactly that long. That is the trade, and it is why this is opt-in
-rather than something every counter in an app quietly starts doing.
+The counter cannot see the future, so it makes one. A drop holds the old number
+and shakes the digits that are about to change for `warnBefore`, and then rolls.
+What a reader gets is a moment of "something is about to change" before it does;
+what it costs is that the drawn number lags the hoisted `value` for exactly that
+long. That is the trade, and it is why this is opt-in rather than something every
+counter in an app quietly starts doing.
 
-**The shake sits at the end of the hold.** It used to sit at the start, which
-with a 1.5-second warning meant 450ms of tremor followed by a full second of a
-perfectly still number and only then the roll — reported as the wiggle stopping
-for a moment before the counter ticks down, which is exactly what it was doing. A
-warning is only a warning if it is next to the thing it warns of, so the number
-is held still first and the tremor runs out onto the roll.
+**`warnBefore` is the shake, not a hold with a shake somewhere inside it.** They
+were two separate lengths, and both ways of arranging them were reported. A fixed
+450ms tremor at the front of a 1.5-second warning shook and then stood perfectly
+still for a second before the number moved; moving the tremor to the back put the
+same second of silence in front of it, so the drop was announced by nothing
+happening. There is no third place to put a pause inside a warning, because the
+pause was the fault.
 
-The two are one timeline and the length of the tremor is derived from the two
-constants that make it, rather than written down a second time: the wait before
-it is the hold *minus* the tremor, and two hand-written numbers that drift apart
-would put the silence straight back. A `warnBefore` shorter than the tremor
-simply starts it at once and lets the roll cut it off.
+So there is no lead-in and no tail: the shake starts on the frame the fall is
+noticed and its last leg lands on centre as the roll begins. **About 450ms is the
+length to ask for**, which is two there-and-backs at the tremor's natural rhythm.
+Longer is honest rather than clever — ask for two seconds and you get two seconds
+of shaking, which stops reading as an announcement somewhere around the third
+cycle. The rhythm is held near constant and the number of cycles follows the
+duration, so a longer warning is *more* shaking rather than slower shaking.
 
-**Only the digits that are going to move shake, and they shake for a fixed
-length.** Both were reported. The tremor used to be a `translationX` on the whole
-row — one object saying something about itself, which sounds right and tells the
-reader only that *something* is changing, where the useful half of the message is
-*which* part of the figure is about to go. And it used to run for exactly as long
-as `warnBefore`, because one number controlled the hold and the shake together:
-a warning long enough to read was a tremor long enough to look like a fault. It
-is two there-and-backs and a settle now — 450ms at a 90ms leg — whatever the hold
-is.
+**Only the digits that are going to move shake.** That was the other half of the
+report. The tremor used to be a `translationX` on the whole row — one object
+saying something about itself, which sounds right and tells the reader only that
+*something* is changing, where the useful half of the message is *which* part of
+the figure is about to go.
 
 The positions are compared **right-aligned**, which matters on the transition
 that is easiest to get wrong: 1000 falling to 999 changes length, so matching

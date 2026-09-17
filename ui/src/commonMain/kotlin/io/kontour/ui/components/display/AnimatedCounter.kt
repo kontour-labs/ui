@@ -41,7 +41,6 @@ import io.kontour.ui.theme.SpringToken
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.theme.Theme
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 
 /**
@@ -118,32 +117,36 @@ fun AnimatedCounter(
      */
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
     /**
-     * How long the old number is held before a fall is rolled.
+     * How long the digits shake before a fall is rolled.
      *
      * `ZERO` — off — and it only ever applies to a **decrease**. A number going
      * up is good news and arrives as fast as it likes; a number going down is a
      * seat gone, a balance spent, a minute lost, and the report was that it
      * happens with no warning at all.
      *
-     * **This is the hold, and not the length of the wiggle.** One number used to
-     * mean both, so a two-second warning shook for two seconds — long past the
-     * point where a tremor reads as an announcement. The digits about to change
-     * now shake for a fixed couple of cycles, and a long warning is a held
-     * number rather than a vibrating one.
+     * **The warning and the tremor are one thing, and this is its length.** They
+     * were two, and both arrangements of them were reported. A tremor at the
+     * front of a longer hold shook for 450ms and then stood still for a second
+     * before the number moved; moving it to the back put the same silence in
+     * front, so the drop was announced by nothing happening. There is no third
+     * place to put a pause inside a warning, because the pause *was* the fault:
+     * a warning is the tremor, it starts on the frame the fall is noticed, and
+     * the number rolls as it stops.
      *
-     * **The shake is at the *end* of the hold.** It was at the start, which left
-     * a 1.5s warning shaking for 450ms and then standing still for a second
-     * before the number moved — two events far enough apart that the second did
-     * not read as the thing the first was warning about. The number is still
-     * first and the tremor runs out onto the roll.
+     * So this is the whole of it — no lead-in, no tail. **About 450ms is the
+     * length to ask for**, which is two there-and-backs at the tremor's natural
+     * rhythm and is what the demo uses. Longer is honest rather than clever: ask
+     * for two seconds and you get two seconds of shaking, which stops reading as
+     * an announcement somewhere around the third cycle. The rhythm is held near
+     * constant and the number of cycles follows the duration, so a longer
+     * warning is more shaking rather than slower shaking.
      *
-     * The counter cannot see the future, so it makes one: a drop is *held* for
-     * this long, wiggled at the end of that, and only then rolled. What the
-     * reader gets is a few seconds of "something is about to change" before it
-     * does, which is the thing being asked for; what it costs is that the drawn
-     * number lags the hoisted [value] by exactly this much while the warning
-     * runs. That is the trade, and it is why this is opt-in and zero by default
-     * rather than a behaviour every counter in an app suddenly has.
+     * The counter cannot see the future, so it makes one: a drop is held at the
+     * old number for this long, shaking throughout, and then rolled. What it
+     * costs is that the drawn number lags the hoisted [value] by exactly this
+     * much while the warning runs. That is the trade, and it is why this is
+     * opt-in and zero by default rather than a behaviour every counter in an app
+     * suddenly has.
      *
      * A second drop landing mid-warning restarts nothing: the wiggle continues
      * and the roll, when it comes, goes to wherever the value has reached. So a
@@ -265,42 +268,42 @@ fun AnimatedCounter(
     // heading of animations running for nobody. This one exists between the drop
     // and the roll and at no other time.
     //
-    // **Bounded, where it used to run for as long as `warnBefore`.** One number
-    // controlled both how long the figure was held and how long it shook, so a
-    // two-second warning was a two-second tremor — which stops reading as an
-    // announcement somewhere around the third cycle and starts reading as a
-    // fault. `warnBefore` now means only how long the old number is held, and
-    // the shake is [WiggleCycles] there-and-backs whatever that is.
+    // **The tremor is the warning, and it fills it exactly.** The two used to be
+    // separate lengths, and both ways of arranging them were reported. A fixed
+    // 450ms shake at the front of a 1.5s hold stood still for a second before
+    // the number moved; putting it at the back left the same second of silence
+    // in front of it, so the drop was announced by nothing happening. There is
+    // nowhere left to put a pause, because the pause was the fault. The shake
+    // starts on the frame the fall is noticed and stops as the roll begins.
     val wobble = remember { Animatable(0f) }
     LaunchedEffect(warning) {
         if (!warning) {
             wobble.snapTo(0f)
             return@LaunchedEffect
         }
-        // **At the end of the hold, not the start of it.** Bounding the tremor
-        // fixed its length and left it where it had always been — at the front —
-        // so a 1.5s warning shook for 450ms and then stood perfectly still for a
-        // second before the number moved. Reported as the wiggle stopping for a
-        // moment before the counter ticks down, and that is what it was: two
-        // events far enough apart that the second does not read as the thing the
-        // first was warning about.
+        // Cycles from the duration, leg from the cycles — so a longer warning is
+        // more shaking rather than slower shaking, and the last leg lands on
+        // centre at the moment the hold ends rather than a fraction before it.
         //
-        // A warning is only a warning if it is adjacent to what it warns of. So
-        // the stillness comes first and the tremor runs out onto the roll.
-        //
-        // `coerceAtLeast` for a `warnBefore` shorter than the tremor: it simply
-        // starts at once and is cut off by the roll, which is the same picture a
-        // very short warning would have given anyway.
-        delay((warnBefore - WiggleDuration).coerceAtLeast(Duration.ZERO))
-        val leg = tween<Float>(WigglePeriodMillis, easing = LinearEasing)
-        repeat(WiggleCycles) {
+        // Rounding the cycle count on its own would leave up to two legs of
+        // stillness at the end, which is the reported defect again in miniature;
+        // dividing the remainder back into the leg keeps the rhythm within about
+        // a tenth of [WigglePeriodMillis] and closes the gap. At the 450ms this
+        // is written for both numbers come out exactly where they were: two
+        // cycles at 90ms.
+        val cycles = wiggleCycles(warnBefore)
+        val legMillis = (warnBefore.inWholeMilliseconds / (2L * cycles + 1L))
+            .toInt()
+            .coerceAtLeast(1)
+        val leg = tween<Float>(legMillis, easing = LinearEasing)
+        repeat(cycles) {
             wobble.animateTo(1f, leg)
             wobble.animateTo(-1f, leg)
         }
-        // Back to rest rather than stopping wherever the last leg left it, or a
-        // warning that outlives its wiggle holds the digits 1.5dp off centre for
-        // the remainder — visible on a headline figure as a number that is
-        // slightly crooked.
+        // Back to rest rather than stopping wherever the last leg left it. It is
+        // the third leg of the count above rather than an extra on the end, so
+        // the digits reach centre on the frame the roll starts and the number
+        // begins travelling from where it was standing — not from 1.5dp off it.
         wobble.animateTo(0f, leg)
     }
     val amplitude = with(LocalDensity.current) { WiggleAmplitude.toPx() }
@@ -432,25 +435,18 @@ private val WiggleAmplitude: Dp = 1.5.dp
 private const val WigglePeriodMillis: Int = 90
 
 /**
- * How many there-and-backs a warning shakes for, however long it is held.
+ * How many there-and-backs fill a warning of [warnBefore] long.
  *
- * Two, which at a 90ms leg is 360ms of tremor and a 90ms settle back to centre —
- * [WiggleDuration] in total, which is also what the wait before it subtracts. It
- * used to be "for as long as `warnBefore`", and one number meaning both was the
- * defect: a warning long enough to be read was a wiggle long enough to look like
- * a fault. Two cycles is enough to be seen and short enough that the eye arrives
- * at a still number.
- */
-private const val WiggleCycles: Int = 2
-
-/**
- * How long the tremor lasts: [WiggleCycles] there-and-backs plus the settle.
+ * A there-and-back is two legs and the settle back to centre is a third, so a
+ * warning of `n` legs holds `n / 2` cycles. At the 450ms `AnimatedCounter` is
+ * written for that is two — 360ms of tremor and a 90ms settle, which is exactly
+ * the fixed pair it replaced.
  *
- * Derived rather than written down, because it is read from two places that have
- * to agree — the wiggle, which runs for this long, and the wait before it, which
- * is the hold *minus* this long. Two hand-written numbers that drift apart put
- * back the silence between the tremor and the roll that the derivation exists to
- * close.
+ * Derived rather than fixed because the warning is now the tremor's own length
+ * rather than a hold wrapped round it, and a fixed count would leave a warning
+ * that is mostly silence — which is the defect, in both of the arrangements it
+ * was reported in. At least one, so the shortest warning anybody can ask for is
+ * still a shake and not a twitch.
  */
-private val WiggleDuration: Duration =
-    (WigglePeriodMillis * (WiggleCycles * 2 + 1)).milliseconds
+private fun wiggleCycles(warnBefore: Duration): Int =
+    (warnBefore.inWholeMilliseconds / (2L * WigglePeriodMillis)).toInt().coerceAtLeast(1)

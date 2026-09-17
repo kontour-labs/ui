@@ -72,7 +72,7 @@ import io.kontour.ui.motion.marquee
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.milliseconds
 
 private val cardVariant = Knob.Choice("Variant", CardVariant.entries.toList())
 private val cardClickable = Knob.Flag("Clickable")
@@ -391,11 +391,14 @@ internal val AccordionDemo = ComponentDemo(slug = "accordion") {
  * On by default, because the warning is invisible until a value drops and a
  * reader who presses "Tick down" once with it off has learned nothing about the
  * parameter. That is only safe because `AnimatedCounter` drops `warnBefore`
- * entirely under `reduceMotion` and the response harness sets it — 1.5s is
- * longer than the thirty frames it settles for. If that gate ever moves, this
- * knob makes the counter look dead to `EverythingRespondsTest`.
+ * entirely under `reduceMotion` and the response harness sets it. If that gate
+ * ever moves, this knob makes the counter look dead to `EverythingRespondsTest`
+ * for as long as the warning runs.
  */
 private val counterWarn = Knob.Flag("Warn before dropping", initial = true)
+
+/** Two there-and-backs at the tremor's own rhythm, which is what it is tuned for. */
+private val CounterWarning: Duration = 450.milliseconds
 
 internal val AnimatedCounterDemo = ComponentDemo(
     slug = "animated-counter",
@@ -410,7 +413,11 @@ internal val AnimatedCounterDemo = ComponentDemo(
             value = minutes,
             format = { "$it min" },
             style = Theme.typography.headlineSmall,
-            warnBefore = if (this@ComponentDemo[counterWarn]) 1.5.seconds else Duration.ZERO,
+            // 450ms, which is the length the tremor is written for: `warnBefore`
+            // is the shake itself now rather than a hold with a shake somewhere
+            // inside it, so the 1.5s this used to pass would be a second and a
+            // half of shaking.
+            warnBefore = if (this@ComponentDemo[counterWarn]) CounterWarning else Duration.ZERO,
         )
         Button(
             onClick = {
