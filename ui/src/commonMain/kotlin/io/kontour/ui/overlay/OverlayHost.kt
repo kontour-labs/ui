@@ -519,12 +519,24 @@ fun OverlayHost(
             modifier
                 .fillMaxSize()
                 .trackHostOrigin(state)
-                .backdropGround(state, backdrop)
                 .clearFocusOnTap(clearFocusOnTap),
         ) {
             Box(
                 Modifier
                     .fillMaxSize()
+                    // **Outside the content's layer and inside the host**, in
+                    // that order, and both halves matter.
+                    //
+                    // Outside, because the band and the ring must not be scaled
+                    // or blurred along with what they frame — that is why this
+                    // is before `overlayBackdrop` in the chain rather than after.
+                    //
+                    // Inside the host, because the band is drawn *over* what it
+                    // wraps now, and what this wraps is the app. It sat on the
+                    // host for one round, where `drawContent` is the app **and
+                    // the overlay stack**, so the band painted black across the
+                    // sheet it was supposed to be framing.
+                    .backdropGround(state, backdrop)
                     .overlayBackdrop(state, backdrop)
                     .semantics {
                         isTraversalGroup = true

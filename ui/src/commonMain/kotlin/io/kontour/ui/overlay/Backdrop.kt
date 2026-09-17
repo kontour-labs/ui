@@ -21,7 +21,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.remember
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Shape
@@ -105,9 +105,9 @@ enum class BackdropStyle {
  * How far the ground's hole is drawn inside the content it is cut for, in
  * pixels.
  *
- * One device pixel, which is the width of the antialiased boundary the two
- * share. Not a `Dp`: this is not a design measure but the size of a rasteriser's
- * seam, and it is the same one pixel on every density.
+ * One device pixel, which is the width of the antialiased boundary the band and
+ * the content share. Not a `Dp`: this is not a design measure but the size of a
+ * rasteriser's seam, and it is the same one pixel on every density.
  */
 private const val SeamOverlap = 1f
 
@@ -321,6 +321,25 @@ private fun backdropClipShapes(gap: Dp): List<CornerBasedShape> {
 private fun rampStep(f: Float): Int = (f * RampSteps).roundToInt().coerceIn(0, RampSteps)
 
 /**
+ * How far through the blur a fraction is, quantised.
+ *
+ * **Two places read this and they have to be the same number.** The radius
+ * [overlayBackdrop] blurs by and the depth of the ring [backdropGround] puts
+ * behind the result are the same measurement from opposite sides: the ring
+ * exists to back the pixels the blur has made see-through, and it is cut exactly
+ * as deep as the blur reaches.
+ *
+ * Quantising one and not the other is what a round of this cost. The radius was
+ * put on [rampStep] so a `BlurEffect` is one of thirteen objects rather than a
+ * new one every frame, and the ring was left on the raw fraction — and rounding
+ * goes *up* as often as down, so for half the steps the blur reached further in
+ * than the ring came out. `theBlurredEdgeDoesNotShowThePageBehindIt` found it
+ * immediately, at the frames where the step is largest relative to the fraction:
+ * just after the animation starts, a blur twice as deep as the backing under it.
+ */
+private fun blurFraction(f: Float): Float = rampStep(f).toFloat() / RampSteps
+
+/**
  * This shape's corners, interpolated from a flat [start] radius at [fraction] 0.
  *
  * Private to the backdrop rather than a third sibling of `inset` and `outset` in
@@ -393,7 +412,6 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
     // Read here rather than in the lambda below: `graphicsLayer` runs at draw
     // time, and a theme value has to be captured in composition.
     val insetDp = resolvedInset()
-    val clipShapes = backdropClipShapes(insetDp)
     val insetPx = with(LocalDensity.current) { insetDp.toPx() }
     val bottomInsetPx = backdropBottomInset()
     val scaling = style.scales && insetPx > 0f
@@ -402,11 +420,29 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
     return graphicsLayer {
         val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
 
-        renderEffect = if (blurring && f > 0f) {
+        // **[blurFraction], not `f`.** A step that has rounded down to zero must
+        // leave the layer with *no render effect at all*, rather than one of
+        // radius zero — the edge fade this backdrop's ring exists to cover is a
+        // property of the offscreen an effect forces, not of how wide the blur
+        // is, so a zero-radius `BlurEffect` produces the identical see-through
+        // rim with nothing behind it. Which is what it did, on exactly the
+        // frames where the round goes to zero.
+        renderEffect = if (blurring && blurFraction(f) > 0f) {
             // Grown with the fraction rather than switched on, so the screen
             // softens as the panel arrives instead of going out of focus a frame
             // before it appears.
-            val radius = radiusPx * f
+            //
+            // Quantised to the same [RampSteps] the corner ramp uses, and for
+            // the same reason: a `BlurEffect` is an object, and a radius read
+            // straight off `f` is a new one every frame — which is a new render
+            // effect on the layer every frame, which is the layer's cached
+            // rasterisation thrown away every frame. Twelve steps over a blur
+            // radius is under a pixel a step.
+            //
+            // Through [blurFraction], which `backdropGround`'s ring reads too.
+            // They are the same measurement and getting them out of step leaks
+            // the page behind straight through the content's edge.
+            val radius = radiusPx * blurFraction(f)
             // `TileMode.Clamp`, and it is the other half of the reported white
             // flash. A blur samples beyond what it is blurring, and left to
             // itself it treats everything outside as *transparent* — so the
@@ -429,13 +465,31 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
             // Negative: the surplus goes to the *bottom*, where the sheet is,
             // which means the content moves up. See [backdropScale].
             translationY = lerp(0f, -backdropShift(size.height, target, insetPx), f)
-            // Quantised, so this is one of thirteen shapes built once rather
-            // than a new one per frame — see [backdropClipShapes].
-            shape = clipShapes[rampStep(f)]
-            // Left as it was. Now that the radius starts at the display's own,
-            // clipping at `f → 0+` clips to a curve the bezel is already drawing,
-            // so there is nothing here to soften.
-            clip = f > 0f
+
+            // **No clip, and that is the whole of a 58ms frame on a phone.**
+            //
+            // This used to set `shape` and `clip = f > 0f` so the receding page
+            // had rounded corners. A squircle is an `Outline.Generic`, so Skia
+            // cannot take its rounded-rectangle fast path: a non-rectangular
+            // clip on a layer is a `saveLayer`, an offscreen surface the size of
+            // the layer, and a masked composite back. The layer here is the
+            // *whole application* — `OverlayHost` composes the app as one
+            // full-size sibling — so on a phone that is three million pixels of
+            // offscreen allocation and blit for every frame a sheet is open, on
+            // a tiled GPU where `saveLayer` is a cliff rather than a slope. It
+            // fires under [BackdropStyle.Scale], which is what every sheet uses.
+            //
+            // The corners are drawn *over* the content instead, by
+            // [backdropGround], which was already drawing the band round them in
+            // the same colour from the same path. So the picture is the one it
+            // always was and the layer is transform-only — for a sheet, no
+            // offscreen at all.
+            //
+            // Nothing measured it for three rounds because nothing could:
+            // `BackdropCostDiagnostic` does exercise this path, on a software
+            // rasteriser, where a mask is more pixel work and costs about what
+            // it looks like it should. This cost is architectural and a CPU
+            // rasteriser does not have it.
         }
     }
 }
@@ -478,8 +532,25 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
  * Between guessing the colour of a root that paints one and showing a white
  * browser page under a dark app, the guess wins.
  *
- * Drawn on the *host*, before its children, rather than under the content layer
- * — anything inside that layer is scaled and blurred along with everything else.
+ * Wraps the content's own layer from outside it: anything drawn *inside* that
+ * layer is scaled and blurred along with everything else, and the band and the
+ * ring are the frame rather than part of the picture.
+ *
+ * **The band goes over the content and the ring goes under it**, which is why
+ * this is a `drawWithContent` rather than the `drawBehind` it used to be. The
+ * band is what rounds the content's corners now that the content's own layer has
+ * stopped clipping itself — see the note in [overlayBackdrop], which is where
+ * the cost of that clip is written down. Drawing the band behind would leave the
+ * content's square corners over the top of it.
+ *
+ * The ring stays underneath because of what it is for: backing the pixels the
+ * blur has made see-through. Over the top it would cover them.
+ *
+ * **On the content's box, not on the host.** It was on the host for one round,
+ * and that is a different `drawContent`: the host's children are the app *and*
+ * the overlay stack, so a band drawn after them went over the sheet. The
+ * distinction did not exist while this drew behind everything, which is exactly
+ * the kind of thing that changes underneath a modifier when its phase does.
  */
 @Composable
 internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropStyle): Modifier {
@@ -507,9 +578,12 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
     // shift below already documents, in a second dimension.
     val bottomInsetPx = backdropBottomInset()
 
-    return drawBehind {
+    return drawWithContent {
         val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
-        if (f <= 0f) return@drawBehind
+        if (f <= 0f) {
+            drawContent()
+            return@drawWithContent
+        }
 
         // The hole is the content's own outline at **full** size under the same
         // transform the content's layer applies to itself.
@@ -542,26 +616,45 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
             geometry.step = step
         }
 
-        // A pixel tighter than the content, and that pixel is the third of the
-        // three ways the page behind the host was reaching the screen.
+        // A pixel tighter than the content, which is the third of the three
+        // ways the page behind the host reached the screen.
         //
-        // The hole's edge and the content layer's clip land on the same line,
-        // and both are antialiased. Two edges that each cover about 85% of the
-        // boundary pixel do not add up to one covered pixel — roughly 30% of it
-        // is neither, and through that runs a hairline of whatever is behind.
-        // Invisible on a light page under a light app; a bright thread around
-        // the content in dark mode, which is what was reported.
+        // Two antialiased edges land on the same line — this hole's, and the
+        // *scaled content rectangle's* — and two edges each covering about 85%
+        // of the boundary pixel do not add up to one covered pixel. Roughly 30%
+        // of it is neither, and through that runs a hairline of whatever is
+        // behind: invisible on a light page under a light app, a bright thread
+        // around the content in dark mode, which is what was reported.
         //
-        // So they overlap instead of meeting. The cost is the one the corner
-        // note above describes — the band's black sitting under the content's
-        // antialiased edge reads as that edge being a shade darker — and it is
-        // taken deliberately here rather than by accident. The difference is
-        // that it is a single pixel and it is the same pixel all the way round,
-        // where that bug was a whole corner radius and only in the corners.
+        // **The overlap survived the clip coming off, and the reasoning
+        // inverted.** It used to widen the band so it underlapped a clipped
+        // content's soft edge from behind. The band is drawn over the content
+        // now — see the header — so the same tighter hole reaches a pixel
+        // *inward* instead and covers that edge from the front. It was removed
+        // on the argument that with no clip there is only one edge to worry
+        // about, which is wrong: the layer stopped clipping itself but it is
+        // still scaled, so its own rectangle still lands on a fractional pixel.
+        // `theBlurredEdgeDoesNotShowThePageBehindIt` put the hairline straight
+        // back on screen and named it in one run.
         val target = backdropScale(size.width, size.height, insetPx, bottomInsetPx)
         val scale = lerp(1f, target, f)
         val shift = lerp(0f, backdropShift(size.height, target, insetPx), f)
         val overlap = 2f * SeamOverlap / minOf(size.width, size.height)
+
+        // Nothing has moved, so there is nothing to frame.
+        //
+        // A reader who has asked for reduced motion gets an inset of zero — see
+        // [resolvedInset] — so the scale stays at 1 while the fraction still
+        // animates, and the content vacates no pixels at all. The band's area is
+        // zero there by construction *except* for the overlap, which would draw
+        // a one-pixel black frame over the content's own edge now that this
+        // paints on top of it rather than behind. Invisible for as long as it
+        // was underneath, which is why it needed saying only now.
+        if (scale >= 1f) {
+            drawContent()
+            return@drawWithContent
+        }
+
         geometry.matrix.reset()
         // The same shift the content's layer applies, or the hole and the
         // content stop being the same rectangle and the band shows down one
@@ -612,7 +705,9 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         // shared the hole's antialiased boundary would leave the same hairline
         // `SeamOverlap` exists to close. The black band is drawn over it.
         if (haloPx > 0f) {
-            val inset = 2f * haloPx * f / minOf(size.width, size.height)
+            // [blurFraction], not `f`: as deep as the blur actually is this
+            // frame rather than as deep as the animation has got. See its KDoc.
+            val inset = 2f * haloPx * blurFraction(f) / minOf(size.width, size.height)
             geometry.matrix.reset()
             geometry.matrix.translate(size.width / 2f, size.height / 2f)
             geometry.matrix.scale((scale - inset).coerceAtLeast(0f), (scale - inset).coerceAtLeast(0f))
@@ -641,6 +736,12 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         // `(1 - scale) / 2` of the host, which is already zero at zero and grows
         // with the same fraction. It appears by getting wider, which is what a
         // gap opening up does.
+        //
+        // **After the content, not before it.** The band is the content's
+        // corners as well as the gap around them now — see this function's
+        // header and [overlayBackdrop] — and a corner cannot be rounded from
+        // underneath.
+        drawContent()
         drawPath(geometry.band, Color.Black)
     }
 }
