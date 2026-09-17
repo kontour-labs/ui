@@ -2081,10 +2081,19 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     // reorderable row means anything: it reads its position out
                     // of a `LazyListState`, and it animates its neighbours
                     // through `LazyItemScope`.
+                    //
+                    // One row of a notional three, and the `ListItem` is told
+                    // the same thing the row is. It used to be told nothing, so
+                    // it drew as an `Only` — all four corners round — inside a
+                    // row whose own silhouette was a `First`. Nothing showed
+                    // while the mismatch only reached a soft shadow; the lifted
+                    // row's fill takes that silhouette, so it does now.
                     LazyColumn(state = listState, modifier = modifier) {
                         item {
                             ReorderableItem(state = reorder, index = 0, itemCount = 3) {
-                                ListItem { +"Perth Underground" }
+                                ListItem(position = ListItemPosition.of(0, 3)) {
+                                    +"Perth Underground"
+                                }
                             }
                         }
                     }
@@ -2096,7 +2105,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
             LazyColumn(state = listState, modifier = modifier) {
                 item {
                     ReorderableItem(state = reorder, index = 0, itemCount = 3) {
-                        ListItem { +"Perth Underground" }
+                        ListItem(position = ListItemPosition.of(0, 3)) {
+                            +"Perth Underground"
+                        }
                     }
                 }
             }

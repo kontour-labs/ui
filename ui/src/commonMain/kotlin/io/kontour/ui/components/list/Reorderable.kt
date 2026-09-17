@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -306,6 +308,11 @@ fun LazyItemScope.ReorderableItem(
     val modality = LocalInputModality.current
     val dragging = state.draggingIndex == index
 
+    // Read in composition because a theme colour has to be; painted in the draw
+    // phase above. `surface` rather than the list's own ground: a row that has
+    // been picked up is off the list and on top of it.
+    val liftedColour = Theme.colours.surface
+
     /**
      * The row's index, read at gesture time rather than captured.
      *
@@ -373,6 +380,32 @@ fun LazyItemScope.ReorderableItem(
                 // Without this the shadow is a rectangle whatever the row is.
                 this.shape = shadowShape
                 clip = false
+            }
+            // **The lifted row is one solid card, handle and all.**
+            //
+            // The shadow above is cast by the *layer*, which is the whole row.
+            // The row's fill is not: it comes from the content, and with a
+            // `handleIcon` the content sits in a `weight(1f)` box beside a grip
+            // that has no background of its own. So the layer cast its shadow
+            // under a region nothing was painting, and what showed through
+            // beside the handle was the shadow itself. Reported with a picture.
+            //
+            // Under the content, so a `ListItem` with its own surface still
+            // wins, and ramped on the lift so a row at rest is exactly as it
+            // was — this paints nothing at all until something picks the row up.
+            //
+            // `drawBehind` rather than `background(…)`: `lift` is read inside
+            // the lambda, so a row being picked up invalidates its draw and not
+            // its composition. The outline comes back from `SquirclePaths`
+            // after the first frame.
+            .drawBehind {
+                val raised = lift
+                if (raised <= 0f) return@drawBehind
+                drawOutline(
+                    outline = shadowShape.createOutline(size, layoutDirection, this),
+                    color = liftedColour,
+                    alpha = raised,
+                )
             }
             .semantics {
                 customActions = buildList {
