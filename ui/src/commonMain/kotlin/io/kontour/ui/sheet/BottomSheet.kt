@@ -55,12 +55,13 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
-import io.kontour.ui.adaptive.sheetEdges
+import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.overlay.BackdropStyle
@@ -68,8 +69,10 @@ import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
+import io.kontour.ui.platform.platformDeviceCornerRadius
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.atLeast
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -99,18 +102,38 @@ enum class SheetPresentation {
 
 object SheetDefaults {
     /**
-     * The corners for a presentation.
+     * The corners for a presentation, floored at the device's own.
      *
      * `Theme.shapes.sheet` has square bottom corners, which is right against the
      * window's edge and wrong away from it — a floating panel with two sharp
      * corners at the bottom looks like a drawer that has come loose. So the
      * floating one takes `Theme.shapes.panel`, rounded all round, which is the
      * token for exactly that: something with an edge on every side.
+     *
+     * ### Concentric with the device
+     *
+     * A sheet at full height stops [SheetTopGap] short of the screen, so its top
+     * corners sit just inside the device's — and a corner inside a larger one
+     * looks wrong unless it is *concentric* with it: the same centre, a radius
+     * smaller by the gap between them. A 34dp corner inside a 55dp bezel reads
+     * as two unrelated curves.
+     *
+     * `atLeast` is a floor rather than an assignment, so a device with gentler
+     * corners than the scale's own leaves the scale alone, and `atLeast(null)`
+     * is the identity — which is what JVM and web return, and is why there is no
+     * branch here. The backdrop has done exactly this since it started insetting
+     * a receding page; this is the same rule for the thing in front of it.
+     *
+     * No longer `@ReadOnlyComposable`, which it was while it only read tokens:
+     * the device's radius is not a token read. Android needs `LocalView` and the
+     * window behind it, and iOS `remember`s a KVC lookup — neither is legal in a
+     * read-only composable, and the annotation is a promise about what the body
+     * does rather than a hint.
      */
     @Composable
-    @ReadOnlyComposable
     fun shapeFor(presentation: SheetPresentation): Shape = when (presentation) {
-        SheetPresentation.Edge -> Theme.shapes.sheet
+        SheetPresentation.Edge ->
+            Theme.shapes.sheet.atLeast(platformDeviceCornerRadius()?.minus(SheetTopGap))
         SheetPresentation.Floating -> Theme.shapes.panel
     }
 
@@ -225,11 +248,25 @@ fun BottomSheet(
     draggable: Boolean = true,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /**
-     * What the sheet's *content* keeps clear of. The gesture bar, the cutout and
-     * **the keyboard**, so a text field in a sheet is not typed at from behind
-     * it. The sheet's own surface still reaches the bottom of the window.
+     * What the sheet's *content and chrome* keep clear of. The status bar, the
+     * gesture bar, the cutout and **the keyboard**, so a text field in a sheet
+     * is not typed at from behind it. The sheet's own surface still reaches the
+     * bottom of the window, and still reaches the top.
+     *
+     * **[allEdges][io.kontour.ui.adaptive.allEdges] rather than
+     * [sheetEdges][io.kontour.ui.adaptive.sheetEdges], which has no top side.**
+     * A sheet at full height stops [SheetTopGap] short of the screen, which is
+     * far above the status bar, so with no top inset its drag handle and its
+     * header drew *under* the status bar and the notch. Reported from a phone,
+     * and the same defect `ToastPosition.Top` had for the same reason.
+     *
+     * A half-height sheet is unaffected: `windowInsetsPadding` applies only the
+     * part of an inset that overlaps the node, and a sheet whose top is at the
+     * middle of the window overlaps no status bar. Passing `WindowInsets(0)` is
+     * still how a caller says something above it has already handled all of
+     * this.
      */
-    windowInsets: WindowInsets = WindowInsets.sheetEdges,
+    windowInsets: WindowInsets = WindowInsets.allEdges,
     /**
      * Controls that ride *above* the sheet's top edge rather than inside it.
      *
@@ -268,8 +305,11 @@ fun BottomSheet(
     // mistake next to the 12dp at the sides. The union gives 24, which is the
     // clearance that was already required, and the sides stay at 12.
     //
-    // The keyboard is in `sheetEdges`, so the same line is what lifts a floating
-    // search field above the IME instead of letting it be covered.
+    // The keyboard is in `allEdges`, so the same line is what lifts a floating
+    // search field above the IME instead of letting it be covered. The status bar
+    // is in there too now, which is the same fix as the chrome's below: a
+    // floating sheet tall enough to reach the top of the window has rounded
+    // corners up there, and they belong below the bar rather than under it.
     val floatInsets = if (floating) {
         val inset = Theme.componentDefaults.sheetFloatingInset
         remember(windowInsets, inset) {
@@ -552,12 +592,8 @@ fun ModalBottomSheet(
     /** See [BottomSheet]. `false` removes the gesture and the handle with it. */
     draggable: Boolean = true,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
-    /**
-     * What the sheet's *content* keeps clear of. The gesture bar, the cutout and
-     * **the keyboard**, so a text field in a sheet is not typed at from behind
-     * it. The sheet's own surface still reaches the bottom of the window.
-     */
-    windowInsets: WindowInsets = WindowInsets.sheetEdges,
+    /** See [BottomSheet]. Every edge, so the handle clears the status bar. */
+    windowInsets: WindowInsets = WindowInsets.allEdges,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -805,6 +841,9 @@ private fun BoxScope.SheetSurface(
                     // from, and a layer is an offscreen buffer the size of the
                     // sheet on every platform that has one.
                     .then(if (floating) Modifier.graphicsLayer() else Modifier)
+                    // The top inset, which only `windowInsetsPadding` looks like
+                    // it could do. See [sheetTopInset].
+                    .sheetTopInset(state, windowInsets, floating, floatInsets)
                     // Free to be shorter than the surface, never taller.
                     //
                     // `SheetDetent.Expanded` means "as tall as the content", so
@@ -889,7 +928,17 @@ private fun BoxScope.SheetSurface(
                         val height = placeable.height.coerceAtMost(constraints.maxHeight)
                         layout(placeable.width, height) { placeable.place(0, 0) }
                     }
-                    .windowInsetsPadding(windowInsets)
+                    // The three sides a sheet is always against. The surface
+                    // reaches the bottom of the window at every detent and the
+                    // full width at all of them, so these three apply in full
+                    // whatever the sheet is doing — which is what makes them the
+                    // easy ones, and the top the hard one. [sheetTopInset] above
+                    // has that.
+                    .windowInsetsPadding(
+                        windowInsets.only(
+                            WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
+                        )
+                    )
             ) {
                 dragHandle?.invoke()
                 content()
@@ -933,6 +982,65 @@ private fun sheetTop(
     // and a floating sheet that tall is the window less a margin on all four
     // sides, not a panel with its head off the top of the screen.
     return (top - floatInsets.getBottom(density)).coerceAtLeast(floatInsets.getTop(density))
+}
+
+/**
+ * Pads the sheet's chrome clear of the top inset, by however much of it the
+ * sheet is actually under.
+ *
+ * Reported from a phone: at full height the drag handle and the header draw
+ * under the status bar and the notch. The cause was plain — the sheet's only
+ * inset padding was `windowInsets`, which defaulted to
+ * [sheetEdges][io.kontour.ui.adaptive.sheetEdges], bottom and horizontal only —
+ * and so the fix looked plain too: add the top side and let
+ * `Modifier.windowInsetsPadding` sort it out.
+ *
+ * **It does not sort it out, and the name is why.** `windowInsetsPadding` pads
+ * by the whole unconsumed inset wherever the node happens to be; the only thing
+ * that reduces it is an *ancestor* having consumed some, through
+ * `consumeWindowInsets`. It knows nothing about where the node sits on screen.
+ * Measured, with a 40dp top inset on a 1120px canvas at 2x: a sheet at `Half`,
+ * whose top edge is at 560, put its content at 640 — a status bar's worth of
+ * empty sheet above the handle, in the middle of the screen — and one at `Full`,
+ * top edge at 24, put its content at 104 rather than at the 80 where the status
+ * bar ends. Both wrong, and the first one visibly.
+ *
+ * So the overlap is computed here. The sheet's top edge is [sheetTop], the inset
+ * band is the top `inset` pixels of the window, and what the chrome owes is the
+ * part of the band the sheet is under: `inset - top`, floored at zero. A sheet
+ * at `Half` owes nothing and is measured and placed exactly as it was before any
+ * of this existed.
+ *
+ * ### It costs a measurement, and only inside the band
+ *
+ * The inner content is measured against the constraints less that padding, so a
+ * change to it is a re-measure of everything in the sheet — which during a drag
+ * would be once a frame, and `SheetFramePressureTest` exists because that class
+ * of cost is what sheets get wrong.
+ *
+ * `coerceIn` is what makes it cheap, and it is the same trick the backdrop's
+ * clip shapes use. The padding is pinned at `inset` while the sheet is above the
+ * band and at zero while it is below, so it is **constant** for all but the few
+ * frames of a drag that cross the band itself — 56px of travel on a phone, out
+ * of a window's worth. Outside those frames nothing re-measures at all.
+ *
+ * Deliberately *not* folded into the `.layout` below that records `sheetHeight`:
+ * that block measures the content to find out how tall the content is, and a
+ * number that grows by the status bar when the sheet reaches the top would make
+ * `SheetDetent.Expanded` resolve higher, which moves the sheet up, which grows
+ * the padding. This one sits outside it and the recorded height never sees it.
+ */
+private fun Modifier.sheetTopInset(
+    state: SheetState,
+    insets: WindowInsets,
+    floating: Boolean,
+    floatInsets: WindowInsets,
+): Modifier = layout { measurable, constraints ->
+    val inset = insets.getTop(this)
+    val top = (inset - sheetTop(state, floating, floatInsets, this)).coerceIn(0, inset)
+    val placeable = measurable.measure(constraints.offset(vertical = -top))
+    val height = (placeable.height + top).coerceAtMost(constraints.maxHeight)
+    layout(placeable.width, height) { placeable.place(0, top) }
 }
 
 /** No padding at all, for a sheet that is already clear of every edge. */

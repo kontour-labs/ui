@@ -595,9 +595,27 @@ fun CornerBasedShape.atLeast(floor: Dp?): CornerBasedShape =
  * Deferred for the same reason [InsetCornerSize] is. It resolves the base against
  * the box it is handed and changes nothing else about it — unlike its two
  * siblings there is no gap here, so there is no other box to reconstruct.
+ *
+ * ### A square corner stays square
+ *
+ * The one exception, and it is not a special case so much as the rule read
+ * properly. A square corner in this library is never a small radius that lost an
+ * argument — it means *there is no edge on this side*: `sheet` is
+ * [topCornersOnly] because it is flush to the bottom of the window, `sideSheet`
+ * is [leadingCornersOnly] for the same reason on its own axis. Flooring those at
+ * a bezel's radius would round off the two corners that exist precisely to say
+ * the sheet does not stop there, and the phone that reports the roundest display
+ * would get the worst of it.
+ *
+ * So a zero passes through as a zero. It cannot be decided any earlier than this:
+ * a percentage corner is zero only on a zero-sized box, so whether a corner is
+ * square is a question about the resolved radius exactly as the comparison is.
  */
 @Immutable
 private data class MaxCornerSize(val base: CornerSize, val floor: Dp) : CornerSize {
-    override fun toPx(shapeSize: Size, density: Density): Float =
-        maxOf(base.toPx(shapeSize, density), with(density) { floor.toPx() })
+    override fun toPx(shapeSize: Size, density: Density): Float {
+        val own = base.toPx(shapeSize, density)
+        if (own <= 0f) return own
+        return maxOf(own, with(density) { floor.toPx() })
+    }
 }

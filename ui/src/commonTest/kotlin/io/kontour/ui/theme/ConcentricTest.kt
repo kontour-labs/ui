@@ -62,6 +62,39 @@ class ConcentricTest {
         )
     }
 
+    /**
+     * And it leaves a square corner square.
+     *
+     * The sheet is what forced this. `Theme.shapes.sheet` is
+     * `extraLarge.topCornersOnly()` — square at the bottom because it is flush to
+     * the bottom of the window — and a sheet at full height has to be concentric
+     * with the display, so it is floored at the bezel's radius. Flooring all four
+     * corners rounds off the two that exist to say *the sheet does not stop
+     * here*, and it does it worst on the phone with the roundest display.
+     *
+     * The same thing would happen to `sideSheet` against its window edge, and to
+     * anything else that squares a corner off deliberately — which in this
+     * library is the only reason a corner is ever square.
+     */
+    @Test
+    fun aFloorLeavesADeliberatelySquareCornerSquare() {
+        val sheet = RoundedCornerShape(20.dp).topCornersOnly()
+        val floored = sheet.atLeast(55.dp)
+        val box = Size(400f, 400f)
+
+        assertEquals(
+            55f, floored.topStart.toPx(box, density),
+            "the top corner was not floored, so the sheet is not concentric with " +
+                "the display it is sitting inside",
+        )
+        assertEquals(
+            0f, floored.bottomStart.toPx(box, density),
+            "a 55dp bezel rounded off the bottom of a sheet that is flush to the " +
+                "bottom of the window. A square corner here is not a small radius " +
+                "— it means there is no edge on that side.",
+        )
+    }
+
     @Test
     fun aNullFloorLeavesTheShapeAloneEntirely() {
         // The ordinary case, and the one that matters most: only two platforms

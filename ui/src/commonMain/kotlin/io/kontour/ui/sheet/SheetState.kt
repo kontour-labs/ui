@@ -4,7 +4,10 @@ import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.DecayAnimationSpec
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.calculateTargetValue
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.runtime.Composable
@@ -24,6 +27,8 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -694,6 +699,84 @@ class SheetState internal constructor(
      *   built without positional and velocity thresholds, which this one is.
      *   Scrolling anything inside a sheet crashed on it.
      */
+    /**
+     * Settles at the detent a flick was **aimed at**, not the one it was nearest
+     * when the finger left.
+     *
+     * Reported: a sheet with two detents — full height and closed — cannot be
+     * closed by flicking, however hard, and has to be dragged more than half way
+     * down instead. That is exactly what the arithmetic said. `settle` animates
+     * to the state's current `targetValue`, which is chosen by **position**
+     * alone against a 0.5 positional threshold; and the velocity never reached
+     * it anyway, because [nestedScrollConnection] handed a downward fling
+     * straight through `onPreFling` and then settled positionally in
+     * `onPostFling`. Every flick on a settings sheet starts on its content, so
+     * every flick on a settings sheet was settled with no velocity at all.
+     *
+     * So the velocity is projected into a landing position and the nearest
+     * anchor to *that* wins. Below a real flick the projection collapses to
+     * where the finger already is and the behaviour is what it always was —
+     * which is what keeps a slow haul stopping at the detent it reached.
+     *
+     * ### Why the decay and not a threshold
+     *
+     * A velocity threshold gives "one detent per flick, however hard", which is
+     * what the handle's own `flingBehavior` already does above Compose's
+     * 125dp/s — and is the behaviour that cannot skip a middle detent on a
+     * three-detent sheet. A projection has no such ceiling: a hard throw lands
+     * past everything and closes the sheet outright, a soft one lands next door.
+     *
+     * ### What it cannot fix
+     *
+     * The **handle's** fling still goes through `AnchoredDraggableDefaults`,
+     * which takes a positional threshold and a snap spec and no velocity
+     * parameter. Routing it through here would mean an `animateTo` inside the
+     * fling that the drag's own mutex is holding, which is a deadlock waiting to
+     * be found rather than a fix. Dragging the handle is the one gesture where
+     * the finger is on the sheet itself and the positional answer is the
+     * intuitive one, so the ceiling stays there and is documented on
+     * `SheetDefaults`.
+     */
+    internal suspend fun settleWhereAimed(velocity: Float, spec: AnimationSpec<Float>) {
+        val aimed = detentAimedAt(velocity)
+        if (aimed == null) anchoredState.settle(spec) else anchoredState.animateTo(aimed)
+    }
+
+    /**
+     * Which detent [velocity] is aimed at, or null when there is nothing to aim.
+     *
+     * Split from [settleWhereAimed] because it is the whole of the behaviour and
+     * none of the machinery: the decision is arithmetic over the anchors and can
+     * be asserted directly, where animating to it needs a frame clock and a
+     * composition. `SheetSettleTest` reads this; the animation is Foundation's
+     * and is covered by the sheet's own gesture tests.
+     *
+     * Null means "no opinion" — no anchors, no velocity, or a projection that
+     * lands nowhere allowed — and the caller falls back to settling by position,
+     * which is what the sheet has always done.
+     */
+    internal fun detentAimedAt(velocity: Float): SheetDetent? {
+        val from = anchoredState.offset
+        val anchors = anchoredState.anchors
+        if (from.isNaN() || anchors.size == 0 || velocity == 0f) return null
+
+        val projected = SheetFlingDecay.calculateTargetValue(from, velocity)
+        var aimed: SheetDetent? = null
+        var best = Float.MAX_VALUE
+        for (index in 0 until anchors.size) {
+            val at = anchors.positionAt(index)
+            if (at.isNaN()) continue
+            val detent = anchors.anchorAt(index) ?: continue
+            if (detent !in allowedDetents) continue
+            val distance = abs(at - projected)
+            if (distance < best) {
+                best = distance
+                aimed = detent
+            }
+        }
+        return aimed
+    }
+
     internal fun nestedScrollConnection(
         settleSpec: AnimationSpec<Float>,
     ): NestedScrollConnection =
@@ -748,7 +831,7 @@ class SheetState internal constructor(
                     !expandedOffset.isNaN() &&
                     offset > expandedOffset
                 ) {
-                    anchoredState.settle(settleSpec)
+                    settleWhereAimed(available.y, settleSpec)
                     available
                 } else {
                     Velocity.Zero
@@ -759,7 +842,7 @@ class SheetState internal constructor(
                 consumed: Velocity,
                 available: Velocity,
             ): Velocity {
-                anchoredState.settle(settleSpec)
+                settleWhereAimed(available.y, settleSpec)
                 return available
             }
 
@@ -834,7 +917,28 @@ internal fun resolveAnchors(
         } else {
             with(density) { detent.resolve(this, containerHeight, sheetHeight) }
         }
-        val offset = containerHeight - visible.coerceIn(0f, containerHeight)
+        // **Nothing reaches the very top.** A sheet whose top edge lands on
+        // pixel zero has no page above it for its rounded corners to read
+        // against, and on a phone it also puts the drag handle and the header
+        // under the status bar — which is what was reported. `SheetTopGap` is
+        // the same 12dp the backdrop already insets a receding page by, so a
+        // sheet at full height and a page behind a sheet leave the same margin.
+        //
+        // Applied here rather than inside `Full` and `Expanded` because it is a
+        // fact about how far a sheet may travel, not about what either detent
+        // means: `Full` still resolves to "the whole container" and says so, and
+        // a caller's own `fraction(1f)` gets the same treatment without knowing
+        // about it.
+        // A container with no room for the gap does not get one. `minOf(gap,
+        // container)` is the obvious guard and it is the wrong one: on a 6px
+        // container it makes the gap the whole container, so every detent
+        // resolves to "entirely hidden" and the sheet has nowhere to be. A
+        // container that small is a measurement in progress rather than a
+        // window, and leaving it exactly the offsets it had is what does least
+        // harm to it.
+        val gap = with(density) { SheetTopGap.toPx() }
+        val raw = containerHeight - visible.coerceIn(0f, containerHeight)
+        val offset = if (containerHeight > gap) raw.coerceAtLeast(gap) else raw
         if (positions.values.none { abs(it - offset) < 0.5f }) {
             positions[detent] = offset
         }
@@ -908,3 +1012,39 @@ private const val EmptyDetents: String =
  */
 private fun List<SheetDetent>.firstDetent(): SheetDetent =
     firstOrNull() ?: throw IllegalArgumentException(EmptyDetents)
+
+/**
+ * How far a flick carries a sheet past where the finger left it.
+ *
+ * A plain exponential decay, and the friction is the whole tuning. At the
+ * default of 1 a 3000px/s throw — a brisk flick on a phone — projects about
+ * 700px, which closes a full-height sheet on most devices and leaves a gentle
+ * 500px/s one, projecting about 120px, exactly where it was. Lower friction
+ * makes flicks carry further; there is no threshold anywhere, so the response is
+ * continuous in the throw rather than stepped.
+ *
+ * Process-wide rather than per-sheet: it is a fact about how a thrown thing
+ * slows down, not a property of any one sheet, and building one per state would
+ * be an allocation on every recomposition of every sheet in an app.
+ */
+private val SheetFlingDecay: DecayAnimationSpec<Float> = exponentialDecay()
+
+/**
+ * How far short of the screen's edge a sheet stops.
+ *
+ * Two reasons, and the second is the one that was reported. A sheet whose top
+ * edge is at pixel zero has nothing above it for its rounded corners to read
+ * against, so the corners stop being corners; and on a phone it puts the drag
+ * handle and the header under the status bar and the notch.
+ *
+ * The chrome's own inset is the other half of that second one and is applied
+ * separately, in `BottomSheet` — this gap is smaller than a status bar and is
+ * not trying to clear it. What it does is leave the sheet looking like a sheet.
+ *
+ * 12dp, which is `ComponentDefaults.backdropInset`: a receding page behind a
+ * sheet already stops that far short of the window on all four sides, so a
+ * full-height sheet and the page behind it now leave the same margin. Not read
+ * from the theme, because anchors are resolved against a `Density` and nothing
+ * else — a sheet's reach is not a thing a brand restyles.
+ */
+internal val SheetTopGap: Dp = 12.dp
