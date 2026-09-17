@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import io.kontour.ui.platform.platformOpaqueBottomInset
 import io.kontour.ui.platform.platformSupportsBackdropBlur
 import io.kontour.ui.theme.LocalBackdropBlur
 import io.kontour.ui.theme.Theme
@@ -144,85 +145,77 @@ object BackdropDefaults {
 }
 
 /**
- * The transform that insets the content behind a modal by a uniform margin.
+ * How a receding screen is fitted inside its frame: two scales and a lift.
  *
- * ### Why a uniform scale could not do it
+ * ### Equal gaps need two scales, and there is no way round it
  *
- * Scaling a rectangle insets it by a fraction of each *axis*, so one number
- * gives two different margins on any screen that is not square: `0.94` on a
- * 390x844 phone left 11.7dp at the sides and 25.3dp at the top. That is what was
- * reported — the receded screen read as having a gap above it rather than a
- * frame around it.
+ * Scaling a rectangle insets it by a fraction of each *axis*, so **one** number
+ * gives two different margins on any screen that is not square. A uniform scale
+ * simply cannot put an equal gap on all four edges of a 390x844 phone; the only
+ * question is where the difference is spent.
  *
- * ### Why not simply scale each axis separately
+ * It used to be spent at the bottom, on the argument that the bottom is the edge
+ * a sheet is covering anyway. Then the bottom acquired a navigation bar and the
+ * surplus went with it, so a second constraint was added to keep the inset below
+ * the bar — which bought the bottom back and pushed the difference out to the
+ * *sides*, at about 16.6dp against a 12dp top. Reported, twice, and the second
+ * report was the plain statement that it should be uniform everywhere, always.
  *
- * Because that distorts. Mapping 390x844 into a 12dp frame needs 0.938 across
- * and 0.972 down, and a 3.5% difference between them turns every avatar into a
- * slight ellipse. A placeholder for a screen should not be the wrong shape.
+ * So the difference is not spent anywhere. [scaleX] and [scaleY] are worked out
+ * separately and every gap is exactly the inset.
  *
- * ### What this does instead
+ * ### What that costs, stated rather than buried
  *
- * Scales **uniformly**, so there is no distortion, and then moves the content
- * *up* by whatever vertical slack that leaves over. The top margin lands on the
- * inset, and the surplus collects at the bottom — which is the one edge a bottom
- * sheet is covering anyway.
+ * It distorts. Mapping 390x844 into a 12dp frame needs 0.938 across and 0.972
+ * down, so the receded page is about 3.5% wider in proportion than it is at rest
+ * and a circle on it is very slightly an ellipse. This function's own
+ * documentation used to give that as the reason *not* to do this, and it was a
+ * fair reason against an unreported cost — it stopped being one when the cost it
+ * was avoiding turned out to be the thing people could see. A page behind a scrim,
+ * for a few hundred milliseconds, at three and a half percent, against a frame
+ * that is visibly heavier on one edge.
  *
- * The scale is the tighter of two constraints rather than the width alone. The
- * first puts both side margins exactly on the inset. The second keeps the inset
- * below whatever the system has parked at the bottom of the window, and it is
- * there because of what happens when it is not: see the note in the body. So the
- * invariant is *top on the inset, sides at least the inset, bottom at least the
- * inset above the bar* — sides exactly on it only when nothing is docked down
- * there, which is every gesture-navigation phone and every desktop window.
+ * ### An opaque bar is the one thing that moves it
  *
- * Up, not down, and the first version had it the other way round. A uniform
- * scale leaves the same slack top and bottom; putting the *top* on the inset
- * means closing the difference, which moves the content toward the top of the
- * screen. Translating down instead doubled the top margin — 48px where 24 was
- * wanted, on a 600x900 window — and `BackdropBlurTest` caught it by sampling a
- * row that the content had stopped covering.
+ * A gap below something the system paints over is not a gap. Where the platform
+ * reports a bottom inset that is *tappable* — three-button navigation, and
+ * nothing else; see [io.kontour.ui.platform.platformOpaqueBottomInset] — the page
+ * is fitted into the window **less that bar** and lifted by half of it, so the
+ * bottom gap lands on the inset above the bar rather than under it.
  *
- * On a window wider than it is tall there is no surplus to move — the slack from
- * a width-derived scale is smaller than the inset — so the translation clamps at
- * zero and the top settles wherever the uniform scale puts it. A modal over a
- * landscape window is a centred dialog rather than a bottom sheet, so this is
- * the case that matters least.
+ * All four gaps are still the inset. What changes is that the page is shorter,
+ * because the room it is being fitted into is. Gesture navigation and iOS report
+ * a bottom inset that nothing paints, so they are the plain case and nothing
+ * moves there.
  */
-internal fun backdropScale(
+@Immutable
+internal data class BackdropFit(
+    val scaleX: Float,
+    val scaleY: Float,
+    /** How far to move the content **up**, in pixels. Call sites negate it. */
+    val shiftY: Float,
+)
+
+/** See [BackdropFit]. */
+internal fun backdropFit(
     width: Float,
     height: Float,
     insetPx: Float,
-    bottomInsetPx: Float,
-): Float {
-    if (width <= 0f) return 1f
-    val fromWidth = 1f - 2f * insetPx / width
-    // The second constraint, and the reported one. A width-derived scale leaves
-    // vertical slack, [backdropShift] spends `insetPx` of it on the top, and
-    // whatever is left collects at the bottom — which is fine until something
-    // opaque is sitting there. On a 390x844 phone at a 12dp inset the slack is
-    // about 52dp, 12 goes to the top, and the 40 left over is swallowed whole by
-    // a 48dp three-button navigation bar. There is no bottom frame at all, and
-    // the recede stops reading as a screen stepping back and starts reading as
-    // the page sliding underneath something.
-    //
-    // So: scale small enough that the inset survives *below* the bar too, and
-    // take whichever of the two constraints binds. With gesture navigation the
-    // bottom inset is a few dp and this term never wins; with three buttons the
-    // side margins grow to about 16.6dp on that phone, which is the price and is
-    // cheaper than having no bottom edge.
-    val fromHeight = if (height <= 0f) 1f else 1f - (2f * insetPx + bottomInsetPx) / height
-    return minOf(fromWidth, fromHeight).coerceIn(0f, 1f)
+    opaqueBottomPx: Float,
+): BackdropFit {
+    if (width <= 0f || height <= 0f) return BackdropFit(1f, 1f, 0f)
+    // The room the page is actually being fitted into. An opaque bar is not part
+    // of it; anything else at the bottom is.
+    val room = (height - opaqueBottomPx).coerceAtLeast(0f)
+    return BackdropFit(
+        scaleX = (1f - 2f * insetPx / width).coerceIn(0f, 1f),
+        scaleY = ((room - 2f * insetPx) / height).coerceIn(0f, 1f),
+        // Half, not all of it. A scaled layer stays centred on the window, and
+        // the page has to end up centred on the *room* instead — which is half a
+        // bar higher up.
+        shiftY = opaqueBottomPx / 2f,
+    )
 }
-
-/**
- * How far to move the content *up* to put the top margin on the inset too.
- *
- * A magnitude, so both call sites negate it. See [backdropScale], which argues
- * the direction at length — a uniform scale leaves equal slack top and bottom,
- * and closing the top down to the inset moves the content toward the top.
- */
-internal fun backdropShift(height: Float, scale: Float, insetPx: Float): Float =
-    ((1f - scale) * height / 2f - insetPx).coerceAtLeast(0f)
 
 /**
  * [BackdropDefaults.Inset], or no inset at all when the reader has asked for
@@ -373,10 +366,22 @@ private data class RampCornerSize(
     }
 }
 
+/**
+ * How much of the window's bottom edge something opaque is sitting on.
+ *
+ * **Not `WindowInsets`.** A bottom inset says the system has reserved the edge;
+ * it does not say whether anything is painted there, and the two cases want
+ * opposite answers. Gesture navigation reserves a strip for the handle and paints
+ * nothing on it, so a gap that runs under it is a gap the reader can see.
+ * Three-button navigation paints a bar, and a gap under *that* is no gap at all —
+ * which is the report this exists for.
+ *
+ * `tappableElement` is the distinction the platform actually draws, and
+ * [io.kontour.ui.platform.platformOpaqueBottomInset] is where it is read.
+ */
 @Composable
-private fun backdropBottomInset(): Float =
-    WindowInsets.edges.only(WindowInsetsSides.Bottom)
-        .getBottom(LocalDensity.current).toFloat()
+private fun backdropOpaqueBottom(): Float =
+    with(LocalDensity.current) { platformOpaqueBottomInset().toPx() }
 
 /**
  * Blurs, and optionally pushes back, everything drawn inside this node while an
@@ -413,7 +418,7 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
     // time, and a theme value has to be captured in composition.
     val insetDp = resolvedInset()
     val insetPx = with(LocalDensity.current) { insetDp.toPx() }
-    val bottomInsetPx = backdropBottomInset()
+    val opaqueBottomPx = backdropOpaqueBottom()
     val scaling = style.scales && insetPx > 0f
     if (!blurring && !scaling) return this
 
@@ -458,13 +463,12 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
         }
 
         if (scaling) {
-            val target = backdropScale(size.width, size.height, insetPx, bottomInsetPx)
-            val scale = lerp(1f, target, f)
-            scaleX = scale
-            scaleY = scale
-            // Negative: the surplus goes to the *bottom*, where the sheet is,
-            // which means the content moves up. See [backdropScale].
-            translationY = lerp(0f, -backdropShift(size.height, target, insetPx), f)
+            val fit = backdropFit(size.width, size.height, insetPx, opaqueBottomPx)
+            scaleX = lerp(1f, fit.scaleX, f)
+            scaleY = lerp(1f, fit.scaleY, f)
+            // Negative: [BackdropFit.shiftY] is a magnitude and the content moves
+            // *up* by it, off an opaque bar.
+            translationY = lerp(0f, -fit.shiftY, f)
 
             // **No clip, and that is the whole of a 58ms frame on a phone.**
             //
@@ -576,7 +580,7 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
     // The same number the content's layer uses. Both have to agree or the hole
     // and the content stop being the same rectangle — which is the fault the
     // shift below already documents, in a second dimension.
-    val bottomInsetPx = backdropBottomInset()
+    val opaqueBottomPx = backdropOpaqueBottom()
 
     return drawWithContent {
         val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
@@ -636,21 +640,23 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         // still scaled, so its own rectangle still lands on a fractional pixel.
         // `theBlurredEdgeDoesNotShowThePageBehindIt` put the hairline straight
         // back on screen and named it in one run.
-        val target = backdropScale(size.width, size.height, insetPx, bottomInsetPx)
-        val scale = lerp(1f, target, f)
-        val shift = lerp(0f, backdropShift(size.height, target, insetPx), f)
-        val overlap = 2f * SeamOverlap / minOf(size.width, size.height)
+        val fit = backdropFit(size.width, size.height, insetPx, opaqueBottomPx)
+        val scaleX = lerp(1f, fit.scaleX, f)
+        val scaleY = lerp(1f, fit.scaleY, f)
+        val shift = lerp(0f, fit.shiftY, f)
+        val overlapX = 2f * SeamOverlap / size.width
+        val overlapY = 2f * SeamOverlap / size.height
 
         // Nothing has moved, so there is nothing to frame.
         //
         // A reader who has asked for reduced motion gets an inset of zero — see
-        // [resolvedInset] — so the scale stays at 1 while the fraction still
+        // [resolvedInset] — so the scales stay at 1 while the fraction still
         // animates, and the content vacates no pixels at all. The band's area is
         // zero there by construction *except* for the overlap, which would draw
         // a one-pixel black frame over the content's own edge now that this
         // paints on top of it rather than behind. Invisible for as long as it
         // was underneath, which is why it needed saying only now.
-        if (scale >= 1f) {
+        if (scaleX >= 1f && scaleY >= 1f) {
             drawContent()
             return@drawWithContent
         }
@@ -662,7 +668,7 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         // `graphicsLayer` is in the *parent's* coordinates and is not scaled.
         geometry.matrix.translate(0f, -shift)
         geometry.matrix.translate(size.width / 2f, size.height / 2f)
-        geometry.matrix.scale(scale - overlap, scale - overlap)
+        geometry.matrix.scale(scaleX - overlapX, scaleY - overlapY)
         geometry.matrix.translate(-size.width / 2f, -size.height / 2f)
 
         // Only the hole scales. The band's outer rect is the host, which does
@@ -707,10 +713,14 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         if (haloPx > 0f) {
             // [blurFraction], not `f`: as deep as the blur actually is this
             // frame rather than as deep as the animation has got. See its KDoc.
-            val inset = 2f * haloPx * blurFraction(f) / minOf(size.width, size.height)
+            val reach = 2f * haloPx * blurFraction(f)
             geometry.matrix.reset()
+            geometry.matrix.translate(0f, -shift)
             geometry.matrix.translate(size.width / 2f, size.height / 2f)
-            geometry.matrix.scale((scale - inset).coerceAtLeast(0f), (scale - inset).coerceAtLeast(0f))
+            geometry.matrix.scale(
+                (scaleX - reach / size.width).coerceAtLeast(0f),
+                (scaleY - reach / size.height).coerceAtLeast(0f),
+            )
             geometry.matrix.translate(-size.width / 2f, -size.height / 2f)
 
             geometry.inner.reset()
