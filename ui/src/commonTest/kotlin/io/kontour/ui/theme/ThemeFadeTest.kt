@@ -201,6 +201,96 @@ class ThemeFadeTest {
         const val FadeFrames = 20
     }
 
+    /**
+     * A change of contrast tier cuts, and dark mode beside it does not.
+     *
+     * The ask was that light and dark animate everywhere and that the other
+     * accessibility settings cut, and a tier change was doing neither: the
+     * colours faded over 220ms while [Sizing] — which `KontourTheme` also
+     * resolves from the tier — arrived on the first frame with them. Every
+     * border and focus ring in the application jumped to its high contrast
+     * width and then waited for the surfaces.
+     *
+     * Both cases here, because the risk in this change is the second one. A rule
+     * that cut on every scheme change would satisfy the first assertion and undo
+     * the whole file.
+     *
+     * ### Two things the first draft of this got wrong
+     *
+     * It read `Theme.colours.surface`, and **passed with the fix taken back
+     * out** — a white page is white at both tiers, because high contrast darkens
+     * what is *on* the page rather than the page. It reads `outline` now, which
+     * moves from 0.898 grey to 0.463.
+     *
+     * And it asserted on the single frame after the change, which is one too
+     * early whichever way the code goes: the value is written from a
+     * `LaunchedEffect`, so the frame that changes the tier composes with the
+     * previous one still in the handle. Counting the distinct values over a
+     * whole fade's worth of frames is both the robust form and the stronger
+     * claim — a cut has two of them and a fade has as many as it has frames.
+     */
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun aTierChangeCutsWhileDarkModeStillFades() = runComposeUiTest {
+        var contrast by mutableStateOf(ContrastLevel.Standard)
+        var dark by mutableStateOf(false)
+        var seen: Color? = null
+
+        mainClock.autoAdvance = false
+        setContent {
+            KontourTheme(darkTheme = dark, contrast = contrast) {
+                seen = Theme.colours.outline
+                Box(Modifier.fillMaxSize())
+            }
+        }
+        mainClock.advanceTimeByFrame()
+
+        /** Every distinct outline colour over a fade's worth of frames. */
+        fun path(): List<Color> {
+            val seenValues = mutableListOf<Color>()
+            repeat(FadeFrames) {
+                mainClock.advanceTimeByFrame()
+                seenValues += seen!!
+            }
+            return seenValues.distinct()
+        }
+
+        contrast = ContrastLevel.High
+        val tier = path()
+        assertEquals(
+            2, tier.size,
+            "a contrast tier change took ${tier.size} distinct outline colours " +
+                "across $FadeFrames frames. A cut takes two — the old and the " +
+                "new. The widths a tier also changes arrive in one frame and " +
+                "cannot be interpolated behind a static local, so anything more " +
+                "than two here is a half-animated change.",
+        )
+        assertEquals(
+            kontourColourScheme(dark = false, contrast = ContrastLevel.High).outline,
+            tier.last(),
+            "the tier change did not arrive at the high contrast outline at all",
+        )
+
+        // Back to standard in its own fade's worth of frames, so what follows is
+        // dark mode alone and starts from rest.
+        contrast = ContrastLevel.Standard
+        path()
+
+        dark = true
+        val fade = path()
+        assertTrue(
+            fade.size > 2,
+            "dark mode took ${fade.size} distinct outline colours, so it cut as " +
+                "well. The rule is meant to be scoped to the tier; this says it " +
+                "is every scheme change, and the cross-fade is gone.",
+        )
+        assertEquals(
+            kontourColourScheme(dark = true, contrast = ContrastLevel.Standard).outline,
+            fade.last(),
+            "the fade did not arrive at the dark outline",
+        )
+    }
+
     @OptIn(ExperimentalTestApi::class)
     @Test
     fun turningTheFadeOffSwitchesInstantly() = runComposeUiTest {

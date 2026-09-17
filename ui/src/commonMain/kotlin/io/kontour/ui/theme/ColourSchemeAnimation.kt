@@ -49,20 +49,31 @@ internal class ThemeFade(val colours: ColourScheme, val elevation: Elevation)
  * one here.
  */
 @Stable
-internal class ThemeFadeState(initial: ThemeFade) {
+internal class ThemeFadeState(initial: ThemeFade, initialContrast: ContrastLevel) {
     var fade: ThemeFade by mutableStateOf(initial)
 
     var targetColours: ColourScheme = initial.colours
     var targetElevation: Elevation = initial.elevation
+
+    /**
+     * The tier the last scheme arrived at, so a change of tier can be seen.
+     *
+     * A plain field rather than snapshot state, like the two above: it is read
+     * from the fade's own coroutine, and nothing should recompose because it was
+     * written. See [animatedTheme] for what it decides.
+     */
+    var contrast: ContrastLevel = initialContrast
 }
 
 /**
  * Cross-fades between themes instead of cutting.
  *
- * Switching to dark mode, changing the accent, or moving contrast tier used to
- * be a single frame: one composition with the old colours, the next with the
- * new. Every other state change in the library animates, and the largest one
- * did not.
+ * Switching to dark mode or changing the accent used to be a single frame: one
+ * composition with the old colours, the next with the new. Every other state
+ * change in the library animates, and the largest one did not.
+ *
+ * Moving contrast tier is the exception and still cuts, deliberately — see *A
+ * change of contrast tier cuts* below.
  *
  * ### One animation, not fifty
  *
@@ -114,19 +125,49 @@ internal class ThemeFadeState(initial: ThemeFade) {
  * actually is**, not from where it began. Flipping dark mode twice quickly
  * otherwise jumps back to the first scheme before starting the second, which is
  * more visible than not animating at all.
+ *
+ * ### A change of contrast tier cuts
+ *
+ * The one scheme change that does not fade, and it is the [Sizing] scale that
+ * decides it rather than the colours. A tier is not only a palette: `KontourTheme`
+ * resolves `kontourSizing(contrast)` from it too, and hands that to a static
+ * local that changes in one frame. So a faded tier change was a *half*-animated
+ * one — every border and focus ring in the application jumping to its high
+ * contrast width on frame one, over surfaces that then spent 220ms catching up.
+ *
+ * Both at once is worse than both at once instantly, which is the whole
+ * argument. Widths cannot sensibly be interpolated behind a static local — that
+ * is the invalidation this file exists to avoid, thirteen full-app recompositions
+ * of it — so the colours join the widths instead.
+ *
+ * Dark mode has no such partner: it moves colours and shadows and nothing else,
+ * and those two already travel together through one [Animatable]. Type size and
+ * reduced motion likewise reach only [Typography] and [Motion], neither of which
+ * this touches, and both have always cut.
  */
 @Composable
 internal fun animatedTheme(
     colours: ColourScheme,
     elevation: Elevation,
     motion: Motion,
+    contrast: ContrastLevel,
 ): ThemeFadeState {
-    val state = remember { ThemeFadeState(ThemeFade(colours, elevation)) }
+    val state = remember { ThemeFadeState(ThemeFade(colours, elevation), contrast) }
     val fraction = remember { Animatable(1f) }
 
-    LaunchedEffect(colours, elevation) {
+    LaunchedEffect(colours, elevation, contrast) {
         val to = ThemeFade(colours, elevation)
-        if (state.fade.colours == to.colours && state.fade.elevation == to.elevation) {
+        val tierChanged = contrast != state.contrast
+        state.contrast = contrast
+        if (
+            tierChanged ||
+            (state.fade.colours == to.colours && state.fade.elevation == to.elevation)
+        ) {
+            // A tier change stops any fade already running as well as skipping
+            // this one, so a reader who turns high contrast on mid-way through a
+            // dark-mode fade lands on the new tier rather than watching the old
+            // one finish arriving over the new widths.
+            fraction.snapTo(1f)
             state.fade = to
             return@LaunchedEffect
         }

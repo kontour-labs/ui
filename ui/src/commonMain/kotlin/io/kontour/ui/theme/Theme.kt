@@ -249,7 +249,7 @@ fun KontourTheme(
     // did: the shadows then cut to their dark-mode strength on the fade's first
     // frame and waited there for the surfaces to catch up.
     val faded = if (animateThemeChanges) {
-        animatedTheme(colours, elevation, motion)
+        animatedTheme(colours, elevation, motion, contrast)
     } else {
         null
     }
