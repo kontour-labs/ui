@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlin.math.abs
+import kotlin.math.exp
 
 /**
  * How far a boundary has been pulled past, and how hard it is pushing back.
@@ -78,16 +79,52 @@ class RubberBand internal constructor() {
     /**
      * Takes [by] pixels of pull and returns how much was absorbed.
      *
-     * [limit] is how far the band may be stretched — a boundary that gives
-     * indefinitely is not a boundary. The caller supplies it because what
-     * counts as "a little" depends on what is moving: a sheet uses a twelfth of
-     * its container, a drum a row and a half.
+     * [limit] is the stretch the band approaches and never reaches — a boundary
+     * that gives indefinitely is not a boundary, and one that arrives at a hard
+     * stop is the rigid boundary again a few pixels further on. It is also the
+     * scale of the *pull*: a finger travels about `limit` past the stop to get
+     * 63% of the way out, twice that for 86% and two and a half times for 90%.
+     * The caller supplies it because what counts as "a little" depends on what
+     * is moving: a sheet uses a twelfth of its container, a drum a row and a
+     * half, a control the travel it wants a full deformation to cost.
+     *
+     * ### Integrated over [by], not stepped once per delta
+     *
+     * The resistance is `1 - offset/limit` either way. What changed is that it
+     * used to be evaluated **once** for the whole of [by] and applied linearly
+     * across it, which is a single Euler step of `do/dt = 1 - o/limit` — and one
+     * Euler step is only accurate while the step is small against the limit.
+     * The limits here are small, so it never was: a delta the size of the limit
+     * took the band from nothing to the clamp in one frame, and a control with
+     * a 6dp limit had two states, squashed and not. That was the report.
+     *
+     * The closed form of the same equation costs one `exp` and is exact for any
+     * delta:
+     *
+     * ```
+     * offset' = limit - (limit - offset) * exp(-by / limit)
+     * ```
+     *
+     * So the stretch is a function of how far the finger has actually travelled
+     * past the stop and not of how that travel was chopped into frames. Which
+     * is the other thing this fixes, and the one nobody would have found by
+     * looking: the old form gave a **different curve at 120Hz than at 60**,
+     * because halving each delta halves the error of every step. The library
+     * runs at 120 on an iPhone.
+     *
+     * The clamp is gone with it. An exponential approach cannot overshoot, so
+     * `coerceIn` was only ever catching the Euler step's own overrun.
      */
     fun pull(by: Float, limit: Float): Float {
         if (limit <= 0f || by == 0f) return 0f
-        val resistance = 1f - (abs(offset) / limit).coerceIn(0f, 1f)
-        val gained = by * resistance
-        offset = (offset + gained).coerceIn(-limit, limit)
+        // Toward the limit on the side the pull is on. A pull that reverses
+        // without the caller paying it back first is rare — `payBack` runs
+        // first by construction — but it has to mean *from where the band is*,
+        // so the room is measured against the signed offset rather than its
+        // magnitude.
+        val room = if (by > 0f) limit - offset else -limit - offset
+        val gained = room * (1f - exp(-abs(by) / limit))
+        offset += gained
         return gained
     }
 

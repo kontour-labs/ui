@@ -279,9 +279,9 @@ fun RangeSlider(
     // No report at either end of the range — see the note where `Slider`'s used
     // to be. The thumb has stopped and is visibly giving under the push, which is
     // the whole of the news.
-    val thumbSquashPx = with(LocalDensity.current) {
-        SliderThumbRadius.toPx() * SliderDefaults.MaxStretch
-    }
+    // See `Slider`: the limit is the finger's travel past the stop, not a
+    // fraction of the thumb, and `sliderThumb` normalises by the same number.
+    val thumbSquashPx = with(LocalDensity.current) { EndStopTravel.toPx() }
 
     // Read here rather than inside `drawWithCache`, which is not a composable.
     val tickSize = Theme.componentDefaults.sliderTickSize

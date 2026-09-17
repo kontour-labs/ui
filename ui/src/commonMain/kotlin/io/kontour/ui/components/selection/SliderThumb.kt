@@ -5,6 +5,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 
 /**
@@ -113,21 +115,33 @@ internal fun DrawScope.sliderThumb(
     // different arithmetic on the same edges, and summing them made one of the
     // two impossible to express at all.
     //
-    // Normalised against the band's own limit rather than against `limit` above:
-    // both sliders hand the band `radiusPx * MaxStretch`, and `limit` carries the
-    // touch growth on top, so dividing by it would under-read the squash by
-    // however much the thumb had swollen under the finger.
-    val squashLimit = radiusPx * SliderDefaults.MaxStretch
-    val squeeze = if (squashLimit <= 0f) {
-        0f
-    } else {
-        (abs(squashPx) / squashLimit).coerceIn(0f, 1f) * ThumbSquash
-    }
+    // Normalised against [EndStopTravel], which is what both sliders hand the
+    // band and is a distance the *finger* travels rather than anything about
+    // this thumb. It used to be `radiusPx * MaxStretch` — about 6.6dp — and a
+    // finger crosses that inside one frame, which is why the deformation read
+    // as two states rather than as a pull.
+    val squashLimit = EndStopTravel.toPx()
+    val pull = if (squashLimit <= 0f) 0f else (abs(squashPx) / squashLimit).coerceIn(0f, 1f)
+
+    // **Measured from the thumb at rest, not from the thumb as it currently is.**
+    //
+    // It was a fraction of the drawn width, which on a thumb that has already
+    // grown under the finger cancels out: at 1.25x grown and 0.16 squashed the
+    // arithmetic came back *above* the resting size, so pushing into a wall
+    // could not make the thumb smaller than the circle it is at rest. Reported
+    // on `Switch`, which had the same bug in the same shape, and true here.
+    //
+    // So the target is a fixed [ThumbSquash] off the resting diameter and the
+    // drawn width travels to it as the band comes out. At rest it is exactly the
+    // stretch above, at full pull it is narrower than the thumb has ever been,
+    // and in between it tracks the finger.
+    val width = stretchedRight - stretchedLeft
+    val target = width + (radiusPx * 2f * (1f - ThumbSquash) - width) * pull
     // Pinned against whichever end was pushed into: the leading edge stays on the
     // wall and the trailing one comes in to meet it, so the thumb visibly
     // shortens against the stop and springs back out of it. `Switch` does the
     // same thing to its own thumb at the same amplitude.
-    val lost = (stretchedRight - stretchedLeft) * squeeze
+    val lost = (width - target).coerceAtLeast(0f)
     val left = if (squashPx > 0f) stretchedLeft + lost else stretchedLeft
     val right = if (squashPx > 0f) stretchedRight else stretchedRight - lost
 
@@ -149,20 +163,45 @@ internal fun DrawScope.sliderThumb(
 }
 
 /**
- * How much of its length a thumb loses pushing into a wall, at the band's limit.
+ * How much narrower than its resting self a thumb gets, pushed all the way into
+ * a wall.
  *
- * 0.16, the same as `Switch`'s thumb, and deliberately the same rather than
- * coincidentally: a squash is a squash, and two controls in one library that
- * deform by visibly different amounts under the same gesture is the class of
- * inconsistency `SliderThumb` exists to remove for the two sliders. Written out
- * in both places because the two components share no other arithmetic and a
- * constant reaching across the package would be the wrong seam for a number this
- * small.
+ * 0.25, the same as `Switch`'s thumb and `SegmentedControl`'s indicator, and
+ * deliberately the same rather than coincidentally: a squash is a squash, and
+ * controls in one library that deform by visibly different amounts under the
+ * same gesture is the class of inconsistency `SliderThumb` exists to remove for
+ * the two sliders. Written out in each of the three because they share no other
+ * arithmetic.
  *
- * Big enough to read on a 24dp thumb — about 4dp off the long axis at the band's
- * limit — and small enough that the thumb still looks like itself.
+ * It was 0.16 *of the drawn width*, which on a thumb already grown under the
+ * finger came out wider than the thumb at rest — so the deepest push produced
+ * something that was not visibly a squash at all. A quarter off the **resting**
+ * width is about 6dp on a 24dp thumb, which reads from across a room.
  */
-private const val ThumbSquash: Float = 0.16f
+private const val ThumbSquash: Float = 0.25f
+
+/**
+ * How far past a stop a finger travels for a full deformation.
+ *
+ * The scale of the pull rather than a hard stop — [io.kontour.ui.interaction.RubberBand]
+ * approaches its limit and never arrives, so a finger travels about this far for
+ * 63% of the squash, twice for 86% and two and a half times for 90%. 26dp puts
+ * a full squash at roughly 60dp of travel, which is a deliberate gesture and not
+ * an accident of where a finger stopped.
+ *
+ * Every control a finger can push past the end of takes this one number:
+ * `Slider`, `RangeSlider`, `Switch` and `SegmentedControl`. They used to derive
+ * a limit each from their own geometry — 6.6dp for a slider thumb, 6dp for a
+ * switch, a fifth of a segment — and every one of them was small enough for a
+ * single frame's delta to cross, which is what "there are only two states,
+ * squashed and normal" was describing.
+ *
+ * It lives here rather than on a `*Defaults` object because it is a fact about
+ * what a rubber band feels like, not a dial a brand reaches for, and here rather
+ * than beside `RubberBand` because the sheet and the wheel picker measure their
+ * overshoot in their own content and should go on doing so.
+ */
+internal val EndStopTravel: Dp = 26.dp
 
 /**
  * The detent marks along a slider's track.

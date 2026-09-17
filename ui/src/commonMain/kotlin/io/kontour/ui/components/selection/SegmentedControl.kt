@@ -97,14 +97,21 @@ private const val MaxSegmentStretch = 0.2f
 /**
  * How much of its width the thumb loses pushing into an end of the track.
  *
- * 0.16, matching `Switch`'s thumb and a slider's, because a squash that is worth
- * having is worth being the same size everywhere — a reader who has felt one
- * control give at its end should recognise the next one.
+ * **The one place that does not take the library's 0.25.** `Switch` and
+ * `SliderThumb` both squash a quarter off a 24dp thumb, which is 6dp; this thumb
+ * is a whole segment wide, so 0.16 of it is already several times that in
+ * pixels. A squash worth having is worth being the same size everywhere, and on
+ * a control this much larger "the same size" is not the same fraction.
  *
  * Smaller than [MaxSegmentStretch] rather than equal to it, and the asymmetry is
  * the point: a stretch has a whole segment of empty track to grow into and a
  * squash is eating the thumb's own label. A fifth off the width of "Keyboard"
  * would be an ellipsis, which is a different message.
+ *
+ * The report that the squash reads as two states rather than as a pull was about
+ * this control above all, and it was not the depth: the band's limit was a fifth
+ * of a segment, which a finger crosses inside a frame. That is
+ * `SliderThumb.EndStopTravel`'s to fix and it is fixed there.
  */
 private const val SegmentSquash = 0.16f
 
@@ -177,11 +184,18 @@ fun SegmentedControl(
     /**
      * What a drag pushing past either end of the track does instead of nothing.
      *
-     * Scaled to a **segment**, which is what the thumb is: the same limit the
-     * lean's stretch is already capped at, so the squash and the lean are one
-     * deformation with two sources rather than two that can disagree.
+     * Scaled to [EndStopTravel], which is how far a *finger* goes past a stop
+     * rather than anything about this control. It used to be a segment's own
+     * stretch cap — about 17dp — on the argument that the squash and the lean
+     * should be one deformation with two sources; they still are, and the cap on
+     * the lean is still a segment's. What that reasoning missed is that the two
+     * are measured in different things: the lean is a distance on the *track*
+     * and the band is a distance the *hand* travels.
      */
     val band = rememberRubberBand()
+
+    /** See [EndStopTravel]. Read once; both the pull and the squash use it. */
+    val endStopTravelPx = with(LocalDensity.current) { EndStopTravel.toPx() }
 
     /**
      * Where the finger is along the track, or `NaN` before the first drag.
@@ -358,11 +372,17 @@ fun SegmentedControl(
                         // The first version grew the thumb backwards off the end
                         // of the track it had just been stopped by.
                         val squash = band.offset * engaged
-                        val squeeze = if (segmentWidth <= 0f) {
+                        // Normalised against the finger's travel past the stop,
+                        // not against a fifth of a segment. The old limit was
+                        // about 17dp and a flick crosses that in one frame, so
+                        // the thumb arrived at its full squash immediately and
+                        // sat there — which is what "there are only two states"
+                        // was describing, and this control is where it showed.
+                        val squashLimit = endStopTravelPx
+                        val squeeze = if (squashLimit <= 0f) {
                             0f
                         } else {
-                            (abs(squash) / (segmentWidth * MaxSegmentStretch))
-                                .coerceIn(0f, 1f) * SegmentSquash
+                            (abs(squash) / squashLimit).coerceIn(0f, 1f) * SegmentSquash
                         }
 
                         // **The lean and the squash are never both live, which is
@@ -553,7 +573,7 @@ fun SegmentedControl(
                             else -> 0f
                         }
                         if (past != 0f && !motion.reduceMotion && options.isNotEmpty()) {
-                            band.pull(past, trackWidth / options.size * MaxSegmentStretch)
+                            band.pull(past, endStopTravelPx)
                         }
                     },
                     onEnd = {

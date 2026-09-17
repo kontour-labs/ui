@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.Slider
+import io.kontour.ui.components.selection.Switch
 import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.test.Test
@@ -183,6 +184,137 @@ class EndStopSquashTest {
         }
     }
 
+    /**
+     * And it goes on squashing for as long as the finger goes on pushing.
+     *
+     * The report: *"it feels like there's just 2 states at the moment: squashed
+     * or normal"*. It very nearly was. The band's limit was a fraction of the
+     * thumb — about 6.6dp on a slider, 6dp on a switch — and a finger crosses
+     * that inside one frame, so the deformation went from nothing to everything
+     * between two renders and stayed there however much further the hand went.
+     *
+     * Four depths rather than two, because two cannot tell a gradient from a
+     * step: `aSliderThumbShortensAgainstTheEndOfItsTrack` above passes on the
+     * old arithmetic and always did. Each of these has to be visibly narrower
+     * than the one before it, which on the old limit is false from the second
+     * sample on — 32px past the stop was already at the clamp.
+     *
+     * The depths are not evenly spaced and should not be. The response is
+     * `1 - exp(-travel / EndStopTravel)`, so even steps of *finger* would give
+     * ever-smaller steps of *thumb* and the last pair would come down to
+     * antialiasing. These are roughly even in the fraction they reach — about a
+     * fifth, a half, three quarters, and most of the way.
+     */
+    @Test
+    fun aSliderThumbSquashesFurtherTheFurtherItIsPushed() {
+        var value by mutableStateOf(0.5f)
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 240) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                Slider(
+                    value = value,
+                    onValueChange = { value = it },
+                    modifier = Modifier.width(200.dp).reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            assertTrue(bounds.width > 0f, "the slider never reported a size")
+
+            val press = Offset(bounds.right - 2f, bounds.center.y)
+            scene.press(press)
+            var at = press
+            var previous = requireNotNull(scene.frames(Settle).thumbRun(bounds)) {
+                "no thumb found at the end of the track"
+            }.width()
+
+            val widths = mutableListOf(previous)
+            for (depth in Depths) {
+                val to = Offset(bounds.right + depth, bounds.center.y)
+                walk(scene, at, to)
+                at = to
+                val width = requireNotNull(scene.frames(2).thumbRun(bounds)) {
+                    "no thumb found ${depth}px past the end of the track"
+                }.width()
+                widths += width
+                assertTrue(
+                    width < previous - Gradient,
+                    "pushed ${depth}px past the end the thumb is ${width}px wide, " +
+                        "against ${previous}px at the depth before it. The squash " +
+                        "has to keep answering the finger: widths so far are " +
+                        "$widths. Equal numbers from some depth on mean the band " +
+                        "has hit a limit small enough to cross in one frame, which " +
+                        "is the two-state squash that was reported.",
+                )
+                previous = width
+            }
+
+            scene.release(at)
+        }
+    }
+
+    /**
+     * A switch's thumb ends up narrower than it is tall.
+     *
+     * The other half of the report, and the sharper half: *"the switch head
+     * doesn't get narrower than a circle"*. It could not. The squash was a sixth
+     * off the **stretched** width, and the stretch under a finger is up to
+     * 1.25x — so the deepest push worked out at `24 x 1.25 x 0.84`, which is
+     * 25.2dp against a resting 24. The two factors cancelled, and the hardest
+     * shove made the thumb very slightly *wider* than it is at rest.
+     *
+     * So the claim is put in terms nothing about the implementation can satisfy
+     * by accident: the drawn thumb has to be narrower **than the same thumb is
+     * tall, in the same frame**. Both are measured off the pixels, so no
+     * constant, density or token is being trusted — a circle fails this, and
+     * anything wider than a circle fails it by more.
+     */
+    @Test
+    fun aSwitchThumbGetsNarrowerThanItIsTall() {
+        var checked by mutableStateOf(false)
+        var bounds = Rect.Zero
+
+        Scene(width = 400, height = 200) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                Switch(
+                    checked = checked,
+                    onCheckedChange = { checked = it },
+                    modifier = Modifier.reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            assertTrue(bounds.width > 0f, "the switch never reported a size")
+
+            val from = bounds.alongX(SwitchGrab)
+            val past = Offset(bounds.right + Overshoot, bounds.center.y)
+            scene.press(from)
+            walk(scene, from, past)
+
+            val row = bounds.center.y.toInt()
+            val shot = scene.frames(2)
+            // The far end of the track, which the thumb has left: the switch is
+            // on by now and the thumb is jammed against the other side.
+            val track = shot.getRGB((bounds.left + SwitchProbe).toInt(), row)
+            val thumb = requireNotNull(shot.fillRun(bounds, row, track, SwitchProbe)) {
+                "no thumb found while pushing past the end of the switch"
+            }
+            scene.release(past)
+
+            val width = thumb.width()
+            val height = shot.runDown(bounds, (thumb.first + thumb.last) / 2, track)
+            assertTrue(
+                width < height - Tolerance,
+                "pushed hard into the end of its track the thumb is ${width}px " +
+                    "wide and ${height}px tall. A thumb that cannot get narrower " +
+                    "than its own height cannot get narrower than the circle it " +
+                    "rests as, which is what a squash on the already-stretched " +
+                    "width does: the press growth cancels it exactly.",
+            )
+        }
+    }
+
     /** Moves from [from] to [to] over [Steps] moves, rendering each, without lifting. */
     private fun walk(scene: Scene, from: Offset, to: Offset) {
         repeat(Steps) { step ->
@@ -196,6 +328,24 @@ class EndStopSquashTest {
         /** Enough to take the band to its limit, and well past the track. */
         const val Overshoot = 140f
         const val Steps = 14
+
+        /**
+         * Four pushes past the stop, in pixels at this scene's density 2.
+         *
+         * Roughly a fifth, a half, three quarters and most of the way out, given
+         * a 26dp travel constant — even in the deformation rather than in the
+         * finger, which is what keeps the last pair apart.
+         */
+        val Depths = listOf(12f, 32f, 70f, 150f)
+
+        /** Each step of the pull has to move the thumb by more than an edge. */
+        const val Gradient = 2
+
+        /** Inside the switch, on the side the thumb starts. */
+        const val SwitchGrab = 0.2f
+
+        /** Past the switch's own rounded end, in pixels. */
+        const val SwitchProbe = 6f
 
         /** Frames for the press growth and the thumb's own spring to land. */
         const val Settle = 24
@@ -258,11 +408,16 @@ private fun BufferedImage.thumbRun(bounds: Rect): IntRange? {
  * The scan stops short of the control's edges. The track is inset from them by
  * its padding, and a border and a shadow live in that gap.
  */
-private fun BufferedImage.fillRun(bounds: Rect, row: Int, track: Int): IntRange? {
+private fun BufferedImage.fillRun(
+    bounds: Rect,
+    row: Int,
+    track: Int,
+    margin: Float = Margin,
+): IntRange? {
     var best: IntRange? = null
     var start = -1
-    val from = (bounds.left + Margin).toInt().coerceAtLeast(0)
-    val to = (bounds.right - Margin).toInt().coerceAtMost(width - 1)
+    val from = (bounds.left + margin).toInt().coerceAtLeast(0)
+    val to = (bounds.right - margin).toInt().coerceAtMost(width - 1)
     for (x in from..to) {
         if (differs(getRGB(x, row), track, Faint)) {
             if (start < 0) start = x
@@ -273,6 +428,16 @@ private fun BufferedImage.fillRun(bounds: Rect, row: Int, track: Int): IntRange?
     }
     return if (start >= 0) widest(best, start..to) else best
 }
+
+/** How tall the fill at column [x] is, in rows that are not the [track]. */
+private fun BufferedImage.runDown(bounds: Rect, x: Int, track: Int): Int {
+    val top = bounds.top.toInt().coerceAtLeast(0)
+    val bottom = (bounds.bottom.toInt() - 1).coerceAtMost(height - 1)
+    return (top..bottom).count { y -> differs(getRGB(x, y), track, Faint) }
+}
+
+/** A run's width in columns, ends included. */
+private fun IntRange.width(): Int = last - first + 1
 
 private fun widest(a: IntRange?, b: IntRange): IntRange =
     if (a == null || b.last - b.first > a.last - a.first) b else a

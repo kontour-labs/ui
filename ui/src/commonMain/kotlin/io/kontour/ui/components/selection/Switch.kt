@@ -56,12 +56,15 @@ private val ThumbPadding = 2.dp
 private const val ThumbStretch = 1.25f
 
 /**
- * How much of itself the thumb gives up at an end stop.
+ * How much narrower than its resting self the thumb gets at a full end stop.
  *
- * A sixth, which is plainly visible on a 24dp thumb and still leaves something
- * recognisably round. More reads as the thumb deflating.
+ * A quarter — 6dp off a 24dp thumb — the same as `SliderThumb` and
+ * `SegmentedControl`, and deliberately so: a squash is a squash. It was a sixth
+ * *of the stretched width*, which is where the report came from. The stretch is
+ * up to 1.25x and 1.25 x 0.84 is 1.05, so the hardest push into a wall produced
+ * a thumb slightly **wider** than the circle it rests at.
  */
-private const val ThumbSquash = 0.16f
+private const val ThumbSquash = 0.25f
 
 /**
  * The speed, in track-fractions per second, at which the stretch is full.
@@ -263,17 +266,20 @@ fun Switch(
      * The rejected part goes here and comes out as the thumb squashing in the
      * direction it is being pushed, then springing back on release.
      *
-     * **Scaled to the thumb, not to the travel**, which is the thing
-     * `SliderDefaults.DetentPull` got wrong when it was tried here: a switch's
-     * track is 20dp, so anything sized to the travel is either invisible or
-     * throws the thumb off the finger. The limit below is the thumb's own
-     * maximum deformation, so a 20dp track and a 300dp one both give a thumb
-     * that visibly compresses by the same proportion of itself.
+     * **Scaled to neither the thumb nor the travel.** Sizing it to the travel is
+     * the thing `SliderDefaults.DetentPull` got wrong when it was tried here: a
+     * switch's track is 20dp, so anything sized to it is either invisible or
+     * throws the thumb off the finger. Sizing it to the *thumb* was the fix, and
+     * it was 6dp — which a finger crosses inside a single frame, so the squash
+     * arrived all at once and the control had two states. What the limit
+     * measures is how far the finger travels past the stop, which is a fact
+     * about hands rather than about this control, so every control that has an
+     * end stop takes [EndStopTravel].
      */
     val band = rememberRubberBand()
 
-    /** The thumb's own maximum deformation, which is what the squash is scaled to. */
-    val thumbSquashPx = with(LocalDensity.current) { ThumbSize.toPx() } * (ThumbStretch - 1f)
+    /** How far past the end a finger goes for a full squash. Shared — see the constant. */
+    val thumbSquashPx = with(LocalDensity.current) { EndStopTravel.toPx() }
 
     // Springs to wherever `checked` now is, starting from wherever the thumb now
     // is. Keyed on `dragging` as well as on `checked`, so it also runs when a
@@ -531,12 +537,24 @@ fun Switch(
         // and springs back out of it. Applied to the width here rather than to
         // the stretch above, because it has to move the edge that is *not*
         // against the wall and the stretch has no way to say which one that is.
-        val squeeze = if (thumbSquashPx <= 0f) {
+        // **Measured from the thumb at rest, not from the thumb as it currently
+        // is.** It was `stretchedWidth * (1 - squeeze)`, and `stretchedWidth`
+        // already carries the press growth — so at 1.25x grown and 0.16 squashed
+        // the arithmetic came back at 25.2dp against a resting 24, and the thumb
+        // pushed hardest into a wall was *wider* than the circle it sits at. The
+        // report was that the switch head never gets narrower than a circle, and
+        // that is exactly what the two factors did to each other.
+        //
+        // The target is a fixed [ThumbSquash] off the resting width whatever the
+        // press did, and the drawn width travels to it as the band comes out: at
+        // rest it is the stretch above, at a full push it is 18dp on a 24dp
+        // thumb, and in between it tracks the finger.
+        val pull = if (thumbSquashPx <= 0f) {
             0f
         } else {
-            (abs(band.offset) / thumbSquashPx).coerceIn(0f, 1f) * ThumbSquash
+            (abs(band.offset) / thumbSquashPx).coerceIn(0f, 1f)
         }
-        val thumbWidth = stretchedWidth * (1f - squeeze)
+        val thumbWidth = stretchedWidth + (thumbPx * (1f - ThumbSquash) - stretchedWidth) * pull
         // Pinned against whichever end was pushed into: on the right, the lost
         // width comes off the left edge.
         val left = reached + if (band.offset > 0f) stretchedWidth - thumbWidth else 0f

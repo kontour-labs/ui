@@ -210,9 +210,10 @@ fun Slider(
      * stretches by.
      */
     val band = rememberRubberBand()
-    val thumbSquashPx = with(LocalDensity.current) {
-        SliderThumbRadius.toPx() * SliderDefaults.MaxStretch
-    }
+    // [EndStopTravel] rather than a fraction of the thumb: the limit is how far
+    // the *finger* goes past the stop, and a thumb-sized one was crossed inside
+    // a frame. `sliderThumb` normalises by the same number.
+    val thumbSquashPx = with(LocalDensity.current) { EndStopTravel.toPx() }
 
     // **An end stop reports nothing, and that is deliberate.**
     //
