@@ -128,14 +128,27 @@ class RubberBand internal constructor() {
         return gained
     }
 
-    /** Springs the stretch back to nothing. */
+    /**
+     * Springs the stretch back to nothing, and never past it.
+     *
+     * The magnitude is what animates; the sign is held. `Switch` releases its
+     * band on `springBouncy`, which is underdamped and undershoots — so the
+     * offset crossed zero and opened a stretch on the **other** side. Nothing
+     * about letting go of a control says "and now push it the other way".
+     *
+     * It became visible rather than merely wrong when the thumb's squashed cap
+     * started being drawn on whichever end is against the wall: crossing zero
+     * swaps which end that is, so the flattened corner jumped from one side to
+     * the other, once, part way home. See `cappedCapsule`.
+     */
     suspend fun release(spec: AnimationSpec<Float>) {
         if (offset == 0f) return
+        val sign = if (offset > 0f) 1f else -1f
         animate(
-            initialValue = offset,
+            initialValue = abs(offset),
             targetValue = 0f,
             animationSpec = spec,
-        ) { value, _ -> offset = value }
+        ) { value, _ -> offset = sign * value.coerceAtLeast(0f) }
     }
 }
 

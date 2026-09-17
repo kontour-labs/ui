@@ -571,11 +571,22 @@ fun Switch(
         // every frame, under a finger, past every cache: `SliderThumb` refused
         // that trade for the same reason and at the same size, and refusing it
         // twice is more consistent than paying for it once.
-        drawRoundRect(
-            color = thumbColour,
-            topLeft = Offset(left.coerceIn(0f, (size.width - thumbWidth).coerceAtLeast(0f)), top),
-            size = Size(thumbWidth, thumbPx),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(thumbPx / 2f),
+        //
+        // **Squashed, the cap against the wall keeps its radius.** It used to be
+        // one radius for four corners — half the resting height — so pushing
+        // into an end narrowed both ends at once and the thumb stopped being
+        // concentric with the arc it was pressed against, which at 2dp of
+        // padding is the same circle 2dp larger. Reported as the head not
+        // getting narrower than a circle; it does now, and it does it on the
+        // side away from the push. See `cappedCapsule`.
+        val x = left.coerceIn(0f, (size.width - thumbWidth).coerceAtLeast(0f))
+        cappedCapsule(
+            left = x,
+            top = top,
+            right = x + thumbWidth,
+            bottom = top + thumbPx,
+            leadingRight = band.offset > 0f,
+            colour = thumbColour,
         )
     }
 }

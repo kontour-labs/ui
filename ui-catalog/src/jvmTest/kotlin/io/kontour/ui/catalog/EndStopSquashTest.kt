@@ -114,6 +114,83 @@ class EndStopSquashTest {
     }
 
     /**
+     * The end against the wall keeps its cap; the other end is what flattens.
+     *
+     * The rest of this file asks how *wide* the thumb is. This asks what shape
+     * it is, and it is the half of the report the width cannot see: *"only the
+     * half of the circle that's on the opposite side to the way the user is
+     * dragging gets squashed"*.
+     *
+     * There is a reason beyond taste. A thumb sits inside a rounded track with a
+     * constant padding, so at rest its cap and the inside of the track's end are
+     * the same circle — on a switch, a 12dp arc inside a 12dp arc 2dp larger.
+     * Flattening the leading cap breaks that concentricity at exactly the moment
+     * the two are touching and the eye is on them.
+     *
+     * ### Measured as column heights, which is the only thing that can see it
+     *
+     * A run of columns says where the thumb starts and stops and nothing about
+     * its corners. So this counts how much **ink is in one column**, a few
+     * pixels inside each end. On a full cap that column is short, because the
+     * arc has already curved away; on a flattened end it is nearly the thumb's
+     * whole height. Pushing into the wall must leave the first alone and grow
+     * the second.
+     *
+     * Both are measured against the thumb's *own* edges before and after, since
+     * the trailing edge is the one that moves.
+     */
+    @Test
+    fun aSquashedThumbKeepsTheCapItIsPressedAgainst() {
+        var value by mutableStateOf(0.5f)
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 240) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                Slider(
+                    value = value,
+                    onValueChange = { value = it },
+                    modifier = Modifier.width(200.dp).reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            assertTrue(bounds.width > 0f, "the slider never reported a size")
+
+            val press = Offset(bounds.right - 2f, bounds.center.y)
+            scene.press(press)
+            val rest = scene.frames(Settle)
+            val atWall = requireNotNull(rest.thumbRun(bounds)) { "no thumb at the wall" }
+            val restLeading = rest.inkHeight(atWall.last - Probe, bounds)
+            val restTrailing = rest.inkHeight(atWall.first + Probe, bounds)
+
+            val past = Offset(bounds.right + Overshoot, bounds.center.y)
+            walk(scene, press, past)
+            val shot = scene.frames(2)
+            val pushed = requireNotNull(shot.thumbRun(bounds)) { "no thumb while pushing" }
+            val leading = shot.inkHeight(pushed.last - Probe, bounds)
+            val trailing = shot.inkHeight(pushed.first + Probe, bounds)
+            scene.release(past)
+
+            assertTrue(
+                abs(leading - restLeading) <= Tolerance,
+                "${Probe}px inside the edge against the wall the thumb is " +
+                    "${leading}px tall pushed and ${restLeading}px tall at rest. " +
+                    "That edge is the one pressed into the stop and its cap is " +
+                    "what keeps the thumb concentric with the end it is touching " +
+                    "— it is the one part of the shape a squash must not move.",
+            )
+            assertTrue(
+                trailing > restTrailing + Flattening,
+                "${Probe}px inside the trailing edge the thumb is ${trailing}px " +
+                    "tall pushed and ${restTrailing}px tall at rest. The squash " +
+                    "has to come off this end: a corner that stays as round as it " +
+                    "was means the thumb simply got smaller, which reads as " +
+                    "retreating from the wall rather than pressing into it.",
+            )
+        }
+    }
+
+    /**
      * A segmented control's thumb, driven past its last segment.
      *
      * This is the control the squash changed the *anchor* of, and the trailing
@@ -478,6 +555,19 @@ class EndStopSquashTest {
         /** Two antialiased edges and the odd rounded pixel. */
         const val Tolerance = 3
 
+        /**
+         * How far inside an end to sample the thumb's height, in pixels.
+         *
+         * Far enough in that a full cap has curved away appreciably — on a 24px
+         * radius, six pixels in is about two thirds of the height — and not so
+         * far that a flattened corner has finished curving too.
+         */
+        const val Probe = 6
+
+        /** A flattened corner is a lot taller than a round one, not a little. */
+        const val Flattening = 6
+
+
         /** A third of a 240dp control at density 2, less its padding. Comfortably under a segment. */
         const val Segment = 120
     }
@@ -551,6 +641,20 @@ private fun BufferedImage.runDown(bounds: Rect, x: Int, track: Int): Int {
     val top = bounds.top.toInt().coerceAtLeast(0)
     val bottom = (bounds.bottom.toInt() - 1).coerceAtMost(height - 1)
     return (top..bottom).count { y -> differs(getRGB(x, y), track, Faint) }
+}
+
+/**
+ * How many rows of column [x] hold ink, within [bounds].
+ *
+ * The page is sampled at a corner rather than assumed white, for the same reason
+ * every other reading here does it.
+ */
+private fun BufferedImage.inkHeight(x: Int, bounds: Rect): Int {
+    if (x < 0 || x >= width) return 0
+    val page = getRGB(2, 2)
+    val top = bounds.top.toInt().coerceAtLeast(0)
+    val bottom = (bounds.bottom.toInt() - 1).coerceAtMost(height - 1)
+    return (top..bottom).count { y -> differs(getRGB(x, y), page) }
 }
 
 /** A run's width in columns, ends included. */

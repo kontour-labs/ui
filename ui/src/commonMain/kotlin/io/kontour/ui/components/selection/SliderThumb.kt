@@ -1,9 +1,13 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -145,21 +149,96 @@ internal fun DrawScope.sliderThumb(
     val left = if (squashPx > 0f) stretchedLeft + lost else stretchedLeft
     val right = if (squashPx > 0f) stretchedRight else stretchedRight - lost
 
-    drawRoundRect(
-        color = ringColour,
-        topLeft = Offset(left, centreY - r),
-        size = Size(right - left, r * 2f),
-        cornerRadius = CornerRadius(r),
+    // The leading cap keeps its radius; the trailing end is what gives. See
+    // [cappedCapsule] — a squash that takes both ends equally is a thumb getting
+    // smaller, which reads as retreating from the wall rather than pressing into
+    // it, and on a control whose thumb sits inside a rounded track it also stops
+    // being concentric with the end it is pressed against.
+    // Positive [squashPx] is a push to the right, and the pinning just above
+    // holds `right` and brings `left` in — so the right is the edge against the
+    // wall and the right is the cap that keeps its radius.
+    val leadingRight = squashPx > 0f
+    cappedCapsule(left, centreY - r, right, centreY + r, leadingRight, ringColour)
+    cappedCapsule(
+        left = left + ringPx,
+        top = centreY - r + ringPx,
+        right = right - ringPx,
+        bottom = centreY + r - ringPx,
+        leadingRight = leadingRight,
+        colour = fillColour,
     )
-    drawRoundRect(
-        color = fillColour,
-        topLeft = Offset(left + ringPx, centreY - r + ringPx),
-        size = Size(
-            (right - left - ringPx * 2f).coerceAtLeast(0f),
-            (r * 2f - ringPx * 2f).coerceAtLeast(0f),
-        ),
-        cornerRadius = CornerRadius((r - ringPx).coerceAtLeast(0f)),
-    )
+}
+
+/**
+ * A capsule with one full cap and one that flattens as it is squashed.
+ *
+ * ### What it is for
+ *
+ * Reported on `Switch` and true of both sliders: *"only the half of the circle
+ * that's on the opposite side to the way the user is dragging gets squashed"*.
+ * A thumb pushed into the end of its track had been drawn as a plain rounded
+ * rect at a corner radius of half its **height**, so squashing it narrowed both
+ * ends at once — and once the drawn width fell below the height, the radius
+ * exceeded half the width and the shape degenerated towards a lens.
+ *
+ * The thumb is also supposed to stay *concentric* with what it is pressed
+ * against. A switch's track is a 28dp pill with 2dp of padding, so the inside of
+ * its end is a 12dp arc and the 24dp thumb's cap is a 12dp arc: the same circle,
+ * at rest. Flattening the leading cap breaks that at exactly the moment the two
+ * are touching and the eye is on them.
+ *
+ * So the leading cap holds the resting radius and everything the squash takes
+ * comes off the trailing end.
+ *
+ * ### A `RoundRect`, not a `Path`, and not two primitives either
+ *
+ * `drawRoundRect` takes one radius for four corners, which is the whole problem;
+ * the obvious way out is a `Path`, and the note further up this file is about
+ * why not — this shape is a different size on every frame of a drag, so a path
+ * would be rebuilt under a finger, past every cache, sixty times a second.
+ *
+ * The first attempt avoided that with the union of a round rect stopping at the
+ * cap's centre and a circle at that centre, both hardware primitives. It is
+ * wrong, and wrong precisely where this is for: a cap of the resting radius is
+ * as wide as the thumb is **tall**, so on a thumb squashed narrower than its own
+ * height the circle spills past the trailing edge. It drew a 48px shape where 36
+ * was asked for, and the slider's progression test caught it by reporting the
+ * same width at two different depths.
+ *
+ * `Outline.Rounded` takes four corner radii and is still an RRect — Skia's fast
+ * path, no generic outline, no path building — so the shape is simply stated:
+ * the leading corners take the cap, the trailing ones take whatever the width
+ * has left. At rest that is the cap again, so the shape is continuous through
+ * zero squash and there is no special case for a thumb nobody is pushing.
+ *
+ * @param leadingRight Which end is against the wall — the end that keeps its
+ *   cap. The other one flattens.
+ */
+internal fun DrawScope.cappedCapsule(
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    leadingRight: Boolean,
+    colour: Color,
+) {
+    val height = bottom - top
+    val width = right - left
+    if (height <= 0f || width <= 0f) return
+
+    val leading = CornerRadius(height / 2f)
+    // What is left after the cap has taken its share, never more than a cap of
+    // its own: the two together are the width exactly, which is the condition
+    // under which `RoundRect` leaves the radii alone rather than scaling them.
+    val trailing = CornerRadius((width - height / 2f).coerceIn(0f, height / 2f))
+
+    val rect = Rect(left, top, right, bottom)
+    val rounded = if (leadingRight) {
+        RoundRect(rect, trailing, leading, leading, trailing)
+    } else {
+        RoundRect(rect, leading, trailing, trailing, leading)
+    }
+    drawOutline(Outline.Rounded(rounded), color = colour)
 }
 
 /**
