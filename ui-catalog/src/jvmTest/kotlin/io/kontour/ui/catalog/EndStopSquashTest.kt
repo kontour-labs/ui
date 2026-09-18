@@ -13,6 +13,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.Slider
 import io.kontour.ui.components.selection.Switch
@@ -202,7 +203,7 @@ class EndStopSquashTest {
                     "reported as looking odd rather than a curve.",
             )
             assertTrue(
-                abs(leading - trailing) <= Curvature,
+                abs(leading - trailing) <= Symmetry,
                 "the two ends grow ${leading}px and ${trailing}px over the same " +
                     "few pixels. An ellipse is symmetric about its own centre; a " +
                     "difference this large means one end is being treated " +
@@ -515,6 +516,105 @@ class EndStopSquashTest {
         }
     }
 
+    /**
+     * And a range slider's does the same, which it did not.
+     *
+     * **The first test in this file to touch `RangeSlider` at all**, and that is
+     * why the bug it catches survived a fix written for it. `EndStopSquashTest`
+     * never mentioned the control; the one range-slider test that pushes past a
+     * wall reads `range.start`, a value, and the two that measure its *shape* drag
+     * to 0.95 of the bounds — inside the track, so the band is never charged. No
+     * test both charged the band and looked at a frame after release.
+     *
+     * What that hid: `RangeSlider` was given the same `springGentle` band release
+     * as `Slider`, and never showed it. The squash was gated on `activeThumb`,
+     * which `onEnd` clears on the same tick it launches the release — so the
+     * spring ran, and every frame of it drew zero squash. `pull` stepped from
+     * nearly one to exactly zero between two frames while the thumb was still a
+     * stretched capsule, which is the full-width pill the slider's fix exists to
+     * remove, except arrived at in a single frame rather than animated. See
+     * `RangeSlider`'s `bandThumb`.
+     *
+     * The end thumb, pushed past the right-hand end of the track: that is where
+     * `past` is non-zero and the band is actually charged. The measurement is the
+     * same as the slider's above — the widest run of thumb on the centre row —
+     * and so are both claims.
+     */
+    @Test
+    fun aReleasedRangeThumbDoesNotSwellPastItsRestingWidth() {
+        var range by mutableStateOf(0.3f..0.7f)
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 240) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                RangeSlider(
+                    value = range,
+                    onValueChange = { range = it },
+                    modifier = Modifier.width(200.dp).reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            assertTrue(bounds.width > 0f, "the range slider never reported a size")
+
+            // **Only the right half of the canvas.** There are two thumbs, and
+            // `thumbRun` returns the *widest* run of thumb-deep ink — which is the
+            // start thumb, sitting still at 0.3 and reporting the same width before
+            // and after, so the precondition below passed on nothing. The start
+            // thumb is at 0.3 and the end one at 0.7, so half the control
+            // separates them; the window runs to the canvas edge rather than the
+            // control's, because a stretched thumb pushed into an end stop
+            // overhangs its own bounds. See [thumbRun].
+            val rightHalf = (bounds.left + bounds.width / 2f).toInt() until scene.width
+
+            val resting = requireNotNull(scene.frames(Settle).thumbRun(bounds, rightHalf)) {
+                "no thumb found at rest in the right half of the control"
+            }.width()
+
+            // Grab the end thumb rather than the track: a press on a range slider
+            // picks a thumb and does not move one, so the gesture has to start on
+            // the one being tested.
+            val press = Offset(bounds.left + bounds.width * 0.7f, bounds.center.y)
+            scene.press(press)
+            val pushedTo = Offset(bounds.right + Overshoot, bounds.center.y)
+            walk(scene, press, pushedTo)
+            val squashed = requireNotNull(scene.frames(2).thumbRun(bounds, rightHalf)) {
+                "no thumb found while pushing past the end of the track"
+            }.width()
+            assertTrue(
+                squashed < resting,
+                "the end thumb was ${squashed}px wide pushed past the end of the " +
+                    "track against ${resting}px at rest, so the band was never " +
+                    "charged and there is no release for this to be measuring",
+            )
+
+            scene.release(pushedTo)
+            val path = (0 until ReleaseFrames).map {
+                requireNotNull(scene.frame().thumbRun(bounds, rightHalf)) {
+                    "no thumb found on the way back from the end stop"
+                }.width()
+            }
+
+            val widest = path.max()
+            assertTrue(
+                widest <= resting + Tolerance,
+                "on the way back from a squash the end thumb reached ${widest}px " +
+                    "against a resting width of ${resting}px. It starts at " +
+                    "${squashed}px and its destination is ${resting}px, so " +
+                    "anything wider is the stretch it was let go from re-inflating " +
+                    "it. The widths, frame by frame: $path",
+            )
+            val wentBack = path.zipWithNext().firstOrNull { (a, b) -> b < a - 1 }
+            assertTrue(
+                wentBack == null,
+                "the end thumb went from ${wentBack?.first}px to " +
+                    "${wentBack?.second}px on its way home, so it widened past " +
+                    "where it was going and came back. The widths, frame by " +
+                    "frame: $path",
+            )
+        }
+    }
+
     @Test
     fun aSliderThumbSquashesFurtherTheFurtherItIsPushed() {
         var value by mutableStateOf(0.5f)
@@ -696,8 +796,30 @@ class EndStopSquashTest {
         const val NearProbe = 2
         const val FarProbe = 10
 
-        /** The least an end has to climb to count as curved rather than flat. */
-        const val Curvature = 10
+        /**
+         * The least an end has to climb to count as curved rather than flat.
+         *
+         * Calibrated against both shapes rather than guessed. A capsule with its
+         * trailing corner cut climbs 16px at the end against the wall and **2px**
+         * at the other — the flat edge saying so. The ellipse climbs 10px and 12px.
+         *
+         * It was 10, which stopped separating them the moment the ellipse started
+         * getting *shorter* as it narrows: a less eccentric ellipse curves more
+         * gently, so the climb over a fixed 8px span fell from 26px to 10 and the
+         * threshold landed exactly on it. Six sits between 2 and 10 with room
+         * either side.
+         */
+        const val Curvature = 6
+
+        /**
+         * How differently the two ends may climb and still be one ellipse.
+         *
+         * The sharper half of the claim, and the one that does not move with the
+         * shape's eccentricity: an ellipse is symmetric about its own centre, so
+         * the two ends climb alike — 10 against 12. A shape with one end cut gives
+         * 16 against 2.
+         */
+        const val Symmetry = 6
 
         /** A third of a 240dp control at density 2, less its padding. Comfortably under a segment. */
         const val Segment = 120
@@ -722,14 +844,38 @@ class EndStopSquashTest {
  * is 6dp and the thumb 22dp, so depth separates them with nothing ambiguous in
  * between and no density arithmetic anywhere.
  */
-private fun BufferedImage.thumbRun(bounds: Rect): IntRange? {
+/**
+ * The widest run of columns deep enough in ink to be a thumb.
+ *
+ * ### [columns] defaults to the whole canvas, and [bounds] is vertical only
+ *
+ * Not an oversight, and worth stating because it looks like one. A slider's thumb
+ * **overhangs its own control** when it is stretched and pushed into an end stop:
+ * the reach adds up to `0.6r` past the track's end and the track is already inset
+ * by `SliderThumbReach`, so on the 700px canvas here the thumb reaches column 467
+ * against a reported right bound of 440. Clamping the scan to [bounds] cut the
+ * leading edge off, and the shape test two above this one went from reading a
+ * curve to reading whatever was 2px inside an arbitrary clip — 6px of climb
+ * against the real 18.
+ *
+ * So [columns] is how a caller that needs a window says so. The range slider's
+ * case is the one that does: two thumbs on one canvas, and `widest` otherwise
+ * returns whichever is wider — the one standing still, which reports the same
+ * number before and after and makes a precondition pass on nothing.
+ */
+private fun BufferedImage.thumbRun(
+    bounds: Rect,
+    columns: IntRange = 0 until width,
+): IntRange? {
     val page = getRGB(2, 2)
     val top = bounds.top.toInt().coerceAtLeast(0)
     val bottom = (bounds.bottom.toInt() - 1).coerceAtMost(height - 1)
+    val first = columns.first.coerceAtLeast(0)
+    val last = columns.last.coerceAtMost(width - 1)
 
     var best: IntRange? = null
     var start = -1
-    for (x in 0 until width) {
+    for (x in first..last) {
         var ink = 0
         for (y in top..bottom) if (differs(getRGB(x, y), page)) ink++
         if (ink > TrackDepth) {
@@ -739,7 +885,7 @@ private fun BufferedImage.thumbRun(bounds: Rect): IntRange? {
             start = -1
         }
     }
-    return if (start >= 0) widest(best, start until width) else best
+    return if (start >= 0) widest(best, start..last) else best
 }
 
 /**

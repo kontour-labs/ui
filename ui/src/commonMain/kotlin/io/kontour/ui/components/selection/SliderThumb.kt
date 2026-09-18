@@ -1,7 +1,6 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -9,6 +8,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 /**
  * One slider thumb, stretched by how far it is from where it is trying to be.
@@ -226,20 +226,66 @@ internal fun DrawScope.squashedCapsule(
     val width = right - left
     if (height <= 0f || width <= 0f) return
 
-    val rect = Rect(left, top, right, bottom)
-    if (width >= height) {
+    val restingHalf = height / 2f
+    val a = width / 2f
+    if (a >= restingHalf) {
         // Half the height, so the ends are full semicircles — a capsule, and a
         // circle at the moment the two are equal.
         drawRoundRect(
             color = colour,
-            topLeft = rect.topLeft,
-            size = rect.size,
-            cornerRadius = CornerRadius(height / 2f),
+            topLeft = Offset(left, top),
+            size = Size(width, height),
+            cornerRadius = CornerRadius(restingHalf),
         )
     } else {
-        drawOval(color = colour, topLeft = rect.topLeft, size = rect.size)
+        // Shorter as it narrows, so it stays inside the arc it is pressed
+        // against. See [squashedHalfHeight].
+        val b = squashedHalfHeight(restingHalf, a)
+        val centreY = (top + bottom) / 2f
+        drawOval(
+            color = colour,
+            topLeft = Offset(left, centreY - b),
+            size = Size(width, b * 2f),
+        )
     }
 }
+
+/**
+ * How tall a squashed thumb is drawn, given how narrow it has become.
+ *
+ * The geometric mean of the resting radius and the half-width, and the reason is
+ * one line of geometry: an ellipse with semi-axes `a` across and `b` up has a
+ * radius of curvature of `b²/a` at the vertex where it touches the wall. Setting
+ * `b = √(r·a)` makes that exactly `r` — the radius of the arc the thumb is pressed
+ * into — so the ellipse is *tangent* to that arc instead of crossing it.
+ *
+ * ### What it fixes, measured
+ *
+ * A `Switch`'s thumb is a 24dp circle inside a 28dp track with 2dp of padding, and
+ * because the track's short edge is fully saturated `SquircleShape` draws a true
+ * semicircle at its end. So at rest the thumb and the track's end arc share a
+ * centre and the clearance is 2dp the whole way round: concentric.
+ *
+ * Squashing it without touching the height swings the ellipse's top and bottom
+ * *toward* the wall. Minimum clearance between the two outlines, thumb to track:
+ * 2.000dp at rest, 1.606dp at half squash, **1.171dp at full** — 41% of the gap
+ * gone, and invisible on the centre row, where it still reads exactly 2dp.
+ * Reported from a phone as the ellipse no longer being concentric with its
+ * container.
+ *
+ * With this the clearance is 2.000dp at every depth, and the thumb goes from 24dp
+ * tall to 20.78dp at full squash. Continuous, and needing no special case: at rest
+ * `a = r`, so `√(r·r) = r` and nothing moves.
+ *
+ * ### The slider gets it too, having no arc to nest in
+ *
+ * One rule across the family rather than one control's exception. A slider's thumb
+ * is pressed against a flat end and has nothing to be concentric with, but a
+ * squashed ball getting shorter is what a squashed ball does; its held thumb goes
+ * from 30dp to 23.2dp at full squash.
+ */
+internal fun squashedHalfHeight(restingHalf: Float, halfWidth: Float): Float =
+    sqrt(restingHalf * halfWidth)
 
 /**
  * How much narrower than its resting self a thumb gets, pushed all the way into

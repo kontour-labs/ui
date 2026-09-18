@@ -58,11 +58,46 @@ internal class FrameRun(val label: String) {
     var p95Tenths by mutableStateOf(0)
         internal set
 
+    /**
+     * The worst frame since each [mark], in tenths of a millisecond, in order.
+     *
+     * **For the one question a single peak cannot answer.** Reported of the theme
+     * switch: it stutters, *"however, I've noticed it only really happens when I
+     * first open the app. After I switch it a few times, it's really smooth."* A
+     * run reports one peak over its whole window, so a first switch that costs
+     * three times a later one and a run with one unlucky frame read identically.
+     *
+     * Measured on the JVM, where the same effect reproduces: a first flip totals
+     * 2.39x the fourth, 63.8ms worst frame against 24.3, and settles by the third.
+     * See `FirstThemeSwitchCostDiagnostic`. A phone cannot run that, so it gets
+     * this — press Record, then flip, flip, flip, and read the row.
+     */
+    var marks by mutableStateOf(emptyList<Int>())
+        private set
+
+    /**
+     * Closes off the current segment and starts another.
+     *
+     * Called by whatever the reader just did — the theme flip on `FramesPage` — so
+     * each entry in [marks] is the worst frame of one action rather than of the
+     * whole run.
+     */
+    fun mark() {
+        if (!collecting) return
+        marks = marks + segmentTenths
+        segmentTenths = 0
+    }
+
+    /** The worst frame since the last [mark], which the collector keeps updated. */
+    internal var segmentTenths = 0
+
     /** Throws the last run away and starts another. */
     fun start() {
         frames = 0
         peakTenths = 0
         p95Tenths = 0
+        marks = emptyList()
+        segmentTenths = 0
         token++
     }
 
@@ -101,8 +136,15 @@ internal fun rememberFrameRun(label: String): FrameRun {
             last = now
             // The same filter the overlay uses, for the same reason: a frame
             // clock that has been asleep reports the nap as one frame.
-            if (isFrame(delta)) deltas.add(delta)
+            if (isFrame(delta)) {
+                deltas.add(delta)
+                val tenths = (delta / 100_000L).toInt()
+                if (tenths > run.segmentTenths) run.segmentTenths = tenths
+            }
         }
+        // Whatever is left after the reader's last action, so the final segment is
+        // not silently dropped.
+        run.mark()
 
         deltas.sort()
         run.frames = deltas.size
@@ -111,6 +153,7 @@ internal fun rememberFrameRun(label: String): FrameRun {
         // an interpolated percentile of frame times is a number that never
         // happened, and every other reading here is a frame that did.
         run.p95Tenths = (deltas[(deltas.size * 95) / 100] / 100_000L).toInt()
+        // After `mark`, which needs it still true.
         run.collecting = false
     }
 

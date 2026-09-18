@@ -294,6 +294,35 @@ fun RangeSlider(
         label = "rangeSliderEndAspect",
     )
 
+    /**
+     * Which thumb the rubber band's stretch belongs to.
+     *
+     * **Not [activeThumb], and the difference is the whole of a reported bug.**
+     * `activeThumb` is about the *gesture*: `onEnd` clears it, because it drives
+     * the deferred tap emit and the painter order and both are finished when the
+     * finger lifts. The band is not finished when the finger lifts — that is
+     * precisely when it springs home — so a squash gated on `activeThumb`
+     * vanishes on the frame the gesture ends.
+     *
+     * What that looked like: `band.release` runs on `springGentle` so the stretch
+     * gets home before the squash unwinds, which is what keeps a released thumb
+     * from passing back out through the full-width pill. `RangeSlider` was given
+     * that spec and never showed it. `activeThumb = Thumb.None` is a snapshot
+     * write that lands immediately, while `scope.launch` does not render its first
+     * frame synchronously — so from the next composition the squash read zero for
+     * the whole release, `pull` stepped from nearly one to exactly zero between
+     * two frames while the thumb was still a stretched capsule, and the drawn
+     * width jumped to the pill in a single frame. Not a bad animation: no
+     * animation.
+     *
+     * Keyed here instead and cleared when `release` **returns**, so the band's
+     * whole life is drawn. It also makes a second state unrepresentable: one band
+     * serves two thumbs, so a leftover offset from a gesture on one used to be
+     * read as the other's squash the moment a new gesture picked it up — a thumb
+     * drawn pre-squashed against a wall it had never touched.
+     */
+    var bandThumb by remember { mutableStateOf(Thumb.None) }
+
     /** See [Slider]'s `dragFraction`. `NaN` when no drag is in progress. */
     var dragFraction by remember { mutableFloatStateOf(Float.NaN) }
 
@@ -418,8 +447,13 @@ fun RangeSlider(
         currentOnValueChange(updated)
     }
 
-    // Everything below mirrors `Slider`. Two sliders in one library that answer
-    // the same gesture differently is worse than either of them being wrong.
+    // Everything below mirrors `Slider` except where having two thumbs makes that
+    // impossible — the weld, the painter order, and which thumb the band belongs
+    // to. Two sliders in one library that answer the same gesture differently is
+    // worse than either of them being wrong, and the one place that drifted is
+    // worth naming rather than burying: the squash was gated on `activeThumb`,
+    // which `onEnd` clears, so the band's spring home was computed and never
+    // drawn. See [bandThumb].
     val detented = steps > 0 && !motion.reduceMotion
 
     /** The detent one thumb is on, pulled toward the finger if it is the one being dragged. */
@@ -588,10 +622,12 @@ fun RangeSlider(
     val reachStart = if (activeThumb == Thumb.End && pushing) ownReachEnd else ownReachStart
     val reachEnd = if (activeThumb == Thumb.Start && pushing) ownReachStart else ownReachEnd
 
-    // The end stop's squash belongs to the thumb the finger is on, and to that
-    // one only — the other has not hit anything.
-    val squashStart = if (activeThumb == Thumb.Start) band.offset else 0f
-    val squashEnd = if (activeThumb == Thumb.End) band.offset else 0f
+    // The end stop's squash belongs to the thumb that ran into the wall, and to
+    // that one only — the other has not hit anything. [bandThumb] rather than
+    // `activeThumb`: the band outlives the gesture by exactly the length of its
+    // own spring home, and gating on the gesture threw that away.
+    val squashStart = if (bandThumb == Thumb.Start) band.offset else 0f
+    val squashEnd = if (bandThumb == Thumb.End) band.offset else 0f
 
     Box(
         modifier = modifier
@@ -614,7 +650,7 @@ fun RangeSlider(
         BoxWithConstraints(Modifier.fillMaxWidth().height(SliderHeight)) {
             // Held back from each end so a thumb is not clipped there — but
             // arithmetically, not as a `padding` with the gestures inside it.
-            // See `Slider`, where that layout cost the outer 11dp of the control
+            // See `Slider`, where that layout cost the outer 18dp of the control
             // its ability to be touched at all, which is precisely where a thumb
             // sits at either end of the range.
             val insetPx = with(density) { SliderThumbReach.toPx() }
@@ -731,21 +767,30 @@ fun RangeSlider(
                                 // `reach`: running into the other thumb is a
                                 // shove and already looks like one, and only
                                 // the ends of the range are a wall.
+                                //
+                                // One gap in that, noted rather than fixed: with
+                                // a `minDistance`, a thumb's own ceiling is
+                                // `1f - gapFraction` while this is measured
+                                // against 1, so pushing into a neighbour that is
+                                // *itself* at the track's end refuses nothing and
+                                // gives nothing. The stop is real — the neighbour
+                                // cannot move either — and it is the one place a
+                                // wall on this control has no band on it.
                                 val past = when {
                                     raw > 1f -> raw - 1f
                                     raw < 0f -> raw
                                     else -> 0f
                                 }
                                 if (past != 0f && !motion.reduceMotion) {
+                                    // The band is this thumb's until it has
+                                    // sprung all the way home. See [bandThumb].
+                                    bandThumb = activeThumb
                                     band.pull(past * widthPx, thumbSquashPx)
                                 }
                                 emit(activeThumb, dragFraction)
                             }
                         },
                         onEnd = {
-                            // The same spring the thumbs settle on, so the
-                            // squash unwinds as they land rather than as a
-                            // second animation over the top.
                             scope.launch {
                                 // **Slower than the stretch, and that is the whole
                                 // fix.** The thumb's drawn width is
@@ -771,6 +816,10 @@ fun RangeSlider(
                                 // and critically damped, so the squash eases out from
                                 // under a wall that is no longer being pushed.
                                 band.release(motion.springOrTween(motion.springGentle))
+                                // Only now. Released before the spring finished —
+                                // which is what gating on `activeThumb` amounted
+                                // to — the squash is computed and never drawn.
+                                bandThumb = Thumb.None
                             }
                             // A press that never moved is a tap, and a tap
                             // moves the nearer thumb to it.
@@ -851,9 +900,10 @@ fun RangeSlider(
                                     coveredColour = colours.onPrimary,
                                     uncoveredColour = colours.contentSubtle,
                                     // The band between the thumbs, not the run
-                                    // up to one: that is the only difference
-                                    // between this and `Slider`, and it is why
-                                    // the shared drawing takes a predicate.
+                                    // up to one, which is why the shared drawing
+                                    // takes a predicate. Not the *only*
+                                    // difference from `Slider`: the painter order
+                                    // below and [bandThumb] are the others.
                                     covered = { x -> x in startX..endX },
                                 )
                             }

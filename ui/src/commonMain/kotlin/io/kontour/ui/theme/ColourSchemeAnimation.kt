@@ -119,6 +119,44 @@ internal class ThemeFadeState(initial: ThemeFade, initialContrast: ContrastLevel
  * rasterised on the frame before, and blurs are about four fifths of what a fade
  * costs.
  *
+ * ### The first switch after launch costs about 2.4x a later one, and that is the
+ * runtime rather than this
+ *
+ * Reported from an Android phone: light↔dark still stutters at about 66.6ms peak,
+ * *"however, I've noticed it only really happens when I first open the app. After I
+ * switch it a few times, it's really smooth."* Measured in a debug build.
+ *
+ * `FirstThemeSwitchCostDiagnostic` flips one scene four times with **no** warm-up,
+ * which is the thing the other three theme diagnostics all discard, and reproduces
+ * it on the JVM:
+ *
+ * ```
+ *   flip        worst frame    total over 16 frames
+ *   1              63.8ms            609.6ms
+ *   2              43.3ms            337.2ms
+ *   3              21.8ms            245.8ms
+ *   4              24.3ms            254.5ms
+ * ```
+ *
+ * 2.39x first to last, settling by the third — and a 63.8ms worst frame against
+ * the 66.6ms the phone reported. **Nothing here is warming up.** No cache in this
+ * library is keyed on light/dark: `SquirclePaths` is keyed on size, radii and
+ * smoothing, none of which a scheme moves, and the `ColourScheme` and `Elevation`
+ * instances are rebuilt on *every* switch, warm or cold. What warms is the runtime
+ * compiling this path — the JIT here, and on Android a debug build has no baseline
+ * profile, so the first run through any code path is interpreted. `FrameReadout`
+ * has said so about sheets since it was written.
+ *
+ * So the fix is not in this file. It is a release build, and ultimately a shipped
+ * baseline profile — which needs a macrobenchmark module and a device, so it is
+ * recorded here rather than done. `FramesPage` reports a worst frame **per flip**
+ * so the same comparison can be made on the phone in either build.
+ *
+ * What is left on this side is already spent: both diagnostics put shadows at
+ * 80-82% of a fade frame, and `ThemeSwitchCostDiagnostic` records that holding the
+ * elevation scale still across the flip now buys almost nothing — 40.05 against
+ * 40.59. The cost is that everything redraws, not that the shadow parameters move.
+ *
  * ### Interrupting mid-fade
  *
  * A scheme arriving while a fade is running restarts from **where the fade

@@ -115,7 +115,13 @@ internal fun FramesPage(modifier: Modifier = Modifier) {
                 OverlayHost(Modifier.fillMaxWidth().height(WorkloadHeight.dp)) {
                     Workload(
                         recording = run.collecting,
-                        onFlipTheme = { dark = !dark },
+                        // The flip closes off a segment as well as flipping, so
+                        // the readout can report one worst frame per flip rather
+                        // than one for the whole run. See `FrameRun.mark`.
+                        onFlipTheme = {
+                            run.mark()
+                            dark = !dark
+                        },
                     )
                 }
             }
@@ -149,6 +155,21 @@ private fun Reading(run: FrameRun) {
             )
             Verdict("peak", run.peakTenths, displayHz, run.hasReading)
             Verdict("p95", run.p95Tenths, displayHz, run.hasReading)
+            // **Per flip, because one peak cannot answer the question asked.**
+            // Reported of the theme switch: it stutters, but only for the first
+            // few after opening the app. A run's single peak reads the same
+            // whether the first flip cost three times the fourth or one frame was
+            // unlucky. Each entry here is the worst frame between two presses of
+            // "Flip theme", in order, so the shape is visible: on the JVM the
+            // first totals 2.39x the fourth and it settles by the third.
+            if (run.marks.size > 1) {
+                Text(
+                    "per flip  " + run.marks.joinToString("  ") { tenths ->
+                        "${tenths / 10}.${tenths % 10}"
+                    },
+                    style = Theme.typography.bodySmall,
+                )
+            }
             Button(
                 onClick = { run.start() },
                 enabled = !run.collecting,

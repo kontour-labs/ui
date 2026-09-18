@@ -160,6 +160,88 @@ class SwitchReleaseTest {
  */
 class SwitchGeometryTest {
 
+    /**
+     * And a squashed thumb is shorter, which is what keeps it inside that gap.
+     *
+     * The gap test below walks the same gesture and cannot see this, because it
+     * measures widths on the centre row — the one row where a squashed thumb is
+     * exactly as clear as it was.
+     *
+     * At rest the thumb's circle and the track's end arc share a centre: 24dp
+     * inside a 28dp track with 2dp of padding, and because the track's short edge
+     * is fully saturated `SquircleShape` returns a true semicircle there. So the
+     * clearance is 2dp the whole way round. Squashed, the ellipse's height used to
+     * be left alone — so its top and bottom swung *toward* the wall and the
+     * clearance pinched to 1.17dp at full squash, 41% of the gap gone.
+     * `squashedCapsule` now takes the geometric mean of the resting radius and the
+     * half-width, which puts the ellipse tangent to that arc at every depth and
+     * takes the height from 24dp to 20.8dp.
+     *
+     * ### The height, rather than the clearance
+     *
+     * Measuring the clearance directly was the first attempt and it is not worth
+     * what it costs. It means comparing two antialiased outlines, and the pixel
+     * grid biases them toward each other unevenly: at density 4 the fixed shape
+     * read 7.81px of a 8px gap and the defect 6.40px, a 1.4px separation on a
+     * 0.83dp effect. A threshold in that gap is a flake waiting for a Skia
+     * upgrade.
+     *
+     * The height is the same claim with ten times the margin — 3.2dp of a 24dp
+     * thumb — and it is the mechanism rather than a proxy for it: the ellipse
+     * cannot both keep its full height and stay inside the arc. The tangency
+     * itself is arithmetic and is asserted as arithmetic, in
+     * `SquashedThumbGeometryTest`.
+     */
+    @Test
+    fun aSquashedThumbIsShorterThanTheCircleItRestsAs() {
+        var checked by mutableStateOf(false)
+        var bounds = Rect.Zero
+        var resting = -1
+        var squashed = -1
+
+        Scene(width = 400, height = 200) {
+            // **Not white.** The thumb is white when the switch is on, so on a
+            // white page the thumb and the page are the same colour and the
+            // measurement cannot tell where one ends.
+            Box(Modifier.fillMaxSize().background(Backing)) {
+                Switch(
+                    checked = checked,
+                    onCheckedChange = { checked = it },
+                    modifier = Modifier.reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            assertTrue(bounds.width > 0f, "the switch never reported a size")
+
+            resting = scene.frames(SettleFrames).thumbHeight(bounds)
+
+            // Past the end and **held** there: the squash only exists while
+            // something is pushing against the wall.
+            scene.drag(
+                from = bounds.alongX(0.2f),
+                to = bounds.alongX(1.6f),
+                release = false,
+            )
+            squashed = scene.frames(2).thumbHeight(bounds)
+            scene.release(bounds.alongX(1.6f))
+        }
+
+        assertTrue(
+            resting > 0 && squashed > 0,
+            "the thumb was not found: ${resting}px at rest, ${squashed}px pushed",
+        )
+        assertTrue(
+            squashed < resting - Antialiasing,
+            "pushed into the end of its track the thumb is ${squashed}px tall " +
+                "against ${resting}px at rest. An ellipse that keeps its full " +
+                "height while it narrows swings its top and bottom toward the " +
+                "wall, so it stops being concentric with the arc it is pressed " +
+                "against — the 2dp gap the switch is built on pinches to 1.17dp " +
+                "while looking untouched on the centre row.",
+        )
+    }
+
     @Test
     fun theGapsEitherSideOfTheThumbStayEven() {
         val gaps = mutableListOf<Pair<Int, Int>>()
@@ -197,6 +279,30 @@ class SwitchGeometryTest {
                 "change as they drag.",
         )
     }
+}
+
+/**
+ * How tall the thumb is drawn, measured up its own middle.
+ *
+ * The column is the midpoint of the thumb's horizontal run, which is the one place
+ * every shape in the family is its full height — a capsule, a circle and an
+ * ellipse alike. Counted as rows that are not the track's own colour, the same
+ * reference [thumbRun] uses and for the same reason.
+ */
+private fun BufferedImage.thumbHeight(bounds: Rect): Int {
+    val run = thumbRun(bounds)
+    val top = bounds.top.toInt().coerceAtLeast(0)
+    val bottom = (bounds.bottom.toInt() - 1).coerceAtMost(height - 1)
+    val middle = (run.first + run.last) / 2
+    // **Matched against the thumb's own colour, not "not the track's".** That was
+    // the first attempt and it reads the thumb plus a row or two of page: the
+    // thumb's column sits near the track's rounded end, where the top and bottom
+    // rows of the *bounding box* are outside the track's body and are page —
+    // which also differs from the track. It came back as 48px against 49px on a
+    // shape that had genuinely gone from 48 to 45, and the difference the test is
+    // about disappeared into the rounding.
+    val thumb = getRGB(middle, (top + bottom) / 2) and 0xFFFFFF
+    return (top..bottom).count { y -> !differs(getRGB(middle, y) and 0xFFFFFF, thumb) }
 }
 
 /** How far in from the track's two edges the thumb's own edges are, in pixels. */
@@ -271,8 +377,12 @@ private const val BandInset = 2
 /** `ThumbPadding` at the scene's density. */
 private const val PaddingPx = 4
 
+/** A page colour no token in the library resolves to, so thumb and page differ. */
+private val Backing = Color(0xFF3A7D44)
+
 /** One antialiased edge pixel each side, and nothing more. */
 private const val Antialiasing = 2
+
 
 /** Long enough for `springSnappy` to cross the track and settle. */
 private const val SettleFrames = 20

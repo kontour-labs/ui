@@ -13,9 +13,14 @@ switch expects the thing to have happened; a user who ticks a box expects to
 press Save.
 
 The thumb stretches as it travels — wider mid-flight, round at rest — and keeps
-its 2dp of clearance on both sides the whole way, growing into whichever side has
-the room. At either end that is all behind it, so the stretch trails the way give
-should.
+its 2dp of clearance the whole way, growing into whichever side has the room. At
+either end that is all behind it, so the stretch trails the way give should. Push
+past an end and it compresses into a vertical ellipse, getting **shorter as it
+narrows**: an ellipse that kept its full height would swing its top and bottom
+toward the wall and close that 2dp gap to 1.17dp — invisible across the middle,
+where it still measures exactly 2dp, and wrong everywhere else. The height is the
+geometric mean of the resting radius and the half-width, which is the one value
+that leaves the ellipse tangent to the track's end arc rather than crossing it.
 
 **The stretch is the travel, not a second animation about it.** It is taken from
 how fast the thumb is going, so it grows as the thumb sets off, is widest where
@@ -56,9 +61,10 @@ saturates on both edges, so `SquircleShape` returns a circle for it — the same
 an `IconButton`, an `Avatar` or a radio ring.
 
 **And the track names `Theme.shapes.pill` rather than `Theme.shapes.control`,
-because the thumb cannot be capped.** The thumb is a `drawRoundRect` at half its
-own height — 12dp on a 24dp thumb, a number rather than a token, because a draw
-call has no shape to consult. The track was reading the capped rule, so a theme
+because the thumb cannot be capped.** The thumb is drawn at half its own height —
+12dp on a 24dp thumb, a number rather than a token, because a draw call has no
+shape to consult. (A rounded rect while it is at least as wide as it is tall, and
+an ellipse once it is narrower; the radius is the same either way.) The track was reading the capped rule, so a theme
 setting `capsuleCap = 10.dp` brought the 28dp track down to 10 and left the thumb
 at 12, where concentricity wants the track to be the thumb *plus* the 2dp of
 padding around it — 14. Reported as switches no longer being concentric in a
