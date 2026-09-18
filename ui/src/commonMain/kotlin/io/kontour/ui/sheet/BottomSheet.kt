@@ -1,6 +1,7 @@
 package io.kontour.ui.sheet
 
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.interaction.DragInteraction
@@ -329,6 +330,11 @@ fun BottomSheet(
     val settleSpec: FiniteAnimationSpec<Float> = motion.springOrTween(motion.springGentle)
 
     val overscroll = rememberSheetOverscroll(state, settleSpec)
+    // And the *other* overscroll: the one a list inside the sheet would have got
+    // from the platform. Inside a draggable sheet the sheet owns the vertical
+    // axis, because only one of the two can answer a finger that has run out of
+    // list. See `SheetChildOverscroll`.
+    val childOverscroll = rememberSheetChildOverscrollFactory(draggable)
     // What tells a finger from an `animateTo`. See `SheetState.draggedByHand`.
     val dragInteractions = remember { MutableInteractionSource() }
     LaunchedEffect(dragInteractions, state) {
@@ -492,7 +498,19 @@ fun BottomSheet(
                 // A handle on a sheet that cannot be dragged is a lie.
                 dragHandle = dragHandle.takeIf { draggable },
                 density = density,
-                content = content,
+                // Provided around the content rather than the whole sheet: the
+                // sheet's own `anchoredDraggable` is handed its effect directly
+                // and never reads this, and the scrim and the chrome scroll
+                // nothing. `rememberSheetChildOverscrollFactory` hands back the
+                // platform's own factory unchanged when the sheet is not
+                // draggable, so this line is one shape for both cases.
+                content = {
+                    CompositionLocalProvider(
+                        LocalOverscrollFactory provides childOverscroll,
+                    ) {
+                        content()
+                    }
+                },
             )
         }
 

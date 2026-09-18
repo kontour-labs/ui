@@ -158,8 +158,8 @@ class EndStopSquashTest {
      * - they climb by the **same** amount, because an ellipse is symmetric about
      *   its own centre and a shape with one end cut off is not.
      *
-     * On the shape this replaces the trailing end climbs about 3px against the
-     * leading end's 26, which is the flat edge saying so.
+     * On the shape this replaces the trailing end climbs 2px against the leading
+     * end's 16, which is the flat edge saying so. The ellipse reads 18 and 16.
      */
     @Test
     fun aSquashedThumbIsAnEllipseAndNotACutCapsule() {
@@ -791,7 +791,7 @@ class EndStopSquashTest {
          * Close enough together that a straight edge has reached full height at
          * both — a cut capsule's trailing radius is 6px, so 2px in is already
          * inside its corner and 10px in is past it entirely — and far enough
-         * apart that an ellipse climbs about 26px between them.
+         * apart that an ellipse climbs 16 to 18px between them.
          */
         const val NearProbe = 2
         const val FarProbe = 10
@@ -799,15 +799,21 @@ class EndStopSquashTest {
         /**
          * The least an end has to climb to count as curved rather than flat.
          *
-         * Calibrated against both shapes rather than guessed. A capsule with its
-         * trailing corner cut climbs 16px at the end against the wall and **2px**
-         * at the other — the flat edge saying so. The ellipse climbs 10px and 12px.
+         * Calibrated against both shapes rather than guessed, and re-measured
+         * whenever the shape changes. A capsule with its trailing corner cut
+         * climbs 16px at the end against the wall and **2px** at the other — the
+         * flat edge saying so. The ellipse climbs **16px and 18px**.
          *
-         * It was 10, which stopped separating them the moment the ellipse started
-         * getting *shorter* as it narrows: a less eccentric ellipse curves more
-         * gently, so the climb over a fixed 8px span fell from 26px to 10 and the
-         * threshold landed exactly on it. Six sits between 2 and 10 with room
-         * either side.
+         * So the leading end says nothing: both shapes have a full radius there,
+         * and it is the *trailing* end that separates 18 from 2. Six sits between
+         * them with room either side.
+         *
+         * It was 10 while the ellipse was also getting shorter as it narrowed —
+         * a less eccentric ellipse curves more gently, and the climb over this 8px
+         * span fell to 10, landing the old threshold exactly on it. The shortening
+         * has since been taken back out, which is why the numbers above are the
+         * taller shape's again; 6 is kept because it is the value that separates
+         * the two ends rather than the two shapes.
          */
         const val Curvature = 6
 
@@ -816,7 +822,7 @@ class EndStopSquashTest {
          *
          * The sharper half of the claim, and the one that does not move with the
          * shape's eccentricity: an ellipse is symmetric about its own centre, so
-         * the two ends climb alike — 10 against 12. A shape with one end cut gives
+         * the two ends climb alike — 16 against 18. A shape with one end cut gives
          * 16 against 2.
          */
         const val Symmetry = 6

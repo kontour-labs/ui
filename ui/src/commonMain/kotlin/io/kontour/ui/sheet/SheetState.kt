@@ -5,7 +5,6 @@ import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.DecayAnimationSpec
-import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.calculateTargetValue
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.gestures.animateTo
@@ -30,6 +29,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
+import io.kontour.ui.interaction.RubberBand
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -150,8 +150,21 @@ class SheetState internal constructor(
      * the anchors, the settled detent and everything derived from them are
      * untouched, and letting go springs it back to zero rather than settling
      * anywhere new.
+     *
+     * A [RubberBand], which is the library's primitive for exactly this and whose
+     * arithmetic was written here in the first place — *"lifted here so the sheet
+     * and the wheel picker share one, rather than the second one to want it
+     * growing a copy"*. The sheet went on carrying the copy, and that is not a
+     * tidiness point: the copy was the **single Euler step** the primitive was
+     * rewritten to get rid of, which gives a different curve at 120Hz than at 60.
+     * The library runs at 120 on an iPhone, so the sheet's own stretch was one of
+     * the *"slightly different rubber-banding animations between each platform"*
+     * that was reported. See [RubberBand.pull].
      */
-    internal var overshoot by mutableFloatStateOf(0f)
+    private val band = RubberBand()
+
+    /** See [band]. Positive is upward, and the layout subtracts it. */
+    internal val overshoot: Float get() = band.offset
 
     /**
      * How far the sheet is *drawn* above its detent, in pixels.
@@ -247,6 +260,12 @@ class SheetState internal constructor(
      * A twelfth of the container: far enough to feel like the sheet answered the
      * finger, short enough that nobody mistakes it for a detent they have not
      * found yet.
+     *
+     * Approached rather than arrived at — a boundary that gives indefinitely is
+     * not a boundary and one that arrives at a hard stop is the rigid boundary
+     * again a few pixels further on. So it is the scale of the pull as much as its
+     * ceiling: a finger travels about this far past the stop to get 63% of the way
+     * out, twice that for 86%. See [RubberBand.pull].
      */
     internal val maxOvershoot: Float get() = containerHeight * OvershootShare
 
@@ -257,14 +276,15 @@ class SheetState internal constructor(
      * moves the sheet less the further it has already been pulled, so the edge
      * feels like it is resisting. A linear stretch with a hard stop is the same
      * rigid boundary moved somewhere else.
+     *
+     * [maxOvershoot] is the stretch the sheet approaches and never reaches, which
+     * is also the scale of the pull: a finger travels about that far past the stop
+     * for 63% of it. It used to be a clamp the sheet arrived at, and an
+     * exponential approach cannot overshoot — see [RubberBand.pull].
      */
     internal fun stretch(by: Float): Float {
-        val max = maxOvershoot
-        if (max <= 0f || by <= 0f) return 0f
-        val resistance = 1f - (abs(overshoot) / max).coerceIn(0f, 1f)
-        val gained = by * resistance
-        overshoot = (overshoot + gained).coerceIn(-max, max)
-        return gained
+        if (by <= 0f) return 0f
+        return band.pull(by, maxOvershoot)
     }
 
     /**
@@ -272,15 +292,12 @@ class SheetState internal constructor(
      *
      * [overshoot] is signed, and the layout subtracts it — so a negative one
      * moves the sheet down by exactly as much as a positive one moves it up, and
-     * both ends spring back through the same [releaseOvershoot].
+     * both ends spring back through the same [releaseOvershoot]. [by] is how hard
+     * the finger is pushing, so it is positive here and the pull is not.
      */
     internal fun stretchDown(by: Float): Float {
-        val max = maxOvershoot
-        if (max <= 0f || by <= 0f) return 0f
-        val resistance = 1f - (abs(overshoot) / max).coerceIn(0f, 1f)
-        val gained = by * resistance
-        overshoot = (overshoot - gained).coerceIn(-max, max)
-        return gained
+        if (by <= 0f) return 0f
+        return -band.pull(-by, maxOvershoot)
     }
 
     /**
@@ -290,25 +307,19 @@ class SheetState internal constructor(
      * starts moving again; the other order slides the sheet away with the gap
      * still open, and one gesture produces two motions. Signed the way the
      * finger is: positive is downward.
+     *
+     * **The two frames are opposite**, which is the one thing to know about this
+     * line. [overshoot] counts upward, because that is the direction a sheet is
+     * stretched in and the layout subtracts it; a scroll delta counts downward,
+     * because that is the direction a finger drags in. [RubberBand.payBack] works
+     * in one frame throughout, so the delta is negated going in and the answer
+     * negated coming out, and the sign convention this function documents is
+     * unchanged for its callers.
      */
-    internal fun payBackOvershoot(by: Float): Float {
-        if (overshoot == 0f || by == 0f) return 0f
-        // Same sign means the finger is opening the gap wider, not closing it.
-        if ((overshoot > 0f) == (by < 0f)) return 0f
-        val paid = minOf(abs(overshoot), abs(by))
-        overshoot += paid * if (overshoot > 0f) -1f else 1f
-        return paid * if (by > 0f) 1f else -1f
-    }
+    internal fun payBackOvershoot(by: Float): Float = -band.payBack(-by)
 
     /** Springs the stretch back to nothing. */
-    internal suspend fun releaseOvershoot(spec: AnimationSpec<Float>) {
-        if (overshoot == 0f) return
-        animate(
-            initialValue = overshoot,
-            targetValue = 0f,
-            animationSpec = spec,
-        ) { value, _ -> overshoot = value }
-    }
+    internal suspend fun releaseOvershoot(spec: AnimationSpec<Float>) = band.release(spec)
 
     /** The content's own full height in pixels, for [SheetDetent.Expanded]. */
     internal var sheetHeight by mutableFloatStateOf(0f)
@@ -938,6 +949,22 @@ class SheetState internal constructor(
                 } else {
                     settleWhereAimed(available.y, settleSpec, flickVelocity)
                 }
+                // **And the stretch this path opened has to come back.** A drag
+                // on the *content* reaches `stretchDown` through `onPostScroll`
+                // above, and until this line the only `releaseOvershoot` in the
+                // library was `SheetOverscroll`'s — which is the handle's path.
+                // So an undismissable sheet pushed below its floor by its own
+                // list stayed there after the finger lifted: no detent had
+                // changed, so nothing settled it, and the stretch is what the
+                // layout subtracts. The docs promise the opposite in as many
+                // words — *"a drag to the bottom, which springs back instead of
+                // closing"*.
+                //
+                // After the settle rather than before it, for the reason
+                // `SheetOverscroll.applyToFling` gives: a flick that carries the
+                // sheet somewhere else should not be fighting a stretch
+                // unwinding underneath it.
+                releaseOvershoot(settleSpec)
                 return available
             }
 

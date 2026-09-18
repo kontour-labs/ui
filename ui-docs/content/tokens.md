@@ -556,7 +556,8 @@ on the same box is still fully round. Two cases make it concrete. A day cell's
 fill, its "today" ring and its range caps only agree with each other if none of
 them is capped. And a `Switch`'s track is 28dp tall against a thumb drawn at half
 its own *measured* height — a number, because a draw call has no token to consult,
-and a rounded rect only while the thumb is at least as wide as it is tall — so a theme that sets `capsuleCap = 10.dp` capped the track at 10 and
+and a rounded rect only while the thumb is at least as wide as it is tall — so a
+theme that sets `capsuleCap = 10.dp` capped the track at 10 and
 left the thumb at 12, and the two stopped being concentric. Reported, and fixed
 by the track naming `pill`.
 

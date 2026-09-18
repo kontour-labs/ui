@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -124,6 +125,92 @@ class SheetFloorTest {
             run.dismissRequests,
             "a dismissable sheet dragged shut told its caller ${run.dismissRequests} " +
                 "times",
+        )
+    }
+
+    /**
+     * And it springs back when the drag was on its **content**, not its handle.
+     *
+     * Two paths reach the floor and only one of them used to come back from it.
+     * A finger on the sheet goes through `SheetOverscroll`, whose `applyToFling`
+     * calls `releaseOvershoot`; a finger on a list inside the sheet goes through
+     * `SheetState.nestedScrollConnection`, which reaches the same `stretchDown`
+     * through `onPostScroll` and had no release anywhere in it. So the sheet
+     * stayed drawn below its floor after the finger lifted: no detent had
+     * changed, so nothing settled it, and the stretch is what the layout
+     * subtracts.
+     *
+     * The test above cannot see this — its content is a plain `Box`, so its drag
+     * never enters the nested-scroll path at all, which is exactly why this
+     * shipped.
+     */
+    @Test
+    fun andItSpringsBackWhenTheDragWasOnItsList() {
+        var body = Rect.Zero
+        var visible by mutableStateOf(true)
+        var restingTop = 0f
+        var pushedTop = 0f
+        var settledTop = 0f
+
+        Scene(width = 600, height = 900) {
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                val sheet = rememberSheetState(
+                    detents = listOf(SheetDetent.Hidden, SheetDetent.Expanded),
+                    initialDetent = SheetDetent.Hidden,
+                )
+                ModalBottomSheet(
+                    visible = visible,
+                    onDismissRequest = { visible = false },
+                    state = sheet,
+                    dismissible = false,
+                ) {
+                    // A list, so the drag goes through the nested-scroll
+                    // connection rather than the sheet's own draggable — and
+                    // scrolled to its top, so it declines the whole downward
+                    // drag and the sheet is offered all of it.
+                    LazyColumn(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .background(Color.LightGray)
+                            .reportBounds { body = it }
+                    ) {
+                        items(12) {
+                            Box(Modifier.fillMaxWidth().height(40.dp).background(Color.Gray))
+                        }
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(80)
+            restingTop = body.top
+
+            val grab = Offset(300f, body.top + 60f)
+            scene.press(grab)
+            scene.move(Offset(300f, grab.y + SlopPx))
+            scene.frame()
+            repeat(Steps) { step ->
+                scene.move(Offset(300f, grab.y + SlopPx + Travel * (step + 1) / Steps))
+                scene.frame()
+            }
+            pushedTop = body.top
+            scene.release(Offset(300f, grab.y + SlopPx + Travel))
+            scene.frames(120)
+            settledTop = body.top
+        }
+
+        assertTrue(
+            pushedTop > restingTop + 8,
+            "dragged ${Travel.toInt()}px down by its list, an undismissable sheet " +
+                "moved ${(pushedTop - restingTop).toInt()}px. It has to give, or the " +
+                "floor is a boundary the finger cannot feel",
+        )
+        assertTrue(
+            settledTop <= restingTop + 2,
+            "the sheet rested at $restingTop before the drag and $settledTop a " +
+                "hundred and twenty frames after it — the stretch the list's drag " +
+                "opened never sprang back, so the sheet is sitting below its own floor",
         )
     }
 

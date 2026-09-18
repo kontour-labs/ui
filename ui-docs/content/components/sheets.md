@@ -203,6 +203,34 @@ That handoff is why a sheet takes its content as a slot rather than being a
 modifier. Without it, a sheet with a list inside is either undraggable or
 unscrollable, depending on which modifier won.
 
+**Inside a draggable sheet, the sheet owns the vertical rubber band.** A list and
+the sheet it is in share one axis, and only one of them can answer a finger that
+has run out of list — so a scrollable in a sheet is given no vertical overscroll
+of its own, and the pixels it declines reach the sheet. Sideways is untouched: a
+sheet has no opinion about horizontal scroll, so a carousel in one keeps whatever
+bounce the platform gives it.
+
+This was reported from an iPhone, as two symptoms of one cause — a flick that had
+to be thrown harder than on Android, and a downward drag that *sometimes* pulled
+the list's content down instead of moving the sheet. Each platform installs a
+different overscroll effect on a scrollable, and that effect wraps the whole
+scroll: one with a band already open takes the finger *before* the sheet is
+offered anything, and it is handed the release as well, where it can keep velocity
+for its own spring. Desktop has no such effect at all, which is why desktop was
+the behaviour that read as correct. None of the platforms' rubber-band curves
+changed; what changed is whose gesture a declined vertical drag is.
+
+A sheet with `draggable = false` is the exception, and for the reason the
+nested-scroll connection has the same exception: nothing would answer a list that
+has reached its top, and a list that stops dead is a boundary the finger cannot
+feel.
+
+**A flick has to be firm to count as one.** Below about 500dp/s a fling that
+started in the list settles the sheet where it already is rather than being read as
+an instruction to change detent; above it, the sheet goes where the flick was
+aimed, which may be several detents away. A reader who scrolled the list and let
+go was moving the list, and its leftovers are not a request.
+
 **Content taller than the window scrolls rather than being cropped.** The sheet
 measures its content at the room it actually has, so a long `Column` wrapped in
 `verticalScroll` has a real viewport and the part below the fold is reachable.

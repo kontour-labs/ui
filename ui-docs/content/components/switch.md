@@ -13,14 +13,17 @@ switch expects the thing to have happened; a user who ticks a box expects to
 press Save.
 
 The thumb stretches as it travels — wider mid-flight, round at rest — and keeps
-its 2dp of clearance the whole way, growing into whichever side has the room. At
-either end that is all behind it, so the stretch trails the way give should. Push
-past an end and it compresses into a vertical ellipse, getting **shorter as it
-narrows**: an ellipse that kept its full height would swing its top and bottom
-toward the wall and close that 2dp gap to 1.17dp — invisible across the middle,
-where it still measures exactly 2dp, and wrong everywhere else. The height is the
-geometric mean of the resting radius and the half-width, which is the one value
-that leaves the ellipse tangent to the track's end arc rather than crossing it.
+its 2dp of clearance on both sides the whole way, growing into whichever side has
+the room. At either end that is all behind it, so the stretch trails the way give
+should.
+
+Pushed past the end it squashes into a vertical ellipse instead, and that leans
+into the padding above and below: 2dp of clearance on the centre row still, and
+1.17dp at the narrowest point of a full squash. Making the ellipse shorter as it
+narrows would hold all 2dp — it is the geometric mean of the resting radius and
+the half-width, the point where the ellipse is tangent to the track's end arc —
+and it was tried and taken back out, because a thumb that changes height under a
+finger reads as the wrong kind of movement.
 
 **The stretch is the travel, not a second animation about it.** It is taken from
 how fast the thumb is going, so it grows as the thumb sets off, is widest where
@@ -64,7 +67,8 @@ an `IconButton`, an `Avatar` or a radio ring.
 because the thumb cannot be capped.** The thumb is drawn at half its own height —
 12dp on a 24dp thumb, a number rather than a token, because a draw call has no
 shape to consult. (A rounded rect while it is at least as wide as it is tall, and
-an ellipse once it is narrower; the radius is the same either way.) The track was reading the capped rule, so a theme
+an ellipse once it is narrower; the radius is the same either way.) The track was
+reading the capped rule, so a theme
 setting `capsuleCap = 10.dp` brought the 28dp track down to 10 and left the thumb
 at 12, where concentricity wants the track to be the thumb *plus* the 2dp of
 padding around it — 14. Reported as switches no longer being concentric in a
