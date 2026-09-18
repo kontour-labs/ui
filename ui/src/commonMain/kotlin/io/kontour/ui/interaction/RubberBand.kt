@@ -136,10 +136,12 @@ class RubberBand internal constructor() {
      * offset crossed zero and opened a stretch on the **other** side. Nothing
      * about letting go of a control says "and now push it the other way".
      *
-     * It became visible rather than merely wrong when the thumb's squashed cap
-     * started being drawn on whichever end is against the wall: crossing zero
-     * swaps which end that is, so the flattened corner jumped from one side to
-     * the other, once, part way home. See `cappedCapsule`.
+     * It became visible rather than merely wrong when the squash started being
+     * *pinned* to whichever end is against the wall: crossing zero swaps which end
+     * that is, so the thumb jumped sideways by the width it had given up, once,
+     * part way home. The shape it is drawn as has since stopped caring which end
+     * the wall is on — see `squashedCapsule` — but where it is drawn still does,
+     * and that is this.
      */
     suspend fun release(spec: AnimationSpec<Float>) {
         if (offset == 0f) return

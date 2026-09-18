@@ -359,6 +359,10 @@ fun BottomSheet(
             }
     }
 
+    // In pixels here, because `SheetState` works in pixels throughout and the
+    // nested-scroll callbacks have no density of their own.
+    val flickVelocity = with(density) { SheetFlickVelocity.toPx() }
+
     val fling = AnchoredDraggableDefaults.flingBehavior(
         state = state.anchoredState,
         positionalThreshold = SheetDefaults.PositionalThreshold,
@@ -447,7 +451,9 @@ fun BottomSheet(
                 .then(
                     if (draggable) {
                         Modifier
-                            .nestedScroll(state.nestedScrollConnection(settleSpec))
+                            .nestedScroll(
+                                state.nestedScrollConnection(settleSpec, flickVelocity)
+                            )
                             .anchoredDraggable(
                                 state = state.anchoredState,
                                 orientation = SheetOrientation,
@@ -905,16 +911,22 @@ private fun BoxScope.SheetSurface(
                         // and that is Compose's rule rather than this one's.
                         //
                         // The container rather than the incoming constraints,
-                        // which for an edge sheet is the same number and for a
-                        // floating one is the difference between a sheet that
-                        // can expand and one that cannot. See the surface's own
-                        // layout block above.
+                        // which for a floating sheet is the difference between a
+                        // sheet that can expand and one that cannot. See the
+                        // surface's own layout block above. Less whatever the
+                        // top edge has reserved — [sheetContentCeiling] has why.
                         val container = state.containerHeight
                             .coerceAtLeast(0f)
                             .roundToInt()
+                        val ceiling = sheetContentCeiling(
+                            container = container,
+                            insets = windowInsets,
+                            floating = floating,
+                            floatInsets = floatInsets,
+                        )
                         val room = when {
                             container > 0 ->
-                                constraints.copy(minHeight = 0, maxHeight = container)
+                                constraints.copy(minHeight = 0, maxHeight = ceiling)
 
                             constraints.hasBoundedHeight && constraints.maxHeight > 0 ->
                                 constraints.copy(minHeight = 0)
@@ -1041,6 +1053,69 @@ private fun Modifier.sheetTopInset(
     val placeable = measurable.measure(constraints.offset(vertical = -top))
     val height = (placeable.height + top).coerceAtMost(constraints.maxHeight)
     layout(placeable.width, height) { placeable.place(0, top) }
+}
+
+/**
+ * How tall the sheet's content may be, given that its top has been shifted down.
+ *
+ * **The reported defect, and it was a regression from the fix above.** A sheet at
+ * full height could not be scrolled to the end of its content: the last rows sat
+ * below the window and no amount of dragging reached them. Reported on the
+ * catalog's own Display settings panel, which is the one place in the repository
+ * where a sheet holds a scroller taller than a phone.
+ *
+ * [sheetTopInset] moves the content column down by the part of the top inset the
+ * sheet is under, and the measurement below it did not know: it measured the
+ * content against the **whole** container. So the column was a window tall with
+ * its top a status bar down, its bottom edge landed that far *below* the window,
+ * and a `verticalScroll` inside sized its viewport to the oversized measurement.
+ * At the end of its scroll range the last rows were still off-screen — invisible
+ * rather than obviously wrong, because `Surface` clips and the layout reports a
+ * shorter height than the placeable it places.
+ *
+ * So the same space is reserved here. At full height the column then runs from
+ * the bottom of the status bar to exactly the bottom of the window, and the
+ * bottom inset applied inside it keeps the last row clear of the gesture bar.
+ *
+ * ### Why a constant rather than the real shift
+ *
+ * The shift [sheetTopInset] applies is a function of the **live** offset, and a
+ * content height that moves with the offset is a re-measure of everything in the
+ * sheet on every frame of a drag — the cost `SheetFramePressureTest` exists to
+ * catch. `SheetTopGap` is the floor under every anchor, so `max(inset, gap)` is
+ * the largest the shift can ever be, and it is a constant.
+ *
+ * Deriving it from [SheetState.surfaceHeight] would read better and is a cycle:
+ * `surfaceHeight` comes from the lowest anchor, `SheetDetent.Expanded`'s anchor
+ * comes from `sheetHeight`, and `sheetHeight` comes from the measurement this
+ * feeds. The constant closes the loop.
+ *
+ * ### What this does not fix
+ *
+ * A sheet whose *tallest* detent is a short one — `Half`, a `peek` — still
+ * measures its content against nearly the whole window while only part of it is
+ * on screen, so a scroller inside one has the same unreachable tail. That is
+ * older than this function and was not what was reported; fixing it needs either
+ * the live offset or the cycle above, so it is written down here rather than
+ * guessed at.
+ */
+private fun Density.sheetContentCeiling(
+    container: Int,
+    insets: WindowInsets,
+    floating: Boolean,
+    floatInsets: WindowInsets,
+): Int {
+    if (container <= 0) return container
+    val reserved = if (floating) {
+        // A floating sheet is inset on all four sides and its surface is sized
+        // from both, so the content owes the pair. `floatInsets` rather than
+        // `insets`: the caller hands a floating sheet `NoInsets` for the content,
+        // because the margin has already taken the window's edges into it.
+        floatInsets.getTop(this) + floatInsets.getBottom(this)
+    } else {
+        maxOf(insets.getTop(this), SheetTopGap.toPx().roundToInt())
+    }
+    return (container - reserved).coerceIn(1, container)
 }
 
 /** No padding at all, for a sheet that is already clear of every edge. */

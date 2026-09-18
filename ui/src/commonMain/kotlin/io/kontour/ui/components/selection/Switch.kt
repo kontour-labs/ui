@@ -572,20 +572,22 @@ fun Switch(
         // that trade for the same reason and at the same size, and refusing it
         // twice is more consistent than paying for it once.
         //
-        // **Squashed, the cap against the wall keeps its radius.** It used to be
-        // one radius for four corners — half the resting height — so pushing
-        // into an end narrowed both ends at once and the thumb stopped being
-        // concentric with the arc it was pressed against, which at 2dp of
-        // padding is the same circle 2dp larger. Reported as the head not
-        // getting narrower than a circle; it does now, and it does it on the
-        // side away from the push. See `cappedCapsule`.
+        // **Squashed, it becomes a vertical ellipse rather than a chopped
+        // capsule.** It used to be one radius for four corners — half the resting
+        // height — so pushing into an end narrowed both ends at once and the head
+        // could not get narrower than the circle it rests as. Then it kept the
+        // cap against the wall and flattened the other end, which fixed that and
+        // looked odd: at 18dp across and 24dp tall the trailing radius works out
+        // at 6dp against the leading 12dp, which reads as a cut rather than as a
+        // squash. `squashedCapsule` is curved at both ends at every width, and
+        // the *pinning* just above is what makes it press into the wall rather
+        // than shrink away from it.
         val x = left.coerceIn(0f, (size.width - thumbWidth).coerceAtLeast(0f))
-        cappedCapsule(
+        squashedCapsule(
             left = x,
             top = top,
             right = x + thumbWidth,
             bottom = top + thumbPx,
-            leadingRight = band.offset > 0f,
             colour = thumbColour,
         )
     }

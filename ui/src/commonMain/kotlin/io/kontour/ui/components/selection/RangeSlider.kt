@@ -251,14 +251,18 @@ fun RangeSlider(
      * 2r. A 100% excursion, in the direction of the shape the finger had just
      * let go of.
      *
-     * One spring for the return fixes it without touching the grab, which is
-     * where the bounce belongs. With a shared `g: 1 → 0` the drawn width is
-     * `2r·(1 + 0.25g − 0.5g²)`, peaking at `g = 0.25` — **3% over resting size**,
-     * a settle rather than an excursion, against 50% before.
+     * Matching the two springs was the obvious answer and it is **not** the fix —
+     * traced frame by frame, a shared spring still peaks 9.8% over resting size,
+     * because the lerp between a wide number and a narrow one bulges in the middle
+     * whatever rate the two share. The band is released on `springGentle` instead,
+     * so the stretch gets home *first* and there is no bulge to have; the note on
+     * `band.release` in `onEnd` has the arithmetic.
      *
-     * `springSnappy` for the return rather than a bouncy band, because the
-     * band's is the one that has to be over quickly: it is describing a wall the
-     * finger is no longer pushing against.
+     * What this does is the other half, and it is worth the line on its own: the
+     * bounce belongs to the grab, where a thumb springing open under a finger
+     * reads as responsive, and not to the return, where `springBouncy`'s
+     * undershoot is a two-pixel wobble in the tail of a thumb that has already
+     * arrived.
      */
     fun thumbReturn(thumb: Thumb) = motion.springOrTween<Float>(
         if (held(thumb)) motion.springBouncy else motion.springSnappy

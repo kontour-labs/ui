@@ -49,14 +49,22 @@ dead at its limit has a boundary the finger cannot feel — the gesture simply
 stops answering, which reads as the control having broken rather than as having
 finished. The part of the push the clamp refused goes into a rubber band, at
 diminishing returns, and comes back as the thumb shortening along the axis of the
-push with its leading edge pinned to the wall. It springs back on release.
+push with its leading edge pinned to the wall. It springs back on release, and it
+widens into its resting circle on the way rather than out through the capsule it
+was let go from.
 
-It grew, briefly, and that was the wrong shape: the band was summed into the
-stretch that makes a thumb reach toward where it is trying to get to, and at an
-end stop there is nowhere it is trying to get to — so the thumb elongated
-backwards, away from the stop it had just run into. `Switch` and
-`SegmentedControl` give at their ends in the same direction and by the same
-proportion of themselves.
+Squashed it is a **vertical ellipse**, which took two goes. It grew at first, and
+that was the wrong shape entirely: the band was summed into the stretch that
+makes a thumb reach toward where it is trying to get to, and at an end stop there
+is nowhere it is trying to get to — so the thumb elongated backwards, away from
+the stop it had just run into. Then it shortened correctly but kept the cap
+against the wall and flattened the *other* end, which at 18dp across and 30dp
+tall leaves a 3dp radius against a 15dp one: a cut end rather than a squash. An
+ellipse has no end to cut, is symmetric, and stays curved where it touches the
+track — which is the part that reads as pressing rather than as retreating.
+`Switch` gives at its ends the same way and by the same proportion of itself;
+`SegmentedControl`'s thumb is a whole segment wide and can never approach a
+circle, so it keeps compressing from its trailing side.
 
 **Pass `stateDescription`.** Without it the announcement is a bare percentage,
 which is rarely what the number means.

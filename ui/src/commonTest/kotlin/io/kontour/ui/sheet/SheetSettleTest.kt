@@ -2,10 +2,12 @@ package io.kontour.ui.sheet
 
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.DraggableAnchors
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Velocity
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -47,6 +49,15 @@ class SheetSettleTest {
 
     private val detents = listOf(SheetDetent.Hidden, SheetDetent.Expanded)
 
+    /**
+     * The flick floor in pixels, at the 1x density these offsets are written in.
+     *
+     * [SheetFlickVelocity] is a `Dp` because it is a real distance a real finger
+     * covers; this fixture has no composition and works in raw pixels, so it
+     * converts once here.
+     */
+    private val floor = with(Density(1f)) { SheetFlickVelocity.toPx() }
+
     /** A state with anchors already attached, as a laid-out sheet would have. */
     private fun anchoredState(): SheetState {
         val state = SheetState(
@@ -69,7 +80,7 @@ class SheetSettleTest {
     @Test
     fun aFlingThatEndsInTheContentSettlesTheSheetInsteadOfThrowing() = runTest {
         val state = anchoredState()
-        val connection = state.nestedScrollConnection(tween(0))
+        val connection = state.nestedScrollConnection(tween(0), floor)
 
         connection.onPostFling(consumed = Velocity.Zero, available = Velocity(0f, 800f))
 
@@ -105,9 +116,9 @@ class SheetSettleTest {
 
         assertEquals(
             SheetDetent.Hidden,
-            state.detentAimedAt(4000f),
+            state.detentAimedAt(4000f, floor),
             "a 4000px/s downward flick is aimed at " +
-                "${state.detentAimedAt(4000f)}. " +
+                "${state.detentAimedAt(4000f, floor)}. " +
                 "A flick has to be allowed to mean something a drag does not — " +
                 "the alternative is what was reported, which is that the only way " +
                 "to shut a sheet is to haul it past the half-way mark.",
@@ -115,24 +126,34 @@ class SheetSettleTest {
     }
 
     /**
-     * A gentle one does not.
+     * A gentle one is not a flick at all.
      *
      * The control, and it is the assertion that keeps the projection honest. A
      * response that closes the sheet on any downward velocity at all is not
      * "where the flick was aimed" — it is a threshold with extra steps, and it
      * would take the sheet away from a reader who was scrolling its content and
      * stopped.
+     *
+     * **Null rather than `Expanded`, and that is the change.** This used to
+     * assert the nudge was *aimed at* `Expanded`, which was true only because the
+     * sheet happened to be sitting there — the projection was consulted and came
+     * back with the anchor it started on. It was consulted for every gesture
+     * however slight, which is what made the sheet too easy to close once a drag
+     * had already carried it part of the way. Now a gesture under the floor gets
+     * no opinion at all and the caller settles by position, which is the sheet's
+     * behaviour from before any of this existed.
      */
     @Test
-    fun aGentleDownwardFlickLeavesItOpen() {
+    fun aGentleDownwardFlickIsNotAFlick() {
         val state = anchoredState()
 
-        assertEquals(
-            SheetDetent.Expanded,
-            state.detentAimedAt(200f),
-            "a 200px/s nudge is aimed at the sheet closing. That is a finger " +
-                "coming to rest, " +
-                "not a throw, and it has to leave the sheet where it is.",
+        assertNull(
+            state.detentAimedAt(200f, floor),
+            "a 200px/s nudge was read as a flick aimed at " +
+                "${state.detentAimedAt(200f, floor)}. That is a finger coming to " +
+                "rest, not a throw; it has to hand the decision back to the " +
+                "positional settle rather than pick a detent.",
         )
     }
+
 }

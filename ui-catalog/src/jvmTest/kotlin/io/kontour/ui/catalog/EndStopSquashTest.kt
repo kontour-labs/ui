@@ -114,33 +114,54 @@ class EndStopSquashTest {
     }
 
     /**
-     * The end against the wall keeps its cap; the other end is what flattens.
+     * A squashed thumb is an ellipse, not a capsule with an end cut off.
      *
-     * The rest of this file asks how *wide* the thumb is. This asks what shape
-     * it is, and it is the half of the report the width cannot see: *"only the
-     * half of the circle that's on the opposite side to the way the user is
-     * dragging gets squashed"*.
+     * The rest of this file asks how *wide* the thumb is. This asks what shape it
+     * is, and it is the half a width measurement cannot see.
      *
-     * There is a reason beyond taste. A thumb sits inside a rounded track with a
-     * constant padding, so at rest its cap and the inside of the track's end are
-     * the same circle — on a switch, a 12dp arc inside a 12dp arc 2dp larger.
-     * Flattening the leading cap breaks that concentricity at exactly the moment
-     * the two are touching and the eye is on them.
+     * ### What it used to assert, and why that was replaced
      *
-     * ### Measured as column heights, which is the only thing that can see it
+     * It asserted the opposite half of the same shape: the cap against the wall
+     * keeps its radius and the *trailing* end flattens, which is what the earlier
+     * report asked for in so many words — *"only the half of the circle that's on
+     * the opposite side to the way the user is dragging gets squashed"*. That
+     * shipped and came back as looking odd, and it does: held and fully squashed a
+     * slider's thumb is 36px across and 60px tall at this scene's density, so the
+     * trailing radius works out at 6px against the leading 30px. Half a circle
+     * against a corner that is nearly square is a cut, not a squash.
      *
-     * A run of columns says where the thumb starts and stops and nothing about
-     * its corners. So this counts how much **ink is in one column**, a few
-     * pixels inside each end. On a full cap that column is short, because the
-     * arc has already curved away; on a flattened end it is nearly the thumb's
-     * whole height. Pushing into the wall must leave the first alone and grow
-     * the second.
+     * *"Make it squash more to a vertical ellipse pressed up against the end stop,
+     * rather than flattening the end."* So the claim is now symmetry plus
+     * curvature, which is what an ellipse is and what neither a capsule nor a
+     * chopped one is.
      *
-     * Both are measured against the thumb's *own* edges before and after, since
-     * the trailing edge is the one that moves.
+     * ### Measured as a profile, not as a height
+     *
+     * A run of columns says where the thumb starts and stops and nothing about its
+     * ends, so this counts how much **ink is in one column** — but at *two* depths
+     * near each end rather than one, and it is the difference between them that
+     * carries the claim. A curved end climbs steeply over those few pixels; a
+     * straight vertical edge is already at full height at the first of them and
+     * has nowhere to climb to.
+     *
+     * Measuring against the thumb's own height instead was the first attempt and
+     * it is too blunt: antialiasing costs a shape about four pixels at the top and
+     * four at the bottom, where the coverage ramps below the ink test's threshold,
+     * so a 60px thumb reads as 52 and the margin the assertion needs is spent
+     * before it starts. A difference between two readings a few pixels apart on
+     * the same shape has that error on both sides of the subtraction.
+     *
+     * Two things then have to hold:
+     *
+     * - **both** ends climb, because an ellipse has two curved ends;
+     * - they climb by the **same** amount, because an ellipse is symmetric about
+     *   its own centre and a shape with one end cut off is not.
+     *
+     * On the shape this replaces the trailing end climbs about 3px against the
+     * leading end's 26, which is the flat edge saying so.
      */
     @Test
-    fun aSquashedThumbKeepsTheCapItIsPressedAgainst() {
+    fun aSquashedThumbIsAnEllipseAndNotACutCapsule() {
         var value by mutableStateOf(0.5f)
         var bounds = Rect.Zero
 
@@ -158,34 +179,34 @@ class EndStopSquashTest {
 
             val press = Offset(bounds.right - 2f, bounds.center.y)
             scene.press(press)
-            val rest = scene.frames(Settle)
-            val atWall = requireNotNull(rest.thumbRun(bounds)) { "no thumb at the wall" }
-            val restLeading = rest.inkHeight(atWall.last - Probe, bounds)
-            val restTrailing = rest.inkHeight(atWall.first + Probe, bounds)
+            scene.frames(Settle)
 
             val past = Offset(bounds.right + Overshoot, bounds.center.y)
             walk(scene, press, past)
             val shot = scene.frames(2)
             val pushed = requireNotNull(shot.thumbRun(bounds)) { "no thumb while pushing" }
-            val leading = shot.inkHeight(pushed.last - Probe, bounds)
-            val trailing = shot.inkHeight(pushed.first + Probe, bounds)
+            // How fast each end climbs over the few pixels just inside it.
+            val leading = shot.inkHeight(pushed.last - FarProbe, bounds) -
+                shot.inkHeight(pushed.last - NearProbe, bounds)
+            val trailing = shot.inkHeight(pushed.first + FarProbe, bounds) -
+                shot.inkHeight(pushed.first + NearProbe, bounds)
             scene.release(past)
 
             assertTrue(
-                abs(leading - restLeading) <= Tolerance,
-                "${Probe}px inside the edge against the wall the thumb is " +
-                    "${leading}px tall pushed and ${restLeading}px tall at rest. " +
-                    "That edge is the one pressed into the stop and its cap is " +
-                    "what keeps the thumb concentric with the end it is touching " +
-                    "— it is the one part of the shape a squash must not move.",
+                leading > Curvature && trailing > Curvature,
+                "between ${NearProbe}px and ${FarProbe}px inside its ends the " +
+                    "squashed thumb grows ${leading}px at the end against the wall " +
+                    "and ${trailing}px at the other. An end that barely grows over " +
+                    "those pixels is already at full height at the first of them, " +
+                    "which is a straight vertical edge — the cut end that was " +
+                    "reported as looking odd rather than a curve.",
             )
             assertTrue(
-                trailing > restTrailing + Flattening,
-                "${Probe}px inside the trailing edge the thumb is ${trailing}px " +
-                    "tall pushed and ${restTrailing}px tall at rest. The squash " +
-                    "has to come off this end: a corner that stays as round as it " +
-                    "was means the thumb simply got smaller, which reads as " +
-                    "retreating from the wall rather than pressing into it.",
+                abs(leading - trailing) <= Curvature,
+                "the two ends grow ${leading}px and ${trailing}px over the same " +
+                    "few pixels. An ellipse is symmetric about its own centre; a " +
+                    "difference this large means one end is being treated " +
+                    "differently from the other.",
             )
         }
     }
@@ -664,14 +685,23 @@ class EndStopSquashTest {
          * radius, six pixels in is about two thirds of the height — and not so
          * far that a flattened corner has finished curving too.
          */
-        const val Probe = 6
+        /**
+         * Where the two columns of the shape test are read, inside each end.
+         *
+         * Close enough together that a straight edge has reached full height at
+         * both — a cut capsule's trailing radius is 6px, so 2px in is already
+         * inside its corner and 10px in is past it entirely — and far enough
+         * apart that an ellipse climbs about 26px between them.
+         */
+        const val NearProbe = 2
+        const val FarProbe = 10
 
-        /** A flattened corner is a lot taller than a round one, not a little. */
-        const val Flattening = 6
-
+        /** The least an end has to climb to count as curved rather than flat. */
+        const val Curvature = 10
 
         /** A third of a 240dp control at density 2, less its padding. Comfortably under a segment. */
         const val Segment = 120
+
 
         /**
          * Long enough to contain the whole of the return, sampled one at a time.

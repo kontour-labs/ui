@@ -20,6 +20,7 @@ import io.kontour.ui.sheet.rememberSheetState
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * A sheet's chrome against the status bar.
@@ -56,10 +57,24 @@ class SheetSafeAreaTest {
     /** The inset under test, in pixels. 40dp at 2x, about a phone's status bar. */
     private val insetPx = 80f
 
-    private class Measured(val sheetTop: Float, val contentTop: Float)
+    private class Measured(
+        val sheetTop: Float,
+        val contentTop: Float,
+        /**
+         * Where the content column's bottom edge lands, in window coordinates.
+         *
+         * The one quantity none of the sheet tests looked at, and the one the
+         * second report was about: the column was measured against the whole
+         * window and then placed a status bar down, so this came out a status bar
+         * *below* the window's own bottom edge. A scroller inside sizes its
+         * viewport to that, and its last rows are unreachable.
+         */
+        val contentBottom: Float,
+    )
 
     private fun measure(openAt: SheetDetent): Measured {
         var contentTop = Float.NaN
+        var contentBottom = Float.NaN
         var visible = Float.NaN
 
         val scene = ImageComposeScene(
@@ -90,9 +105,13 @@ class SheetSafeAreaTest {
                             Box(
                                 Modifier.onGloballyPositioned {
                                     contentTop = it.positionInRoot().y
+                                    contentBottom = contentTop + it.size.height
                                 }
                             ) {
-                                Column { Box(Modifier.height(400.dp)) { Text("body") } }
+                                // Taller than the window, which is the case that
+                                // matters: content that fits needs no scrolling
+                                // and cannot demonstrate an unreachable tail.
+                                Column { Box(Modifier.height(2000.dp)) { Text("body") } }
                             }
                         }
                     }
@@ -104,7 +123,7 @@ class SheetSafeAreaTest {
         } finally {
             scene.close()
         }
-        return Measured(canvasHeight - visible, contentTop)
+        return Measured(canvasHeight - visible, contentTop, contentBottom)
     }
 
     /**
@@ -133,6 +152,47 @@ class SheetSafeAreaTest {
             "the chrome landed at ${sheet.contentTop} rather than at the bottom " +
                 "of the inset band. Below it is under the status bar, which is " +
                 "what was reported; above it is a gap of bare sheet.",
+        )
+    }
+
+    /**
+     * And its content ends at the bottom of the window, not below it.
+     *
+     * Reported after the inset above shipped: a full-height sheet could not be
+     * scrolled to the end of its content. The column is shifted down by the part
+     * of the inset the sheet is under, and the measurement beneath it did not
+     * know — it took the whole container — so the column's bottom edge landed a
+     * status bar's worth below the window's, a `verticalScroll` inside sized its
+     * viewport to the oversized measurement, and at the end of its range the last
+     * rows were still off-screen.
+     *
+     * Invisible rather than obviously wrong, which is why nothing caught it:
+     * `Surface` clips, and the layout reports a shorter height than the placeable
+     * it places. So this measures the placed node itself rather than what it
+     * reports, and compares it against the window's own edge.
+     *
+     * A pixel of slack for the rounding — the reservation is a `Dp` resolved to
+     * whole pixels and the canvas is not.
+     */
+    @Test
+    fun aFullHeightSheetsContentEndsAtTheWindowsBottomEdge() {
+        val sheet = measure(SheetDetent.Full)
+
+        assertTrue(
+            sheet.contentBottom <= canvasHeight + 1f,
+            "the content column runs from ${sheet.contentTop} to " +
+                "${sheet.contentBottom} in a ${canvasHeight}px window, so " +
+                "${sheet.contentBottom - canvasHeight}px of it is below the " +
+                "bottom edge. A scroller inside measures its viewport from this, " +
+                "so that much of its content cannot be scrolled to at all.",
+        )
+        assertTrue(
+            sheet.contentBottom >= canvasHeight - 1f,
+            "the content column stops at ${sheet.contentBottom}, " +
+                "${canvasHeight - sheet.contentBottom}px short of the window's " +
+                "bottom edge — so the sheet is giving away room it has. The " +
+                "reservation is for the inset above the column, not below it; the " +
+                "bottom inset is applied inside it.",
         )
     }
 

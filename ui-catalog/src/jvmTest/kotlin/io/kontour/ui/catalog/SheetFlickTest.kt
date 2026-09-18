@@ -82,7 +82,40 @@ class SheetFlickTest {
      * so pixels-per-frame times sixty is pixels-per-second, and that is what
      * Compose's velocity tracker will read off the pointer events.
      */
-    private fun closedBy(pixelsPerFrame: Float, steps: Int = FlickSteps): Boolean {
+    /**
+     * A fling the list spent itself on does not close the sheet.
+     *
+     * The other half of the sensitivity report, and it has a mechanism rather than
+     * a threshold behind it. A scrollable inside a sheet is a nested-scroll child:
+     * Compose's fling behaviour cancels its decay on the first frame a delta is
+     * not fully consumed and hands the *rest* of the velocity up, and this
+     * connection declines anything that is not user input — so a list that runs
+     * out of content mid-fling passes very nearly the whole throw to the sheet.
+     * `WheelPicker`'s containment records the same leak and names the sheet as
+     * where it went.
+     *
+     * So the list starts **scrolled down**. The same downward flick now scrolls
+     * the list home first, reaches its top part way through, and hands the
+     * remainder over — a remainder well above the flick floor, which is why a
+     * velocity threshold alone does not cover this case. The reader was scrolling
+     * a list; the sheet has to stay where it is.
+     */
+    @Test
+    fun aFlingTheListSpentDoesNotCloseTheSheet() {
+        assertTrue(
+            !closedBy(pixelsPerFrame = FlickPerFrame, scrolledTo = ListStart),
+            "a flick that scrolled the sheet's list home and then ran out of " +
+                "content closed the sheet. The leftover velocity belongs to the " +
+                "list — the reader was scrolling it, and what it could not spend " +
+                "is not an instruction to take the sheet away.",
+        )
+    }
+
+    private fun closedBy(
+        pixelsPerFrame: Float,
+        steps: Int = FlickSteps,
+        scrolledTo: Int = 0,
+    ): Boolean {
         var state: SheetState? = null
         var visible by mutableStateOf(true)
         var everHidden = false
@@ -106,7 +139,7 @@ class SheetFlickTest {
                         Modifier
                             .fillMaxWidth()
                             .height(300.dp)
-                            .verticalScroll(rememberScrollState())
+                            .verticalScroll(rememberScrollState(initial = scrolledTo))
                     ) {
                         Box(Modifier.fillMaxWidth().height(900.dp).background(Color.LightGray))
                     }
@@ -143,15 +176,33 @@ class SheetFlickTest {
         /**
          * The same travel spread over enough frames to be a haul, not a throw.
          *
-         * Twenty, which is 180px/s. Eight was the first guess and it is not slow:
-         * 450px/s still projects past the half-way mark once the finger has
-         * already carried the sheet 40% of the way, so the sheet closed and the
-         * control proved nothing. A crawl has to be a crawl.
+         * **Eight, which is 450px/s, and it is back to eight deliberately.** It
+         * was raised to twenty — 180px/s — because 450 closed the sheet: the
+         * projection had no floor, so once the finger had carried the sheet 40% of
+         * the way a nudge was enough to finish it. Detuning the control around
+         * that hid the defect the reader then reported from a phone.
+         *
+         * So the control is a real slow drag again, and it is now the assertion
+         * that the sheet's flick floor is doing its job: 450px/s is 225dp/s
+         * at this scene's density, under the 500dp/s floor, so it gets no opinion
+         * from the projection and settles by position. Reverting the floor fails
+         * this test, which is the point of it.
          */
-        const val CrawlRatio = 20
+        const val CrawlRatio = 8
         const val CrawlPerFrame = FlickPerFrame / CrawlRatio
 
         /** Short, because a flick is short. The travel is the pace, not the count. */
         const val FlickSteps = 4
+
+        /**
+         * Far enough down the list that a downward flick has somewhere to go.
+         *
+         * The content is 900dp inside a 300dp viewport at 2x, so the scroll range
+         * is 1200px. Starting at 300 leaves the list a few frames of travel — long
+         * enough that the flick is unmistakably the list's, short enough that it
+         * reaches the top well inside the fling and hands the remainder on, which
+         * is the handoff under test.
+         */
+        const val ListStart = 300
     }
 }

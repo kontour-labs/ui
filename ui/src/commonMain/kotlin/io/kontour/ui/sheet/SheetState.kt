@@ -717,8 +717,33 @@ class SheetState internal constructor(
      * intuitive one, so the ceiling stays there and is documented on
      * `SheetDefaults`.
      */
-    internal suspend fun settleWhereAimed(velocity: Float, spec: AnimationSpec<Float>) {
-        val aimed = detentAimedAt(velocity)
+    /**
+     * Whether the scrollable inside the sheet moved during the current gesture.
+     *
+     * Held on the state rather than on the connection because the connection is
+     * rebuilt on every recomposition of `BottomSheet` — it is not `remember`ed,
+     * unlike the wheel picker's — so a field on it would be forgotten mid-drag.
+     *
+     * Set in `onPostScroll`, read and cleared in `onPostFling`. What it is for is
+     * in `onPostFling`'s KDoc.
+     */
+    private var listScrolled: Boolean = false
+
+    /**
+     * How much of the last dispatch's delta the child was offered.
+     *
+     * Scratch for the pair above: `onPreScroll` writes it, `onPostScroll` reads it
+     * one call later in the same dispatch. Not snapshot state — nothing composes
+     * from it and it changes every frame of every drag.
+     */
+    private var offeredToChild: Float = 0f
+
+    internal suspend fun settleWhereAimed(
+        velocity: Float,
+        spec: AnimationSpec<Float>,
+        minVelocity: Float,
+    ) {
+        val aimed = detentAimedAt(velocity, minVelocity)
         if (aimed == null) anchoredState.settle(spec) else anchoredState.animateTo(aimed)
     }
 
@@ -731,14 +756,35 @@ class SheetState internal constructor(
      * composition. `SheetSettleTest` reads this; the animation is Foundation's
      * and is covered by the sheet's own gesture tests.
      *
-     * Null means "no opinion" — no anchors, no velocity, or a projection that
-     * lands nowhere allowed — and the caller falls back to settling by position,
-     * which is what the sheet has always done.
+     * Null means "no opinion" — no anchors, nothing that counts as a flick, or a
+     * projection that lands nowhere allowed — and the caller falls back to
+     * settling by position, which is what the sheet has always done.
+     *
+     * ### [minVelocity] is the whole of "a flick has to be one"
+     *
+     * The first version of this had no floor at all, and said so in as many
+     * words: the only guard was `velocity == 0f`, exact equality. That is a
+     * threshold of one pixel per second, and it is why the sheet became too easy
+     * to close.
+     *
+     * The reason it was left out was sound and incomplete. A *velocity* threshold
+     * of the usual kind gives "one detent per flick however hard", which is the
+     * behaviour the projection exists to replace. But a floor on whether the
+     * projection is consulted at all is a different thing: above it the response
+     * is still continuous in the throw and still skips detents, and below it a
+     * finger coming to rest settles by position exactly as it always did.
+     *
+     * What made the absence bite is that a flick's velocity is not the only thing
+     * carrying the sheet. `onPostScroll` has already dragged it part of the way,
+     * so the projection only has to cover the remainder — measured in
+     * `SheetFlickTest`, 450px/s was enough once the finger had carried the sheet
+     * 40% of the way, against the ~1260px/s the same sheet needs from rest.
      */
-    internal fun detentAimedAt(velocity: Float): SheetDetent? {
+    internal fun detentAimedAt(velocity: Float, minVelocity: Float): SheetDetent? {
         val from = anchoredState.offset
         val anchors = anchoredState.anchors
-        if (from.isNaN() || anchors.size == 0 || velocity == 0f) return null
+        if (from.isNaN() || anchors.size == 0) return null
+        if (abs(velocity) < minVelocity) return null
 
         val projected = SheetFlingDecay.calculateTargetValue(from, velocity)
         var aimed: SheetDetent? = null
@@ -779,6 +825,7 @@ class SheetState internal constructor(
      */
     internal fun nestedScrollConnection(
         settleSpec: AnimationSpec<Float>,
+        flickVelocity: Float,
     ): NestedScrollConnection =
         object : NestedScrollConnection {
 
@@ -790,6 +837,10 @@ class SheetState internal constructor(
                 val offered = delta - paid
                 // Dragging up, sheet not yet expanded: the sheet takes it first.
                 val taken = if (offered < 0f) anchoredState.dispatchRawDelta(offered) else 0f
+                // What the child is about to be offered, remembered so the
+                // callback below can tell how much of it the child wanted. The
+                // two are one dispatch, so nothing can arrive in between.
+                offeredToChild = offered - taken
                 return (paid + taken).toOffset()
             }
 
@@ -802,6 +853,10 @@ class SheetState internal constructor(
                 // takes the remainder and starts to close.
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
                 val offered = available.y
+                // **Did the list move?** The difference between what the child
+                // was offered and what it declined, which is how the sheet knows
+                // whose gesture this is when the fling arrives. See `onPostFling`.
+                if (offeredToChild != offered) listScrolled = true
                 // ...as far as it is allowed to go, and no further. A sheet with
                 // a form in it is dragged by its content as often as by its
                 // handle, so the floor has to hold here too.
@@ -831,18 +886,58 @@ class SheetState internal constructor(
                     !expandedOffset.isNaN() &&
                     offset > expandedOffset
                 ) {
-                    settleWhereAimed(available.y, settleSpec)
+                    settleWhereAimed(available.y, settleSpec, flickVelocity)
                     available
                 } else {
                     Velocity.Zero
                 }
             }
 
+            /**
+             * What the inner scrollable's fling did not want.
+             *
+             * **A fling the list spent itself on is not a sheet flick**, and this
+             * is where that had to be said. The callback above carries the rule
+             * and four guards; this one, which is where *every downward flick
+             * actually lands*, had none — it projected whatever velocity arrived,
+             * from whoever.
+             *
+             * The velocity that arrives is large, too. Compose's fling behaviour
+             * cancels its decay on the first frame a delta is not fully consumed
+             * and hands up the *instantaneous* velocity, and this connection
+             * declines everything that is not `UserInput` — so that frame
+             * consumes nothing and a list passes on very nearly the whole throw.
+             * `WheelPicker`'s containment records the same handoff from the other
+             * side and names the sheet as what it leaked into.
+             *
+             * So [listScrolled] decides, and **not [consumed]**, which was the
+             * first attempt and does not work: the decay loses a frame's worth of
+             * velocity before it cancels, about 6% of the throw, so `consumed` is
+             * non-zero even when the list absorbed nothing at all. It failed the
+             * deliberate 3600px/s flick, which is the gesture this whole path
+             * exists for.
+             *
+             * What separates the two cases is whether the **list moved**. A reader
+             * who scrolled a list and let go was moving the list, and its
+             * leftovers are not an instruction to the sheet. A reader whose list
+             * was already at its top never moved it, and their flick is the
+             * sheet's to answer — which is exactly the case the projection was
+             * added for.
+             */
             override suspend fun onPostFling(
                 consumed: Velocity,
                 available: Velocity,
             ): Velocity {
-                settleWhereAimed(available.y, settleSpec)
+                val wasTheList = listScrolled
+                // The gesture is over either way, and `onDragStopped` always
+                // reaches here — with a zero velocity if the finger simply
+                // stopped — so this is the reliable place to forget it.
+                listScrolled = false
+                if (wasTheList) {
+                    anchoredState.settle(settleSpec)
+                } else {
+                    settleWhereAimed(available.y, settleSpec, flickVelocity)
+                }
                 return available
             }
 
@@ -1028,6 +1123,38 @@ private fun List<SheetDetent>.firstDetent(): SheetDetent =
  * be an allocation on every recomposition of every sheet in an app.
  */
 private val SheetFlingDecay: DecayAnimationSpec<Float> = exponentialDecay()
+
+/**
+ * How fast a gesture has to be leaving the glass to count as a flick.
+ *
+ * Per second, so it is a velocity written as the distance one second of it would
+ * cover. Below this a release settles by `SheetDefaults.PositionalThreshold`
+ * exactly as it always has; above it the velocity is projected and the sheet goes
+ * where the throw was aimed, skipping detents on the way if the throw was hard
+ * enough. See [SheetState.detentAimedAt].
+ *
+ * **500dp/s, and the number is a correction rather than a first guess.** The
+ * projection shipped with no floor at all — the only guard was an exact comparison
+ * against zero — and a sheet became closable by a gesture that was barely one.
+ * Reported as flicking being too sensitive, *"especially if I've just scrolled to
+ * the top of a list within the sheet"*, which is the case where the drag has
+ * already carried the sheet most of the way and the velocity only has to cover
+ * what is left.
+ *
+ * Three measurements put it here. `SheetFlickTest` records 225dp/s closing a sheet
+ * the finger had already carried 40% of the way, which had to stop — that pace is
+ * now the test's slow control. The same file's deliberate flick is 1800dp/s and
+ * has to go on working. And Compose's own `AnchoredDraggableMinFlingVelocity`, the
+ * bar for "this was thrown rather than released", is 125dp/s — so this is four
+ * times what the platform calls a fling, which is about the difference between a
+ * finger leaving the glass and a finger throwing something.
+ *
+ * Here rather than on `SheetDefaults`, for the reason [SheetTopGap] is: it is a
+ * fact about how a hand moves, not a number a brand restyles, and the literals
+ * ratchet in `check-components.py` counts the ones that sit in a `Defaults`
+ * object as knobs somebody is expected to reach for.
+ */
+internal val SheetFlickVelocity: Dp = 500.dp
 
 /**
  * How far short of the screen's edge a sheet stops.

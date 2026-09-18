@@ -92,6 +92,50 @@ object SegmentedControlDefaults {
  * 22dp circle, so it needs far less proportional stretch than a slider's does
  * before it reads as give.
  */
+/**
+ * The range a segmented control's thumb centre can occupy, which is where refusal
+ * begins.
+ *
+ * **Not the track.** The finger's accumulator was clamped to `0..trackWidth` and
+ * the band was handed whatever fell outside it, so nothing was refused until the
+ * finger reached the track's *edge*. The thumb had stopped half a segment earlier,
+ * at the last segment's centre — and the control already knew, because the lean is
+ * clamped to these same two bounds and is exactly zero once the thumb has arrived.
+ * So from the last centre to the track's edge, 30dp on a 60dp segment, the lean
+ * was pinned, the thumb was still, and the band got nothing.
+ *
+ * Reported as *"I still feel like I have to drag it a bit further once it hits its
+ * end stop before it starts squashing"*, and that is the whole of it: half a
+ * segment of finger that bought nothing at all.
+ *
+ * Clamping to this instead puts the two limits back together. The squash begins on
+ * the first pixel past the point the thumb stopped, and because the lean is
+ * already zero there the handoff from stretching to squashing leaves no step in
+ * the drawn width. `Slider`, `RangeSlider` and `Switch` have always clamped to the
+ * travel they actually have; this control clamped to the track.
+ *
+ * Selection is unaffected: `selectAt` buckets `x / trackWidth`, and the last centre
+ * still falls in the last bucket.
+ *
+ * A file-level function rather than a local one so it can be asserted without a
+ * gesture — the deformation it drives is a `scaleX` under a drop shadow, and a
+ * rendered width at these depths is ±8px of gradient against about 5px of signal.
+ * `SegmentedThumbTravelTest` has the numbers.
+ *
+ * Degenerate widths fall back to the track: with one option the centre is the only
+ * place the thumb can be, and `0f..trackWidth` at least lets a press land.
+ */
+internal fun segmentedThumbTravel(
+    trackWidth: Float,
+    options: Int,
+): ClosedFloatingPointRange<Float> {
+    val track = trackWidth.coerceAtLeast(0f)
+    if (options <= 0) return 0f..track
+    val half = track / options / 2f
+    if (half * 2f >= track) return 0f..track
+    return half..(track - half)
+}
+
 private const val MaxSegmentStretch = 0.2f
 
 /**
@@ -506,6 +550,7 @@ fun SegmentedControl(
          * per-segment, and `detectHorizontalDragGestures` waits for touch slop,
          * so a press that never travels is still a tap on the segment under it.
          */
+
         fun selectAt(x: Float) {
             if (trackWidth <= 0f) return
             val fraction = (x / trackWidth).coerceIn(0f, 1f)
@@ -589,11 +634,37 @@ fun SegmentedControl(
                         // `Switch`, `Slider` and `RangeSlider` all do it this
                         // way already: clamp the accumulator, hand the band the
                         // remainder. This control was the one that did not.
+                        val before = fingerX
                         val raw = fingerX + offered
                         fingerX = raw.coerceIn(0f, trackWidth.coerceAtLeast(0f))
                         selectAt(fingerX)
                         if (!motion.reduceMotion && options.isNotEmpty()) {
-                            band.pull(raw - fingerX, endStopTravelPx)
+                            // **Refused against the thumb's reach, not the
+                            // track's edge.** See [segmentedThumbTravel]: the
+                            // thumb stops at the last segment's centre, half a
+                            // segment before the track ends, and refusing from
+                            // the edge meant half a segment of finger bought
+                            // nothing at all.
+                            //
+                            // `fingerX` itself stays clamped to the **track**,
+                            // and that is not an oversight. It means "where the
+                            // finger is", which is what `selectAt` buckets and
+                            // what the lean measures from — clamping it to the
+                            // thumb's travel instead loses the difference for the
+                            // rest of the gesture, so a press in the outer half
+                            // of the first segment shifted every later frame by
+                            // that much and put the two holds of
+                            // `SegmentedThumbDragTest`'s lean case on different
+                            // segments.
+                            //
+                            // The *increase* in how far past the reach the finger
+                            // has got, because `pull` is incremental — handing it
+                            // a running total is the compounding that made this
+                            // control impossible to drag back.
+                            val travel = segmentedThumbTravel(trackWidth, options.size)
+                            val was = before - before.coerceIn(travel)
+                            val now = fingerX - fingerX.coerceIn(travel)
+                            band.pull(now - was, endStopTravelPx)
                         }
                     },
                     onEnd = {
