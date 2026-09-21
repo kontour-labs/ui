@@ -141,11 +141,16 @@ private const val MaxSegmentStretch = 0.2f
 /**
  * How much of its width the thumb loses pushing into an end of the track.
  *
- * **The one place that does not take the library's 0.25.** `Switch` and
- * `SliderThumb` both squash a quarter off a 24dp thumb, which is 6dp; this thumb
+ * **The one place that does not take the library's 0.2.** `Switch` and
+ * `SliderThumb` both squash a fifth off a 24dp thumb, which is 4.8dp; this thumb
  * is a whole segment wide, so 0.16 of it is already several times that in
  * pixels. A squash worth having is worth being the same size everywhere, and on
  * a control this much larger "the same size" is not the same fraction.
+ *
+ * Nearly the library's fraction now and still not taking it, which is the point
+ * rather than an accident: the two numbers landing close together is arithmetic
+ * about two thumb sizes, not one rule. Were the thumb constant to move again this
+ * one would not follow it.
  *
  * Smaller than [MaxSegmentStretch] rather than equal to it, and the asymmetry is
  * the point: a stretch has a whole segment of empty track to grow into and a

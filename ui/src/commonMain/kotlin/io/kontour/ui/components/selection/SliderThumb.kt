@@ -131,20 +131,30 @@ internal fun DrawScope.sliderThumb(
     val squashLimit = EndStopTravel.toPx()
     val pull = if (squashLimit <= 0f) 0f else (abs(squashPx) / squashLimit).coerceIn(0f, 1f)
 
-    // **Measured from the thumb at rest, not from the thumb as it currently is.**
+    // **Measured off the thumb's own width, which is not the same as its resting
+    // diameter once it is being held.**
     //
-    // It was a fraction of the drawn width, which on a thumb that has already
-    // grown under the finger cancels out: at 1.25x grown and 0.16 squashed the
-    // arithmetic came back *above* the resting size, so pushing into a wall
-    // could not make the thumb smaller than the circle it is at rest. Reported
-    // on `Switch`, which had the same bug in the same shape, and true here.
+    // It was a fraction of the *drawn* width, which on a thumb already grown
+    // under the finger cancels out: at 1.25x grown and 0.16 squashed the
+    // arithmetic came back above the resting size, so pushing into a wall could
+    // not make the thumb smaller than the circle it is at rest. That was
+    // reported on `Switch` and fixed by targeting a fraction off the resting
+    // diameter instead — which was right there and wrong here, because a held
+    // slider thumb is nothing like its resting diameter. It is `2·r·aspect`:
+    // 12dp of radius, 1.25 of press scale and 1.5 of aspect is **45dp wide**,
+    // where twice the resting radius is 24. A quarter off the latter is an 18dp
+    // target, so a full push took 45dp to 18 — 60% of the thumb, against
+    // `Switch`'s 25 for the same gesture and the same constant. Reported as the
+    // slider deforming far too much, and it is the reference frame rather than
+    // the constant that was wrong.
     //
-    // So the target is a fixed [ThumbSquash] off the resting diameter and the
-    // drawn width travels to it as the band comes out. At rest it is exactly the
-    // stretch above, at full pull it is narrower than the thumb has ever been,
-    // and in between it tracks the finger.
+    // So the target is [ThumbSquash] off the thumb's own **natural** width: what
+    // it is drawn at in this frame before the reach stretch, which is `halfWidth`
+    // doubled. On a thumb nobody is touching that is exactly the resting
+    // diameter, so `Switch` is unaffected and the two now deform by the same
+    // fraction of themselves — 45dp to 36 here, 24dp to 19.2 there.
     val width = stretchedRight - stretchedLeft
-    val target = width + (radiusPx * 2f * (1f - ThumbSquash) - width) * pull
+    val target = width + (halfWidth * 2f * (1f - ThumbSquash) - width) * pull
     // Pinned against whichever end was pushed into: the leading edge stays on the
     // wall and the trailing one comes in to meet it, so the thumb visibly
     // shortens against the stop and springs back out of it. `Switch` does the
@@ -201,9 +211,9 @@ internal fun DrawScope.sliderThumb(
  *
  * **Four radii, one per corner.** The cap against the wall kept the resting
  * radius and the trailing corners shrank. *"That is not half a circle, it is a
- * chopped end"* — at 18dp across and 30dp tall the trailing radius works out at
- * 3dp against the leading 15dp, and the straight edges between them are what
- * reads as a cut.
+ * chopped end"* — at the 18dp across and 30dp tall the depth then gave, the
+ * trailing radius works out at 3dp against the leading 15dp, and the straight
+ * edges between them are what reads as a cut.
  *
  * **One ellipse, both ends.** *"Make it squash more to a vertical ellipse
  * pressed up against the end stop, rather than flattening the end."* An ellipse
@@ -265,25 +275,37 @@ internal fun DrawScope.sliderThumb(
  *
  * ### [WallCapShare], and why the cap is not always the full radius
  *
- * A cap of the resting radius is as wide as the thumb is **tall**, so on a thumb
- * squashed narrower than its own height it can eat the whole width and leave the
- * free side a flat back — a half moon, which is the chopped end again by another
- * route. A held slider thumb is 18dp across and 30dp tall at a full squash, and
- * an unclamped cap would take 15 of the 18.
+ * A cap of the resting radius is as wide as the thumb is **tall**, so a box
+ * squashed to less than three halves of that radius would have the cap eat the
+ * whole width and leave the free side a flat back — a half moon, which is the
+ * chopped end again by another route. So the cap is the resting radius *or*
+ * [WallCapShare] of the width, whichever is smaller.
  *
- * So the cap is the resting radius *or* [WallCapShare] of the width, whichever is
- * smaller. A thumb that rests as a **circle** never reaches that clamp — a
- * quarter off a circle is exactly the limit — so `Switch` keeps a truly circular
- * cap at every depth, and only a long capsule ever gives any of it back.
+ * **Nothing this library draws reaches that clamp**, and it is the arithmetic that
+ * says so rather than the eye: a full squash leaves `1.6·r·aspect` across a `2·r`
+ * height, so the clamp would need `1.6·r·aspect < 1.5·r` and the aspect never
+ * goes below 1. It stays because this is a primitive that takes a **box** — a
+ * caller is free to hand it one narrower than any control here does. Under the
+ * older quarter it sat exactly on the limit for a thumb resting as a circle,
+ * which was two constants meeting rather than a rule.
+ *
+ * ### Which branch each control takes
+ *
+ * The egg is `Switch`'s shape and the capsule is the sliders'. A switch's thumb
+ * rests as a circle, so [ThumbSquash] off it is an egg from the first pixel of
+ * squash. A held slider's is `SliderDefaults.ThumbAspect` times as wide as it is
+ * tall before the squash starts — 45dp against 30 — and a fifth off that leaves
+ * 36, so it narrows and stays a round rect. The path below is reached on a slider
+ * only where the aspect is under 1.25: the opening frames of a press, and reduced
+ * motion, where the thumb never lengthens at all.
  *
  * ### Two primitives where it can, a path where it cannot
  *
  * The capsule branch is still a round rect on Skia's RRect fast path, and the
  * cap's exact quarter turns are still an `arcTo` on its own ellipse. Only the
  * eased part is sampled, from a table of fixed angles with no trigonometry at
- * draw time, and only while a finger is pressed into an end stop — which is the
- * one moment a thumb is not a capsule. At rest and in flight nothing here
- * allocates.
+ * draw time, and only where a squash has taken the thumb narrower than its own
+ * height. At rest and in flight nothing here allocates.
  *
  * ### The ring
  *
@@ -401,11 +423,14 @@ internal fun squashedOutlinePoint(cap: Float, far: Float, half: Float, i: Int): 
  * the thumb becomes a half moon — the chopped end the ellipse was brought in to
  * remove.
  *
- * It is a ceiling rather than a share: for a thumb that rests as a **circle** the
- * cap is the resting radius at every depth this library squashes to, because a
- * [ThumbSquash] off a circle lands exactly on the limit and never past it. Only a
- * thumb that rests as a long capsule — a held slider's — ever gives any of its
- * cap back, and then only over the last quarter of the pull.
+ * It is a ceiling rather than a share, and at [ThumbSquash] nothing reaches it:
+ * the narrowest box any control hands [squashedCapsule] is `1.6·r` across a `2·r`
+ * height, and two thirds of 1.6 is comfortably above 1. So every squashed thumb
+ * in the library keeps a cap of the full resting radius, which is what makes the
+ * pressed end concentric with the arc it is pressed into. The clamp stays because
+ * this is a drawing primitive that takes a box rather than a control that takes a
+ * constant: hand it something narrower and the free side still reads as a curve
+ * instead of a flat back.
  */
 private const val WallCapShare: Float = 2f / 3f
 
@@ -484,19 +509,33 @@ private val SquashEase = FloatArray(SquashSteps + 1) {
  * How much narrower than its resting self a thumb gets, pushed all the way into
  * a wall.
  *
- * 0.25, the same as `Switch`'s thumb and `SegmentedControl`'s indicator, and
- * deliberately the same rather than coincidentally: a squash is a squash, and
- * controls in one library that deform by visibly different amounts under the
- * same gesture is the class of inconsistency `SliderThumb` exists to remove for
- * the two sliders. Written out in each of the three because they share no other
- * arithmetic.
+ * A fifth, shared with `Switch`'s thumb deliberately rather than coincidentally:
+ * a squash is a squash, and controls in one library that deform by visibly
+ * different amounts under the same gesture is the class of inconsistency
+ * `SliderThumb` exists to remove for the two sliders. Written out in both because
+ * they share no other arithmetic.
  *
- * It was 0.16 *of the drawn width*, which on a thumb already grown under the
- * finger came out wider than the thumb at rest — so the deepest push produced
- * something that was not visibly a squash at all. A quarter off the **resting**
- * width is about 6dp on a 24dp thumb, which reads from across a room.
+ * It was a quarter, and on a slider it was not a quarter of anything the reader
+ * could see: the target was a fraction off the *resting* diameter while the thumb
+ * being squashed was the held capsule, 45dp wide against 24. That put a full push
+ * at 18dp — 60% of the thumb gone, against `Switch`'s 25 for the same gesture and
+ * the same constant. Reported as the slider deforming far too much. Both halves
+ * of that are fixed: the reference frame above, and a fifth here rather than a
+ * quarter.
+ *
+ * ### What a fifth costs, and it is worth knowing
+ *
+ * A thumb only becomes an **egg** once it is narrower than it is tall, and a held
+ * slider thumb is `ThumbAspect` — 1.5 — times as wide as it is tall before the
+ * squash starts. So it would have to give up a third of itself to get there, and
+ * a third is not the *"only really needs to deform a bit"* this was asked for: at
+ * a fifth it lands at 36dp against the 30 it is tall, narrowed and still a
+ * capsule. `Switch`'s thumb rests as a circle, so it is an egg from the first
+ * pixel of squash. Both give the same fraction of themselves, which is the part
+ * that has to be consistent; what that fraction *looks* like is the control's own
+ * proportions and not something to correct for.
  */
-private const val ThumbSquash: Float = 0.25f
+private const val ThumbSquash: Float = 0.2f
 
 /**
  * How far past a stop a finger travels for a full deformation.

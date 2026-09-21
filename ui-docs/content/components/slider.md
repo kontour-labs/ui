@@ -50,21 +50,37 @@ stops answering, which reads as the control having broken rather than as having
 finished. The part of the push the clamp refused goes into a rubber band, at
 diminishing returns, and comes back as the thumb shortening along the axis of the
 push with its leading edge pinned to the wall. It springs back on release, and it
-widens into its resting circle on the way rather than out through the capsule it
-was let go from.
+comes home by **narrowing** the rest of the way rather than out through the
+full-width capsule it was let go from: letting go unwinds the band and the press
+growth at once, so there is nothing in the return that is wider than the thumb
+you were holding.
 
-Squashed it is a **vertical ellipse**, which took two goes. It grew at first, and
-that was the wrong shape entirely: the band was summed into the stretch that
-makes a thumb reach toward where it is trying to get to, and at an end stop there
-is nowhere it is trying to get to — so the thumb elongated backwards, away from
-the stop it had just run into. Then it shortened correctly but kept the cap
-against the wall and flattened the *other* end, which at 18dp across and 30dp
-tall leaves a 3dp radius against a 15dp one: a cut end rather than a squash. An
-ellipse has no end to cut, is symmetric, and stays curved where it touches the
-track — which is the part that reads as pressing rather than as retreating.
-`Switch` gives at its ends the same way and by the same proportion of itself;
-`SegmentedControl`'s thumb is a whole segment wide and can never approach a
-circle, so it keeps compressing from its trailing side.
+**It gives a fifth of itself, and it stays a capsule doing it.** This is the
+control the depth was reported on, twice. It grew at first, which was the wrong
+shape entirely: the band was summed into the stretch that makes a thumb reach
+toward where it is trying to get to, and at an end stop there is nowhere it is
+trying to get to — so the thumb elongated backwards, away from the stop it had
+just run into. Then it squashed far too hard. The target was a fraction off the
+thumb's *resting* diameter while the thumb being squashed is the one under your
+finger, which is half as wide again: 45dp held, against 24 at rest. A quarter off
+the latter is an 18dp target, so a full push took 60% of the thumb and turned a
+handle into a sliver, where a switch gave 25% for the same gesture and the same
+constant.
+
+Measured off the thumb's own width and at a fifth rather than a quarter, a full
+push leaves 36dp against the 30 it is tall. It narrows, and it is still a capsule
+at the bottom of the push — which is the point rather than a shortfall. A thumb
+only becomes an egg once it is narrower than it is tall, and this one would have
+to give up a third of itself to get there. A third is not a bit of deformation.
+
+The shape of the squash is [`Switch`](switch.md)'s to explain, because a switch's
+thumb rests as a circle and is the shape at its most visible: the end against the
+wall keeps that circle and only the free side eases in. A slider's thumb reaches
+it under reduced motion, where it never lengthens into a capsule in the first
+place. `Switch` gives the same fraction of itself by the same rule;
+`SegmentedControl`'s thumb is a whole segment wide, can never approach a circle,
+and keeps its own smaller fraction for a reason [its own page](segmented-control.md)
+has.
 
 **Pass `stateDescription`.** Without it the announcement is a bare percentage,
 which is rarely what the number means.

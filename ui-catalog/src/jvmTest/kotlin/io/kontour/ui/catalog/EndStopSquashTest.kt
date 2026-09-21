@@ -115,60 +115,34 @@ class EndStopSquashTest {
     }
 
     /**
-     * A squashed thumb is an egg: round against the wall, squashed on the far side.
+     * A slider's thumb narrows under a push and **does not pass the circle**.
      *
-     * The rest of this file asks how *wide* the thumb is. This asks what shape it
-     * is, and it is the half a width measurement cannot see.
+     * The amplitude, which is the half the shape tests cannot see. It was a
+     * quarter off the *resting* diameter while the thumb being squashed was the
+     * held capsule — 45dp wide against a resting 24, so the target came out at
+     * 18dp and a full push took 60% of the thumb, against `Switch`'s 25 for the
+     * same gesture and the same constant. Reported as the slider deforming far
+     * too much.
      *
-     * ### Three shapes, each one the answer to the last
+     * A fifth off the thumb's **own** width now, which on this control lands it
+     * at 36dp against the 30dp it is tall: narrowed, and still a capsule. That is
+     * the point of this test rather than an admission — a thumb only becomes an
+     * egg once it is narrower than it is tall, and a held slider thumb would have
+     * to give up a third of itself to get there. The egg is `Switch`'s business,
+     * where the thumb rests as a circle and is one from the first pixel of
+     * squash; `SwitchGeometryTest` and `SquashedThumbOutlineTest` are where its
+     * shape is pinned.
      *
-     * It was **four radii**, the cap against the wall keeping the resting radius
-     * and the trailing corners shrinking — *"only the half of the circle that's on
-     * the opposite side to the way the user is dragging gets squashed"*. That
-     * shipped and came back: held and fully squashed the thumb is 18dp across and
-     * 30dp tall, so the trailing radius works out at 3dp against the leading 15.
-     * Half a circle against a corner that is nearly square is a cut, not a squash.
-     *
-     * Then **one ellipse**, both ends — *"make it squash more to a vertical
-     * ellipse pressed up against the end stop, rather than flattening the end."*
-     * An ellipse has no end to chop. But it goes pointy on the end that is
-     * *touching*, and a ball pressed into a wall does not: *"we want to keep the
-     * side of the head that's pressed up against the edge circular, but we want to
-     * squash the other side in a bit."*
-     *
-     * So now the wall side keeps the cap it rests as and only the free side
-     * squashes. This test is what stops the next change from quietly going back to
-     * either of the first two.
-     *
-     * ### Measured as an implied radius at each end
-     *
-     * A column `d` pixels inside an end has an ink height, and half of that is how
-     * far the outline has climbed from the tip. An end that is an arc of radius `R`
-     * gives `h² = 2Rd - d²`, so every column implies an `R` — and the two ends
-     * implying **different** ones is the whole claim.
-     *
-     * | | wall end | free end | free ÷ wall |
-     * |---|---|---|---|
-     * | four radii, a cut at the free end | 30px | 6px | 0.2 |
-     * | one ellipse, what this replaces | 48px | 48px | 1.0 |
-     * | an egg | 42.5px | 86.5px | **2.0** |
-     *
-     * The free end reading *larger* is not a mistake. A tall narrow half ellipse
-     * is flat where it is widest and sharp where it is tallest — the opposite way
-     * round from how it reads at a glance — so squashing the free side flattens
-     * its tip and leaves the wall's cap the rounder of the two. What matters is
-     * that the two disagree at all: one ellipse cannot, because the same ellipse
-     * is at both ends of it.
-     *
-     * Measured on the *fill* rather than the silhouette, because the ring around
-     * it is the page's own colour and the page is what "ink" is measured against.
-     * Which is the honest thing to measure anyway: it is the inner shape that a
-     * reader sees as the thumb.
+     * So the two ends here should imply the **same** radius — two intact caps —
+     * where the shape that went too far read 42.5px against 86.5px.
      */
     @Test
-    fun aSquashedThumbIsAnEggAndNotAnEllipse() {
+    fun aSquashedSliderThumbNarrowsWithoutPassingTheCircle() {
         var value by mutableStateOf(0.5f)
         var bounds = Rect.Zero
+        var held = 0
+        var squashed = 0
+        var tall = 0
         var wallEnd = 0f
         var freeEnd = 0f
 
@@ -186,31 +160,39 @@ class EndStopSquashTest {
 
             val press = Offset(bounds.right - 2f, bounds.center.y)
             scene.press(press)
-            scene.frames(Settle)
+            held = requireNotNull(scene.frames(Settle).thumbRun(bounds)) {
+                "no thumb found held at the end of the track"
+            }.width()
 
             val past = Offset(bounds.right + Overshoot, bounds.center.y)
             walk(scene, press, past)
             val shot = scene.frames(2)
             val pushed = requireNotNull(shot.thumbRun(bounds)) { "no thumb while pushing" }
+            squashed = pushed.width()
+            tall = shot.inkHeight((pushed.first + pushed.last) / 2, bounds)
             wallEnd = shot.impliedRadius(pushed.last - Probe, bounds, Probe)
             freeEnd = shot.impliedRadius(pushed.first + Probe, bounds, Probe)
             scene.release(past)
         }
 
         assertTrue(
-            freeEnd > wallEnd * EndRatio,
-            "pushed into the stop, the thumb's wall end implies a radius of " +
-                "${wallEnd}px and its free end ${freeEnd}px, a ratio of " +
-                "${freeEnd / wallEnd}. One ellipse implies the same at both and comes " +
-                "out at 1.0 — which is the shape that squashed the end it was " +
-                "pressing against as hard as the end it was not. A cut free end " +
-                "comes out below 1 the other way",
+            squashed < held - Tolerance,
+            "held at the end of its track the thumb is ${held}px wide and pushed " +
+                "past it ${squashed}px — it did not give at all",
         )
         assertTrue(
-            wallEnd > CutEnd,
-            "the wall end implies a radius of ${wallEnd}px. The end against the wall " +
-                "is the one that keeps the cap it rests as, so this is the reading " +
-                "that catches a squash eating into it",
+            squashed >= tall,
+            "pushed past the end the thumb is ${squashed}px wide against ${tall}px " +
+                "tall, so it has narrowed past the circle and become an egg. A " +
+                "fifth off its own width should not get there; a third would, and " +
+                "a third is not the bit of deformation this is supposed to be",
+        )
+        assertTrue(
+            abs(freeEnd - wallEnd) <= wallEnd * EndsAlike,
+            "the thumb's wall end implies a radius of ${wallEnd}px and its free " +
+                "end ${freeEnd}px. While it is still a capsule both ends are the " +
+                "same cap, so these have to agree — they read 42.5 against 86.5 " +
+                "when the squash was deep enough to make an egg of it",
         )
     }
 
@@ -396,27 +378,6 @@ class EndStopSquashTest {
     }
 
     /**
-     * And it goes on squashing for as long as the finger goes on pushing.
-     *
-     * The report: *"it feels like there's just 2 states at the moment: squashed
-     * or normal"*. It very nearly was. The band's limit was a fraction of the
-     * thumb — about 6.6dp on a slider, 6dp on a switch — and a finger crosses
-     * that inside one frame, so the deformation went from nothing to everything
-     * between two renders and stayed there however much further the hand went.
-     *
-     * Four depths rather than two, because two cannot tell a gradient from a
-     * step: `aSliderThumbShortensAgainstTheEndOfItsTrack` above passes on the
-     * old arithmetic and always did. Each of these has to be visibly narrower
-     * than the one before it, which on the old limit is false from the second
-     * sample on — 32px past the stop was already at the clamp.
-     *
-     * The depths are not evenly spaced and should not be. The response is
-     * `1 - exp(-travel / EndStopTravel)`, so even steps of *finger* would give
-     * ever-smaller steps of *thumb* and the last pair would come down to
-     * antialiasing. These are roughly even in the fraction they reach — about a
-     * fifth, a half, three quarters, and most of the way.
-     */
-    /**
      * Letting go does not pass through the full-width pill on the way home.
      *
      * Reported, of the slider: *"make sure it smoothly animates back to the
@@ -430,18 +391,19 @@ class EndStopSquashTest {
      * still `2r·1.5`: the thumb left its squashed 1.5r, went **through** the
      * full 3r pill, and only then came home to 2r. See `Slider`'s `thumbReturn`.
      *
-     * ### Sampled every frame, and the resting width is the line
+     * ### Sampled every frame, and bounded at both ends
      *
      * The excursion is a handful of frames wide, so a test that looks at the
      * shape once after letting go will miss it — the first attempt at this
      * sampled every few frames and read 30, 40, 30, 36 against a resting 36,
-     * which is the defect but only barely. This walks the frames one at a time
-     * and takes the widest.
+     * which is the defect but only barely. This walks the frames one at a time.
      *
-     * The line is the thumb's own resting width, measured before anything is
-     * touched, plus the usual tolerance. A thumb coming out of a squash is
-     * *narrower* than resting and has to grow back to it; what it must not do is
-     * overshoot on the way, and after the fix the arithmetic peaks 3% over.
+     * The lines are the two widths the thumb has been: it must not go above the
+     * width it was **held** at, and it must not dip below its **resting** one.
+     * Both rather than one, because a fifth off its own width leaves a squashed
+     * slider thumb wider than the circle it rests as — so the release comes home
+     * by *narrowing*, and a ceiling at the resting width alone would be broken by
+     * every frame of a perfectly good return. See `SliderThumb`'s `ThumbSquash`.
      */
     @Test
     fun aReleasedThumbDoesNotSwellPastItsRestingWidth() {
@@ -466,15 +428,23 @@ class EndStopSquashTest {
 
             val press = Offset(bounds.right - 2f, bounds.center.y)
             scene.press(press)
+            // Against the **held** width, not the resting one. A held thumb is
+            // half as wide again as the circle it rests as, and the squash is a
+            // fifth of *that* — so a squashed thumb under a finger is still
+            // wider than an untouched one, and always was on this control. See
+            // `ThumbSquash`.
+            val held = requireNotNull(scene.frames(Settle).thumbRun(bounds)) {
+                "no thumb found held at the end of the track"
+            }.width()
             val pushedTo = Offset(bounds.right + Overshoot, bounds.center.y)
             walk(scene, press, pushedTo)
             val squashed = requireNotNull(scene.frames(2).thumbRun(bounds)) {
                 "no thumb found while pushing past the end of the track"
             }.width()
             assertTrue(
-                squashed < resting,
+                squashed < held,
                 "the thumb was ${squashed}px wide pushed into the end stop against " +
-                    "${resting}px at rest, so the gesture never squashed it and " +
+                    "${held}px held there, so the gesture never squashed it and " +
                     "there is no release for this to be measuring",
             )
 
@@ -485,35 +455,34 @@ class EndStopSquashTest {
                 }.width()
             }
 
+            // **Between the two widths it was, and past neither.** The thumb was
+            // held at `held` and squashed to `squashed`; letting go unwinds the
+            // band *and* the press growth at once, so it comes home by narrowing
+            // rather than by widening — which is why this is bounded at both ends
+            // rather than asserted monotone. A release that re-inflates the
+            // stretch it was let go from goes above `held`; one that overshoots
+            // its destination dips below `resting`. Either is the full-width pill
+            // that was reported, in one direction or the other.
             val widest = path.max()
             assertTrue(
-                widest <= resting + Tolerance,
-                "on the way back from a squash the thumb reached ${widest}px " +
-                    "against a resting width of ${resting}px. It starts this " +
+                widest <= held + Tolerance,
+                "on the way back from a squash the thumb reached ${widest}px, " +
+                    "wider than the ${held}px it was ever held at. It starts this " +
                     "journey at ${squashed}px and its destination is ${resting}px, " +
-                    "so anything wider is the stretch it was let go from " +
-                    "re-inflating it — the full-width pill that was reported. " +
+                    "so anything above the width it was squashed *from* is the " +
+                    "stretch re-inflating it. The widths, frame by frame: $path",
+            )
+            assertTrue(
+                path.min() >= resting - Tolerance,
+                "on the way back the thumb narrowed to ${path.min()}px, past its " +
+                    "resting ${resting}px, and had to come back out. " +
                     "The widths, frame by frame: $path",
             )
             assertTrue(
                 abs(path.last() - resting) <= Tolerance,
                 "the thumb finished at ${path.last()}px rather than back at its " +
                     "resting ${resting}px, so it has not animated home at all and " +
-                    "the assertion above proves nothing",
-            )
-
-            // And it only ever widens, which is the report in its own words:
-            // *"smoothly animates back to the little circle"* rather than out to
-            // something and back. A pixel of slack for the rounding — the run is
-            // counted in whole columns off a rendered frame.
-            val wentBack = path.zipWithNext().firstOrNull { (a, b) -> b < a - 1 }
-            assertTrue(
-                wentBack == null,
-                "the thumb went from ${wentBack?.first}px to ${wentBack?.second}px " +
-                    "on its way back from the end stop, so it widened past where " +
-                    "it was going and came back — which is the full-width pill " +
-                    "even when the peak stays under the resting width. " +
-                    "The widths, frame by frame: $path",
+                    "the assertions above prove nothing",
             )
         }
     }
@@ -578,15 +547,21 @@ class EndStopSquashTest {
             // the one being tested.
             val press = Offset(bounds.left + bounds.width * 0.7f, bounds.center.y)
             scene.press(press)
+            // Against the **held** width. See the slider's version above: a held
+            // thumb is wider than the circle it rests as, and a fifth off it is
+            // still wider than that circle.
+            val held = requireNotNull(scene.frames(Settle).thumbRun(bounds, rightHalf)) {
+                "no thumb found held in the right half of the control"
+            }.width()
             val pushedTo = Offset(bounds.right + Overshoot, bounds.center.y)
             walk(scene, press, pushedTo)
             val squashed = requireNotNull(scene.frames(2).thumbRun(bounds, rightHalf)) {
                 "no thumb found while pushing past the end of the track"
             }.width()
             assertTrue(
-                squashed < resting,
+                squashed < held,
                 "the end thumb was ${squashed}px wide pushed past the end of the " +
-                    "track against ${resting}px at rest, so the band was never " +
+                    "track against ${held}px held there, so the band was never " +
                     "charged and there is no release for this to be measuring",
             )
 
@@ -597,26 +572,54 @@ class EndStopSquashTest {
                 }.width()
             }
 
+            // Bounded at both ends rather than asserted monotone — see the
+            // slider's version above for why letting go narrows rather than
+            // widens.
             val widest = path.max()
             assertTrue(
-                widest <= resting + Tolerance,
-                "on the way back from a squash the end thumb reached ${widest}px " +
-                    "against a resting width of ${resting}px. It starts at " +
+                widest <= held + Tolerance,
+                "on the way back from a squash the end thumb reached ${widest}px, " +
+                    "wider than the ${held}px it was ever held at. It starts at " +
                     "${squashed}px and its destination is ${resting}px, so " +
-                    "anything wider is the stretch it was let go from re-inflating " +
-                    "it. The widths, frame by frame: $path",
+                    "anything above the width it was squashed *from* is the stretch " +
+                    "re-inflating it. The widths, frame by frame: $path",
             )
-            val wentBack = path.zipWithNext().firstOrNull { (a, b) -> b < a - 1 }
             assertTrue(
-                wentBack == null,
-                "the end thumb went from ${wentBack?.first}px to " +
-                    "${wentBack?.second}px on its way home, so it widened past " +
-                    "where it was going and came back. The widths, frame by " +
+                path.min() >= resting - Tolerance,
+                "on the way back the end thumb narrowed to ${path.min()}px, past " +
+                    "its resting ${resting}px. The widths, frame by frame: $path",
+            )
+            assertTrue(
+                abs(path.last() - resting) <= Tolerance,
+                "the end thumb finished at ${path.last()}px rather than back at " +
+                    "its resting ${resting}px, so it has not animated home at all " +
+                    "and the assertions above prove nothing. The widths, frame by " +
                     "frame: $path",
             )
         }
     }
 
+    /**
+     * And it goes on squashing for as long as the finger goes on pushing.
+     *
+     * The report: *"it feels like there's just 2 states at the moment: squashed
+     * or normal"*. It very nearly was. The band's limit was a fraction of the
+     * thumb — about 6.6dp on a slider, 6dp on a switch — and a finger crosses
+     * that inside one frame, so the deformation went from nothing to everything
+     * between two renders and stayed there however much further the hand went.
+     *
+     * Four depths rather than two, because two cannot tell a gradient from a
+     * step: `aSliderThumbShortensAgainstTheEndOfItsTrack` above passes on the
+     * old arithmetic and always did. Each of these has to be visibly narrower
+     * than the one before it, which on the old limit is false from the second
+     * sample on — 32px past the stop was already at the clamp.
+     *
+     * The depths are not evenly spaced and should not be. The response is
+     * `1 - exp(-travel / EndStopTravel)`, so even steps of *finger* would give
+     * ever-smaller steps of *thumb* and the last pair would come down to
+     * antialiasing. These are roughly even in the fraction they reach — about a
+     * fifth, a half, three quarters, and most of the way.
+     */
     @Test
     fun aSliderThumbSquashesFurtherTheFurtherItIsPushed() {
         var value by mutableStateOf(0.5f)
@@ -799,22 +802,13 @@ class EndStopSquashTest {
         const val Probe = 4
 
         /**
-         * How much flatter the free end has to read than the wall end.
+         * How far apart the two ends may read and still be the same cap.
          *
-         * Measured at 2.0 — 86.5px against 42.5. One ellipse gives exactly 1,
-         * because it is the same ellipse at both ends, so 1.5 sits between them
-         * with room for the antialiasing on either reading.
+         * A capsule's ends are one radius, so the two readings differ only by
+         * what antialiasing does to a three-pixel half-height. A fifth is
+         * comfortably inside that and nowhere near the 2.0 an egg gives.
          */
-        const val EndRatio = 1.5f
-
-        /**
-         * The least the wall end may imply and still be the cap it rests as.
-         *
-         * Measured at 42.5px, against the 6px a 3dp corner implied when the free
-         * end was a cut and the wall end the only round thing left. Thirty is
-         * clear of both.
-         */
-        const val CutEnd = 30f
+        const val EndsAlike = 0.2f
 
         /** A third of a 240dp control at density 2, less its padding. Comfortably under a segment. */
         const val Segment = 120

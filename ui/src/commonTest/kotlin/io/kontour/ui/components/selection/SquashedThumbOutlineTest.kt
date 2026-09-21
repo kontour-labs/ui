@@ -188,9 +188,19 @@ class SquashedThumbOutlineTest {
         const val NearTheCap = 0.06f
         const val Tolerance = 1e-3f
 
+        /**
+         * The switch's thumb at a full squash, and a deeper one than ships.
+         *
+         * A 24dp circle giving a fifth of itself is 19.2dp across a 12dp cap, so
+         * the free side reaches 7.2. The second case is deeper *and* taller than
+         * any control asks for, because this is the outline's geometry rather than
+         * one control's numbers — a slider's thumb used to land there and no
+         * longer does: a fifth off its own width leaves it 36dp against the 30 it
+         * is tall, so it stays a capsule and never takes this path at all.
+         */
         val Cases = listOf(
-            "switch 18x24" to Triple(12f, 6f, 12f),
-            "slider 18x30" to Triple(12f, 6f, 15f),
+            "switch 19.2x24" to Triple(12f, 7.2f, 12f),
+            "deeper than ships, 18x30" to Triple(12f, 6f, 15f),
         )
     }
 }

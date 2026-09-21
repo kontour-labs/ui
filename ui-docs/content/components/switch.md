@@ -43,6 +43,18 @@ the cap is concentric for.
 Squashed, the thumb is inside the circle it rests as at every point, so it never
 comes closer to the track than a resting thumb does.
 
+**It gives a fifth of itself** — 4.8dp off a 24dp thumb — and a
+[`Slider`](slider.md)'s thumb gives the same fifth of *its* own width. It was a
+quarter, which read correctly here and far too deep there: the slider was
+measuring it off the thumb's resting diameter while squashing the much wider thumb
+under the finger, so one constant came out at 60% on one control and 25% on the
+other. Both take it off the width they are drawn at now, and the depth came down
+with the fix — *"it only really needs to deform a bit"*. A switch's thumb rests as
+a circle, so it is an egg from the first pixel of squash; a slider's is half as
+wide again while you hold it, so it narrows and stays a capsule. The same fraction
+of two different shapes, which is the consistency worth having — matching what the
+deformation *looks* like would mean two rules.
+
 **The stretch is the travel, not a second animation about it.** It is taken from
 how fast the thumb is going, so it grows as the thumb sets off, is widest where
 the thumb is quickest, and is gone by the time it arrives — one movement. Driven

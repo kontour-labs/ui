@@ -189,10 +189,11 @@ class SwitchGeometryTest {
      * can go while both edges are still two clean colours.
      *
      * On this control the cap is *exactly* the resting radius at every depth —
-     * a quarter off a circle lands on `WallCapShare`'s limit and never past it —
-     * so the two columns that matter are identical rather than merely close. That
-     * is also what makes the pressed end concentric with the track's end arc: a
-     * 12dp cap pinned 2dp inside a 14dp arc shares its centre.
+     * `WallCapShare` would clamp it below two thirds of the squashed width and a
+     * fifth off a circle leaves 19.2dp, two thirds of which is 12.8 against a
+     * 12dp cap — so the two columns that matter are identical rather than merely
+     * close. That is also what makes the pressed end concentric with the track's
+     * end arc: a 12dp cap pinned 2dp inside a 14dp arc shares its centre.
      */
     @Test
     fun theWallEndKeepsTheCircleItRestsAs() {

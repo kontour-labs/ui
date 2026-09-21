@@ -58,13 +58,21 @@ private const val ThumbStretch = 1.25f
 /**
  * How much narrower than its resting self the thumb gets at a full end stop.
  *
- * A quarter — 6dp off a 24dp thumb — the same as `SliderThumb` and
- * `SegmentedControl`, and deliberately so: a squash is a squash. It was a sixth
- * *of the stretched width*, which is where the report came from. The stretch is
- * up to 1.25x and 1.25 x 0.84 is 1.05, so the hardest push into a wall produced
- * a thumb slightly **wider** than the circle it rests at.
+ * A fifth — 4.8dp off a 24dp thumb — the same as `SliderThumb`, and deliberately
+ * so: a squash is a squash. It was a sixth *of the stretched width*, which is
+ * where the report came from. The stretch is up to 1.25x and 1.25 x 0.84 is 1.05,
+ * so the hardest push into a wall produced a thumb slightly **wider** than the
+ * circle it rests at.
+ *
+ * Then it was a quarter, which on this control was 6dp and read correctly, and on
+ * a slider read as far too much — the slider was measuring it off a resting
+ * diameter while squashing a thumb half as wide again, so the same constant came
+ * out at 64% there against 25 here. That is fixed at the reference frame rather
+ * than here, and the depth came down with it: *"it only really needs to deform a
+ * bit"*, and a fifth is a deformation you read as one without the thumb becoming
+ * a different shape.
  */
-private const val ThumbSquash = 0.25f
+private const val ThumbSquash = 0.2f
 
 /**
  * The speed, in track-fractions per second, at which the stretch is full.
@@ -547,7 +555,7 @@ fun Switch(
         //
         // The target is a fixed [ThumbSquash] off the resting width whatever the
         // press did, and the drawn width travels to it as the band comes out: at
-        // rest it is the stretch above, at a full push it is 18dp on a 24dp
+        // rest it is the stretch above, at a full push it is 19.2dp on a 24dp
         // thumb, and in between it tracks the finger.
         val pull = if (thumbSquashPx <= 0f) {
             0f
