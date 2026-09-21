@@ -440,10 +440,48 @@ fun Switch(
                             // declined the change.
                             dragging = false
                             crossing.reset()
-                            // Bouncy rather than snappy, matching `pressStretch`
-                            // above: a switch is small enough that a little
-                            // overshoot reads as rubber rather than as wobble.
-                            band.release(motion.springOrTween(motion.springBouncy))
+                            // **Gentle, so the squash outlives the stretch
+                            // rather than racing it.**
+                            //
+                            // This was `springBouncy`, matched to `pressStretch`
+                            // above on the reasoning that a switch is small
+                            // enough for a little overshoot to read as rubber.
+                            // Matching the *token* is not matching the timing:
+                            // they are two `Animatable`s, started at two moments
+                            // — the band here, the press when the interaction
+                            // source reports the lift — so the band was spent
+                            // while the press growth was still on its way down.
+                            //
+                            // The drawn width interpolates *from* the stretched
+                            // width toward the squash target, so a spent band
+                            // draws whatever the stretch has left, which is wider
+                            // than resting. Reported as the two animations
+                            // conflicting, and measured at 4x: held 120px,
+                            // squashed 87, resting 96, and a release that went
+                            // 87, 90, 97, 101, **103**, 100, 96 — seven pixels
+                            // out past the circle the thumb rests as, then back.
+                            // On a control whose thumb *is* a circle at rest that
+                            // is the head inflating after the finger has gone.
+                            //
+                            // A gentle release is slower than the press collapse
+                            // and does not overshoot, so the stretch is gone
+                            // before the squash is and the width comes home from
+                            // **below**: 87, 88, 89, 90, 90, 89, 89, 90 … 96,
+                            // peaking at exactly resting.
+                            //
+                            // **And the rule was already written down.**
+                            // `RangeSlider`'s band note says it in as many words
+                            // — *"`band.release` runs on `springGentle` so the
+                            // stretch gets home before the squash unwinds, which
+                            // is what keeps a released thumb from passing back
+                            // out through the full-width pill"* — and `Slider`
+                            // and `WheelPicker` both release that way too. This
+                            // was the one control that did not, and it had a
+                            // comment explaining the choice, which is how it
+                            // survived. `SegmentedControl` is snappy and
+                            // correctly so: its thumb has no press growth to be
+                            // outlived by.
+                            band.release(motion.springOrTween(motion.springGentle))
                         },
                     )
                 } else {
@@ -492,6 +530,18 @@ fun Switch(
         val thumbPx = ThumbSize.toPx().coerceAtMost(size.width)
         val interior = (size.width - paddingPx * 2f).coerceAtLeast(0f)
         val room = (interior - thumbPx).coerceAtLeast(0f)
+
+        /**
+         * How much of the end stop's rubber band is charged, 0 to 1.
+         *
+         * Read before the stretch rather than after it, because the stretch is
+         * now capped by it — see [stretchedWidth] below.
+         */
+        val charged = if (thumbSquashPx <= 0f) {
+            0f
+        } else {
+            (abs(band.offset) / thumbSquashPx).coerceIn(0f, 1f)
+        }
 
         /**
          * The other half of the stretch, read from the thumb's own speed.
@@ -557,12 +607,8 @@ fun Switch(
         // press did, and the drawn width travels to it as the band comes out: at
         // rest it is the stretch above, at a full push it is 19.2dp on a 24dp
         // thumb, and in between it tracks the finger.
-        val pull = if (thumbSquashPx <= 0f) {
-            0f
-        } else {
-            (abs(band.offset) / thumbSquashPx).coerceIn(0f, 1f)
-        }
-        val thumbWidth = stretchedWidth + (thumbPx * (1f - ThumbSquash) - stretchedWidth) * pull
+        val thumbWidth =
+            stretchedWidth + (thumbPx * (1f - ThumbSquash) - stretchedWidth) * charged
         // Pinned against whichever end was pushed into: on the right, the lost
         // width comes off the left edge.
         val left = reached + if (band.offset > 0f) stretchedWidth - thumbWidth else 0f
