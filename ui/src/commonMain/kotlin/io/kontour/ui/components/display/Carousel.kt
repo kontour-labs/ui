@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
@@ -40,15 +39,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -60,6 +62,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.action.ButtonSize
@@ -202,7 +205,19 @@ fun rememberCarouselState(pageCount: () -> Int): CarouselState {
  * @param contentDescription What the set of pages *is* — "Stop photos". Required:
  *   "1 of 5" without it is a count of nothing.
  * @param pageSpacing The gap between pages. Part of the snap distance, so it
- *   belongs here rather than in the caller's own padding.
+ *   belongs here rather than in the caller's own padding. Ignored by
+ *   [CarouselStyle.Wipe], whose two pages have to meet along one edge — a gap
+ *   between them would be a strip of whatever is behind the carousel, moving.
+ * @param parallax How far a page's content travels with the wipe, from `0` for
+ *   not at all to `1` for the whole page width, and clamped to that range. Only
+ *   [CarouselStyle.Wipe] reads it, and `0` is the plain wipe: the page holds
+ *   still and the edge moves over it. Around `0.2` to `0.3` gives the content a
+ *   drift behind the edge without it arriving from off screen; `1` is a slide
+ *   seen through a moving window.
+ *
+ *   **Ignored under reduced motion**, which is the whole of what that setting
+ *   can sensibly take away here — the edge itself is the style rather than an
+ *   embellishment on it.
  */
 @Composable
 fun Carousel(
@@ -210,6 +225,8 @@ fun Carousel(
     contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    style: CarouselStyle = CarouselStyle.Slide,
+    parallax: Float = 0f,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     pageSpacing: Dp = Theme.spacing.xs,
     previousLabel: String = Theme.strings.previous,
@@ -219,6 +236,24 @@ fun Carousel(
     val scope = rememberCoroutineScope()
     val count = state.count
     val current = state.currentPage
+    val direction = LocalLayoutDirection.current
+    // **Parallax is the one part of a wipe a reader can turn off**, and the
+    // standing rule that a transform which *moves* has to ask for itself is why
+    // it is read here rather than left to a spec. `Motion`'s helpers shorten a
+    // movement and cannot make one smaller, and none of them applies at all to a
+    // transform whose input is a finger.
+    //
+    // The wipe's own offset is not gated with it and cannot be: it is what puts a
+    // page in the frame, so taking it away is not less motion but a different
+    // style. That is the right way round anyway — a wipe holds its content still
+    // and moves one edge across it, which is *less* movement than the strip a
+    // `Slide` pulls past the window, and it is a page's content drifting
+    // underneath that edge for decoration that reduced motion names.
+    //
+    // Coerced rather than required: this is the kind of number a caller animates
+    // or reads from a setting, and a carousel that throws at `1.02` on one frame
+    // of a spring is worse than one that draws `1`.
+    val drift = if (Theme.motion.reduceMotion) 0f else parallax.coerceIn(0f, 1f)
 
     // One tick per page crossed **under a finger**, and none for a page reached
     // any other way.
@@ -323,17 +358,129 @@ fun Carousel(
         state = state.listState,
         userScrollEnabled = enabled,
         contentPadding = contentPadding,
-        horizontalArrangement = Arrangement.spacedBy(pageSpacing),
+        horizontalArrangement = Arrangement.spacedBy(
+            if (style == CarouselStyle.Wipe) 0.dp else pageSpacing,
+        ),
         // Snapping rather than free scroll: a carousel that stops between two
         // pages is showing neither, and the indicator below it is then lying
         // whatever it says.
         flingBehavior = firmSnapFlingBehaviour(state.listState),
     ) {
         items(count) { page ->
-            Box(Modifier.fillParentMaxWidth()) { content(page) }
+            Box(
+                Modifier
+                    .fillParentMaxWidth()
+                    .then(
+                        if (style == CarouselStyle.Wipe) {
+                            Modifier.wipe(state, page, drift, direction)
+                        } else {
+                            Modifier
+                        }
+                    )
+            ) { content(page) }
         }
     }
 }
+
+/** How a [Carousel] gets from one page to the next. */
+enum class CarouselStyle {
+    /**
+     * The pages are a strip, and the strip slides under the viewport.
+     *
+     * What a carousel is by default and what a finger expects: the outgoing page
+     * leaves to one side at exactly the speed the incoming one arrives from the
+     * other, and halfway through you are looking at half of each.
+     */
+    Slide,
+
+    /**
+     * The pages are stacked in one place, and the edge between them moves.
+     *
+     * Two boxes trading width: the page you are leaving keeps the near part of
+     * the frame and the page you are arriving at takes the far part, and neither
+     * of them goes anywhere. At rest one page has the whole frame and the other
+     * is not drawn at all, which is the difference you can see in a still —
+     * [Slide] at rest looks the same and is a strip that happens to be aligned.
+     *
+     * Right for pages that are **one picture each**, where a slide reads as a
+     * filmstrip being pulled past a slot and this reads as the picture itself
+     * changing. Wrong for pages with structure — a form, a list — where holding
+     * the text still while a hard edge crosses it is harder to read than moving
+     * it out of the way.
+     *
+     * `parallax` gives the content back some of its travel without giving up the
+     * edge; see [Carousel]'s parameter. The gesture, the snap and everything the
+     * carousel announces are the same either way: this changes where the pixels
+     * go and nothing else.
+     */
+    Wipe,
+}
+
+/**
+ * Draws this page in the frame the settled page occupies, clipped to its share.
+ *
+ * **The layout is untouched**, which is the whole trick: the `LazyRow` still
+ * lays the pages out as a strip, still snaps, still measures the pitch two real
+ * items apart for [CarouselState.pagePosition]. All this does is put the page
+ * back where a settled page sits and cut it down to the part of the frame it has
+ * won — so the scroll, the fling, the accessibility actions and the indicator
+ * all work on the strip they were written for.
+ *
+ * `d` is how many pages ahead of the viewport this one is, fractionally: `0` is
+ * settled, `-0.4` is four tenths of the way out, and anything at or past a whole
+ * page is off screen and not drawn. The share of the frame is `1 - |d|`, and
+ * **which end of the frame it sits at** is what separates the two pages: the one
+ * being left keeps the near end, the one arriving takes the far end, and they
+ * tile the frame between them with no seam and no overlap.
+ *
+ * `pin` is the offset that puts the page back in the frame. It is the one place
+ * the layout direction enters: `pagePosition` counts pages in reading order and
+ * a right-to-left row lays them out the other way, so the same `d` is the
+ * opposite distance on screen. Everything after it is physical — `clipRect` and
+ * `translationX` both are — so "near end" flips with it too.
+ *
+ * Two modifiers rather than one because they want different coordinate spaces.
+ * The clip belongs to the page's *box*, which is where the frame is measured
+ * from; the offset belongs to the page's *layer*, so that a button on a page
+ * can be pressed where it is drawn rather than where the strip put it. A single
+ * `drawWithContent` doing both would move the pixels and leave the touch
+ * targets behind.
+ */
+private fun Modifier.wipe(
+    state: CarouselState,
+    page: Int,
+    parallax: Float,
+    direction: LayoutDirection,
+): Modifier = this
+    .drawWithContent {
+        val width = size.width
+        val d = page - state.pagePosition
+        if (width <= 0f || kotlin.math.abs(d) >= 1f) return@drawWithContent
+        val pin = pagePin(d, width, direction)
+        val share = (1f - kotlin.math.abs(d)) * width
+        // Whether this page's share sits against the frame's left edge. The page
+        // being left keeps the near end, and in a right-to-left row the near end
+        // is the right one.
+        val near = (d <= 0f) != (direction == LayoutDirection.Rtl)
+        val from = if (near) 0f else width - share
+        val to = if (near) share else width
+        // `+ pin` because the clip is measured in the box the strip placed, and
+        // the frame is `pin` away from it.
+        clipRect(left = from + pin, right = to + pin) {
+            this@drawWithContent.drawContent()
+        }
+    }
+    .graphicsLayer {
+        // `direction` is handed in rather than read here: a `GraphicsLayerScope`
+        // carries a density and not a layout direction, and this is the one
+        // number in the block that does not change every frame anyway.
+        val d = page - state.pagePosition
+        translationX = pagePin(d, size.width, direction) * (1f - parallax)
+    }
+
+/** How far this page is from the frame a settled page sits in, in pixels. */
+private fun pagePin(d: Float, width: Float, direction: LayoutDirection): Float =
+    (if (direction == LayoutDirection.Rtl) d else -d) * width
 
 /**
  * Which page of how many, as a row of dots.
@@ -464,41 +611,15 @@ private fun PageDots(
     // Measured rather than derived from the dot size and the gap, because those
     // need not be the pitch.
     val dotCentre = remember(count) { FloatArray(count) }
-    val dotRadius = with(LocalDensity.current) { PageIndicatorDefaults.DotSize.toPx() / 2f }
-    // **How long the pill is when nothing is moving**, and the whole of the
-    // difference between the two travelling styles. A worm contracts to a dot,
-    // so at rest it says nothing about which page you are on; a pill stays wider
-    // than one, so it does.
-    val resting = if (style == PageIndicatorStyle.Pill) {
-        // `ActiveWidth` is what it is *for* — the width `Dots` widens a dot to —
-        // **capped at the pitch**, because this pill does not get a slot of its
-        // own. `Dots` reflows: the active dot takes 20dp and the 6dp gaps stay
-        // 6dp either side of it. Nothing reflows here, so at the default spacing
-        // a 20dp pill centred on a dot 14dp from the next one reaches that dot's
-        // near edge and the two draw as one shape touching at a point. Capped, it
-        // keeps `Gap / 2` of daylight, and a theme that spaces its dots further
-        // apart gets the full `ActiveWidth` back.
-        minOf(
-            PageIndicatorDefaults.ActiveWidth,
-            PageIndicatorDefaults.DotSize + PageIndicatorDefaults.Gap,
-        )
-    } else {
-        PageIndicatorDefaults.DotSize
-    }
-    // How far the resting pill hangs past the dot it rests on, either side.
+    // And how wide each one ended up, which is the other half of its box.
     //
-    // The first and last dot sit at the ends of the row, so without this the pill
-    // draws outside the indicator's own bounds — and is cut off by whatever clips
-    // next, which at the left edge of a screen is the screen. Three dp at the
-    // default spacing, and none at all for the styles whose pill is dot-sized.
-    val overhang = ((resting - PageIndicatorDefaults.DotSize) / 2).coerceAtLeast(0.dp)
-    val restingWidth = with(LocalDensity.current) { resting.toPx() }
-    // The same figure in pixels. The dots are measured *inside* the reserved
-    // room and the tap arrives *outside* it — `positionInParent` is relative to
-    // a parent's content, and a padding modifier is not part of that — so one of
-    // the two has to cross, and it is cheaper for the gesture to cross than for
-    // every dot to.
-    val inset = with(LocalDensity.current) { overhang.toPx() }
+    // The pill is drawn as the **hull of the two dots it spans**, so it needs
+    // both. Reported rather than derived for the same reason the centres are:
+    // one dot in the row is a different width from the rest and which one that is
+    // changes under a spring, so the only figure that is certainly right is the
+    // one the layout just produced.
+    val dotWidth = remember(count) { FloatArray(count) }
+    val dotRadius = with(LocalDensity.current) { PageIndicatorDefaults.DotSize.toPx() / 2f }
     val position = if (travels) state.pagePosition else 0f
     // The gesture below outlives the composition that installed it, so the
     // handler has to be read at tap time rather than captured.
@@ -527,9 +648,10 @@ private fun PageDots(
                     // `fill` rather than the centring default because the dot
                     // centres are measured in the row's own space: filled, the
                     // reserved band *is* the row, so the x a tap arrives at and
-                    // the x `reportCentre` recorded are the same number. Centred,
+                    // the x `reportBox` recorded are the same number. Centred,
                     // they would differ by half the slack and only on the axis
-                    // where there is any.
+                    // where there is any — and a coordinate that is right except
+                    // on narrow strips is the kind that is found on a phone.
                     //
                     // The trade is honest and written down under
                     // `page-indicator.md`: a slice is narrower than WCAG 2.5.8's
@@ -540,12 +662,13 @@ private fun PageDots(
                         .pointerCursor(enabled = enabled)
                         .then(
                             if (enabled && count > 0) {
-                                Modifier.pointerInput(count, inset) {
+                                Modifier.pointerInput(count) {
                                     detectTapGestures { at ->
                                         var nearest = 0
                                         var best = Float.MAX_VALUE
                                         for (page in 0 until count) {
-                                            val away = kotlin.math.abs(dotCentre[page] + inset - at.x)
+                                            val x = dotCentre[page]
+                                            val away = kotlin.math.abs(x - at.x)
                                             if (away < best) {
                                                 best = away
                                                 nearest = page
@@ -562,10 +685,6 @@ private fun PageDots(
                     Modifier
                 }
             )
-            // Outside the draw below, so the pill is measured in the same space
-            // the dot centres were recorded in, and inside the band above, so
-            // every pixel of the reserved room still belongs to a page.
-            .padding(horizontal = overhang)
             .then(
                 if (travels && count > 0) {
                     Modifier.drawWithContent {
@@ -576,28 +695,38 @@ private fun PageDots(
                         val fraction = at - from
                         val a = dotCentre[from]
                         val b = dotCentre[to]
+                        if (a == 0f && b == 0f) return@drawWithContent
                         // The leading edge goes first and the trailing edge
                         // catches up, so the pill is at its longest halfway
                         // between the two dots. Both ends arriving together
                         // would just be a dot sliding.
-                        val lead = a + (b - a) * (fraction * 2f).coerceAtMost(1f)
-                        val trail = a + (b - a) * (fraction * 2f - 1f).coerceAtLeast(0f)
-                        if (a == 0f && b == 0f) return@drawWithContent
-                        // Measured from the pill's own resting length rather
-                        // than from the dot's diameter: a worm rests as a circle
-                        // and a pill rests wider than one, and both then stretch
-                        // by exactly the distance the leading edge is ahead of
-                        // the trailing one.
+                        val ahead = (fraction * 2f).coerceAtMost(1f)
+                        val behind = (fraction * 2f - 1f).coerceAtLeast(0f)
+                        val lead = a + (b - a) * ahead
+                        val trail = a + (b - a) * behind
+                        // **The pill is the hull of the two dots' own boxes**,
+                        // read at the same fractions its two ends are — so each
+                        // end is as thick as the dot it is currently over.
+                        //
+                        // It used to be a fixed resting length centred on a
+                        // point, and that was reported: a `Pill` rests over a dot
+                        // the row has widened to `ActiveWidth`, and a length
+                        // picked independently of that either hangs past it —
+                        // leaving half a gap on each side where every other gap
+                        // is whole — or has to be capped short of it, which is
+                        // the same unevenness with the pill as the small one.
+                        // Taken from the boxes, it rests *exactly* on the widened
+                        // dot at every spacing, and it can never leave the row.
+                        val wa = dotWidth[from]
+                        val wb = dotWidth[to]
+                        val leadHalf = (wa + (wb - wa) * ahead) / 2f
+                        val trailHalf = (wa + (wb - wa) * behind) / 2f
+                        val left = minOf(lead - leadHalf, trail - trailHalf)
+                        val right = maxOf(lead + leadHalf, trail + trailHalf)
                         drawRoundRect(
                             color = activeColour,
-                            topLeft = Offset(
-                                minOf(lead, trail) - restingWidth / 2f,
-                                (size.height - dotRadius * 2f) / 2f,
-                            ),
-                            size = Size(
-                                kotlin.math.abs(lead - trail) + restingWidth,
-                                dotRadius * 2f,
-                            ),
+                            topLeft = Offset(left, (size.height - dotRadius * 2f) / 2f),
+                            size = Size(right - left, dotRadius * 2f),
                             cornerRadius = CornerRadius(dotRadius),
                         )
                     }
@@ -621,9 +750,10 @@ private fun PageDots(
             // questions now.** They were one, and a worm answered the second
             // "none of them" — so it answered the first that way too, and a
             // screen reader heard a row of page buttons with none of them
-            // current. Only `Dots` widens a dot; every style has a current page.
+            // current. Every style has a current page; only [Worm] declines to
+            // widen a dot for it, which is what makes a worm a worm.
             val selected = page == current
-            val wide = selected && !travels
+            val wide = selected && style != PageIndicatorStyle.Worm
             val width by animateDpAsState(
                 targetValue = if (wide) {
                     PageIndicatorDefaults.ActiveWidth
@@ -649,11 +779,11 @@ private fun PageDots(
             }
 
             if (onPageSelect == null) {
-                Box(Modifier.reportCentre(dotCentre, page)) { dot() }
+                Box(Modifier.reportBox(dotCentre, dotWidth, page)) { dot() }
             } else {
                 Box(
                     modifier = Modifier
-                        .reportCentre(dotCentre, page)
+                        .reportBox(dotCentre, dotWidth, page)
                         // **Semantics, and no touch target of its own.** The
                         // strip's `pointerInput` above owns the pointer route and
                         // picks the nearest dot to where the finger landed; what
@@ -706,8 +836,10 @@ enum class PageIndicatorStyle {
      * which is why [CarouselState.pagePosition] exists.
      *
      * The pill contracts to a *dot* at each end, so at rest this looks exactly
-     * like an indicator with no current page at all. [Pill] is the same travel
-     * with a resting width, and is the default for that reason.
+     * like an indicator with no current page at all — and no dot is widened to
+     * make up for it, which is what keeps the row evenly spaced. [Pill] is the
+     * same travel over a row that does widen one, and is the default for that
+     * reason.
      */
     Worm,
 
@@ -727,9 +859,10 @@ enum class PageIndicatorStyle {
      * pill is drawn on top of the dots rather than in place of them, so the
      * selection is a fact about a dot again.
      *
-     * The narrowest of the three, and the widest the pill can rest at is the
-     * pitch: it draws over a slot the size of every other one rather than being
-     * given a slot of its own, so past that it would touch its neighbours.
+     * Its layout **is** [Dots]': the row widens the current dot to `ActiveWidth`
+     * exactly as that style does, and the pill at rest is that dot's own box. So
+     * the gaps are the one gap everywhere, the two styles are the same width, and
+     * switching between them moves nothing.
      */
     Pill,
 }
@@ -754,8 +887,14 @@ object PageIndicatorDefaults {
 
 
 /** Records this dot's centre, relative to the indicator row, for the worm. */
-private fun Modifier.reportCentre(into: FloatArray, index: Int): Modifier =
-    onGloballyPositioned { into[index] = it.positionInParent().x + it.size.width / 2f }
+private fun Modifier.reportBox(
+    centres: FloatArray,
+    widths: FloatArray,
+    index: Int,
+): Modifier = onGloballyPositioned {
+    centres[index] = it.positionInParent().x + it.size.width / 2f
+    widths[index] = it.size.width.toFloat()
+}
 
 /**
  * A snap with no coast in it.

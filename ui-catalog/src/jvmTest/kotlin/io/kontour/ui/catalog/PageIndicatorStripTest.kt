@@ -56,7 +56,7 @@ class PageIndicatorStripTest {
      * The bar is set at twice the ink rather than at the ink, because the strip
      * is allowed to reserve *something* — one band, 48dp tall, which on a strip
      * this narrow can also widen it to 48dp. What it is not allowed to do is
-     * multiply by the number of pages, which is the only way to get past 128dp
+     * multiply by the number of pages, which is the only way to get past 168dp
      * here and is what was reported.
      */
     @Test
@@ -213,9 +213,9 @@ class PageIndicatorStripTest {
         // are on until something moves.
         assertTrue(
             atRest >= RestingPill,
-            "the default rested as a ${atRest}px pill where a resting pill is " +
-                "${RestingPill}px and a dot is ${RestingPill * 4 / 7}px — so at rest " +
-                "it is drawing a worm's dot and nothing says which page is current",
+            "the default rested as a ${atRest}px pill where a widened dot is " +
+                "${RestingPill}px and a plain one is ${DotSize}px — so at rest it is " +
+                "drawing a worm's dot and nothing says which page is current",
         )
         assertTrue(
             midTravel > atRest * 1.4f,
@@ -282,21 +282,23 @@ class PageIndicatorStripTest {
         val AndroidTouchTarget: Dp = 48.dp
 
         /**
-         * Five 8dp dots with 6dp between them: `5 * 8 + 4 * 6`.
+         * Five dots with 8dp between them, one of them widened: `4 * 8 + 20 + 4 * 8`.
          *
          * The ink, and therefore the pitch the eye is aiming at.
          */
-        const val InkWidth = 64.0
+        const val InkWidth = 84.0
+
+        /** `PageIndicatorDefaults.DotSize`, 8dp, in scene pixels. */
+        const val DotSize = 16
 
         /**
          * How long the pill is at rest, in scene pixels.
          *
-         * `ActiveWidth` is 20dp, but the resting pill is capped at the pitch —
-         * `DotSize + Gap`, 14dp — because it draws over a slot the size of every
-         * other one and past that it touches its neighbours. 14dp at a density
-         * of 2, against 16px for the dot underneath it.
+         * `ActiveWidth`, 20dp, at a density of 2 — the pill is the hull of the
+         * dots it spans, and at rest it spans one, the one the row widened to
+         * exactly this. Against 16px for a dot that is not current.
          */
-        const val RestingPill = 28
+        const val RestingPill = 40
 
         /**
          * Pixels between samples across the band.

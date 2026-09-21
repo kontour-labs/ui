@@ -27,6 +27,10 @@ The default style rests like a widened dot and travels like a worm; the three
 styles and what separates them are under
 [carousel § indicator styles](carousel.md#indicator-styles).
 
+**The gap between dots is 8dp**, up from six. Six was set while every dot reserved
+48dp of row and the gap that was drawn was not the gap anyone saw; once the strip
+stopped doing that, six read as cramped — which it had been all along.
+
 ---
 
 ## Accessibility
@@ -37,26 +41,26 @@ default, so "Page 2 of 5" rather than a dot with no name.
 
 **The strip is one touch target, not one per dot.** That is the second version of
 this. Each dot used to carry its own `minimumTouchTarget()`, and on Android that
-reserves 48dp of row apiece — so five 8dp dots with 6dp between them, 64dp of ink,
-were laid out across 264dp and sat nearly four times further from each other than
-they looked. It was reported from a phone as the indicator feeling too spread out,
-and this page had the symptom written down as if it were a feature.
+reserves 48dp of row apiece — so five dots showing 52dp of ink were laid out
+across 264dp and sat five times further from each other than they looked. It was
+reported from a phone as the indicator feeling too spread out, and this page had
+the symptom written down as if it were a feature.
 
 So the duty moved up one level. The row reserves the minimum target once, as a
 full-height band the width of the dots, and a tap goes to whichever dot centre is
-nearest the finger. Nothing inside the band is dead — the 6dp gaps between the old
+nearest the finger. Nothing inside the band is dead — the gaps between the old
 48dp boxes selected nothing at all, which no one could see and everyone could feel.
 
-**What that trades.** A slice of the band is one dot's pitch wide, 14dp, where
-WCAG 2.5.8 asks for 24dp; the old layout cleared that and this does not. Two
-things make it the better arrangement anyway, and both are worth stating rather
-than implying:
+**What that trades.** A slice of the band is one dot's pitch wide — 16dp between
+two plain dots, rising to 22dp for the widened one — where WCAG 2.5.8 asks for
+24dp; the old layout cleared that and this does not. Two things make it the better arrangement anyway,
+and both are worth stating rather than implying:
 
 - the exact route is unaffected. Each dot's `onClick` lives in the semantics tree,
   which is what TalkBack and VoiceOver activate — a focused node, not a rectangle
   — and it costs no layout at all.
 - the slice is taller and contiguous where the target was square and isolated. An
-  8dp dot inside a 48dp box was never what anyone aimed at; a 14 × 48dp column
+  8dp dot inside a 48dp box was never what anyone aimed at; a 16 × 48dp column
   under the dot you can see is closer to what the gesture actually is.
 
 Where a 24dp target for each page is the requirement rather than the goal, pass

@@ -152,7 +152,15 @@ data class ComponentDefaults(
     // --- Display ---
     val pageIndicatorDotSize: Dp = 8.dp,
     val pageIndicatorActiveWidth: Dp = 20.dp,
-    val pageIndicatorGap: Dp = 6.dp,
+    /**
+     * Between two dots, and between the widened one and its neighbours.
+     *
+     * Eight rather than six, which is where it sat while the indicator reserved
+     * 48dp of row for every dot and the gap it drew was not the gap you saw. It
+     * stopped doing that and six read as cramped, which it always was — this is
+     * the same ratio to the dot that a platform indicator uses.
+     */
+    val pageIndicatorGap: Dp = 8.dp,
     val keyValueLabelWidth: Dp = 108.dp,
     val keyValueMinValueWidth: Dp = 96.dp,
     /** The blank between the end of a marquee's text and its repeat. */

@@ -57,6 +57,43 @@ make a sustained one. So:
 A carousel with a decorative indicator and no arrows is operable by exactly one
 input method, and the app has four.
 
+### Page styles
+
+**`CarouselStyle.Slide` is the default**: the pages are a strip and the strip
+moves under the viewport, which is what a finger expects and what a carousel has
+always been.
+
+**`CarouselStyle.Wipe` is two boxes trading width.** Neither page moves. The one
+you are leaving keeps the near part of the frame, the one you are arriving at
+takes the far part, and the edge between them follows the finger — at rest one
+page has the whole frame and the other is not drawn at all.
+
+```kotlin
+Carousel(
+    carousel,
+    contentDescription = "Stop photos",
+    style = CarouselStyle.Wipe,
+    parallax = 0.3f,
+) { page -> Image(photos[page]) }
+```
+
+Reach for it when each page is **one picture**: a slide reads as a filmstrip
+pulled past a slot, and a wipe reads as the picture itself changing. Avoid it for
+pages with structure — a form, a list — where holding the text still while a hard
+edge crosses it is harder to follow than moving it out of the way.
+
+`parallax` gives the content back some of its travel without giving up the edge:
+`0` is the plain wipe, `0.2`–`0.3` is a drift behind the edge, `1` is a slide
+seen through a moving window. It is **ignored under reduced motion**, which is
+the whole of what that setting can sensibly remove here — the edge is the style,
+and a wipe already moves less than the strip a slide pulls past the window.
+
+`pageSpacing` is ignored by a wipe, whose two pages have to meet along one edge;
+a gap between them would be a strip of whatever is behind the carousel, moving.
+Everything else is the same either way — the same drag, the same snap, the same
+accessibility actions and the same announcement. It changes where the pixels go
+and nothing else.
+
 ### Indicator styles
 
 **The default, `PageIndicatorStyle.Pill`, does both halves.** A pill sits over the
@@ -76,14 +113,13 @@ none reports as selected. `PageIndicatorStyle.Dots` is the other half on its own
 the current dot widens and nothing travels, which is right where the indicator is
 never the subject of a gesture.
 
-`Pill` is the narrowest of the three. `Dots` has to reserve a slot wide enough for
-the widened dot, and `Pill` draws over a slot the size of every other one — capped
-at the pitch, so it cannot reach its neighbours — and reserves only the few dp it
-hangs past the first and last dot by.
+`Pill`'s layout **is** `Dots`': the row widens the current dot, and the pill at
+rest is that dot's own box. So the gaps are the one gap all the way along and
+switching between the two moves nothing. `Worm` is narrower because it widens no
+dot, which is the same fact as it saying nothing about the current page at rest.
 
-Under a worm every dot is a track, so `Dots` remains the better choice when the
-indicator is also the control: there each dot keeps its own footprint and its own
-target.
+The choice between them is about the travel, not about the targets. The strip is
+one target under every style — see [page-indicator](page-indicator.md).
 
 ---
 

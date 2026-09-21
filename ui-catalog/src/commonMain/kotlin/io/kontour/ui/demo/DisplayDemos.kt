@@ -42,6 +42,7 @@ import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
 import io.kontour.ui.components.display.Carousel
+import io.kontour.ui.components.display.CarouselStyle
 import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.EmptyState
@@ -486,7 +487,18 @@ internal val StatDemo = ComponentDemo(slug = "stat", knobs = listOf(statTrend)) 
 private val indicatorStyle =
     Knob.Choice("Style", PageIndicatorStyle.entries.toList(), initial = PageIndicatorStyle.Pill)
 
-internal val CarouselDemo = ComponentDemo(slug = "carousel", knobs = listOf(indicatorStyle)) {
+private val carouselStyle = Knob.Choice("Pages", CarouselStyle.entries.toList())
+
+// Not a dial, because a knob is a choice or a flag and a third kind would be a
+// bigger thing than the demos. On is the value the component's own docs suggest:
+// enough drift behind the edge to see, well short of the page arriving from off
+// screen.
+private val carouselParallax = Knob.Flag("Parallax")
+
+internal val CarouselDemo = ComponentDemo(
+    slug = "carousel",
+    knobs = listOf(carouselStyle, carouselParallax, indicatorStyle),
+) {
     val carousel = rememberCarouselState { 4 }
     val scope = rememberCoroutineScope()
     val style = this[indicatorStyle]
@@ -498,6 +510,8 @@ internal val CarouselDemo = ComponentDemo(slug = "carousel", knobs = listOf(indi
         Carousel(
             state = carousel,
             contentDescription = "Stop photos",
+            style = this@ComponentDemo[carouselStyle],
+            parallax = if (this@ComponentDemo[carouselParallax]) 0.3f else 0f,
             modifier = Modifier.fillMaxWidth().height(120.dp),
         ) { page ->
             Card(variant = CardVariant.Filled, modifier = Modifier.fillMaxWidth().height(120.dp)) {
