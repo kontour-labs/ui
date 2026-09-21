@@ -2,12 +2,20 @@ package io.kontour.ui.components.selection
 
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.DrawStyle
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * One slider thumb, stretched by how far it is from where it is trying to be.
@@ -145,74 +153,132 @@ internal fun DrawScope.sliderThumb(
     val left = if (squashPx > 0f) stretchedLeft + lost else stretchedLeft
     val right = if (squashPx > 0f) stretchedRight else stretchedRight - lost
 
-    // Curved at both ends whatever the width. See [squashedCapsule]. Which end
-    // is against the wall no longer changes the shape — only where it is, which
-    // the pinning above has already decided.
-    squashedCapsule(left, centreY - r, right, centreY + r, ringColour)
+    // Round on the end against the wall and squashed on the other, which needs
+    // to know which end that is — the pinning above decides where the thumb is,
+    // this decides what it looks like. See [squashedCapsule].
+    val wallOnRight = squashPx > 0f
+    // **The ring is the fill's own outline, stroked** — one shape drawn twice
+    // rather than two shapes, so the halo is a true offset curve and an even
+    // width the whole way round. Stroking is centred, so a stroke of twice the
+    // ring on a shape inset by the ring lands its outer edge exactly on the
+    // thumb's box, and its inner half is painted over by the fill.
+    //
+    // Two nested shapes is what this used to be, and on a squashed thumb it does
+    // not hold: the inner egg's proportions are not the outer's, so the gap ran
+    // 1.59dp at the shoulders against 2.00 at the four extremes. An ellipse hid
+    // that — it came out 1.92 to 2.00 — which is why it was only worth a
+    // sentence before.
     squashedCapsule(
-        left = left + ringPx,
-        top = centreY - r + ringPx,
-        right = right - ringPx,
-        bottom = centreY + r - ringPx,
+        left = left,
+        top = centreY - r,
+        right = right,
+        bottom = centreY + r,
+        colour = ringColour,
+        wallOnRight = wallOnRight,
+        inset = ringPx,
+        style = Stroke(width = ringPx * 2f),
+    )
+    squashedCapsule(
+        left = left,
+        top = centreY - r,
+        right = right,
+        bottom = centreY + r,
         colour = fillColour,
+        wallOnRight = wallOnRight,
+        inset = ringPx,
     )
 }
 
 /**
- * A capsule while it is wider than tall, an ellipse once it is not.
+ * A capsule while it is wider than tall; an egg once it is not — round on the
+ * end that is pressed against something, squashed on the end that is not.
  *
  * ### What it is for
  *
- * One shape for the whole of a thumb's life. Stretched under a finger it is a
- * capsule; at rest it is a circle; squashed against the end of its track it is a
- * **vertical ellipse pressed into the wall**. The three are one family and they
- * meet exactly, because a capsule and an ellipse are the same circle when width
- * and height are equal — so there is no seam to cross and no special case for a
- * thumb nobody is touching.
+ * Pushing a thumb into a wall it cannot pass squashes it, and the shape of that
+ * squash has now been through three answers. Each one fixed the last and was
+ * reported back.
  *
- * ### What it replaced, and why that went
+ * **Four radii, one per corner.** The cap against the wall kept the resting
+ * radius and the trailing corners shrank. *"That is not half a circle, it is a
+ * chopped end"* — at 18dp across and 30dp tall the trailing radius works out at
+ * 3dp against the leading 15dp, and the straight edges between them are what
+ * reads as a cut.
  *
- * A `RoundRect` with four radii: the cap against the wall kept the resting
- * radius, and everything the squash took came off the trailing corners. It did
- * what the report asked — *"only the half of the circle that's on the opposite
- * side to the way the user is dragging gets squashed"* — and the result was
- * reported back as looking odd, which it does: held and fully squashed a slider's
- * thumb is 18dp across and 30dp tall, so the trailing radius works out at 3dp
- * against the leading 15dp. That is not half a circle, it is a chopped end.
+ * **One ellipse, both ends.** *"Make it squash more to a vertical ellipse
+ * pressed up against the end stop, rather than flattening the end."* An ellipse
+ * has no end to chop, and it is the older and better answer to what a squash
+ * looks like. But it squashes the end **against the wall** as much as the free
+ * one, and a ball pressed into a wall does not go pointy where it is touching:
+ * *"we want to keep the side of the head that's pressed up against the edge
+ * circular, but we want to squash the other side in a bit."*
  *
- * *"Make it squash more to a vertical ellipse pressed up against the end stop,
- * rather than flattening the end."* An ellipse has no end to chop. It is also
- * the older and better answer to the same question — squash-and-stretch has
- * always been an ellipse — and it keeps the one property the four-radius version
- * was written for: the silhouette stays curved where it touches the track, so it
- * still reads as pressing rather than as retreating.
+ * **An egg, which is the balance between the two.** The wall side is a circular
+ * cap of the thumb's own resting radius — so it keeps exactly the silhouette it
+ * had before the finger arrived — and the free side eases in to a shallower
+ * ellipse. On a `Switch` that also makes the pressed end *exactly concentric*
+ * with the track's end arc, which is what the 2dp of padding is for: the cap's
+ * centre and the arc's centre are the same point.
  *
- * The *pinning* is what makes it press, and it is not in here. `sliderThumb` and
- * `Switch` hold the edge against the wall and bring the other one in, so the
- * thumb compresses into the stop rather than shrinking away from it. That was
- * always separate from the outline and it is untouched.
+ * ### The join is smooth, and that is the whole difficulty
  *
- * ### Two primitives, no path
+ * A semicircle and a half ellipse butted together on the vertical centre share a
+ * tangent but not a curvature: at a full squash the outline's radius of
+ * curvature steps from `r` to `r/4` in one pixel, and that step is visible as a
+ * kink at the widest row. Two conics cannot do better — matching curvature at
+ * the join *is* the circle.
  *
- * Both branches are hardware shapes — a round rect on Skia's RRect fast path, and
- * an oval. The note further up this file explains why that matters: this shape is
- * a different size on every frame of a drag, so a `Path` would be rebuilt under a
- * finger, past every cache, sixty times a second.
+ * So the free half is not an ellipse but a family of them, swept:
  *
- * A previous attempt at the four-radius version used the union of a round rect
- * and a circle and was wrong exactly where it was needed — a cap of the resting
- * radius is as wide as the thumb is *tall*, so on a thumb squashed narrower than
- * its own height the circle spilled past the trailing edge, drawing 48px where 36
- * was asked for. Worth knowing before reaching for two primitives again.
+ * ```
+ * reach(θ) = (far + (cap - far) · (1 - sin θ)²) · sin θ
+ * ```
+ *
+ * At the join it is exactly the cap's own ellipse, so the curvature is continuous
+ * by construction; at the tip the weight has decayed to nothing and it is exactly
+ * the shallow ellipse, so the free end is as round as an ellipse's. In between
+ * the turn is spread out rather than dumped in one row. The square is what keeps
+ * `reach` monotone: a blend that hugs the cap for longer overshoots the tip and
+ * comes back, which draws a waist.
+ *
+ * ### [WallCapShare], and why the cap is not always the full radius
+ *
+ * A cap of the resting radius is as wide as the thumb is **tall**, so on a thumb
+ * squashed narrower than its own height it can eat the whole width and leave the
+ * free side a flat back — a half moon, which is the chopped end again by another
+ * route. A held slider thumb is 18dp across and 30dp tall at a full squash, and
+ * an unclamped cap would take 15 of the 18.
+ *
+ * So the cap is the resting radius *or* [WallCapShare] of the width, whichever is
+ * smaller. A thumb that rests as a **circle** never reaches that clamp — a
+ * quarter off a circle is exactly the limit — so `Switch` keeps a truly circular
+ * cap at every depth, and only a long capsule ever gives any of it back.
+ *
+ * ### Two primitives where it can, a path where it cannot
+ *
+ * The capsule branch is still a round rect on Skia's RRect fast path. The egg
+ * cannot be: it is a swept family, not a conic, so it is a path — built from a
+ * table of fixed angles with no trigonometry at draw time, and built **only while
+ * a finger is pressed into an end stop**, which is the one moment a thumb is not
+ * a capsule. At rest and in flight nothing here allocates.
  *
  * ### The ring
  *
- * `sliderThumb` draws this twice, inset, for its halo. An ellipse inset by a
- * constant on each side is not a constant-width offset curve, so the ring is
- * very slightly thinner off-axis than on it — about a tenth of a pixel at 2dp on
- * a 36×60px thumb, which is under what antialiasing already does to it. Stroking
- * the outer oval instead would be exact and would cost a second draw call on
- * every frame of a drag for something nobody can see.
+ * `sliderThumb` draws this twice for its halo — once stroked, once filled, both
+ * on the *same* inset shape. A ring drawn as a second, larger egg is not an even
+ * width: the two eggs have different proportions, so the gap measures 1.59dp at
+ * the shoulders against 2.00 at the four extremes. Stroking one outline is a true
+ * offset curve and is exactly even, and it keeps the wall side circular either
+ * way — the offset of a circular arc is a circular arc.
+ *
+ * [inset] steps every dimension in together and the cap is measured on the
+ * *outer* box, so the cap's centre does not move and the two draws cannot
+ * disagree about which branch they are in.
+ *
+ * @param wallOnRight Which end is against the wall, and therefore which end keeps
+ *   its circle. The *pinning* — holding that edge still while the other comes in
+ *   — is the caller's, and is what makes the thumb press rather than shrink.
+ * @param inset Draws the same shape stepped in by this much on all four sides.
  */
 internal fun DrawScope.squashedCapsule(
     left: Float,
@@ -220,41 +286,125 @@ internal fun DrawScope.squashedCapsule(
     right: Float,
     bottom: Float,
     colour: Color,
+    wallOnRight: Boolean = true,
+    inset: Float = 0f,
+    style: DrawStyle = Fill,
 ) {
-    val height = bottom - top
-    val width = right - left
-    if (height <= 0f || width <= 0f) return
+    val outerHeight = bottom - top
+    val outerWidth = right - left
+    if (outerHeight <= 0f || outerWidth <= 0f) return
 
-    val restingHalf = height / 2f
-    val a = width / 2f
-    if (a >= restingHalf) {
+    val restingHalf = outerHeight / 2f
+    val half = restingHalf - inset
+    if (half <= 0f || outerWidth - inset * 2f <= 0f) return
+
+    // Decided on the **outer** box, so the ring and the fill are never two
+    // different shapes: at the crossover an inset box can be narrower than it is
+    // tall while the box around it is not.
+    if (outerWidth / 2f >= restingHalf) {
         // Half the height, so the ends are full semicircles — a capsule, and a
         // circle at the moment the two are equal.
         drawRoundRect(
             color = colour,
-            topLeft = Offset(left, top),
-            size = Size(width, height),
-            cornerRadius = CornerRadius(restingHalf),
+            topLeft = Offset(left + inset, top + inset),
+            size = Size(outerWidth - inset * 2f, outerHeight - inset * 2f),
+            cornerRadius = CornerRadius(half),
+            style = style,
         )
-    } else {
-        // Narrower than it is tall, so the ends are no longer semicircles and a
-        // round rect would draw them as straight sides between two arcs. An
-        // ellipse keeps curving the whole way round, which is what a squashed
-        // ball does.
-        //
-        // The height is the caller's, untouched. Shortening it as the thumb
-        // narrows is geometrically the way to keep a switch's thumb concentric
-        // with the arc it is pressed into — it was tried, at the tangent and at
-        // a 1-2dp cap — and it was not wanted: a thumb that changes height under
-        // a finger reads as the wrong kind of movement. So the ellipse leans into
-        // the track's padding instead, by 0.829dp of the switch's 2dp at full
-        // squash, all of it away from the centre row.
-        drawOval(
-            color = colour,
-            topLeft = Offset(left, top),
-            size = Size(width, height),
-        )
+        return
     }
+
+    val wallCap = minOf(restingHalf, outerWidth * WallCapShare)
+    val cap = wallCap - inset
+    val far = (outerWidth - wallCap - inset).coerceAtLeast(0f)
+    if (cap <= 0f) return
+
+    // Invariant under [inset]: the wall steps in by it and the cap gives it up.
+    val centreX = if (wallOnRight) right - wallCap else left + wallCap
+    val centreY = (top + bottom) / 2f
+    // Away from the wall, which is the only direction anything is squashed in.
+    val away = if (wallOnRight) -1f else 1f
+
+    val egg = Path()
+    egg.moveTo(centreX, centreY - half)
+    for (i in 1..SquashSteps) {
+        val point = squashedOutlinePoint(cap, far, half, i)
+        egg.lineTo(centreX + away * point.x, centreY - point.y)
+    }
+    for (i in SquashSteps - 1 downTo 0) {
+        val point = squashedOutlinePoint(cap, far, half, i)
+        egg.lineTo(centreX + away * point.x, centreY + point.y)
+    }
+    // And back up the wall side, which is the cap's own ellipse exactly.
+    egg.arcTo(
+        Rect(centreX - cap, centreY - half, centreX + cap, centreY + half),
+        90f,
+        if (wallOnRight) -180f else 180f,
+        false,
+    )
+    egg.close()
+    drawPath(egg, colour, style = style)
+}
+
+/**
+ * One sample of the free half's outline, measured from the cap's centre.
+ *
+ * `x` is how far it reaches away from the wall, `y` how far above the centre —
+ * so sample `0` is the join at the top of the shape and [SquashSteps] is the tip,
+ * level with the centre. Mirrored for the bottom half by the caller, and for the
+ * other wall by the sign of `x`.
+ *
+ * Pulled out of [squashedCapsule] because it is the whole of the shape and none
+ * of the drawing: that the free side leaves the join on the cap's own radius is
+ * arithmetic, and is asserted as arithmetic in `SquashedThumbOutlineTest`.
+ */
+internal fun squashedOutlinePoint(cap: Float, far: Float, half: Float, i: Int): Offset =
+    Offset(
+        x = (far + (cap - far) * SquashEase[i]) * SquashSin[i],
+        y = half * SquashCos[i],
+    )
+
+/**
+ * The most of a squashed thumb's width the circular cap may take.
+ *
+ * Two thirds, which is the same as saying the free side never gets less than a
+ * third. Below that it has too little depth left to read as a curve at all and
+ * the thumb becomes a half moon — the chopped end the ellipse was brought in to
+ * remove.
+ *
+ * It is a ceiling rather than a share: for a thumb that rests as a **circle** the
+ * cap is the resting radius at every depth this library squashes to, because a
+ * [ThumbSquash] off a circle lands exactly on the limit and never past it. Only a
+ * thumb that rests as a long capsule — a held slider's — ever gives any of its
+ * cap back, and then only over the last quarter of the pull.
+ */
+private const val WallCapShare: Float = 2f / 3f
+
+/**
+ * How many straight segments the free half is drawn with, per quarter.
+ *
+ * The outline is a swept family of ellipses rather than a conic, so it is
+ * sampled. Twenty puts the worst chord about 0.09px from the true curve at the
+ * largest size any thumb here is drawn at, which is a quarter of what
+ * antialiasing is already doing to the edge.
+ *
+ * The samples are fixed angles, so the sine, the cosine and the easing weight are
+ * all constants — the draw is twenty multiply-adds and no trigonometry.
+ */
+internal const val SquashSteps: Int = 20
+
+private val SquashSin = FloatArray(SquashSteps + 1) {
+    sin(it * (PI / 2.0) / SquashSteps).toFloat()
+}
+
+private val SquashCos = FloatArray(SquashSteps + 1) {
+    cos(it * (PI / 2.0) / SquashSteps).toFloat()
+}
+
+/** `(1 - sin θ)²` — the weight the cap's own ellipse still carries at each sample. */
+private val SquashEase = FloatArray(SquashSteps + 1) {
+    val s = 1f - SquashSin[it]
+    s * s
 }
 
 /**

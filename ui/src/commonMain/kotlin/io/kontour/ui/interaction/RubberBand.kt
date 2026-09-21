@@ -139,9 +139,10 @@ class RubberBand internal constructor() {
      * It became visible rather than merely wrong when the squash started being
      * *pinned* to whichever end is against the wall: crossing zero swaps which end
      * that is, so the thumb jumped sideways by the width it had given up, once,
-     * part way home. The shape it is drawn as has since stopped caring which end
-     * the wall is on — see `squashedCapsule` — but where it is drawn still does,
-     * and that is this.
+     * part way home. The shape it is drawn as reads the sign too — the end against
+     * the wall is the round one, see `squashedCapsule` — so a crossing now swaps
+     * which end is circular as well as where the thumb sits, and holding the sign
+     * is what stops both.
      */
     suspend fun release(spec: AnimationSpec<Float>) {
         if (offset == 0f) return

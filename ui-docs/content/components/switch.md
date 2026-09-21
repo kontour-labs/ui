@@ -17,13 +17,19 @@ its 2dp of clearance on both sides the whole way, growing into whichever side ha
 the room. At either end that is all behind it, so the stretch trails the way give
 should.
 
-Pushed past the end it squashes into a vertical ellipse instead, and that leans
-into the padding above and below: 2dp of clearance on the centre row still, and
-1.17dp at the narrowest point of a full squash. Making the ellipse shorter as it
-narrows would hold all 2dp — it is the geometric mean of the resting radius and
-the half-width, the point where the ellipse is tangent to the track's end arc —
-and it was tried and taken back out, because a thumb that changes height under a
-finger reads as the wrong kind of movement.
+Pushed past the end it squashes, and it squashes **on one side**. The end against
+the wall keeps the circle the thumb rests as — so it stays exactly concentric with
+the track's end arc, 2dp the whole way round, which is what the padding is for —
+and the free side eases in to a shallower curve. A ball pressed into a wall does
+not go pointy where it is touching.
+
+The join between the two is the hard part, and it is why the free side is not
+simply a shallower ellipse butted onto the cap: two arcs like that share a tangent
+but not a curvature, and the step is visible as a kink at the widest row. The free
+side leaves the join on the cap's own radius and tightens from there.
+
+Squashed, the thumb is inside the circle it rests as at every point, so it never
+comes closer to the track than a resting thumb does.
 
 **The stretch is the travel, not a second animation about it.** It is taken from
 how fast the thumb is going, so it grows as the thumb sets off, is widest where
@@ -67,8 +73,8 @@ an `IconButton`, an `Avatar` or a radio ring.
 because the thumb cannot be capped.** The thumb is drawn at half its own height —
 12dp on a 24dp thumb, a number rather than a token, because a draw call has no
 shape to consult. (A rounded rect while it is at least as wide as it is tall, and
-an ellipse once it is narrower; the radius is the same either way.) The track was
-reading the capped rule, so a theme
+an egg once a squash takes it narrower; the cap's radius is the same either way.)
+The track was reading the capped rule, so a theme
 setting `capsuleCap = 10.dp` brought the 28dp track down to 10 and left the thumb
 at 12, where concentricity wants the track to be the thumb *plus* the 2dp of
 padding around it — 14. Reported as switches no longer being concentric in a

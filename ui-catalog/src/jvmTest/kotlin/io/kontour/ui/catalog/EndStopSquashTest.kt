@@ -115,56 +115,62 @@ class EndStopSquashTest {
     }
 
     /**
-     * A squashed thumb is an ellipse, not a capsule with an end cut off.
+     * A squashed thumb is an egg: round against the wall, squashed on the far side.
      *
      * The rest of this file asks how *wide* the thumb is. This asks what shape it
      * is, and it is the half a width measurement cannot see.
      *
-     * ### What it used to assert, and why that was replaced
+     * ### Three shapes, each one the answer to the last
      *
-     * It asserted the opposite half of the same shape: the cap against the wall
-     * keeps its radius and the *trailing* end flattens, which is what the earlier
-     * report asked for in so many words — *"only the half of the circle that's on
+     * It was **four radii**, the cap against the wall keeping the resting radius
+     * and the trailing corners shrinking — *"only the half of the circle that's on
      * the opposite side to the way the user is dragging gets squashed"*. That
-     * shipped and came back as looking odd, and it does: held and fully squashed a
-     * slider's thumb is 36px across and 60px tall at this scene's density, so the
-     * trailing radius works out at 6px against the leading 30px. Half a circle
-     * against a corner that is nearly square is a cut, not a squash.
+     * shipped and came back: held and fully squashed the thumb is 18dp across and
+     * 30dp tall, so the trailing radius works out at 3dp against the leading 15.
+     * Half a circle against a corner that is nearly square is a cut, not a squash.
      *
-     * *"Make it squash more to a vertical ellipse pressed up against the end stop,
-     * rather than flattening the end."* So the claim is now symmetry plus
-     * curvature, which is what an ellipse is and what neither a capsule nor a
-     * chopped one is.
+     * Then **one ellipse**, both ends — *"make it squash more to a vertical
+     * ellipse pressed up against the end stop, rather than flattening the end."*
+     * An ellipse has no end to chop. But it goes pointy on the end that is
+     * *touching*, and a ball pressed into a wall does not: *"we want to keep the
+     * side of the head that's pressed up against the edge circular, but we want to
+     * squash the other side in a bit."*
      *
-     * ### Measured as a profile, not as a height
+     * So now the wall side keeps the cap it rests as and only the free side
+     * squashes. This test is what stops the next change from quietly going back to
+     * either of the first two.
      *
-     * A run of columns says where the thumb starts and stops and nothing about its
-     * ends, so this counts how much **ink is in one column** — but at *two* depths
-     * near each end rather than one, and it is the difference between them that
-     * carries the claim. A curved end climbs steeply over those few pixels; a
-     * straight vertical edge is already at full height at the first of them and
-     * has nowhere to climb to.
+     * ### Measured as an implied radius at each end
      *
-     * Measuring against the thumb's own height instead was the first attempt and
-     * it is too blunt: antialiasing costs a shape about four pixels at the top and
-     * four at the bottom, where the coverage ramps below the ink test's threshold,
-     * so a 60px thumb reads as 52 and the margin the assertion needs is spent
-     * before it starts. A difference between two readings a few pixels apart on
-     * the same shape has that error on both sides of the subtraction.
+     * A column `d` pixels inside an end has an ink height, and half of that is how
+     * far the outline has climbed from the tip. An end that is an arc of radius `R`
+     * gives `h² = 2Rd - d²`, so every column implies an `R` — and the two ends
+     * implying **different** ones is the whole claim.
      *
-     * Two things then have to hold:
+     * | | wall end | free end | free ÷ wall |
+     * |---|---|---|---|
+     * | four radii, a cut at the free end | 30px | 6px | 0.2 |
+     * | one ellipse, what this replaces | 48px | 48px | 1.0 |
+     * | an egg | 42.5px | 86.5px | **2.0** |
      *
-     * - **both** ends climb, because an ellipse has two curved ends;
-     * - they climb by the **same** amount, because an ellipse is symmetric about
-     *   its own centre and a shape with one end cut off is not.
+     * The free end reading *larger* is not a mistake. A tall narrow half ellipse
+     * is flat where it is widest and sharp where it is tallest — the opposite way
+     * round from how it reads at a glance — so squashing the free side flattens
+     * its tip and leaves the wall's cap the rounder of the two. What matters is
+     * that the two disagree at all: one ellipse cannot, because the same ellipse
+     * is at both ends of it.
      *
-     * On the shape this replaces the trailing end climbs 2px against the leading
-     * end's 16, which is the flat edge saying so. The ellipse reads 18 and 16.
+     * Measured on the *fill* rather than the silhouette, because the ring around
+     * it is the page's own colour and the page is what "ink" is measured against.
+     * Which is the honest thing to measure anyway: it is the inner shape that a
+     * reader sees as the thumb.
      */
     @Test
-    fun aSquashedThumbIsAnEllipseAndNotACutCapsule() {
+    fun aSquashedThumbIsAnEggAndNotAnEllipse() {
         var value by mutableStateOf(0.5f)
         var bounds = Rect.Zero
+        var wallEnd = 0f
+        var freeEnd = 0f
 
         Scene(width = 700, height = 240) {
             Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
@@ -186,30 +192,26 @@ class EndStopSquashTest {
             walk(scene, press, past)
             val shot = scene.frames(2)
             val pushed = requireNotNull(shot.thumbRun(bounds)) { "no thumb while pushing" }
-            // How fast each end climbs over the few pixels just inside it.
-            val leading = shot.inkHeight(pushed.last - FarProbe, bounds) -
-                shot.inkHeight(pushed.last - NearProbe, bounds)
-            val trailing = shot.inkHeight(pushed.first + FarProbe, bounds) -
-                shot.inkHeight(pushed.first + NearProbe, bounds)
+            wallEnd = shot.impliedRadius(pushed.last - Probe, bounds, Probe)
+            freeEnd = shot.impliedRadius(pushed.first + Probe, bounds, Probe)
             scene.release(past)
-
-            assertTrue(
-                leading > Curvature && trailing > Curvature,
-                "between ${NearProbe}px and ${FarProbe}px inside its ends the " +
-                    "squashed thumb grows ${leading}px at the end against the wall " +
-                    "and ${trailing}px at the other. An end that barely grows over " +
-                    "those pixels is already at full height at the first of them, " +
-                    "which is a straight vertical edge — the cut end that was " +
-                    "reported as looking odd rather than a curve.",
-            )
-            assertTrue(
-                abs(leading - trailing) <= Symmetry,
-                "the two ends grow ${leading}px and ${trailing}px over the same " +
-                    "few pixels. An ellipse is symmetric about its own centre; a " +
-                    "difference this large means one end is being treated " +
-                    "differently from the other.",
-            )
         }
+
+        assertTrue(
+            freeEnd > wallEnd * EndRatio,
+            "pushed into the stop, the thumb's wall end implies a radius of " +
+                "${wallEnd}px and its free end ${freeEnd}px, a ratio of " +
+                "${freeEnd / wallEnd}. One ellipse implies the same at both and comes " +
+                "out at 1.0 — which is the shape that squashed the end it was " +
+                "pressing against as hard as the end it was not. A cut free end " +
+                "comes out below 1 the other way",
+        )
+        assertTrue(
+            wallEnd > CutEnd,
+            "the wall end implies a radius of ${wallEnd}px. The end against the wall " +
+                "is the one that keeps the cap it rests as, so this is the reading " +
+                "that catches a squash eating into it",
+        )
     }
 
     /**
@@ -786,46 +788,33 @@ class EndStopSquashTest {
          * far that a flattened corner has finished curving too.
          */
         /**
-         * Where the two columns of the shape test are read, inside each end.
+         * How far inside each end the shape test reads, in pixels.
          *
-         * Close enough together that a straight edge has reached full height at
-         * both — a cut capsule's trailing radius is 6px, so 2px in is already
-         * inside its corner and 10px in is past it entirely — and far enough
-         * apart that an ellipse climbs 16 to 18px between them.
+         * Four, at this scene's density two, so a dp either way. Near enough to
+         * the tip that the implied radius is the tip's own and not the shoulder's,
+         * and far enough in that antialiasing is not most of the reading: one
+         * pixel in, a half-height of three carries a quarter of a pixel of ramp on
+         * each side and the implied radius swings by a third.
          */
-        const val NearProbe = 2
-        const val FarProbe = 10
+        const val Probe = 4
 
         /**
-         * The least an end has to climb to count as curved rather than flat.
+         * How much flatter the free end has to read than the wall end.
          *
-         * Calibrated against both shapes rather than guessed, and re-measured
-         * whenever the shape changes. A capsule with its trailing corner cut
-         * climbs 16px at the end against the wall and **2px** at the other — the
-         * flat edge saying so. The ellipse climbs **16px and 18px**.
-         *
-         * So the leading end says nothing: both shapes have a full radius there,
-         * and it is the *trailing* end that separates 18 from 2. Six sits between
-         * them with room either side.
-         *
-         * It was 10 while the ellipse was also getting shorter as it narrowed —
-         * a less eccentric ellipse curves more gently, and the climb over this 8px
-         * span fell to 10, landing the old threshold exactly on it. The shortening
-         * has since been taken back out, which is why the numbers above are the
-         * taller shape's again; 6 is kept because it is the value that separates
-         * the two ends rather than the two shapes.
+         * Measured at 2.0 — 86.5px against 42.5. One ellipse gives exactly 1,
+         * because it is the same ellipse at both ends, so 1.5 sits between them
+         * with room for the antialiasing on either reading.
          */
-        const val Curvature = 6
+        const val EndRatio = 1.5f
 
         /**
-         * How differently the two ends may climb and still be one ellipse.
+         * The least the wall end may imply and still be the cap it rests as.
          *
-         * The sharper half of the claim, and the one that does not move with the
-         * shape's eccentricity: an ellipse is symmetric about its own centre, so
-         * the two ends climb alike — 16 against 18. A shape with one end cut gives
-         * 16 against 2.
+         * Measured at 42.5px, against the 6px a 3dp corner implied when the free
+         * end was a cut and the wall end the only round thing left. Thirty is
+         * clear of both.
          */
-        const val Symmetry = 6
+        const val CutEnd = 30f
 
         /** A third of a 240dp control at density 2, less its padding. Comfortably under a segment. */
         const val Segment = 120
@@ -943,6 +932,20 @@ private fun BufferedImage.runDown(bounds: Rect, x: Int, track: Int): Int {
  * The page is sampled at a corner rather than assumed white, for the same reason
  * every other reading here does it.
  */
+/**
+ * The radius of the arc an end would have to be, read off one column.
+ *
+ * An end that is an arc of radius `R` has climbed to a half-height `h` a distance
+ * `d` in from its tip, with `h² = 2Rd - d²`. Rearranged, one column is enough:
+ * `R = (h² + d²) / 2d`. It is the same reading `SquashedThumbOutlineTest` takes of
+ * the arithmetic, taken here of the pixels instead.
+ */
+private fun BufferedImage.impliedRadius(x: Int, bounds: Rect, depth: Int): Float {
+    val half = inkHeight(x, bounds) / 2f
+    val d = depth.toFloat()
+    return (half * half + d * d) / (2f * d)
+}
+
 private fun BufferedImage.inkHeight(x: Int, bounds: Rect): Int {
     if (x < 0 || x >= width) return 0
     val page = getRGB(2, 2)

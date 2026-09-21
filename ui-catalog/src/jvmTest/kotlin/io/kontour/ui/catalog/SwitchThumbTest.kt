@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.selection.Switch
 import java.awt.image.BufferedImage
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -160,6 +161,81 @@ class SwitchReleaseTest {
  */
 class SwitchGeometryTest {
 
+    /**
+     * The end pressed against the wall keeps the circle the thumb rests as.
+     *
+     * Which is the whole of *"we want to keep the side of the head that's pressed
+     * up against the edge circular"*, and it is the half a width measurement
+     * cannot see: the gap test below walks the same gesture and only ever reads
+     * the centre row, where every one of the three shapes this has been agrees.
+     *
+     * ### Measured as a profile, against the thumb's own resting silhouette
+     *
+     * How far the right edge falls back from its widest point, at two rows up the
+     * thumb. On a circle of radius `R` that is `R - sqrt(R² - y²)`, and it is the
+     * *same* reading whether the thumb is resting, stretched mid-flight or
+     * squashed — a capsule's end cap has the resting radius too, so only a squash
+     * that eats into the cap can move it.
+     *
+     * | row, from the centre | resting | squashed, an egg | squashed, one ellipse |
+     * |---|---|---|---|
+     * | 14px | 5px | 4px | 4px |
+     * | 20px | 11px | **11px** | **9px** |
+     *
+     * The near row is worth nothing and is kept for the shape of the reading: at
+     * 14px up, a pixel of antialiasing on each of two edges is most of what
+     * separates the three. It is the far row that carries the claim, and the
+     * further up the thumb it is read the more it carries — 20px is as far as it
+     * can go while both edges are still two clean colours.
+     *
+     * On this control the cap is *exactly* the resting radius at every depth —
+     * a quarter off a circle lands on `WallCapShare`'s limit and never past it —
+     * so the two columns that matter are identical rather than merely close. That
+     * is also what makes the pressed end concentric with the track's end arc: a
+     * 12dp cap pinned 2dp inside a 14dp arc shares its centre.
+     */
+    @Test
+    fun theWallEndKeepsTheCircleItRestsAs() {
+        var checked by mutableStateOf(false)
+        var bounds = Rect.Zero
+        var resting = listOf<Int>()
+        var squashed = listOf<Int>()
+
+        Scene(width = 400, height = 200) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                Switch(
+                    checked = checked,
+                    onCheckedChange = { checked = it },
+                    modifier = Modifier.reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            assertTrue(bounds.width > 0f, "the switch never reported a size")
+            resting = scene.frames(SettleFrames).edgeDrops(bounds)
+
+            // Past the end and **held** there: the squash only exists while
+            // something is pushing against the wall.
+            scene.drag(
+                from = bounds.alongX(0.2f),
+                to = bounds.alongX(1.6f),
+                release = false,
+            )
+            squashed = scene.frames(2).edgeDrops(bounds)
+            scene.release(bounds.alongX(1.6f))
+        }
+
+        val moved = Probes.indices.map { abs(squashed[it] - resting[it]) }
+        assertTrue(
+            moved.all { it <= EdgeTolerance },
+            "at $Probes px up from its centre the thumb's leading edge falls back " +
+                "$squashed px squashed, against $resting px at rest. The end against " +
+                "the wall is not supposed to move at all — one ellipse squashes it " +
+                "with the rest and reads 4, 9 against the resting 5, 11, which is the " +
+                "end going pointy where it is touching.",
+        )
+    }
+
     @Test
     fun theGapsEitherSideOfTheThumbStayEven() {
         val gaps = mutableListOf<Pair<Int, Int>>()
@@ -200,6 +276,57 @@ class SwitchGeometryTest {
 }
 
 /** How far in from the track's two edges the thumb's own edges are, in pixels. */
+/**
+ * How far the thumb's leading edge falls back from its widest point, per probe row.
+ *
+ * The right edge at the centre row is the thumb's furthest reach; each probe is
+ * how many pixels short of that the edge sits that far up the thumb. Measured
+ * upward only — the shape is symmetric about the centre row and the bottom band
+ * is where [thumbRun] reads the track's own colour from.
+ */
+private fun BufferedImage.edgeDrops(bounds: Rect): List<Int> {
+    val widest = thumbRunAt(bounds, 0).last
+    return Probes.map { widest - thumbRunAt(bounds, -it).last }
+}
+
+/** [thumbRun], at [rowOffset] pixels from the centre row rather than on it. */
+private fun BufferedImage.thumbRunAt(bounds: Rect, rowOffset: Int): IntRange {
+    val left = bounds.left.toInt().coerceAtLeast(0)
+    val right = (bounds.right.toInt() - 1).coerceAtMost(width - 1)
+    val top = bounds.top.toInt().coerceAtLeast(0)
+    val bottom = (bounds.bottom.toInt() - 1).coerceAtMost(height - 1)
+
+    val counts = HashMap<Int, Int>()
+    for (y in listOf(top + BandInset, bottom - BandInset)) {
+        for (x in left..right) {
+            val rgb = getRGB(x, y) and 0xFFFFFF
+            counts[rgb] = (counts[rgb] ?: 0) + 1
+        }
+    }
+    val fill = counts.maxByOrNull { it.value }?.key ?: error("the track drew nothing")
+
+    val row = ((top + bottom) / 2 + rowOffset).coerceIn(top, bottom)
+    var best = IntRange.EMPTY
+    var start = -1
+    for (x in left..(right + 1)) {
+        val inked = x <= right && differs(getRGB(x, row) and 0xFFFFFF, fill)
+        if (inked && start < 0) start = x
+        if (!inked && start >= 0) {
+            val run = start..(x - 1)
+            if (run.last - run.first > best.last - best.first) best = run
+            start = -1
+        }
+    }
+    check(!best.isEmpty()) { "no thumb was drawn inside the track at row $row" }
+    return best
+}
+
+/** Rows to read the leading edge at, in pixels above the thumb's centre. */
+private val Probes = listOf(14, 20)
+
+/** A pixel either way, which is what the two antialiased edges are worth. */
+private const val EdgeTolerance = 1
+
 private fun BufferedImage.thumbGaps(bounds: Rect): Pair<Int, Int> {
     val run = thumbRun(bounds)
     return (run.first - bounds.left.toInt()) to (bounds.right.toInt() - 1 - run.last)

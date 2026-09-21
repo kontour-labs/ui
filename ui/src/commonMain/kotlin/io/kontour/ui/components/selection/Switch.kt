@@ -572,16 +572,22 @@ fun Switch(
         // that trade for the same reason and at the same size, and refusing it
         // twice is more consistent than paying for it once.
         //
-        // **Squashed, it becomes a vertical ellipse rather than a chopped
-        // capsule.** It used to be one radius for four corners — half the resting
-        // height — so pushing into an end narrowed both ends at once and the head
-        // could not get narrower than the circle it rests as. Then it kept the
-        // cap against the wall and flattened the other end, which fixed that and
-        // looked odd: at 18dp across and 24dp tall the trailing radius works out
-        // at 6dp against the leading 12dp, which reads as a cut rather than as a
-        // squash. `squashedCapsule` is curved at both ends at every width, and
-        // the *pinning* just above is what makes it press into the wall rather
-        // than shrink away from it.
+        // **Squashed, it becomes an egg: round against the wall, squashed on the
+        // other side.** It used to be one radius for four corners — half the
+        // resting height — so pushing into an end narrowed both ends at once and
+        // the head could not get narrower than the circle it rests as. Then it
+        // kept the cap against the wall and flattened the other end, which fixed
+        // that and read as a cut. Then it was one ellipse, which has no end to
+        // cut but goes pointy on the end that is *touching*, where a ball pressed
+        // into a wall does not.
+        //
+        // So the wall side keeps the resting radius and only the free side
+        // squashes — see `squashedCapsule` for the join, which is the hard part.
+        // On this control that is also what makes the pressed end **exactly
+        // concentric** with the track's end arc: a 12dp cap pinned 2dp inside a
+        // 14dp arc shares its centre, so the clearance is 2dp the whole way round
+        // the end the finger is pushing into. The *pinning* just above is what
+        // makes it press into the wall rather than shrink away from it.
         val x = left.coerceIn(0f, (size.width - thumbWidth).coerceAtLeast(0f))
         squashedCapsule(
             left = x,
@@ -589,6 +595,7 @@ fun Switch(
             right = x + thumbWidth,
             bottom = top + thumbPx,
             colour = thumbColour,
+            wallOnRight = band.offset > 0f,
         )
     }
 }
