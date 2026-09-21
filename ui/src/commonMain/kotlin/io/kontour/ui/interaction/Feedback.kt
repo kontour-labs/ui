@@ -6,10 +6,8 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import io.kontour.ui.platform.platformTapHaptic
-import io.kontour.ui.platform.platformTickHaptic
+import io.kontour.ui.platform.platformHapticFor
 
 /**
  * What just happened, from the user's point of view.
@@ -27,18 +25,21 @@ enum class FeedbackIntent {
     Selection,
 
     /**
-     * A control acknowledged a press — the lightest thing the device can do.
+     * A control acknowledged a press.
      *
      * **Not [Selection], and the four levels are why.** "A detent crossed under
      * a finger" and "the thing you pressed answered you" are different enough
      * that somebody should be able to keep one and drop the other, and an intent
      * that means both cannot be filtered apart.
      *
-     * It is honestly lighter only where the platform has something lighter:
-     * `UISelectionFeedbackGenerator` on iOS, the API-34 segment tick on recent
-     * Android. On the web and on older Android it is the same 20ms pulse as
-     * [Tick], because below that nothing is felt at all — see
-     * [io.kontour.ui.platform.platformTapHaptic], which argues it per platform.
+     * **This used to claim to be "the lightest thing the device can do", and it
+     * was not.** Below Android 14 it and [Tick] were the same `VirtualKey` pulse;
+     * on Android 14 and up it was *lighter* than [Tick]; on iOS the two were the
+     * same generator. Three platforms, three different orderings, from one
+     * sentence that read like a policy. [FeedbackFeel] is where the ordering
+     * lives now, and a press is [FeedbackFeel.Medium] — a step above the texture
+     * of a detent going past, because a control answering is one event and a
+     * detent is a stream of them.
      *
      * Shares [Tick]'s rate floor rather than having its own. A hand feels one
      * rattle, not one per component.
@@ -106,6 +107,95 @@ enum class FeedbackIntent {
     /** A key or on-screen key was struck. */
     KeyPress,
 }
+
+/**
+ * What the hand gets: three pulses of increasing weight, and two rhythms.
+ *
+ * A [FeedbackIntent] says what *happened*. This says how much of the hand that is
+ * worth — and it exists because nothing did, so each platform's own actual chose a
+ * constant per intent independently and the orderings disagreed. Reported from a
+ * phone in those words: *"all the haptics feel heavy, there doesn't seem to be the
+ * concept of a soft interaction for anything"*. On Android below 14 that was
+ * literally true — [FeedbackIntent.Tick] and [FeedbackIntent.Tap] were the same
+ * `VirtualKey` click, which is the platform's *middle* weight, so every detent in
+ * the library was firing at the weight a button press wants.
+ *
+ * **The three weights are a scale and are declared lightest first.** The two
+ * rhythms are not on it: asking whether [Danger] is heavier than [Heavy] has no
+ * answer, because one is a bigger pulse and the other is several beats that mean
+ * something. That is the whole reason this type is not called a weight.
+ *
+ * Which intent gets which is [FeedbackIntent.feel], and it is the one place the
+ * assignment lives. Each platform then answers with the closest thing it actually
+ * has — see `io.kontour.ui.platform.platformHapticFor`, which is a capability
+ * table per platform and not a second opinion about policy.
+ */
+enum class FeedbackFeel {
+    /**
+     * A texture going past: a detent crossed, a row of a drum, a page snapping.
+     *
+     * The tier that did not exist. It arrives in *streams* — a flung wheel
+     * crosses a row every 8ms — which is why it is also the tier the shared rate
+     * floor gates. See [DetentTicker].
+     */
+    Light,
+
+    /** A control answering, or what letting go will do changing. One event. */
+    Medium,
+
+    /** A threshold held long enough to mean something. */
+    Heavy,
+
+    /** It worked. A rhythm, not a pulse. */
+    Success,
+
+    /** It was refused, or it is about to be irreversible. A rhythm. */
+    Danger,
+}
+
+/**
+ * How hard [this] should feel. The one place the assignment lives.
+ *
+ * Public because replacing [LocalFeedback] with your own dispatcher is a supported
+ * thing to do, and a dispatcher that cannot ask how hard an intent is meant to be
+ * has to re-derive the whole policy from the intent names.
+ *
+ * The four arguable rows, written down because they were argued:
+ *
+ * - [FeedbackIntent.Tick] is lighter than [FeedbackIntent.Tap]. A detent is a
+ *   surface going past under a finger and a press is the control answering once.
+ * - [FeedbackIntent.DragThreshold] is a press rather than a thud. It is the most
+ *   consequential moment in a gesture, but a switch's midpoint can be crossed
+ *   back and forth under one finger and the heaviest tier would be too much for
+ *   that.
+ * - [FeedbackIntent.Selection] is a press. A reorderable row visibly changing
+ *   place is a change, not a texture — which is also what keeps the drop
+ *   ([FeedbackIntent.Tick]) lighter than the reorders it follows.
+ * - [FeedbackIntent.Warn] and [FeedbackIntent.Reject] share [FeedbackFeel.Danger],
+ *   which is the sharing the two have always had, stated once instead of as two
+ *   coincidental branches. They remain two intents so a consumer can pull them
+ *   apart.
+ */
+val FeedbackIntent.feel: FeedbackFeel
+    get() = when (this) {
+        FeedbackIntent.Tick -> FeedbackFeel.Light
+        // Neither is performed anywhere in the library. Assigned anyway, because
+        // an intent without a feel is an intent a replacement dispatcher cannot
+        // place — and because the `when` is exhaustive, which is what stops the
+        // next intent being added without this decision being made.
+        FeedbackIntent.GestureEnd -> FeedbackFeel.Light
+        FeedbackIntent.KeyPress -> FeedbackFeel.Light
+
+        FeedbackIntent.Tap -> FeedbackFeel.Medium
+        FeedbackIntent.Selection -> FeedbackFeel.Medium
+        FeedbackIntent.DragThreshold -> FeedbackFeel.Medium
+
+        FeedbackIntent.LongPress -> FeedbackFeel.Heavy
+
+        FeedbackIntent.Confirm -> FeedbackFeel.Success
+        FeedbackIntent.Reject -> FeedbackFeel.Danger
+        FeedbackIntent.Warn -> FeedbackFeel.Danger
+    }
 
 /**
  * How much physical feedback the theme asks for.
@@ -203,117 +293,89 @@ val Feedback: FeedbackDispatcher
 /**
  * The default mapping from intent to platform haptic.
  *
- * ### What each constant actually does, per platform
+ * Two steps, and the split is the point. An intent is turned into a
+ * [FeedbackFeel] here, in common, by [FeedbackIntent.feel] — that is the policy,
+ * and it is the same on every platform. The feel is then turned into a constant by
+ * `platformHapticFor`, per platform — that is a capability table, and it differs
+ * because the platforms differ.
  *
- * Measured rather than assumed, because the names are Android's and two of them
- * turn out to be unreachable on most of the devices this library runs on. The
- * web column is the `navigator.vibrate` pattern in milliseconds; iOS is the
- * generator `CupertinoHapticFeedback` routes to; the Android column is the API
- * level the `HapticFeedbackConstants` value was added in.
+ * It used to be one step, and the step carried both. `HapticFeedbackType` is a
+ * *common* Compose type and each platform's `LocalHapticFeedback` already resolves
+ * it natively — on iOS `CupertinoHapticFeedback` routes these onto
+ * `UIImpactFeedbackGenerator`, `UISelectionFeedbackGenerator.selectionChanged` and
+ * `UINotificationFeedbackGenerator` — so the mapping was written once, in common,
+ * and the names read as Android's `HapticFeedbackConstants` because that is where
+ * the vocabulary came from rather than where it goes.
  *
- * | Intent | Constant | Web | iOS | Android |
- * |---|---|---|---|---|
- * | [FeedbackIntent.Tick] | per platform — see [io.kontour.ui.platform.platformTickHaptic] | 0, 20ms | **selection tick** | 5 |
- * | [FeedbackIntent.Selection] | `ContextClick` | 12ms | medium impact | 23 |
- * | [FeedbackIntent.DragThreshold] | `GestureThresholdActivate` | 12ms | light impact | **34** |
- * | [FeedbackIntent.LongPress] | `LongPress` | 0, 30ms | medium impact | 3 |
- * | [FeedbackIntent.GestureEnd] | `GestureEnd` | 12ms | light impact | 30 |
- * | [FeedbackIntent.Confirm] | `Confirm` | 18, 32, 36ms | notification, success | 30 |
- * | [FeedbackIntent.Reject], [FeedbackIntent.Warn] | `Reject` | 18, 28, 18, 28, 18ms | notification, error | 30 |
- * | [FeedbackIntent.KeyPress] | `KeyboardTap` | 6ms | **nothing** | 8 |
+ * That was right about the mechanism and wrong about the consequence. Two intents
+ * had already needed a platform seam of their own, each arguing its case at
+ * length; and on Android what the two of them resolved to was the *same constant*
+ * on anything below API 34. So the library had a two-tier intent vocabulary and a
+ * one-tier result, and the report from a phone was that everything felt heavy.
+ * Naming the tier is what fixes that, because a platform can then be asked for its
+ * lightest rather than for a constant somebody else measured.
  *
- * ### Why [FeedbackIntent.Tick] moved off `SegmentFrequentTick`
+ * ### What each feel actually does, per platform
  *
- * Because it was never felt. `SegmentFrequentTick` is 6ms on the web, and **a
- * vibration motor needs roughly 10–20ms to spin up far enough to be felt at
- * all** — so every detent in the library issued a pulse that reached nothing.
- * Measured on the built site with `docs/measure-web.mjs --vibration`: a stepped
- * slider dragged across its range produced `3 x [6]`, eighteen milliseconds of
- * motor time for a whole gesture. Meanwhile `LongPress` is 30ms and was being
- * felt, which is exactly the shape the report took — the long presses are
- * enjoyed and the detents do nothing.
+ * Measured rather than assumed. The web column is the `navigator.vibrate` pattern
+ * in milliseconds; iOS is the generator `CupertinoHapticFeedback` routes to; the
+ * Android column names the constant and the API level it arrived in.
  *
- * It is not better on the other two. `SegmentFrequentTick` and `SegmentTick`
- * are the *same* `selectionChanged()` generator on iOS, so the two intents were
- * indistinguishable there; and both are `HapticFeedbackConstants` added in API
- * 34, so on any Android below 14 they do nothing whatsoever.
+ * | Feel | Web | iOS | Android |
+ * |---|---|---|---|
+ * | [FeedbackFeel.Light] | 0, 20ms | **selection tick** | `SegmentTick` (**34**), else `TextHandleMove` (27) |
+ * | [FeedbackFeel.Medium] | 0, 20ms | light impact | `VirtualKey` (5) |
+ * | [FeedbackFeel.Heavy] | 0, 30ms | medium impact | `LongPress` (3) |
+ * | [FeedbackFeel.Success] | 18, 32, 36ms | notification, success | `Confirm` (30), else `VirtualKey` |
+ * | [FeedbackFeel.Danger] | 18, 28, 18, 28, 18ms | notification, error | `Reject` (30), else `LongPress` |
  *
- * `VirtualKey` is the one constant that is above the motor floor on the web, a
- * distinct generator from [FeedbackIntent.Selection] on iOS, and available back
- * to API 5 on Android.
+ * ### Why Android's middle tier is the constant it is
  *
- * ### There is no lighter tier that is still felt — on the web
+ * Because `VirtualKey` was never the wrong constant — it was in the wrong row.
+ * The round-25 measurement that put the detent tick on it was a **web**
+ * measurement: `SegmentFrequentTick` is 6ms there, a vibration motor needs roughly
+ * 10–20ms to spin up far enough to be felt, and every detent in the library was
+ * issuing a pulse that reached nobody. `VirtualKey` is 20ms and is felt, and that
+ * finding stands.
  *
- * The wheel picker wants a *finer* tick than a slider does, and the obvious
- * shape for that is a second intent mapped to something lighter. On the web
- * there is nothing to map it to: below `VirtualKey` the patterns are 12ms and
- * 6ms, and 6ms is the silence this whole change is about. A "light" intent
- * would reintroduce the bug on the one component that fires most often. There
- * is felt and not felt, and no scale between them.
+ * What it did not settle is where 20ms *sits*. On Android `VirtualKey` is
+ * `EFFECT_CLICK` — a full key click, the weight a button press wants — so using it
+ * for a stream of detents was asking for a press per row of a drum. The lighter
+ * constants were there all along and unmentioned: `TextHandleMove` has existed
+ * since API 27, which is below this library's own `minSdk`, so **no device it runs
+ * on lacks a light tier**.
  *
- * **iOS is not that platform**, which is what the round that wrote this
- * paragraph did not separate out. It has no spin-up to clear, and it has
- * `UISelectionFeedbackGenerator` — a generator whose whole purpose is the tick
- * under a picker. So the lighter tier exists there and is taken, through
- * [io.kontour.ui.platform.platformTickHaptic], while the web and Android keep
- * the constant the measurement chose.
+ * ### There is no lighter tier that is still felt — on the web, still
  *
- * The **rate** limit stays either way and is the part that is not
- * platform-specific: a flung wheel crosses a row every 8ms, and no constant
- * soft enough to survive that is a constant at all. See [DetentTicker].
+ * The web's patterns below 20ms are 12ms and 6ms, and 6ms is the silence the
+ * round-25 measurement was about. 12ms has never been measured either way, so the
+ * web answers [FeedbackFeel.Light] and [FeedbackFeel.Medium] with the same 20ms
+ * pulse and the table above says so rather than implying a scale it does not have.
+ * `docs/measure-web.mjs --vibration` is what would settle it.
  *
- * ### The gaps this leaves, named rather than hidden
+ * The **rate** limit stays on every platform and is the part that was never
+ * platform-specific: a flung wheel crosses a row every 8ms, and no constant soft
+ * enough to survive that is a constant at all. See [DetentTicker].
  *
- * [FeedbackIntent.DragThreshold] is still on an API-34 constant, so a pull-to-
- * refresh threshold is silent on Android 13 and below. It is 12ms on the web and
- * light impact on iOS, so it clears the floor on the two platforms this round
- * measured; the Android gap is real and unfixed. [FeedbackIntent.KeyPress] does
- * nothing at all on iOS and is 6ms on the web, which is to say it is decorative
- * — nothing in the library performs it.
+ * ### The gap this closes, and the one it leaves
+ *
+ * [FeedbackIntent.DragThreshold] was on `GestureThresholdActivate`, an API-34
+ * constant, so a pull-to-refresh threshold was **silent on Android 13 and below** —
+ * a hole this file used to name and could not fix without moving the intent. It is
+ * [FeedbackFeel.Medium] now and answers on every supported release.
+ *
+ * [FeedbackIntent.KeyPress] still does nothing at all on iOS, which is to say it is
+ * decorative — nothing in the library performs it.
  */
 @Composable
 internal fun rememberDefaultFeedbackDispatcher(
     level: HapticsLevel = HapticsLevel.Standard,
 ): FeedbackDispatcher {
     val haptics: HapticFeedback = LocalHapticFeedback.current
-    // Almost no `expect`/`actual` here, and the exception is the interesting
-    // part. `HapticFeedbackType` is a *common* Compose type and each platform's
-    // `LocalHapticFeedback` already resolves it natively: on iOS
-    // `CupertinoHapticFeedback` routes these onto `UIImpactFeedbackGenerator`,
-    // `UISelectionFeedbackGenerator.selectionChanged` and
-    // `UINotificationFeedbackGenerator`. The names below read as Android's
-    // `HapticFeedbackConstants` because that is where the vocabulary came from,
-    // not because that is where it goes. So a seam per intent would duplicate
-    // the toolkit's and be worse than it.
-    //
-    // That holds for every intent whose platforms want the *same* constant, and
-    // exactly one does not. `Tick` is on `VirtualKey` because of a measurement,
-    // and the measurement was a web one — 6ms is under the motor's spin-up and
-    // 20ms is not. iOS has no motor floor and does have a generator built for
-    // this case, so there the same constant is an *impact* per detent where a
-    // selection tick was wanted. `platformTickHaptic` is that one value, and
-    // `platform/Feedback.kt` argues it per platform.
     return remember(haptics, level) {
         FeedbackDispatcher { intent ->
             if (!level.allows(intent)) return@FeedbackDispatcher
-            haptics.performHapticFeedback(
-                when (intent) {
-                    FeedbackIntent.Selection -> HapticFeedbackType.ContextClick
-                    // The second value that is not the same everywhere, and it
-                    // had to argue for itself. See [platformTapHaptic].
-                    FeedbackIntent.Tap -> platformTapHaptic
-                    // The one value that is not the same everywhere. See
-                    // [io.kontour.ui.platform.platformTickHaptic].
-                    FeedbackIntent.Tick -> platformTickHaptic
-                    FeedbackIntent.Confirm -> HapticFeedbackType.Confirm
-                    FeedbackIntent.Reject -> HapticFeedbackType.Reject
-                    FeedbackIntent.Warn -> HapticFeedbackType.Reject
-                    FeedbackIntent.LongPress -> HapticFeedbackType.LongPress
-                    FeedbackIntent.DragThreshold -> HapticFeedbackType.GestureThresholdActivate
-                    FeedbackIntent.GestureEnd -> HapticFeedbackType.GestureEnd
-                    FeedbackIntent.KeyPress -> HapticFeedbackType.KeyboardTap
-                }
-            )
+            haptics.performHapticFeedback(platformHapticFor(intent.feel))
         }
     }
 }

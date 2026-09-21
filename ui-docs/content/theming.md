@@ -238,67 +238,85 @@ is what a level above the default is for. Everything else a reader can feel is o
 at `Standard`.
 
 No call site needs a platform check — where a platform cannot vibrate, its
-handler is already a no-op. Nor does one need a rate limit: every light intent in
-a composition shares one, so a slider's ticks and a chip's tap forty milliseconds
-later are one rattle rather than two.
+handler is already a no-op. Nor does one need a rate limit: every intent that
+arrives in a stream shares one, so a slider's ticks and a chip's tap forty
+milliseconds later are one rattle rather than two.
 
-### What an intent actually does, per platform
+### How hard, and what each weight actually does per platform
 
-Worth having in front of you, because the constant names are Android's and what
-they *do* is not. The web column is the `navigator.vibrate` pattern in
-milliseconds; iOS is the generator; Android is the API level the constant was
-added in.
+An intent says what *happened*. A **feel** says how much of the hand that is
+worth, and it is the second half of the vocabulary — added because it was missing
+and the absence was reported from a phone: *"all the haptics feel heavy, there
+doesn't seem to be the concept of a soft interaction for anything"*.
 
-| Intent | Constant | Web | iOS | Android |
-|---|---|---|---|---|
-| `Tap` | per platform | 0, 20ms | **selection tick** | **34**, else 5 |
-| `Tick` | per platform | 0, 20ms | **selection tick** | 5 |
-| `Selection` | `ContextClick` | 12ms | medium impact | 23 |
-| `DragThreshold` | `GestureThresholdActivate` | 12ms | light impact | **34** |
-| `LongPress` | `LongPress` | 0, 30ms | medium impact | 3 |
-| `GestureEnd` | `GestureEnd` | 12ms | light impact | 30 |
-| `Confirm` | `Confirm` | 18, 32, 36ms | notification, success | 30 |
-| `Reject`, `Warn` | `Reject` | 18, 28, 18, 28, 18ms | notification, error | 30 |
-| `KeyPress` | `KeyboardTap` | 6ms | **nothing** | 8 |
+Five feels. Three of them are one pulse of increasing weight and are declared
+lightest first; two are rhythms and are not on that scale, which is why the type
+is `FeedbackFeel` and not `FeedbackWeight` — asking whether `Danger` is heavier
+than `Heavy` has no answer.
 
-**A vibration motor needs roughly 10–20ms to spin up far enough to be felt.**
-That number is the whole reason this table exists. `Tick` used to be
-`SegmentFrequentTick`, which is 6ms on the web — so every detent in the library
-issued a pulse and nothing arrived. Measured on the built site with
-`docs/measure-web.mjs --vibration`, a stepped slider dragged across its range
-produced `3 x [6]`: eighteen milliseconds of motor time for an entire gesture.
-The same drag now produces `3 x [0,20]`.
+| Feel | Which intents | What it is |
+|---|---|---|
+| `Light` | `Tick`, `GestureEnd`, `KeyPress` | A texture going past. Arrives in streams — a flung wheel crosses a row every 8ms — so it is also the tier the shared rate floor thins. |
+| `Medium` | `Tap`, `Selection`, `DragThreshold` | A control answering, or what letting go will do changing. One event. |
+| `Heavy` | `LongPress` | A threshold held long enough to mean something. |
+| `Success` | `Confirm` | It worked. |
+| `Danger` | `Reject`, `Warn` | It was refused, or it is about to be irreversible. |
 
-**`Tap` is genuinely lighter only on iOS and on Android 14 and up.** It is the
-second value in that table that differs by platform, and it differs for the same
-reason the first does: it wants the lightest thing that is still *felt*, and on
-the web and on older Android that is the same 20ms pulse as `Tick`. Two rows of
-the table are identical on half the devices in use, which is worth saying plainly
-rather than implying a scale of four intensities that only two platforms have.
+`FeedbackIntent.feel` is public, and it is the whole of the policy: one `when`, in
+common, the same on every platform. What differs per platform is only **how light
+that platform can go**, and that is a capability table:
 
-It was no better elsewhere. `SegmentFrequentTick` and `SegmentTick` are the
-*same* `selectionChanged()` generator on iOS, so `Tick` and `Selection` were
-indistinguishable there; and both are Android 14 constants, so below that they
-did nothing at all.
+| Feel | Web | iOS | Android |
+|---|---|---|---|
+| `Light` | 0, 20ms | `selectionChanged()` — the picker tick | `SegmentTick` (**34**), else `TextHandleMove` (27) |
+| `Medium` | 0, 20ms | light impact | `VirtualKey` (5) |
+| `Heavy` | 0, 30ms | medium impact | `LongPress` (3) |
+| `Success` | 18, 32, 36ms | notification, success | `Confirm` (30), else `VirtualKey` |
+| `Danger` | 18, 28, 18, 28, 18ms | notification, error | `Reject` (30), else `LongPress` |
 
-**On the web there is no lighter tier that is still felt.** Below `Tick`'s 20ms
-the patterns are 12ms and 6ms, and 6ms is the silence above. There is felt and
-not felt, and no scale between them.
+**A vibration motor needs roughly 10–20ms to spin up far enough to be felt.** That
+number is why `Tick` is not on a 6ms pattern. It used to be `SegmentFrequentTick`,
+and measured on the built site with `docs/measure-web.mjs --vibration` a stepped
+slider dragged across its whole range produced `3 x [6]` — eighteen milliseconds
+of motor time for an entire gesture. The same drag now produces `3 x [0,20]`.
 
-**iOS is not that platform**, and `Tick` is the one intent whose constant
-differs because of it. There is no spin-up to clear, and Apple ships a generator
-for exactly this — `UISelectionFeedbackGenerator.selectionChanged()`, the tick
-under the system's own pickers and the lightest thing on the device. `Tick`
-takes it there and keeps `VirtualKey` on the web and on Android, where the
-softer constant is API 34 and so is nothing on most of the installed base. It is
-the only platform seam in the feedback mapping, and it is one value wide.
+**What that measurement did not settle is where 20ms sits.** It was a web
+measurement, and it was applied to Android wholesale. On Android `VirtualKey` is
+`EFFECT_CLICK` — a full key click, the weight a button press wants — so putting a
+stream of detents on it meant a key click per row of a drum. Two intents had
+already earned a platform seam each to work around the consequence, and below
+Android 14 both of them resolved to `VirtualKey` anyway: a two-tier vocabulary
+with a one-tier result, which is the report.
 
-Either way a component that wants a *finer* tick — the wheel picker, spinning
-past a row every few milliseconds — does not get a lighter intent. It gets the
-same one, less often: `DetentTicker` will not fire twice inside 80ms, which is a
-quarter duty cycle against a 20ms pulse rather than the continuous buzz that was
-reported. No constant soft enough to survive a flung wheel is a constant at
-all.
+The lighter constant was there the whole time and unmentioned. `TEXT_HANDLE_MOVE`
+has existed since **API 27**, one release below this library's own `minSdk`, so no
+device it runs on lacks a light tier; it resolves to a tick rather than to a
+click; and Compose exposes it as `HapticFeedbackType.TextHandleMove`. Nothing
+needed `Vibrator`, `VibrationEffect` or the `VIBRATE` manifest permission — which
+would also have bypassed the reader's own touch-feedback setting, and a UI library
+must not do that for a tick.
+
+**iOS had the same defect from the other direction.** `SegmentTick` and
+`SegmentFrequentTick` are the *same* `selectionChanged()` generator there, and a
+press claimed to be "the lightest thing the device can do", so a checkbox and a
+row of a drum felt identical. A press is `Medium` now and routes to a light
+impact, with `LongPress`'s medium impact above it: three rungs, on the platform
+that has the most to say.
+
+**On the web there are two felt weights, not three.** Below 20ms the single
+pulses are 12ms and 6ms; 6ms is the silence the measurement was about and **12ms
+has never been measured either way**, so `Light` and `Medium` are both the 20ms
+pulse and this table says so rather than implying a scale the platform has not
+been shown to have. `docs/measure-web.mjs --vibration` is what would settle it.
+
+The **rate** limit is a separate question from weight and always was. A component
+that wants a *finer* tick — the wheel picker, spinning past a row every few
+milliseconds — now does get a lighter feel, and it still gets the same rate floor
+on top: `DetentTicker` will not fire twice inside 80ms, which is a quarter duty
+cycle rather than the continuous buzz that was reported. Note that `Tap` is
+`Medium` and is thinned all the same, because three chips answering inside eighty
+milliseconds are one rattle to the hand whatever each press weighs — the floor
+asks about rate, and this section asks about weight.
 
 **Where haptics do not happen at all**, written down so it is not re-reported as
 a bug:
@@ -306,9 +324,13 @@ a bug:
 - **iOS Safari** has no Vibration API. On an iPhone in mobile web there are no
   haptics whatever the mapping says. Native iOS is unaffected.
 - **Desktop**, all of it. There is no motor, and the handler returns immediately.
-- **Android below 14** for `DragThreshold` alone, which is still on an API-34
-  constant, so a pull-to-refresh threshold is silent there. Named rather than
-  fixed.
+- **Android 13 and below** for a destructive alert's `Warn` was the last gap of
+  this kind, and the fallbacks in the table above close it: `Confirm` and `Reject`
+  are API-30 constants against a `minSdk` of 29, so on that one release they fall
+  back to the nearest weight rather than to silence. `DragThreshold` used to be
+  the named gap here — it was on an API-34 constant, so a pull-to-refresh
+  threshold was silent on Android 13 and below. It is `Medium` now and answers on
+  every supported release.
 
 ### What the library buzzes for
 
@@ -324,7 +346,7 @@ whatever the level:
 | A **threshold passed** | `PullToRefresh`, `SwipeActions`, `Switch` dragged, `Toast` swiped | What letting go will do has just changed, and nothing on screen said so first. |
 | A **long press becoming a gesture** | `Menu`, `Tooltip`, `ReorderableItem` | The press has been held long enough to mean something. Nothing has visibly happened yet, which is exactly why it needs reporting. |
 | A **destructive question arriving** | `AlertDialog(destructive = true)` | The only one that fires *before* the thing it is about. Optional — see `hapticWarning`. |
-| A **control answering a press** | `Checkbox`, `RadioButton`, `Chip`, `Switch` tapped, `SegmentedControl`, `Stepper`, `Rating`, `ColourSwatchPicker`, `CalendarMonth`, `Accordion`, `ExpandingListItem`, `AnimatedCounter` counting **down** | The lightest thing the device can do, on the controls whose whole job is to answer a press. Every one of them goes through `rememberTapFeedback`, which is one call site and one shared rate limit rather than a dozen of each. |
+| A **control answering a press** | `Checkbox`, `RadioButton`, `Chip`, `Switch` tapped, `SegmentedControl`, `Stepper`, `Rating`, `ColourSwatchPicker`, `CalendarMonth`, `Accordion`, `ExpandingListItem`, `AnimatedCounter` counting **down** | `Medium` — a step above the texture of a detent going past, on the controls whose whole job is to answer a press. Every one of them goes through `rememberTapFeedback`, which is one call site and one shared rate limit rather than a dozen of each. |
 
 Nothing else does. A `Button` press, a tab, a menu item, a page control, a
 navigation destination, a stepped slider *tapped* rather than dragged: all

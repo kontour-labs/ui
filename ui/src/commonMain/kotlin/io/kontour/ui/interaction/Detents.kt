@@ -183,12 +183,19 @@ fun rememberDetentTicker(intent: FeedbackIntent = FeedbackIntent.Tick): DetentTi
  * component, and a hand does not feel components. A slider's ticks and a chip's
  * tap forty milliseconds later are one rattle to the person holding the phone.
  *
- * Gates the light intents only — [FeedbackIntent.Tap] and [FeedbackIntent.Tick].
- * An outcome has to arrive when it happens, and outcomes do not come in streams:
- * a threshold swallowed because a slider ticked forty milliseconds ago is a
- * gesture that silently changed meaning. So [claim] takes the intent and answers
- * yes to anything heavier, which is also why the switch's midpoint can go
- * through a ticker without becoming droppable.
+ * Gates the two intents that arrive in streams — [FeedbackIntent.Tap] and
+ * [FeedbackIntent.Tick]. An outcome has to arrive when it happens, and outcomes do
+ * not come in streams: a threshold swallowed because a slider ticked forty
+ * milliseconds ago is a gesture that silently changed meaning. So [claim] takes the
+ * intent and answers yes to anything else, which is also why the switch's midpoint
+ * can go through a ticker without becoming droppable.
+ *
+ * **This is a question about *rate*, not about weight.** It used to ask whether the
+ * intent `isLight`, and once [io.kontour.ui.interaction.FeedbackFeel] existed that
+ * was two different things wearing one word: [FeedbackIntent.Tap] is
+ * [FeedbackFeel.Medium] and is still thinned here, because a chip answering three
+ * presses in eighty milliseconds is one rattle to the hand whatever each press
+ * weighs.
  *
  * It is here rather than in the dispatcher because the tests install their own
  * dispatcher: a floor there would be invisible to them, and the stepped-slider
@@ -203,11 +210,12 @@ internal class FeedbackFloor(private val clock: TimeSource = TimeSource.Monotoni
     /**
      * True if [intent] may fire now, recording the firing when it does.
      *
-     * Anything that is not light passes straight through and does not reset the
-     * clock either — an outcome is not part of the stream the floor is thinning.
+     * Anything that does not arrive in a stream passes straight through and does
+     * not reset the clock either — an outcome is not part of the stream the floor
+     * is thinning.
      */
     fun claim(intent: FeedbackIntent): Boolean {
-        if (!intent.isLight) return true
+        if (!intent.arrivesInStreams) return true
         val since = lastFired
         if (since != null && since.elapsedNow() < DetentTicker.MinimumTickInterval) return false
         lastFired = clock.markNow()
@@ -218,11 +226,13 @@ internal class FeedbackFloor(private val clock: TimeSource = TimeSource.Monotoni
 /**
  * Whether [FeedbackFloor] may drop this intent.
  *
- * The two that arrive in streams. [FeedbackIntent.Selection] is deliberately
- * absent: it fires once per reorder, which is once per gap a row crossed, and a
- * reorder the hand does not feel is a reorder the eye has to go looking for.
+ * The two that arrive in streams, which is not the same set as the two lightest
+ * feels — see the note on [FeedbackFloor]. [FeedbackIntent.Selection] is
+ * deliberately absent: it fires once per reorder, which is once per gap a row
+ * crossed, and a reorder the hand does not feel is a reorder the eye has to go
+ * looking for.
  */
-private val FeedbackIntent.isLight: Boolean
+internal val FeedbackIntent.arrivesInStreams: Boolean
     get() = this == FeedbackIntent.Tap || this == FeedbackIntent.Tick
 
 /**
