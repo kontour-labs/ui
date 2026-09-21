@@ -46,6 +46,15 @@ half size and half opacity, which measured as no ink at all. It still grows in
 from nothing, so a stray one-pixel drag does not flash a control onto the screen;
 it just finishes early and leaves the rest of the gesture to the arc.
 
+**The circle never overlaps the list, and is never cut off by the top edge.** It
+is centred in the gap the list has vacated, so a 40dp circle in a gap shorter than
+that hangs over both ends at once — over the content below and above the container's
+own edge, where a clipping ancestor shaves it flat. There is no position that fixes
+it, because a 40dp circle does not fit in a 20dp gap, so the circle is *sized* to
+the gap: its drawn diameter is the smaller of 40dp and the gap, and it grows out of
+the top edge as the list comes away from it. Once the gap is 40dp or more the bound
+does nothing at all and the indicator is the size it has always been.
+
 **Letting it back slowly does not scroll the page.** Past the threshold the pull
 resists, so the indicator moves less than the finger does; the way back closes at
 full rate and consumes all of it, and the list underneath stays where it is until

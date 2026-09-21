@@ -340,6 +340,15 @@ fun PullToRefresh(
                     // the content's top edge: at rest there is no gap and no
                     // indicator, and at full pull it sits in the middle of the
                     // space the list has vacated.
+                    //
+                    // Unchanged by the overlap fix, which is the point of it. A
+                    // 40dp circle centred in a gap shorter than 40dp hangs out of
+                    // both ends — over the content below and above the container's
+                    // own top edge, where `Surface`'s clip cuts it. Moving it does
+                    // not help: there is nowhere in a 20dp gap to put a 40dp
+                    // circle. So the circle is *sized* to the gap instead, in
+                    // `RefreshIndicator`'s own layer, and this expression stays the
+                    // one honest thing it always was — the middle of the space.
                     .offsetY((indicatorOffset - with(density) { IndicatorSize.toPx() }) / 2f)
                     .semantics {
                         liveRegion = LiveRegionMode.Polite
@@ -354,6 +363,7 @@ fun PullToRefresh(
                     progress = state.progress,
                     refreshing = refreshing,
                     reduceMotion = motion.reduceMotion,
+                    gap = indicatorOffset,
                 )
             }
         }
@@ -384,7 +394,12 @@ private val IndicatorSize = 40.dp
  * threshold is as visible as ever, without the spin.
  */
 @Composable
-private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion: Boolean) {
+private fun RefreshIndicator(
+    progress: Float,
+    refreshing: Boolean,
+    reduceMotion: Boolean,
+    gap: Float,
+) {
     val pull = progress.coerceIn(0f, 1f)
 
     // The fade needs room around the circle, or it cuts the circle's own shadow
@@ -424,10 +439,48 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
                 // flash a control — it just finishes early, leaving the rest of
                 // the gesture to the arc alone.
                 val grown = (pull / PullToRefreshDefaults.GrowthShare).coerceAtMost(1f)
-                val scale = if (refreshing) 1f else grown
+                val appearing = if (refreshing) 1f else grown
+
+                // **And never wider than the gap it is revealed in.**
+                //
+                // Reported as: *"I don't want the circle to overlap the content at
+                // any point. It should appear slightly higher of where it is, but
+                // without being cut off."* Both halves of that were happening at
+                // once, and they are the same arithmetic. The circle is centred in
+                // the gap, so a gap of `G` puts its edges at `G/2 ± 20dp` — below
+                // the content's top edge whenever `G` is under 40dp, and *above*
+                // the container's own top edge by the same amount, where
+                // `Surface`'s clip shaves it.
+                //
+                // There is no position that fixes it: a 40dp circle does not fit in
+                // a 20dp gap. Sizing it to the gap does, exactly — the drawn height
+                // is `min(40dp, G)`, so both edges reduce to the same condition and
+                // both are satisfied by construction. What a reader sees is a circle
+                // growing out of the top edge as the list comes away from it, which
+                // is the "slightly higher" the report asked for.
+                //
+                // A **cap** on the growth above rather than a second factor
+                // multiplied into it. That one is about not flashing a control on a
+                // one-pixel drag and finishes at four tenths of the threshold; this
+                // one is geometry. Multiplying them would shrink the indicator
+                // everywhere the two ramps overlap, for no reason — the bound only
+                // needs the drawn size to be under the gap, and the lower of the two
+                // already is. Above 40dp of gap this is 1 and the indicator is
+                // exactly the size it has always been.
+                //
+                // Read off the *drawn* gap rather than `progress`, which leads it by
+                // a spring's worth of lag on a fast pull — and a bound that trails
+                // what it is bounding is not a bound.
+                val fits = (gap / IndicatorSize.toPx()).coerceIn(0f, 1f)
+                val scale = minOf(appearing, fits)
+
                 scaleX = scale
                 scaleY = scale
-                alpha = scale
+                // Not scaled by `fits`. The fade is the control announcing itself
+                // and the bound is geometry; multiplying them would make a
+                // half-emerged circle half transparent as well as half sized, which
+                // is the "no ink at all" the growth share was widened to fix.
+                alpha = appearing
             }
             .padding(room),
     ) {

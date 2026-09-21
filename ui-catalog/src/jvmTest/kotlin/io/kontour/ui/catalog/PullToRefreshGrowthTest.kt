@@ -8,11 +8,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.list.PullToRefresh
+import io.kontour.ui.components.list.PullToRefreshState
 import io.kontour.ui.components.list.rememberPullToRefreshState
 import java.awt.image.BufferedImage
 import kotlin.test.Test
@@ -80,13 +79,30 @@ class PullToRefreshGrowthTest {
         )
     }
 
-    /** How much arc ink is on screen at [fraction] of the way to the threshold. */
+    /**
+     * How much arc ink is on screen at [fraction] of the way to the threshold.
+     *
+     * **Driven through `PullToRefreshState.drag` rather than by a finger**, which is
+     * what that method is public for. It used to press and move, and a gesture's
+     * first eighteen-odd pixels go to touch slop — so "half a pull" was really
+     * thirty-nine hundredths of one, and the ratio this test reports was an
+     * underestimate of itself. The constant below is meticulous about resistance and
+     * says nothing about slop, which is exactly the kind of arithmetic that is right
+     * until something else measures the same pixels.
+     *
+     * What exposed it was the indicator gaining a geometric bound — it may not be
+     * drawn wider than the gap it sits in — which bites below 40dp of gap and so
+     * bit at 0.39 of a pull and not at 0.5. The gesture is covered by
+     * `PullToRefreshGestureTest`; what this test is about is ink at two points on
+     * the pull, and the points may as well be the ones it names.
+     */
     private fun arcInk(fraction: Float): Int {
-        var bounds = Rect.Zero
+        var state: PullToRefreshState? = null
         var ink = 0
 
         Scene(width = 400, height = 600) {
             val pull = rememberPullToRefreshState()
+            state = pull
             val rows = rememberLazyListState()
             // As in `PullToRefreshArcTest`: an opaque ground, or the gap the pull
             // opens reads as ink and swamps the three hundred pixels of ring.
@@ -95,7 +111,7 @@ class PullToRefreshGrowthTest {
                 refreshing = false,
                 onRefresh = {},
                 state = pull,
-                modifier = Modifier.fillMaxSize().reportBounds { bounds = it },
+                modifier = Modifier.fillMaxSize(),
             ) {
                 LazyColumn(
                     state = rows,
@@ -106,17 +122,10 @@ class PullToRefreshGrowthTest {
             }
         }.use { scene ->
             scene.frames(4)
-            require(bounds.height > 0f) { "the container never reported a size" }
-
-            val from = Offset(bounds.center.x, bounds.top + 40f)
-            val travel = ThresholdTravel * fraction
-            scene.press(from)
-            repeat(Steps) { step ->
-                scene.move(Offset(from.x, from.y + travel * (step + 1) / Steps))
-                scene.frame()
-            }
-            ink = scene.frames(6).darkInk()
-            scene.release(Offset(from.x, from.y + travel))
+            requireNotNull(state).drag(ThresholdTravel * fraction)
+            // The drawn gap is a spring chasing the state's, and both the indicator's
+            // position and its bound are read off the drawn one.
+            ink = scene.frames(SettleFrames).darkInk()
         }
         return ink
     }
@@ -132,15 +141,16 @@ class PullToRefreshGrowthTest {
     }
 
     private companion object {
-        const val Steps = 24
+        /** Long enough for the gap's spring to arrive at what it was told. */
+        const val SettleFrames = 90
 
         /**
-         * Finger travel that puts the pull exactly on its threshold.
+         * The pull that puts the indicator exactly on its threshold.
          *
          * `Threshold` is 80dp at a scene density of 2, and `Resistance` applies
-         * **outward past the threshold only** (`PullToRefresh.kt:103`) — so
+         * **outward past the threshold only** (`PullToRefresh.kt:117`) — so
          * everything up to it is one-to-one and this is 160, not the 400 that
-         * dividing by the resistance gives. That first guess put both fractions
+         * dividing by the resistance gives. An earlier guess put both fractions
          * past the threshold, where `pull` is clamped, and the two frames came
          * back byte-identical at 299px each: a ratio of exactly 1.00, which is
          * what an instrument that never varied its input reports.
