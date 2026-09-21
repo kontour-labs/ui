@@ -53,6 +53,7 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.horizontalDragOwning
+import io.kontour.ui.interaction.verticalDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.a11y.contrastEdge
@@ -96,7 +97,7 @@ object SegmentedControlDefaults {
  * The range a segmented control's thumb centre can occupy, which is where refusal
  * begins.
  *
- * **Not the track.** The finger's accumulator was clamped to `0..trackWidth` and
+ * **Not the track.** The finger's accumulator was clamped to `0..trackLength` and
  * the band was handed whatever fell outside it, so nothing was refused until the
  * finger reached the track's *edge*. The thumb had stopped half a segment earlier,
  * at the last segment's centre — and the control already knew, because the lean is
@@ -114,7 +115,7 @@ object SegmentedControlDefaults {
  * the drawn width. `Slider`, `RangeSlider` and `Switch` have always clamped to the
  * travel they actually have; this control clamped to the track.
  *
- * Selection is unaffected: `selectAt` buckets `x / trackWidth`, and the last centre
+ * Selection is unaffected: `selectAt` buckets `x / trackLength`, and the last centre
  * still falls in the last bucket.
  *
  * A file-level function rather than a local one so it can be asserted without a
@@ -123,13 +124,13 @@ object SegmentedControlDefaults {
  * `SegmentedThumbTravelTest` has the numbers.
  *
  * Degenerate widths fall back to the track: with one option the centre is the only
- * place the thumb can be, and `0f..trackWidth` at least lets a press land.
+ * place the thumb can be, and `0f..trackLength` at least lets a press land.
  */
 internal fun segmentedThumbTravel(
-    trackWidth: Float,
+    trackLength: Float,
     options: Int,
 ): ClosedFloatingPointRange<Float> {
-    val track = trackWidth.coerceAtLeast(0f)
+    val track = trackLength.coerceAtLeast(0f)
     if (options <= 0) return 0f..track
     val half = track / options / 2f
     if (half * 2f >= track) return 0f..track
@@ -223,7 +224,7 @@ fun SegmentedControl(
     val height = maxOf(Theme.sizing.controlHeightMedium, Theme.sizing.minTouchTarget)
     val indicator = rememberSelectionIndicatorState()
 
-    var trackWidth by remember { mutableFloatStateOf(0f) }
+    var trackLength by remember { mutableFloatStateOf(0f) }
     val currentSelected by rememberUpdatedState(selected)
     val currentChange by rememberUpdatedState(onSelectedChange)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
@@ -253,7 +254,7 @@ fun SegmentedControl(
      * out of its lean instead of losing the number it was leaning by. [engaged]
      * is what says whether there is a finger; this only says where it was.
      */
-    var fingerX by remember { mutableFloatStateOf(Float.NaN) }
+    var fingerAt by remember { mutableFloatStateOf(Float.NaN) }
     var dragging by remember { mutableStateOf(false) }
 
     /**
@@ -380,13 +381,19 @@ fun SegmentedControl(
                         // changes anything but this transform.
                         val segments = options.size
                         val here = indicator.drawn
+                        // **The thumb's own extent along the track**, which is
+                        // its width side by side and its height stacked. Every
+                        // number below is a distance along that one axis, and
+                        // the only lines that know which axis it is are the four
+                        // that set the transform.
+                        val thumbSpan = if (stacked) here.height else here.width
                         val lean = if (
-                            fingerX.isNaN() || trackWidth <= 0f ||
-                            segments == 0 || here.width <= 0f
+                            fingerAt.isNaN() || trackLength <= 0f ||
+                            segments == 0 || thumbSpan <= 0f
                         ) {
                             0f
                         } else {
-                            val segment = trackWidth / segments
+                            val segment = trackLength / segments
                             // From where the thumb *is*, not from where the
                             // segment it belongs to would put it. Crossing a
                             // boundary moves the selection and starts the
@@ -394,19 +401,19 @@ fun SegmentedControl(
                             // segment's centre the lean would flip sign on that
                             // same frame and throw the thumb backwards past the
                             // segment it just left. See `drawn`.
-                            val base = here.center.x
-                            val pulled = (fingerX - base) * SliderDefaults.DetentPull * engaged
+                            val base = if (stacked) here.center.y else here.center.x
+                            val pulled = (fingerAt - base) * SliderDefaults.DetentPull * engaged
                             // Never off the track: at either end the wall is the
                             // answer.
                             pulled.coerceIn(
                                 segment / 2f - base,
-                                (trackWidth - segment / 2f - base).coerceAtLeast(segment / 2f - base),
+                                (trackLength - segment / 2f - base).coerceAtLeast(segment / 2f - base),
                             )
                         }
 
-                        translationX = lean
-                        val segmentWidth =
-                            if (segments == 0) 0f else trackWidth / segments
+                        if (stacked) translationY = lean else translationX = lean
+                        val segmentSpan =
+                            if (segments == 0) 0f else trackLength / segments
 
                         // The end stop, which the clamp above turns into a wall.
                         // The wall stays — the thumb must not leave the track —
@@ -448,22 +455,30 @@ fun SegmentedControl(
                         // anchored on the edge against the wall so the thumb
                         // shortens into it. Reading them off one signed sum
                         // picked the wrong one for whichever was non-zero.
-                        transformOrigin = TransformOrigin(
-                            pivotFractionX = when {
-                                squash > 0f -> 1f
-                                squash < 0f -> 0f
-                                lean >= 0f -> 0f
-                                else -> 1f
-                            },
-                            pivotFractionY = 0.5f,
-                        )
-                        val reach = if (segmentWidth <= 0f) {
+                        //
+                        // Stacked, the two ends are the top and the bottom and
+                        // the arithmetic is the same: a squash against the
+                        // bottom wall pivots on the bottom edge, a lean upward
+                        // pivots on the edge it is leaving. Only which of the
+                        // two fractions carries it changes.
+                        val pivot = when {
+                            squash > 0f -> 1f
+                            squash < 0f -> 0f
+                            lean >= 0f -> 0f
+                            else -> 1f
+                        }
+                        transformOrigin = if (stacked) {
+                            TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = pivot)
+                        } else {
+                            TransformOrigin(pivotFractionX = pivot, pivotFractionY = 0.5f)
+                        }
+                        val reach = if (segmentSpan <= 0f) {
                             0f
                         } else {
-                            abs(lean) / segmentWidth
+                            abs(lean) / segmentSpan
                         }
-                        scaleX =
-                            (1f + reach.coerceAtMost(MaxSegmentStretch)) * (1f - squeeze)
+                        val along = (1f + reach.coerceAtMost(MaxSegmentStretch)) * (1f - squeeze)
+                        if (stacked) scaleY = along else scaleX = along
                     },
                 shape = innerShape,
                 // One token, no branch on the scheme.
@@ -556,11 +571,13 @@ fun SegmentedControl(
          * so a press that never travels is still a tap on the segment under it.
          */
 
-        fun selectAt(x: Float) {
-            if (trackWidth <= 0f) return
-            val fraction = (x / trackWidth).coerceIn(0f, 1f)
+        fun selectAt(along: Float) {
+            if (trackLength <= 0f) return
+            val fraction = (along / trackLength).coerceIn(0f, 1f)
             val raw = (fraction * options.size).toInt().coerceIn(options.indices)
-            val index = if (isRtl) options.size - 1 - raw else raw
+            // Mirrored along a row and never down a column: a stacked track runs
+            // top to bottom in every script.
+            val index = if (isRtl && !stacked) options.size - 1 - raw else raw
             // Once per segment crossed, the way a stepped slider ticks: a user
             // dragging without looking can feel where the boundaries are. The
             // ticker owns the guard now — it used to be "the index changed",
@@ -570,19 +587,133 @@ fun SegmentedControl(
             currentChange(index)
         }
 
-        // The drag belongs to a row and only to a row. `selectAt` quantises
-        // `x / trackWidth` into equal buckets along one axis, and stacked there
-        // is no such axis — a vertical drag over stacked segments would also be
-        // competing with the page scroller for its own direction. The taps are
-        // per-segment and untouched, which is the whole interaction at a text
-        // size where this fires.
+        /**
+         * The finger has arrived somewhere on the track. One axis, either axis.
+         *
+         * Clamped like every later frame is: a press can land in the track's own
+         * padding, and an accumulator that starts outside the track is the thing
+         * this control used to get wrong for the whole gesture.
+         */
+        fun beginAt(along: Float) {
+            fingerAt = along.coerceIn(0f, trackLength.coerceAtLeast(0f))
+            dragging = true
+            selectAt(fingerAt)
+        }
+
+        /**
+         * And it has moved. Accumulated rather than read off the change, because
+         * the loop reports movement rather than position. It comes to the same
+         * number: every change of the gesture is delivered and the deltas of a
+         * pointer's whole path sum to its path.
+         */
+        fun advance(delta: Float) {
+            // A finger coming back closes the stretch it opened before the thumb
+            // moves again, or one gesture reads as two motions.
+            val offered = delta - band.payBack(delta)
+
+            // **The band is handed the part of *this* delta the track refused,
+            // not the total distance past it.**
+            //
+            // `fingerAt` used to run on unclamped, and the overshoot was
+            // recomputed from it every frame and passed whole to `band.pull` —
+            // which is incremental, so it compounded. At a limit's distance past
+            // the stop a single frame absorbs about 63% of the remaining room, so
+            // the band reached its limit in two or three frames and stayed there
+            // however much further the finger went.
+            //
+            // Worse, it could not be undone. `payBack` closes the band against
+            // the finger coming home, and then the very same frame re-pulled it
+            // to the limit, because `fingerAt` was still far past the track.
+            // Reported as not being able to drag back the other way without
+            // letting go first — which was literally the only way out, since
+            // lifting is what resets `fingerAt`.
+            //
+            // `Switch`, `Slider` and `RangeSlider` all do it this way already:
+            // clamp the accumulator, hand the band the remainder. This control
+            // was the one that did not.
+            val before = fingerAt
+            val raw = fingerAt + offered
+            fingerAt = raw.coerceIn(0f, trackLength.coerceAtLeast(0f))
+            selectAt(fingerAt)
+            if (!motion.reduceMotion && options.isNotEmpty()) {
+                // **Refused against the thumb's reach, not the track's edge.**
+                // See [segmentedThumbTravel]: the thumb stops at the last
+                // segment's centre, half a segment before the track ends, and
+                // refusing from the edge meant half a segment of finger bought
+                // nothing at all.
+                //
+                // `fingerAt` itself stays clamped to the **track**, and that is
+                // not an oversight. It means "where the finger is", which is what
+                // `selectAt` buckets and what the lean measures from — clamping
+                // it to the thumb's travel instead loses the difference for the
+                // rest of the gesture, so a press in the outer half of the first
+                // segment shifted every later frame by that much and put the two
+                // holds of `SegmentedThumbDragTest`'s lean case on different
+                // segments.
+                //
+                // The *increase* in how far past the reach the finger has got,
+                // because `pull` is incremental — handing it a running total is
+                // the compounding that made this control impossible to drag back.
+                val travel = segmentedThumbTravel(trackLength, options.size)
+                val was = before - before.coerceIn(travel)
+                val now = fingerAt - fingerAt.coerceIn(travel)
+                band.pull(now - was, endStopTravelPx)
+            }
+        }
+
+        /** And lifted. The spring `engaged` already runs on. */
+        fun finish() {
+            dragging = false
+            ticker.reset()
+            // The lean's collapse and the squash's recovery are one motion.
+            scope.launch { band.release(motion.springOrTween(motion.springSnappy)) }
+        }
+
+        // **Both directions drag now, and they claim their gesture differently.**
+        //
+        // Side by side, the drag is the whole track: it races a *vertical* page
+        // scroller, so the two want different directions and the only judgement
+        // is about slope — which `horizontalDragOwning` makes, and wins.
+        //
+        // Stacked, the track runs the same way the page does. A control that
+        // claimed every vertical drag across itself would make the page
+        // unscrollable wherever it sat, which is why this used to have no drag at
+        // all: *"a vertical drag over stacked segments would also be competing
+        // with the page scroller for its own direction."* True, and the way out
+        // is not the slope but the **starting point** — a drag that begins on the
+        // thumb is a handle drag and nobody else wants it, and a drag that begins
+        // anywhere else is the page's and is never consumed. Which is also what
+        // was asked for: *"can we make it so you can drag the handle vertically
+        // too, rather than just tapping."*
+        //
+        // The taps stay per-segment either way, and a press that never travels is
+        // left entirely alone.
         val track: Modifier = if (stacked) {
-            Modifier.fillMaxWidth()
+            Modifier
+                .fillMaxWidth()
+                .onSizeChanged { trackLength = it.height.toFloat() }
+                .verticalDragOwning(
+                    enabled = enabled,
+                    interactionSource = null,
+                    scope = scope,
+                    claimsOn = DragClaim.Movement,
+                    // `drawn` is in this node's own coordinates — the indicator
+                    // and the segments are placed from one origin, which is what
+                    // `SelectionIndicatorBox` keeps `place` rather than
+                    // `placeRelative` for.
+                    accepts = { at ->
+                        val thumb = indicator.drawn
+                        thumb.height > 0f && at.y >= thumb.top && at.y <= thumb.bottom
+                    },
+                    onStart = { beginAt(it.y) },
+                    onDelta = { dy -> advance(dy) },
+                    onEnd = { finish() },
+                )
         } else {
             Modifier
                 .fillMaxWidth()
                 .fillMaxHeight()
-                .onSizeChanged { trackWidth = it.width.toFloat() }
+                .onSizeChanged { trackLength = it.width.toFloat() }
                 // Not `detectHorizontalDragGestures`, which waits for its own
                 // horizontal touch slop and therefore races the page scroller's
                 // vertical one. A drag more than 45 degrees off the track was
@@ -598,89 +729,9 @@ fun SegmentedControl(
                     interactionSource = null,
                     scope = scope,
                     claimsOn = DragClaim.Movement,
-                    onStart = { offset ->
-                        // Clamped like every later frame is: a press can land in
-                        // the track's own padding, and an accumulator that
-                        // starts outside the track is the thing this control
-                        // used to get wrong for the whole gesture.
-                        fingerX = offset.x.coerceIn(0f, trackWidth.coerceAtLeast(0f))
-                        dragging = true
-                        selectAt(fingerX)
-                    },
-                    // Accumulated rather than read off the change, because this
-                    // reports movement rather than position. It comes to the same
-                    // number: every change of the gesture is delivered here and
-                    // the deltas of a pointer's whole path sum to its path.
-                    onDelta = { dx ->
-                        // A finger coming back closes the stretch it opened
-                        // before the thumb moves again, or one gesture reads as
-                        // two motions.
-                        val offered = dx - band.payBack(dx)
-
-                        // **The band is handed the part of *this* delta the
-                        // track refused, not the total distance past it.**
-                        //
-                        // `fingerX` used to run on unclamped, and the overshoot
-                        // was recomputed from it every frame and passed whole to
-                        // `band.pull` — which is incremental, so it compounded.
-                        // At a limit's distance past the stop a single frame
-                        // absorbs about 63% of the remaining room, so the band
-                        // reached its limit in two or three frames and stayed
-                        // there however much further the finger went.
-                        //
-                        // Worse, it could not be undone. `payBack` closes the
-                        // band against the finger coming home, and then the very
-                        // same frame re-pulled it to the limit, because
-                        // `fingerX` was still far past the track. Reported as
-                        // not being able to drag back the other way without
-                        // letting go first — which was literally the only way
-                        // out, since lifting is what resets `fingerX`.
-                        //
-                        // `Switch`, `Slider` and `RangeSlider` all do it this
-                        // way already: clamp the accumulator, hand the band the
-                        // remainder. This control was the one that did not.
-                        val before = fingerX
-                        val raw = fingerX + offered
-                        fingerX = raw.coerceIn(0f, trackWidth.coerceAtLeast(0f))
-                        selectAt(fingerX)
-                        if (!motion.reduceMotion && options.isNotEmpty()) {
-                            // **Refused against the thumb's reach, not the
-                            // track's edge.** See [segmentedThumbTravel]: the
-                            // thumb stops at the last segment's centre, half a
-                            // segment before the track ends, and refusing from
-                            // the edge meant half a segment of finger bought
-                            // nothing at all.
-                            //
-                            // `fingerX` itself stays clamped to the **track**,
-                            // and that is not an oversight. It means "where the
-                            // finger is", which is what `selectAt` buckets and
-                            // what the lean measures from — clamping it to the
-                            // thumb's travel instead loses the difference for the
-                            // rest of the gesture, so a press in the outer half
-                            // of the first segment shifted every later frame by
-                            // that much and put the two holds of
-                            // `SegmentedThumbDragTest`'s lean case on different
-                            // segments.
-                            //
-                            // The *increase* in how far past the reach the finger
-                            // has got, because `pull` is incremental — handing it
-                            // a running total is the compounding that made this
-                            // control impossible to drag back.
-                            val travel = segmentedThumbTravel(trackWidth, options.size)
-                            val was = before - before.coerceIn(travel)
-                            val now = fingerX - fingerX.coerceIn(travel)
-                            band.pull(now - was, endStopTravelPx)
-                        }
-                    },
-                    onEnd = {
-                        dragging = false
-                        ticker.reset()
-                        // The spring `engaged` already runs on, so the lean's
-                        // collapse and the squash's recovery are one motion.
-                        scope.launch {
-                            band.release(motion.springOrTween(motion.springSnappy))
-                        }
-                    },
+                    onStart = { beginAt(it.x) },
+                    onDelta = { dx -> advance(dx) },
+                    onEnd = { finish() },
                 )
         }
 

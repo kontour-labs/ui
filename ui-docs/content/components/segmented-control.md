@@ -39,10 +39,23 @@ which is why this is a text-size question as much as a layout one: at 200% both
 Wrapping to a second line is not the answer and was tried: `Keyboard`, `Standard`
 and `200` are single unbreakable words, so a second line gets nothing.
 
-Stacked, the control drops its horizontal drag and keeps its taps. The drag
-quantises a position along one axis into equal buckets, and stacked there is no
-such axis — a vertical drag would also be competing with the page for its own
-direction. Tapping an option is the whole interaction at a size where this fires.
+**Stacked, the thumb drags down the column — from the thumb.** The drag used to
+go away entirely when the control stacked, on the reasoning that a vertical drag
+would be competing with the page for its own direction. Half of that is right,
+and it is the half that decides the rule. Side by side, the control and the page
+want different axes, so the control can take any drag that is more along its
+track than across it and win on slope. Stacked, they want the same axis and no
+slope can separate them.
+
+So what separates them is **where the finger goes down**. A drag that starts on
+the thumb carries it, with the same lean, rubber band and squash a row has; a
+drag that starts anywhere else is never consumed at all and scrolls the page
+behind it. A stacked control in a scrolling screen stays scrollable everywhere
+except on its own handle, which is the one place a drag could only have meant
+the control.
+
+Taps are unchanged either way, and they are still the whole interaction for a
+reader who never tries to drag.
 
 **The control also grows taller with the type.** Its height used to be pinned at
 `max(controlHeightMedium, minTouchTarget)` whatever the text size, and a 14sp
@@ -96,6 +109,11 @@ list it sits in are both waiting for their own touch slop, and more than 45° of
 the track the list reached its threshold first and the thumb never moved. The
 price is that you cannot scroll a page by dragging on a segmented control. A
 press that never travels is left alone, so tapping one is unchanged.
+
+Stacked, the ownership rule is the other way round and for the same reason: the
+control takes only what starts on its thumb, because the gesture it would
+otherwise be taking is the page's own scroll rather than a drag at an awkward
+angle.
 
 ---
 

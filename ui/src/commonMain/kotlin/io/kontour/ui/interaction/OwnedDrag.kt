@@ -144,6 +144,9 @@ internal enum class DragClaim {
  * @param onDelta Called with the horizontal movement since the last change.
  * @param onEnd Called when the pointer lifts or the gesture is cancelled. Not
  *   called at all for a press that never became a drag.
+ * @param accepts Whether a gesture starting here belongs to this node at all.
+ *   See [ownedDrag]; a horizontal owner rarely needs it, because the thing it is
+ *   racing usually scrolls the other way.
  */
 @Composable
 internal fun Modifier.horizontalDragOwning(
@@ -151,13 +154,48 @@ internal fun Modifier.horizontalDragOwning(
     interactionSource: MutableInteractionSource?,
     scope: CoroutineScope,
     claimsOn: DragClaim = DragClaim.Press,
+    accepts: (Offset) -> Boolean = { true },
     onStart: (Offset) -> Unit,
     onDelta: (Float) -> Unit,
     onEnd: () -> Unit,
 ): Modifier {
     val currentDelta by rememberUpdatedState(onDelta)
-    return ownedDrag(enabled, interactionSource, scope, claimsOn, onStart, onEnd) { delta ->
+    return ownedDrag(enabled, interactionSource, scope, claimsOn, accepts, onStart, onEnd) { delta ->
         if (delta.x != 0f) currentDelta(delta.x)
+    }
+}
+
+/**
+ * The same drag, down the other axis.
+ *
+ * **[accepts] is not optional in practice here, and that is the difference.** A
+ * horizontal owner races a *vertical* scroller, so the two want different
+ * directions and taking the gesture at 45 degrees is a judgement about slope.
+ * A vertical owner inside a vertical scroller has no such tell: every drag it
+ * could take is a drag the page wanted, and a control that claimed them all
+ * would make the page unscrollable wherever it sits.
+ *
+ * So the question becomes *where the finger went down* rather than *which way it
+ * went*, and a vertical owner answers it by owning a handle rather than a
+ * surface. `SegmentedControl` stacked is the case this was written for: a drag
+ * that starts on the thumb carries it, and a drag that starts anywhere else is
+ * the page's, which is what the control's own comment used to give as the reason
+ * it had no vertical drag at all.
+ */
+@Composable
+internal fun Modifier.verticalDragOwning(
+    enabled: Boolean,
+    interactionSource: MutableInteractionSource?,
+    scope: CoroutineScope,
+    claimsOn: DragClaim = DragClaim.Press,
+    accepts: (Offset) -> Boolean = { true },
+    onStart: (Offset) -> Unit,
+    onDelta: (Float) -> Unit,
+    onEnd: () -> Unit,
+): Modifier {
+    val currentDelta by rememberUpdatedState(onDelta)
+    return ownedDrag(enabled, interactionSource, scope, claimsOn, accepts, onStart, onEnd) { delta ->
+        if (delta.y != 0f) currentDelta(delta.y)
     }
 }
 
@@ -184,7 +222,7 @@ internal fun Modifier.freeDragOwning(
     onEnd: () -> Unit,
 ): Modifier {
     val currentDelta by rememberUpdatedState(onDelta)
-    return ownedDrag(enabled, interactionSource, scope, claimsOn, onStart, onEnd) { delta ->
+    return ownedDrag(enabled, interactionSource, scope, claimsOn, { true }, onStart, onEnd) { delta ->
         if (delta != Offset.Zero) currentDelta(delta)
     }
 }
@@ -201,6 +239,7 @@ private fun Modifier.ownedDrag(
     interactionSource: MutableInteractionSource?,
     scope: CoroutineScope,
     claimsOn: DragClaim,
+    accepts: (Offset) -> Boolean,
     onStart: (Offset) -> Unit,
     onEnd: () -> Unit,
     onDelta: (Offset) -> Unit,
@@ -208,10 +247,23 @@ private fun Modifier.ownedDrag(
     val currentStart by rememberUpdatedState(onStart)
     val currentDelta by rememberUpdatedState(onDelta)
     val currentEnd by rememberUpdatedState(onEnd)
+    val currentAccepts by rememberUpdatedState(accepts)
 
     return if (!enabled) this else this.pointerInput(enabled, interactionSource, claimsOn) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
+
+            // **Declined before anything is consumed, which is the whole point of
+            // asking here.** Everything below this line takes both axes off
+            // whoever else wanted them, so a node that is not going to use a
+            // gesture has to say so before the first move rather than by ignoring
+            // the deltas — an ignored delta is still a consumed one, and the
+            // scroller underneath sees a finger that moved nothing.
+            //
+            // Returning leaves the down unconsumed and the gesture untouched.
+            // `awaitEachGesture` waits for every pointer to lift before it starts
+            // another, so the rest of this one is not picked up again here.
+            if (!currentAccepts(down.position)) return@awaitEachGesture
 
             var press: DragInteraction.Start? = null
             fun claim(at: Offset) {

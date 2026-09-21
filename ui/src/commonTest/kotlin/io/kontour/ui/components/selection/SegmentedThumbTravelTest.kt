@@ -34,7 +34,7 @@ class SegmentedThumbTravelTest {
     fun theRangeIsTheThumbsCentresAndNotTheTrack() {
         assertEquals(
             80f..400f,
-            segmentedThumbTravel(trackWidth = 480f, options = 3),
+            segmentedThumbTravel(trackLength = 480f, options = 3),
             "a 480px track of three segments refuses a finger outside " +
                 "${segmentedThumbTravel(480f, 3)}. The thumb's centre can only go " +
                 "from the first segment's centre to the last one's — 80 to 400 — " +
@@ -53,7 +53,7 @@ class SegmentedThumbTravelTest {
      */
     @Test
     fun bothEndsAreHalfASegmentIn() {
-        val travel = segmentedThumbTravel(trackWidth = 300f, options = 2)
+        val travel = segmentedThumbTravel(trackLength = 300f, options = 2)
         assertEquals(75f..225f, travel, "a 300px track of two segments gave $travel")
     }
 
@@ -69,7 +69,7 @@ class SegmentedThumbTravelTest {
     fun aSingleOptionKeepsTheWholeTrack() {
         assertEquals(
             0f..480f,
-            segmentedThumbTravel(trackWidth = 480f, options = 1),
+            segmentedThumbTravel(trackLength = 480f, options = 1),
             "one option collapsed the range to a point",
         )
     }
@@ -79,8 +79,8 @@ class SegmentedThumbTravelTest {
         // Before layout the width is zero, and for a frame or two it can arrive
         // as a negative from a constraint the control was squeezed into. Neither
         // is a range a `coerceIn` can be handed.
-        assertEquals(0f..0f, segmentedThumbTravel(trackWidth = 0f, options = 3))
-        assertEquals(0f..0f, segmentedThumbTravel(trackWidth = -40f, options = 3))
-        assertEquals(0f..480f, segmentedThumbTravel(trackWidth = 480f, options = 0))
+        assertEquals(0f..0f, segmentedThumbTravel(trackLength = 0f, options = 3))
+        assertEquals(0f..0f, segmentedThumbTravel(trackLength = -40f, options = 3))
+        assertEquals(0f..480f, segmentedThumbTravel(trackLength = 480f, options = 0))
     }
 }

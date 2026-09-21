@@ -340,6 +340,82 @@ class EndStopSquashTest {
     }
 
     /**
+     * And it squashes down the other axis too, when it is stacked.
+     *
+     * The deformation is one piece of arithmetic with the axis chosen at the last
+     * line — `translationY`/`scaleY` where a row uses X — so this is the test
+     * that the choosing is wired rather than a second test of the squash. It
+     * would pass on the unfixed control by accident and does not: stacked, the
+     * control had no drag at all, so there was nothing to push past the end.
+     *
+     * **Measured as the thumb's height at a column near the track's left edge.**
+     * Labels are centred, so a column that far out crosses the thumb's fill and
+     * nothing else; anywhere nearer the middle and the other rows' glyphs are in
+     * the count too.
+     */
+    @Test
+    fun aStackedSegmentedThumbShortensAgainstTheEndOfItsTrack() {
+        var selected by mutableStateOf(0)
+        var bounds = Rect.Zero
+
+        Scene(width = 560, height = 640, density = 2f) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(16.dp)) {
+                SegmentedControl(
+                    // **Two options, in a track too narrow for either label.**
+                    // Four rows would stack just as well and would not measure
+                    // as much: the band is charged by the finger travel the
+                    // track *refuses*, which is half a segment, and half of a
+                    // quarter of this track is under `EndStopTravel`. With two
+                    // rows the refusal saturates the band and the squash is its
+                    // full depth rather than half of it — 9px of signal against
+                    // 3, on a reading whose noise is a pixel.
+                    options = listOf("Keyboard", "Touchscreen"),
+                    selected = selected,
+                    onSelectedChange = { selected = it },
+                    modifier = Modifier.width(130.dp).reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            assertTrue(
+                bounds.height > StackedFloor,
+                "the control measured ${bounds.height}px tall, which is one row: " +
+                    "it did not stack, so there is no vertical track to push " +
+                    "against and this measured nothing",
+            )
+
+            val probe = (bounds.left + StackedProbe).toInt()
+            val top = Offset(bounds.center.x, bounds.top + bounds.height * StackedFirst)
+            val last = Offset(bounds.center.x, bounds.top + bounds.height * StackedLast)
+            val track = scene.frames(1).getRGB((bounds.right - TrackProbe).toInt(), bounds.center.y.toInt())
+
+            // Down to the last row and held there, with nothing refused yet.
+            scene.press(top)
+            walk(scene, top, last)
+            val atWall = scene.frames(Settle).thumbDown(bounds, probe, track)
+
+            // And on past the end of the track.
+            val past = Offset(bounds.center.x, bounds.bottom + Overshoot)
+            walk(scene, last, past)
+            val pushed = scene.frames(2).thumbDown(bounds, probe, track)
+            scene.release(past)
+
+            assertTrue(
+                atWall > MinimumThumb,
+                "the thumb measured ${atWall}px tall at the end of a stacked " +
+                    "track, which is not a thumb — this measured nothing",
+            )
+            assertTrue(
+                pushed < atWall - Tolerance,
+                "the stacked thumb is ${atWall}px tall resting against the end " +
+                    "of its track and ${pushed}px while the finger pushes past " +
+                    "it. Stacked, the wall is the bottom of the track and the " +
+                    "squash runs down the same axis the drag does",
+            )
+        }
+    }
+
+    /**
      * A segmented control, its probe row, and the track's own colour.
      *
      * Three tests want the same scene and the same two readings off it, and the
@@ -780,6 +856,19 @@ class EndStopSquashTest {
         /** Far enough in to be the track and not the control's border. */
         const val TrackProbe = 30f
 
+        /** Far enough in to be on the thumb, far enough out to miss the labels. */
+        const val StackedProbe = 20f
+
+        /** Inside the first of two stacked rows, and inside the last. */
+        const val StackedFirst = 0.25f
+        const val StackedLast = 0.75f
+
+        /** Taller than one row at 2x, which only a stacked control is. */
+        const val StackedFloor = 100f
+
+        /** Shorter than this is not a stacked thumb at 2x. */
+        const val MinimumThumb = 40
+
         /** Two antialiased edges and the odd rounded pixel. */
         const val Tolerance = 3
 
@@ -911,6 +1000,32 @@ internal fun BufferedImage.fillRun(
         }
     }
     return if (start >= 0) widest(best, start..to) else best
+}
+
+/**
+ * The **longest unbroken** run of non-[track] rows at column [x].
+ *
+ * [runDown]'s count is the wrong instrument for a stacked control and the
+ * difference cost a debugging round: it totals every row that is not the track,
+ * and at a column ten dp in from the edge the track's own rounded corners show
+ * the page for several rows at each end. A squashing thumb and a corner arc are
+ * then one number, and the thumb reading *taller* under a squash is what that
+ * looks like.
+ */
+private fun BufferedImage.thumbDown(bounds: Rect, x: Int, track: Int): Int {
+    val top = bounds.top.toInt().coerceAtLeast(0)
+    val bottom = (bounds.bottom.toInt() - 1).coerceAtMost(height - 1)
+    var best = 0
+    var run = 0
+    for (y in top..bottom) {
+        if (differs(getRGB(x, y), track, Faint)) {
+            run++
+            if (run > best) best = run
+        } else {
+            run = 0
+        }
+    }
+    return best
 }
 
 /** How tall the fill at column [x] is, in rows that are not the [track]. */
