@@ -61,13 +61,32 @@ is 264dp of travel and already most of a phone's width; a fourth is a target
 nobody can reach, and a row that silently hides its last action is worse than one
 that says so.
 
-**The swipe asks for a deliberate distance.** A release carries on to the next
-anchor from just past halfway between them, up from two fifths — which is what
-made it fiddly: a row revealed its actions on a gesture that was half a mind to,
-and a full swipe committed from a little over a third of the way across. Raising
-that is the only lever available, because the fling this is built on takes a
-positional threshold and nothing else — there is no velocity to ask for
-separately, so a fast flick cannot be treated differently from a slow push.
+**Revealing the actions asks for a deliberate distance.** A release carries on to
+the next anchor from just past halfway between them, up from two fifths — which is
+what made the reveal fiddly: a row showed its actions on a gesture that was half a
+mind to.
+
+**Running one asks for more than that.** A slow drag has to carry the row four
+fifths of the way from the actions to the commit, and a firm flick is judged by
+where the throw was aimed rather than by how far it got. Two rules, because the
+gesture is two different gestures.
+
+Raising the threshold used to be the only lever, and it was not even the right one.
+The fling this is built on resolves through a `computeTarget` that takes a velocity
+threshold as well as a positional one, and above that threshold — 125dp/s, slower
+than any swipe anybody makes on purpose — direction decides and distance stops
+mattering. Once the row had passed its actions, the next anchor in the direction of
+travel was the committed one, so an ordinary flick past the reveal ran the action
+whatever the threshold said. That is "I sometimes end up triggering the action",
+and it is why this component now settles itself.
+
+**A full swipe runs the outermost action**, which is the first one declared —
+the one at the screen edge, and the one the row is sliding onto.
+`isFullSwipeAction` says whether the *side* has a full swipe at all; it does not
+choose which action, because there is only one action a full swipe can mean. Past
+the reveal that action grows into the others and the ground behind the row crosses
+to its colour, so what a committing swipe looks like is one action arriving from
+the edge and taking the row.
 
 `SwipeToDismiss` **needs an undo**. A dismissal with no way back is a data-loss
 bug wearing a gesture; pair it with a [`Toast`](../overlays.md) carrying the

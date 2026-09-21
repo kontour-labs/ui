@@ -1,11 +1,17 @@
 package io.kontour.ui.components.list
 
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.DecayAnimationSpec
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.calculateTargetValue
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.ScrollScope
+import androidx.compose.foundation.gestures.TargetedFlingBehavior
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Arrangement
@@ -41,9 +47,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -51,7 +59,6 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -185,17 +192,23 @@ object SwipeActionsDefaults {
     /**
      * How far between two anchors a release has to be to carry on to the next.
      *
-     * 0.55, from 0.4, and it is the whole of "the swipe is too fiddly". At 0.4 a
-     * release two fifths of the way anywhere carried on, so a row revealed its
-     * actions on a gesture that was half a mind to and a full swipe committed
-     * from a little over a third of the way across. Apple's mail asks for a
+     * 0.55, from 0.4, and it was the first answer to "the swipe is too fiddly". At
+     * 0.4 a release two fifths of the way anywhere carried on, so a row revealed its
+     * actions on a gesture that was half a mind to. Apple's mail asks for a
      * deliberate distance, and just past half is what deliberate measures.
      *
-     * Raising it is the only lever there is. The version of
-     * `AnchoredDraggableDefaults.flingBehavior` this is on takes a positional
-     * threshold and a snap spec and nothing else — there is no velocity
-     * parameter, so a fast flick cannot be asked for separately. `BottomSheet`
-     * records the same gap for the same reason.
+     * **It applies to the reveal now, and no longer to the commit.** Raising it used
+     * to be the only lever there is, because
+     * `AnchoredDraggableDefaults.flingBehavior` takes a positional threshold and a
+     * snap spec and nothing else — and worse, Foundation's own resolution stops
+     * consulting the positional threshold at all above a private 125dp/s velocity
+     * floor, which is slower than any swipe anybody makes on purpose. So a row that
+     * had passed its actions committed on the next ordinary flick, whatever this
+     * number said.
+     *
+     * `SwipeSettle` is the lever that was missing. This number still decides the
+     * reveal; a commit is earned by a firm flick aimed past the row or by carrying it
+     * `CommitShare` of the way there.
      */
     val PositionalThreshold: (Float) -> Float
         @Composable @ReadOnlyComposable get() {
@@ -319,9 +332,22 @@ fun SwipeActions(
     val startTravel = start.size * actionWidthPx
     val endTravel = -end.size * actionWidthPx
 
-    // A full swipe commits without waiting for a tap.
-    val fullStart = start.firstOrNull { it.isFullSwipeAction }
-    val fullEnd = end.firstOrNull { it.isFullSwipeAction }
+    // A full swipe commits without waiting for a tap, and it is the **outermost**
+    // action that runs.
+    //
+    // This took the first action to *opt in*, which is not the same thing and was
+    // reported as not being: *"when swiping/flicking to trigger the action, please
+    // make sure it's the outermost one that gets triggered"*. Order runs edge-inward,
+    // so a row whose inner action set the flag committed the inner one — against
+    // this component's own documented convention, three paragraphs up, that
+    // "carrying a row all the way runs the first action of the side".
+    //
+    // Opting in is still a per-side decision and still the caller's: a side where
+    // nothing opted in has no full swipe at all. What is no longer the caller's is
+    // *which* action a full swipe runs, because there is only one sensible answer —
+    // the one the row is sliding onto.
+    val fullStart = start.firstOrNull()?.takeIf { start.any { a -> a.isFullSwipeAction } }
+    val fullEnd = end.firstOrNull()?.takeIf { end.any { a -> a.isFullSwipeAction } }
 
     LaunchedEffect(width, start.size, end.size, fullStart, fullEnd) {
         if (width <= 0f) return@LaunchedEffect
@@ -396,6 +422,54 @@ fun SwipeActions(
      */
     var pastThreshold by remember { mutableStateOf(false) }
 
+    /**
+     * How far past the reveal the row has been carried, as a fraction of the way to
+     * the commit.
+     *
+     * Zero everywhere a commit is not on offer — at rest, on a side with no
+     * full-swipe action, before the row has been measured — so everything keyed on it
+     * is inert on a row that cannot commit.
+     *
+     * A function of the live offset rather than a value, because every caller reads
+     * it inside a `drawBehind` or a `layout` and the row must not recompose sixty
+     * times a second to animate a colour and three widths.
+     */
+    fun expansion(live: Float): Float {
+        if (live.isNaN() || live == 0f || width <= 0f) return 0f
+        val committing = if (live > 0f) fullStart else fullEnd
+        if (committing == null) return 0f
+        val revealedPx = if (live > 0f) startTravel else -endTravel
+        if (revealedPx <= 0f) return 0f
+        val room = (width - revealedPx).coerceAtLeast(1f)
+        return ((abs(live) - revealedPx) / room).coerceIn(0f, 1f)
+    }
+
+    /**
+     * How wide [action]'s panel is drawn, at the row's current position.
+     *
+     * The other half of *"that outermost action should expand to fill all actions"*.
+     * Past the reveal the committing action grows toward the whole revealed width
+     * while its siblings give theirs up, so the set's total is `actionWidth` times the
+     * count at every point and the arrangement never shifts — the outermost simply
+     * swallows the rest of the strip.
+     *
+     * Read in the layout phase, which is what lets three panels change width per
+     * frame without a recomposition.
+     */
+    fun panelWidth(action: SwipeAction): Float {
+        val live = state.anchoredState.offset
+        val grown = expansion(live)
+        if (grown == 0f) return actionWidthPx
+        val committing = if (live > 0f) fullStart else fullEnd
+        val revealedPx = if (live > 0f) startTravel else -endTravel
+        return if (action === committing) {
+            actionWidthPx + grown * (abs(revealedPx) - actionWidthPx)
+        } else {
+            actionWidthPx * (1f - grown)
+        }
+    }
+
+
     LaunchedEffect(state, actionWidthPx, width) {
         snapshotFlow { state.anchoredState.offset }.collect { offset ->
             if (offset.isNaN() || actionWidthPx <= 0f) return@collect
@@ -422,11 +496,51 @@ fun SwipeActions(
         }
     }
 
-    val fling = AnchoredDraggableDefaults.flingBehavior(
-        state = state.anchoredState,
-        positionalThreshold = threshold,
-        animationSpec = motion.springOrTween(motion.springDefault),
-    )
+    // **The swipe's own settle, because the shared one cannot be asked for a firm
+    // flick.**
+    //
+    // `PositionalThreshold`'s own KDoc used to say raising it was the only lever
+    // there is, and that `BottomSheet` recorded the same gap for the same reason.
+    // The sheet has since closed it, and this is that fix arriving here — but not by
+    // the same route, because the two gestures are shaped differently. A sheet's
+    // flick arrives through nested scroll, where the sheet owns the settle already;
+    // a swipe *is* the `anchoredDraggable`, so the settle is its fling behaviour and
+    // there is nowhere else to put the rule.
+    //
+    // What was actually wrong is sharper than "too easy". `AnchoredDraggableDefaults`
+    // resolves a fling through Foundation's `computeTarget`, which takes a velocity
+    // threshold as well as a positional one, and above that threshold — 125dp/s, a
+    // private constant — **direction decides and distance stops mattering**. 125dp/s
+    // is slower than any swipe anybody makes deliberately. So once the row had passed
+    // the reveal, the next anchor in the direction of travel was the committed one,
+    // and any ordinary flick past the actions ran the action: *"I sometimes end up
+    // triggering the action"*.
+    //
+    // Two rules replace it, and only the commit is affected:
+    //
+    // - **A firm flick goes where it is aimed.** Above `SwipeFlickVelocity` the
+    //   release velocity is projected through a decay and the nearest anchor to the
+    //   landing wins, so a hard throw commits and a quick flick of the fingers
+    //   reveals. Ported from `SheetState.detentAimedAt`, including the reason the
+    //   floor exists: below it the projection collapses onto where the finger already
+    //   is, and the behaviour is the positional one it has always been.
+    // - **A slow drag has to earn a commit.** The reveal keeps
+    //   `swipePositionalThreshold` exactly; the commit asks for `CommitShare` of the
+    //   way from the reveal to it, because revealing is free and reversible and
+    //   committing deletes a row.
+    //
+    // Built here rather than in `SwipeActionsState` so it can see the theme's motion
+    // and the density, and remembered on everything it closes over.
+    val flickVelocityPx = with(density) { SwipeFlickVelocity.toPx() }
+    val settleSpec: AnimationSpec<Float> = motion.springOrTween(motion.springDefault)
+    val fling = remember(state, settleSpec, threshold, flickVelocityPx) {
+        SwipeSettle(
+            state = state.anchoredState,
+            snap = settleSpec,
+            positional = threshold,
+            flickVelocity = flickVelocityPx,
+        )
+    }
 
     Box(
         modifier = modifier
@@ -499,8 +613,25 @@ fun SwipeActions(
             // side and the nearest on the other. Trailing actions are the common
             // arrangement, so what a reader saw was a row sliding off one colour
             // onto a band of another.
-            val stripColour = if (settled > 0f) revealed.last().background
+            val nearColour = if (settled > 0f) revealed.last().background
             else revealed.first().background
+
+            // **And the committing action's colour once the row is past the reveal.**
+            //
+            // Reported with the expansion it goes with: *"when you do trigger by
+            // swiping/flicking, that outermost action should expand to fill all
+            // actions, and the background colour should be of that action"*. Past the
+            // reveal the only thing that can still happen is the commit, so the strip
+            // stops being the ground the row is sliding onto and becomes the action
+            // that is about to run.
+            //
+            // Crossed over the reveal-to-commit distance rather than switched at a
+            // point. A colour that changes on one frame, on a box that is also
+            // sliding and growing and being tracked by a finger, reads as a flicker —
+            // which is exactly what the old threshold-dimming did and was reported
+            // as, twenty lines above.
+            val farColour = (if (settled > 0f) fullStart else fullEnd)?.background
+                ?: nearColour
 
             // The area the row has vacated, plus just enough tucked under the
             // row to fill the wedge its rounded corner cuts away.
@@ -542,7 +673,7 @@ fun SwipeActions(
                         // LTR and the right in RTL, which is what the second
                         // half of this comparison carries.
                         drawRect(
-                            color = stripColour,
+                            color = lerp(nearColour, farColour, expansion(live)),
                             topLeft = Offset(
                                 x = if ((live > 0f) != isRtl) 0f else size.width - painted,
                                 y = 0f,
@@ -611,6 +742,7 @@ fun SwipeActions(
                         action = action,
                         background = action.background,
                         width = actionWidth,
+                        liveWidth = { panelWidth(action) },
                         onClick = {
                             action.onAction()
                             scope.launch { state.reset() }
@@ -684,12 +816,170 @@ fun SwipeActions(
     }
 }
 
+/**
+ * How fast a release has to be before it counts as a flick, per second.
+ *
+ * Written as the distance one second of it would cover, so it scales with the
+ * display the way every other gesture constant here does. 500dp/s is the number
+ * `BottomSheet` measured on a device for the same question, and it is borrowed
+ * rather than re-derived: both are a row-or-panel-sized object thrown by a thumb,
+ * and two different answers to "was that a flick" on one screen is worse than one
+ * answer that is approximately right twice.
+ *
+ * Below it a release settles by position exactly as it always did. Above it the
+ * velocity is projected and the row goes where it was aimed, which is what lets a
+ * hard throw commit and a quick flick of the fingers stop at the actions.
+ */
+private val SwipeFlickVelocity: Dp = 500.dp
+
+/**
+ * How far from the reveal toward the commit a **slow** drag has to travel.
+ *
+ * Four fifths, against the 0.55 the reveal itself asks for, and the asymmetry is the
+ * point: revealing actions is free and undone by letting go, and committing deletes
+ * a row. A gesture that has gone four fifths of the way across a list row with the
+ * action's colour filling in behind it is not a gesture anybody made by accident.
+ *
+ * Only a slow drag is held to it. A firm flick is judged by where it is aimed, which
+ * is the other half of `SwipeSettle`.
+ */
+private const val CommitShare: Float = 0.8f
+
+/** The decay a flick's landing is projected through. As `SheetFlingDecay`. */
+private val SwipeFlingDecay: DecayAnimationSpec<Float> = exponentialDecay()
+
+/** Whether this anchor is one that runs an action. */
+private val SwipeValue.isCommitted: Boolean
+    get() = this == SwipeValue.StartCommitted || this == SwipeValue.EndCommitted
+
+/**
+ * Where a released swipe settles.
+ *
+ * Only ever moves the row with `ScrollScope.scrollBy`, which is the whole of why
+ * this is safe to write. `BottomSheet` records the trap: a settle that calls
+ * `animateTo` from inside a fling is asking for the drag mutex the fling is already
+ * holding, and the failure mode is a control that stops responding. Nothing here
+ * touches the state except to read it — the anchor it lands on is whichever one the
+ * final offset is nearest, which is how Foundation's own behaviour reports its
+ * answer too.
+ */
+private class SwipeSettle(
+    private val state: AnchoredDraggableState<SwipeValue>,
+    private val snap: AnimationSpec<Float>,
+    private val positional: (Float) -> Float,
+    private val flickVelocity: Float,
+) : TargetedFlingBehavior {
+
+    override suspend fun ScrollScope.performFling(
+        initialVelocity: Float,
+        onRemainingDistanceUpdated: (Float) -> Unit,
+    ): Float {
+        val anchors = state.anchors
+        val from = state.offset
+        if (from.isNaN() || anchors.size == 0) return 0f
+        val target = aimedAt(anchors, from, initialVelocity) ?: return 0f
+        val to = anchors.positionOf(target)
+        if (to.isNaN()) return 0f
+
+        var last = from
+        animate(
+            initialValue = from,
+            targetValue = to,
+            initialVelocity = initialVelocity,
+            animationSpec = snap,
+        ) { value, _ ->
+            scrollBy(value - last)
+            last = value
+            onRemainingDistanceUpdated(abs(to - value))
+        }
+        // Everything the throw carried has been spent getting to an anchor. A row
+        // does not hand leftover velocity anywhere — there is nothing past the
+        // committed anchor to hand it to.
+        return 0f
+    }
+
+    /**
+     * Which anchor a release is going to, or null when there is nothing to decide.
+     *
+     * The positions are known: rest at zero, the reveal at the actions' width, the
+     * commit at the row's. Both sides are signed, so the arithmetic below is one
+     * expression rather than two mirrored ones.
+     */
+    private fun aimedAt(
+        anchors: DraggableAnchors<SwipeValue>,
+        from: Float,
+        velocity: Float,
+    ): SwipeValue? {
+        if (abs(velocity) >= flickVelocity) {
+            // Aimed: the nearest anchor to where the throw would have come to rest.
+            // No distance requirement, because a flick hard enough to land past the
+            // row *is* the deliberate gesture the commit is asking for.
+            val projected = SwipeFlingDecay.calculateTargetValue(from, velocity)
+            var aimed: SwipeValue? = null
+            var best = Float.MAX_VALUE
+            for (index in 0 until anchors.size) {
+                val at = anchors.positionAt(index)
+                if (at.isNaN()) continue
+                val value = anchors.anchorAt(index) ?: continue
+                val distance = abs(at - projected)
+                if (distance < best) {
+                    best = distance
+                    aimed = value
+                }
+            }
+            return aimed
+        }
+
+        // Slow: the pair of anchors the row is between, and the threshold between
+        // them — which is exactly what Foundation does below its own velocity floor.
+        var lower: SwipeValue? = null
+        var lowerAt = -Float.MAX_VALUE
+        var upper: SwipeValue? = null
+        var upperAt = Float.MAX_VALUE
+        for (index in 0 until anchors.size) {
+            val at = anchors.positionAt(index)
+            if (at.isNaN()) continue
+            val value = anchors.anchorAt(index) ?: continue
+            if (at <= from && at > lowerAt) {
+                lowerAt = at
+                lower = value
+            }
+            if (at >= from && at < upperAt) {
+                upperAt = at
+                upper = value
+            }
+        }
+        val below = lower ?: return upper
+        val above = upper ?: return below
+
+        val crossed = lowerAt + positional(upperAt - lowerAt)
+        val chosen = if (from >= crossed) above else below
+        val chosenAt = if (from >= crossed) upperAt else lowerAt
+        if (!chosen.isCommitted) return chosen
+
+        // The commit is the one anchor a slow gesture has to earn. Falling short of
+        // it means the other end of the pair, which is the reveal the row came from.
+        val inner = if (chosen == above) lowerAt else upperAt
+        val earned = inner + (chosenAt - inner) * CommitShare
+        return if (abs(from) >= abs(earned)) chosen else if (chosen == above) below else above
+    }
+}
+
 @Composable
 private fun RowScope.SwipeActionButton(
     action: SwipeAction,
     /** [SwipeAction.background], dimmed while the swipe would not commit. */
     background: Color,
     width: Dp,
+    /**
+     * The panel's width right now, in pixels, read in the layout phase.
+     *
+     * [width] is still what it measures at rest and is still the touch target the
+     * accessibility story rests on; this is the deformation on top, for the commit
+     * the outermost action grows into. A lambda rather than a value because the whole
+     * point is that a frame of it costs a measure and not a recomposition.
+     */
+    liveWidth: () -> Float,
     onClick: () -> Unit,
 ) {
     // From the action's own colour rather than from the dimmed one: the label
@@ -700,7 +990,17 @@ private fun RowScope.SwipeActionButton(
 
     Surface(
         modifier = Modifier
-            .width(width)
+            // `layout` rather than `width`, because the width is a per-frame value.
+            // The Surface clips to its own shape, so a panel shrinking out of the way
+            // takes its icon with it rather than leaving one floating over the
+            // action that is swallowing it.
+            .layout { measurable, constraints ->
+                val wide = liveWidth().roundToInt().coerceIn(0, constraints.maxWidth)
+                val placeable = measurable.measure(
+                    constraints.copy(minWidth = wide, maxWidth = wide)
+                )
+                layout(wide, placeable.height) { placeable.place(0, 0) }
+            }
             .fillMaxHeight(),
         colour = background,
         contentColour = content,
