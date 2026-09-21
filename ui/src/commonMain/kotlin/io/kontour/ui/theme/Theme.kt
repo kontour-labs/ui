@@ -186,22 +186,33 @@ fun KontourTheme(
     /**
      * Whether a change of scheme cross-fades rather than cutting.
      *
-     * On, because every other state change in the library animates and switching
-     * to dark mode is the largest one there is.
+     * **Off**, and this reverses the decision twice over, so it is worth the
+     * paragraph. It was off, then on — *"the alternative to a half-animated swap
+     * is not a clean cut, it is every colour on screen changing between two
+     * frames, which on a device reads as a glitch"* — and it is off again now,
+     * on the report that switching dark mode is *"ridiculously laggy"* on
+     * Android and on the reader's own verdict once they had seen both:
+     * *"it's already not visible on iOS, and I think it looks fine."*
      *
-     * What it costs is a frame's work for every composable that reads a colour,
-     * for the fade's duration — see `animatedTheme`. It used to cost the whole
-     * application recomposing once per frame, because the scheme fed a static
-     * composition local directly; it feeds that local the fade's *target* now
-     * and the frames go through a handle that tracks its readers, so the
-     * difference is between "everything, a dozen times" and "the things that are
-     * changing colour".
+     * The cost is what makes that verdict easy to act on. Measured by
+     * `ThemeFadeCostDiagnostic` at twenty cards: a resting frame is 5.83ms and a
+     * fading one 20.52, and with no shadows at all the same pair is 1.54 and
+     * 9.53 — so more than half of a fading frame is blurred silhouettes being
+     * re-rasterised for a change nobody was looking at. Sixteen of those frames
+     * is what a switch used to cost, and `FirstThemeSwitchCostDiagnostic` puts
+     * the first one at 805ms of frame time against 298 by the fourth.
      *
-     * Still the right trade for a rare, deliberate change and still the wrong
-     * one for anything frequent, so an app driving [colours] from something that
-     * moves should turn it off.
+     * Nothing about the mechanism is deleted, because a scheme driven by
+     * something an app animates itself may well want it: pass `true` and the
+     * fade is exactly what it was. What it costs then is a frame's work for
+     * every composable that reads a colour, for the fade's duration — see
+     * `animatedTheme`. It used to cost the whole application recomposing once
+     * per frame, because the scheme fed a static composition local directly; it
+     * feeds that local the fade's *target* now and the frames go through a
+     * handle that tracks its readers, so the difference is between "everything,
+     * a dozen times" and "the things that are changing colour".
      */
-    animateThemeChanges: Boolean = true,
+    animateThemeChanges: Boolean = false,
     colours: ColourScheme = remember(darkTheme, contrast) { kontourColourScheme(darkTheme, contrast) },
     typography: Typography = rememberDefaultTypography(),
     shapes: Shapes = remember { Shapes() },

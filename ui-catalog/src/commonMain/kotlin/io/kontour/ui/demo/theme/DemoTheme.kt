@@ -144,30 +144,32 @@ fun DemoThemeProvider(
     )
     val reduceMotion = settings.reduceMotion ?: systemReduceMotion
 
-    // A theme swap fades its colours and snaps its geometry.
+    // A theme change cuts, colours and all, and it does so by taking
+    // `KontourTheme`'s default rather than by naming it here.
     //
-    // **This reverses a decision, on evidence.** It used to cut: `swapping` was
-    // computed here and passed as `animateThemeChanges = !swapping`, on the
-    // reasoning that `animatedTheme` interpolates the scheme and the elevation
-    // and nothing else — so across a swap the corners and the typeface would
-    // change on the first frame while the palette drifted for 220ms after them,
-    // and "a half-animated transition reads as broken".
+    // **Third position on this, and the reader settled it.** It cut at first, on
+    // the reasoning that `animatedTheme` interpolates the scheme and the
+    // elevation and nothing else — so across a swap the corners and the typeface
+    // would change on the first frame while the palette drifted for 220ms after
+    // them, and "a half-animated transition reads as broken". Then it faded, on
+    // a phone: the alternative to a half-animated swap looked like *every colour
+    // on screen changing between two frames*, and half of a large change
+    // animating seemed to beat none of it.
     //
-    // The premise is still true: there is no `lerp(Shapes)` or `lerp(Typography)`
-    // anywhere in this repository and a font family is a discrete resource, so
-    // token interpolation genuinely cannot carry them. What was wrong is the
-    // conclusion, and a phone is what showed it: the alternative to a
-    // half-animated swap is not a clean cut, it is **every colour on screen
-    // changing between two frames**, which on a device reads as a glitch rather
-    // than as a decision. Half of a large change animating beats none of it.
+    // What decided it in the end was the cost and then the eye. Switching dark
+    // mode was reported *"ridiculously laggy"* on Android; measured, more than
+    // half of a fading frame is shadows being re-rasterised
+    // (`ThemeFadeCostDiagnostic`), and the first switch of a session costs 805ms
+    // of frame time against 298 by the fourth
+    // (`FirstThemeSwitchCostDiagnostic`). Shown both, the reader's answer was
+    // *"it's already not visible on iOS, and I think it looks fine"* — so the
+    // fade goes, everywhere, and an app that wants one asks for it.
     //
-    // The geometry snapping is also what keeps the frame affordable — see
-    // `lerpTheme`, where the elevation now steps at the midpoint for the same
-    // reason. What is not attempted is a `Crossfade` of two rendered trees,
-    // which *would* carry the shapes and the type: `OverlayHost`, the toast host
-    // state, every scroll position and every `SheetState` live inside the
-    // content lambda, so the incoming tree would get fresh `remember` slots —
-    // closing an open sheet and jumping every scrolled page back to the top.
+    // What was never attempted is a `Crossfade` of two rendered trees, which
+    // *would* carry the shapes and the type: `OverlayHost`, the toast host state,
+    // every scroll position and every `SheetState` live inside the content
+    // lambda, so the incoming tree would get fresh `remember` slots — closing an
+    // open sheet and jumping every scrolled page back to the top.
     KontourTheme(
         darkTheme = dark,
         contrast = tier,

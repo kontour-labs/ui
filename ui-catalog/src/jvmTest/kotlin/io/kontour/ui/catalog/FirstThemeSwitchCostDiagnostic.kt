@@ -105,7 +105,9 @@ class FirstThemeSwitchCostDiagnostic {
         runDesktopComposeUiTest(width = Width, height = Height) {
             mainClock.autoAdvance = false
             setContent {
-                KontourTheme(darkTheme = dark) {
+                // The fade, asked for: it is off by default now, and this file's
+                // subject is what its frames cost. See `animateThemeChanges`.
+                KontourTheme(darkTheme = dark, animateThemeChanges = true) {
                     // Elevated surfaces, because the two theme diagnostics both
                     // put shadows at four fifths of what a fade frame costs. A
                     // workload without them measures the cheap part.

@@ -144,7 +144,12 @@ class ThemeFadeTest {
 
         mainClock.autoAdvance = false
         setContent {
-            KontourTheme(darkTheme = dark) {
+            // **Asked for explicitly**, because the fade is off by default now —
+            // see `KontourTheme`'s `animateThemeChanges`. A test of what a fade
+            // does has to turn one on; the default is what
+            // `turningTheFadeOffSwitchesInstantly` below covers, which is now
+            // every app that does not ask.
+            KontourTheme(darkTheme = dark, animateThemeChanges = true) {
                 seenColour = Theme.colours.surface
                 seenAlpha = Theme.elevation.medium.layers.first().alpha
                 Box(Modifier.fillMaxSize())
@@ -238,7 +243,7 @@ class ThemeFadeTest {
 
         mainClock.autoAdvance = false
         setContent {
-            KontourTheme(darkTheme = dark, contrast = contrast) {
+            KontourTheme(darkTheme = dark, contrast = contrast, animateThemeChanges = true) {
                 seen = Theme.colours.outline
                 Box(Modifier.fillMaxSize())
             }
@@ -311,5 +316,50 @@ class ThemeFadeTest {
         mainClock.advanceTimeByFrame()
 
         assertEquals(darkAlpha, seenAlpha, "the opt-out still animated")
+    }
+
+    /**
+     * And a theme that says nothing at all cuts too, which is the default.
+     *
+     * Every other test in this file names `animateThemeChanges` one way or the
+     * other, so between them they could all have passed with the default set
+     * either way — and it has now been set both ways in this repository's
+     * history. This is the one assertion that reads it.
+     *
+     * **A colour, not a shadow alpha.** The opt-out test above reads the
+     * elevation, which steps at the fade's midpoint even when a fade is running,
+     * so a single frame of it cannot tell a cut from a fade at all. A scheme
+     * colour interpolates continuously, so one frame after the flip it is either
+     * the target or it is not.
+     */
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun theDefaultCuts() = runComposeUiTest {
+        var dark by mutableStateOf(false)
+        var seen: Color? = null
+        val darkSurface = kontourColourScheme(dark = true, contrast = ContrastLevel.Standard).surface
+
+        mainClock.autoAdvance = false
+        setContent {
+            KontourTheme(darkTheme = dark) {
+                seen = Theme.colours.surface
+                Box(Modifier.fillMaxSize())
+            }
+        }
+        mainClock.advanceTimeByFrame()
+
+        dark = true
+        mainClock.advanceTimeByFrame()
+
+        assertEquals(
+            darkSurface,
+            seen,
+            "one frame after the flip the surface was still on its way to dark, " +
+                "so the shipped default is a cross-fade. It is a cut: switching " +
+                "dark mode was reported laggy on Android, more than half of a " +
+                "fading frame is shadows being re-rasterised, and shown both the " +
+                "reader chose the cut. An app that wants the fade passes " +
+                "`animateThemeChanges = true`.",
+        )
     }
 }

@@ -59,7 +59,10 @@ class ThemeFadeRecompositionTest {
             // would collapse the whole thing into one.
             mainClock.autoAdvance = false
             setContent {
-                KontourTheme(darkTheme = dark) {
+                // A fade, asked for: it is off by default now, and what this
+                // measures is what it costs when an app turns it on. See
+                // `KontourTheme`'s `animateThemeChanges`.
+                KontourTheme(darkTheme = dark, animateThemeChanges = true) {
                     Box(Modifier.fillMaxSize()) {
                         Blind(blind)
                         Sighted(sighted)

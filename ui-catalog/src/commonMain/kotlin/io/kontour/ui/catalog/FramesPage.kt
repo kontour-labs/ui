@@ -69,7 +69,9 @@ import io.kontour.ui.theme.kontourShapes
  */
 @Composable
 internal fun FramesPage(modifier: Modifier = Modifier) {
-    var fade by remember { mutableStateOf(true) }
+    // Off to start with, because that is now what the app ships: the arm is here
+    // to price the fade, not to reflect a default. See `animateThemeChanges`.
+    var fade by remember { mutableStateOf(false) }
     var blur by remember { mutableStateOf(true) }
     var squircles by remember { mutableStateOf(true) }
     var dark by remember { mutableStateOf(false) }
