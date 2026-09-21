@@ -204,6 +204,53 @@ class SheetState internal constructor(
         }
 
     /**
+     * Whether the sheet has settled at [detent]'s height or above it.
+     *
+     * Compared by *position* rather than by index in the detent list, because a
+     * list is written in whatever order a caller found convenient and two detents
+     * can resolve to the same height. `false` before there are anchors to ask,
+     * which is the frame a sheet mounts on.
+     *
+     * **Settled, not target.** A sheet's measured content is what
+     * [SheetDetent.Expanded]'s anchor comes from, so anything that changes the
+     * content's height rebuilds the anchors — and doing that under a finger
+     * re-pins a drag that is already in flight. Reading the settled detent moves
+     * the change to the one moment nothing is being dragged, at the cost of a
+     * part arriving a beat after the sheet does.
+     */
+    internal fun hasSettledAtLeast(detent: SheetDetent): Boolean {
+        val anchors = anchoredState.anchors
+        val here = anchors.positionOf(anchoredState.settledValue)
+        val there = anchors.positionOf(detent)
+        if (here.isNaN() || there.isNaN()) return false
+        // Offsets grow downward, so a taller sheet is a smaller number.
+        return here <= there
+    }
+
+    /**
+     * The offset of the lowest detent that is somewhere to *be*, in pixels.
+     *
+     * `NaN` before there are anchors, and for a sheet whose only detent is
+     * [SheetDetent.Hidden].
+     *
+     * The line between "short" and "leaving". Everything above it is the sheet at
+     * one of its sizes; everything below it is the sheet on its way out, because
+     * the only anchor down there is hidden. [dragFloor] is the same measurement
+     * for a different question — what a *drag* may reach — so it consults
+     * [allowedDetents] and gives up for a dismissable sheet. This one is about
+     * where the sheet is rather than about what the user may do, so it reads the
+     * whole list and answers the same whoever is moving it.
+     */
+    internal val lowestRestingOffset: Float
+        get() {
+            val lowest = detents
+                .filter { it != SheetDetent.Hidden }
+                .maxOfOrNull { anchoredState.anchors.positionOf(it) }
+                ?: return Float.NaN
+            return if (lowest.isNaN()) Float.NaN else lowest
+        }
+
+    /**
      * The furthest down a *drag* may take the sheet, in pixels of offset.
      *
      * `NaN` when there is nothing to stop at — which is the ordinary case, where

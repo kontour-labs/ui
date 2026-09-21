@@ -1,6 +1,11 @@
 package io.kontour.ui.sheet
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.anchoredDraggable
@@ -8,15 +13,16 @@ import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -28,10 +34,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -42,7 +49,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -52,6 +58,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.collapse
 import androidx.compose.ui.semantics.dismiss
 import androidx.compose.ui.semantics.expand
@@ -59,11 +66,11 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.foundation.Surface
@@ -337,7 +344,7 @@ fun BottomSheet(
      * other three sides are still applied, and a floating sheet hands out zero
      * because its own margin has already cleared the inset.
      */
-    content: @Composable ColumnScope.(PaddingValues) -> Unit,
+    content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
     val density = LocalDensity.current
     val motion = Theme.motion
@@ -668,7 +675,7 @@ fun ModalBottomSheet(
      * See [BottomSheet]'s, which this hands the bottom inset straight through
      * from: a `LazyColumn` wants it as `contentPadding`, a `Column` as `padding`.
      */
-    content: @Composable ColumnScope.(PaddingValues) -> Unit,
+    content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
     val host = LocalOverlayHost.current
     val key = remember { Any() }
@@ -794,7 +801,7 @@ private fun BoxScope.SheetSurface(
     contentColour: Color,
     dragHandle: (@Composable () -> Unit)?,
     density: Density,
-    content: @Composable ColumnScope.(PaddingValues) -> Unit,
+    content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
     Surface(
         modifier = Modifier
@@ -867,7 +874,7 @@ private fun BoxScope.SheetSurface(
                     // window and changes every frame. The saving below is not
                     // available to it, and the `graphicsLayer` on its content
                     // is what keeps that from reaching the caller's content.
-                    (window - floatInsets.getBottom(this) -
+                    (window - floatingLift(state, floatInsets, this) -
                         sheetTop(state, true, floatInsets, this))
                         .coerceIn(0, window)
                 } else {
@@ -1035,8 +1042,79 @@ private fun BoxScope.SheetSurface(
                 // `calculateBottomPadding()` in composition would recompose the
                 // whole of a sheet's content on every frame of the keyboard
                 // sliding up.
-                content(windowInsets.only(WindowInsetsSides.Bottom).asPaddingValues())
+                SheetParts(this, state).content(
+                    windowInsets.only(WindowInsetsSides.Bottom).asPaddingValues()
+                )
             }
+        }
+    }
+}
+
+/**
+ * The scope a sheet's content is built in: a [ColumnScope], plus [part].
+ *
+ * Everything a `Column` offers is here unchanged — `weight`, `align` — so
+ * content written before this existed reads the same and does the same.
+ */
+@Stable
+@LayoutScopeMarker
+interface SheetContentScope : ColumnScope {
+
+    /**
+     * A piece of the sheet that is only there once the sheet is big enough.
+     *
+     * ```kotlin
+     * BottomSheet(state) {
+     *     part { StopHeader(stop) }
+     *     part(from = SheetDetent.Half) { DepartureBoard(stop) }
+     * }
+     * ```
+     *
+     * **The part declares when it appears**, rather than the caller re-deciding
+     * what the sheet contains on every frame of a drag. A sheet collapsed around
+     * a search field is the same sheet as the one showing a header above it, and
+     * saying so here keeps the two from being two code paths that have to agree.
+     *
+     * `from = null` is a part that is always there, which is worth writing anyway:
+     * it puts every piece of the sheet in the same shape and makes the ones that
+     * come and go legible as the exceptions.
+     *
+     * It arrives **after the sheet has settled**, not as it passes the detent.
+     * A part changes the content's height, `SheetDetent.Expanded` is measured
+     * from that height, and moving an anchor under a finger re-pins a drag that
+     * is already running — so the change waits for the one moment nothing is
+     * being dragged. The cost is a beat between the sheet arriving and the part
+     * doing so, which reads as the sheet settling into its new size.
+     */
+    @Composable
+    fun part(from: SheetDetent? = null, content: @Composable ColumnScope.() -> Unit)
+}
+
+/**
+ * [SheetContentScope] over a real column, with a real sheet to ask.
+ *
+ * The column is delegated to rather than wrapped, so a part is a direct child of
+ * the sheet's own `Column` and `weight` inside one means what it says.
+ */
+private class SheetParts(
+    column: ColumnScope,
+    private val state: SheetState,
+) : SheetContentScope, ColumnScope by column {
+
+    @Composable
+    override fun part(from: SheetDetent?, content: @Composable ColumnScope.() -> Unit) {
+        val motion = Theme.motion
+        val here = from == null || state.hasSettledAtLeast(from)
+        AnimatedVisibility(
+            visible = here,
+            // The height is the part of this the sheet's anchors can feel, so it
+            // takes the slower spec and the fade rides on top of it: a part whose
+            // ink arrived before its room did would push the rest of the sheet
+            // down through text that was already legible.
+            enter = expandVertically(motion.tweenDefault()) + fadeIn(motion.tweenFast()),
+            exit = shrinkVertically(motion.tweenDefault()) + fadeOut(motion.tweenFast()),
+        ) {
+            Column(content = content)
         }
     }
 }
@@ -1071,11 +1149,56 @@ private fun sheetTop(
     // after all — `FloatingSheetTest` found the sheet's own colour on the last
     // row of the window that way round.
     //
+    // **Paid back on the way out**, which is the whole of the report that a
+    // floating sheet "stays floating while it closes". The lift was applied at
+    // every offset, including the ones between the sheet's smallest size and
+    // gone — so a closing sheet kept a margin under it the whole way down and
+    // read as a panel drifting off the bottom rather than as one leaving through
+    // it. Below the lowest detent that is somewhere to *be*, the sheet is on its
+    // way out and nothing is down there but hidden, so the margin goes with it
+    // and the sheet lands on the window's edge as it goes.
+    //
+    // Linear in the visible height rather than timed, because the close is a
+    // spring and the two have to agree frame by frame; a sheet dragged down by
+    // hand pays it back at exactly the speed of the hand, and one let go pays it
+    // back at the speed of the spring, with no second animation to keep in step.
     // Clamped at the top margin, because a floating sheet has a top edge too. A
     // detent that resolves to an offset of zero means "as tall as the window",
     // and a floating sheet that tall is the window less a margin on all four
     // sides, not a panel with its head off the top of the screen.
-    return (top - floatInsets.getBottom(density)).coerceAtLeast(floatInsets.getTop(density))
+    return (top - floatingLift(state, floatInsets, density))
+        .coerceAtLeast(floatInsets.getTop(density))
+}
+
+/**
+ * How much of its bottom margin a floating sheet is still keeping under it.
+ *
+ * The full margin everywhere the sheet is somewhere to *be*, and paid back to
+ * nothing between its lowest detent and gone.
+ *
+ * **Both halves of the geometry have to read this**, which is what the first
+ * attempt got wrong. A floating sheet's bottom edge is *seen*, so it is pinned:
+ * the surface's height is measured as `window - margin - top` and shrinks as the
+ * sheet slides down, rather than the surface translating with a constant height
+ * the way an edge sheet's does. Changing [sheetTop] alone therefore moved the top
+ * and left the bottom where it was — the sheet closed *faster* and still went out
+ * while floating, which is a different answer to the same report rather than an
+ * answer to it. Measured on a 900px window with a 24px margin: the bottom edge
+ * sat at 875 on every frame of the close, before and after.
+ *
+ * Taken from the raw offset rather than from [sheetTop], because [sheetTop]
+ * subtracts this — and a lift derived from a position that already has the lift
+ * in it is a loop, not a fraction.
+ */
+private fun floatingLift(state: SheetState, floatInsets: WindowInsets, density: Density): Int {
+    val margin = floatInsets.getBottom(density)
+    if (margin <= 0) return 0
+    val container = state.containerHeight
+    val floor = state.lowestRestingOffset
+    if (floor.isNaN() || container <= floor) return margin
+    val raw = offsetOrHidden(state) - state.drawnOvershoot.roundToInt()
+    val landed = ((container - raw) / (container - floor)).coerceIn(0f, 1f)
+    return (margin * landed).roundToInt()
 }
 
 /**

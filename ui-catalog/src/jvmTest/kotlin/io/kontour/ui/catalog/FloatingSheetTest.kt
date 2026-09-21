@@ -15,8 +15,10 @@ import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.rememberSheetState
+import java.awt.image.BufferedImage
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -126,9 +128,113 @@ class FloatingSheetTest {
         )
     }
 
+    /**
+     * **A floating sheet gives its margin back on the way out.**
+     *
+     * Reported from a phone as the sheet staying floating while it closes, and it
+     * did: the bottom margin was applied at every offset, so a closing sheet kept
+     * a strip of background under it the whole way down and then vanished with
+     * the strip still there. It read as a panel drifting off the bottom rather
+     * than as one leaving through it. Measured on this scene — 900px tall, 24px of
+     * margin — the sheet's bottom edge sat at 875 on **every** frame of the close.
+     *
+     * Below the lowest detent that is somewhere to be, the sheet is on its way out
+     * and there is nothing down there but hidden, so the margin is paid back and
+     * the sheet lands on the window's edge as it goes: 875, 885, 895, 898, gone.
+     *
+     * The settled reading is asserted too, and is the ratchet. Paying the margin
+     * back everywhere would pass the second assertion and make the sheet a
+     * floating one in name only.
+     */
+    @Test
+    fun aClosingFloatingSheetLandsOnTheWindowsEdge() {
+        var open by mutableStateOf(false)
+        var settledGap = -1
+        var closingGap = -1
+
+        Scene(width = 600, height = 900) {
+            // A spring rather than a tween: the payback is linear in the sheet's
+            // visible height rather than timed, so what it has to agree with
+            // frame by frame is whatever is moving the sheet.
+            KontourTheme(reduceMotion = false) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().background(Ground))
+                    ModalBottomSheet(
+                        visible = open,
+                        onDismissRequest = {},
+                        presentation = SheetPresentation.Floating,
+                        containerColour = SheetColour,
+                    ) {
+                        Text("Departures")
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            open = true
+            settledGap = scene.frames(70).gapUnderTheSheet()
+            open = false
+            // **Waited for rather than counted.** A modal sheet's close starts in
+            // a coroutine and this scene's frame clock is not the wall clock the
+            // coroutine runs on, so "twelve frames in" is a different point in
+            // the close on a loaded machine than on an idle one — which is how
+            // the first version of this passed alone and failed inside the suite.
+            // The condition is the thing being asserted: the first frame on which
+            // the sheet has given any of the margin back.
+            closingGap = scene.renderUntil(timeoutMillis = CloseTimeout) { frame ->
+                frame.gapUnderTheSheet() in 0 until FloatingMargin
+            }?.gapUnderTheSheet() ?: NeverLanded
+        }
+
+        assertEquals(
+            FloatingMargin,
+            settledGap,
+            "a settled floating sheet left ${settledGap}px under it, where the " +
+                "margin is ${FloatingMargin}px. The payback is meant to apply " +
+                "below the sheet's lowest detent and nowhere else",
+        )
+        assertTrue(
+            closingGap != NeverLanded,
+            "the sheet went from ${FloatingMargin}px of margin to off the window " +
+                "without ever passing through less. It is leaving through the " +
+                "bottom and should be landing on it, not drifting off it with a " +
+                "strip of background underneath the whole way down",
+        )
+    }
+
+    /** Rows between the sheet's lowest ink and the bottom of the window. */
+    private fun BufferedImage.gapUnderTheSheet(): Int {
+        for (y in height - 1 downTo 0) {
+            if ((getRGB(width / 2, y) and 0xFFFFFF) == SheetRgb) return height - 1 - y
+        }
+        return height
+    }
+
     private companion object {
         val Ground = Color(0xFF3355AA)
         val SheetColour = Color(0xFF11CC55)
+
+        /**
+         * `componentDefaults.sheetFloatingInset` in this scene's pixels.
+         *
+         * The default is 12dp and the scene runs at a density of 2. Written as
+         * the number rather than resolved, because a settled floating sheet
+         * keeping *exactly* its margin is the assertion — a version that read it
+         * from the theme would agree with whatever the component did.
+         */
+        const val FloatingMargin = 24
+
+        /**
+         * How long to wait for the sheet to start giving the margin back.
+         *
+         * Real milliseconds, because what is being waited for is a coroutine.
+         * Short: the close is a spring of well under a second, so a run that
+         * reaches this has not been slow, it has not happened.
+         */
+        const val CloseTimeout = 6_000L
+
+        /** No frame of the close ever showed less than the full margin. */
+        const val NeverLanded = -1
         const val SheetRgb = 0x11CC55
     }
 }

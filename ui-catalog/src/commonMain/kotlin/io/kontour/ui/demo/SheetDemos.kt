@@ -137,20 +137,26 @@ internal val BottomSheetDemo = ComponentDemo(
                 )
             },
         ) {
-            SheetHeader(
-                modifier = Modifier.sheetPeekAnchor(),
-                actions = {
-                    IconButton(
-                        icon = Tabler.Outline.Star,
-                        contentDescription = "Add to favourites",
-                        onClick = { echo("Favourited") },
-                    )
-                },
-            ) {
-                +"Perth Underground"
-                supporting { +"Platform 2 · Joondalup line" }
+            // Always there: it is what the peek detent is peeking *at*.
+            part {
+                SheetHeader(
+                    modifier = Modifier.sheetPeekAnchor(),
+                    actions = {
+                        IconButton(
+                            icon = Tabler.Outline.Star,
+                            contentDescription = "Add to favourites",
+                            onClick = { echo("Favourited") },
+                        )
+                    },
+                ) {
+                    +"Perth Underground"
+                    supporting { +"Platform 2 · Joondalup line" }
+                }
             }
-            Departures()
+            // And the board arrives once there is a sheet to put it on. At the
+            // peek it would be a list with one row of it showing, which is the
+            // arrangement `part` exists to replace.
+            part(from = SheetDetent.Half) { Departures() }
         }
     }
 }

@@ -66,6 +66,37 @@ sheet a detent.
 
 ---
 
+## `part` — content that knows which detents it is for
+
+A sheet that collapses to a bar and opens to half a screen is showing two
+different things, and writing that as a `when` over the current detent is two
+code paths that have to agree. **A part declares its own detent instead.**
+
+```kotlin
+BottomSheet(state) {
+    part { StopHeader(stop) }
+    part(from = SheetDetent.Half) { Departures() }
+}
+```
+
+`from = null` is a part that is always there. It is worth writing anyway: it puts
+every piece of the sheet in the same shape, and makes the ones that come and go
+read as the exceptions.
+
+**A part arrives after the sheet has settled, not as it crosses the detent**, and
+that is a constraint rather than a preference. `SheetDetent.Expanded` is measured
+from the content's own height, so anything that changes that height rebuilds the
+sheet's anchors — and moving an anchor under a finger re-pins a drag that is
+already running. Waiting for the settle puts the change at the one moment nothing
+is being dragged. What you see is a beat between the sheet arriving and the part
+doing so, which reads as the sheet settling into its new size.
+
+The content lambda's receiver is a `SheetContentScope`, which is a `ColumnScope`
+with `part` added — so `weight`, `align` and everything else a column offers are
+unchanged, and content written before this existed reads and behaves the same.
+
+---
+
 ## `presentation` — a drawer out of the screen, or a panel over it
 
 `SheetPresentation.Edge` is the default and is what a sheet has always been:
@@ -111,6 +142,17 @@ its shadow is rasterised once; the surplus hangs off the bottom of the screen
 where nothing sees it. A floating sheet has a bottom edge that *is* seen, so it
 is exactly as tall as it is visible and that changes on every frame of a drag.
 Two edges that both move cannot be drawn by a box that never resizes.
+
+**The margin is given back on the way out.** Below the lowest detent that is
+somewhere to *be*, the sheet is leaving and there is nothing under it but hidden,
+so the margin shrinks to zero and the sheet lands on the window's edge as it
+goes. It used to keep the full margin at every offset, which meant a closing sheet
+had a strip of background under it the whole way down and then vanished with the
+strip still there — reported as the sheet staying floating while it closed.
+Because the pay-back is linear in the sheet's visible height rather than timed, a
+sheet dragged down by hand gives it back at the speed of the hand and one let go
+gives it back at the speed of the spring, with no second animation to keep in
+step.
 
 ---
 
