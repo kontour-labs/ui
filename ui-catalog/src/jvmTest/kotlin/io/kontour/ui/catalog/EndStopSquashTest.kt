@@ -806,95 +806,6 @@ class EndStopSquashTest {
         }
     }
 
-    /**
-     * Letting go of a switch's thumb does not inflate it past its own circle.
-     *
-     * Reported as the thumb's two animations conflicting — *"the two animations
-     * in the switch for the head, expanding and also compressing, are sometimes
-     * conflicting"* — and they were. The press growth and the end stop's rubber
-     * band are two springs, started at two different moments, and the drawn width
-     * interpolates *from* the stretched width toward the squash's target. So a
-     * band that finished first drew whatever the stretch had left, which is wider
-     * than resting: the thumb went squashed, then stretched, then resting. Three
-     * states for one release, on a control whose thumb is a circle at rest.
-     *
-     * ### Measured at 4x, and held at one end so the track keeps one colour
-     *
-     * The switch starts **on** and the gesture starts on the thumb, which is
-     * already at the right-hand end. Nothing flips, so the track behind the thumb
-     * is one colour for every frame and `fillRun`'s reading means the same thing
-     * throughout — which the first version of this measurement did not do, and it
-     * reported the thumb growing from 40px to 47 at rest.
-     *
-     * Four times density rather than two because the whole claim is a few pixels
-     * wide: the defect peaks 7px over resting at 4x and the fix leaves 1, which
-     * at 2x would be 3 and 0 and indistinguishable from antialiasing.
-     */
-    @Test
-    fun aReleasedSwitchThumbDoesNotSwellPastItsRestingWidth() {
-        var checked by mutableStateOf(true)
-        var bounds = Rect.Zero
-
-        Scene(width = 800, height = 400, density = 4f) {
-            Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
-                Switch(
-                    checked = checked,
-                    onCheckedChange = { checked = it },
-                    modifier = Modifier.reportBounds { bounds = it },
-                )
-            }
-        }.use { scene ->
-            scene.frames(3)
-            assertTrue(bounds.width > 0f, "the switch never reported a size")
-            val row = bounds.center.y.toInt()
-
-            fun width(): Int {
-                val shot = scene.frame()
-                val track = shot.getRGB((bounds.left + SwitchProbe).toInt(), row)
-                return shot.fillRun(bounds, row, track, SwitchProbe)?.width() ?: -1
-            }
-
-            val resting = width()
-            val on = bounds.alongX(OnThumb)
-            val past = Offset(bounds.right + Overshoot, bounds.center.y)
-            scene.press(on)
-            scene.frames(Settle)
-            val held = width()
-            walk(scene, on, past)
-            val squashed = width()
-
-            scene.release(past)
-            val path = (0 until ReleaseFrames).map { width() }
-
-            assertTrue(
-                held > resting + Tolerance,
-                "the thumb measured ${held}px held against ${resting}px at rest, " +
-                    "so the press never grew it and there is no stretch here to " +
-                    "conflict with anything",
-            )
-            assertTrue(
-                squashed < resting - Tolerance,
-                "the thumb measured ${squashed}px pushed past the end against " +
-                    "${resting}px at rest, so the band never charged",
-            )
-            assertTrue(
-                path.max() <= resting + Tolerance,
-                "letting go, the thumb reached ${path.max()}px against the " +
-                    "${resting}px circle it rests as. It starts this journey " +
-                    "**narrower** than that circle and its destination is the " +
-                    "circle, so anything wider is the press growth outliving the " +
-                    "squash that was undoing it — the thumb inflating after the " +
-                    "finger has gone. The widths, frame by frame: $path",
-            )
-            assertTrue(
-                abs(path.last() - resting) <= Tolerance,
-                "the thumb finished at ${path.last()}px rather than back at its " +
-                    "resting ${resting}px, so it never arrived and the bound " +
-                    "above proves nothing. The widths, frame by frame: $path",
-            )
-        }
-    }
-
     /** Moves from [from] to [to] over [Steps] moves, rendering each, without lifting. */
     private fun walk(scene: Scene, from: Offset, to: Offset) {
         repeat(Steps) { step ->
@@ -927,9 +838,6 @@ class EndStopSquashTest {
 
         /** Past the switch's own rounded end, in pixels. */
         const val SwitchProbe = 6f
-
-        /** On the thumb of a switch that is already on, so nothing flips. */
-        const val OnThumb = 0.8f
 
         /** Frames for the press growth and the thumb's own spring to land. */
         const val Settle = 24

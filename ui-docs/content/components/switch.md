@@ -55,23 +55,6 @@ wide again while you hold it, so it narrows and stays a capsule. The same fracti
 of two different shapes, which is the consistency worth having — matching what the
 deformation *looks* like would mean two rules.
 
-**The stretch and the squash cannot disagree about which way the width is
-going.** They are two springs — the press growing the thumb a quarter, and the
-end stop's rubber band taking it back — and the drawn width interpolates from the
-stretched width toward the squash's target. So whichever finishes first decides
-what the other one draws, and the band used to finish first: on release the thumb
-went squashed, then *stretched*, then resting. Measured at four times density,
-held at 120px and squashed to 87, it reached 103 on its way back to 96 — seven
-pixels out past the circle it rests as, which on a thumb that is a circle at rest
-reads as the head inflating once the finger has already gone.
-
-The fix is not a retimed animation or a third one. The band releases gently, so
-it outlasts the press growth rather than racing it, and the width comes home from
-*below*: 87, 88, 89, 90 … 96, peaking at exactly the resting circle. Every other
-end stop in the library already released that way — `RangeSlider`'s own note has
-the rule in as many words — and this was the one control that did not, because it
-had a comment explaining why it was different.
-
 **The stretch is the travel, not a second animation about it.** It is taken from
 how fast the thumb is going, so it grows as the thumb sets off, is widest where
 the thumb is quickest, and is gone by the time it arrives — one movement. Driven
