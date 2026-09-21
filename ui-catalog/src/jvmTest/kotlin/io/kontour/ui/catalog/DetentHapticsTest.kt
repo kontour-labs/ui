@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.action.Button
+import io.kontour.ui.components.datetime.DatePicker
+import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.WheelPicker
 import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.CarouselState
@@ -50,6 +52,7 @@ import io.kontour.ui.overlay.ToastHostState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.datetime.LocalDate
 
 /**
  * What the library is allowed to buzz for.
@@ -969,6 +972,99 @@ class DetentHapticsTest {
                 "`scrollToPage` is what the accessibility actions and the " +
                 "indicator's dots call, and every one of those is something the " +
                 "reader is watching happen.",
+        )
+    }
+
+    /**
+     * A day crossed under a finger is a detent, and a day tapped is not.
+     *
+     * The last of the grid's silences. Forty-two cells, a drag across a fortnight,
+     * and nothing in the hand — where a day is a detent in the strictest sense: the
+     * selection snaps to one and rests there, and a reader dragging a range is
+     * watching the band rather than counting cells.
+     *
+     * Paced, like the carousel above, so what is measured is the crossings rather
+     * than `DetentTicker`'s 80ms floor.
+     *
+     * The second half is the rule the audit settled on and the one a new call site
+     * is most likely to break: **a tap onto a detent has not crossed one.** Tapping
+     * a date already reports a `Tap` — a day cell is the smallest target the library
+     * has — and a `Tick` on top of it would be the same news twice.
+     */
+    @Test
+    fun aDraggedRangeTicksPerDayAndATappedDateDoesNot() {
+        val dragged = mutableListOf<FeedbackIntent>()
+        var start by mutableStateOf<LocalDate?>(null)
+        var end by mutableStateOf<LocalDate?>(null)
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 800) {
+            Recording(dragged) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    DateRangePicker(
+                        start = start,
+                        end = end,
+                        onRangeSelected = { s, e -> start = s; end = e },
+                        today = LocalDate(2026, 8, 1),
+                        modifier = Modifier.reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(6)
+            val size = bounds.width / 7f
+            val gridTop = bounds.bottom - 6 * size
+            fun cell(day: Int): Offset {
+                val index = day - 1 + 5
+                return Offset(
+                    bounds.left + (index % 7 + 0.5f) * size,
+                    gridTop + (index / 7 + 0.5f) * size,
+                )
+            }
+            scene.drag(from = cell(10), to = cell(15), steps = 24, paceMillis = 12)
+            scene.frames(20)
+        }
+
+        assertTrue(
+            dragged.isNotEmpty() && dragged.all { it == FeedbackIntent.Tick },
+            "dragging a range across five days fired ${dragged.summary()}. Each day " +
+                "the finger crosses is a detent the selection rests on.",
+        )
+
+        val tapped = mutableListOf<FeedbackIntent>()
+        var chosen by mutableStateOf<LocalDate?>(null)
+        var tapBounds = Rect.Zero
+        Scene(width = 700, height = 800) {
+            Recording(tapped) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    DatePicker(
+                        selected = chosen,
+                        onSelectedChange = { chosen = it },
+                        today = LocalDate(2026, 8, 1),
+                        modifier = Modifier.reportBounds { tapBounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(6)
+            val size = tapBounds.width / 7f
+            val gridTop = tapBounds.bottom - 6 * size
+            val index = 12 - 1 + 5
+            scene.tap(
+                Offset(
+                    tapBounds.left + (index % 7 + 0.5f) * size,
+                    gridTop + (index / 7 + 0.5f) * size,
+                )
+            )
+            scene.frames(10)
+        }
+
+        assertEquals(
+            listOf(FeedbackIntent.Tap),
+            tapped,
+            "tapping a date fired ${tapped.summary()}. A press on the smallest " +
+                "target the library has reports that the control took it, once — a " +
+                "tick as well would be a detent nothing crossed.",
         )
     }
 

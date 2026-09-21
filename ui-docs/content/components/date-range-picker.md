@@ -26,6 +26,15 @@ dragging from the 20th back to the 16th selects the 16th to the 20th. The band
 extends as one strip behind the finger and only its moving end animates; it is
 drawn the whole way rather than appearing when the finger lifts.
 
+**The drag has detents.** Days are places the selection rests, so each one crossed
+is a tick in the hand, and the moving end of the band *leans* toward the finger
+between days rather than sitting exactly on a boundary — the same fraction of the
+overshoot a range slider's thumb follows a finger by, which is near enough to read
+as a pull and far enough from the next day never to be mistaken for it. The band
+behind it fills instantly rather than fading in, so what is coloured is what the
+finger has passed: a hundred milliseconds per cell reads as the band catching up
+rather than as the finger drawing it.
+
 Dragging is never the *only* way to reach a range. Both ends can be tapped, which
 is what makes the gesture safe to offer: see the accessibility note below.
 

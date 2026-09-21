@@ -5,7 +5,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -20,8 +19,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -32,10 +33,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -47,12 +48,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
-import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.components.selection.SliderDefaults
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
+import kotlin.math.floor
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -189,6 +193,24 @@ fun CalendarMonth(
      */
     var dragging by remember { mutableStateOf(false) }
 
+    /**
+     * The moving end of a range, and how far past its own cell the finger is.
+     *
+     * Reported as: *"dragging is a bit of a 'detent', and the area between the two
+     * points gets filled in as the user drags"* — taking after the range slider,
+     * which the report named. `SliderDefaults.DetentPull` is the fraction of the
+     * overshoot a thumb follows a finger by, and its own KDoc says what this is for:
+     * *"`0f` is a thumb that teleports between notches; `1f` is a continuous slider
+     * that happens to report quantised values."* A day grid teleported.
+     *
+     * Two `MutableState`s rather than two values, because the lean changes on every
+     * pointer move and only one cell in forty-two is drawn differently for it. The
+     * cells read them inside their own `graphicsLayer`, so a move costs a layer
+     * invalidation rather than a recomposition of the month.
+     */
+    val leaningDate = remember { mutableStateOf<LocalDate?>(null) }
+    val leaning = remember { mutableFloatStateOf(0f) }
+
     // One measurement for the whole month, not forty-two.
     //
     // The day numbers scale with their cells — see `DayCell` — and a cell is a
@@ -252,6 +274,10 @@ fun CalendarMonth(
             isDateSelectable = isDateSelectable,
             onDragSelect = onDragSelect,
             onDraggingChange = { dragging = it },
+            onLeanChange = { date, lean ->
+                leaningDate.value = date
+                leaning.floatValue = lean
+            },
         ) {
         for (row in 0 until rows) {
             Row(Modifier.fillMaxWidth()) {
@@ -274,6 +300,11 @@ fun CalendarMonth(
                             formats = formats,
                             cellSize = cellSize,
                             dragging = dragging,
+                            // Read in the cell's own layer rather than handed to
+                            // it as a value: the lean changes on every pointer
+                            // move, and a value would recompose forty-two cells a
+                            // frame to move one of them.
+                            lean = { if (leaningDate.value == date) leaning.floatValue else 0f },
                             onSelectedChange = onSelectedChange,
                         )
                     }
@@ -306,11 +337,25 @@ private fun WeekGrid(
     isDateSelectable: (LocalDate) -> Boolean,
     onDragSelect: ((LocalDate, LocalDate) -> Unit)?,
     onDraggingChange: (Boolean) -> Unit,
+    onLeanChange: (LocalDate?, Float) -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val currentSelect by rememberUpdatedState(onDragSelect)
     val currentSelectable by rememberUpdatedState(isDateSelectable)
     val currentDragging by rememberUpdatedState(onDraggingChange)
+    val currentLean by rememberUpdatedState(onLeanChange)
+
+    /**
+     * A day crossed under the finger, reported once.
+     *
+     * The grid was silent: forty-two cells, a drag across a fortnight, and
+     * nothing in the hand to say a boundary had been passed. A day is a detent in
+     * the strictest sense — the selection snaps to one and rests there — and the
+     * cell index is already the index the ticker wants, so this is the same guard
+     * and the same shared rate floor that `Slider`, `WheelPicker` and the rest go
+     * through. See `DetentTicker`.
+     */
+    val ticker = rememberDetentTicker()
 
     Column(
         Modifier
@@ -336,16 +381,40 @@ private fun WeekGrid(
                          */
                         var anchor: LocalDate? = null
 
-                        fun dateAt(offset: Offset): LocalDate? {
+                        /**
+                         * Where the finger is, as a **fractional** cell index.
+                         *
+                         * The sub-cell part used to be thrown away on the way to
+                         * an integer day, and it is the whole of the detent: how
+                         * far between two dates the finger has come is exactly
+                         * what a leaning end has to lean by, and exactly what
+                         * tells a tick it has crossed something.
+                         */
+                        fun positionAt(offset: Offset): Float? {
                             if (size.width <= 0 || rows == 0) return null
                             val cell = size.width / 7f
-                            val column = (offset.x / cell).toInt()
+                            val column = offset.x / cell
                             val row = (offset.y / cell).toInt()
-                            if (column !in 0..6 || row !in 0 until rows) return null
-                            val day = row * 7 + column - leadingBlanks + 1
+                            if (column < 0f || column >= 7f) return null
+                            if (row !in 0 until rows) return null
+                            return row * 7f + column
+                        }
+
+                        fun dateAt(index: Float): LocalDate? {
+                            val day = floor(index).toInt() - leadingBlanks + 1
                             if (day < 1 || day > daysInMonth) return null
                             val date = LocalDate(month.year, month.month, day)
                             return if (currentSelectable(date)) date else null
+                        }
+
+                        fun dateAt(offset: Offset): LocalDate? =
+                            positionAt(offset)?.let { dateAt(it) }
+
+                        fun release() {
+                            anchor = null
+                            ticker.reset()
+                            currentDragging(false)
+                            currentLean(null, 0f)
                         }
 
                         detectDragGestures(
@@ -354,17 +423,20 @@ private fun WeekGrid(
                                 currentDragging(true)
                                 anchor?.let { currentSelect?.invoke(it, it) }
                             },
-                            onDragEnd = {
-                                anchor = null
-                                currentDragging(false)
-                            },
-                            onDragCancel = {
-                                anchor = null
-                                currentDragging(false)
-                            },
+                            onDragEnd = { release() },
+                            onDragCancel = { release() },
                         ) { change, _ ->
                             val from = anchor ?: return@detectDragGestures
-                            dateAt(change.position)?.let { currentSelect?.invoke(from, it) }
+                            val index = positionAt(change.position)
+                                ?: return@detectDragGestures
+                            val date = dateAt(index) ?: return@detectDragGestures
+                            ticker.at(floor(index))
+                            currentSelect?.invoke(from, date)
+                            // How far the finger is from the cell's own centre, in
+                            // cell widths and signed. `DayCell` multiplies it by
+                            // `DetentPull` — the same fraction a range slider's
+                            // thumb follows a finger past a notch by.
+                            currentLean(date, index - floor(index) - 0.5f)
                         }
                     }
                 }
@@ -385,6 +457,11 @@ private fun DayCell(
     formats: DateTimeFormats,
     cellSize: Dp,
     dragging: Boolean,
+    /**
+     * How far past this cell's centre the finger is, in cell widths, or zero for
+     * every cell that is not the moving end of the range. Read in the layer.
+     */
+    lean: () -> Float,
     onSelectedChange: (LocalDate) -> Unit,
 ) {
     val tap = rememberTapFeedback()
@@ -454,7 +531,16 @@ private fun DayCell(
         animationSpec = motion.tweenFast(),
         label = "dayContainer",
     )
-    val container = if (arriving) animatedContainer else containerTarget
+    // **Instant while a finger is out**, which is the other half of the report:
+    // *"the area between the two points gets filled in as the user drags"*. The
+    // fade is right for a range that arrives on a tap and wrong for one being drawn
+    // — a hundred milliseconds behind the finger, per cell, reads as the band
+    // catching up rather than as the finger filling it.
+    //
+    // The same shape as the exit above and for the same reason, which is why the
+    // two are one expression now: a colour that animates *toward* the finger is the
+    // only one of the four that ever wanted to.
+    val container = if (arriving && !dragging) animatedContainer else containerTarget
 
     val labelTarget = when {
         !enabled -> colours.contentDisabled
@@ -561,6 +647,17 @@ private fun DayCell(
                         // right comes out of its left side, and the start cap of
                         // one growing to the left out of its right.
                         scaleX = fillScale
+                        // **And it leans toward the finger.**
+                        //
+                        // The cap sat exactly on a cell boundary and moved a whole
+                        // cell at a time, which is what "the animation for swiping
+                        // between dates feels a bit off" is: the finger is
+                        // continuous and the thing following it was not. A fraction
+                        // of the overshoot — the fraction a range slider's thumb
+                        // follows a finger past a notch by — reads as the cap being
+                        // *pulled*, and is small enough that it is never nearer the
+                        // next day than the one it is on.
+                        translationX = lean() * SliderDefaults.DetentPull * size.width
                         transformOrigin = TransformOrigin(
                             pivotFractionX = if (rangePosition == RangePosition.Start) 1f else 0f,
                             pivotFractionY = 0.5f,
