@@ -191,10 +191,24 @@ all `RoundedCorner` carries, and the API 34 call that returns a display's real
 outline is backed by a resource essentially no device sets — where it is empty
 the framework synthesises a circle, so reading a smoothing back out of it would
 be a wrong answer wearing a measurement's clothes. So the smoothing comes from a
-short hand-written table keyed on the device's family, set by eye against
-manufacturers' renders and real bezels, and **a device it does not name keeps the
-library's own curve** — exactly what every Android device had before the table
-existed. It can improve a device it knows and cannot make one worse.
+short hand-written table, set by eye against manufacturers' renders and real
+bezels, and **a device it does not name keeps the library's own curve** —
+exactly what every Android device had before the table existed. It can improve a
+device it knows and cannot make one worse.
+
+**The table names the past, not the present**, and that is the second version of
+it. The first listed every current family and defaulted everything else, which
+was wrong within a fortnight: reported as *"I'm on a Pixel 11 Pro XL, so you
+haven't catered for it"*, because the Pixel 11 is `kodiak`, the list stopped at
+the Pixel 9, and the roundest corners Android ships were being drawn with the
+number meant for a Pixel 4. A list of current devices is a list that is wrong
+every autumn. So a manufacturer's present treatment is its default and the
+devices that predate it are the ones named — the next phone is right before it
+exists, and only the past is a closed set.
+
+Every codename in that table is checked against Google's own device registry —
+37,082 of them, from the list that says what may install from Play — so an
+invented or misspelled name fails a gate rather than quietly matching nothing.
 
 This is the one place in the library where a shape may carry a smoothing the
 scale did not choose, and the exemption has a boundary: the backdrop's clip and a

@@ -101,7 +101,7 @@ That is what the rest of this directory is.
 | [`sync-samples.py`](sync-samples.py) | The examples on the pages are the code `:ui-samples` compiles |
 | [`generate-doc-pages.py`](generate-doc-pages.py) | The content, turned into the Kotlin the site renders |
 | [`doctree.py`](doctree.py) | Where the pages live and what families there are — imported by the three above |
-| [`pull-device-corners.py`](pull-device-corners.py) | The per-device corner table, and the check that it matches the data it was generated from |
+| [`pull-device-corners.py`](pull-device-corners.py) | The per-device corner table, the check that it matches the data it was generated from, and the check that every codename it names is a device Google lists |
 
 Every example on a documentation page is compiled: they live in
 [`ui-samples/`](../ui-samples) and the pages hold checked copies, so one that no
