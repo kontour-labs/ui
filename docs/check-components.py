@@ -473,9 +473,28 @@ def undemoed_flags() -> list[str]:
     press it — and nothing about whether the knob is any good. That is the right
     trade: the failure it exists to catch is a parameter no call site anywhere
     passes, which is a feature that was written, documented and never once run.
+
+    ### The theme package is skipped, and the reason is mechanical
+
+    A `ComponentDemo` renders *inside* the gallery's theme; it does not provide
+    one. So no demo can pass a `KontourTheme` parameter at all, and a rule whose
+    remedy is "put it on a knob" has no remedy to offer for one — the only honest
+    way to satisfy it would be a demo that nests a second theme, which is a
+    worse thing to have than the gap it closes.
+
+    This is not the rule going soft. The gallery already switches these live,
+    from the `Frames` page's arms, which is where a theme-level switch belongs:
+    beside the frame times it changes. What the rule still catches everywhere
+    else is a component feature nobody can reach, which is what it was written
+    for. It started to matter when `animateThemeChanges` was set to ship off —
+    the scan counts a `= false` default, because that is a feature switched off,
+    and a theme parameter that ships off was suddenly indistinguishable from a
+    component one.
     """
     flags: dict[str, set[str]] = {}
     for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+        if "theme" in path.parts:
+            continue
         text = path.read_text()
         for match in COMPOSABLE_HEADER.finditer(text):
             visibility, name = match.group(1).strip(), match.group(3)

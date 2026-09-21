@@ -8,6 +8,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -82,16 +85,28 @@ import kotlin.test.assertTrue
  */
 class ReorderShadowTest {
 
-    private fun shadowReach(handle: ImageVector?): Pair<Int, Int> {
-        val (shot, _) = liftedRow(handle)
-        val y = shot.height / 2
-        fun darkAt(x: Int): Boolean = (shot.getRGB(x, y) and 0xFFFFFF) != 0xFFFFFF
+    /**
+     * How far the drawn shadow reaches past the **card** at each end.
+     *
+     * Past the card rather than measured absolutely, which is what makes the two
+     * configurations comparable at all: a handle moves the card's trailing edge
+     * inwards by the grip's width, so two absolute spans differ for a reason that
+     * is not the question. The overshoot is the blur's own reach, and the blur
+     * does not know whether there is a handle.
+     */
+    private fun shadowOvershoot(handle: ImageVector?): Pair<Int, Int> {
+        val shot = liftedRow(handle)
+        val y = shot.image.height / 2
+        fun darkAt(x: Int): Boolean = (shot.image.getRGB(x, y) and 0xFFFFFF) != 0xFFFFFF
 
-        val left = (0 until shot.width).firstOrNull { darkAt(it) } ?: shot.width
-        val right = (shot.width - 1 downTo 0).firstOrNull { darkAt(it) } ?: 0
+        val left = (0 until shot.image.width).firstOrNull { darkAt(it) } ?: shot.image.width
+        val right = (shot.image.width - 1 downTo 0).firstOrNull { darkAt(it) } ?: 0
 
-        return left to right
+        return (shot.card.left.roundToInt() - left) to (right - shot.card.right.roundToInt())
     }
+
+    /** A lifted row's frame, its own box, and the box its content drew in. */
+    private class Lift(val image: BufferedImage, val row: Rect, val card: Rect)
 
     /**
      * The middle row of three, lifted without a gesture, and where it landed.
@@ -110,10 +125,11 @@ class ReorderShadowTest {
     private fun liftedRow(
         handle: ImageVector?,
         page: Color = Color.White,
-    ): Pair<BufferedImage, Rect> {
+    ): Lift {
         val rows = mutableStateListOf("Perth", "Daglish", "Subiaco")
         var image: BufferedImage? = null
         var bounds = Rect.Zero
+        var card = Rect.Zero
 
         Scene(width = Width, height = Height) {
             val listState = rememberLazyListState()
@@ -136,7 +152,13 @@ class ReorderShadowTest {
                                 Modifier
                             },
                         ) {
-                            ListItem { +name }
+                            ListItem(
+                                modifier = if (index == Lifted) {
+                                    Modifier.reportBounds { card = it }
+                                } else {
+                                    Modifier
+                                },
+                            ) { +name }
                         }
                     }
                 }
@@ -144,7 +166,7 @@ class ReorderShadowTest {
         }.use { scene ->
             image = scene.frames(30)
         }
-        return image!! to bounds
+        return Lift(image!!, bounds, card)
     }
 
     /**
@@ -170,25 +192,25 @@ class ReorderShadowTest {
      * glyph's own ink.
      */
     @Test
-    fun aLiftedRowIsOpaqueAllTheWayAcross() {
+    fun aLiftedCardIsOpaqueAllTheWayAcross() {
         for (handle in listOf(null, Tabler.Outline.GripVertical)) {
             val name = if (handle == null) "without a handle" else "with a handle"
-            val (shot, row) = liftedRow(handle, page = PageRed)
+            val shot = liftedRow(handle, page = PageRed)
 
             assertTrue(
-                row.width > MinimumSpan,
-                "the lifted row is ${row.width}px wide $name in a ${Width}px " +
-                    "scene, which is not a row — this measured nothing",
+                shot.card.width > MinimumSpan,
+                "the lifted card is ${shot.card.width}px wide $name in a " +
+                    "${Width}px scene, which is not a card — this measured nothing",
             )
 
-            val holes = pageInside(shot, row)
+            val holes = pageInside(shot.image, shot.card)
             assertTrue(
                 holes == 0,
-                "$holes pixels inside a lifted row $name are still the page " +
-                    "showing through. A row that has been picked up is one card " +
-                    "from edge to edge: the shadow is cast by the whole row and " +
-                    "the fill used to come only from its content, so beside a " +
-                    "handle nothing was painted and the shadow showed through it.",
+                "$holes pixels inside a lifted card $name are still the page " +
+                    "showing through. Whatever a row's content paints, a card that " +
+                    "has been picked up is solid across its own box: the lift's " +
+                    "fill sits under the content for exactly the case where the " +
+                    "content paints no ground of its own.",
             )
         }
     }
@@ -224,24 +246,130 @@ class ReorderShadowTest {
         return holes
     }
 
+    /**
+     * The shadow is cast by the card, so a handle moves it in with the card.
+     *
+     * **This inverts the claim this test used to make**, and the inversion is the
+     * fix. It asserted that the shadow was the same width with a handle as
+     * without — which was true, and was the defect: the layer casting it was the
+     * whole row, the card beside a grip is 24dp narrower than the row, and the
+     * result is a shadow tracing a rectangle wider than anything on screen.
+     * Reported twice, the second time with a picture of a card whose shadow runs
+     * on past its trailing edge.
+     *
+     * Measured as the overshoot **past the card** rather than as an absolute
+     * span, because that is the quantity a blur decides and a handle does not: the
+     * two configurations put the card's trailing edge in different places on
+     * purpose, so comparing the spans compares the layouts. Against the unfixed
+     * component the trailing overshoot came out about a grip wider than the
+     * leading one — the handle's whole column — where now the two agree.
+     */
     @Test
-    fun theShadowIsTheSameWidthWithAHandleAsWithout() {
-        val (bareLeft, bareRight) = shadowReach(handle = null)
-        val (handleLeft, handleRight) = shadowReach(handle = Tabler.Outline.GripVertical)
+    fun theShadowHugsTheCardRatherThanTheRow() {
+        val (bareLeft, bareRight) = shadowOvershoot(handle = null)
+        val (handleLeft, handleRight) = shadowOvershoot(handle = Tabler.Outline.GripVertical)
 
         assertTrue(
-            bareRight > bareLeft,
-            "nothing was drawn without a handle, so this measured nothing: " +
-                "$bareLeft..$bareRight",
+            bareLeft > 0 && bareRight > 0,
+            "the shadow did not reach past the card at all without a handle " +
+                "($bareLeft, $bareRight), so this measured nothing",
         )
         assertTrue(
             kotlin.math.abs(bareLeft - handleLeft) <= Tolerance &&
                 kotlin.math.abs(bareRight - handleRight) <= Tolerance,
-            "the lifted row's shadow spans $handleLeft..$handleRight with a " +
-                "handle and $bareLeft..$bareRight without one. A handle changes " +
-                "what is *inside* the row; it must not change the box the shadow " +
-                "is cast from.",
+            "the lifted card's shadow reaches ${handleLeft}px past its leading " +
+                "edge and ${handleRight}px past its trailing one with a handle, " +
+                "against $bareLeft and $bareRight without one. The shadow belongs " +
+                "to the card, so a grip beside the card must not stretch it: an " +
+                "overshoot that is larger on the handle's side by about the grip's " +
+                "width is a shadow still being cast by the whole row.",
         )
+    }
+
+    /**
+     * Turning handles on narrows the card over several frames rather than one.
+     *
+     * The other half of the same report: *"can we make it so when drag handles are
+     * enabled/disabled, then animate in and out from their respective side? that
+     * would also mean animating the width of the item"*. It was an `if` — the
+     * content went from filling the row to being a `weight(1f)` sibling of a grip
+     * between two frames, and 24dp of text reflowed with no warning.
+     *
+     * **The card's width is what is measured, not the grip's.** The grip is what
+     * animates, but the thing a reader notices is the row's text moving, and that
+     * is the card — so the assertion is on the quantity that was reported rather
+     * than on the mechanism that fixes it. Any mechanism that animates the card's
+     * width passes this; the `if` fails it on the first frame.
+     *
+     * Three claims: it ends up narrower by about a grip, it visits at least one
+     * width in between, and it stops. The last one matters because
+     * `IdleAnimationTest` polices the "and then asks for no more frames" half
+     * globally and this is where a spring that never settles would be born.
+     */
+    @Test
+    fun turningTheHandleOnAnimatesTheCardsWidth() {
+        val rows = mutableStateListOf("Perth", "Daglish", "Subiaco")
+        var handle by mutableStateOf<ImageVector?>(null)
+        var card = Rect.Zero
+        val widths = mutableListOf<Int>()
+
+        Scene(width = Width, height = Height) {
+            val listState = rememberLazyListState()
+            val reorder = rememberReorderableState(listState) { from, to ->
+                rows.add(to, rows.removeAt(from))
+            }
+            Box(Modifier.fillMaxSize().background(Color.White).padding(Gutter.dp)) {
+                LazyColumn(state = listState) {
+                    itemsIndexed(rows) { index, name ->
+                        ReorderableItem(
+                            state = reorder,
+                            index = index,
+                            itemCount = rows.size,
+                            handleIcon = handle,
+                        ) {
+                            ListItem(
+                                modifier = if (index == Lifted) {
+                                    Modifier.reportBounds { card = it }
+                                } else {
+                                    Modifier
+                                },
+                            ) { +name }
+                        }
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val before = card.width.roundToInt()
+            handle = Tabler.Outline.GripVertical
+            repeat(HandleFrames) {
+                scene.frame()
+                widths += card.width.roundToInt()
+            }
+            val after = widths.last()
+
+            assertTrue(
+                before - after > MinimumGrip,
+                "the card was ${before}px wide with no handle and ${after}px with " +
+                    "one, a difference of ${before - after}px. A grip is at least " +
+                    "${MinimumGrip}px of row at this density, so this says the " +
+                    "handle took no width from the content at all",
+            )
+            val between = widths.count { it in (after + Tolerance)..(before - Tolerance) }
+            assertTrue(
+                between > 0,
+                "the card went from ${before}px to ${after}px without being " +
+                    "measured at any width in between. The widths, frame by frame: " +
+                    "$widths. A handle appearing used to be an `if`, which is a " +
+                    "row of text reflowing between two frames; it animates from " +
+                    "its own side now, and the card's width animates with it.",
+            )
+            assertTrue(
+                widths.last() == widths[widths.size - 2],
+                "the card was still moving on the last of $HandleFrames frames: " +
+                    "$widths",
+            )
+        }
     }
 
     private companion object {
@@ -269,5 +397,17 @@ class ReorderShadowTest {
 
         /** How much of the row's height to skip at each end, to clear its corners. */
         const val CornerClear = 0.25f
+
+        /** Long enough for a `springDefault` width to arrive and stop. */
+        const val HandleFrames = 40
+
+        /**
+         * The least a grip can cost the content, in scene pixels.
+         *
+         * `minimumTouchTarget` is 24dp on the JVM and the scene is 2x, so a grip
+         * is 48px of row there. Half of that is a floor no correct layout is
+         * under and no broken one reaches.
+         */
+        const val MinimumGrip = 24
     }
 }

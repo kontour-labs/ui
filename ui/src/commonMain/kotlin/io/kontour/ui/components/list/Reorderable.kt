@@ -1,6 +1,10 @@
 package io.kontour.ui.components.list
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
@@ -46,6 +50,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.motion.AnimatedSlot
+import io.kontour.ui.motion.SlotGap
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
@@ -369,43 +375,12 @@ fun LazyItemScope.ReorderableItem(
             .graphicsLayer {
                 translationY = state.offsetFor(index)
                 // A small lift, not a large one. The row is still in the list.
+                //
+                // On the row rather than on the card below, so the grip travels
+                // and grows with what it is holding — a handle that stayed put
+                // while the card came up would read as two objects.
                 scaleX = 1f + 0.02f * lift
                 scaleY = 1f + 0.02f * lift
-                // In *pixels*, which `graphicsLayer` does not say and this
-                // used to assume otherwise: a bare `8f` is 8dp at 1x, 4 at 2x
-                // and 2.7 at 3x, so the lift got shallower the better the
-                // screen. Nothing caught it because every golden is rendered at
-                // one density.
-                shadowElevation = ReorderLift.toPx() * lift
-                // Without this the shadow is a rectangle whatever the row is.
-                this.shape = shadowShape
-                clip = false
-            }
-            // **The lifted row is one solid card, handle and all.**
-            //
-            // The shadow above is cast by the *layer*, which is the whole row.
-            // The row's fill is not: it comes from the content, and with a
-            // `handleIcon` the content sits in a `weight(1f)` box beside a grip
-            // that has no background of its own. So the layer cast its shadow
-            // under a region nothing was painting, and what showed through
-            // beside the handle was the shadow itself. Reported with a picture.
-            //
-            // Under the content, so a `ListItem` with its own surface still
-            // wins, and ramped on the lift so a row at rest is exactly as it
-            // was — this paints nothing at all until something picks the row up.
-            //
-            // `drawBehind` rather than `background(…)`: `lift` is read inside
-            // the lambda, so a row being picked up invalidates its draw and not
-            // its composition. The outline comes back from `SquirclePaths`
-            // after the first frame.
-            .drawBehind {
-                val raised = lift
-                if (raised <= 0f) return@drawBehind
-                drawOutline(
-                    outline = shadowShape.createOutline(size, layoutDirection, this),
-                    color = liftedColour,
-                    alpha = raised,
-                )
             }
             .semantics {
                 customActions = buildList {
@@ -434,20 +409,140 @@ fun LazyItemScope.ReorderableItem(
             // waits for one. The handle is the part that does not.
             .then(rowDrags)
     ) {
-        if (handleIcon == null) {
-            content()
-            return@Box
-        }
-
+        // **One `Row` whether or not there is a grip**, where this used to branch
+        // on `handleIcon == null` and put the content straight in the `Box`. A
+        // lone `weight(1f)` child of a `Row` is the width the `Box` gave it, so
+        // the handleless case draws exactly what it drew — and a grip that
+        // animates in has to have something to animate *within*.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (handleSide == ReorderHandleSide.Start) {
-                ReorderGrip(handleIcon, enabled, handleDrags)
-            }
-            Box(Modifier.weight(1f)) { content() }
-            if (handleSide == ReorderHandleSide.End) {
-                ReorderGrip(handleIcon, enabled, handleDrags)
-            }
+            ReorderGripSlot(
+                icon = handleIcon,
+                side = ReorderHandleSide.Start,
+                handleSide = handleSide,
+                enabled = enabled,
+                drags = handleDrags,
+            )
+            Box(
+                Modifier
+                    .weight(1f)
+                    // **The lift is cast by the card, not by the row.**
+                    //
+                    // Both of these used to sit on the outer `Box`, which is full
+                    // width with a grip or without one — the content is a
+                    // `weight(1f)` sibling of the handle. So a lifted row with a
+                    // handle drew its shadow around a rectangle wider than the
+                    // card anybody can see, and the strip beside the grip was
+                    // shadow with nothing on top of it. Reported twice: once as
+                    // the gap, and again after the gap was filled with
+                    // `colours.surface`, which on a light page is the same white
+                    // as the page — so the fix changed nothing visible and the
+                    // shadow still looked like it was drawn around thin air.
+                    //
+                    // Measured from the content's own box, the shadow hugs what
+                    // the reader calls the card, the grip sits beside it on the
+                    // list, and the fill lands exactly under whatever the content
+                    // paints. `ReorderShadowTest` holds both halves.
+                    .graphicsLayer {
+                        // In *pixels*, which `graphicsLayer` does not say and this
+                        // used to assume otherwise: a bare `8f` is 8dp at 1x, 4 at
+                        // 2x and 2.7 at 3x, so the lift got shallower the better
+                        // the screen. Nothing caught it because every golden is
+                        // rendered at one density.
+                        shadowElevation = ReorderLift.toPx() * lift
+                        // Without this the shadow is a rectangle whatever the row
+                        // is.
+                        this.shape = shadowShape
+                        clip = false
+                    }
+                    // Under the content, so a `ListItem` with its own surface
+                    // still wins, and ramped on the lift so a row at rest is
+                    // exactly as it was — this paints nothing at all until
+                    // something picks the row up. What it is for is a row whose
+                    // content paints no ground of its own: a bare `Text` picked up
+                    // out of a list should be a card, not a floating word.
+                    //
+                    // `drawBehind` rather than `background(…)`: `lift` is read
+                    // inside the lambda, so a row being picked up invalidates its
+                    // draw and not its composition. The outline comes back from
+                    // `SquirclePaths` after the first frame.
+                    .drawBehind {
+                        val raised = lift
+                        if (raised <= 0f) return@drawBehind
+                        drawOutline(
+                            outline = shadowShape.createOutline(size, layoutDirection, this),
+                            color = liftedColour,
+                            alpha = raised,
+                        )
+                    }
+            ) { content() }
+            ReorderGripSlot(
+                icon = handleIcon,
+                side = ReorderHandleSide.End,
+                handleSide = handleSide,
+                enabled = enabled,
+                drags = handleDrags,
+            )
         }
+    }
+}
+
+/**
+ * A grip that arrives and leaves from the edge it lives on.
+ *
+ * Turning handles on used to be a layout jump: `handleIcon == null` chose between
+ * the content filling the row and the content being a `weight(1f)` sibling of a
+ * grip, so a row lost 48dp of width between two frames and the reader saw the
+ * text reflow rather than a handle appear.
+ *
+ * [AnimatedSlot] is the house answer to an appearing row item and it is used here
+ * for its *other* property as much as for the animation: the width being
+ * interpolated is the grip's own, so the content's `weight(1f)` remainder is
+ * interpolated with it and the card's width animates without a second animation
+ * to keep in step. There is no gap to carry — a grip is
+ * `minimumTouchTarget()` wide around a 20dp glyph, so it brings its own
+ * breathing room — which is why [AnimatedSlot]'s `gap` is zero here rather than
+ * a spacing token.
+ *
+ * **It expands from its own side.** A trailing grip grows leftward out of the
+ * right-hand edge and a leading one rightward out of the left, which reads as the
+ * handle sliding in from outside the row rather than being pushed out of the
+ * middle of it.
+ *
+ * `springOrTween` on the width and a plain tween on the alpha, matching
+ * `FloatingActionButton`'s extended label exactly: the same shape of change, and
+ * a second curve for it would be a second thing to tune.
+ *
+ * @param icon Null when there is no handle. The last non-null one is held, so the
+ *   exit animation has a glyph to draw on its way out — without that, turning
+ *   handles off collapses an empty box and the icon vanishes on frame one.
+ * @param side Which end of the row this slot is. There is one at each end and at
+ *   most one of them is ever visible, so moving [handleSide] across animates the
+ *   old grip out and the new one in for free.
+ */
+@Composable
+private fun ReorderGripSlot(
+    icon: ImageVector?,
+    side: ReorderHandleSide,
+    handleSide: ReorderHandleSide,
+    enabled: Boolean,
+    drags: Modifier,
+) {
+    val motion = Theme.motion
+    val held = remember { mutableStateOf(icon) }
+    if (icon != null) held.value = icon
+    val shown = held.value
+    val from = if (side == ReorderHandleSide.Start) Alignment.Start else Alignment.End
+
+    AnimatedSlot(
+        visible = icon != null && handleSide == side,
+        gap = 0.dp,
+        side = if (side == ReorderHandleSide.Start) SlotGap.Trailing else SlotGap.Leading,
+        enter = expandHorizontally(motion.springOrTween(motion.springDefault), from) +
+            fadeIn(motion.tweenFast()),
+        exit = shrinkHorizontally(motion.springOrTween(motion.springDefault), from) +
+            fadeOut(motion.tweenFast()),
+    ) {
+        if (shown != null) ReorderGrip(shown, enabled, drags)
     }
 }
 

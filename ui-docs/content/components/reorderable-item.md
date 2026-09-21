@@ -7,6 +7,17 @@ exists at rest. `ReorderableState.start(index)`, `drag(delta)` and `stop()` are
 public so a drag can be begun without one: for a keyboard affordance, and for a
 test that needs a row already lifted.
 
+**The shadow belongs to the card, not to the row.** With a `handleIcon` those are
+two different widths — the grip takes its own column and the content has what is
+left — and the lift used to be cast by the row, so a picked-up row drew a shadow
+tracing a rectangle wider than the card anybody could see, with an unpainted
+strip beside the handle. Reported twice: once as the gap, and again after the gap
+was filled with the surface colour, which on a light page is the same white as
+the page, so the fix changed nothing you could see. The lift is measured from the
+content's own box now: the shadow hugs the card, and the grip sits beside it on
+the list rather than inside it. The **scale and the offset stay on the row**, so
+the handle still travels and grows with what it is holding.
+
 **Reordering happens live, under the finger.** `onMove` fires every time the
 dragged row passes another, so the caller's list stays the source of truth
 throughout and there is no pending order to reconcile on release.
@@ -40,6 +51,15 @@ platform's own editable list behaves, and not what a reader reaches for first.
 
 `handleSide` puts the grip at either end; the trailing end by default, since the
 leading end is usually where a row's own icon or avatar is.
+
+**Handles animate in and out from their own side**, and the row's content narrows
+with them. Turning them on used to be a layout jump — the content went from
+filling the row to being a weighted sibling of a grip between two frames, so a
+row of text reflowed with no warning. The grip expands out of the edge it lives
+on, and because the width being animated is the grip's own, the card's remainder
+is animated by the same curve rather than by a second one kept in step with it.
+Moving `handleSide` across animates the old grip out and the new one in. Under
+reduced motion it cuts, like every other transition in the library.
 
 The grip is decoration. Move up and move down are the accessible route either
 way, so the glyph carries no description and adding one would only put a third,

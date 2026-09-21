@@ -31,6 +31,7 @@ import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
+import com.composables.icons.tabler.outline.GripVertical
 import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Plus
@@ -2088,9 +2089,20 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     // row whose own silhouette was a `First`. Nothing showed
                     // while the mismatch only reached a soft shadow; the lifted
                     // row's fill takes that silhouette, so it does now.
+                    //
+                    // **With a grip**, which is the first golden anywhere to have
+                    // one. The shadow is cast by the card rather than by the row,
+                    // so the handle sits beside a lifted card on the list — a
+                    // claim `ReorderShadowTest` measures and this is where it can
+                    // be seen.
                     LazyColumn(state = listState, modifier = modifier) {
                         item {
-                            ReorderableItem(state = reorder, index = 0, itemCount = 3) {
+                            ReorderableItem(
+                                state = reorder,
+                                index = 0,
+                                itemCount = 3,
+                                handleIcon = Tabler.Outline.GripVertical,
+                            ) {
                                 ListItem(position = ListItemPosition.of(0, 3)) {
                                     +"Perth Underground"
                                 }
