@@ -31,6 +31,18 @@ Set `infinite = true` and there are no ends to feel. That is a decision about
 whether the *values* wrap — hours and months do, a list of countries does not —
 rather than about how the ends behave.
 
+**The value is the row in the band**, which is the row whose centre is nearest the
+drum's. It used to be the *next* row: the correction that turns "the first visible
+row" into "the centred row" was applied past any fraction of a row rather than past
+half of one, so a drum a pixel off a boundary reported a value the reader could see
+was not the one in the band.
+
+Reported on `TimePicker`'s AM/PM column, which is the worst case for it. A drum of
+`n` rows has `n - 1` rows of travel, so two rows give one — and "the offset is not
+zero" was true across nearly the whole of it. Pull the drum toward `AM` and let go
+and it went back to `PM`, because the value it settles onto is the value it had
+already reported.
+
 **Tapping a row you can see turns the drum to it**, on both kinds. It used to be
 a drag or nothing: the rows are boxes with text in them and nothing anywhere
 handled a click, so reaching a value two rows up meant dragging the drum by

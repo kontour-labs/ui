@@ -188,19 +188,53 @@ fun <T> WheelPicker(
      */
     var driving by remember { mutableStateOf(false) }
 
-    // The item under the centre line is the first visible one, because the list
-    // is padded by exactly `edgeItems` rows at each end.
-    // Keyed on the list, like `InfiniteWheel`'s version two hundred lines below
-    // and unlike this one until now. An unkeyed `remember` holds the *first*
-    // lambda, so this clamped against the `items` it was composed with while
-    // everything else read the current one — a list of five filtered down to one
-    // still produced a centred index of four, and the next `items[centredIndex]`
-    // threw. The two were written together and only one of them got the key.
-    val centredIndex by remember(items.size) {
+    /**
+     * The row in the highlight band: the one whose centre is nearest the drum's.
+     *
+     * **This used to round up.** It was `firstVisibleItemIndex` plus one whenever
+     * `firstVisibleItemScrollOffset` was anything but exactly zero — on the
+     * premise that the first visible row *is* the centred one, because the list
+     * is padded by exactly `edgeItems` rows at each end. The premise is right and
+     * the correction was not: applied past *any* fraction of a row rather than
+     * past half of one, so a drum a pixel off a boundary reported the row below
+     * the one the eye can see in the band.
+     *
+     * Reported from a phone, on the two-item AM/PM drum in `TimePicker`, and that
+     * is the worst case for a reason. A list of `n` rows has exactly `(n - 1)`
+     * rows of travel, so two items give **one** row of it — and `> 0` is true
+     * across essentially the whole range. The wheel said `PM` everywhere except
+     * pixel-exact zero, `TimePicker` committed it, and then `selected` and
+     * `centredIndex` agreed with each other so the corrective effect below
+     * declined to fix anything. Sharper still on the mouse path: `onDragStopped`
+     * animates to this value, so letting go near `AM` travelled back to `PM`.
+     *
+     * Nearest-centre rather than better arithmetic, because that is robust to the
+     * things arithmetic is not: the content padding, a fractional density leaving
+     * a pixel of snap residue, a partial row at an edge. `Carousel.currentPage`
+     * solved the same problem the same way and says so — *"that index changes the
+     * instant a single pixel of the next page appears"* — and `InfiniteWheel`
+     * below has always rounded to nearest, so the two drums now agree by
+     * construction instead of by accident.
+     *
+     * Keyed on the list, like `InfiniteWheel`'s version two hundred lines below
+     * and unlike this one until now. An unkeyed `remember` holds the *first*
+     * lambda, so this clamped against the `items` it was composed with while
+     * everything else read the current one — a list of five filtered down to one
+     * still produced a centred index of four, and the next `items[centredIndex]`
+     * threw. The two were written together and only one of them got the key.
+     */
+    val centredIndex by remember(listState, items.size) {
         derivedStateOf {
-            (listState.firstVisibleItemIndex +
-                if (listState.firstVisibleItemScrollOffset > 0) 1 else 0)
-                .coerceIn(0, items.lastIndex)
+            val info = listState.layoutInfo
+            val centre = (info.viewportStartOffset + info.viewportEndOffset) / 2
+            val nearest = info.visibleItemsInfo
+                .minByOrNull { abs((it.offset + it.size / 2) - centre) }
+                ?.index
+            // Nothing measured yet — the first composition, before layout. The
+            // list's own answer is the best there is, and it is the right one at
+            // rest.
+                ?: listState.firstVisibleItemIndex
+            nearest.coerceIn(0, items.lastIndex)
         }
     }
 
