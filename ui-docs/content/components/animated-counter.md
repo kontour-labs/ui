@@ -67,8 +67,18 @@ that is easiest to get wrong: 1000 falling to 999 changes length, so matching
 index for index from the left marks all four positions as moving when what has
 actually happened is that three digits changed and a leading 1 went away.
 
-Neighbouring cells shake in opposite phase. Without that, two adjacent changing
-digits read as the whole number sliding — which is the thing this replaced.
+**Every digit about to move trembles the same way.** Neighbouring cells used to
+shake in opposite phase, on the argument that two adjacent changing digits in phase
+read as the whole number sliding — the thing the per-digit tremor replaced. That
+argument does not survive the right-aligned comparison above: a slide is the *whole*
+figure travelling, and the digits that are not about to change sit still, so 1200
+falling to 1199 shakes two columns while two hold their ground. On the one
+transition where every digit does change — 200 to 199 — a 1.5dp shake at 90ms is
+not a slide either, because a slide is vertical and this is not.
+
+It was also never quite the alternation it claimed to be: the parity ran over the
+character index, and a group separator takes a slot without drawing one, so
+1000 → 999 gave the four digits a reader sees the signs `+ + − +`.
 
 A second drop landing mid-warning restarts nothing — the wiggle carries on and
 the roll, when it comes, goes to wherever the value has reached — so a value

@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.sp
 import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.theme.Theme
 import java.awt.image.BufferedImage
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -247,6 +248,134 @@ class AnimatedCounterTest {
     }
 
     /**
+     * Every digit about to move trembles the same way.
+     *
+     * Reported from a phone: *"when ticking with a wiggle warning in the animated
+     * counter, can we please make sure that if multiple digits are about to move,
+     * then they wiggle in the same direction"*.
+     *
+     * They did not. The tremor's direction was `index % 2` — one cell against the
+     * next — put there so that two adjacent changing digits in phase could not read
+     * as the whole number sliding again. `1200` to `1199` moves three digits, so
+     * what a reader got was the hundreds and the units going one way and the tens
+     * going the other.
+     *
+     * ### Neither existing shake test could see this
+     *
+     * Both work from `changedColumnsAgainst`, which reports *that* a column moved.
+     * Direction needs the ink's centre of mass, so this is the one assertion in the
+     * file that weighs pixels rather than counting them: for each digit cell, where
+     * the ink sits along the row, before the drop and on one frame during the
+     * tremor.
+     *
+     * Read on **one** frame for both digits, because the shake is a single
+     * `Animatable` passing through zero — sampled on different frames, two cells
+     * moving identically would still disagree about which way. `renderUntil` finds
+     * a frame where the first of them has actually travelled, and the second is
+     * measured on that same frame.
+     *
+     * The glyphs themselves do not change during the window: `warnBefore` holds the
+     * old number on screen and rolls afterwards, so every pixel that moves here
+     * moved because it was translated.
+     */
+    @Test
+    fun everyDigitAboutToMoveWigglesTheSameWay() {
+        val value = mutableStateOf(1200)
+        Scene(width = Width, height = Height, density = Density.toFloat()) {
+            Counter(value, warn = HoldSeconds.seconds)
+        }.use { scene ->
+            val rest = scene.frames(10)
+            val cells = rest.digitCells()
+            assertEquals(
+                4,
+                cells.size,
+                "1200 should draw as four separated glyphs and drew ${cells.size} " +
+                    "runs of ink. A font whose digits touch would merge two cells " +
+                    "into one, and then this test is measuring something else.",
+            )
+            // The hundreds and the tens: adjacent, both about to change — 2 to 1
+            // and 0 to 9 — and the two the old parity put in opposite phase.
+            val hundreds = cells[1]
+            val tens = cells[2]
+
+            value.value = 1199
+            val shaking = scene.renderUntil(timeoutMillis = ShakeTimeoutMillis) {
+                abs(it.inkCentre(hundreds) - rest.inkCentre(hundreds)) > MinShift
+            }
+            assertTrue(
+                shaking != null,
+                "the hundreds column never moved within ${ShakeTimeoutMillis}ms of " +
+                    "1200 becoming 1199 — there is no tremor to measure",
+            )
+
+            val frame = requireNotNull(shaking)
+            val hundredsShift = frame.inkCentre(hundreds) - rest.inkCentre(hundreds)
+            val tensShift = frame.inkCentre(tens) - rest.inkCentre(tens)
+
+            assertTrue(
+                abs(tensShift) > MinShift,
+                "the hundreds column moved ${hundredsShift}px on this frame and the " +
+                    "tens moved ${tensShift}px, which is nothing. Both digits are " +
+                    "about to change and both are supposed to be shaking.",
+            )
+            assertTrue(
+                hundredsShift * tensShift > 0.0,
+                "on one frame the hundreds moved ${hundredsShift}px and the tens " +
+                    "moved ${tensShift}px — opposite directions. Two digits about " +
+                    "to move are supposed to move together.",
+            )
+        }
+    }
+
+    /**
+     * Each glyph's own columns, split down the blank gaps between them.
+     *
+     * The windows come from the **resting** frame and are then widened to the
+     * midpoint of each gap, so a glyph that travels a pixel or three stays inside
+     * the window it started in and its centre of mass follows it honestly.
+     */
+    private fun BufferedImage.digitCells(): List<IntRange> {
+        val page = getRGB(2, 2)
+        val inked = (0 until width).filter { x ->
+            (0 until height).any { y -> getRGB(x, y) != page }
+        }
+        if (inked.isEmpty()) return emptyList()
+        val runs = mutableListOf<IntRange>()
+        var start = inked.first()
+        var end = start
+        for (x in inked.drop(1)) {
+            if (x > end + 1) {
+                runs += start..end
+                start = x
+            }
+            end = x
+        }
+        runs += start..end
+        return runs.mapIndexed { index, run ->
+            val leftGap = if (index == 0) run.first else runs[index - 1].last
+            val rightGap = if (index == runs.lastIndex) run.last else runs[index + 1].first
+            ((run.first + leftGap) / 2)..((run.last + rightGap) / 2)
+        }
+    }
+
+    /**
+     * Where the ink sits along [columns], weighted by how much of it each column
+     * holds. A glyph translated to the right raises this and nothing else does.
+     */
+    private fun BufferedImage.inkCentre(columns: IntRange): Double {
+        val page = getRGB(2, 2)
+        var weight = 0.0
+        var moment = 0.0
+        for (x in columns) {
+            if (x !in 0 until width) continue
+            val ink = (0 until height).count { y -> getRGB(x, y) != page }.toDouble()
+            weight += ink
+            moment += ink * x
+        }
+        return if (weight == 0.0) 0.0 else moment / weight
+    }
+
+    /**
      * The first unbroken run of inked columns — the leftmost glyph.
      *
      * A digit cell is wider than the digit in it, so the columns between two
@@ -322,6 +451,15 @@ class AnimatedCounterTest {
         const val Width = 300
         const val Height = 120
         const val FontSize = 32
+
+        /**
+         * A centre-of-mass shift big enough not to be a rounding artefact.
+         *
+         * The tremor's amplitude is 1.5dp, which is three pixels at this density,
+         * so a whole pixel of travel is a third of the extreme and well clear of
+         * anything anti-aliasing does on its own.
+         */
+        const val MinShift = 1.0
 
         /**
          * Six frames in — past the two the state change costs, and well short of

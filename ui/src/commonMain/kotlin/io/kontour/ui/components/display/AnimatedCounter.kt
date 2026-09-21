@@ -336,9 +336,29 @@ fun AnimatedCounter(
                     label = "digit$index",
                     modifier = Modifier
                         .width(digitWidth)
-                        // Opposite phases on neighbouring cells, which is what
-                        // keeps two adjacent changing digits from reading as the
-                        // whole number sliding again — the thing this replaced.
+                        // **Every digit about to move trembles the same way.**
+                        //
+                        // It used to alternate — `index % 2`, one cell against the
+                        // next — on the argument that two adjacent changing digits
+                        // in phase read as the whole number sliding again, which is
+                        // the thing the per-digit tremor replaced. Reported from a
+                        // phone as the defect it is: *"if multiple digits are about
+                        // to move, then they wiggle in the same direction"*.
+                        //
+                        // The argument does not survive contact with `moving`. A
+                        // slide is the *whole* figure travelling, and the digits
+                        // that are not about to change sit still — so `1,200`
+                        // falling to `1,199` shakes two columns while two hold
+                        // their ground, which cannot read as the number moving. On
+                        // the one transition where every digit does change, `200`
+                        // to `199`, a 1.5dp shake at 90ms is not a slide either:
+                        // a slide is vertical, and this is not.
+                        //
+                        // It was also not the alternation it claimed to be. The
+                        // parity ran over the *character* index and a group
+                        // separator takes a slot without drawing one, so
+                        // `1,000` → `999` gave the four digits a reader sees the
+                        // signs `+ + − +`.
                         //
                         // Unclipped, so 1.5dp of the tremor crosses into the
                         // next cell. Accepted rather than clipped: a cell is
@@ -349,7 +369,7 @@ fun AnimatedCounter(
                         // whitespace.
                         .graphicsLayer {
                             translationX = if (moving.getOrElse(index) { false }) {
-                                wobble.value * amplitude * if (index % 2 == 0) 1f else -1f
+                                wobble.value * amplitude
                             } else {
                                 0f
                             }
