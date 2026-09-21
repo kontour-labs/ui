@@ -28,6 +28,11 @@ simply a shallower ellipse butted onto the cap: two arcs like that share a tange
 but not a curvature, and the step is visible as a kink at the widest row. The free
 side leaves the join on the cap's own radius and tightens from there.
 
+**The transition is short on purpose.** A dp past the join the free side is the
+ellipse and nothing else. Carrying the cap's radius further round removes the kink
+just as well and puts a shoulder in its place — a bulge that turns hard and then
+runs flat to the tip — which is the worse of the two by a long way.
+
 Squashed, the thumb is inside the circle it rests as at every point, so it never
 comes closer to the track than a resting thumb does.
 

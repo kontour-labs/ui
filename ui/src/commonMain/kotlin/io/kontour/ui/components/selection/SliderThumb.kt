@@ -231,15 +231,29 @@ internal fun DrawScope.sliderThumb(
  * So the free half is not an ellipse but a family of them, swept:
  *
  * ```
- * reach(θ) = (far + (cap - far) · (1 - sin θ)²) · sin θ
+ * reach(θ) = (far + (cap - far) · (1 - sin θ)⁶) · sin θ
  * ```
  *
  * At the join it is exactly the cap's own ellipse, so the curvature is continuous
  * by construction; at the tip the weight has decayed to nothing and it is exactly
- * the shallow ellipse, so the free end is as round as an ellipse's. In between
- * the turn is spread out rather than dumped in one row. The square is what keeps
- * `reach` monotone: a blend that hugs the cap for longer overshoots the tip and
- * comes back, which draws a waist.
+ * the shallow ellipse, so the free side really is the ellipse rather than
+ * something on its way to one. The exponent is where the transition is spent —
+ * see [SquashEase], which is the difference between a shape with a shoulder and a
+ * shape without one.
+ *
+ * ### What has to be true whatever the exponent
+ *
+ * `reach` has to stay monotone. A weighting that holds the cap's radius for
+ * longer still — a smoothstep, `(1 - sin²θ)` — reaches further out at the
+ * shoulder than it does at the tip and has to come back, which draws a waist in
+ * the free end.
+ *
+ * And the curvature **has** to rise above the cap's somewhere. Travelling the
+ * free side turns the tangent through 90°, and with `ρ(0) = cap` a curve whose
+ * radius only ever grew would need `far ≥ cap` — no squash at all — while one
+ * whose radius only ever shrank could not climb the full half-height. So a squash
+ * with a concentric full-radius cap always has a tighter passage in it somewhere.
+ * What is ours to choose is where, and how much of the outline it takes.
  *
  * ### [WallCapShare], and why the cap is not always the full radius
  *
@@ -401,10 +415,26 @@ private val SquashCos = FloatArray(SquashSteps + 1) {
     cos(it * (PI / 2.0) / SquashSteps).toFloat()
 }
 
-/** `(1 - sin θ)²` — the weight the cap's own ellipse still carries at each sample. */
+/**
+ * `(1 - sin θ)⁶` — the weight the cap's own ellipse still carries at each sample.
+ *
+ * **The exponent decides where the transition is spent**, and that is the whole
+ * look of the thing. A low one drags the cap's radius a long way round before
+ * giving it up, and the curve then has to turn hard to reach the tip — the free
+ * side comes out with a shoulder and a flat back, which is what *"the new one
+ * just feels off"* was. A high one is the free side's ellipse almost everywhere
+ * and spends the transition in the first dp off the join, which is what *"a
+ * concentric circular cap blending into an ellipse"* asks for.
+ *
+ * Six, chosen by rendering the family: at two the shoulder is plain at any size,
+ * and past about eight the silhouette stops changing because it has converged on
+ * the ellipse. Measured on the switch at a full squash, the free side leaves the
+ * join on 7.81dp of the cap's 12.00 — a plain ellipse butted on leaves on 3.01.
+ */
 private val SquashEase = FloatArray(SquashSteps + 1) {
     val s = 1f - SquashSin[it]
-    s * s
+    val cube = s * s * s
+    cube * cube
 }
 
 /**
