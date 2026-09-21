@@ -1,102 +1,134 @@
 package io.kontour.ui.components.selection
 
+import androidx.compose.ui.geometry.Offset
 import kotlin.math.abs
+import kotlin.math.hypot
+import kotlin.math.sqrt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The free side of a squashed thumb leaves the join on the cap's own radius.
+ * A squashed thumb's outline leaves its cap **gently**, not merely continuously.
  *
- * Which is the whole of *"the join between those two halves needs to be smooth"*,
- * and the one thing a semicircle butted against a half ellipse cannot do. The two
- * share a tangent at the widest row and nothing else: the outline's radius of
- * curvature steps from the cap's straight to the ellipse's, which at a full
- * squash is a factor of four in one pixel and reads as a kink.
+ * *"It needs to be G2 continuous."* The shape before this one already was, by the
+ * letter: it matched the cap's curvature exactly at the join. What it then did
+ * was leave it at a rate nothing could follow — measured sample by sample, the
+ * curvature went 1.53, 2.26, 3.14, 4.02 times the cap's own over the first few
+ * percent of the outline. Continuous at a point and a kink to look at.
  *
- * So the free half is a swept family of ellipses rather than one — see
- * [squashedOutlinePoint] — weighted so that at the join it *is* the cap's own
- * ellipse and at the tip it is the shallow one. Asserted here as arithmetic
- * because that is what it is; what it looks like is `EndStopSquashTest`'s.
+ * So the ease begins **before** the join and runs on a smootherstep, whose first
+ * and second derivatives are zero at both ends — see `SquashEase`. Measured the
+ * same way:
  *
- * ### Measured as an osculating radius, from the drawn samples
+ * ```
+ * ease at the join   1.53  2.26  3.14  4.02  4.62  4.72
+ * ease before it     1.04  1.03  1.00  0.97  0.95  0.94
+ * ```
  *
- * A point `(x, y)` a little way round from a join at `(0, half)` lies on a circle
- * through that join of radius `(x² + Δ²) / 2|Δ|`, with `Δ = y - half`. Read off the
- * **first drawn segment** rather than a limit, so it is the shape the path really
- * has and not the one it approaches.
- *
- * | | switch, 18x24 | slider, 18x30 |
- * |---|---|---|
- * | the cap's own radius | 12.00 | 9.60 |
- * | this shape, first sample | 7.81 | 6.25 |
- * | a plain half ellipse | 3.01 | 2.42 |
- *
- * The same 0.65 and 0.25 of the cap for both, which is the point: the ratio is a
- * property of the curve and not of the thumb it is drawn on.
- *
- * It reads 0.65 rather than 1.00 because the transition is deliberately **short**
- * — see `SquashEase`. The curvature is the cap's *at* the join and the free side
- * is the ellipse a dp later, which is what keeps the shoulder out of the
- * silhouette; a weighting that held the cap's radius further round would read
- * closer to 1 here and worse on a screen.
+ * The second row is the curvature *staying on the cap's own value* for the first
+ * eight samples and only then rising. That is what the eye reads as a smooth
+ * join, and it is what this file asserts: not that the curvature matches at a
+ * point, which is cheap, but that it **leaves** the match slowly.
  */
 class SquashedThumbOutlineTest {
 
+    /** The ease starts on the cap, so the first sample is on the cap's own ellipse. */
     @Test
-    fun theFreeSideLeavesTheJoinOnTheCapsOwnRadius() {
+    fun theEaseBeginsOnTheCapItself() {
         Cases.forEach { (name, geometry) ->
             val (cap, far, half) = geometry
-            val own = cap * cap / half
-            val measured = joinRadius(cap, far, half)
-
+            val start = squashedOutlinePoint(cap, far, half, 0)
+            val onIt = (start.x / cap) * (start.x / cap) + (start.y / half) * (start.y / half)
+            assertEquals(
+                1f, onIt, 1e-4f,
+                "$name: the ease begins at ${start.x}, ${start.y}, which is off the " +
+                    "cap's own ellipse. Everything before that sample is drawn as the " +
+                    "cap's arc, so a sample that does not sit on it is a step in the " +
+                    "outline itself",
+            )
             assertTrue(
-                measured > own * MinJoinShare,
-                "$name: the free side leaves the join on a radius of $measured " +
-                    "against the cap's own $own. A half ellipse butted onto the cap " +
-                    "leaves on ${joinRadius(cap, far, half, plainEllipse = true)}, " +
-                    "and that step is the kink this shape exists to remove",
+                start.x > 0f,
+                "$name: the ease begins at x=${start.x}, on the free side of the " +
+                    "cap's centre. It has to begin on the **wall** side or there is " +
+                    "no room for the curvature to ramp before the join",
             )
         }
     }
 
-    /** And it still arrives as the shallow ellipse, so the free end is not a point. */
+    /** And ends as the shallow ellipse, so the free end is not a point. */
     @Test
     fun theFreeSideEndsExactlyAsDeepAsItWasAsked() {
         Cases.forEach { (name, geometry) ->
             val (cap, far, half) = geometry
             val tip = squashedOutlinePoint(cap, far, half, SquashSteps)
-            assertEquals(far, tip.x, Tolerance, "$name: the free tip reached ${tip.x}, not $far")
+            assertEquals(
+                -far, tip.x, Tolerance,
+                "$name: the free tip reached ${tip.x}, not ${-far}",
+            )
             assertEquals(0f, tip.y, Tolerance, "$name: the free tip sits ${tip.y} off the centre")
-
-            val join = squashedOutlinePoint(cap, far, half, 0)
-            assertEquals(0f, join.x, Tolerance, "$name: the join is ${join.x} off the cap's centre")
-            assertEquals(half, join.y, Tolerance, "$name: the join is at ${join.y}, not $half")
         }
     }
 
     /**
-     * And never bulges past the tip on the way, which is what the square is for.
+     * The curvature leaves the cap's own value far more slowly than it later moves.
      *
-     * A weighting that holds the cap's radius for longer — a smoothstep, or
-     * `(1 - sin²θ)` — reaches further out at the shoulder than it does at the tip
-     * and has to come back, which draws a waist in the free end. Measured at the
-     * deepest squash this library asks for, the first version of this curve
-     * bulged 0.04 of the cap past its own tip.
+     * Which is the G2 claim as something that can fail. The first step measures
+     * 0.07 of the largest step the curvature later takes; with the ease beginning
+     * at the join instead it measures 0.82 — nearly all of it, immediately.
      */
     @Test
-    fun theFreeSideNeverBulgesPastItsTip() {
+    fun theCurvatureLeavesTheCapWithoutAStep() {
         Cases.forEach { (name, geometry) ->
             val (cap, far, half) = geometry
-            var previous = -1f
-            for (i in 0..SquashSteps) {
-                val reach = squashedOutlinePoint(cap, far, half, i).x
+            val curvatures = (1 until SquashSteps).map { curvatureAt(cap, far, half, it) }
+            val steps = curvatures.zipWithNext { a, b -> b - a }
+            val first = abs(steps.first())
+            val largest = steps.maxOf { abs(it) }
+
+            assertTrue(
+                first <= largest * MaxFirstStep,
+                "$name: the curvature's first step off the cap is $first against a " +
+                    "largest of $largest — ${first / largest} of it. An ease that " +
+                    "begins at the join reads 0.82 there, and that is the kink",
+            )
+
+            // Against the cap's **own arc at the same three angles**, so the
+            // discrete reading's bias is on both sides of the comparison and
+            // cancels: what is left is the outline's real departure from it.
+            for (i in 1..3) {
+                val ratio = curvatureAt(cap, far, half, i) / capCurvatureAt(cap, far, half, i)
                 assertTrue(
-                    reach >= previous - Tolerance,
-                    "$name: sample $i reaches $reach against $previous the sample " +
-                        "before, so the free side comes back on itself",
+                    abs(ratio - 1f) <= NearTheCap,
+                    "$name: at sample $i the outline curves $ratio times as hard as " +
+                        "the cap's own arc does there. The ease begins on the cap, so " +
+                        "the first samples have to still be on it — an ease that " +
+                        "begins at the join reads 1.53 here",
                 )
-                previous = reach
+            }
+        }
+    }
+
+    /**
+     * And the outline never doubles back, which is what the ease's length is for.
+     *
+     * A weight that holds the cap's radius too long reaches further out at the
+     * shoulder than it does at the tip and has to come back, which draws a waist
+     * in the free end. An ease beginning exactly at the join does it.
+     */
+    @Test
+    fun theOutlineNeverDoublesBackOnItself() {
+        Cases.forEach { (name, geometry) ->
+            val (cap, far, half) = geometry
+            var previous = Float.MAX_VALUE
+            for (i in 0..SquashSteps) {
+                val x = squashedOutlinePoint(cap, far, half, i).x
+                assertTrue(
+                    x <= previous + Tolerance,
+                    "$name: sample $i sits at $x against $previous the sample before, " +
+                        "so the outline comes back on itself",
+                )
+                previous = x
             }
         }
     }
@@ -112,39 +144,48 @@ class SquashedThumbOutlineTest {
         val r = 12f
         for (i in 0..SquashSteps) {
             val point = squashedOutlinePoint(cap = r, far = r, half = r, i = i)
-            val radius = point.x * point.x + point.y * point.y
             assertEquals(
-                r * r, radius, 1e-2f,
+                r, hypot(point.x, point.y), 1e-2f,
                 "sample $i sits ${point.x}, ${point.y} — off the circle of radius $r",
             )
         }
     }
 
-    /** The osculating radius at the join, read off the first drawn segment. */
-    private fun joinRadius(
-        cap: Float,
-        far: Float,
-        half: Float,
-        plainEllipse: Boolean = false,
-    ): Float {
-        val point = squashedOutlinePoint(cap, far, half, 1)
-        // What the same sample would be on an ellipse of the free side's depth,
-        // which is the shape this replaces.
-        val x = if (plainEllipse) far * (point.x / (far + (cap - far) * Ease1)) else point.x
-        val drop = abs(point.y - half)
-        return (x * x + drop * drop) / (2f * drop)
+    /** The circumradius of three consecutive samples, which is the curvature there. */
+    private fun curvatureAt(cap: Float, far: Float, half: Float, i: Int): Float {
+        val a = squashedOutlinePoint(cap, far, half, i - 1)
+        val b = squashedOutlinePoint(cap, far, half, i)
+        val c = squashedOutlinePoint(cap, far, half, i + 1)
+        val area = abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2f
+        if (area == 0f) return 0f
+        return 4f * area / (distance(a, b) * distance(b, c) * distance(a, c))
     }
 
-    private companion object {
-        /** `(1 - sin θ)²` at the first sample, for re-deriving the plain ellipse. */
-        val Ease1: Float = run {
-            val join = squashedOutlinePoint(cap = 1f, far = 0f, half = 1f, i = 1)
-            val tip = squashedOutlinePoint(cap = 1f, far = 1f, half = 1f, i = 1)
-            join.x / tip.x
+    /** The same reading, taken of the cap's own arc at the same three angles. */
+    private fun capCurvatureAt(cap: Float, far: Float, half: Float, i: Int): Float {
+        fun onCap(j: Int): Offset {
+            val point = squashedOutlinePoint(cap, far, half, j)
+            // `y` is `half · sin φ` whatever the ease has done to the width, so
+            // the angle comes back out of it.
+            val sin = (point.y / half).coerceIn(-1f, 1f)
+            return Offset(cap * sqrt(1f - sin * sin), half * sin)
         }
+        val a = onCap(i - 1)
+        val b = onCap(i)
+        val c = onCap(i + 1)
+        val area = abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2f
+        if (area == 0f) return 0f
+        return 4f * area / (distance(a, b) * distance(b, c) * distance(a, c))
+    }
 
-        /** Measured at 0.651 on both controls; a plain half ellipse gives 0.251. */
-        const val MinJoinShare = 0.5f
+    private fun distance(a: Offset, b: Offset) = hypot(b.x - a.x, b.y - a.y)
+
+    private companion object {
+        /** Measured at 0.07; an ease beginning at the join reads 0.82. */
+        const val MaxFirstStep = 0.25f
+
+        /** Measured at 0.035 over the first three samples; at the join it is 0.53. */
+        const val NearTheCap = 0.06f
         const val Tolerance = 1e-3f
 
         val Cases = listOf(

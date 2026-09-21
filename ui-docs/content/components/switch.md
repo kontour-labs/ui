@@ -25,13 +25,20 @@ not go pointy where it is touching.
 
 The join between the two is the hard part, and it is why the free side is not
 simply a shallower ellipse butted onto the cap: two arcs like that share a tangent
-but not a curvature, and the step is visible as a kink at the widest row. The free
-side leaves the join on the cap's own radius and tightens from there.
+but not a curvature, and the step is visible as a kink at the widest row.
 
-**The transition is short on purpose.** A dp past the join the free side is the
-ellipse and nothing else. Carrying the cap's radius further round removes the kink
-just as well and puts a shoulder in its place — a bulge that turns hard and then
-runs flat to the tip — which is the worse of the two by a long way.
+**So the ease begins before the join**, not at it. Matching curvature at a point
+costs nothing if the curvature is then allowed to rocket away from it — which is
+what an ease starting at the join does, going from the cap's own value to four
+times it within a few percent of the outline. The cap is exact for three fifths of
+its quarter turn and the outline eases from there on a curve whose first *and*
+second derivatives vanish at both ends, so the curvature leaves the cap's value
+with zero slope and settles onto the free ellipse the same way. Curvature-
+continuous to look at, not only on paper.
+
+It costs thirteen thousandths of a dp of the cap's circularity over the eased
+part — a fiftieth of a pixel, and inward, so it takes nothing off the clearance
+the cap is concentric for.
 
 Squashed, the thumb is inside the circle it rests as at every point, so it never
 comes closer to the track than a resting thumb does.

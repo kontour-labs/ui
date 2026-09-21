@@ -196,7 +196,7 @@ internal fun DrawScope.sliderThumb(
  * ### What it is for
  *
  * Pushing a thumb into a wall it cannot pass squashes it, and the shape of that
- * squash has now been through three answers. Each one fixed the last and was
+ * squash has now been through four answers. Each one fixed the last and was
  * reported back.
  *
  * **Four radii, one per corner.** The cap against the wall kept the resting
@@ -207,53 +207,61 @@ internal fun DrawScope.sliderThumb(
  *
  * **One ellipse, both ends.** *"Make it squash more to a vertical ellipse
  * pressed up against the end stop, rather than flattening the end."* An ellipse
- * has no end to chop, and it is the older and better answer to what a squash
- * looks like. But it squashes the end **against the wall** as much as the free
- * one, and a ball pressed into a wall does not go pointy where it is touching:
- * *"we want to keep the side of the head that's pressed up against the edge
- * circular, but we want to squash the other side in a bit."*
+ * has no end to chop. But it squashes the end **against the wall** as much as
+ * the free one, and a ball pressed into a wall does not go pointy where it is
+ * touching.
  *
- * **An egg, which is the balance between the two.** The wall side is a circular
- * cap of the thumb's own resting radius — so it keeps exactly the silhouette it
- * had before the finger arrived — and the free side eases in to a shallower
- * ellipse. On a `Switch` that also makes the pressed end *exactly concentric*
+ * **An egg.** The wall side keeps the cap the thumb rests as and only the free
+ * side gives. On a `Switch` that also makes the pressed end *exactly concentric*
  * with the track's end arc, which is what the 2dp of padding is for: the cap's
  * centre and the arc's centre are the same point.
  *
- * ### The join is smooth, and that is the whole difficulty
+ * **An egg whose curvature is continuous, which is this one.** The first egg
+ * matched the cap's curvature *at* the join and then left it immediately: 1.00 →
+ * 1.72 → 2.76 → 3.93 over the first few percent of the outline, peaking at 4.80.
+ * Curvature-continuous by the letter and a kink to look at — reported as wanting
+ * *"more smoothing/rounding between the two halves"*, and then, exactly: *"it
+ * needs to be G2 continuous."*
  *
- * A semicircle and a half ellipse butted together on the vertical centre share a
- * tangent but not a curvature: at a full squash the outline's radius of
- * curvature steps from `r` to `r/4` in one pixel, and that step is visible as a
- * kink at the widest row. Two conics cannot do better — matching curvature at
- * the join *is* the circle.
+ * ### The ease starts **before** the join
  *
- * So the free half is not an ellipse but a family of them, swept:
+ * That is the whole change, and it is what a G2 join needs in practice rather
+ * than in principle. Matching curvature at a point costs nothing if the curvature
+ * is allowed to rocket away from it the moment the point is past; what makes a
+ * join read as smooth is the curvature *arriving* and *leaving* at a rate the eye
+ * cannot catch.
+ *
+ * So the cap is exact for [SquashEaseStart] of its quarter turn, and from there
+ * the outline eases — through the join and on to the free tip — on a
+ * **smootherstep**, whose first and second derivatives are zero at both ends. The
+ * curvature therefore leaves the cap's own value with zero slope, rises to 3.26
+ * rather than 4.80, and settles onto the free ellipse the same way.
  *
  * ```
- * reach(θ) = (far + (cap - far) · (1 - sin θ)⁶) · sin θ
+ * A(φ) = far + (cap - far) · (1 - smootherstep(t)),  t = (φ - φ₀) / (π - φ₀)
+ * point = (A(φ)·cos φ, half·sin φ)
  * ```
  *
- * At the join it is exactly the cap's own ellipse, so the curvature is continuous
- * by construction; at the tip the weight has decayed to nothing and it is exactly
- * the shallow ellipse, so the free side really is the ellipse rather than
- * something on its way to one. The exponent is where the transition is spent —
- * see [SquashEase], which is the difference between a shape with a shoulder and a
- * shape without one.
+ * `φ` runs from 0 at the wall tip through the join to π at the free tip, and
+ * `φ₀` is where the ease begins. Before `φ₀` the weight is exactly 1 and the
+ * outline is exactly the cap's own ellipse — which is what keeps the concentric
+ * claim true where it is measured.
  *
- * ### What has to be true whatever the exponent
+ * ### What has to be true whatever the ease
  *
- * `reach` has to stay monotone. A weighting that holds the cap's radius for
- * longer still — a smoothstep, `(1 - sin²θ)` — reaches further out at the
- * shoulder than it does at the tip and has to come back, which draws a waist in
- * the free end.
+ * `A(φ)·cos φ` has to stay **monotone** across the free side. A weight that holds
+ * the cap's radius too long reaches further out at the shoulder than it does at
+ * the tip and has to come back, which draws a waist in the free end; at
+ * [SquashEaseStart] of 1.0 — an ease beginning exactly at the join — this family
+ * does precisely that.
  *
  * And the curvature **has** to rise above the cap's somewhere. Travelling the
- * free side turns the tangent through 90°, and with `ρ(0) = cap` a curve whose
- * radius only ever grew would need `far ≥ cap` — no squash at all — while one
- * whose radius only ever shrank could not climb the full half-height. So a squash
- * with a concentric full-radius cap always has a tighter passage in it somewhere.
- * What is ours to choose is where, and how much of the outline it takes.
+ * free side turns the tangent through 90°, and with the curvature pinned to the
+ * cap's at the join, a curve whose radius only ever grew would need `far ≥ cap` —
+ * no squash at all — while one whose radius only ever shrank could not climb the
+ * full half-height. So a squash with a concentric full-radius cap always has a
+ * tighter passage in it somewhere. What is ours to choose is where it is, how
+ * high it goes, and how gently it is reached.
  *
  * ### [WallCapShare], and why the cap is not always the full radius
  *
@@ -270,11 +278,12 @@ internal fun DrawScope.sliderThumb(
  *
  * ### Two primitives where it can, a path where it cannot
  *
- * The capsule branch is still a round rect on Skia's RRect fast path. The egg
- * cannot be: it is a swept family, not a conic, so it is a path — built from a
- * table of fixed angles with no trigonometry at draw time, and built **only while
- * a finger is pressed into an end stop**, which is the one moment a thumb is not
- * a capsule. At rest and in flight nothing here allocates.
+ * The capsule branch is still a round rect on Skia's RRect fast path, and the
+ * cap's exact quarter turns are still an `arcTo` on its own ellipse. Only the
+ * eased part is sampled, from a table of fixed angles with no trigonometry at
+ * draw time, and only while a finger is pressed into an end stop — which is the
+ * one moment a thumb is not a capsule. At rest and in flight nothing here
+ * allocates.
  *
  * ### The ring
  *
@@ -336,46 +345,52 @@ internal fun DrawScope.squashedCapsule(
     // Invariant under [inset]: the wall steps in by it and the cap gives it up.
     val centreX = if (wallOnRight) right - wallCap else left + wallCap
     val centreY = (top + bottom) / 2f
-    // Away from the wall, which is the only direction anything is squashed in.
-    val away = if (wallOnRight) -1f else 1f
+    // `x` is measured toward the wall, so this is the only place the side of the
+    // thumb the wall is on enters the arithmetic.
+    val toWall = if (wallOnRight) 1f else -1f
 
     val egg = Path()
-    egg.moveTo(centreX, centreY - half)
-    for (i in 1..SquashSteps) {
-        val point = squashedOutlinePoint(cap, far, half, i)
-        egg.lineTo(centreX + away * point.x, centreY - point.y)
-    }
+    val tip = squashedOutlinePoint(cap, far, half, SquashSteps)
+    egg.moveTo(centreX + toWall * tip.x, centreY)
+    // Up the free side to where the cap is still exact.
     for (i in SquashSteps - 1 downTo 0) {
         val point = squashedOutlinePoint(cap, far, half, i)
-        egg.lineTo(centreX + away * point.x, centreY + point.y)
+        egg.lineTo(centreX + toWall * point.x, centreY - point.y)
     }
-    // And back up the wall side, which is the cap's own ellipse exactly.
+    // And across the wall on the cap's own ellipse, which is a true circle
+    // wherever the thumb rests as one.
     egg.arcTo(
         Rect(centreX - cap, centreY - half, centreX + cap, centreY + half),
-        90f,
-        if (wallOnRight) -180f else 180f,
+        if (wallOnRight) -SquashEaseStartDegrees else 180f + SquashEaseStartDegrees,
+        if (wallOnRight) SquashEaseStartDegrees * 2f else -SquashEaseStartDegrees * 2f,
         false,
     )
+    for (i in 1..SquashSteps) {
+        val point = squashedOutlinePoint(cap, far, half, i)
+        egg.lineTo(centreX + toWall * point.x, centreY + point.y)
+    }
     egg.close()
     drawPath(egg, colour, style = style)
 }
 
 /**
- * One sample of the free half's outline, measured from the cap's centre.
+ * One sample of the eased part of the outline, measured from the cap's centre.
  *
- * `x` is how far it reaches away from the wall, `y` how far above the centre —
- * so sample `0` is the join at the top of the shape and [SquashSteps] is the tip,
- * level with the centre. Mirrored for the bottom half by the caller, and for the
- * other wall by the sign of `x`.
+ * `x` is toward the wall and `y` up, so sample `0` is where the ease begins —
+ * still on the cap, above the centre and on the wall's side of it — and
+ * [SquashSteps] is the free tip, level with the centre on the other side.
+ * Mirrored for the bottom half by the caller, and for the other wall by the sign
+ * of `x`.
  *
  * Pulled out of [squashedCapsule] because it is the whole of the shape and none
- * of the drawing: that the free side leaves the join on the cap's own radius is
- * arithmetic, and is asserted as arithmetic in `SquashedThumbOutlineTest`.
+ * of the drawing: that the outline leaves the cap on the cap's own curvature, and
+ * leaves it *gently*, is arithmetic, and is asserted as arithmetic in
+ * `SquashedThumbOutlineTest`.
  */
 internal fun squashedOutlinePoint(cap: Float, far: Float, half: Float, i: Int): Offset =
     Offset(
-        x = (far + (cap - far) * SquashEase[i]) * SquashSin[i],
-        y = half * SquashCos[i],
+        x = (far + (cap - far) * SquashEase[i]) * SquashCos[i],
+        y = half * SquashSin[i],
     )
 
 /**
@@ -395,46 +410,74 @@ internal fun squashedOutlinePoint(cap: Float, far: Float, half: Float, i: Int): 
 private const val WallCapShare: Float = 2f / 3f
 
 /**
- * How many straight segments the free half is drawn with, per quarter.
+ * How much of the cap's quarter turn is exactly the cap, before the ease begins.
  *
- * The outline is a swept family of ellipses rather than a conic, so it is
- * sampled. Twenty puts the worst chord about 0.09px from the true curve at the
- * largest size any thumb here is drawn at, which is a quarter of what
- * antialiasing is already doing to the edge.
+ * Three fifths, measured. The ease has to start before the join or there is
+ * nowhere for the curvature to ramp: beginning it exactly at the join is what the
+ * shape did before, and the curvature went 1.00 → 3.93 over the first four
+ * percent of the outline. Starting it earlier spreads the same turn over more
+ * outline, and the peak falls with it:
  *
- * The samples are fixed angles, so the sine, the cosine and the easing weight are
- * all constants — the draw is twenty multiply-adds and no trigonometry.
+ * | ease begins | peak curvature | the cap's own arc, off a true circle |
+ * |---|---|---|
+ * | at the join | 4.02, and the free side waists | — |
+ * | 0.8 of the quarter | 3.50 | 0.0013dp |
+ * | **0.6 of the quarter** | **3.26** | **0.013dp** |
+ * | 0.4 of the quarter | 3.12 | 0.054dp |
+ *
+ * Curvature as a multiple of the cap's own. The last column is what it costs: the
+ * outline is no longer *exactly* the cap over the eased part, so the wall side
+ * departs from a true circle — by thirteen thousandths of a dp at three fifths,
+ * which is a fiftieth of a pixel on a phone, and inward, so it takes nothing off
+ * the clearance the cap is concentric for. Past three fifths the peak stops
+ * falling much and that departure starts growing.
  */
-internal const val SquashSteps: Int = 20
+private const val SquashEaseStart: Float = 0.6f
 
-private val SquashSin = FloatArray(SquashSteps + 1) {
-    sin(it * (PI / 2.0) / SquashSteps).toFloat()
-}
-
-private val SquashCos = FloatArray(SquashSteps + 1) {
-    cos(it * (PI / 2.0) / SquashSteps).toFloat()
-}
+/** [SquashEaseStart] as an arc, which is the form `arcTo` wants. */
+private const val SquashEaseStartDegrees: Float = SquashEaseStart * 90f
 
 /**
- * `(1 - sin θ)⁶` — the weight the cap's own ellipse still carries at each sample.
+ * How many straight segments the eased part of the outline is drawn with.
  *
- * **The exponent decides where the transition is spent**, and that is the whole
- * look of the thing. A low one drags the cap's radius a long way round before
- * giving it up, and the curve then has to turn hard to reach the tip — the free
- * side comes out with a shoulder and a flat back, which is what *"the new one
- * just feels off"* was. A high one is the free side's ellipse almost everywhere
- * and spends the transition in the first dp off the join, which is what *"a
- * concentric circular cap blending into an ellipse"* asks for.
+ * It spans from [SquashEaseStart] of the cap's quarter round to the free tip —
+ * about 126° — and the samples are fixed angles, so the sine, the cosine and the
+ * easing weight are all constants and the draw is multiply-adds with no
+ * trigonometry. Thirty-two puts the worst chord about 0.05px from the true curve
+ * at the largest size any thumb here is drawn at.
+ */
+internal const val SquashSteps: Int = 32
+
+private val SquashAngles = FloatArray(SquashSteps + 1) {
+    val start = SquashEaseStart * (PI / 2.0)
+    (start + (PI - start) * it / SquashSteps).toFloat()
+}
+
+private val SquashSin = FloatArray(SquashSteps + 1) { sin(SquashAngles[it].toDouble()).toFloat() }
+
+private val SquashCos = FloatArray(SquashSteps + 1) { cos(SquashAngles[it].toDouble()).toFloat() }
+
+/**
+ * `1 - smootherstep(t)` — the weight the cap's own ellipse still carries.
  *
- * Six, chosen by rendering the family: at two the shoulder is plain at any size,
- * and past about eight the silhouette stops changing because it has converged on
- * the ellipse. Measured on the switch at a full squash, the free side leaves the
- * join on 7.81dp of the cap's 12.00 — a plain ellipse butted on leaves on 3.01.
+ * A **smootherstep**, `6t⁵ - 15t⁴ + 10t³`, rather than anything cheaper: its
+ * first *and* second derivatives vanish at both ends. That is the whole point of
+ * it here. The first derivative vanishing is what makes the outline leave the cap
+ * without a corner; the second is what makes its **curvature** leave the cap's
+ * value with zero slope, which is the difference between a join that is
+ * curvature-continuous on paper and one that looks it.
+ *
+ * Measured across the first tenth of the outline past the top, as a multiple of
+ * the cap's own curvature:
+ *
+ * ```
+ * before   1.00  1.72  2.76  3.93  4.71  4.65
+ * now      1.16  1.32  1.54  1.83  2.18  2.57
+ * ```
  */
 private val SquashEase = FloatArray(SquashSteps + 1) {
-    val s = 1f - SquashSin[it]
-    val cube = s * s * s
-    cube * cube
+    val t = it.toFloat() / SquashSteps
+    1f - t * t * t * (t * (t * 6f - 15f) + 10f)
 }
 
 /**
