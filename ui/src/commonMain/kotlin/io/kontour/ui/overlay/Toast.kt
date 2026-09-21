@@ -1,33 +1,34 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.size
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -46,14 +47,14 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -61,29 +62,29 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.interaction.DragClaim
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.rememberDetentTicker
-import io.kontour.ui.interaction.freeDragOwning
+import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
+import io.kontour.ui.adaptive.sheetEdges
+import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonColours
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
-import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.adaptive.sheetEdges
-import io.kontour.ui.adaptive.topEdges
+import io.kontour.ui.interaction.DragClaim
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.freeDragOwning
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
+import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.time.TimeSource
-import kotlin.math.abs
 
 /** What a toast is reporting. */
 enum class ToastTone { Neutral, Success, Warning, Danger, Accent }
@@ -632,6 +633,24 @@ private fun refusesToLeave(travel: Offset, towardEdge: Boolean): Boolean {
  * refused. The vertical half is [rubberBand], which is already 1:1 toward the
  * edge and a band away from it.
  */
+/**
+ * How much of the front card's pull a pill behind it takes.
+ *
+ * *"Pulled slightly in the direction that the user is dragging, but still anchored
+ * to the main position"*, which is a number between the two things this has already
+ * been: one, where the stack travelled as a block and swiping a card away left the
+ * rest displaced, and zero, where it came apart under the finger.
+ *
+ * A seventh. Enough that the pills are plainly answering the gesture on a 200px
+ * pull — about 30px — and little enough that they are still where the eye left them
+ * when the card in front of them goes.
+ *
+ * At file scope rather than in `ToastDefaults` deliberately: the defaults object is
+ * at the ceiling `check-components.py` holds it to, and this is not a number a
+ * caller has any business retuning on its own.
+ */
+private const val PillLean: Float = 1f / 7f
+
 private fun toastTravel(pull: Offset, limit: Float, towardEdge: Boolean): Offset =
     Offset(pull.x, rubberBand(pull.y, limit, towardEdge))
 
@@ -735,8 +754,27 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     // entry went with it. It also covers the case where a toast arrives while
     // the spring below is still running — the settle is on the dragged node's
     // own scope, and that node exists only while its card is at `depth == 0`.
+    /**
+     * Whether a finger is on the front card right now.
+     *
+     * Reported with the lean below: *"if the user is dragging a tooltip, it should
+     * pause the timer on all of them"*. The clock above is one `LaunchedEffect` per
+     * toast keyed on its id, and nothing in it had any notion of a gesture — so a
+     * reader holding the stack still to read it watched it expire under their thumb.
+     *
+     * Owned here rather than in the card for the same reason `pull` is: the clocks
+     * that have to see it belong to toasts that are not the one being dragged, and
+     * some of them are not even on screen.
+     */
+    val held = remember { mutableStateOf(false) }
+
     val frontId = visible.lastOrNull()?.id
-    LaunchedEffect(frontId) { pull.value = Offset.Zero }
+    LaunchedEffect(frontId) {
+        pull.value = Offset.Zero
+        // A card dismissed mid-gesture never reaches its own release handler, and a
+        // stuck flag here would stop every clock in the stack for good.
+        held.value = false
+    }
 
     // Every toast runs its clock, including the ones with no room to be drawn.
     //
@@ -780,19 +818,33 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                 var front = atFront
                 var clears = state.clears
                 while (left > 0) {
+                    // **A finger on the stack stops every clock in it**, and stops
+                    // them without spending any of what is left: the wait below is
+                    // not entered until the gesture is over, so the remainder is
+                    // exactly what it was when the finger went down. A reader
+                    // holding a toast still is reading it.
+                    //
+                    // Every toast, not only the one under the thumb, because the
+                    // stack is one object — the others are in the queue behind a
+                    // card that is not going anywhere, and expiring on schedule
+                    // would empty the queue the reader is holding open.
+                    if (held.value) {
+                        snapshotFlow { held.value }.first { !it }
+                        continue
+                    }
                     val mark = TimeSource.Monotonic.markNow()
-                    // Either thing that can buy this toast time, waited for
-                    // together: it reaches the front, or the user sends another
-                    // one away by hand.
+                    // Any of the three things that can interrupt the wait, together:
+                    // this toast reaches the front, the user sends another one away
+                    // by hand, or a finger arrives on the stack.
                     val moved = withTimeoutOrNull(left) {
-                        snapshotFlow { atFront to state.clears }
-                            .first { (nowFront, nowClears) ->
-                                nowFront != front || nowClears != clears
+                        snapshotFlow { Triple(atFront, state.clears, held.value) }
+                            .first { (nowFront, nowClears, nowHeld) ->
+                                nowFront != front || nowClears != clears || nowHeld
                             }
                     }
                     left -= mark.elapsedNow().inWholeMilliseconds
                     if (moved == null) break
-                    val (nowFront, nowClears) = moved
+                    val (nowFront, nowClears, _) = moved
                     if (nowClears != clears) {
                         clears = nowClears
                         // Topped up toward a full lifetime, never past one.
@@ -829,6 +881,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     onFrontMeasured = { frontHeightPx = it },
                     swipe = swipe,
                     pull = pull,
+                    held = held,
                     scope = stackScope,
                     modifier = config.modifier,
                 )
@@ -865,6 +918,8 @@ private fun ToastCard(
      * onto whatever the last composition happened to see. See `ToastStack`.
      */
     pull: MutableState<Offset>,
+    /** Set while a finger is on this card. See `ToastStack`, which owns it. */
+    held: MutableState<Boolean>,
     /** The stack's scope — see the settle in the gesture below. */
     scope: CoroutineScope,
     modifier: Modifier,
@@ -971,7 +1026,31 @@ private fun ToastCard(
                 scaleOut(motion.tweenExit(), targetScale = 0.94f)
         } else {
             fadeOut(motion.tweenExit()) +
-                scaleOut(motion.tweenExit(), targetScale = ToastDefaults.PillExitScale)
+                scaleOut(
+                    motion.tweenExit(),
+                    targetScale = ToastDefaults.PillExitScale,
+                    // **Retracted into the stack, not thinned in place.**
+                    //
+                    // Reported as the pill's departure still not being good enough
+                    // after it had already been moved off a slide and onto a shrink.
+                    // The shrink was about its own centre, so the sliver a reader can
+                    // actually see — the peek above the front card — thinned from
+                    // *both* edges while going translucent over the page, and a
+                    // shape that gets smaller in the middle of nowhere reads as
+                    // dissolving rather than leaving.
+                    //
+                    // Pivoted on the edge facing the front card instead, so the part
+                    // that is visible is the part that moves, and it withdraws behind
+                    // the card in front of it. That is what a stack closing up looks
+                    // like. Distinct from the slide this replaced, which is recorded
+                    // above and failed for the opposite reason: it put the pill under
+                    // the front card on the *first* frame, so there was nothing to
+                    // watch at all.
+                    transformOrigin = TransformOrigin(
+                        pivotFractionX = 0.5f,
+                        pivotFractionY = if (towardEdge) 1f else 0f,
+                    ),
+                )
         },
     ) {
         ToastSurface(
@@ -1000,7 +1079,7 @@ private fun ToastCard(
                             // travels entirely alone and takes the first pixel
                             // that does.
                             claimsOn = DragClaim.Movement,
-                            onStart = { },
+                            onStart = { held.value = true },
                             onDelta = { delta ->
                                 // A plain accumulator, read and written live.
                                 // Where the card actually goes is `toastTravel`,
@@ -1040,6 +1119,10 @@ private fun ToastCard(
                                 // straight at the edge read as 0px and refused
                                 // to dismiss.
                                 threshold.reset()
+                                // The clocks start again here whichever way the
+                                // release goes — a dismissed card takes its own
+                                // toast with it and the rest carry on.
+                                held.value = false
                                 if (dismissesOnRelease()) {
                                     state.dismiss(toast.id)
                                 } else {
@@ -1095,8 +1178,27 @@ private fun ToastCard(
                 // counts this file for that reason: the number is a record, not
                 // an accusation.
                 .graphicsLayer {
-                    translationX = swipe.x
-                    translationY = depthOffset.toPx() + swipe.y
+                    // **The pills lean; only the front card travels.**
+                    //
+                    // The third position this has been in, and the two before it
+                    // were each reported. Every card reading the full `swipe` was
+                    // the answer to "the stack came apart under a finger: only the
+                    // card moved and the pills it is the front of stayed where they
+                    // were" — and reading none of it was what that replaced. The
+                    // report against *this* one: *"when you drag away the main
+                    // tooltip, the secondary ones shouldn't move with it. They
+                    // should just get pulled slightly in the direction that the user
+                    // is dragging, but they should still be anchored to the main
+                    // position."*
+                    //
+                    // Which is a stack that is one object *and* has a front: the
+                    // pills acknowledge the pull without going with it, so letting
+                    // go a card that does not dismiss returns one thing rather than
+                    // four, and swiping one away leaves the others where the eye
+                    // already had them.
+                    val lean = if (depth == 0) 1f else PillLean
+                    translationX = swipe.x * lean
+                    translationY = depthOffset.toPx() + swipe.y * lean
                     scaleX = depthScale
                     scaleY = depthScale
                     // No alpha. Fading the ones behind made them *translucent*

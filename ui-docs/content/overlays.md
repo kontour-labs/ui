@@ -604,6 +604,26 @@ where toasts are pinned. Either way a toast can be swiped away toward whichever
 edge the stack is anchored to — and the swipe target is the whole card *plus*
 the 16dp of padding around it, because a toast is a small thing to aim at.
 
+**A finger on the stack holds every clock in it.** Not only the one under the
+thumb: the others are queued behind a card that is not going anywhere, and
+expiring on schedule would empty the stack a reader is holding open. The
+remainder is not spent while the gesture lasts, so letting go resumes rather
+than restarts.
+
+**The pills lean; only the front card travels.** Dragging the front toast pulls
+the ones behind it a seventh as far — enough that they are plainly part of the
+same object, little enough that they stay where the eye left them, so letting go
+a card that does not dismiss returns one thing rather than four. Both extremes
+have been shipped and both were reported: pills that ignored the drag entirely
+read as the stack coming apart, and pills that matched it read as the whole
+stack sliding.
+
+**A pill leaves by retracting into the stack**, pivoted on the edge facing the
+card in front of it, so the sliver a reader can see is the part that moves and it
+withdraws behind that card. Shrinking about its own centre thinned it from both
+edges in the middle of nowhere, which reads as dissolving; sliding it out put it
+under the front card on the first frame, so there was nothing to watch at all.
+
 ### How long they stay
 
 `ToastDefaults.Duration` is 2.5 seconds, and `DurationWithAction` is 5 — an

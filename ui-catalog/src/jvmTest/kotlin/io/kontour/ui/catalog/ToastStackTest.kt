@@ -706,16 +706,23 @@ class ToastStackTest {
      * dismissed in. Each pixel of pull now moves it less than the last, easing up
      * to `RubberBand` of its own height and stopping.
      *
-     * ### And the pills come too
+     * ### And the pills lean without coming too
      *
-     * Reported alongside it: the stack came apart under a finger, because `swipe`
-     * belonged to the card being dragged and every pill behind it stayed where it
-     * was. It is owned by the stack now and every card reads it, so the top and
-     * bottom of the stack move by the same amount — which is what the second
-     * assertion here is.
+     * Three positions, two of them reported. `swipe` once belonged to the card being
+     * dragged and every pill behind it stayed put — *"the stack came apart under a
+     * finger"*. Then the stack owned it and every card read the whole of it, so the
+     * top and bottom moved together — *"when you drag away the main tooltip, the
+     * secondary ones shouldn't move with it. They should just get pulled slightly in
+     * the direction that the user is dragging, but they should still be anchored to
+     * the main position."*
+     *
+     * So the last assertion here is the only one that changed, and it now asks for
+     * the middle: the top of the stack moves **with** the finger and **much less
+     * than** the card. Both halves matter. Zero is the first report and parity is
+     * the second, and only a number strictly between them is neither.
      */
     @Test
-    fun theWrongWayRubberBandsAndTakesTheStackWithIt() {
+    fun theWrongWayRubberBandsAndThePillsLean() {
         val (topTravel, bottomTravel, series) = wrongWayTravel()
 
         assertTrue(
@@ -735,11 +742,18 @@ class ToastStackTest {
                 "`2, 19, 19, 19 …`. A band has to be a function of the whole pull.",
         )
         assertTrue(
-            abs(topTravel - bottomTravel) <= 4,
+            topTravel > 0,
             "the bottom of the stack travelled ${bottomTravel}px under the finger " +
-                "and the top only ${topTravel}px. The pills are being left " +
-                "behind: a stack is one object, and half of it following a drag " +
-                "while the other half stays put says it is not.",
+                "and the top did not move at all. The pills are being left behind: " +
+                "a stack is one object, and half of it ignoring a drag entirely " +
+                "says it is not.",
+        )
+        assertTrue(
+            topTravel * 2 < bottomTravel,
+            "the bottom of the stack travelled ${bottomTravel}px and the top " +
+                "${topTravel}px, which is most of the way with it. The pills are " +
+                "meant to be pulled *slightly* and to stay anchored where the eye " +
+                "left them, so that letting go returns one thing rather than four.",
         )
     }
 
@@ -915,6 +929,76 @@ class ToastStackTest {
      * reported a single jump, `243 -> 262`, for the nine-frame travel this file
      * measures elsewhere. Same mistake `BackdropBlurTest` records; the same fix.
      */
+    /**
+     * A finger on the stack holds every clock in it.
+     *
+     * Reported with the lean: *"if the user is dragging a tooltip, it should pause
+     * the timer on all of them"*. The clock is one `LaunchedEffect` per toast keyed
+     * on its id and had no notion of a gesture at all, so a reader holding the stack
+     * still in order to read it watched it expire under their thumb.
+     *
+     * ### Two halves, and the second is what makes the first mean anything
+     *
+     * A toast that is still there after a hold could be a toast whose clock is
+     * paused or a toast whose clock never started. So this holds past the duration,
+     * lets go, and insists it goes *then* — a paused clock is one that resumes.
+     *
+     * ### Real time, not frames
+     *
+     * The clock is `TimeSource.Monotonic` and `Scene` advances 16ms of *frame* time
+     * per render, with no fixed relationship between the two. `renderUntil` takes a
+     * deadline in the same units the component uses, and its returning null — never
+     * satisfied — is the assertion here rather than a failure to observe.
+     *
+     * The gesture has to **move**: `freeDragOwning` claims on `DragClaim.Movement`,
+     * so a press that never travels is deliberately left alone for the close button
+     * and the action, and never reports a drag at all. Twenty pixels is far short of
+     * `SwipeAway` and does not dismiss.
+     */
+    @Test
+    fun aFingerOnTheStackHoldsEveryClockInIt() {
+        var settled = 0
+        var wentWhileHeld: BufferedImage? = null
+        var wentAfterRelease: BufferedImage? = null
+
+        Scene(width = 600, height = 400) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) {
+                    toasts.show("Saved", durationMillis = HeldDuration.toLong())
+                }
+            }
+        }.use { scene ->
+            val arrived = scene.frames(12)
+            settled = arrived.stackHeight()
+            assertTrue(settled > 10, "no toast arrived to hold: ${settled}px of stack")
+
+            val on = Offset(300f, (arrived.stackTop() + arrived.stackBottom()) / 2f)
+            scene.press(on)
+            scene.move(on + Offset(20f, 0f))
+            wentWhileHeld = scene.renderUntil(timeoutMillis = HoldMillis) {
+                it.stackHeight() < settled - 10
+            }
+            scene.release(on + Offset(20f, 0f))
+            wentAfterRelease = scene.renderUntil { it.stackHeight() < settled - 10 }
+        }
+
+        assertTrue(
+            wentWhileHeld == null,
+            "the toast expired while a finger was on it. It was held for " +
+                "${HoldMillis}ms against a ${HeldDuration}ms duration, which is " +
+                "long enough that a clock still running has run out.",
+        )
+        assertTrue(
+            wentAfterRelease != null,
+            "the toast never went after the finger lifted, so the clock was not " +
+                "paused — it was stopped, and the hold has eaten the toast's whole " +
+                "life rather than suspending it.",
+        )
+    }
+
     private fun BufferedImage.stackTop(): Int =
         (0 until height).firstOrNull { y -> rowHasToast(y) } ?: height
 
@@ -1189,6 +1273,16 @@ class ToastStackTest {
 
         /** How many rows of identical width count as a pill's straight side. */
         const val PlateauRows = 4
+
+        /**
+         * A toast's life, and a hold comfortably longer than it.
+         *
+         * Long enough that settling the entry animation cannot eat it on a slow
+         * machine — the hazard `eachToastKeepsItsOwnClock` above is written around
+         * — and short enough that the whole case is a few seconds.
+         */
+        const val HeldDuration = 3_000
+        const val HoldMillis = 5_000L
 
         /** A plausible status bar in this scene's pixels. */
         const val StatusBar = 72
