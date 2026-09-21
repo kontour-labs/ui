@@ -8,6 +8,8 @@ import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -249,10 +251,15 @@ fun BottomSheet(
     draggable: Boolean = true,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /**
-     * What the sheet's *content and chrome* keep clear of. The status bar, the
-     * gesture bar, the cutout and **the keyboard**, so a text field in a sheet
-     * is not typed at from behind it. The sheet's own surface still reaches the
-     * bottom of the window, and still reaches the top.
+     * What the sheet's *chrome* keeps clear of, and what its content is **told
+     * about**. The status bar, the gesture bar, the cutout and the keyboard, so
+     * a text field in a sheet is not typed at from behind it. The sheet's own
+     * surface still reaches the bottom of the window, and still reaches the top.
+     *
+     * **The bottom side is handed to [content] rather than applied to it**, and
+     * the other three are applied. See [content]: the sheet cannot get inside a
+     * caller's scroller, so a sheet that padded its content could only ever stop
+     * the last row *above* the gesture bar rather than let it travel through.
      *
      * **[allEdges][io.kontour.ui.adaptive.allEdges] rather than
      * [sheetEdges][io.kontour.ui.adaptive.sheetEdges], which has no top side.**
@@ -291,7 +298,37 @@ fun BottomSheet(
      * `Modifier.align` are how you say otherwise.
      */
     floatingControls: (@Composable RowScope.() -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit,
+    /**
+     * The sheet's content, and the safe area under it.
+     *
+     * The `PaddingValues` is the bottom inset — the gesture bar, or the keyboard
+     * when it is up — and the sheet does **not** apply it. Reported as content
+     * being cut off at the safe zone: *"rather than cutting it off, could we
+     * make it so it keeps going, but there's just some content padding so all
+     * content is scrollable above the safe zone."*
+     *
+     * That is the difference between padding a scroller and padding what is
+     * inside it, and only the caller knows which they have:
+     *
+     * ```
+     * BottomSheet(state) { padding ->
+     *     LazyColumn(contentPadding = padding) { … }   // scrolls through the bar
+     *     Column(Modifier.padding(padding)) { … }      // sits above it
+     * }
+     * ```
+     *
+     * `Scaffold` has taken the same position since it was written, in the same
+     * words: *"a `LazyColumn` wants it as `contentPadding`, a `Column` wants it
+     * as `padding`, and applying it to the wrong one clips the scroll."* The
+     * sheet used to be the one container in the library that decided for you,
+     * and what it decided was the first of those two for everybody.
+     *
+     * **A sheet that ignores it draws to the bottom of the window**, which is a
+     * behaviour change for content written before this parameter existed. The
+     * other three sides are still applied, and a floating sheet hands out zero
+     * because its own margin has already cleared the inset.
+     */
+    content: @Composable ColumnScope.(PaddingValues) -> Unit,
 ) {
     val density = LocalDensity.current
     val motion = Theme.motion
@@ -504,11 +541,11 @@ fun BottomSheet(
                 // nothing. `rememberSheetChildOverscrollFactory` hands back the
                 // platform's own factory unchanged when the sheet is not
                 // draggable, so this line is one shape for both cases.
-                content = {
+                content = { padding ->
                     CompositionLocalProvider(
                         LocalOverscrollFactory provides childOverscroll,
                     ) {
-                        content()
+                        content(padding)
                     }
                 },
             )
@@ -618,7 +655,11 @@ fun ModalBottomSheet(
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /** See [BottomSheet]. Every edge, so the handle clears the status bar. */
     windowInsets: WindowInsets = WindowInsets.allEdges,
-    content: @Composable ColumnScope.() -> Unit,
+    /**
+     * See [BottomSheet]'s, which this hands the bottom inset straight through
+     * from: a `LazyColumn` wants it as `contentPadding`, a `Column` as `padding`.
+     */
+    content: @Composable ColumnScope.(PaddingValues) -> Unit,
 ) {
     val host = LocalOverlayHost.current
     val key = remember { Any() }
@@ -744,7 +785,7 @@ private fun BoxScope.SheetSurface(
     contentColour: Color,
     dragHandle: (@Composable () -> Unit)?,
     density: Density,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable ColumnScope.(PaddingValues) -> Unit,
 ) {
     Surface(
         modifier = Modifier
@@ -958,20 +999,34 @@ private fun BoxScope.SheetSurface(
                         val height = placeable.height.coerceAtMost(constraints.maxHeight)
                         layout(placeable.width, height) { placeable.place(0, 0) }
                     }
-                    // The three sides a sheet is always against. The surface
-                    // reaches the bottom of the window at every detent and the
-                    // full width at all of them, so these three apply in full
-                    // whatever the sheet is doing — which is what makes them the
-                    // easy ones, and the top the hard one. [sheetTopInset] above
-                    // has that.
+                    // **Horizontal only, where this used to take the bottom as
+                    // well.** The surface reaches the bottom of the window at
+                    // every detent and the full width at all of them, so the
+                    // sides apply in full whatever the sheet is doing — and the
+                    // top is the hard one, which [sheetTopInset] above has.
+                    //
+                    // The bottom is now the content's to place, because the
+                    // sheet cannot get inside a caller's scroller: padding here
+                    // ends a `LazyColumn`'s viewport above the gesture bar, so
+                    // the last row stops short of it instead of travelling
+                    // through it and coming to rest clear. Reported as content
+                    // being cut off at the safe zone. The value is handed to
+                    // `content` below; see [BottomSheet]'s `content`.
+                    //
+                    // The drag handle keeps its own placement either way — it is
+                    // at the top, where the bottom inset was never reaching it.
                     .windowInsetsPadding(
-                        windowInsets.only(
-                            WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
-                        )
+                        windowInsets.only(WindowInsetsSides.Horizontal)
                     )
             ) {
                 dragHandle?.invoke()
-                content()
+                // **Resolved by the consumer, not here.** `asPaddingValues`
+                // reads the inset where it is used, which for a `LazyColumn`'s
+                // `contentPadding` is the measure pass; calling
+                // `calculateBottomPadding()` in composition would recompose the
+                // whole of a sheet's content on every frame of the keyboard
+                // sliding up.
+                content(windowInsets.only(WindowInsetsSides.Bottom).asPaddingValues())
             }
         }
     }

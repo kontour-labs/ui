@@ -244,6 +244,30 @@ because Compose refuses a scroller measured at an infinite height. If you carrie
 a workaround for that — a fixed `heightIn` on the content, say — you no longer
 need it.
 
+**The gesture bar is handed to the content rather than reserved from it.** The
+content lambda takes a `PaddingValues` carrying the bottom inset — the gesture
+bar, or the keyboard when it is up — and the sheet applies none of it:
+
+```kotlin
+BottomSheet(sheet) { safeArea ->
+    LazyColumn(contentPadding = safeArea) { … }        // scrolls through the bar
+    Column(Modifier.padding(safeArea)) { … }           // sits above it
+}
+```
+
+The sheet used to pad its content column itself, which is the first of those two
+for everybody — so a list inside ended its viewport a gesture bar above the
+window and its last row stopped short of the band rather than travelling through
+it and coming to rest clear. Reported as content being cut off at the safe zone.
+Only the caller knows whether the number belongs outside a scroller or inside
+one, and applying it to the wrong one clips the scroll; `Scaffold` has handed its
+own padding over for the same reason since it was written.
+
+The other three sides are still applied for you, and a floating sheet hands out
+zero — its margin has already cleared the inset. **Content written before this
+existed now draws to the bottom of the window**, which is the behaviour change:
+read the value and put it where it belongs.
+
 ---
 
 ## Opening a sheet before it has been laid out

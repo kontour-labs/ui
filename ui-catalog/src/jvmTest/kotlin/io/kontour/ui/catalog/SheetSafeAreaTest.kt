@@ -1,6 +1,12 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,6 +60,15 @@ class SheetSafeAreaTest {
     private val density = 2f
     private val canvasHeight = 1120
 
+    /** A gesture bar's worth, in dp — 48px at this density. */
+    private val BottomInset = 24
+    private val insetPxBottom = BottomInset * density
+
+    /** A list longer than the window, and a scroll longer than the list. */
+    private val RowCount = 30
+    private val RowHeight = 56
+    private val MoreThanTheList = 100_000f
+
     /** The inset under test, in pixels. 40dp at 2x, about a phone's status bar. */
     private val insetPx = 80f
 
@@ -70,6 +85,8 @@ class SheetSafeAreaTest {
          * viewport to that, and its last rows are unreachable.
          */
         val contentBottom: Float,
+        /** What the sheet handed the content as its bottom safe area, in dp. */
+        val handedBottom: Float = Float.NaN,
     )
 
     private fun measure(openAt: SheetDetent): Measured {
@@ -215,5 +232,214 @@ class SheetSafeAreaTest {
             "a sheet at half height was padded by ${sheet.contentTop - sheet.sheetTop}px " +
                 "for a status bar it is nowhere near",
         )
+    }
+
+    /**
+     * A bottom inset no longer shortens the content area — it is handed over.
+     *
+     * Reported: *"in bottom sheets, we currently just cut content off at the safe
+     * zone at the bottom of the screen. Rather than cutting it off, could we make
+     * it so it keeps going, but there's just some content padding so all content
+     * is scrollable above the safe zone."*
+     *
+     * The sheet used to apply the bottom inset as padding on the content column,
+     * so the column — and any scroller's viewport inside it — ended a gesture bar
+     * above the window. That is the cut. The column now runs to the window's own
+     * bottom edge and the inset is handed to the content, which is the only place
+     * that knows whether it belongs outside a scroller or inside one.
+     *
+     * Measured with the same `Measured.contentBottom` probe the top-inset cases
+     * use, against a **bottom** inset instead. Fails on today's code by exactly
+     * the inset: 48px at this density.
+     */
+    @Test
+    fun aBottomInsetDoesNotShortenTheContentArea() {
+        val measured = measureBottomInset()
+        assertEquals(
+            canvasHeight.toFloat(),
+            measured.contentBottom,
+            1f,
+            "the content column ends at ${measured.contentBottom} in a " +
+                "${canvasHeight}px window with a ${BottomInset}dp bottom inset. " +
+                "The sheet is not supposed to reserve that band any more: a " +
+                "scroller inside sizes its viewport to this, and a viewport that " +
+                "stops above the gesture bar is a last row that cannot travel " +
+                "through it.",
+        )
+    }
+
+    /**
+     * And the content is told how deep the band is.
+     *
+     * The other half, and the one that makes the first half safe rather than a
+     * regression: a caller that reads the value can put it wherever it belongs —
+     * `contentPadding` on a `LazyColumn`, `padding` on a `Column` — and a caller
+     * that does not is drawing into the gesture bar on purpose.
+     */
+    @Test
+    fun theContentIsHandedTheBottomInset() {
+        val measured = measureBottomInset()
+        assertEquals(
+            BottomInset.toFloat(),
+            measured.handedBottom,
+            0.5f,
+            "the sheet handed its content ${measured.handedBottom}dp of bottom " +
+                "padding under a ${BottomInset}dp inset",
+        )
+    }
+
+    /** The same scene as [measure], with the inset at the other end. */
+    private fun measureBottomInset(): Measured {
+        var contentTop = Float.NaN
+        var contentBottom = Float.NaN
+        var handed = Float.NaN
+        var visible = Float.NaN
+
+        val scene = ImageComposeScene(
+            width = 700,
+            height = canvasHeight,
+            density = Density(density),
+        ) {
+            KontourTheme(darkTheme = false, reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize()) {
+                        val sheet = rememberSheetState(
+                            detents = listOf(
+                                SheetDetent.Hidden,
+                                SheetDetent.Half,
+                                SheetDetent.Full,
+                            ),
+                            initialDetent = SheetDetent.Hidden,
+                        )
+                        LaunchedEffect(Unit) { sheet.animateTo(SheetDetent.Full) }
+                        BottomSheet(
+                            sheet,
+                            dragHandle = null,
+                            windowInsets = WindowInsets(bottom = BottomInset.dp),
+                        ) { padding ->
+                            visible = sheet.visibleHeight
+                            handed = padding.calculateBottomPadding().value
+                            Box(
+                                Modifier.onGloballyPositioned {
+                                    contentTop = it.positionInRoot().y
+                                    contentBottom = contentTop + it.size.height
+                                }
+                            ) {
+                                Column { Box(Modifier.height(2000.dp)) { Text("body") } }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        try {
+            repeat(60) { frame -> scene.render(16_000_000L * frame) }
+        } finally {
+            scene.close()
+        }
+        return Measured(canvasHeight - visible, contentTop, contentBottom, handed)
+    }
+
+    /**
+     * A list handed the padding scrolls its last row clear of the gesture bar.
+     *
+     * The end-to-end claim, and the reason the value is handed over rather than
+     * applied: the same number in two different places produces two different
+     * results, and only the caller knows which one they want.
+     *
+     * Measured as **where the last row comes to rest** once the list is scrolled
+     * as far as it goes, with the padding inside the scroller and without it.
+     * Without, the last row stops at the window's bottom edge, under the bar.
+     * With, it stops the inset short of it — having travelled *through* the band
+     * on the way, which is what could not happen when the sheet padded the column
+     * from outside.
+     */
+    @Test
+    fun aListHandedThePaddingScrollsItsLastRowClearOfTheBar() {
+        val bare = lastRowBottom(usePadding = false)
+        val padded = lastRowBottom(usePadding = true)
+
+        assertEquals(
+            canvasHeight.toFloat(),
+            bare,
+            2f,
+            "a list that ignored the handed padding rested its last row at " +
+                "$bare in a ${canvasHeight}px window. It is supposed to run to " +
+                "the bottom edge — that is the half of this the sheet no longer " +
+                "does for the caller",
+        )
+        assertEquals(
+            canvasHeight - insetPxBottom,
+            padded,
+            2f,
+            "a list given the handed padding as `contentPadding` rested its last " +
+                "row at $padded, against ${canvasHeight - insetPxBottom} — the " +
+                "window's bottom less the inset. A row that stops anywhere else " +
+                "is either under the gesture bar or was never able to reach it.",
+        )
+    }
+
+    /** Where the last row of a scrolled-to-the-end list settles, in window pixels. */
+    private fun lastRowBottom(usePadding: Boolean): Float {
+        var bottom = Float.NaN
+
+        val scene = ImageComposeScene(
+            width = 700,
+            height = canvasHeight,
+            density = Density(density),
+        ) {
+            KontourTheme(darkTheme = false, reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize()) {
+                        val sheet = rememberSheetState(
+                            detents = listOf(SheetDetent.Hidden, SheetDetent.Full),
+                            initialDetent = SheetDetent.Hidden,
+                        )
+                        val rows = rememberLazyListState()
+                        LaunchedEffect(Unit) {
+                            sheet.animateTo(SheetDetent.Full)
+                            // Further than the list is long, so it ends against
+                            // its own end rather than wherever a measured scroll
+                            // happened to stop.
+                            rows.scrollBy(MoreThanTheList)
+                        }
+                        BottomSheet(
+                            sheet,
+                            dragHandle = null,
+                            windowInsets = WindowInsets(bottom = BottomInset.dp),
+                        ) { padding ->
+                            LazyColumn(
+                                state = rows,
+                                contentPadding = if (usePadding) padding else PaddingValues(),
+                            ) {
+                                items(RowCount) { index ->
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(RowHeight.dp)
+                                            .then(
+                                                if (index == RowCount - 1) {
+                                                    Modifier.onGloballyPositioned {
+                                                        bottom = it.positionInRoot().y +
+                                                            it.size.height
+                                                    }
+                                                } else {
+                                                    Modifier
+                                                }
+                                            )
+                                    ) { Text("row $index") }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        try {
+            repeat(90) { frame -> scene.render(16_000_000L * frame) }
+        } finally {
+            scene.close()
+        }
+        return bottom
     }
 }

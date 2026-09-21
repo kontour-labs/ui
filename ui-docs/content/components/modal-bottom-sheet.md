@@ -9,17 +9,22 @@ var open by remember { mutableStateOf(false) }
 
 Button(onClick = { open = true }) { +"Rename favourite" }
 
-ModalBottomSheet(visible = open, onDismissRequest = { open = false }) {
+ModalBottomSheet(visible = open, onDismissRequest = { open = false }) { safeArea ->
     SheetHeader {
         +"Rename favourite"
         supporting { +"Perth Underground" }
     }
     Column(
-        modifier = Modifier.padding(
-            start = Theme.spacing.md,
-            end = Theme.spacing.md,
-            bottom = Theme.spacing.lg,
-        ),
+        modifier = Modifier
+            .padding(
+                start = Theme.spacing.md,
+                end = Theme.spacing.md,
+                bottom = Theme.spacing.lg,
+            )
+            // The gesture bar, handed over rather than applied: a `Column`
+            // takes it as padding, and a `LazyColumn` would take it as
+            // `contentPadding` so its last row can scroll through the band.
+            .padding(bottom = safeArea.calculateBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
         Button(onClick = { save(); open = false }, modifier = Modifier.fillMaxWidth()) {

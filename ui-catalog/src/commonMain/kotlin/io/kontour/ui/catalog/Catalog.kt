@@ -453,8 +453,8 @@ internal fun SettingsSheet(
     systemDark: Boolean,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) {
-        SettingsSheetContent(settings, systemDark)
+    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) { padding ->
+        SettingsSheetContent(settings, systemDark, padding)
     }
 }
 
@@ -472,11 +472,24 @@ internal fun SettingsSheet(
  * being used.
  */
 @Composable
-internal fun SettingsSheetContent(settings: CatalogSettings, systemDark: Boolean) {
+internal fun SettingsSheetContent(
+    settings: CatalogSettings,
+    systemDark: Boolean,
+    safeArea: PaddingValues = PaddingValues(),
+) {
     Column(
         Modifier
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
+            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm)
+            // **Inside the scroller, which is the whole point of being handed
+            // it.** Outside it — which is what the sheet used to do for every
+            // caller — the viewport stops above the gesture bar and the last
+            // control comes to rest short of it. Inside, the panel scrolls
+            // *through* the bar and the last control clears it. At 200% type
+            // this panel is 863dp against about 867 of window, so the last
+            // control is Input modality and it is exactly the one a reader
+            // opened the panel for.
+            .padding(bottom = safeArea.calculateBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
         SheetHeader() {
