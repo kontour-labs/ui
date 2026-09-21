@@ -12,15 +12,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,8 +38,8 @@ import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
-import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.LocalInputModality
@@ -299,11 +301,17 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
         colour = Theme.colours.surfaceInverse,
         contentColour = Theme.colours.onSurfaceInverse,
     ) {
+        // Scrolls for the same reason `PopoverPanel` does: an anchored overlay is
+        // bounded to the room on its own side now, and a bound without a scroller is
+        // a bound that loses text. A tooltip is two lines and will almost never use
+        // it — almost never is not never, at 200% type against a short side.
         Box(
-            Modifier.padding(
-                horizontal = Theme.spacing.sm,
-                vertical = Theme.spacing.xxs,
-            )
+            Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    horizontal = Theme.spacing.sm,
+                    vertical = Theme.spacing.xxs,
+                )
         ) {
             ProvideTextStyle(Theme.typography.labelMedium) {
                 ContentSlot(iconSize = Theme.sizing.iconSmall, content = content)
@@ -478,8 +486,13 @@ private fun CoachMarkBubble(
         contentColour = colours.accent.onSolid,
         shadow = Theme.elevation.overlay,
     ) {
+        // As `TooltipBubble` above: bounded to its side, so it needs somewhere for
+        // the overflow to go. A coach mark carries a title *and* a paragraph, so it
+        // is the likelier of the two to want it.
         Column(
-            modifier = Modifier.padding(Theme.spacing.md),
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
         ) {
             Row(

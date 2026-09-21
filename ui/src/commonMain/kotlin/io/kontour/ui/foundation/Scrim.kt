@@ -96,7 +96,31 @@ fun Scrim(
                         awaitPointerEventScope {
                             while (true) {
                                 val event = awaitPointerEvent()
-                                if (event.type == PointerEventType.Scroll) onScrollRequest()
+                                // **A scroll something else used is not a scroll at
+                                // the scrim.**
+                                //
+                                // This fires because the page behind cannot scroll
+                                // while a scrim is over it, so a scroll here means
+                                // "close this and let me read what is underneath".
+                                // A scroll the overlay's *own* panel consumed means
+                                // the opposite, and the scrim is `fillMaxSize` so it
+                                // is in the hit path for every pointer over that
+                                // panel too.
+                                //
+                                // It cost nothing until anchored panels were bounded
+                                // to their own side and given scrollers to cope —
+                                // from which point scrolling a popover closed it
+                                // mid-gesture.
+                                //
+                                // A panel with nothing left to scroll consumes
+                                // nothing, so an overlay whose content fits still
+                                // dismisses exactly as it always did.
+                                if (
+                                    event.type == PointerEventType.Scroll &&
+                                    event.changes.none { it.isConsumed }
+                                ) {
+                                    onScrollRequest()
+                                }
                             }
                         }
                     }

@@ -31,10 +31,17 @@ made before anything else can happen, it is a [`Dialog`](dialog.md). If it is a
 list of actions, it is a [`DropdownMenu`](dropdown-menu.md), which handles
 keyboard traversal and the roles a menu owes a screen reader.
 
-`side` and `alignment` are a preference rather than an instruction: the popover
-flips to the other side of its anchor when there is not room, which is the
-behaviour [anchoring](../overlays.md#anchoring) describes for everything in the
-overlay host. `showArrow` draws the tie back to the anchor; turn it off when the
+**`side` is honoured, and `alignment` is a preference.** The popover is measured
+against the room on the side you asked for and opens there, scrolling whatever does
+not fit; it flips to the other side only when the side you asked for has no usable
+room at all. `alignment` still gives way — a popover aligned to the start of a
+button in the far corner slides until it is on screen. Both are described for every
+anchored overlay under [anchoring](../overlays.md#anchoring).
+
+That used to be the other way round for `side` as well, and it was reported from a
+phone: a trigger 130dp from the bottom edge of a Pixel leaves about 90dp under it,
+a two-line popover is about 88dp, and the margin and the gap and the arrow want
+twenty more than there are — so it opened upward, for the sake of twenty pixels. `showArrow` draws the tie back to the anchor; turn it off when the
 popover is wide enough that the arrow points at nothing in particular.
 
 ---

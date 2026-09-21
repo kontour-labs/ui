@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +66,15 @@ import io.kontour.ui.theme.Theme
  *   without dimming, which is right for something this light. Pass
  *   [ScrimStyle.Dimmed] when the popover holds a form worth protecting from a
  *   stray tap.
+ * @param dismissOnScroll Whether a scroll anywhere closes it. True by default,
+ *   which is right for a legend or a summary: it is anchored to something that is
+ *   about to move.
+ *
+ *   **Turn it off for a popover holding a control that scrolls** — a wheel picker,
+ *   a list, anything a drag is meant to reach — or the drag that operates it is
+ *   read as the user finishing with it. The price is that the page behind cannot
+ *   scroll while the popover is open, which for a panel being worked in is usually
+ *   the right trade.
  */
 @Composable
 fun Popover(
@@ -75,6 +86,7 @@ fun Popover(
     scrim: ScrimStyle = ScrimStyle.Transparent,
     showArrow: Boolean = true,
     maxWidth: Dp = 320.dp,
+    dismissOnScroll: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -94,7 +106,16 @@ fun Popover(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor != null, side, alignment, scrim, showArrow, maxWidth) {
+    LaunchedEffect(
+        visible,
+        anchor != null,
+        side,
+        alignment,
+        scrim,
+        showArrow,
+        maxWidth,
+        dismissOnScroll,
+    ) {
         if (!visible || anchor == null) {
             host.hide(key)
             return@LaunchedEffect
@@ -113,6 +134,7 @@ fun Popover(
                 // toolbar are both `Transparent` and want opposite answers — so
                 // anything with a scrim traps, deliberately.
                 trapFocus = scrim != ScrimStyle.None,
+                dismissOnScroll = dismissOnScroll,
                 dismissLabel = "Close",
                 onDismiss = { dismiss() },
                 content = {
@@ -164,8 +186,22 @@ private fun PopoverPanel(
             },
         border = border,
     ) {
+        // **Scrolls, which is what lets `side` be a promise rather than a
+        // preference.**
+        //
+        // An anchored overlay is now bounded to the room on the side it was asked
+        // for, so that side is the side it opens on. That bound is only an
+        // improvement if what does not fit can still be reached: the first version
+        // bounded the panel and nothing else, and a popover near the bottom of a
+        // phone came back with its last lines cut off. `MenuPanel` had scrolled for
+        // years; this is the same answer, arriving late.
+        //
+        // Inside the padding rather than around it, so the panel's own inset does not
+        // scroll away from the top edge.
         Column(
-            modifier = Modifier.padding(Theme.spacing.md),
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             content = content,
         )

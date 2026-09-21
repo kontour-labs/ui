@@ -446,7 +446,21 @@ Two corrections, in order:
 1. **Flip.** If the preferred side has no room and the opposite side does, use
    the opposite side. If neither fits, keep whichever has more room.
 2. **Shift.** Slide along the other axis until the whole thing is inside the
-   container, keeping `margin` clear of the edges.
+   container, keeping `margin` and the window's own insets clear of the edges.
+
+**The flip is rarer than it reads**, because the content is measured against the
+room on the preferred side *before* it is measured at all. A panel bounded to its
+own side fits there by construction, so the flip is left for the case it is
+actually for: a side with no usable room. `AnchoredOverlayDefaults.MinimumPanel` —
+64dp, a panel's padding and a line of text — is where that line is drawn, and below
+it the overlay gets the container's bound and overlaps its anchor rather than
+becoming a strip. An anchor can be nearly as big as the window: a menu declared
+inside a `Box(Modifier.fillMaxSize().padding(24.dp))` has twelve pixels beside it.
+
+**Every anchored panel scrolls**, which is what makes that bound safe rather than
+lossy. `MenuPanel` always did; `PopoverPanel`, the tooltip bubble and the coach mark
+do now. Bounding a panel without giving its overflow anywhere to go is how a
+placement fix becomes a content-loss bug, and it did once.
 
 Shifting is not constrained by the anchor. A menu aligned to the start of a
 button in the far corner slides until it fits and ends up no longer aligned with
