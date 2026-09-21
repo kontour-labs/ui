@@ -161,6 +161,127 @@ class SwipeCommitTest {
         )
     }
 
+    /**
+     * A full swipe runs the action **and puts the row back**.
+     *
+     * Reported after the first version of the settle shipped: *"when you swipe it all
+     * the way to the left/right, it just stays there instead of resetting"*. The row
+     * was parked mid-strip with nothing having run.
+     *
+     * One cause. A spring handed the release's velocity overshoots its target, and
+     * the committed anchor is the end of the draggable's range, so `scrollBy` clamps
+     * there and consumes nothing for the rest of the excursion. The settle tracked
+     * the animation's own value through that, banking the refused pixels, and the
+     * return leg paid them back out of the offset. `AnchoredDraggableState` only
+     * adopts an anchor when the offset is within half a pixel of it, so landing tens
+     * of pixels short meant no `settledValue`, no action and no reset.
+     *
+     * Two assertions, because either one alone passes on the defect: the action ran,
+     * *and* there is no action ink left on screen.
+     *
+     * **Motion on, unlike everything else in this file**, and that is the assertion
+     * rather than an oversight. `springOrTween` gives a *tween* under reduced motion,
+     * a tween does not overshoot, and without an overshoot there is nothing to clamp
+     * and nothing to bank. Written with `reduceMotion = true` the first time, this
+     * test passed against the defect it was written for.
+     */
+    @Test
+    fun aFullSwipeRunsTheActionAndPutsTheRowBack() {
+        var ran: String? = null
+        var bounds = Rect.Zero
+        var frame: BufferedImage? = null
+
+        Scene(width = Width, height = Height) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly) { ran = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(RowHeight.dp)
+                        .reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            // All the way across, thrown.
+            scene.drag(
+                from = from,
+                to = Offset(20f, from.y),
+                steps = FlickSteps,
+            )
+            frame = scene.frames(SettleFrames * 2)
+        }
+
+        assertEquals("Remove", ran, "a full swipe ran nothing at all")
+        val (outer, inner) = requireNotNull(frame).inkOf(bounds)
+        assertTrue(
+            outer == 0 && inner == 0,
+            "the action ran and the row is still showing ${outer}px of one action " +
+                "and ${inner}px of the other — it stayed where the swipe left it " +
+                "instead of going back",
+        )
+    }
+
+    /**
+     * An ordinary flick reveals. Only a throw aimed past the row commits.
+     *
+     * The second half of "still a bit fiddly", and it arrived through the *new* rule
+     * rather than the old one. Taking the anchor nearest a flick's projected landing
+     * is right for a sheet, whose detents are evenly spaced, and too generous for a
+     * row, whose reveal sits 88dp out while its commit is the whole width: a flick
+     * projecting 215dp is *nearer* to the commit than to the reveal and runs the
+     * action, having travelled 75px.
+     *
+     * So a commit has to be aimed at, not merely nearest to. 150px in eight moves is
+     * 1172px/s here — comfortably a flick, and projected about 429px, which is past
+     * the 176px reveal and well short of the 600px commit.
+     */
+    @Test
+    fun anOrdinaryFlickFromRestRevealsRatherThanCommitting() {
+        var ran: String? = null
+        var bounds = Rect.Zero
+
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = listOf(
+                        SwipeAction(
+                            label = "Remove",
+                            icon = Tabler.Outline.Trash,
+                            onAction = { ran = "Remove" },
+                            background = Outer,
+                        )
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(RowHeight.dp)
+                        .reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            scene.drag(
+                from = from,
+                to = Offset(from.x - ShortFlick, from.y),
+                steps = ShortFlickSteps,
+            )
+            scene.frames(SettleFrames)
+        }
+
+        assertEquals(
+            null,
+            ran,
+            "a 150px flick deleted the row. It is a flick, and it is nowhere near " +
+                "far enough to be aimed at a commit 600px away.",
+        )
+    }
+
     /** Which action ran, or null if none did. */
     private fun swipe(steps: Int, optIn: OptIn = OptIn.OuterOnly): String? {
         var ran: String? = null
@@ -254,6 +375,10 @@ class SwipeCommitTest {
 
         /** 13px a move: 812px/s, which is a hand moving and not a throw. */
         const val SlowSteps = 40
+
+        /** A flick that is genuinely one and is genuinely short. 1172px/s. */
+        const val ShortFlick = 150f
+        const val ShortFlickSteps = 8
 
         const val SettleFrames = 40
 

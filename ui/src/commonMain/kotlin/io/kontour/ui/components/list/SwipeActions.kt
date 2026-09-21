@@ -881,6 +881,21 @@ private class SwipeSettle(
         val to = anchors.positionOf(target)
         if (to.isNaN()) return 0f
 
+        // **Advanced by what the scroll consumed, not by where the animation is.**
+        //
+        // Reported as a row that "just stays there instead of resetting" after a full
+        // swipe, and this is the whole of it. A spring handed the release's velocity
+        // *overshoots* its target, and the committed anchor is the end of the
+        // draggable's range — so `scrollBy` clamps there and consumes nothing for the
+        // rest of the excursion. Tracking the animation's own value through that
+        // silently banks the refused pixels: the return leg then pays them back out
+        // of the offset and the row settles tens of pixels short of the anchor.
+        //
+        // `AnchoredDraggableState` only adopts a value when the offset is within half
+        // a pixel of that anchor, so short of it nothing settles at all. No
+        // `settledValue` change, so no action runs and nothing resets — the row is
+        // left parked wherever the arithmetic dropped it, which is exactly what was
+        // reported.
         var last = from
         animate(
             initialValue = from,
@@ -888,8 +903,7 @@ private class SwipeSettle(
             initialVelocity = initialVelocity,
             animationSpec = snap,
         ) { value, _ ->
-            scrollBy(value - last)
-            last = value
+            last += scrollBy(value - last)
             onRemainingDistanceUpdated(abs(to - value))
         }
         // Everything the throw carried has been spent getting to an anchor. A row
@@ -912,8 +926,6 @@ private class SwipeSettle(
     ): SwipeValue? {
         if (abs(velocity) >= flickVelocity) {
             // Aimed: the nearest anchor to where the throw would have come to rest.
-            // No distance requirement, because a flick hard enough to land past the
-            // row *is* the deliberate gesture the commit is asking for.
             val projected = SwipeFlingDecay.calculateTargetValue(from, velocity)
             var aimed: SwipeValue? = null
             var best = Float.MAX_VALUE
@@ -921,6 +933,20 @@ private class SwipeSettle(
                 val at = anchors.positionAt(index)
                 if (at.isNaN()) continue
                 val value = anchors.anchorAt(index) ?: continue
+                // **And the commit has to be aimed *at*, not merely nearest to.**
+                //
+                // Nearest alone is too generous here, and it is the anchors' spacing
+                // that makes it so: a row's reveal sits 88dp out and its commit at the
+                // row's whole width, so the gap between them dwarfs the gap between
+                // rest and the reveal. An ordinary flick from rest projects about
+                // 240dp, which is *nearer* to a 360dp commit than to an 88dp reveal —
+                // and runs the action. That is "it still feels a bit fiddly",
+                // arriving through the new rule rather than the old one.
+                //
+                // So the throw has to reach the anchor it wants, which on a swipe row
+                // means aimed past the row's own width. A reveal has no such
+                // requirement: revealing is free and letting go undoes it.
+                if (value.isCommitted && abs(projected) < abs(at)) continue
                 val distance = abs(at - projected)
                 if (distance < best) {
                     best = distance
@@ -930,8 +956,8 @@ private class SwipeSettle(
             return aimed
         }
 
-        // Slow: the pair of anchors the row is between, and the threshold between
-        // them — which is exactly what Foundation does below its own velocity floor.
+        // Slow: the pair of anchors the row is between, and how far it has come
+        // from the one it started at.
         var lower: SwipeValue? = null
         var lowerAt = -Float.MAX_VALUE
         var upper: SwipeValue? = null
@@ -952,16 +978,34 @@ private class SwipeSettle(
         val below = lower ?: return upper
         val above = upper ?: return below
 
-        val crossed = lowerAt + positional(upperAt - lowerAt)
-        val chosen = if (from >= crossed) above else below
-        val chosenAt = if (from >= crossed) upperAt else lowerAt
-        if (!chosen.isCommitted) return chosen
+        // **Measured from where the row started, not from the lower anchor.**
+        //
+        // `swipePositionalThreshold` is "how far between two anchors a release has to
+        // be to *carry on* to the next", so the distance that matters is the one the
+        // finger covered. Against a fixed end of the pair it is only that for one of
+        // the two directions, and for the other it is its complement — a 0.55 that
+        // reveals the actions after 0.45 of the travel, which is the opposite of what
+        // the number is for.
+        //
+        // `settledValue` is the anchor the row was resting at when the gesture began:
+        // the drag has ended by the time this runs, and the state does not take its
+        // new value until the settle finishes.
+        val startedAt = anchors.positionOf(state.settledValue)
+        val cameFromBelow = if (startedAt.isNaN()) {
+            from - lowerAt <= upperAt - from
+        } else {
+            abs(startedAt - lowerAt) <= abs(startedAt - upperAt)
+        }
+        val origin = if (cameFromBelow) lowerAt else upperAt
+        val heading = if (cameFromBelow) above else below
+        val headingAt = if (cameFromBelow) upperAt else lowerAt
 
-        // The commit is the one anchor a slow gesture has to earn. Falling short of
-        // it means the other end of the pair, which is the reveal the row came from.
-        val inner = if (chosen == above) lowerAt else upperAt
-        val earned = inner + (chosenAt - inner) * CommitShare
-        return if (abs(from) >= abs(earned)) chosen else if (chosen == above) below else above
+        val span = upperAt - lowerAt
+        val travelled = abs(from - origin)
+        // A commit is the one anchor a slow gesture has to earn, and it asks for
+        // more of the same distance than a reveal does.
+        val needed = if (heading.isCommitted) span * CommitShare else abs(positional(span))
+        return if (travelled >= needed) heading else if (cameFromBelow) below else above
     }
 }
 
