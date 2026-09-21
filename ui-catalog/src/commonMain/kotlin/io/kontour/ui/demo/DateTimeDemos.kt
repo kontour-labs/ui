@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.ChevronLeft
 import com.composables.icons.tabler.outline.ChevronRight
 import io.kontour.ui.components.datetime.CalendarMonth
@@ -47,6 +48,10 @@ internal val DatePickerDemo = ComponentDemo(slug = "date-picker") {
             isDateSelectable = { it >= Today },
             previousIcon = Tabler.Outline.ChevronLeft,
             nextIcon = Tabler.Outline.ChevronRight,
+            // The header opens two wheels. Without a glyph it is a title that
+            // happens to be a button, which on a touch screen has no hover to
+            // discover it with.
+            chooserIcon = Tabler.Outline.ChevronDown,
         )
         Text("$depart", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
     }
@@ -65,6 +70,7 @@ internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker") {
         today = Today,
         previousIcon = Tabler.Outline.ChevronLeft,
         nextIcon = Tabler.Outline.ChevronRight,
+        chooserIcon = Tabler.Outline.ChevronDown,
     )
 }
 

@@ -38,6 +38,11 @@ rather than as the finger drawing it.
 Dragging is never the *only* way to reach a range. Both ends can be tapped, which
 is what makes the gesture safe to offer: see the accessibility note below.
 
+**The month header opens two wheels**, as it does on
+[`DatePicker`](date-picker.md#the-header-is-the-way-out-of-paging) and for the
+same reason — a range six months out is six taps away otherwise, in each
+direction.
+
 A multi-month scrolling calendar, for ranges that cross a month boundary
 comfortably, is [not yet built](../components.md#not-yet-built).
 
