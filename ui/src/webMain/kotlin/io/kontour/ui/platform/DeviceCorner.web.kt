@@ -12,4 +12,4 @@ import androidx.compose.ui.unit.Dp
  * corner is the browser's to draw.
  */
 @Composable
-internal actual fun platformDeviceCornerRadius(): Dp? = null
+internal actual fun platformDeviceCorners(): DeviceCorners? = null

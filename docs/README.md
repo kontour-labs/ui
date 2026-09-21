@@ -101,10 +101,24 @@ That is what the rest of this directory is.
 | [`sync-samples.py`](sync-samples.py) | The examples on the pages are the code `:ui-samples` compiles |
 | [`generate-doc-pages.py`](generate-doc-pages.py) | The content, turned into the Kotlin the site renders |
 | [`doctree.py`](doctree.py) | Where the pages live and what families there are — imported by the three above |
+| [`pull-device-corners.py`](pull-device-corners.py) | The per-device corner table, and the check that it matches the data it was generated from |
 
 Every example on a documentation page is compiled: they live in
 [`ui-samples/`](../ui-samples) and the pages hold checked copies, so one that no
 longer works fails the build.
+
+`pull-device-corners.py` is the one script with a network mode, and it is split
+so that only the refresh needs one:
+
+```sh
+python3 docs/pull-device-corners.py          # compare the table to the JSON
+python3 docs/pull-device-corners.py --write  # regenerate the Kotlin from the JSON
+python3 docs/pull-device-corners.py --pull   # re-fetch from LineageOS
+```
+
+`device-corners.json` is checked in and is what the table is built from, so the
+default mode gates a contributor's tree with no token and no rate limit. Re-run
+`--pull` when a new phone should be in it.
 
 ## Status
 

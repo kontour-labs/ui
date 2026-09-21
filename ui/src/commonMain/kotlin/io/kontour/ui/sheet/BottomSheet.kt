@@ -42,6 +42,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -72,10 +73,10 @@ import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
-import io.kontour.ui.platform.platformDeviceCornerRadius
+import io.kontour.ui.platform.platformDeviceCorners
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
-import io.kontour.ui.theme.atLeast
+import io.kontour.ui.theme.concentricWith
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -136,7 +137,15 @@ object SheetDefaults {
     @Composable
     fun shapeFor(presentation: SheetPresentation): Shape = when (presentation) {
         SheetPresentation.Edge ->
-            Theme.shapes.sheet.atLeast(platformDeviceCornerRadius()?.minus(SheetTopGap))
+            // The top pair only, in the end: `sheet` zeroes its bottom corners
+            // because it is flush to the window, and `MaxCornerSize` passes a
+            // zero through untouched — so handing it all four is safe and says
+            // what is meant. The bezel's own curve comes with them.
+            Theme.shapes.sheet.concentricWith(
+                platformDeviceCorners(),
+                SheetTopGap,
+                LocalLayoutDirection.current,
+            )
         SheetPresentation.Floating -> Theme.shapes.panel
     }
 

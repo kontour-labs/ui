@@ -79,6 +79,28 @@ class SquircleShape(
         bottomStart: CornerSize,
     ): CornerBasedShape = SquircleShape(topStart, topEnd, bottomEnd, bottomStart, smoothing)
 
+    /**
+     * The same corners, drawn on a different curve.
+     *
+     * [copy] is `CornerBasedShape`'s own override and its signature is the four
+     * corners, so it cannot carry a fifth argument — which is right, because
+     * every derived shape in the library (`inset`, `outset`, `atLeast`,
+     * `lerpCorners`, `topCornersOnly`, `rampedFrom`) wants the receiver's own
+     * smoothing and gets it. This is the one case that does not: a shape sitting
+     * inside a device's bezel takes the bezel's curve. See `DeviceCorners`.
+     *
+     * **Returns `this` when nothing changes**, which is load-bearing rather than
+     * tidy. The caller is a `remember` key and a `SquirclePaths` cache slot, so
+     * a new-but-equal instance for every device the table does not name would
+     * double the shape count for no drawn difference.
+     */
+    fun withSmoothing(smoothing: Float): SquircleShape =
+        if (smoothing == this.smoothing) {
+            this
+        } else {
+            SquircleShape(topStart, topEnd, bottomEnd, bottomStart, smoothing)
+        }
+
     override fun createOutline(
         size: Size,
         topStart: Float,

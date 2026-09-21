@@ -39,11 +39,22 @@ import platform.UIKit.UIScreen
  * the device's, comes back as unknown rather than as a number to nest inside.
  */
 @Composable
-internal actual fun platformDeviceCornerRadius(): Dp? = remember {
+internal actual fun platformDeviceCorners(): DeviceCorners? = remember {
     runCatching {
         (UIScreen.mainScreen.valueForKey("_displayCornerRadius") as? Number)
             ?.toDouble()
             ?.takeIf { it > 0.0 }
             ?.dp
+            // **Four equal corners and a stated curve.** Every iPhone and iPad
+            // is symmetric, and the smoothing is not a guess here the way it is
+            // on Android: `SquircleShape.DefaultSmoothing` is 0.6 *because* it
+            // was matched to this bezel. Saying so out loud is the point —
+            // inheriting it by luck reads identically until somebody re-tunes
+            // the scale for a brand and quietly moves the one shape that is
+            // supposed to sit inside a fixed piece of glass.
+            ?.let { DeviceCorners.uniform(it, smoothing = IosDisplaySmoothing) }
     }.getOrNull()
 }
+
+/** See `SquircleShape.DefaultSmoothing`, which this is the origin of. */
+private const val IosDisplaySmoothing = 0.6f

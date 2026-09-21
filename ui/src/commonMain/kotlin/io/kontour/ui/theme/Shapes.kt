@@ -7,6 +7,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import io.kontour.ui.platform.DeviceCorners
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlin.math.min
 
@@ -588,6 +590,60 @@ fun CornerBasedShape.atLeast(floor: Dp?): CornerBasedShape =
         bottomEnd = MaxCornerSize(bottomEnd, floor),
         bottomStart = MaxCornerSize(bottomStart, floor),
     )
+
+/**
+ * Floored against a **display** — four corners and its own curve.
+ *
+ * Its own name rather than a third `atLeast`: an `atLeast(null)` between a
+ * `Dp?` and a `DeviceCorners?` is ambiguous at the call site, and "concentric
+ * with the thing this is nested inside" is what the two callers mean anyway.
+ *
+ * The one-radius version above is still the general tool; this is what the two
+ * shapes nested inside a device's bezel use, because a bezel has four corners
+ * that need not agree and the platform reports them in **physical** positions
+ * that rotate with the window. Mapping those onto a shape's start and end is the
+ * shape's job and needs [direction]; doing it any earlier means flooring a
+ * landscape window's top-left against the radius of what is physically the
+ * bottom-left, which is wrong on every asymmetric phone and invisible on the
+ * rest.
+ *
+ * [gap] is subtracted from each radius before it floors — a shape inset from the
+ * bezel by `gap` is concentric with it at `bezel - gap`, not at `bezel`. This is
+ * a subtraction rather than an [inset] of the whole shape for the same reason it
+ * always was: it leaves every desktop, every browser and every unlisted device
+ * exactly the corner they have today.
+ *
+ * The smoothing, where the platform states one, reaches the shape through
+ * [SquircleShape.withSmoothing]; a null leaves the scale's own curve alone, and
+ * so does a shape that is not a squircle.
+ *
+ * **A square corner still stays square.** The same [MaxCornerSize] does the
+ * flooring here, so `sheet`'s zeroed bottom pair and `sideSheet`'s zeroed
+ * trailing pair survive the roundest display in the table.
+ */
+internal fun CornerBasedShape.concentricWith(
+    corners: DeviceCorners?,
+    gap: Dp = 0.dp,
+    direction: LayoutDirection = LayoutDirection.Ltr,
+): CornerBasedShape {
+    if (corners == null || corners.isSquare) return this
+    fun floor(radius: Dp): Dp = (radius - gap).coerceAtLeast(0.dp)
+    val ltr = direction == LayoutDirection.Ltr
+    val floored = copy(
+        topStart = MaxCornerSize(topStart, floor(if (ltr) corners.topLeft else corners.topRight)),
+        topEnd = MaxCornerSize(topEnd, floor(if (ltr) corners.topRight else corners.topLeft)),
+        bottomEnd = MaxCornerSize(
+            bottomEnd,
+            floor(if (ltr) corners.bottomRight else corners.bottomLeft),
+        ),
+        bottomStart = MaxCornerSize(
+            bottomStart,
+            floor(if (ltr) corners.bottomLeft else corners.bottomRight),
+        ),
+    )
+    val smoothing = corners.smoothing ?: return floored
+    return (floored as? SquircleShape)?.withSmoothing(smoothing) ?: floored
+}
 
 /**
  * A [CornerSize] that resolves to another one, or to [floor], whichever is larger.

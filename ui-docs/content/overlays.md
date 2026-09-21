@@ -161,12 +161,45 @@ Under `reduceMotion` the inset is `0.dp` and nothing moves at all.
 
 Two rounded rectangles nested inside each other with different radii is the most
 legible way to make an inset look accidental, and a receded screen is nested
-inside the **display**. Android reports its window's rounded corner from API 31
+inside the **display**. Android reports its window's rounded corners from API 31
 and iOS has `_displayCornerRadius`; where either answers, the receded screen's
-corner is floored at the device's own less the inset, so it sits concentric with
-the bezel instead of square inside it. Where neither answers — every desktop,
-every browser, Android below 31 — the corner is exactly what it was before, which
-is the theme's `extraLarge`.
+corners are floored at the device's own less the inset, so it sits concentric
+with the bezel instead of square inside it. Where neither answers — every
+desktop, every browser — the corner is exactly what it was before, which is the
+theme's `extraLarge`.
+
+**All four corners, because they need not agree.** This read one — the window's
+top-left — and applied it to the other three, on the reasoning that a device with
+differing corners has a camera housing in one of them. Android's own resources
+are a `_top` pair and a `_bottom` pair and some phones declare them differently;
+the framework then rotates the positions with the window, so on such a phone in
+landscape the window's top-left *is* the display's physical bottom-left and one
+reading floors every corner against the wrong number.
+
+**Below API 31 there is a table.** Android has nothing to report before 31 and
+the library's `minSdk` is 29, so those devices fell back to the theme's guess.
+A small generated table fills the gap, pulled from LineageOS device trees by
+`docs/pull-device-corners.py` — and it is a neat fit rather than a duplication:
+the devices that declare a corner radius in an overlay are overwhelmingly
+2017-2019 hardware, so the table and `RoundedCorner` cover disjoint sets.
+
+**The curve is a judgement, and the library says so.** *"On iOS it's beautiful
+and concentric, as the iOS devices all have the same squircle shape. But on
+Android, it's not quite perfectly concentric — the Google Pixel shape is more
+squircly than a Samsung phone."* That is true and nothing reports it: a radius is
+all `RoundedCorner` carries, and the API 34 call that returns a display's real
+outline is backed by a resource essentially no device sets — where it is empty
+the framework synthesises a circle, so reading a smoothing back out of it would
+be a wrong answer wearing a measurement's clothes. So the smoothing comes from a
+short hand-written table keyed on the device's family, set by eye against
+manufacturers' renders and real bezels, and **a device it does not name keeps the
+library's own curve** — exactly what every Android device had before the table
+existed. It can improve a device it knows and cannot make one worse.
+
+This is the one place in the library where a shape may carry a smoothing the
+scale did not choose, and the exemption has a boundary: the backdrop's clip and a
+sheet's top corners are concentric with the *bezel* rather than with the card
+beside them. A third shape wanting it would need its own reason.
 
 The radius also **ramps** with the recede rather than arriving whole. That was the
 other half of the report: the travel is 12dp over 220ms and reads as smooth, but
@@ -179,7 +212,9 @@ A shape whose corner depends on the animation's fraction is a new shape every
 frame, which would miss the squircle path cache sixty times a second *and* evict
 what every other container on screen is using. So the fraction is quantised to
 twelve steps and thirteen shapes are built once: about a dp a step on a phone
-that reports its corner, which is under what anyone can see.
+that reports its corner, which is under what anyone can see. A device's smoothing
+is discrete and fixed for the life of a process, so it costs no extra entries in
+that cache — the same thirteen shapes are simply built on the device's curve.
 
 This is a real backdrop filter, not the two-pass trick `GlassSurface` documents.
 The difference is that behind a modal there is exactly one node — the host

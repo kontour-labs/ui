@@ -7,13 +7,16 @@ import io.kontour.ui.adaptive.edges
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.ui.unit.Density
-import io.kontour.ui.platform.platformDeviceCornerRadius
-import io.kontour.ui.theme.atLeast
+import io.kontour.ui.platform.DeviceCorners
+import io.kontour.ui.platform.platformDeviceCorners
+import io.kontour.ui.theme.concentricWith
 import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.Path
@@ -300,12 +303,18 @@ private fun resolvedInset(): Dp =
  */
 @Composable
 private fun backdropClipShapes(gap: Dp): List<CornerBasedShape> {
-    val device = platformDeviceCornerRadius()
-    val settled = Theme.shapes.extraLarge.atLeast(device?.minus(gap))
-    val resting = device ?: 0.dp
-    return remember(settled, resting) {
+    val device = platformDeviceCorners()
+    val direction = LocalLayoutDirection.current
+    // **All four corners, and the bezel's own curve where the platform states
+    // one.** This read a single radius and applied it four times, which is right
+    // on an iPhone and wrong on the phones that declare their top and bottom
+    // pairs differently — and wrong on *every* phone once the window is rotated,
+    // because the positions rotate with it. The backdrop clips the whole window,
+    // so its four corners map one to one onto the four the platform reports.
+    val settled = Theme.shapes.extraLarge.concentricWith(device, gap, direction)
+    return remember(settled, device, direction) {
         List(RampSteps + 1) { step ->
-            settled.rampedFrom(resting, step.toFloat() / RampSteps)
+            settled.rampedFrom(device, direction, step.toFloat() / RampSteps)
         }
     }
 }
@@ -339,12 +348,25 @@ private fun blurFraction(f: Float): Float = rampStep(f).toFloat() / RampSteps
  * `Shapes`: those two express a relationship between two boxes and are reached
  * for all over the library, and this expresses one frame of one animation.
  */
-private fun CornerBasedShape.rampedFrom(start: Dp, fraction: Float): CornerBasedShape = copy(
-    topStart = RampCornerSize(topStart, start, fraction),
-    topEnd = RampCornerSize(topEnd, start, fraction),
-    bottomEnd = RampCornerSize(bottomEnd, start, fraction),
-    bottomStart = RampCornerSize(bottomStart, start, fraction),
-)
+private fun CornerBasedShape.rampedFrom(
+    start: DeviceCorners?,
+    direction: LayoutDirection,
+    fraction: Float,
+): CornerBasedShape {
+    // Null is a square display, which is where the ramp started from before any
+    // of this: a screen with no corner of its own recedes out of a flat window.
+    val ltr = direction == LayoutDirection.Ltr
+    val topStartFrom = start?.let { if (ltr) it.topLeft else it.topRight } ?: 0.dp
+    val topEndFrom = start?.let { if (ltr) it.topRight else it.topLeft } ?: 0.dp
+    val bottomEndFrom = start?.let { if (ltr) it.bottomRight else it.bottomLeft } ?: 0.dp
+    val bottomStartFrom = start?.let { if (ltr) it.bottomLeft else it.bottomRight } ?: 0.dp
+    return copy(
+        topStart = RampCornerSize(topStart, topStartFrom, fraction),
+        topEnd = RampCornerSize(topEnd, topEndFrom, fraction),
+        bottomEnd = RampCornerSize(bottomEnd, bottomEndFrom, fraction),
+        bottomStart = RampCornerSize(bottomStart, bottomStartFrom, fraction),
+    )
+}
 
 /**
  * A [CornerSize] part of the way from a flat radius to another corner size.

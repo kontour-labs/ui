@@ -1,0 +1,3671 @@
+{
+  "devices": {
+    "Amber": {
+      "name": "Phone",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 5.65, technology: 'IPS LCD'}",
+      "tree": "android_device_yandex_Amber",
+      "vendor": "yandex"
+    },
+    "B2N": {
+      "name": "7 plus",
+      "released": "2018",
+      "screen": "{resolution: '2160x1080', size: 6.0, technology: 'IPS LCD'}",
+      "tree": "android_device_nokia_B2N",
+      "vendor": "nokia"
+    },
+    "DRG": {
+      "name": "6.1 Plus",
+      "released": "2018",
+      "screen": "{resolution: '1080x2280', size: 5.8, technology: 'IPS LCD'}",
+      "tree": "android_device_nokia_DRG",
+      "vendor": "nokia"
+    },
+    "FP2": {
+      "name": "Fairphone 2",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'IPS LCD'}",
+      "tree": "android_device_fairphone_FP2",
+      "vendor": "fairphone"
+    },
+    "FP4": {
+      "name": "Fairphone 4",
+      "released": "2021",
+      "screen": "{resolution: '2340x1080', size: 6.3, technology: 'IPS LCD'}",
+      "tree": "android_device_fairphone_FP4",
+      "vendor": "fairphone"
+    },
+    "FP5": {
+      "name": "Fairphone 5",
+      "released": "2023",
+      "screen": "{refresh_rate: 90, resolution: '1224x2700', size: 6.46, technology: 'OLED'}",
+      "tree": "android_device_fairphone_FP5",
+      "vendor": "fairphone"
+    },
+    "FP6": {
+      "name": "The Fairphone (Gen. 6)",
+      "released": "2025",
+      "screen": "{refresh_rate: 120, resolution: '1116x2484', size: 6.31, technology: 'LTPO P-OLED'}",
+      "tree": "android_device_fairphone_FP6",
+      "vendor": "fairphone"
+    },
+    "G": {
+      "name": "G",
+      "released": "2017",
+      "screen": "{resolution: '1920x1080', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_10or_G",
+      "vendor": "10or"
+    },
+    "I001D": {
+      "name": "ROG Phone 2 (ZS660KL)",
+      "released": "2019",
+      "screen": "{resolution: '2340x1080', size: 6.59, technology: 'AMOLED'}",
+      "tree": "android_device_asus_I001D",
+      "vendor": "asus"
+    },
+    "I01WD": {
+      "name": "Zenfone 6 (ZS630KL)",
+      "released": "2019",
+      "screen": "{resolution: '2340x1080', size: 6.4, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_I01WD",
+      "vendor": "asus"
+    },
+    "NB1": {
+      "name": "8",
+      "released": "2017",
+      "screen": "{resolution: '1440x2560', size: 5.3, technology: 'IPS LCD'}",
+      "tree": "android_device_nokia_NB1",
+      "vendor": "nokia"
+    },
+    "P024": {
+      "name": "ZenPad 8.0 (Z380KL)",
+      "released": "2015",
+      "screen": "{resolution: '1280x800', size: 8, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_P024",
+      "vendor": "asus"
+    },
+    "PL2": {
+      "name": "6.1 (2018)",
+      "released": "2018",
+      "screen": "{resolution: '1080x1920', size: 5.46, technology: 'IPS LCD'}",
+      "tree": "android_device_nokia_PL2",
+      "vendor": "nokia"
+    },
+    "Pong": {
+      "name": "Phone (2)",
+      "released": "2023",
+      "screen": "{refresh_rate: 120, resolution: '1080x2412', size: 6.7, technology: 'LTPO OLED'}",
+      "tree": "android_device_nothing_Pong",
+      "vendor": "nothing"
+    },
+    "Q25": {
+      "name": "Q25 Pro",
+      "released": "2025",
+      "screen": "{resolution: '720x720', size: 3.5, technology: 'LCD'}",
+      "tree": "android_device_xelex_Q25",
+      "vendor": "xelex"
+    },
+    "RMX1801": {
+      "name": "2 Pro",
+      "released": "2018",
+      "screen": "{resolution: '2340x1080', size: 6.3, technology: 'IPS LCD'}",
+      "tree": "android_device_realme_RMX1801",
+      "vendor": "realme"
+    },
+    "RMX1851": {
+      "name": "3 Pro",
+      "released": "2019",
+      "screen": "{resolution: '2340x1080', size: 6.3, technology: 'IPS LCD'}",
+      "tree": "android_device_realme_RMX1851",
+      "vendor": "realme"
+    },
+    "RP6": {
+      "name": "6",
+      "released": "2026",
+      "screen": "{refresh_rate: 120, resolution: '1920x1080', size: 5.5, technology: 'AMOLED'}",
+      "tree": "android_device_retroidpocket_RP6",
+      "vendor": "retroidpocket"
+    },
+    "RPN": {
+      "name": "Nova",
+      "released": "2026",
+      "screen": "{refresh_rate: 120, resolution: '1280x960', size: 4.5, technology: 'AMOLED'}",
+      "tree": "android_device_retroidpocket_RPN",
+      "vendor": "retroidpocket"
+    },
+    "Spacewar": {
+      "bottom": 43,
+      "name": "Phone (1)",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.55, technology: 'OLED'}",
+      "top": 43,
+      "tree": "android_device_nothing_Spacewar",
+      "vendor": "nothing"
+    },
+    "TP1803": {
+      "name": "Mini 5G",
+      "released": "2019",
+      "screen": "{resolution: '2160x1080', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_nubia_TP1803",
+      "vendor": "nubia"
+    },
+    "X00P": {
+      "name": "Zenfone Max M1",
+      "released": "2018",
+      "screen": "{resolution: '720x1440', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_X00P",
+      "vendor": "asus"
+    },
+    "X00TD": {
+      "name": "Zenfone Max Pro M1",
+      "released": "2018",
+      "screen": "{resolution: '2160x1080', size: 5.99, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_X00TD",
+      "vendor": "asus"
+    },
+    "X01AD": {
+      "name": "Zenfone Max M2",
+      "released": "2018",
+      "screen": "{resolution: '720x1520', size: 6.26, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_X01AD",
+      "vendor": "asus"
+    },
+    "X01BD": {
+      "name": "Zenfone Max Pro M2",
+      "released": "2018",
+      "screen": "{resolution: '1080x2280', size: 6.26, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_X01BD",
+      "vendor": "asus"
+    },
+    "YTX703F": {
+      "name": "Yoga Tab 3 Plus Wi-Fi",
+      "released": "2016",
+      "screen": "{resolution: '2560x1600', size: 10.1, technology: 'IPS LCD'}",
+      "tree": "android_device_lenovo_YTX703-common",
+      "vendor": "lenovo"
+    },
+    "YTX703L": {
+      "name": "Yoga Tab 3 Plus LTE",
+      "released": "2016",
+      "screen": "{resolution: '2560x1600', size: 10.1, technology: 'IPS LCD'}",
+      "tree": "android_device_lenovo_YTX703-common",
+      "vendor": "lenovo"
+    },
+    "Z008": {
+      "name": "Zenfone 2 (720p)",
+      "released": "2015",
+      "screen": "{resolution: '720x1280', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_Z008",
+      "vendor": "asus"
+    },
+    "Z00A": {
+      "name": "Zenfone 2 (1080p)",
+      "released": "2015",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_Z00A",
+      "vendor": "asus"
+    },
+    "Z00D": {
+      "name": "Zenfone 2 (Z00D)",
+      "released": "2015",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_Z00D",
+      "vendor": "asus"
+    },
+    "Z00L": {
+      "name": "Zenfone 2 Laser (720p)",
+      "released": "2015",
+      "screen": "",
+      "tree": "android_device_asus_Z00L",
+      "vendor": "asus"
+    },
+    "Z01R": {
+      "name": "Zenfone 5Z (ZS620KL)",
+      "released": "2018",
+      "screen": "{resolution: '2246x1080', size: 6.2, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_Z01R",
+      "vendor": "asus"
+    },
+    "a21s": {
+      "name": "Galaxy A21s",
+      "released": "2020",
+      "screen": "{refresh_rate: 60, resolution: '720x1600', size: 6.5, technology: 'PLS LCD'}",
+      "tree": "android_device_samsung_a21s",
+      "vendor": "samsung"
+    },
+    "a3xelte": {
+      "name": "Galaxy A3 (2016)",
+      "released": "2015",
+      "screen": "{resolution: '1280x720', size: 4.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_a3xelte",
+      "vendor": "samsung"
+    },
+    "a52q": {
+      "name": "Galaxy A52 4G",
+      "released": "2021",
+      "screen": "{refresh_rate: 90, resolution: '1080x2400', size: 6.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_a52q",
+      "vendor": "samsung"
+    },
+    "a52sxq": {
+      "name": "Galaxy A52s 5G",
+      "released": "2021",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_a52sxq",
+      "vendor": "samsung"
+    },
+    "a5xelte": {
+      "name": "Galaxy A5 (2016)",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_a5xelte",
+      "vendor": "samsung"
+    },
+    "a5y17lte": {
+      "name": "Galaxy A5 (2017)",
+      "released": "2017",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_a5y17lte",
+      "vendor": "samsung"
+    },
+    "a71": {
+      "name": "Galaxy A71",
+      "released": "2020",
+      "screen": "{resolution: '1080x2400', size: 6.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_a71",
+      "vendor": "samsung"
+    },
+    "a72q": {
+      "name": "Galaxy A72",
+      "released": "2021",
+      "screen": "{refresh_rate: 90, resolution: '1080x2400', size: 6.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_a72q",
+      "vendor": "samsung"
+    },
+    "a73xq": {
+      "name": "Galaxy A73 5G",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_a73xq",
+      "vendor": "samsung"
+    },
+    "a7xelte": {
+      "name": "Galaxy A7 (2016)",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_a7xelte",
+      "vendor": "samsung"
+    },
+    "a7y17lte": {
+      "name": "Galaxy A7 (2017)",
+      "released": "2017",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_a7y17lte",
+      "vendor": "samsung"
+    },
+    "addison": {
+      "name": "moto z play",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_motorola_addison",
+      "vendor": "motorola"
+    },
+    "ahannah": {
+      "name": "moto e5 plus (XT1924-3/9)",
+      "released": "2018",
+      "screen": "{resolution: '1440x720', size: 6, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_ahannah",
+      "vendor": "motorola"
+    },
+    "akari": {
+      "name": "Xperia XZ2",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_akari",
+      "vendor": "sony"
+    },
+    "akatsuki": {
+      "name": "Xperia XZ3",
+      "released": "2018",
+      "screen": "{resolution: '1440x2880', size: 6, technology: 'P-OLED'}",
+      "tree": "android_device_sony_akatsuki",
+      "vendor": "sony"
+    },
+    "akershus": {
+      "name": "Axon 9 Pro",
+      "released": "2018",
+      "screen": "{refresh_rate: 60, resolution: '2248x1080', size: 6.21, technology: 'AMOLED'}",
+      "tree": "android_device_zte_akershus",
+      "vendor": "zte"
+    },
+    "akita": {
+      "bottom": 51,
+      "name": "Pixel 8a",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.1, technology: 'OLED'}",
+      "top": 51,
+      "tree": "android_device_google_akita",
+      "vendor": "google"
+    },
+    "albus": {
+      "name": "moto z2 play",
+      "released": "2017",
+      "screen": "{resolution: '1920x1080', size: 5.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_motorola_albus",
+      "vendor": "motorola"
+    },
+    "angler": {
+      "name": "Nexus 6P",
+      "released": "2015",
+      "screen": "{resolution: '1440x2560', size: 5.7, technology: 'AMOLED'}",
+      "tree": "android_device_huawei_angler",
+      "vendor": "huawei"
+    },
+    "anne": {
+      "name": "P20 Lite",
+      "released": "2018",
+      "screen": "{resolution: '1080x2240', size: 5.84, technology: 'IPS LCD'}",
+      "tree": "android_device_huawei_anne",
+      "vendor": "huawei"
+    },
+    "armani": {
+      "name": "Redmi 1S",
+      "released": "2014",
+      "screen": "{resolution: '720x1280', size: 4.7, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_armani",
+      "vendor": "xiaomi"
+    },
+    "aston": {
+      "name": "12R",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1264x2780', size: 6.78, technology: 'LTPO AMOLED'}",
+      "tree": "android_device_oneplus_aston",
+      "vendor": "oneplus"
+    },
+    "astonc": {
+      "name": "Ace 3",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1264x2780', size: 6.78, technology: 'LTPO AMOLED'}",
+      "tree": "android_device_oneplus_astonc",
+      "vendor": "oneplus"
+    },
+    "athene": {
+      "name": "moto g4 / g4 plus",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_athene",
+      "vendor": "motorola"
+    },
+    "audi": {
+      "name": "Ace 3V",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1240x2772', size: 6.74, technology: 'AMOLED'}",
+      "tree": "android_device_oneplus_audi",
+      "vendor": "oneplus"
+    },
+    "aura": {
+      "name": "Phone 2",
+      "released": "2018",
+      "screen": "{refresh_rate: 120, resolution: '1440x2560', size: 5.72, technology: 'IPS LCD'}",
+      "tree": "android_device_razer_aura",
+      "vendor": "razer"
+    },
+    "aurora": {
+      "name": "Xperia XZ2 Premium",
+      "released": "2018",
+      "screen": "{resolution: '3840x2160', size: 5.8, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_aurora",
+      "vendor": "sony"
+    },
+    "avalon": {
+      "name": "Nord 4",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1240x2772', size: 6.74, technology: 'AMOLED'}",
+      "tree": "android_device_oneplus_avalon",
+      "vendor": "oneplus"
+    },
+    "avatrn": {
+      "name": "edge 2024",
+      "released": "2024",
+      "screen": "{refresh_rate: 144, resolution: '1080x2400', size: 6.6, technology: 'OLED'}",
+      "tree": "android_device_motorola_avatrn",
+      "vendor": "motorola"
+    },
+    "avicii": {
+      "name": "Nord",
+      "released": "2020",
+      "screen": "{resolution: '2400x1080', size: 6.67, technology: 'Fluid AMOLED'}",
+      "tree": "android_device_oneplus_avicii",
+      "vendor": "oneplus"
+    },
+    "axolotl": {
+      "name": "SHIFT6mq",
+      "released": "2020",
+      "screen": "{refresh_rate: 60, resolution: '1080x2160', size: 6, technology: 'AMOLED'}",
+      "tree": "android_device_shift_axolotl",
+      "vendor": "shift"
+    },
+    "axon7": {
+      "name": "Axon 7",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'AMOLED'}",
+      "tree": "android_device_zte_axon7",
+      "vendor": "zte"
+    },
+    "b0s": {
+      "name": "Galaxy S22 Ultra",
+      "released": "2022",
+      "screen": "{resolution: '3088x1440', size: 6.8, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_b0s",
+      "vendor": "samsung"
+    },
+    "bacon": {
+      "name": "One",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_oneplus_bacon",
+      "vendor": "oneplus"
+    },
+    "bale": {
+      "name": "GT Neo6",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1264x2780', size: 6.78, technology: 'LTPO AMOLED'}",
+      "tree": "android_device_realme_bale",
+      "vendor": "realme"
+    },
+    "bangkk": {
+      "name": "moto g84 5G",
+      "released": "2023",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.5, technology: 'P-OLED'}",
+      "tree": "android_device_motorola_bangkk",
+      "vendor": "motorola"
+    },
+    "baracus": {
+      "name": "Jamboard [Android TV]",
+      "released": "2017",
+      "screen": "{resolution: '3840x2160', size: 55.0, technology: 'LCD'}",
+      "tree": "android_device_google_baracus",
+      "vendor": "google"
+    },
+    "baracus_tab": {
+      "name": "Jamboard [Tablet]",
+      "released": "2017",
+      "screen": "{resolution: '3840x2160', size: 55.0, technology: 'LCD'}",
+      "tree": "android_device_google_baracus_tab",
+      "vendor": "google"
+    },
+    "barbet": {
+      "name": "Pixel 5a",
+      "released": "2021",
+      "screen": "{refresh_rate: 60, resolution: '2400x1080', size: 6.34, technology: 'AMOLED'}",
+      "tree": "android_device_google_barbet",
+      "vendor": "google"
+    },
+    "bardock": {
+      "name": "Aquaris X",
+      "released": "2017",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'IPS LTPS LCD'}",
+      "tree": "android_device_bq_bardock",
+      "vendor": "bq"
+    },
+    "bardockpro": {
+      "name": "Aquaris X Pro",
+      "released": "2017",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'IPS LTPS LCD'}",
+      "tree": "android_device_bq_bardockpro",
+      "vendor": "bq"
+    },
+    "bathena": {
+      "name": "defy 2021",
+      "released": "2021",
+      "screen": "{resolution: '720x1600', size: 6.5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_bathena",
+      "vendor": "motorola"
+    },
+    "beast": {
+      "name": "ADT-2",
+      "released": "2018",
+      "screen": "None",
+      "tree": "android_device_google_beast",
+      "vendor": "google"
+    },
+    "beckham": {
+      "bottom": 15,
+      "name": "moto z3 play",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 6.2, technology: 'Super AMOLED'}",
+      "top": 15,
+      "tree": "android_device_motorola_beckham",
+      "vendor": "motorola"
+    },
+    "benz": {
+      "name": "Nord CE4",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1080x2412', size: 6.7, technology: 'Fluid AMOLED'}",
+      "tree": "android_device_oneplus_benz",
+      "vendor": "oneplus"
+    },
+    "berkeley": {
+      "name": "Honor View 10",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 5.99, technology: 'IPS LCD'}",
+      "tree": "android_device_huawei_berkeley",
+      "vendor": "huawei"
+    },
+    "berlin": {
+      "name": "edge 20",
+      "released": "2021",
+      "screen": "{resolution: '1080x2400', size: 6.7, technology: 'OLED'}",
+      "tree": "android_device_motorola_berlin",
+      "vendor": "motorola"
+    },
+    "berlna": {
+      "name": "edge 2021",
+      "released": "2021",
+      "screen": "{resolution: '1080x2460', size: 6.8, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_berlna",
+      "vendor": "motorola"
+    },
+    "beryllium": {
+      "name": "POCO F1",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 6.18, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_beryllium",
+      "vendor": "xiaomi"
+    },
+    "betalm": {
+      "name": "G8s ThinQ",
+      "released": "2019",
+      "screen": "{resolution: '2248x1440', size: 6.2, technology: 'P-OLED'}",
+      "tree": "android_device_lge_betalm",
+      "vendor": "lge"
+    },
+    "beyond0lte": {
+      "name": "Galaxy S10e",
+      "released": "2019",
+      "screen": "{resolution: '2280x1080', size: 5.8, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_beyond0lte",
+      "vendor": "samsung"
+    },
+    "beyond1lte": {
+      "name": "Galaxy S10",
+      "released": "2019",
+      "screen": "{resolution: '3040x1440', size: 6.1, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_beyond1lte",
+      "vendor": "samsung"
+    },
+    "beyond2lte": {
+      "name": "Galaxy S10+",
+      "released": "2019",
+      "screen": "{resolution: '3040x1440', size: 6.4, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_beyond2lte",
+      "vendor": "samsung"
+    },
+    "beyondx": {
+      "name": "Galaxy S10 5G",
+      "released": "2019",
+      "screen": "{resolution: '3040x1440', size: 6.7, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_beyondx",
+      "vendor": "samsung"
+    },
+    "billie": {
+      "name": "Nord N10 5G",
+      "released": "2020",
+      "screen": "{resolution: '2400x1080', size: 6.49, technology: 'IPS LCD'}",
+      "tree": "android_device_oneplus_billie",
+      "vendor": "oneplus"
+    },
+    "bluejay": {
+      "bottom": 19,
+      "name": "Pixel 6a",
+      "released": "2022",
+      "screen": "{refresh_rate: 60, resolution: '1080x2400', size: 6.1, technology: 'OLED'}",
+      "top": 19,
+      "tree": "android_device_google_bluejay",
+      "vendor": "google"
+    },
+    "blueline": {
+      "name": "Pixel 3",
+      "released": "2018",
+      "screen": "{refresh_rate: 60, resolution: '2160x1080', size: 5.5, technology: 'AMOLED'}",
+      "tree": "android_device_google_blueline",
+      "vendor": "google"
+    },
+    "bonito": {
+      "name": "Pixel 3a XL",
+      "released": "2019",
+      "screen": "{refresh_rate: 60, resolution: '2160x1080', size: 6, technology: 'AMOLED'}",
+      "tree": "android_device_google_bonito",
+      "vendor": "google"
+    },
+    "borneo": {
+      "bottom": 37,
+      "name": "moto g power 2021",
+      "released": "2021",
+      "screen": "{resolution: '720x1600', size: 6.6, technology: 'IPS LCD'}",
+      "top": 37,
+      "tree": "android_device_motorola_borneo",
+      "vendor": "motorola"
+    },
+    "bramble": {
+      "name": "Pixel 4a 5G",
+      "released": "2020",
+      "screen": "{refresh_rate: 60, resolution: '2340x1080', size: 6.2, technology: 'AMOLED'}",
+      "tree": "android_device_google_bramble",
+      "vendor": "google"
+    },
+    "bronco": {
+      "name": "ThinkPhone by motorola",
+      "released": "2023",
+      "screen": "{refresh_rate: 144, resolution: '1080x2400', size: 6.6, technology: 'AMOLED'}",
+      "tree": "android_device_motorola_bronco",
+      "vendor": "motorola"
+    },
+    "bullhead": {
+      "name": "Nexus 5X",
+      "released": "2015",
+      "screen": "{resolution: '1080x1920', size: 5.2, technology: 'LCD'}",
+      "tree": "android_device_lge_bullhead",
+      "vendor": "lge"
+    },
+    "c2s": {
+      "name": "Galaxy Note20 Ultra (4G/5G)",
+      "released": "2020",
+      "screen": "{resolution: '3088x1440', size: 6.9, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_c2s",
+      "vendor": "samsung"
+    },
+    "caiman": {
+      "name": "Pixel 9 Pro",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1280x2856', size: 6.3, technology: 'LTPO OLED'}",
+      "tree": "android_device_google_caiman",
+      "vendor": "google"
+    },
+    "capricorn": {
+      "name": "Mi 5s",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 5.15, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_capricorn",
+      "vendor": "xiaomi"
+    },
+    "cas": {
+      "name": "Mi 10 Ultra",
+      "released": "2020",
+      "screen": "{refresh_rate: 120, resolution: '1080x2340', size: 6.67, technology: 'AMOLED'}",
+      "tree": "android_device_xiaomi_cas",
+      "vendor": "xiaomi"
+    },
+    "castor": {
+      "name": "Xperia Tablet Z2 LTE",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 10.1, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_castor",
+      "vendor": "sony"
+    },
+    "castor_windy": {
+      "name": "Xperia Tablet Z2 Wi-Fi",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 10.1, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_castor_windy",
+      "vendor": "sony"
+    },
+    "caymanslm": {
+      "name": "Velvet",
+      "released": "2020",
+      "screen": "{resolution: '2460x1080', size: 6.8, technology: 'P-OLED'}",
+      "tree": "android_device_lge_caymanslm",
+      "vendor": "lge"
+    },
+    "cedric": {
+      "name": "moto g5",
+      "released": "2017",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_cedric",
+      "vendor": "motorola"
+    },
+    "chagalllte": {
+      "name": "Galaxy Tab S 10.5 (LTE)",
+      "released": "2014",
+      "screen": "{resolution: '2560x1600', size: 10.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_chagalllte",
+      "vendor": "samsung"
+    },
+    "chagallwifi": {
+      "name": "Galaxy Tab S 10.5 (Wi-Fi)",
+      "released": "2014",
+      "screen": "{resolution: '2560x1600', size: 10.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_chagallwifi",
+      "vendor": "samsung"
+    },
+    "channel": {
+      "bottom": 35,
+      "name": "moto g7 play",
+      "released": "2019",
+      "screen": "{resolution: '720x1512', size: 5.7, technology: 'IPS LCD'}",
+      "top": 35,
+      "tree": "android_device_motorola_channel",
+      "vendor": "motorola"
+    },
+    "chaozu": {
+      "name": "Aquaris U",
+      "released": "2016",
+      "screen": "{resolution: '1280x720', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_bq_tenshi",
+      "vendor": "bq"
+    },
+    "charlotte": {
+      "name": "P20 Pro",
+      "released": "2018",
+      "screen": "{resolution: '1080x2240', size: 6.1, technology: 'AMOLED'}",
+      "tree": "android_device_huawei_charlotte",
+      "vendor": "huawei"
+    },
+    "che10": {
+      "name": "Honor 4x (China Telecom)",
+      "released": "2014",
+      "screen": "",
+      "tree": "android_device_huawei_che10",
+      "vendor": "huawei"
+    },
+    "cheeseburger": {
+      "name": "5",
+      "released": "2017",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'Optic AMOLED'}",
+      "tree": "android_device_oneplus_cheeseburger",
+      "vendor": "oneplus"
+    },
+    "cheetah": {
+      "name": "Pixel 7 Pro",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '1440x3120', size: 6.7, technology: 'LTPO AMOLED'}",
+      "tree": "android_device_google_cheetah",
+      "vendor": "google"
+    },
+    "chef": {
+      "name": "one power",
+      "released": "2018",
+      "screen": "{resolution: '2246x1080', size: 6.14, technology: 'IPS LTPS LCD'}",
+      "tree": "android_device_motorola_chef",
+      "vendor": "motorola"
+    },
+    "cheryl": {
+      "name": "Phone",
+      "released": "2017",
+      "screen": "{refresh_rate: 120, resolution: '1440x2560', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_razer_cheryl",
+      "vendor": "razer"
+    },
+    "chiron": {
+      "bottom": 20,
+      "name": "Mi MIX 2",
+      "released": "2017",
+      "screen": "{refresh_rate: 60, resolution: '2160x1080', size: 5.99, technology: 'IPS LCD'}",
+      "top": 20,
+      "tree": "android_device_xiaomi_chiron",
+      "vendor": "xiaomi"
+    },
+    "cmi": {
+      "bottom": 44,
+      "name": "Mi 10 Pro",
+      "released": "2020",
+      "screen": "{refresh_rate: 90, resolution: '1080x2340', size: 6.67, technology: 'AMOLED'}",
+      "top": 44,
+      "tree": "android_device_xiaomi_cmi",
+      "vendor": "xiaomi"
+    },
+    "comet": {
+      "name": "Pixel 9 Pro Fold",
+      "released": "2024",
+      "screen": "",
+      "tree": "android_device_google_comet",
+      "vendor": "google"
+    },
+    "condor": {
+      "name": "moto e",
+      "released": "2014",
+      "screen": "{resolution: '540x960', size: 4.3, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_condor",
+      "vendor": "motorola"
+    },
+    "coral": {
+      "name": "Pixel 4 XL",
+      "released": "2019",
+      "screen": "{refresh_rate: 90, resolution: '3040x1440', size: 6.3, technology: 'AMOLED'}",
+      "tree": "android_device_google_coral",
+      "vendor": "google"
+    },
+    "corvette": {
+      "name": "Ace 3 Pro",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1264x2780', size: 6.78, technology: 'LTPO AMOLED'}",
+      "tree": "android_device_oneplus_corvette",
+      "vendor": "oneplus"
+    },
+    "crackling": {
+      "name": "Swift",
+      "released": "2015",
+      "screen": "{resolution: '1280x720', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_wileyfox_crackling",
+      "vendor": "wileyfox"
+    },
+    "crosshatch": {
+      "name": "Pixel 3 XL",
+      "released": "2018",
+      "screen": "{refresh_rate: 60, resolution: '2960x1440', size: 6.3, technology: 'AMOLED'}",
+      "tree": "android_device_google_crosshatch",
+      "vendor": "google"
+    },
+    "crownlte": {
+      "name": "Galaxy Note 9",
+      "released": "2018",
+      "screen": "{resolution: '2960x1440', size: 6.4, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_crownlte",
+      "vendor": "samsung"
+    },
+    "cupid": {
+      "name": "12",
+      "released": "2021",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.28, technology: 'AMOLED'}",
+      "tree": "android_device_xiaomi_cupid",
+      "vendor": "xiaomi"
+    },
+    "d1": {
+      "name": "Galaxy Note10",
+      "released": "2019",
+      "screen": "{resolution: '2280x1080', size: 6.3, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_d1",
+      "vendor": "samsung"
+    },
+    "d1x": {
+      "name": "Galaxy Note10 5G",
+      "released": "2019",
+      "screen": "{resolution: '2280x1080', size: 6.3, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_d1x",
+      "vendor": "samsung"
+    },
+    "d2att": {
+      "name": "Galaxy S III (AT&T)",
+      "released": "2012",
+      "screen": "{resolution: '1280x720', size: 4.8, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_d2att",
+      "vendor": "samsung"
+    },
+    "d2s": {
+      "name": "Galaxy Note10+",
+      "released": "2019",
+      "screen": "{resolution: '3040x1440', size: 6.8, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_d2s",
+      "vendor": "samsung"
+    },
+    "d2spr": {
+      "name": "Galaxy S III (Sprint)",
+      "released": "2012",
+      "screen": "{resolution: '1280x720', size: 4.8, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_d2spr",
+      "vendor": "samsung"
+    },
+    "d2tmo": {
+      "name": "Galaxy S III (TMO)",
+      "released": "2012",
+      "screen": "{resolution: '1280x720', size: 4.8, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_d2tmo",
+      "vendor": "samsung"
+    },
+    "d2vzw": {
+      "name": "Galaxy S III (VZW)",
+      "released": "2012",
+      "screen": "{resolution: '1280x720', size: 4.8, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_d2vzw",
+      "vendor": "samsung"
+    },
+    "d2x": {
+      "name": "Galaxy Note10+ 5G",
+      "released": "2019",
+      "screen": "{resolution: '3040x1440', size: 6.8, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_d2x",
+      "vendor": "samsung"
+    },
+    "d800": {
+      "name": "G2 (AT&T)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_d800",
+      "vendor": "lge"
+    },
+    "d801": {
+      "name": "G2 (TMO)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_d801",
+      "vendor": "lge"
+    },
+    "d802": {
+      "name": "G2 (Intl)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_d802",
+      "vendor": "lge"
+    },
+    "d803": {
+      "name": "G2 (Canada)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_d803",
+      "vendor": "lge"
+    },
+    "d850": {
+      "name": "G3 (AT&T)",
+      "released": "2014",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_d850",
+      "vendor": "lge"
+    },
+    "d851": {
+      "name": "G3 (TMO)",
+      "released": "2014",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_d851",
+      "vendor": "lge"
+    },
+    "d852": {
+      "name": "G3 (Canada)",
+      "released": "2014",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_d852",
+      "vendor": "lge"
+    },
+    "d855": {
+      "name": "G3 (Unlocked)",
+      "released": "2014",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_d855",
+      "vendor": "lge"
+    },
+    "deadpool": {
+      "name": "ADT-3",
+      "released": "2020",
+      "screen": "None",
+      "tree": "android_device_askey_deadpool",
+      "vendor": "askey"
+    },
+    "deb": {
+      "name": "Nexus 7 2013 (LTE)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1200', size: 7, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_deb",
+      "vendor": "asus"
+    },
+    "debx": {
+      "name": "Nexus 7 2013 (LTE, Repartitioned)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1200', size: 7, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_debx",
+      "vendor": "asus"
+    },
+    "denver": {
+      "name": "moto g stylus 5G",
+      "released": "2021",
+      "screen": "{resolution: '1080x2400', size: 6.8, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_denver",
+      "vendor": "motorola"
+    },
+    "devon": {
+      "bottom": 38,
+      "name": "moto g32",
+      "released": "2022",
+      "screen": "{resolution: '1080x2400', size: 6.5, technology: 'IPS LCD'}",
+      "top": 38,
+      "tree": "android_device_motorola_devon",
+      "vendor": "motorola"
+    },
+    "dipper": {
+      "name": "Mi 8",
+      "released": "2018",
+      "screen": "{resolution: '1080x2248', size: 6.21, technology: 'AMOLED'}",
+      "tree": "android_device_xiaomi_dipper",
+      "vendor": "xiaomi"
+    },
+    "discovery": {
+      "name": "Xperia XA2 Ultra",
+      "released": "2018",
+      "screen": "{resolution: '1080x1920', size: 6, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_discovery",
+      "vendor": "sony"
+    },
+    "dm1q": {
+      "name": "Galaxy S23",
+      "released": "2023",
+      "screen": "{refresh_rate: 120, resolution: '1080x2340', size: 6.1, technology: 'AMOLED'}",
+      "tree": "android_device_samsung_dm1q",
+      "vendor": "samsung"
+    },
+    "dodge": {
+      "name": "13",
+      "released": "2025",
+      "screen": "{refresh_rate: 120, resolution: '1440x3168', size: 6.82, technology: 'LTPO AMOLED'}",
+      "tree": "android_device_oneplus_dodge",
+      "vendor": "oneplus"
+    },
+    "dogo": {
+      "name": "Xperia ZR",
+      "released": "2013",
+      "screen": "{resolution: '720x1280', size: 4.55, technology: 'TFT LCD'}",
+      "tree": "android_device_sony_dogo",
+      "vendor": "sony"
+    },
+    "dopinder": {
+      "name": "onn. TV Box 4K (2021)",
+      "released": "2021",
+      "screen": "None",
+      "tree": "android_device_askey_dopinder",
+      "vendor": "askey"
+    },
+    "dragon": {
+      "name": "Pixel C",
+      "released": "2015",
+      "screen": "{resolution: '2560x1800', size: 10.2, technology: 'IPS LTPS LCD'}",
+      "tree": "android_device_google_dragon",
+      "vendor": "google"
+    },
+    "dre": {
+      "name": "Nord N200",
+      "released": "2021",
+      "screen": "{resolution: '1080x2400', size: 6.49, technology: 'IPS LCD'}",
+      "tree": "android_device_oneplus_dre",
+      "vendor": "oneplus"
+    },
+    "dubai": {
+      "name": "edge 30",
+      "released": "2022",
+      "screen": "{resolution: '1080x2400', size: 6.5, technology: 'P-OLED'}",
+      "tree": "android_device_motorola_dubai",
+      "vendor": "motorola"
+    },
+    "dumpling": {
+      "name": "5T",
+      "released": "2017",
+      "screen": "{resolution: '1080x2160', size: 6.01, technology: 'Optic AMOLED'}",
+      "tree": "android_device_oneplus_dumpling",
+      "vendor": "oneplus"
+    },
+    "enchilada": {
+      "name": "6",
+      "released": "2018",
+      "screen": "{resolution: '1080x2280', size: 6.28, technology: 'Optic AMOLED'}",
+      "tree": "android_device_oneplus_enchilada",
+      "vendor": "oneplus"
+    },
+    "eqs": {
+      "name": "edge 30 ultra",
+      "released": "2022",
+      "screen": "{refresh_rate: 144, resolution: '1080x2400', size: 6.67, technology: 'AMOLED'}",
+      "tree": "android_device_motorola_eqs",
+      "vendor": "motorola"
+    },
+    "equuleus": {
+      "name": "Mi 8 Pro",
+      "released": "2018",
+      "screen": "{resolution: '1080x2248', size: 6.21, technology: 'AMOLED'}",
+      "tree": "android_device_xiaomi_equuleus",
+      "vendor": "xiaomi"
+    },
+    "ether": {
+      "name": "Robin",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_nextbit_ether",
+      "vendor": "nextbit"
+    },
+    "evert": {
+      "bottom": 10,
+      "name": "moto g6 plus",
+      "released": "2018",
+      "screen": "{resolution: '1080x1920', size: 5.2, technology: 'IPS LCD'}",
+      "top": 10,
+      "tree": "android_device_motorola_evert",
+      "vendor": "motorola"
+    },
+    "f1f": {
+      "name": "F1 (F1f Intl)",
+      "released": "2016",
+      "screen": "{resolution: '720x1080', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_oppo_f1f",
+      "vendor": "oppo"
+    },
+    "f400": {
+      "name": "G3 (Korea)",
+      "released": "2014",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_f400",
+      "vendor": "lge"
+    },
+    "falcon": {
+      "name": "moto g",
+      "released": "2013",
+      "screen": "{resolution: '720x1280', size: 4.5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_falcon",
+      "vendor": "motorola"
+    },
+    "felix": {
+      "name": "Pixel Fold",
+      "released": "2023",
+      "screen": "",
+      "tree": "android_device_google_felix",
+      "vendor": "google"
+    },
+    "figo": {
+      "name": "P Smart",
+      "released": "2017",
+      "screen": "{resolution: '1080x2160', size: 5.65, technology: 'IPS LCD'}",
+      "tree": "android_device_huawei_figo",
+      "vendor": "huawei"
+    },
+    "flame": {
+      "name": "Pixel 4",
+      "released": "2019",
+      "screen": "{refresh_rate: 90, resolution: '2280x1080', size: 5.7, technology: 'AMOLED'}",
+      "tree": "android_device_google_flame",
+      "vendor": "google"
+    },
+    "flashlmdd": {
+      "name": "V50 ThinQ",
+      "released": "2019",
+      "screen": "{resolution: '3120x1440', size: 6.2, technology: 'P-OLED'}",
+      "tree": "android_device_lge_flashlmdd",
+      "vendor": "lge"
+    },
+    "flo": {
+      "name": "Nexus 7 2013 (Wi-Fi)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1200', size: 7, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_flo",
+      "vendor": "asus"
+    },
+    "flounder": {
+      "name": "Nexus 9 (Wi-Fi)",
+      "released": "2014",
+      "screen": "{resolution: '2048x1536', size: 8.9, technology: 'IPS LCD'}",
+      "tree": "android_device_htc_flounder",
+      "vendor": "htc"
+    },
+    "flounder_lte": {
+      "name": "Nexus 9 (LTE)",
+      "released": "2014",
+      "screen": "{resolution: '2048x1536', size: 8.9, technology: 'IPS LCD'}",
+      "tree": "android_device_htc_flounder_lte",
+      "vendor": "htc"
+    },
+    "flox": {
+      "name": "Nexus 7 2013 (Wi-Fi, Repartitioned)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1200', size: 7, technology: 'IPS LCD'}",
+      "tree": "android_device_asus_flox",
+      "vendor": "asus"
+    },
+    "fogo": {
+      "name": "moto g 5G - 2024",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '720x1612', size: 6.6, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_fogo",
+      "vendor": "motorola"
+    },
+    "fugu": {
+      "name": "Nexus Player",
+      "released": "2014",
+      "screen": "None",
+      "tree": "android_device_asus_fugu",
+      "vendor": "asus"
+    },
+    "fuxi": {
+      "name": "13",
+      "released": "2022",
+      "screen": "{resolution: '2400x1080', size: 6.36, technology: 'OLED'}",
+      "tree": "android_device_xiaomi_fuxi",
+      "vendor": "xiaomi"
+    },
+    "g0s": {
+      "name": "Galaxy S22+",
+      "released": "2022",
+      "screen": "{resolution: '2340x1080', size: 6.6, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_g0s",
+      "vendor": "samsung"
+    },
+    "g2m": {
+      "name": "G2 Mini",
+      "released": "2014",
+      "screen": "{resolution: '540x960', size: 4.8, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_g2m",
+      "vendor": "lge"
+    },
+    "g710n": {
+      "name": "G7 ThinQ (G710N)",
+      "released": "2018",
+      "screen": "{resolution: '3120x1440', size: 6.1, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_g710n",
+      "vendor": "lge"
+    },
+    "g710ulm": {
+      "name": "G7 ThinQ (G710ULM/VMX)",
+      "released": "2018",
+      "screen": "{resolution: '3120x1440', size: 6.1, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_g710ulm",
+      "vendor": "lge"
+    },
+    "gemini": {
+      "name": "Mi 5",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 5.15, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_gemini",
+      "vendor": "xiaomi"
+    },
+    "genevn": {
+      "name": "moto g stylus 5G (2023)",
+      "released": "2023",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.6, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_genevn",
+      "vendor": "motorola"
+    },
+    "ghost": {
+      "name": "moto x (2013)",
+      "released": "2013",
+      "screen": "{resolution: '1280x720', size: 4.7, technology: 'AMOLED'}",
+      "tree": "android_device_motorola_ghost",
+      "vendor": "motorola"
+    },
+    "giulia": {
+      "name": "13R",
+      "released": "2025",
+      "screen": "{refresh_rate: 120, resolution: '1264x2780', size: 6.78, technology: 'LTPO AMOLED'}",
+      "tree": "android_device_oneplus_giulia",
+      "vendor": "oneplus"
+    },
+    "giuliac": {
+      "name": "Ace 5",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1264x2780', size: 6.78, technology: 'LTPO AMOLED'}",
+      "tree": "android_device_oneplus_giuliac",
+      "vendor": "oneplus"
+    },
+    "gohan": {
+      "name": "Aquaris X5 Plus",
+      "released": "2016",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_bq_gohan",
+      "vendor": "bq"
+    },
+    "griffin": {
+      "name": "moto z",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'AMOLED'}",
+      "tree": "android_device_motorola_griffin",
+      "vendor": "motorola"
+    },
+    "grus": {
+      "bottom": 50,
+      "name": "Mi 9 SE",
+      "released": "2019",
+      "screen": "{resolution: '1080x2340', size: 5.97, technology: 'AMOLED'}",
+      "top": 43,
+      "tree": "android_device_xiaomi_grus",
+      "vendor": "xiaomi"
+    },
+    "gta4l": {
+      "name": "Galaxy Tab A7 10.4 2020 (LTE)",
+      "released": "2020",
+      "screen": "{resolution: '2000x1200', size: 10.4, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_gta4l",
+      "vendor": "samsung"
+    },
+    "gta4lwifi": {
+      "name": "Galaxy Tab A7 10.4 2020 (Wi-Fi)",
+      "released": "2020",
+      "screen": "{resolution: '2000x1200', size: 10.4, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_gta4lwifi",
+      "vendor": "samsung"
+    },
+    "gta4xl": {
+      "name": "Galaxy Tab S6 Lite (LTE)",
+      "released": "2020",
+      "screen": "{resolution: '1200x2000', size: 10.4, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_gta4xl",
+      "vendor": "samsung"
+    },
+    "gta4xlswifi": {
+      "name": "Galaxy Tab S6 Lite 2024 (Wi-Fi)",
+      "released": "2024",
+      "screen": "{resolution: '1200x2000', size: 10.4, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_gta4xlswifi",
+      "vendor": "samsung"
+    },
+    "gta4xlwifi": {
+      "name": "Galaxy Tab S6 Lite (Wi-Fi)",
+      "released": "2020",
+      "screen": "{resolution: '1200x2000', size: 10.4, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_gta4xlwifi",
+      "vendor": "samsung"
+    },
+    "gtelwifiue": {
+      "name": "Galaxy Tab E 9.6 (Wi-Fi)",
+      "released": "2015",
+      "screen": "{resolution: '800x1280', size: 9.6, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_gtelwifiue",
+      "vendor": "samsung"
+    },
+    "gtesqltespr": {
+      "name": "Galaxy Tab E 8.0 (LTE)",
+      "released": "2016",
+      "screen": "{resolution: '800x1280', size: 8, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_gtesqltespr",
+      "vendor": "samsung"
+    },
+    "gtowifi": {
+      "name": "Galaxy Tab A 8.0 2019 (Wi-Fi)",
+      "released": "2019",
+      "screen": "{resolution: '800x1280', size: 8, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_gtowifi",
+      "vendor": "samsung"
+    },
+    "gts210ltexx": {
+      "name": "Galaxy Tab S2 9.7 (LTE)",
+      "released": "2015",
+      "screen": "{resolution: '1536x2048', size: 9.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_gts210ltexx",
+      "vendor": "samsung"
+    },
+    "gts210vewifi": {
+      "name": "Galaxy Tab S2 9.7 2016 (Wi-Fi)",
+      "released": "2016",
+      "screen": "{resolution: '1536x2048', size: 9.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_gts210vewifi",
+      "vendor": "samsung"
+    },
+    "gts210wifi": {
+      "name": "Galaxy Tab S2 9.7 (Wi-Fi)",
+      "released": "2015",
+      "screen": "{resolution: '1536x2048', size: 9.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_gts210wifi",
+      "vendor": "samsung"
+    },
+    "gts28vewifi": {
+      "name": "Galaxy Tab S2 8.0 2016 (Wi-Fi)",
+      "released": "2016",
+      "screen": "{resolution: '1536x2048', size: 8, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_gts28vewifi",
+      "vendor": "samsung"
+    },
+    "gts4lv": {
+      "name": "Galaxy Tab S5e (LTE)",
+      "released": "2019",
+      "screen": "{resolution: '1600x2560', size: 10.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_gts4lv",
+      "vendor": "samsung"
+    },
+    "gts4lvwifi": {
+      "name": "Galaxy Tab S5e (Wi-Fi)",
+      "released": "2019",
+      "screen": "{resolution: '1600x2560', size: 10.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_gts4lvwifi",
+      "vendor": "samsung"
+    },
+    "gts7l": {
+      "name": "Galaxy Tab S7 (LTE)",
+      "released": "2020",
+      "screen": "{resolution: '1600x2560', size: 11, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_gts7l",
+      "vendor": "samsung"
+    },
+    "gts7lwifi": {
+      "name": "Galaxy Tab S7 (Wi-Fi)",
+      "released": "2020",
+      "screen": "{resolution: '1600x2560', size: 11, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_gts7lwifi",
+      "vendor": "samsung"
+    },
+    "guacamoleb": {
+      "name": "7",
+      "released": "2019",
+      "screen": "{resolution: '1080x2340', size: 6.41, technology: 'Optic AMOLED'}",
+      "tree": "android_device_oneplus_guacamoleb",
+      "vendor": "oneplus"
+    },
+    "gunnar": {
+      "name": "Nord N20 5G",
+      "released": "2022",
+      "screen": "{resolution: '1080x2400', size: 6.43, technology: 'AMOLED'}",
+      "tree": "android_device_oneplus_gunnar",
+      "vendor": "oneplus"
+    },
+    "h811": {
+      "name": "G4 (TMO)",
+      "released": "2015",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_h811",
+      "vendor": "lge"
+    },
+    "h815": {
+      "name": "G4 (Intl)",
+      "released": "2015",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_h815",
+      "vendor": "lge"
+    },
+    "h830": {
+      "name": "G5 (TMO)",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.3, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_h830",
+      "vendor": "lge"
+    },
+    "h850": {
+      "name": "G5 (Intl)",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.3, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_h850",
+      "vendor": "lge"
+    },
+    "h870": {
+      "name": "G6 (EU Unlocked)",
+      "released": "2017",
+      "screen": "{resolution: '2880x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_h870",
+      "vendor": "lge"
+    },
+    "h870d": {
+      "name": "G6 (EU Unlocked - ENG BL)",
+      "released": "2017",
+      "screen": "{resolution: '2880x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_h870d",
+      "vendor": "lge"
+    },
+    "h872": {
+      "name": "G6 (T-Mobile)",
+      "released": "2017",
+      "screen": "{resolution: '2880x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_h872",
+      "vendor": "lge"
+    },
+    "h873": {
+      "name": "G6 (Canada - ENG BL)",
+      "released": "2017",
+      "screen": "{resolution: '2880x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_h873",
+      "vendor": "lge"
+    },
+    "h910": {
+      "name": "V20 (AT&T)",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_h910",
+      "vendor": "lge"
+    },
+    "h918": {
+      "name": "V20 (TMO)",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_h918",
+      "vendor": "lge"
+    },
+    "h932": {
+      "name": "V30 (T-Mobile)",
+      "released": "2017",
+      "screen": "{resolution: '2880x1440', size: 6, technology: 'P-OLED'}",
+      "tree": "android_device_lge_h932",
+      "vendor": "lge"
+    },
+    "h990": {
+      "name": "V20 (Global)",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_h990",
+      "vendor": "lge"
+    },
+    "ha3g": {
+      "name": "Galaxy Note 3 (International 3G)",
+      "released": "2013",
+      "screen": "{resolution: '1080x1920', size: 5.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_ha3g",
+      "vendor": "samsung"
+    },
+    "ham": {
+      "name": "ZUK Z1",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_zuk_ham",
+      "vendor": "zuk"
+    },
+    "hammerhead": {
+      "name": "Nexus 5",
+      "released": "2013",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_hammerhead",
+      "vendor": "lge"
+    },
+    "hannah": {
+      "name": "moto e5 plus (XT1924-6/7/8)",
+      "released": "2018",
+      "screen": "{resolution: '1440x720', size: 6, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_hannah",
+      "vendor": "motorola"
+    },
+    "harpia": {
+      "name": "moto g4 play",
+      "released": "2016",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_harpia",
+      "vendor": "motorola"
+    },
+    "hawao": {
+      "bottom": 40,
+      "name": "moto g42",
+      "released": "2022",
+      "screen": "{resolution: '1080x2400', size: 6.4, technology: 'AMOLED'}",
+      "top": 40,
+      "tree": "android_device_motorola_hawao",
+      "vendor": "motorola"
+    },
+    "hayabusa": {
+      "name": "Xperia TX",
+      "released": "2012",
+      "screen": "{resolution: '720x1280', size: 4.6, technology: 'TFT LCD'}",
+      "tree": "android_device_sony_hayabusa",
+      "vendor": "sony"
+    },
+    "heart": {
+      "name": "Z5 Pro GT",
+      "released": "2019",
+      "screen": "{resolution: '1080x2340', size: 6.39, technology: 'Super AMOLED'}",
+      "tree": "android_device_lenovo_heart",
+      "vendor": "lenovo"
+    },
+    "hero2lte": {
+      "name": "Galaxy S7 Edge",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_hero2lte",
+      "vendor": "samsung"
+    },
+    "herolte": {
+      "name": "Galaxy S7",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_herolte",
+      "vendor": "samsung"
+    },
+    "hiae": {
+      "name": "One A9",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'Super AMOLED'}",
+      "tree": "android_device_htc_hiae",
+      "vendor": "htc"
+    },
+    "himaul": {
+      "name": "One M9 (GSM)",
+      "released": "2015",
+      "screen": "{resolution: '1080x1920', size: 5, technology: 'Super LCD'}",
+      "tree": "android_device_htc_himaul",
+      "vendor": "htc"
+    },
+    "himawl": {
+      "name": "One M9 (VZW)",
+      "released": "2015",
+      "screen": "{resolution: '1080x1920', size: 5, technology: 'Super LCD'}",
+      "tree": "android_device_htc_himawl",
+      "vendor": "htc"
+    },
+    "hlte": {
+      "name": "Galaxy Note 3 LTE (N9005/P)",
+      "released": "2013",
+      "screen": "{resolution: '1080x1920', size: 5.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_hlte",
+      "vendor": "samsung"
+    },
+    "hltechn": {
+      "name": "Galaxy Note 3 LTE (N9008V)",
+      "released": "2013",
+      "screen": "{resolution: '1080x1920', size: 5.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_hltechn",
+      "vendor": "samsung"
+    },
+    "hltekor": {
+      "name": "Galaxy Note 3 LTE (N900K/L/S)",
+      "released": "2013",
+      "screen": "{resolution: '1080x1920', size: 5.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_hltekor",
+      "vendor": "samsung"
+    },
+    "hltetmo": {
+      "name": "Galaxy Note 3 LTE (N900T/V/W8)",
+      "released": "2013",
+      "screen": "{resolution: '1080x1920', size: 5.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_hltetmo",
+      "vendor": "samsung"
+    },
+    "hotdog": {
+      "name": "7T Pro",
+      "released": "2019",
+      "screen": "{resolution: '1440x3120', size: 6.67, technology: 'Fluid AMOLED'}",
+      "tree": "android_device_oneplus_hotdog",
+      "vendor": "oneplus"
+    },
+    "huashan": {
+      "name": "Xperia SP",
+      "released": "2013",
+      "screen": "{resolution: '720x1280', size: 4.6, technology: 'TFT LCD'}",
+      "tree": "android_device_sony_huashan",
+      "vendor": "sony"
+    },
+    "husky": {
+      "name": "Pixel 8 Pro",
+      "released": "2023",
+      "screen": "{refresh_rate: 120, resolution: '1344x2992', size: 6.7, technology: 'LTPO OLED'}",
+      "tree": "android_device_google_husky",
+      "vendor": "google"
+    },
+    "hydrogen": {
+      "name": "Mi Max",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 6.44, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_hydrogen",
+      "vendor": "xiaomi"
+    },
+    "i9100": {
+      "name": "Galaxy S II (Intl)",
+      "released": "2011",
+      "screen": "{resolution: '800x480', size: 4.3, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_i9100",
+      "vendor": "samsung"
+    },
+    "i9300": {
+      "name": "Galaxy S III (Intl)",
+      "released": "2012",
+      "screen": "{resolution: '1280x720', size: 4.8, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_i9300",
+      "vendor": "samsung"
+    },
+    "i9305": {
+      "name": "Galaxy S III (GSM LTE)",
+      "released": "2012",
+      "screen": "{resolution: '1280x720', size: 4.8, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_i9305",
+      "vendor": "samsung"
+    },
+    "ibiza": {
+      "name": "moto g50",
+      "released": "2021",
+      "screen": "{refresh_rate: 90, resolution: '720x1600', size: 6.5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_ibiza",
+      "vendor": "motorola"
+    },
+    "ingot": {
+      "name": "Saga",
+      "released": "2023",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.55, technology: 'AMOLED'}",
+      "tree": "android_device_osom_ingot",
+      "vendor": "osom"
+    },
+    "instantnoodlep": {
+      "name": "8 Pro",
+      "released": "2020",
+      "screen": "{refresh_rate: 120, resolution: '1440x3168', size: 6.78, technology: 'Fluid AMOLED'}",
+      "tree": "android_device_oneplus_instantnoodlep",
+      "vendor": "oneplus"
+    },
+    "ivy": {
+      "name": "Xperia Z3+",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_ivy",
+      "vendor": "sony"
+    },
+    "j7elte": {
+      "name": "Galaxy J7 (2015)",
+      "released": "2015",
+      "screen": "{resolution: '1280x720', size: 5.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_j7elte",
+      "vendor": "samsung"
+    },
+    "jactivelte": {
+      "name": "Galaxy S4 Active (GT-I9295)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'Pentile RGBG Super AMOLED'}",
+      "tree": "android_device_samsung_jactivelte",
+      "vendor": "samsung"
+    },
+    "jag3gds": {
+      "name": "G3 S",
+      "released": "2014",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_jag3gds",
+      "vendor": "lge"
+    },
+    "jagnm": {
+      "name": "G3 Beat",
+      "released": "2014",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_jagnm",
+      "vendor": "lge"
+    },
+    "jalebi": {
+      "name": "Yunique",
+      "released": "2015",
+      "screen": "{resolution: '720x1280', size: 4.7, technology: 'IPS LCD'}",
+      "tree": "android_device_yu_jalebi",
+      "vendor": "yu"
+    },
+    "jasmine": {
+      "name": "Trek 2 HD",
+      "released": "2016",
+      "screen": "{resolution: '1280x800', size: 8, technology: 'TFT LCD'}",
+      "tree": "android_device_zte_jasmine",
+      "vendor": "zte"
+    },
+    "jasmine_sprout": {
+      "name": "Mi A2",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 5.99, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_jasmine_sprout",
+      "vendor": "xiaomi"
+    },
+    "jason": {
+      "name": "Mi Note 3",
+      "released": "2017",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_jason",
+      "vendor": "xiaomi"
+    },
+    "jflteatt": {
+      "name": "Galaxy S4 (SGH-I337)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'Pentile RGBG Super AMOLED'}",
+      "tree": "android_device_samsung_jflteatt",
+      "vendor": "samsung"
+    },
+    "jfltespr": {
+      "name": "Galaxy S4 (SCH-R970/C/X,SPH-L720)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'Pentile RGBG Super AMOLED'}",
+      "tree": "android_device_samsung_jfltespr",
+      "vendor": "samsung"
+    },
+    "jfltevzw": {
+      "name": "Galaxy S4 (SCH-I545)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'Pentile RGBG Super AMOLED'}",
+      "tree": "android_device_samsung_jfltevzw",
+      "vendor": "samsung"
+    },
+    "jfltexx": {
+      "name": "Galaxy S4 (GT-I9505,SGH-I337M,SGH-M919/V)",
+      "released": "2013",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'Pentile RGBG Super AMOLED'}",
+      "tree": "android_device_samsung_jfltexx",
+      "vendor": "samsung"
+    },
+    "jfvelte": {
+      "name": "Galaxy S4 Value Edition (GT-I9515/L)",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'Pentile RGBG Super AMOLED'}",
+      "tree": "android_device_samsung_jfvelte",
+      "vendor": "samsung"
+    },
+    "judyp": {
+      "name": "V35 ThinQ",
+      "released": "2018",
+      "screen": "{resolution: '2880x1440', size: 6, technology: 'P-OLED'}",
+      "tree": "android_device_lge_judyp",
+      "vendor": "lge"
+    },
+    "judypn": {
+      "name": "V40 ThinQ",
+      "released": "2018",
+      "screen": "{resolution: '3120x1440', size: 6.4, technology: 'P-OLED'}",
+      "tree": "android_device_lge_judypn",
+      "vendor": "lge"
+    },
+    "k3gxx": {
+      "name": "Galaxy S5 (International 3G)",
+      "released": "2014",
+      "screen": "{resolution: '1080x1920', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_k3gxx",
+      "vendor": "samsung"
+    },
+    "karin": {
+      "name": "Xperia Z4 Tablet LTE",
+      "released": "2015",
+      "screen": "{resolution: '2560x1600', size: 10.1, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_karin",
+      "vendor": "sony"
+    },
+    "karin_windy": {
+      "name": "Xperia Z4 Tablet WiFi",
+      "released": "2015",
+      "screen": "{resolution: '2560x1600', size: 10.1, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_karin_windy",
+      "vendor": "sony"
+    },
+    "kccat6": {
+      "name": "Galaxy S5 Plus",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_kccat6",
+      "vendor": "samsung"
+    },
+    "kenzo": {
+      "name": "Redmi Note 3",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_kenzo",
+      "vendor": "xiaomi"
+    },
+    "kingdom": {
+      "name": "Vibe Z2 Pro",
+      "released": "2014",
+      "screen": "{resolution: '2560x1440', size: 6, technology: 'IPS LCD'}",
+      "tree": "android_device_lenovo_kingdom",
+      "vendor": "lenovo"
+    },
+    "kipper": {
+      "name": "Storm",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_wileyfox_kipper",
+      "vendor": "wileyfox"
+    },
+    "kirin": {
+      "name": "Xperia 10",
+      "released": "2019",
+      "screen": "{resolution: '1080x2520', size: 6, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_kirin",
+      "vendor": "sony"
+    },
+    "kiwi": {
+      "name": "Honor 5X",
+      "released": "2015",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_huawei_kiwi",
+      "vendor": "huawei"
+    },
+    "klimtwifi": {
+      "name": "Galaxy Tab S 8.4 (Wi-Fi)",
+      "released": "2014",
+      "screen": "{resolution: '1600x2560', size: 8.4, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_klimtwifi",
+      "vendor": "samsung"
+    },
+    "klte": {
+      "name": "Galaxy S5 LTE (G900F/M/R4/R7/T/T3/V/W8)",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_klte",
+      "vendor": "samsung"
+    },
+    "klteactivexx": {
+      "name": "Galaxy S5 Active (G870F)",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_klteactivexx",
+      "vendor": "samsung"
+    },
+    "klteaio": {
+      "name": "Galaxy S5 LTE (G900AZ/S902L)",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_klteaio",
+      "vendor": "samsung"
+    },
+    "kltechn": {
+      "name": "Galaxy S5 LTE (G9006V/8V)",
+      "released": "",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_kltechn",
+      "vendor": "samsung"
+    },
+    "kltechnduo": {
+      "name": "Galaxy S5 LTE Duos (G9006W/8W)",
+      "released": "",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_kltechnduo",
+      "vendor": "samsung"
+    },
+    "klteduos": {
+      "name": "Galaxy S5 LTE Duos (G900FD/MD)",
+      "released": "",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_klteduos",
+      "vendor": "samsung"
+    },
+    "kltedv": {
+      "name": "Galaxy S5 LTE (G900I/P)",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_kltedv",
+      "vendor": "samsung"
+    },
+    "kltekdi": {
+      "name": "Galaxy S5 LTE (SC-04F/SCL23)",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_kltekdi",
+      "vendor": "samsung"
+    },
+    "kltekor": {
+      "name": "Galaxy S5 LTE (G900K/L/S)",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_kltekor",
+      "vendor": "samsung"
+    },
+    "kltesprsports": {
+      "name": "Galaxy S5 Sport (SM-G860P)",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_kltesprsports",
+      "vendor": "samsung"
+    },
+    "komodo": {
+      "name": "Pixel 9 Pro XL",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1344x2992', size: 6.8, technology: 'LTPO OLED'}",
+      "tree": "android_device_google_komodo",
+      "vendor": "google"
+    },
+    "ks01lte": {
+      "name": "Galaxy S4 LTE-A",
+      "released": "2013",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'Pentile RGBG Super AMOLED'}",
+      "tree": "android_device_samsung_ks01lte",
+      "vendor": "samsung"
+    },
+    "kugo": {
+      "name": "Xperia X Compact",
+      "released": "2016",
+      "screen": "{resolution: '720x1280', size: 4.6, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_kugo",
+      "vendor": "sony"
+    },
+    "kuntao": {
+      "name": "P2 (P2a42 Intl)",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_lenovo_kuntao",
+      "vendor": "lenovo"
+    },
+    "l01k": {
+      "name": "V30 (Japan)",
+      "released": "2017",
+      "screen": "{resolution: '2880x1440', size: 6, technology: 'P-OLED'}",
+      "tree": "android_device_lge_l01k",
+      "vendor": "lge"
+    },
+    "lake": {
+      "bottom": 44,
+      "name": "moto g7 plus",
+      "released": "2019",
+      "screen": "{resolution: '1080x2270', size: 6.2, technology: 'IPS LTPS LCD'}",
+      "top": 44,
+      "tree": "android_device_motorola_lake",
+      "vendor": "motorola"
+    },
+    "lancelot": {
+      "name": "Redmi 9",
+      "released": "2020",
+      "screen": "{resolution: '1080x2340', size: 6.53, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_lancelot",
+      "vendor": "xiaomi"
+    },
+    "land": {
+      "name": "Redmi 3S / 3X",
+      "released": "2016",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_land",
+      "vendor": "xiaomi"
+    },
+    "laurel_sprout": {
+      "bottom": 38,
+      "name": "Mi A3",
+      "released": "2019",
+      "screen": "{refresh_rate: 60, resolution: '720x1560', size: 6.09, technology: 'Super AMOLED'}",
+      "top": 38,
+      "tree": "android_device_xiaomi_laurel_sprout",
+      "vendor": "xiaomi"
+    },
+    "lavender": {
+      "name": "Redmi Note 7",
+      "released": "2019",
+      "screen": "{resolution: '1080x2340', size: 6.3, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_lavender",
+      "vendor": "xiaomi"
+    },
+    "lemonades": {
+      "name": "9R",
+      "released": "2021",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.55, technology: 'Fluid AMOLED'}",
+      "tree": "android_device_oneplus_lemonades",
+      "vendor": "oneplus"
+    },
+    "lentislte": {
+      "name": "Galaxy S5 LTE-A",
+      "released": "2014",
+      "screen": "{resolution: '2560x1440', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_lentislte",
+      "vendor": "samsung"
+    },
+    "lettuce": {
+      "name": "Yuphoria",
+      "released": "2015",
+      "screen": "{resolution: '1280x720', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_yu_lettuce",
+      "vendor": "yu"
+    },
+    "lexus": {
+      "name": "Nord 5",
+      "released": "2025",
+      "screen": "{refresh_rate: 144, resolution: '1272x2800', size: 6.83, technology: 'AMOLED'}",
+      "tree": "android_device_oneplus_lexus",
+      "vendor": "oneplus"
+    },
+    "libra": {
+      "name": "Mi 4c",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_libra",
+      "vendor": "xiaomi"
+    },
+    "lithium": {
+      "name": "Mi MIX",
+      "released": "2016",
+      "screen": "{resolution: '1080x2040', size: 6.4, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_lithium",
+      "vendor": "xiaomi"
+    },
+    "ls990": {
+      "name": "G3 (Sprint)",
+      "released": "2014",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_ls990",
+      "vendor": "lge"
+    },
+    "ls997": {
+      "name": "V20 (Sprint)",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_ls997",
+      "vendor": "lge"
+    },
+    "lt02ltespr": {
+      "name": "Galaxy Tab 3 7.0 (Sprint)",
+      "released": "2016",
+      "screen": "{resolution: '1024x600', size: 7, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_lt02ltespr",
+      "vendor": "samsung"
+    },
+    "lt03lte": {
+      "name": "Galaxy Note 10.1 2014 (LTE)",
+      "released": "2013",
+      "screen": "{resolution: '1600x2560', size: 10.1, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_lt03lte",
+      "vendor": "samsung"
+    },
+    "luigi": {
+      "name": "10 Pro 5G",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.72, technology: 'IPS LCD'}",
+      "tree": "android_device_realme_luigi",
+      "vendor": "realme"
+    },
+    "lux": {
+      "name": "moto x play",
+      "released": "2015",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_lux",
+      "vendor": "motorola"
+    },
+    "lynx": {
+      "bottom": 19,
+      "name": "Pixel 7a",
+      "released": "2023",
+      "screen": "{refresh_rate: 90, resolution: '1080x2400', size: 6.1, technology: 'OLED'}",
+      "top": 19,
+      "tree": "android_device_google_lynx",
+      "vendor": "google"
+    },
+    "m20lte": {
+      "name": "Galaxy M20",
+      "released": "2019",
+      "screen": "{resolution: '2340x1080', size: 6.3, technology: 'PLS LCD'}",
+      "tree": "android_device_samsung_m20lte",
+      "vendor": "samsung"
+    },
+    "m216": {
+      "name": "K10",
+      "released": "2016",
+      "screen": "{resolution: '720x1280', size: 5.3, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_m216",
+      "vendor": "lge"
+    },
+    "m5": {
+      "name": "M5 (S905X3, eMMC Only) [Android TV]",
+      "released": "2020",
+      "screen": "None",
+      "tree": "android_device_bananapi_m5",
+      "vendor": "bananapi"
+    },
+    "m52xq": {
+      "name": "Galaxy M52 5G",
+      "released": "2021",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_m52xq",
+      "vendor": "samsung"
+    },
+    "m5_tab": {
+      "name": "M5 (S905X3, eMMC Only) [Tablet]",
+      "released": "2020",
+      "screen": "None",
+      "tree": "android_device_bananapi_m5_tab",
+      "vendor": "bananapi"
+    },
+    "m7": {
+      "name": "One (GSM)",
+      "released": "2013",
+      "screen": "{resolution: '1080x1920', size: 4.7, technology: 'Super LCD'}",
+      "tree": "android_device_htc_m7",
+      "vendor": "htc"
+    },
+    "m7vzw": {
+      "name": "One (VZW)",
+      "released": "2013",
+      "screen": "{resolution: '1080x1920', size: 4.7, technology: 'Super LCD'}",
+      "tree": "android_device_htc_m7vzw",
+      "vendor": "htc"
+    },
+    "m8": {
+      "name": "One 2014",
+      "released": "2014",
+      "screen": "{resolution: '1080x1920', size: 5, technology: 'Super LCD'}",
+      "tree": "android_device_htc_m8",
+      "vendor": "htc"
+    },
+    "m8d": {
+      "name": "One 2014 Dual SIM",
+      "released": "2014",
+      "screen": "{resolution: '1080x1920', size: 4.7, technology: 'Super LCD'}",
+      "tree": "android_device_htc_m8d",
+      "vendor": "htc"
+    },
+    "maguro": {
+      "name": "Galaxy Nexus (GSM)",
+      "released": "2011",
+      "screen": "{resolution: '1280x720', size: 4.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_maguro",
+      "vendor": "samsung"
+    },
+    "mako": {
+      "name": "Nexus 4",
+      "released": "2012",
+      "screen": "{resolution: '1280x768', size: 4.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_mako",
+      "vendor": "lge"
+    },
+    "manaus": {
+      "name": "edge 40 neo",
+      "released": "2023",
+      "screen": "{refresh_rate: 144, resolution: '1080x2400', size: 6.55, technology: 'P-OLED'}",
+      "tree": "android_device_motorola_manaus",
+      "vendor": "motorola"
+    },
+    "manta": {
+      "name": "Nexus 10",
+      "released": "2012",
+      "screen": "{resolution: '2560x1600', size: 10, technology: 'Super PLS LCD'}",
+      "tree": "android_device_samsung_manta",
+      "vendor": "samsung"
+    },
+    "marlin": {
+      "name": "Pixel XL",
+      "released": "2016",
+      "screen": "{resolution: '1440x2560', size: 5.5, technology: 'AMOLED'}",
+      "tree": "android_device_google_marlin",
+      "vendor": "google"
+    },
+    "mars": {
+      "name": "Mi 11 Pro",
+      "released": "2021",
+      "screen": "{refresh_rate: 120, resolution: '1440x3200', size: 6.81, technology: 'Super AMOLED'}",
+      "tree": "android_device_xiaomi_mars",
+      "vendor": "xiaomi"
+    },
+    "martini": {
+      "name": "9RT",
+      "released": "2021",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.62, technology: 'AMOLED'}",
+      "tree": "android_device_oneplus_martini",
+      "vendor": "oneplus"
+    },
+    "maserati": {
+      "name": "DROID 4",
+      "released": "2012",
+      "screen": "{resolution: '540x960', size: 4, technology: 'TFT LCD'}",
+      "tree": "android_device_motorola_maserati",
+      "vendor": "motorola"
+    },
+    "mata": {
+      "bottom": 5,
+      "name": "PH-1",
+      "released": "2017",
+      "screen": "{resolution: '1312x2560', size: 5.71, technology: 'IPS LCD'}",
+      "top": 5,
+      "tree": "android_device_essential_mata",
+      "vendor": "essential"
+    },
+    "mayfly": {
+      "name": "12S",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '2400x1080', size: 6.28, technology: 'AMOLED'}",
+      "tree": "android_device_xiaomi_mayfly",
+      "vendor": "xiaomi"
+    },
+    "mdarcy": {
+      "name": "Shield TV 2019 Pro [Android TV]",
+      "released": "2019",
+      "screen": "None",
+      "tree": "android_device_nvidia_mdarcy",
+      "vendor": "nvidia"
+    },
+    "mdarcy_tab": {
+      "name": "Shield TV 2019 Pro [Tablet]",
+      "released": "2019",
+      "screen": "None",
+      "tree": "android_device_nvidia_mdarcy_tab",
+      "vendor": "nvidia"
+    },
+    "merlin": {
+      "name": "moto g3 turbo",
+      "released": "2015",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_merlin",
+      "vendor": "motorola"
+    },
+    "merlinx": {
+      "name": "Redmi Note 9",
+      "released": "2020",
+      "screen": "{resolution: '1080x2340', size: 6.53, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_merlinx",
+      "vendor": "xiaomi"
+    },
+    "mermaid": {
+      "name": "Xperia 10 Plus",
+      "released": "2019",
+      "screen": "{resolution: '1080x2520', size: 6.5, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_mermaid",
+      "vendor": "sony"
+    },
+    "messi": {
+      "name": "moto z3",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 6.01, technology: 'P-OLED'}",
+      "tree": "android_device_motorola_messi",
+      "vendor": "motorola"
+    },
+    "miami": {
+      "name": "edge 30 neo",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.28, technology: 'P-OLED'}",
+      "tree": "android_device_motorola_miami",
+      "vendor": "motorola"
+    },
+    "mido": {
+      "name": "Redmi Note 4",
+      "released": "2017",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_mido",
+      "vendor": "xiaomi"
+    },
+    "milanf": {
+      "name": "moto g stylus 5G (2022)",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '1080x2460', size: 6.8, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_milanf",
+      "vendor": "motorola"
+    },
+    "mint": {
+      "name": "Xperia T",
+      "released": "2012",
+      "screen": "{resolution: '720x1280', size: 4.55, technology: 'TFT LCD'}",
+      "tree": "android_device_sony_mint",
+      "vendor": "sony"
+    },
+    "mondrianwifi": {
+      "name": "Galaxy Tab Pro 8.4",
+      "released": "2014",
+      "screen": "{resolution: '1600x2560', size: 8.4, technology: 'Super clear LCD'}",
+      "tree": "android_device_samsung_mondrianwifi",
+      "vendor": "samsung"
+    },
+    "monet": {
+      "bottom": 45,
+      "name": "Mi 10 Lite 5G",
+      "released": "2020",
+      "screen": "{resolution: '1080x2340', size: 6.57, technology: 'AMOLED'}",
+      "top": 50,
+      "tree": "android_device_xiaomi_monet",
+      "vendor": "xiaomi"
+    },
+    "montana": {
+      "name": "moto g5s",
+      "released": "2017",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_montana",
+      "vendor": "motorola"
+    },
+    "ms013g": {
+      "name": "Galaxy Grand 2",
+      "released": "2013",
+      "screen": "{resolution: '1280x720', size: 5.25, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_ms013g",
+      "vendor": "samsung"
+    },
+    "mt2": {
+      "name": "Ascend Mate 2",
+      "released": "2014",
+      "screen": "{resolution: '1280x720', size: 6.1, technology: 'IPS+ LCD'}",
+      "tree": "android_device_huawei_mt2",
+      "vendor": "huawei"
+    },
+    "n1awifi": {
+      "name": "Galaxy Note 10.1 2014 (Wi-Fi)",
+      "released": "2013",
+      "screen": "{resolution: '2560x1600', size: 10.1, technology: 'Super LCD'}",
+      "tree": "android_device_samsung_n1awifi",
+      "vendor": "samsung"
+    },
+    "n2awifi": {
+      "name": "Galaxy Tab Pro 10.1 (Wi-Fi)",
+      "released": "2014",
+      "screen": "{resolution: '2560x1600', size: 10.1, technology: 'Super LCD'}",
+      "tree": "android_device_samsung_n2awifi",
+      "vendor": "samsung"
+    },
+    "n3": {
+      "name": "N3",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_oppo_n3",
+      "vendor": "oppo"
+    },
+    "n5100": {
+      "name": "Galaxy Note 8 (GSM)",
+      "released": "2013",
+      "screen": "{resolution: '1280x800', size: 8, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_n5100",
+      "vendor": "samsung"
+    },
+    "n5110": {
+      "name": "Galaxy Note 8 (Wi-Fi)",
+      "released": "2013",
+      "screen": "{resolution: '1280x800', size: 8, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_n5110",
+      "vendor": "samsung"
+    },
+    "n5120": {
+      "name": "Galaxy Note 8 (LTE)",
+      "released": "2013",
+      "screen": "{resolution: '1280x800', size: 8, technology: 'TFT LCD'}",
+      "tree": "android_device_samsung_n5120",
+      "vendor": "samsung"
+    },
+    "natrium": {
+      "name": "Mi 5s Plus",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_natrium",
+      "vendor": "xiaomi"
+    },
+    "nicepool": {
+      "name": "Pop / TV (Broadcom Wi-Fi/Bluetooth)",
+      "released": "2020",
+      "screen": "None",
+      "tree": "android_device_freebox_nicepool",
+      "vendor": "freebox"
+    },
+    "nicepool_rtk": {
+      "name": "Pop / TV (Realtek Wi-Fi/Bluetooth)",
+      "released": "2020",
+      "screen": "None",
+      "tree": "android_device_freebox_nicepool_rtk",
+      "vendor": "freebox"
+    },
+    "nicki": {
+      "name": "Xperia M",
+      "released": "2013",
+      "screen": "{resolution: '480x854', size: 4, technology: 'TFT LCD'}",
+      "tree": "android_device_sony_nicki",
+      "vendor": "sony"
+    },
+    "nuwa": {
+      "name": "13 Pro",
+      "released": "2022",
+      "screen": "{resolution: '3200x1440', size: 6.73, technology: 'OLED'}",
+      "tree": "android_device_xiaomi_nuwa",
+      "vendor": "xiaomi"
+    },
+    "nx512j": {
+      "name": "Nubia Z9 Max",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_nubia_nx512j",
+      "vendor": "nubia"
+    },
+    "nx563j": {
+      "name": "Z17",
+      "released": "2017",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_nubia_nx563j",
+      "vendor": "nubia"
+    },
+    "nx606j": {
+      "name": "Z18",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 5.99, technology: 'IPS LCD'}",
+      "tree": "android_device_nubia_nx606j",
+      "vendor": "nubia"
+    },
+    "nx609j": {
+      "name": "Red Magic",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 6, technology: 'IPS LCD'}",
+      "tree": "android_device_nubia_nx609j",
+      "vendor": "nubia"
+    },
+    "nx611j": {
+      "name": "Z18 Mini",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_nubia_nx611j",
+      "vendor": "nubia"
+    },
+    "nx616j": {
+      "name": "X",
+      "released": "2018",
+      "screen": "{refresh_rate: 60, resolution: '1080x2280', size: 6.26, technology: 'IPS LCD'}",
+      "tree": "android_device_nubia_nx616j",
+      "vendor": "nubia"
+    },
+    "nx619j": {
+      "name": "Red Magic Mars",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 6, technology: 'IPS LCD'}",
+      "tree": "android_device_nubia_nx619j",
+      "vendor": "nubia"
+    },
+    "obiwan": {
+      "name": "ROG Phone 3",
+      "released": "2020",
+      "screen": "{refresh_rate: 144, resolution: '1080x2340', size: 6.59, technology: 'Super AMOLED'}",
+      "tree": "android_device_asus_obiwan",
+      "vendor": "asus"
+    },
+    "ocean": {
+      "name": "moto g7 power",
+      "released": "2019",
+      "screen": "{resolution: '720x1570', size: 6.2, technology: 'IPS LTPS LCD'}",
+      "tree": "android_device_motorola_ocean",
+      "vendor": "motorola"
+    },
+    "odin": {
+      "name": "Xperia ZL",
+      "released": "2013",
+      "screen": "{resolution: '1080x1920', size: 5, technology: 'TFT LCD'}",
+      "tree": "android_device_sony_odin",
+      "vendor": "sony"
+    },
+    "odin2": {
+      "name": "Odin 2",
+      "released": "2023",
+      "screen": "{refresh_rate: 60, resolution: '1920x1080', size: 6.0, technology: 'IPS LCD'}",
+      "tree": "android_device_ayn_odin2",
+      "vendor": "ayn"
+    },
+    "odin2mini": {
+      "name": "Odin2 Mini",
+      "released": "2024",
+      "screen": "{refresh_rate: 60, resolution: '1920x1080', size: 5.0, technology: 'MINI LED'}",
+      "tree": "android_device_ayn_odin2mini",
+      "vendor": "ayn"
+    },
+    "odin2portal": {
+      "name": "Odin2 Portal",
+      "released": "2025",
+      "screen": "{refresh_rate: 165, resolution: '1920x1080', size: 7.0, technology: 'AMOLED'}",
+      "tree": "android_device_ayn_odin2portal",
+      "vendor": "ayn"
+    },
+    "odin_m0": {
+      "name": "Odin (M0)",
+      "released": "2022",
+      "screen": "{refresh_rate: 60, resolution: '1920x1080', size: 5.98, technology: 'IPS LCD'}",
+      "tree": "android_device_ayn_odin_m0",
+      "vendor": "ayn"
+    },
+    "odin_m2": {
+      "name": "Odin (M2)",
+      "released": "2022",
+      "screen": "{refresh_rate: 60, resolution: '1920x1080', size: 5.98, technology: 'IPS LCD'}",
+      "tree": "android_device_ayn_odin_m2",
+      "vendor": "ayn"
+    },
+    "odroidc4": {
+      "name": "ODROID-C4 (S905X3, eMMC Only) [Android TV]",
+      "released": "2020",
+      "screen": "None",
+      "tree": "android_device_hardkernel_odroidc4",
+      "vendor": "hardkernel"
+    },
+    "odroidc4_tab": {
+      "name": "ODROID-C4 (S905X3, eMMC Only) [Tablet]",
+      "released": "2020",
+      "screen": "None",
+      "tree": "android_device_hardkernel_odroidc4_tab",
+      "vendor": "hardkernel"
+    },
+    "oneplus2": {
+      "name": "2",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5.5, technology: 'IPS LTPS LCD'}",
+      "tree": "android_device_oneplus_oneplus2",
+      "vendor": "oneplus"
+    },
+    "onyx": {
+      "name": "X",
+      "released": "2015",
+      "screen": "{resolution: '1080x1920', size: 5, technology: 'AMOLED'}",
+      "tree": "android_device_oneplus_onyx",
+      "vendor": "oneplus"
+    },
+    "oriole": {
+      "name": "Pixel 6",
+      "released": "2021",
+      "screen": "{refresh_rate: 90, resolution: '1080x2400', size: 6.4, technology: 'AMOLED'}",
+      "tree": "android_device_google_oriole",
+      "vendor": "google"
+    },
+    "oscaro": {
+      "name": "Nord CE 2 Lite 5G",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '1080x2412', size: 6.59, technology: 'IPS LCD'}",
+      "tree": "android_device_oneplus_oscaro",
+      "vendor": "oneplus"
+    },
+    "osprey": {
+      "name": "moto g (2015)",
+      "released": "2015",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_osprey",
+      "vendor": "motorola"
+    },
+    "otus": {
+      "name": "moto e (2015)",
+      "released": "2015",
+      "screen": "{resolution: '540x960', size: 4.5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_otus",
+      "vendor": "motorola"
+    },
+    "paella": {
+      "name": "Aquaris X5",
+      "released": "2015",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_bq_paella",
+      "vendor": "bq"
+    },
+    "panther": {
+      "name": "Pixel 7",
+      "released": "2022",
+      "screen": "{refresh_rate: 90, resolution: '1080x2400', size: 6.3, technology: 'AMOLED'}",
+      "tree": "android_device_google_panther",
+      "vendor": "google"
+    },
+    "parker": {
+      "name": "one zoom",
+      "released": "2019",
+      "screen": "{resolution: '1080x2340', size: 6.39, technology: 'Super AMOLED'}",
+      "tree": "android_device_motorola_parker",
+      "vendor": "motorola"
+    },
+    "payton": {
+      "name": "moto x4",
+      "released": "2017",
+      "screen": "{resolution: '1080x1920', size: 5.2, technology: 'IPS LTPS LCD'}",
+      "tree": "android_device_motorola_payton",
+      "vendor": "motorola"
+    },
+    "pdx203": {
+      "name": "Xperia 1 II",
+      "released": "2020",
+      "screen": "{resolution: '3840x1644', size: 6.5, technology: 'OLED'}",
+      "tree": "android_device_sony_pdx203",
+      "vendor": "sony"
+    },
+    "pdx206": {
+      "name": "Xperia 5 II",
+      "released": "2020",
+      "screen": "{refresh_rate: 120, resolution: '2520x1080', size: 6.1, technology: 'OLED'}",
+      "tree": "android_device_sony_pdx206",
+      "vendor": "sony"
+    },
+    "pdx214": {
+      "name": "Xperia 5 III",
+      "released": "2021",
+      "screen": "{refresh_rate: 120, resolution: '2520x1080', size: 6.1, technology: 'OLED'}",
+      "tree": "android_device_sony_pdx214",
+      "vendor": "sony"
+    },
+    "pdx215": {
+      "name": "Xperia 1 III",
+      "released": "2021",
+      "screen": "{resolution: '3840x1644', size: 6.5, technology: 'OLED'}",
+      "tree": "android_device_sony_pdx215",
+      "vendor": "sony"
+    },
+    "pdx223": {
+      "name": "Xperia 1 IV",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '3840x1644', size: 6.5, technology: 'OLED'}",
+      "tree": "android_device_sony_pdx223",
+      "vendor": "sony"
+    },
+    "pdx224": {
+      "name": "Xperia 5 IV",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '2520x1080', size: 6.1, technology: 'OLED'}",
+      "tree": "android_device_sony_pdx224",
+      "vendor": "sony"
+    },
+    "pdx225": {
+      "name": "Xperia 10 IV",
+      "released": "2022",
+      "screen": "{resolution: '2520x1080', size: 6.0, technology: 'OLED'}",
+      "tree": "android_device_sony_pdx225",
+      "vendor": "sony"
+    },
+    "pdx234": {
+      "name": "Xperia 1 V",
+      "released": "2023",
+      "screen": "{refresh_rate: 120, resolution: '3840x1644', size: 6.5, technology: 'OLED'}",
+      "tree": "android_device_sony_pdx234",
+      "vendor": "sony"
+    },
+    "pdx235": {
+      "name": "Xperia 10 V",
+      "released": "2023",
+      "screen": "{resolution: '2520x1080', size: 6.1, technology: 'OLED'}",
+      "tree": "android_device_sony_pdx235",
+      "vendor": "sony"
+    },
+    "pdx237": {
+      "name": "Xperia 5 V",
+      "released": "2023",
+      "screen": "{refresh_rate: 120, resolution: '2520x1080', size: 6.1, technology: 'OLED'}",
+      "tree": "android_device_sony_pdx237",
+      "vendor": "sony"
+    },
+    "pdx245": {
+      "name": "Xperia 1 VI",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '2340x1080', size: 6.5, technology: 'LTPO OLED'}",
+      "tree": "android_device_sony_pdx245",
+      "vendor": "sony"
+    },
+    "pdx257": {
+      "name": "Xperia 10 VII",
+      "released": "2025",
+      "screen": "{resolution: '2340x1080', size: 6.1, technology: 'OLED'}",
+      "tree": "android_device_sony_pdx257",
+      "vendor": "sony"
+    },
+    "peach": {
+      "name": "Benefit A3",
+      "released": "2015",
+      "screen": "{resolution: '1280x720', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_ark_peach",
+      "vendor": "ark"
+    },
+    "peregrine": {
+      "name": "moto g 4G",
+      "released": "2014",
+      "screen": "{resolution: '720x1280', size: 4.5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_peregrine",
+      "vendor": "motorola"
+    },
+    "perseus": {
+      "bottom": 34,
+      "name": "Mi MIX 3",
+      "released": "2018",
+      "screen": "{resolution: '1080x2340', size: 6.39, technology: 'AMOLED'}",
+      "top": 34,
+      "tree": "android_device_xiaomi_perseus",
+      "vendor": "xiaomi"
+    },
+    "piccolo": {
+      "name": "Aquaris M5",
+      "released": "2015",
+      "screen": "{resolution: '1080x1920', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_bq_piccolo",
+      "vendor": "bq"
+    },
+    "pioneer": {
+      "name": "Xperia XA2",
+      "released": "2018",
+      "screen": "{resolution: '1080x1920', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_pioneer",
+      "vendor": "sony"
+    },
+    "platina": {
+      "name": "Mi 8 Lite",
+      "released": "2018",
+      "screen": "{resolution: '2280x1080', size: 6.26, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_platina",
+      "vendor": "xiaomi"
+    },
+    "pme": {
+      "name": "10",
+      "released": "2016",
+      "screen": "{resolution: '1440x2560', size: 5.2, technology: 'Super LCD'}",
+      "tree": "android_device_htc_pme",
+      "vendor": "htc"
+    },
+    "polaris": {
+      "bottom": 20,
+      "name": "Mi MIX 2S",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 5.99, technology: 'IPS LCD'}",
+      "top": 20,
+      "tree": "android_device_xiaomi_polaris",
+      "vendor": "xiaomi"
+    },
+    "pollux": {
+      "name": "Xperia Tablet Z LTE",
+      "released": "2013",
+      "screen": "{resolution: '1200x1920', size: 10.1, technology: 'TFT LCD'}",
+      "tree": "android_device_sony_pollux",
+      "vendor": "sony"
+    },
+    "pollux_windy": {
+      "name": "Xperia Tablet Z Wi-Fi",
+      "released": "2013",
+      "screen": "{resolution: '1200x1920', size: 10.1, technology: 'TFT LCD'}",
+      "tree": "android_device_sony_pollux_windy",
+      "vendor": "sony"
+    },
+    "pro1": {
+      "name": "Pro1",
+      "released": "2019",
+      "screen": "{resolution: '1080x2160', size: 5.99, technology: 'AMOLED'}",
+      "tree": "android_device_fxtec_pro1",
+      "vendor": "fxtec"
+    },
+    "pro1x": {
+      "name": "Pro1 X",
+      "released": "2022",
+      "screen": "{resolution: '1080x2160', size: 5.99, technology: 'AMOLED'}",
+      "tree": "android_device_fxtec_pro1x",
+      "vendor": "fxtec"
+    },
+    "pstar": {
+      "name": "edge 20 pro",
+      "released": "2021",
+      "screen": "{resolution: '1080x2400', size: 6.7, technology: 'OLED'}",
+      "tree": "android_device_motorola_pstar",
+      "vendor": "motorola"
+    },
+    "pyrite": {
+      "name": "OV1",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.55, technology: 'AMOLED'}",
+      "tree": "android_device_osom_pyrite",
+      "vendor": "osom"
+    },
+    "r0s": {
+      "name": "Galaxy S22",
+      "released": "2022",
+      "screen": "{resolution: '2340x1080', size: 6.1, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_r0s",
+      "vendor": "samsung"
+    },
+    "r7plus": {
+      "name": "R7 Plus (R7plusf Intl)",
+      "released": "2015",
+      "screen": "{resolution: '1080x1920', size: 6, technology: 'AMOLED'}",
+      "tree": "android_device_oppo_r7plus",
+      "vendor": "oppo"
+    },
+    "r7sf": {
+      "name": "R7s (R7sf Intl)",
+      "released": "2015",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'AMOLED'}",
+      "tree": "android_device_oppo_r7sf",
+      "vendor": "oppo"
+    },
+    "r8s": {
+      "name": "Galaxy S20 FE (Exynos)",
+      "released": "2020",
+      "screen": "{refresh_rate: 120, resolution: '2400x1080', size: 6.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_r8s",
+      "vendor": "samsung"
+    },
+    "racer": {
+      "name": "edge",
+      "released": "2020",
+      "screen": "{resolution: '1080x2340', size: 6.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_motorola_racer",
+      "vendor": "motorola"
+    },
+    "radxa0": {
+      "name": "Zero (S905Y2, eMMC Only) [Android TV]",
+      "released": "2020",
+      "screen": "None",
+      "tree": "android_device_radxa_radxa0",
+      "vendor": "radxa"
+    },
+    "radxa02": {
+      "name": "Zero 2 (S905D3, eMMC Only) ) [Android TV]",
+      "released": "2022",
+      "screen": "None",
+      "tree": "android_device_radxa_radxa02",
+      "vendor": "radxa"
+    },
+    "radxa02_tab": {
+      "name": "Zero 2 (S905D3, eMMC Only) [Tablet]",
+      "released": "2022",
+      "screen": "None",
+      "tree": "android_device_radxa_radxa02_tab",
+      "vendor": "radxa"
+    },
+    "radxa0_tab": {
+      "name": "Zero (S905Y2, eMMC Only) [Tablet]",
+      "released": "2020",
+      "screen": "None",
+      "tree": "android_device_radxa_radxa0_tab",
+      "vendor": "radxa"
+    },
+    "raven": {
+      "name": "Pixel 6 Pro",
+      "released": "2021",
+      "screen": "{refresh_rate: 120, resolution: '1440x3120', size: 6.71, technology: 'LTPO AMOLED'}",
+      "tree": "android_device_google_raven",
+      "vendor": "google"
+    },
+    "redfin": {
+      "name": "Pixel 5",
+      "released": "2020",
+      "screen": "{refresh_rate: 90, resolution: '2340x1080', size: 6, technology: 'AMOLED'}",
+      "tree": "android_device_google_redfin",
+      "vendor": "google"
+    },
+    "renoir": {
+      "bottom": 50,
+      "name": "Mi 11 Lite 5G",
+      "released": "2021",
+      "screen": "{refresh_rate: 90, resolution: '1080x2400', size: 6.67, technology: 'AMOLED'}",
+      "top": 50,
+      "tree": "android_device_xiaomi_renoir",
+      "vendor": "xiaomi"
+    },
+    "rhannah": {
+      "name": "moto e5 plus (XT1924-1/2/4/5)",
+      "released": "2018",
+      "screen": "{resolution: '1440x720', size: 6, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_rhannah",
+      "vendor": "motorola"
+    },
+    "rhode": {
+      "bottom": 38,
+      "name": "moto g52",
+      "released": "2022",
+      "screen": "{resolution: '1080x2400', size: 6.6, technology: 'P-OLED'}",
+      "top": 38,
+      "tree": "android_device_motorola_rhode",
+      "vendor": "motorola"
+    },
+    "rhodep": {
+      "name": "moto g82 5G",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.6, technology: 'AMOLED'}",
+      "tree": "android_device_motorola_rhodep",
+      "vendor": "motorola"
+    },
+    "river": {
+      "name": "moto g7",
+      "released": "2019",
+      "screen": "{resolution: '1080x2270', size: 6.2, technology: 'IPS LTPS LCD'}",
+      "tree": "android_device_motorola_river",
+      "vendor": "motorola"
+    },
+    "roth": {
+      "name": "Shield Portable",
+      "released": "2013",
+      "screen": "{resolution: '1280x720', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_nvidia_roth",
+      "vendor": "nvidia"
+    },
+    "rs988": {
+      "name": "G5 (US)",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.3, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_rs988",
+      "vendor": "lge"
+    },
+    "s2": {
+      "name": "Le 2",
+      "released": "2016",
+      "screen": "{resolution: '1920x1080', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_leeco_s2",
+      "vendor": "leeco"
+    },
+    "s3ve3gds": {
+      "name": "Galaxy S III Neo (Dual SIM)",
+      "released": "2014",
+      "screen": "{resolution: '1280x720', size: 4.8, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_s3ve3gds",
+      "vendor": "samsung"
+    },
+    "s3ve3gjv": {
+      "name": "Galaxy S III Neo (Samsung Camera)",
+      "released": "2014",
+      "screen": "{resolution: '1280x720', size: 4.8, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_s3ve3gjv",
+      "vendor": "samsung"
+    },
+    "s3ve3gxx": {
+      "name": "Galaxy S III Neo (Sony Camera)",
+      "released": "2014",
+      "screen": "{resolution: '1280x720', size: 4.8, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_s3ve3gxx",
+      "vendor": "samsung"
+    },
+    "s5neolte": {
+      "name": "Galaxy S5 Neo",
+      "released": "2015",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_s5neolte",
+      "vendor": "samsung"
+    },
+    "sabrina": {
+      "name": "Chromecast with Google TV (4K)",
+      "released": "2020",
+      "screen": "None",
+      "tree": "android_device_google_sabrina",
+      "vendor": "google"
+    },
+    "sagit": {
+      "name": "Mi 6",
+      "released": "2017",
+      "screen": "{refresh_rate: 60, resolution: '1920x1080', size: 5.15, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_sagit",
+      "vendor": "xiaomi"
+    },
+    "sailfish": {
+      "name": "Pixel",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 5, technology: 'AMOLED'}",
+      "tree": "android_device_google_sailfish",
+      "vendor": "google"
+    },
+    "sake": {
+      "name": "ZenFone 8",
+      "released": "2021",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 5.9, technology: 'Super AMOLED'}",
+      "tree": "android_device_asus_sake",
+      "vendor": "asus"
+    },
+    "salami": {
+      "name": "11 5G",
+      "released": "2023",
+      "screen": "{refresh_rate: 120, resolution: '1440x3216', size: 6.7, technology: 'Fluid 3.0 LTPO AMOLED'}",
+      "tree": "android_device_oneplus_salami",
+      "vendor": "oneplus"
+    },
+    "santoni": {
+      "name": "Redmi 4(X)",
+      "released": "2017",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_santoni",
+      "vendor": "xiaomi"
+    },
+    "sargo": {
+      "name": "Pixel 3a",
+      "released": "2019",
+      "screen": "{refresh_rate: 60, resolution: '2220x1080', size: 5.6, technology: 'AMOLED'}",
+      "tree": "android_device_google_sargo",
+      "vendor": "google"
+    },
+    "scorpio": {
+      "name": "Mi Note 2",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 5.7, technology: 'OLED'}",
+      "tree": "android_device_xiaomi_scorpio",
+      "vendor": "xiaomi"
+    },
+    "seed": {
+      "name": "Android One 2nd gen",
+      "released": "2015",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_google_seed",
+      "vendor": "google"
+    },
+    "shamu": {
+      "name": "Nexus 6",
+      "released": "2014",
+      "screen": "{resolution: '2560x1440', size: 5.96, technology: 'Pentile RGBG AMOLED'}",
+      "tree": "android_device_moto_shamu",
+      "vendor": "moto"
+    },
+    "shark": {
+      "name": "Black Shark",
+      "released": "2018",
+      "screen": "{resolution: '2160x1080', size: 5.99, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_shark",
+      "vendor": "xiaomi"
+    },
+    "shiba": {
+      "name": "Pixel 8",
+      "released": "2023",
+      "screen": "{refresh_rate: 120, resolution: '1080x2400', size: 6.2, technology: 'OLED'}",
+      "tree": "android_device_google_shiba",
+      "vendor": "google"
+    },
+    "shieldtablet": {
+      "name": "Shield Tablet",
+      "released": "2014",
+      "screen": "{resolution: '1920x1200', size: 8, technology: 'IPS Retinal LCD'}",
+      "tree": "android_device_nvidia_shieldtablet",
+      "vendor": "nvidia"
+    },
+    "sif": {
+      "name": "NVIDIA Shield TV (2019) [Android TV]",
+      "released": "2019",
+      "screen": "None",
+      "tree": "android_device_nvidia_sif",
+      "vendor": "nvidia"
+    },
+    "sirius": {
+      "name": "Xperia Z2",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_z3",
+      "vendor": "sony"
+    },
+    "socrates": {
+      "name": "Redmi K60 Pro",
+      "released": "2022",
+      "screen": "{resolution: '3200x1440', size: 6.67, technology: 'OLED'}",
+      "tree": "android_device_xiaomi_socrates",
+      "vendor": "xiaomi"
+    },
+    "star2lte": {
+      "name": "Galaxy S9+",
+      "released": "2018",
+      "screen": "{resolution: '2960x1440', size: 6.2, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_star2lte",
+      "vendor": "samsung"
+    },
+    "starlte": {
+      "name": "Galaxy S9",
+      "released": "2018",
+      "screen": "{resolution: '2960x1440', size: 5.8, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_starlte",
+      "vendor": "samsung"
+    },
+    "style3lm": {
+      "name": "Style3",
+      "released": "2020",
+      "screen": "{refresh_rate: 60, resolution: '3120x1440', size: 6.1, technology: 'P-OLED'}",
+      "tree": "android_device_lge_style3lm",
+      "vendor": "lge"
+    },
+    "sumire": {
+      "name": "Xperia Z5",
+      "released": "2015",
+      "screen": "{resolution: '1080x1920', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_sumire",
+      "vendor": "sony"
+    },
+    "sunfish": {
+      "name": "Pixel 4a",
+      "released": "2020",
+      "screen": "{refresh_rate: 60, resolution: '2340x1080', size: 5.81, technology: 'AMOLED'}",
+      "tree": "android_device_google_sunfish",
+      "vendor": "google"
+    },
+    "surnia": {
+      "name": "moto e LTE (2015)",
+      "released": "2015",
+      "screen": "{resolution: '540x960', size: 4.5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_surnia",
+      "vendor": "motorola"
+    },
+    "surya": {
+      "name": "POCO X3 NFC",
+      "released": "2020",
+      "screen": "{resolution: '2400x1080', size: 6.67, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_surya",
+      "vendor": "xiaomi"
+    },
+    "suzu": {
+      "name": "Xperia X",
+      "released": "2016",
+      "screen": "{resolution: '1080x1920', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_suzu",
+      "vendor": "sony"
+    },
+    "suzuran": {
+      "name": "Xperia Z5 Compact",
+      "released": "2015",
+      "screen": "{resolution: '1280x720', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_suzuran",
+      "vendor": "sony"
+    },
+    "t0lte": {
+      "name": "Galaxy Note II (GSM LTE)",
+      "released": "2012",
+      "screen": "{resolution: '1280x720', size: 5.5, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_t0lte",
+      "vendor": "samsung"
+    },
+    "t6": {
+      "name": "One Max",
+      "released": "2013",
+      "screen": "{resolution: '1080x1920', size: 5.9, technology: 'Super LCD'}",
+      "tree": "android_device_htc_t6",
+      "vendor": "htc"
+    },
+    "t6vzw": {
+      "name": "One Max (VZW)",
+      "released": "2013",
+      "screen": "{resolution: '1080x1920', size: 5.9, technology: 'Super LCD'}",
+      "tree": "android_device_htc_t6vzw",
+      "vendor": "htc"
+    },
+    "taimen": {
+      "bottom": 26,
+      "name": "Pixel 2 XL",
+      "released": "2017",
+      "screen": "{resolution: '1440x2880', size: 6, technology: 'AMOLED'}",
+      "top": 26,
+      "tree": "android_device_google_taimen",
+      "vendor": "google"
+    },
+    "tangorpro": {
+      "bottom": 18,
+      "name": "Pixel Tablet",
+      "released": "2023",
+      "screen": "{refresh_rate: 60, resolution: '2560x1600', size: 10.95, technology: 'IPS LCD'}",
+      "top": 19,
+      "tree": "android_device_google_tangorpro",
+      "vendor": "google"
+    },
+    "taoshan": {
+      "name": "Xperia L",
+      "released": "2013",
+      "screen": "{resolution: '480x854', size: 4.3, technology: 'TFT LCD'}",
+      "tree": "android_device_sony_taoshan",
+      "vendor": "sony"
+    },
+    "targa": {
+      "name": "DROID BIONIC",
+      "released": "2011",
+      "screen": "{resolution: '540x960', size: 4.3, technology: 'TFT LCD'}",
+      "tree": "android_device_motorola_targa",
+      "vendor": "motorola"
+    },
+    "tegu": {
+      "name": "Pixel 9a",
+      "released": "2025",
+      "screen": "{refresh_rate: 120, resolution: '1080x2424', size: 6.3, technology: 'P-OLED'}",
+      "tree": "android_device_google_tegu",
+      "vendor": "google"
+    },
+    "tenshi": {
+      "name": "Aquaris U Plus",
+      "released": "2016",
+      "screen": "{resolution: '1280x720', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_bq_tenshi",
+      "vendor": "bq"
+    },
+    "thea": {
+      "name": "moto g 4G (2014)",
+      "released": "2015",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_thea",
+      "vendor": "motorola"
+    },
+    "thor": {
+      "name": "12S Ultra",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '1440x3200', size: 6.73, technology: 'AMOLED'}",
+      "tree": "android_device_xiaomi_thor",
+      "vendor": "xiaomi"
+    },
+    "thyme": {
+      "bottom": 44,
+      "name": "Mi 10S",
+      "released": "2021",
+      "screen": "{refresh_rate: 90, resolution: '1080x2340', size: 6.67, technology: 'AMOLED'}",
+      "top": 44,
+      "tree": "android_device_xiaomi_thyme",
+      "vendor": "xiaomi"
+    },
+    "timelm": {
+      "name": "V60 ThinQ",
+      "released": "2020",
+      "screen": "{resolution: '2460x1080', size: 6.8, technology: 'P-OLED'}",
+      "tree": "android_device_lge_timelm",
+      "vendor": "lge"
+    },
+    "tissot": {
+      "name": "Mi A1",
+      "released": "2017",
+      "screen": "{resolution: '1080x1920', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_tissot",
+      "vendor": "xiaomi"
+    },
+    "titan": {
+      "name": "moto g (2014)",
+      "released": "2014",
+      "screen": "{resolution: '720x1280', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_titan",
+      "vendor": "motorola"
+    },
+    "tokay": {
+      "name": "Pixel 9",
+      "released": "2024",
+      "screen": "{refresh_rate: 120, resolution: '1080x2424', size: 6.3, technology: 'OLED'}",
+      "tree": "android_device_google_tokay",
+      "vendor": "google"
+    },
+    "toro": {
+      "name": "Galaxy Nexus (VZW)",
+      "released": "2011",
+      "screen": "{resolution: '1280x720', size: 4.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_toro",
+      "vendor": "samsung"
+    },
+    "toroplus": {
+      "name": "Galaxy Nexus (Sprint)",
+      "released": "2012",
+      "screen": "{resolution: '1280x720', size: 4.7, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_toroplus",
+      "vendor": "samsung"
+    },
+    "trident": {
+      "name": "R1",
+      "released": "2018",
+      "screen": "{refresh_rate: 60, resolution: '2242x1080', size: 6.17, technology: 'IPS LCD'}",
+      "tree": "android_device_smartisan_trident",
+      "vendor": "smartisan"
+    },
+    "troika": {
+      "name": "one action",
+      "released": "2019",
+      "screen": "{resolution: '1080x2520', size: 6.3, technology: 'IPS LCD'}",
+      "tree": "android_device_motorola_troika",
+      "vendor": "motorola"
+    },
+    "tsubasa": {
+      "name": "Xperia V",
+      "released": "2012",
+      "screen": "{resolution: '720x1280', size: 4.3, technology: 'TFT LCD'}",
+      "tree": "android_device_sony_tsubasa",
+      "vendor": "sony"
+    },
+    "tulip": {
+      "name": "Axon 7 Mini",
+      "released": "2016",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'AMOLED'}",
+      "tree": "android_device_zte_tulip",
+      "vendor": "zte"
+    },
+    "twolip": {
+      "name": "Redmi Note 6 Pro",
+      "released": "2018",
+      "screen": "{resolution: '1080x2280', size: 6.26, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_twolip",
+      "vendor": "xiaomi"
+    },
+    "umi": {
+      "bottom": 44,
+      "name": "Mi 10",
+      "released": "2020",
+      "screen": "{refresh_rate: 90, resolution: '1080x2340', size: 6.67, technology: 'AMOLED'}",
+      "top": 44,
+      "tree": "android_device_xiaomi_umi",
+      "vendor": "xiaomi"
+    },
+    "unicorn": {
+      "name": "12S Pro",
+      "released": "2022",
+      "screen": "{refresh_rate: 120, resolution: '1440x3200', size: 6.73, technology: 'AMOLED'}",
+      "tree": "android_device_xiaomi_unicorn",
+      "vendor": "xiaomi"
+    },
+    "ursa": {
+      "name": "Mi 8 Explorer Edition",
+      "released": "2018",
+      "screen": "{resolution: '1080x2248', size: 6.21, technology: 'AMOLED'}",
+      "tree": "android_device_xiaomi_ursa",
+      "vendor": "xiaomi"
+    },
+    "us996": {
+      "name": "V20 (GSM Unlocked)",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_us996",
+      "vendor": "lge"
+    },
+    "us996d": {
+      "name": "V20 (GSM Unlocked - DirtySanta)",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_us996d",
+      "vendor": "lge"
+    },
+    "us997": {
+      "name": "G6 (US Unlocked)",
+      "released": "2017",
+      "screen": "{resolution: '2880x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_us997",
+      "vendor": "lge"
+    },
+    "v1awifi": {
+      "name": "Galaxy Note Pro 12.1 (Wi-Fi)",
+      "released": "2014",
+      "screen": "{resolution: '2560x1600', size: 12.2, technology: 'Super clear LCD'}",
+      "tree": "android_device_samsung_v1awifi",
+      "vendor": "samsung"
+    },
+    "v400": {
+      "name": "G Pad 7",
+      "released": "2014",
+      "screen": "{resolution: '1280x800', size: 7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_v400",
+      "vendor": "lge"
+    },
+    "v410": {
+      "name": "G Pad 7 LTE",
+      "released": "2014",
+      "screen": "{resolution: '1280x800', size: 7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_v410",
+      "vendor": "lge"
+    },
+    "v480": {
+      "name": "G Pad 8",
+      "released": "2014",
+      "screen": "{resolution: '1280x800', size: 8, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_v480",
+      "vendor": "lge"
+    },
+    "v500": {
+      "name": "G Pad 8.3",
+      "released": "2013",
+      "screen": "{resolution: '1920x1200', size: 8.3, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_v500",
+      "vendor": "lge"
+    },
+    "v521": {
+      "name": "G Pad X 8.0 (TMO)",
+      "released": "2016",
+      "screen": "{resolution: '1200x1920', size: 8, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_v521",
+      "vendor": "lge"
+    },
+    "vayu": {
+      "name": "POCO X3 Pro",
+      "released": "2021",
+      "screen": "{refresh_rate: 120, resolution: '2400x1080', size: 6.67, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_vayu",
+      "vendor": "xiaomi"
+    },
+    "vela": {
+      "bottom": 42,
+      "name": "Mi CC9 Meitu Edition",
+      "released": "2019",
+      "screen": "{resolution: '1080x2340', size: 6.31, technology: 'AMOLED'}",
+      "top": 38,
+      "tree": "android_device_xiaomi_vela",
+      "vendor": "xiaomi"
+    },
+    "venus": {
+      "name": "Mi 11",
+      "released": "2020",
+      "screen": "{refresh_rate: 120, resolution: '1440x3200', size: 6.81, technology: 'Super AMOLED'}",
+      "tree": "android_device_xiaomi_venus",
+      "vendor": "xiaomi"
+    },
+    "victara": {
+      "name": "moto x (2014)",
+      "released": "2014",
+      "screen": "{resolution: '1080x1920', size: 5.2, technology: 'AMOLED'}",
+      "tree": "android_device_motorola_victara",
+      "vendor": "motorola"
+    },
+    "violet": {
+      "bottom": 41,
+      "name": "Redmi Note 7 Pro",
+      "released": "2019",
+      "screen": "{resolution: '2340x1080', size: 6.3, technology: 'IPS LCD'}",
+      "top": 41,
+      "tree": "android_device_xiaomi_violet",
+      "vendor": "xiaomi"
+    },
+    "voyager": {
+      "name": "Xperia XA2 Plus",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 6, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_voyager",
+      "vendor": "sony"
+    },
+    "vs985": {
+      "name": "G3 (VZW)",
+      "released": "2014",
+      "screen": "{resolution: '2560x1440', size: 5.5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_vs985",
+      "vendor": "lge"
+    },
+    "vs995": {
+      "name": "V20 (VZW)",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_vs995",
+      "vendor": "lge"
+    },
+    "w5": {
+      "name": "Optimus L70",
+      "released": "2014",
+      "screen": "{resolution: '480x800', size: 4.5, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_w5",
+      "vendor": "lge"
+    },
+    "w7": {
+      "name": "Optimus L90",
+      "released": "2014",
+      "screen": "{resolution: '540x960', size: 4.7, technology: 'IPS LCD'}",
+      "tree": "android_device_lge_w7",
+      "vendor": "lge"
+    },
+    "wade": {
+      "name": "TV Box 4K (2021)",
+      "released": "2021",
+      "screen": "None",
+      "tree": "android_device_askey_wade",
+      "vendor": "askey"
+    },
+    "waffle": {
+      "name": "12",
+      "released": "2023",
+      "screen": "{refresh_rate: 120, resolution: '1440x3216', size: 6.82, technology: 'LTPO AMOLED'}",
+      "tree": "android_device_oneplus_waffle",
+      "vendor": "oneplus"
+    },
+    "walleye": {
+      "name": "Pixel 2",
+      "released": "2017",
+      "screen": "{resolution: '1080x1920', size: 5, technology: 'AMOLED'}",
+      "tree": "android_device_google_muskie",
+      "vendor": "google"
+    },
+    "wayne": {
+      "name": "Mi 6X",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 5.99, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_wayne",
+      "vendor": "xiaomi"
+    },
+    "whyred": {
+      "name": "Redmi Note 5 Pro",
+      "released": "2018",
+      "screen": "{resolution: '2160x1080', size: 5.99, technology: 'IPS LCD'}",
+      "tree": "android_device_xiaomi_whyred",
+      "vendor": "xiaomi"
+    },
+    "wt88047": {
+      "name": "Redmi 2",
+      "released": "2015",
+      "screen": "{resolution: '720x1280', size: 4.7, technology: 'IPS LCD'}",
+      "tree": "android_device_wingtech_wt88047",
+      "vendor": "wingtech"
+    },
+    "x1s": {
+      "name": "Galaxy S20 (4G/5G)",
+      "released": "2020",
+      "screen": "{resolution: '3200x1440', size: 6.2, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_x1s",
+      "vendor": "samsung"
+    },
+    "x2": {
+      "name": "Le Max 2",
+      "released": "2016",
+      "screen": "{resolution: '2560x1440', size: 5.7, technology: 'IPS LTPS LCD'}",
+      "tree": "android_device_leeco_x2",
+      "vendor": "leeco"
+    },
+    "xmsirius": {
+      "name": "Mi 8 SE",
+      "released": "2018",
+      "screen": "{resolution: '1080x2244', size: 5.88, technology: 'AMOLED'}",
+      "tree": "android_device_xiaomi_xmsirius",
+      "vendor": "xiaomi"
+    },
+    "xt897": {
+      "name": "PHOTON Q 4G LTE",
+      "released": "2012",
+      "screen": "{resolution: '540x960', size: 4.3, technology: 'TFT LCD'}",
+      "tree": "android_device_motorola_xt897",
+      "vendor": "motorola"
+    },
+    "xz2c": {
+      "name": "Xperia XZ2 Compact",
+      "released": "2018",
+      "screen": "{resolution: '1080x2160', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_xz2c",
+      "vendor": "sony"
+    },
+    "y2s": {
+      "name": "Galaxy S20+ (4G/5G)",
+      "released": "2020",
+      "screen": "{resolution: '3200x1440', size: 6.7, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_y2s",
+      "vendor": "samsung"
+    },
+    "yuga": {
+      "name": "Xperia Z",
+      "released": "2013",
+      "screen": "{resolution: '1080x1920', size: 5, technology: 'TFT LCD'}",
+      "tree": "android_device_sony_yuga",
+      "vendor": "sony"
+    },
+    "z2_plus": {
+      "name": "Zuk Z2 Plus",
+      "released": "2016",
+      "screen": "{resolution: '1920x1080', size: 5, technology: 'IPS LCD'}",
+      "tree": "android_device_zuk_z2_plus",
+      "vendor": "zuk"
+    },
+    "z3": {
+      "name": "Xperia Z3",
+      "released": "2014",
+      "screen": "{resolution: '1920x1080', size: 5.2, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_z3",
+      "vendor": "sony"
+    },
+    "z3c": {
+      "name": "Xperia Z3 Compact",
+      "released": "2014",
+      "screen": "{resolution: '1280x720', size: 4.6, technology: 'IPS LCD'}",
+      "tree": "android_device_sony_z3c",
+      "vendor": "sony"
+    },
+    "z3s": {
+      "name": "Galaxy S20 Ultra (5G)",
+      "released": "2020",
+      "screen": "{resolution: '3200x1440', size: 6.9, technology: 'Dynamic AMOLED'}",
+      "tree": "android_device_samsung_z3s",
+      "vendor": "samsung"
+    },
+    "zangya": {
+      "name": "Aquaris X2",
+      "released": "2018",
+      "screen": "{resolution: '2160x1080', size: 5.65, technology: 'IPS LTPS LCD'}",
+      "tree": "android_device_bq_zangya",
+      "vendor": "bq"
+    },
+    "zangyapro": {
+      "name": "Aquaris X2 Pro",
+      "released": "2018",
+      "screen": "{resolution: '2160x1080', size: 5.65, technology: 'IPS LTPS LCD'}",
+      "tree": "android_device_bq_zangyapro",
+      "vendor": "bq"
+    },
+    "zenfone3": {
+      "name": "Zenfone 3 (ZE520KL/ZE552KL)",
+      "released": "2016",
+      "screen": "",
+      "tree": "android_device_asus_zenfone3",
+      "vendor": "asus"
+    },
+    "zerofltexx": {
+      "name": "Galaxy S6",
+      "released": "2015",
+      "screen": "{resolution: '2560x1440', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_zerofltexx",
+      "vendor": "samsung"
+    },
+    "zeroltexx": {
+      "name": "Galaxy S6 Edge",
+      "released": "2015",
+      "screen": "{resolution: '2560x1440', size: 5.1, technology: 'Super AMOLED'}",
+      "tree": "android_device_samsung_zeroltexx",
+      "vendor": "samsung"
+    },
+    "zeus": {
+      "name": "12 Pro",
+      "released": "2021",
+      "screen": "{refresh_rate: 120, resolution: '1440x3200', size: 6.73, technology: 'AMOLED'}",
+      "tree": "android_device_xiaomi_zeus",
+      "vendor": "xiaomi"
+    },
+    "zippo": {
+      "name": "Z6 Pro",
+      "released": "2019",
+      "screen": "{resolution: '1080x2340', size: 6.39, technology: 'Super AMOLED'}",
+      "tree": "android_device_lenovo_zippo",
+      "vendor": "lenovo"
+    },
+    "zizhan": {
+      "name": "MIX Fold 2",
+      "released": "2022",
+      "screen": "",
+      "tree": "android_device_xiaomi_zizhan",
+      "vendor": "xiaomi"
+    }
+  },
+  "source": "LineageOS/hudson and LineageOS/lineage_wiki, via raw.githubusercontent.com"
+}

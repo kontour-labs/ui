@@ -313,6 +313,18 @@ the second largest in it. `smoothing = 0f` turns the continuous corners off
 across the whole scale in the same call, which is the only place it can be done
 consistently — see below.
 
+**Two shapes may disagree with the scale's smoothing, and only two.** A scale
+with two smoothings in it is a scale whose corners do not match each other, which
+is why `smoothing` is a `kontourShapes` argument rather than a field anyone can
+set per rung. The exception is the pair of shapes that are not nested inside
+*each other* but inside the **display**: the backdrop's receded screen and a
+bottom sheet's top corners. Where a platform states its own bezel curve — iOS
+always, Android from a short table of device families — those two take it, and
+everything else on screen keeps the scale's. A device that states nothing changes
+nothing. [`overlays.md`](overlays.md) has the detail and is honest about which
+half of it is measured and which half is a judgement; a third shape wanting the
+exemption would need its own reason written down.
+
 `kontourShapes()` with no arguments is exactly `Shapes()`, asserted on every
 build. A brand that disagrees about which rung a *pressable* thing lands on is
 replacing a mapping rather than adjusting a scale, and says so with `copy`:
