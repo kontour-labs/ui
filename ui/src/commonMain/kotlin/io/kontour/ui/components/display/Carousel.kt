@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
@@ -16,12 +17,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -43,13 +45,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
@@ -337,12 +344,14 @@ fun Carousel(
  *
  * **Pass `onPageSelect` unless something else can change the page.** Without it
  * the dots are decoration and the carousel is swipe-only — see the note on
- * [Carousel]. With it each dot is a `Role.RadioButton` with a real touch target,
- * which is a pointer route and an assistive-tech route in one.
+ * [Carousel]. With it each dot is a `Role.RadioButton` naming the page it goes
+ * to, and the whole strip becomes one full-height target that sends a tap to the
+ * nearest dot: a pointer route and an assistive-tech route, kept separate so
+ * neither has to pay for the other's shape.
  *
- * The current dot **widens** rather than only changing colour. Colour alone
- * fails WCAG 1.4.1, and at this size — a few pixels of tinted circle — it is the
- * hardest place in the system to see a tint difference.
+ * The current page is drawn **wider** than the rest rather than only tinted.
+ * Colour alone fails WCAG 1.4.1, and at this size — a few pixels of tinted
+ * circle — it is the hardest place in the system to see a tint difference.
  *
  * @param onPageSelect `null` makes the dots decorative, and hides them from the
  *   accessibility tree entirely: the carousel already announces "3 of 5", and a
@@ -354,7 +363,7 @@ fun PageIndicator(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onPageSelect: ((Int) -> Unit)? = null,
-    style: PageIndicatorStyle = PageIndicatorStyle.Dots,
+    style: PageIndicatorStyle = PageIndicatorStyle.Pill,
     activeColour: Color = Theme.colours.primary,
     inactiveColour: Color = Theme.colours.outlineStrong,
     label: (Int, Int) -> String = Theme.strings.pageOfCount,
@@ -446,22 +455,119 @@ private fun PageDots(
 ) {
     val count = state.count
     val current = state.currentPage
-    val worm = style == PageIndicatorStyle.Worm
+    // Both of the styles that draw a pill *over* the dots rather than widening
+    // one of them. What separates them is only how long that pill is at rest.
+    val travels = style != PageIndicatorStyle.Dots
 
-    // Where each dot ended up, so the worm can be drawn between two of them.
+    // Where each dot ended up, so the pill can be drawn between two of them.
     //
     // Measured rather than derived from the dot size and the gap, because those
-    // are not the pitch: with `onPageSelect` every dot is wrapped in a 48dp
-    // touch target and sits three times further from its neighbour than it looks.
+    // need not be the pitch.
     val dotCentre = remember(count) { FloatArray(count) }
     val dotRadius = with(LocalDensity.current) { PageIndicatorDefaults.DotSize.toPx() / 2f }
-    val position = if (worm) state.pagePosition else 0f
+    // **How long the pill is when nothing is moving**, and the whole of the
+    // difference between the two travelling styles. A worm contracts to a dot,
+    // so at rest it says nothing about which page you are on; a pill stays wider
+    // than one, so it does.
+    val resting = if (style == PageIndicatorStyle.Pill) {
+        // `ActiveWidth` is what it is *for* — the width `Dots` widens a dot to —
+        // **capped at the pitch**, because this pill does not get a slot of its
+        // own. `Dots` reflows: the active dot takes 20dp and the 6dp gaps stay
+        // 6dp either side of it. Nothing reflows here, so at the default spacing
+        // a 20dp pill centred on a dot 14dp from the next one reaches that dot's
+        // near edge and the two draw as one shape touching at a point. Capped, it
+        // keeps `Gap / 2` of daylight, and a theme that spaces its dots further
+        // apart gets the full `ActiveWidth` back.
+        minOf(
+            PageIndicatorDefaults.ActiveWidth,
+            PageIndicatorDefaults.DotSize + PageIndicatorDefaults.Gap,
+        )
+    } else {
+        PageIndicatorDefaults.DotSize
+    }
+    // How far the resting pill hangs past the dot it rests on, either side.
+    //
+    // The first and last dot sit at the ends of the row, so without this the pill
+    // draws outside the indicator's own bounds — and is cut off by whatever clips
+    // next, which at the left edge of a screen is the screen. Three dp at the
+    // default spacing, and none at all for the styles whose pill is dot-sized.
+    val overhang = ((resting - PageIndicatorDefaults.DotSize) / 2).coerceAtLeast(0.dp)
+    val restingWidth = with(LocalDensity.current) { resting.toPx() }
+    // The same figure in pixels. The dots are measured *inside* the reserved
+    // room and the tap arrives *outside* it — `positionInParent` is relative to
+    // a parent's content, and a padding modifier is not part of that — so one of
+    // the two has to cross, and it is cheaper for the gesture to cross than for
+    // every dot to.
+    val inset = with(LocalDensity.current) { overhang.toPx() }
+    val position = if (travels) state.pagePosition else 0f
+    // The gesture below outlives the composition that installed it, so the
+    // handler has to be read at tap time rather than captured.
+    val select = rememberUpdatedState(onPageSelect)
 
     Row(
         modifier = modifier
             .then(if (onPageSelect != null) Modifier.selectableGroup() else Modifier)
             .then(
-                if (worm && count > 0) {
+                if (onPageSelect != null) {
+                    // **One target over the whole strip, rather than one per dot.**
+                    //
+                    // Reported as the indicator being too spread out, and it was:
+                    // `minimumTouchTarget` on each dot reserves 48dp of row apiece
+                    // on Android, so five 8dp dots held 264dp to show 40dp of ink
+                    // and sat nearly four times further apart than they looked.
+                    //
+                    // Reserved once, on the strip, `fill = true`: the row becomes
+                    // a full-height band the width of the dots, and the tap goes
+                    // to whichever dot centre is nearest the finger. Every pixel
+                    // of the band belongs to some page, so nothing is lost by the
+                    // dots no longer each owning a box — a 14dp-wide slice of a
+                    // 48dp-tall band is an easier thing to hit than an 8dp circle,
+                    // which is what the eye was aiming at all along.
+                    //
+                    // `fill` rather than the centring default because the dot
+                    // centres are measured in the row's own space: filled, the
+                    // reserved band *is* the row, so the x a tap arrives at and
+                    // the x `reportCentre` recorded are the same number. Centred,
+                    // they would differ by half the slack and only on the axis
+                    // where there is any.
+                    //
+                    // The trade is honest and written down under
+                    // `page-indicator.md`: a slice is narrower than WCAG 2.5.8's
+                    // 24dp, and the exact route — the `onClick` in each dot's
+                    // semantics below — is unaffected by how wide anything is.
+                    Modifier
+                        .minimumTouchTarget(fill = true)
+                        .pointerCursor(enabled = enabled)
+                        .then(
+                            if (enabled && count > 0) {
+                                Modifier.pointerInput(count, inset) {
+                                    detectTapGestures { at ->
+                                        var nearest = 0
+                                        var best = Float.MAX_VALUE
+                                        for (page in 0 until count) {
+                                            val away = kotlin.math.abs(dotCentre[page] + inset - at.x)
+                                            if (away < best) {
+                                                best = away
+                                                nearest = page
+                                            }
+                                        }
+                                        select.value?.invoke(nearest)
+                                    }
+                                }
+                            } else {
+                                Modifier
+                            }
+                        )
+                } else {
+                    Modifier
+                }
+            )
+            // Outside the draw below, so the pill is measured in the same space
+            // the dot centres were recorded in, and inside the band above, so
+            // every pixel of the reserved room still belongs to a page.
+            .padding(horizontal = overhang)
+            .then(
+                if (travels && count > 0) {
                     Modifier.drawWithContent {
                         drawContent()
                         val at = position.coerceIn(0f, (count - 1).toFloat())
@@ -477,14 +583,19 @@ private fun PageDots(
                         val lead = a + (b - a) * (fraction * 2f).coerceAtMost(1f)
                         val trail = a + (b - a) * (fraction * 2f - 1f).coerceAtLeast(0f)
                         if (a == 0f && b == 0f) return@drawWithContent
+                        // Measured from the pill's own resting length rather
+                        // than from the dot's diameter: a worm rests as a circle
+                        // and a pill rests wider than one, and both then stretch
+                        // by exactly the distance the leading edge is ahead of
+                        // the trailing one.
                         drawRoundRect(
                             color = activeColour,
                             topLeft = Offset(
-                                minOf(lead, trail) - dotRadius,
+                                minOf(lead, trail) - restingWidth / 2f,
                                 (size.height - dotRadius * 2f) / 2f,
                             ),
                             size = Size(
-                                kotlin.math.abs(lead - trail) + dotRadius * 2f,
+                                kotlin.math.abs(lead - trail) + restingWidth,
                                 dotRadius * 2f,
                             ),
                             cornerRadius = CornerRadius(dotRadius),
@@ -506,9 +617,15 @@ private fun PageDots(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         repeat(count) { page ->
-            val active = page == current && !worm
+            // **Which page you are on, and which dot is drawn wide, are two
+            // questions now.** They were one, and a worm answered the second
+            // "none of them" — so it answered the first that way too, and a
+            // screen reader heard a row of page buttons with none of them
+            // current. Only `Dots` widens a dot; every style has a current page.
+            val selected = page == current
+            val wide = selected && !travels
             val width by animateDpAsState(
-                targetValue = if (active) {
+                targetValue = if (wide) {
                     PageIndicatorDefaults.ActiveWidth
                 } else {
                     PageIndicatorDefaults.DotSize
@@ -524,9 +641,9 @@ private fun PageDots(
                         .height(PageIndicatorDefaults.DotSize)
                         .clip(Theme.shapes.capsule),
                     shape = Theme.shapes.capsule,
-                    // Under a worm every dot is a track, and the pill on top is
-                    // the only thing that says which page this is.
-                    colour = if (active) activeColour else inactiveColour,
+                    // Under a travelling style every dot is a track, and the pill
+                    // drawn over them is what says which page this is.
+                    colour = if (wide) activeColour else inactiveColour,
                     content = {},
                 )
             }
@@ -537,17 +654,26 @@ private fun PageDots(
                 Box(
                     modifier = Modifier
                         .reportCentre(dotCentre, page)
-                        .minimumTouchTarget()
-                        .pointerCursor(enabled = enabled)
-                        .selectable(
-                            selected = active,
-                            onClick = { onPageSelect(page) },
-                            enabled = enabled,
-                            role = androidx.compose.ui.semantics.Role.RadioButton,
-                            indication = null,
-                            interactionSource = null,
-                        )
-                        .semantics { this.contentDescription = label(page, count) },
+                        // **Semantics, and no touch target of its own.** The
+                        // strip's `pointerInput` above owns the pointer route and
+                        // picks the nearest dot to where the finger landed; what
+                        // is left here is what a screen reader needs, which was
+                        // never the part that took up room. `onClick` in the
+                        // semantics tree is a real action — TalkBack and
+                        // VoiceOver activate the focused node, not a rectangle —
+                        // so the two routes are independent and only one of them
+                        // costs layout.
+                        .semantics {
+                            this.contentDescription = label(page, count)
+                            this.role = Role.RadioButton
+                            this.selected = selected
+                            if (enabled) {
+                                onClick {
+                                    onPageSelect(page)
+                                    true
+                                }
+                            }
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     dot()
@@ -562,8 +688,10 @@ enum class PageIndicatorStyle {
     /**
      * The current dot widens into a pill and the others stay round.
      *
-     * The default, and the right one when the indicator is also the control —
-     * every dot keeps its own footprint, so every dot keeps its own target.
+     * Nothing travels: the old page's dot narrows and the new one widens, which
+     * is two things changing rather than one thing moving. Right where the
+     * indicator is never the *subject* of a gesture — a stepper's position, a
+     * wizard — and where a swipe's midpoint is not worth drawing.
      */
     Dots,
 
@@ -576,8 +704,34 @@ enum class PageIndicatorStyle {
      * *middle* of a swipe rather than only its ends: the pill is at its longest
      * exactly halfway between two pages. That needs a fractional page position,
      * which is why [CarouselState.pagePosition] exists.
+     *
+     * The pill contracts to a *dot* at each end, so at rest this looks exactly
+     * like an indicator with no current page at all. [Pill] is the same travel
+     * with a resting width, and is the default for that reason.
      */
     Worm,
+
+    /**
+     * Both of the above: round dots, and a pill over the current one that
+     * stretches to the next as the page travels.
+     *
+     * **The default.** [Dots] shows where you are and says nothing about the
+     * journey; [Worm] shows the journey and, at rest, nothing about where you
+     * are — the pill is a dot like all the others until something moves. This
+     * rests like the first and travels like the second, which is the only one of
+     * the three that is legible in both states.
+     *
+     * It also fixes something [Worm] gets wrong and this one cannot: under a
+     * worm every dot is drawn inactive and **no dot reports as selected**, so a
+     * screen reader hears a row of page buttons with none of them current. The
+     * pill is drawn on top of the dots rather than in place of them, so the
+     * selection is a fact about a dot again.
+     *
+     * The narrowest of the three, and the widest the pill can rest at is the
+     * pitch: it draws over a slot the size of every other one rather than being
+     * given a slot of its own, so past that it would touch its neighbours.
+     */
+    Pill,
 }
 
 object PageIndicatorDefaults {

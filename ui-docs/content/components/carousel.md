@@ -50,24 +50,36 @@ make a sustained one. So:
 - the carousel carries **previous** and **next** as custom accessibility
   actions, the same way `SwipeActions` and `ReorderableItem` do;
 - it announces "3 of 5" as its state;
-- and `PageIndicator` becomes a set of real targets the moment you give it
-  `onPageSelect`.
+- and `PageIndicator` becomes a real target the moment you give it
+  `onPageSelect` — one full-height band that sends a tap to the nearest dot, plus
+  a named `Role.RadioButton` per page for a screen reader.
 
 A carousel with a decorative indicator and no arrows is operable by exactly one
 input method, and the app has four.
 
 ### Indicator styles
 
-`PageIndicator(style = PageIndicatorStyle.Worm)` replaces the widening dot with a
-single pill that stretches from the dot it is leaving to the one it is arriving
-at, then contracts.
+**The default, `PageIndicatorStyle.Pill`, does both halves.** A pill sits over the
+current dot at rest, and stretches from the dot it is leaving to the one it is
+arriving at while a page travels, then contracts onto it.
 
-It reads as one thing travelling rather than one dot going out and another coming
-on, and it is the only style that shows the *middle* of a swipe: the pill is at
+The travel is the only thing that shows the *middle* of a swipe: the pill is at
 its longest exactly halfway between two pages. That needs a fractional page
 position, which is what `CarouselState.pagePosition` is for — `currentPage` is
 the right answer for anything that has to *name* a page, and this is for anything
 that has to draw the space between two.
+
+`PageIndicatorStyle.Worm` is the same travel with the pill contracting to a
+*dot*, so at rest it looks like an indicator with no current page at all — which
+it also *is*, to a screen reader: under a worm every dot is drawn inactive and
+none reports as selected. `PageIndicatorStyle.Dots` is the other half on its own:
+the current dot widens and nothing travels, which is right where the indicator is
+never the subject of a gesture.
+
+`Pill` is the narrowest of the three. `Dots` has to reserve a slot wide enough for
+the widened dot, and `Pill` draws over a slot the size of every other one — capped
+at the pitch, so it cannot reach its neighbours — and reserves only the few dp it
+hangs past the first and last dot by.
 
 Under a worm every dot is a track, so `Dots` remains the better choice when the
 indicator is also the control: there each dot keeps its own footprint and its own

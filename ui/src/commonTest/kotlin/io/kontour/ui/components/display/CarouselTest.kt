@@ -146,7 +146,15 @@ class CarouselTest {
         }
     }
 
-    /** Every dot is its own target, so there are as many as there are pages. */
+    /**
+     * One clickable node per page, and no more.
+     *
+     * The *target* is one band over the whole strip now rather than one box per
+     * dot — `PageIndicatorStripTest` is where that is measured — but the semantics
+     * are still per page, and this is what says the two did not get confused with
+     * each other. A strip that took the gesture and forgot to leave a node behind
+     * would be reachable by finger and invisible to a reader.
+     */
     @Test
     fun thereIsOneDotPerPage() = runComposeUiTest {
         setContent { Harness(onPageSelect = {}, pages = 4) }

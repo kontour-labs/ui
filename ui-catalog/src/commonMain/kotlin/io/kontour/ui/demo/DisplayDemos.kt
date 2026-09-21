@@ -479,7 +479,12 @@ internal val StatDemo = ComponentDemo(slug = "stat", knobs = listOf(statTrend)) 
     }
 }
 
-private val indicatorStyle = Knob.Choice("Style", PageIndicatorStyle.entries.toList())
+// `initial` is the component's own default rather than the first declared, so the
+// demo opens on what a caller who passes no `style` actually gets. On one line
+// because `check-components.py` reads `Knob.Choice(…, X.entries)` a line at a time
+// to know which enums a reader can sweep.
+private val indicatorStyle =
+    Knob.Choice("Style", PageIndicatorStyle.entries.toList(), initial = PageIndicatorStyle.Pill)
 
 internal val CarouselDemo = ComponentDemo(slug = "carousel", knobs = listOf(indicatorStyle)) {
     val carousel = rememberCarouselState { 4 }
@@ -523,8 +528,8 @@ internal val PageIndicatorDemo = ComponentDemo(
 ) {
     val carousel = rememberCarouselState { 5 }
     val scope = rememberCoroutineScope()
-    // The indicator is also the control here, which is the case its default
-    // style is chosen for: every dot keeps its own footprint and its own target.
+    // The indicator is also the control here, which is what the strip's single
+    // touch target is for: one band the width of the dots rather than 48dp a dot.
     PageIndicator(
         state = carousel,
         style = this[indicatorStyle],

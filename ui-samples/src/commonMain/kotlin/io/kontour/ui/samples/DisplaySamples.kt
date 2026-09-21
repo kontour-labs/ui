@@ -300,9 +300,9 @@ fun PageIndicatorBasics() {
     val carousel = rememberCarouselState { 5 }
     val scope = rememberCoroutineScope()
 
-    // Given `onPageSelect` the dots become the control as well as the readout,
-    // which is what the default style is sized for: every dot keeps its own
-    // footprint and its own touch target.
+    // Given `onPageSelect` the dots become the control as well as the readout.
+    // The strip takes the tap and sends it to the nearest dot, so the indicator
+    // stays the width of its own ink rather than 48dp per page.
     PageIndicator(
         state = carousel,
         onPageSelect = { page -> scope.launch { carousel.scrollToPage(page) } },
