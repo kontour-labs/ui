@@ -379,22 +379,6 @@ internal val ToolbarDemo = ComponentDemo(slug = "toolbar") {
 
 // --- Spinner --------------------------------------------------------------
 
-internal val SpinnerDemo = ComponentDemo(slug = "spinner") {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Spinner()
-            Text("default", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Spinner(size = 32.dp)
-            Text("32dp", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
-        }
-    }
-}
-
 internal val actionDemos = listOf(
     ButtonDemo,
     IconButtonDemo,
@@ -406,5 +390,4 @@ internal val actionDemos = listOf(
     SplitButtonDemo,
     FabMenuDemo,
     ToolbarDemo,
-    SpinnerDemo,
 )

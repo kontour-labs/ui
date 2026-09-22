@@ -31,11 +31,12 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
+import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.sheet.ModalBottomSheet
-import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.sheet.SheetHeaderStyle
+import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.sheet.rememberSheetState
@@ -315,9 +316,27 @@ internal val SheetHeaderDemo = ComponentDemo(
     }
 }
 
+internal val DragHandleDemo = ComponentDemo(slug = "drag-handle") {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+    ) {
+        // No `LocalSheetState`, so this is the resting pill rather than the
+        // draggable one — a handle is drawn by the sheet, not dragged on its own.
+        DragHandle(state = null)
+        Text(
+            "Drawn by a sheet, not draggable on its own",
+            style = Theme.typography.labelSmall,
+            colour = Theme.colours.contentMuted,
+        )
+    }
+}
+
 internal val sheetDemos = listOf(
     BottomSheetDemo,
     ModalBottomSheetDemo,
     SideSheetDemo,
     SheetHeaderDemo,
+    DragHandleDemo,
 )

@@ -1,6 +1,5 @@
 package io.kontour.ui.demo
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,27 +37,25 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.nav.Tab
-import io.kontour.ui.nav.TabBar
 import io.kontour.ui.overlay.AlertDialog
+import io.kontour.ui.overlay.BackdropStyle
 import io.kontour.ui.overlay.Command
 import io.kontour.ui.overlay.CommandPalette
 import io.kontour.ui.overlay.ContextMenuArea
-import io.kontour.ui.overlay.BackdropStyle
 import io.kontour.ui.overlay.Dialog
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.LoadingOverlay
+import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.MenuDivider
 import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.MenuSectionHeader
-import io.kontour.ui.overlay.LocalOverlayHost
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.OverlayLayer
-import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
-import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.overlay.Popover
+import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.overlay.SubMenu
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastPosition
@@ -609,26 +606,6 @@ private fun backdropNote(scrim: ScrimStyle, backdrop: BackdropStyle): String =
         }
     }
 
-internal val SelectionIndicatorDemo = ComponentDemo(slug = "selection-indicator") {
-    var selected by remember { mutableStateOf(0) }
-    val tabs = listOf("Departures", "Route map", "Alerts")
-    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-        TabBar(modifier = Modifier.fillMaxWidth()) {
-            tabs.forEachIndexed { index, label ->
-                Tab(selected = selected == index, onClick = { selected = index }, key = index) {
-                    +label
-                }
-            }
-        }
-        Text(
-            "The pill travels between tabs rather than appearing on one — one " +
-                "indicator owned by the bar, not three owned by the tabs.",
-            style = Theme.typography.bodySmall,
-            colour = Theme.colours.contentMuted,
-        )
-    }
-}
-
 internal val overlayDemos = listOf(
     DialogDemo,
     AlertDialogDemo,
@@ -640,5 +617,4 @@ internal val overlayDemos = listOf(
     LoadingOverlayDemo,
     CommandPaletteDemo,
     OverlayHostDemo,
-    SelectionIndicatorDemo,
 )

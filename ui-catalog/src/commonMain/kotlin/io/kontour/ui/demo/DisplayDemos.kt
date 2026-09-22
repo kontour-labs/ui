@@ -58,6 +58,7 @@ import io.kontour.ui.components.display.PageIndicatorStyle
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.SkeletonListItem
 import io.kontour.ui.components.display.SkeletonText
+import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StatTrend
 import io.kontour.ui.components.display.StepProgress
@@ -72,9 +73,9 @@ import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.marquee
 import io.kontour.ui.theme.Theme
-import kotlinx.coroutines.launch
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.launch
 
 private val cardVariant = Knob.Choice("Variant", CardVariant.entries.toList())
 private val cardClickable = Knob.Flag("Clickable")
@@ -645,12 +646,29 @@ internal val KbdDemo = ComponentDemo(slug = "kbd", knobs = listOf(kbdIcons)) {
     }
 }
 
+internal val SpinnerDemo = ComponentDemo(slug = "spinner") {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Spinner()
+            Text("default", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Spinner(size = 32.dp)
+            Text("32dp", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
+        }
+    }
+}
+
 internal val displayDemos = listOf(
     CardDemo,
     TagDemo,
     BadgeDemo,
     AvatarDemo,
     ProgressDemo,
+    SpinnerDemo,
     BannerDemo,
     CalloutDemo,
     TimelineDemo,

@@ -15,7 +15,6 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.Eye
-import com.composables.icons.tabler.outline.EyeOff
 import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Search
 import com.composables.icons.tabler.outline.Train
@@ -32,6 +31,10 @@ import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.TextArea
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.components.text.TextFieldVariant
+import io.kontour.ui.components.text.TextSelectionToolbar
+import io.kontour.ui.components.text.TextToolbarAction
+import io.kontour.ui.components.text.rememberImeChain
+import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 
 private val fieldVariant =
@@ -49,6 +52,21 @@ private val fieldError = Knob.Flag("Error")
  */
 private val fieldReadOnly = Knob.Flag("Read-only")
 private val fieldEnabled = Knob.Flag("Enabled", initial = true)
+
+/**
+ * Whether there is an app action to add to the selection menu.
+ *
+ * On a phone this is the whole component: with no extra actions
+ * `TextSelectionToolbar` returns its content untouched and the platform's own
+ * toolbar comes up — the one that knows about the system clipboard, Look Up and
+ * Translate — and passing one trades that surface for a drawn one, because
+ * neither platform gives any way to append to theirs.
+ *
+ * You are almost certainly reading this in a browser, where there is no such
+ * surface to trade. So here the drawn toolbar comes up either way, and the flag
+ * only decides whether "Plan a trip" is on it.
+ */
+private val toolbarActions = Knob.Flag("App action", initial = true)
 
 internal val TextFieldDemo = ComponentDemo(
     slug = "text-field",
@@ -226,6 +244,72 @@ internal val ComboboxDemo = ComponentDemo(slug = "combobox") {
     }
 }
 
+internal val TextToolbarDemo = ComponentDemo(
+    slug = "text-toolbar",
+    knobs = listOf(toolbarActions),
+) {
+    val state = rememberTextFieldState("Select this text to see the toolbar.")
+    val extra = this[toolbarActions]
+    // Rebuilt when the flag moves, and not otherwise: the actions list is read
+    // through `rememberUpdatedState` inside the toolbar, so a new list on every
+    // recomposition would be a new list for no reason.
+    val actions = remember(extra) {
+        if (extra) {
+            listOf(TextToolbarAction("Plan a trip") { echo("Plan a trip") })
+        } else {
+            emptyList()
+        }
+    }
+
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        TextSelectionToolbar(actions = actions) {
+            TextField(state = state, label = "Try it", modifier = Modifier.fillMaxWidth())
+        }
+        Text(
+            text = if (extra) {
+                "Selecting text gives the library's toolbar: the verbs the " +
+                    "framework offered, plus “Plan a trip”. A verb the platform " +
+                    "did not offer is absent rather than greyed out, and past " +
+                    "four items the rest go behind More."
+            } else {
+                "On desktop and the web this still draws — there is no system " +
+                    "selection toolbar to defer to, and Compose's fallback is a " +
+                    "bare popup. On Android and iOS, with no actions to add, the " +
+                    "field is handed straight back and the system's own menu " +
+                    "comes up instead."
+            },
+            style = Theme.typography.bodySmall,
+            colour = Theme.colours.contentMuted,
+        )
+    }
+}
+
+internal val ImeChainDemo = ComponentDemo(slug = "ime-chain") {
+    val from = rememberTextFieldState("Perth Underground")
+    val to = rememberTextFieldState()
+    val chain = rememberImeChain("from", "to")
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+        TextField(
+            state = from,
+            label = "From",
+            imeChain = chain["from"],
+            modifier = Modifier.fillMaxWidth(),
+        )
+        TextField(
+            state = to,
+            label = "To",
+            placeholder = "Where to?",
+            imeChain = chain["to"],
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            "The first field's action key says Next; the last one says Done.",
+            style = Theme.typography.labelSmall,
+            colour = Theme.colours.contentMuted,
+        )
+    }
+}
+
 internal val textEditingDemos = listOf(
     TextFieldDemo,
     SearchFieldDemo,
@@ -234,4 +318,6 @@ internal val textEditingDemos = listOf(
     SelectDemo,
     MultiSelectDemo,
     ComboboxDemo,
+    ImeChainDemo,
+    TextToolbarDemo,
 )

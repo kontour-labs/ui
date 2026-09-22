@@ -50,7 +50,6 @@ import io.kontour.ui.components.list.rememberReorderableState
 import io.kontour.ui.components.list.settingValue
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 
@@ -412,23 +411,6 @@ internal val FadingEdgesDemo = ComponentDemo(slug = "modifier-fading-edges") {
     }
 }
 
-internal val DragHandleDemo = ComponentDemo(slug = "drag-handle") {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-    ) {
-        // No `LocalSheetState`, so this is the resting pill rather than the
-        // draggable one — a handle is drawn by the sheet, not dragged on its own.
-        DragHandle(state = null)
-        Text(
-            "Drawn by a sheet, not draggable on its own",
-            style = Theme.typography.labelSmall,
-            colour = Theme.colours.contentMuted,
-        )
-    }
-}
-
 internal val collectionDemos = listOf(
     ListItemDemo,
     ExpandingListItemDemo,
@@ -440,5 +422,4 @@ internal val collectionDemos = listOf(
     LoadMoreDemo,
     ScrollbarDemo,
     FadingEdgesDemo,
-    DragHandleDemo,
 )

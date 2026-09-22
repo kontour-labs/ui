@@ -77,7 +77,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from doctree import COMPONENTS, CONTENT, INDEXES, family_of  # noqa: E402
+from doctree import COMPONENTS, CONTENT, FAMILY, INDEXES, family_of  # noqa: E402
 
 # Found rather than named. The registry has already moved source set once — out
 # of `commonTest` and into `commonMain`, so the documentation site could read
@@ -248,6 +248,72 @@ def unlisted_demos() -> list[str]:
         for family, path in sorted(families.items())
         if family not in named_by_the_gallery
     ]
+
+
+# `DemoFamily("Adaptive", Tabler.Outline.LayoutSidebar, adaptiveDemos)`, and the
+# declaration that gives a demo its slug. The middle argument is an icon and is
+# skipped rather than matched, because it is the one part of the line nothing
+# here has an opinion about.
+DEMO_FAMILY = re.compile(r'DemoFamily\(\s*"([^"]+)"\s*,[^,]+,\s*(\w+)\s*\)')
+DEMO_SLUG = re.compile(r'\bval (\w+)\s*=\s*ComponentDemo\(\s*(?:slug\s*=\s*)?"([^"]+)"')
+
+
+def misfiled_demos() -> list[str]:
+    """Demos filed under a family their own page does not belong to.
+
+    The gallery and the documentation site each have a notion of which family a
+    component is in, and until this rule they were allowed to disagree. The
+    catalog's is `demoFamilies` — a demo is in whichever `*Demos` list names it,
+    and that list is in whichever `DemoFamily(...)` row holds it. The site's is
+    `family_of()` — a page is in whichever index links to it.
+
+    They disagreed about five components for a whole round. The docs said
+    `Scaffold`, `ListDetailPaneScaffold`, `WindowSizeClass`, `GlassSurface` and
+    `AspectRatioBox` were Adaptive, which they plainly are; the gallery had them
+    all under Foundation, and had exactly one card on its Adaptive page — a page
+    transition, which is motion. Nothing caught it, because every other rule about
+    demos is about a page *existing*, and `FamilyNamesTest` compares the two lists
+    of family *names* rather than their contents. Both halves were green while the
+    two halves of the same documentation pointed at different pages.
+
+    No ceiling. This is a bijection between two lists that are both hand-written
+    and both already parsed here, so a single exemption would only ever mean one
+    of them is wrong.
+    """
+    slugs: dict[str, str] = {}
+    listed: dict[str, str] = {}
+    families: dict[str, str] = {}
+
+    for path in demo_files():
+        text = path.read_text()
+        for name, slug in DEMO_SLUG.findall(text):
+            slugs[name] = slug
+        for family, members in FAMILY_LIST.findall(text):
+            for member in re.findall(r"\w+", members):
+                listed[member] = family
+        for display, family in DEMO_FAMILY.findall(text):
+            families[family] = display
+
+    pages = family_of()
+    problems = []
+    for name, slug in sorted(slugs.items()):
+        gallery = families.get(listed.get(name, ""))
+        page = pages.get(slug)
+        if gallery is None or page is None:
+            # Filed under no family at all, or a slug with no page. Both are
+            # already somebody else's rule, and reporting them twice would only
+            # make the real answer harder to find.
+            continue
+        # `family_of` answers in index stems and the gallery names its pages for
+        # a reader, so one of the two has to be translated. `FAMILY` is the map
+        # the site itself renders with, which makes it the right direction.
+        expected = FAMILY.get(page[0], page[0])
+        if gallery != expected:
+            problems.append(
+                f"`{name}` is on the gallery's {gallery} page and its own "
+                f"`{slug}.md` is in the site's {expected} family"
+            )
+    return problems
 
 
 def public_composables() -> dict[str, Path]:
@@ -1214,6 +1280,14 @@ def main() -> int:
             f"{offender}, so it renders nowhere in the app while satisfying "
             f"every rule that only counts declarations — add it to the "
             f"`listOf(...)` at the end of its file"
+        )
+
+    # And the fourth: the family it is filed under is the family its page is in.
+    # See `misfiled_demos` for the round these two spent disagreeing.
+    for offender in misfiled_demos():
+        problems.append(
+            f"{offender} — a reader following the site to a component and a "
+            f"reader browsing the gallery for it end up on different pages"
         )
 
     # Rule 5 — every public component in the library is documented somewhere.
