@@ -153,9 +153,12 @@ internal val BottomSheetDemo = ComponentDemo(
                     supporting { +"Platform 2 · Joondalup line" }
                 }
             }
-            // And the board arrives once there is a sheet to put it on. At the
-            // peek it would be a list with one row of it showing, which is the
-            // arrangement `part` exists to replace.
+            // And the board, below it. The peek is anchored to the header, so the
+            // board starts exactly at the sheet's edge — it is drawn, off the
+            // bottom of the window, and a drag uncovers it at the speed of the
+            // finger rather than announcing itself at a detent. `from` says which
+            // size it belongs to, which is what keeps a screen reader out of it
+            // until the sheet is that size.
             part(from = SheetDetent.Half) { Departures() }
         }
     }

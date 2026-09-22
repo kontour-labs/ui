@@ -1,6 +1,5 @@
 package io.kontour.ui.sheet
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
@@ -1041,13 +1040,7 @@ private fun BoxScope.SheetSurface(
                                 constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
                         }
                         val placeable = measurable.measure(room)
-                        // What the column placed. What it did *not* place — a
-                        // collapsed part's room — each part keeps for itself, and
-                        // `updateAnchors` below adds the two together. Measuring
-                        // the column is what fills those in, so the order here is
-                        // the whole of the bookkeeping. See
-                        // `SheetState.collapsedHeight`.
-                        state.contentHeight = placeable.height.toFloat()
+                        state.sheetHeight = placeable.height.toFloat()
                         state.updateAnchors(density)
                         val height = placeable.height.coerceAtMost(constraints.maxHeight)
                         layout(placeable.width, height) { placeable.place(0, 0) }
@@ -1098,7 +1091,7 @@ private fun BoxScope.SheetSurface(
 interface SheetContentScope : ColumnScope {
 
     /**
-     * A piece of the sheet that is only there once the sheet is big enough.
+     * A piece of the sheet that belongs to the sizes big enough to show it.
      *
      * ```kotlin
      * BottomSheet(state) {
@@ -1107,35 +1100,39 @@ interface SheetContentScope : ColumnScope {
      * }
      * ```
      *
-     * **The part declares when it appears**, rather than the caller re-deciding
-     * what the sheet contains on every frame of a drag. A sheet collapsed around
-     * a search field is the same sheet as the one showing a header above it, and
-     * saying so here keeps the two from being two code paths that have to agree.
+     * **The part declares which sizes it is for**, rather than the caller
+     * re-deciding what the sheet contains on every frame of a drag. A sheet
+     * collapsed around a search field is the same sheet as the one showing a
+     * departure board under it, and saying so here keeps the two from being two
+     * code paths that have to agree.
      *
-     * `from = null` is a part that is always there, which is worth writing anyway:
-     * it puts every piece of the sheet in the same shape and makes the ones that
-     * come and go legible as the exceptions.
+     * `from = null` is a part that is there at every size, which is worth writing
+     * anyway: it puts every piece of the sheet in the same shape and makes the ones
+     * further down legible as the ones you have to drag for.
      *
-     * It arrives **as the sheet passes the detent**, under the finger, rather
-     * than once the sheet has stopped. The first version of this waited for the
-     * settle and said why: a part changes the content's height,
-     * `SheetDetent.Expanded` is measured from that height, and moving an anchor
-     * under a finger re-pins a drag already in flight. The reason was sound and
-     * the conclusion cost more than it bought — a sheet whose parts were all
-     * gated could not be dragged past its collapsed content at all, because the
-     * height `Expanded` was measured from was the height with everything hidden.
+     * ### Nothing appears, and that is the point
      *
-     * So the heights are two numbers now. A collapsed part takes no room and is
-     * still *measured*, and the sheet reports what it would cost separately — so
-     * the anchors do not move when a part reveals, there is nothing left to
-     * re-pin, and the reveal can happen on the frame the sheet passes the detent.
-     * See `SheetState.sheetHeight`.
+     * **A part is laid out in place, at its full height, whatever the sheet is
+     * doing.** What hides it is the sheet's own bottom edge: a sheet is a column
+     * pinned to the top of a card, the card is only so tall, and a part further
+     * down the column is already drawn below what the card shows. Dragging the
+     * sheet up uncovers it at exactly the speed of the finger — nothing fades in,
+     * nothing is composed on the frame the gesture starts, and nothing can arrive
+     * late.
      *
-     * A collapsed part is collapsed for real: nothing is drawn, nothing can be
-     * tapped, and a screen reader does not announce it. What it costs is that the
-     * part is *composed* while it is hidden, which is the side of that trade this
-     * takes deliberately — it buys a reveal with no composition in it, and the
-     * frame that reveals is the frame with a finger on the glass.
+     * Two versions of this appeared instead, and both were reported as appearing: a
+     * part composed at the settle, and then a part revealed by a clipped height
+     * when the drag committed. The third answer is to stop revealing anything.
+     *
+     * **So order the content the way it is read.** The sheet hides its content at
+     * the bottom, so a part that belongs to a taller detent goes *below* the parts
+     * that are always shown — which is the order a header and its details are
+     * written in anyway. A gated part written above them is above the fold, and
+     * will be visible whatever its `from` says.
+     *
+     * What [from] does decide is whether the part is in the **assistive tree**: off
+     * the bottom of the window it cannot be seen or tapped, and it is not read out
+     * either.
      */
     @Composable
     fun part(from: SheetDetent? = null, content: @Composable ColumnScope.() -> Unit)
@@ -1154,88 +1151,30 @@ private class SheetParts(
 
     @Composable
     override fun part(from: SheetDetent?, content: @Composable ColumnScope.() -> Unit) {
-        val motion = Theme.motion
-        val shown = from == null || state.willReach(from)
-
-        /**
-         * How much of this part's room it currently has, 0 to 1.
-         *
-         * An `Animatable` read only from the layout block and the layer below, so
-         * a part revealing is a layout and a re-record and not a recomposition —
-         * which matters here more than it usually does, because the frame this
-         * runs on is a frame with a finger on the glass.
-         */
-        val reveal = remember { Animatable(if (shown) 1f else 0f) }
-
-        /** What this part tells the sheet about the room it is not taking. */
-        val slot = remember { SheetPart() }
-
-        LaunchedEffect(shown) {
-            val target = if (shown) 1f else 0f
-            if (reveal.value != target) reveal.animateTo(target, motion.tweenDefault())
-        }
-
-        // Registered for as long as the part is composed, which is what keeps a
-        // part that has gone from still being counted.
-        DisposableEffect(slot) {
-            state.parts.add(slot)
-            onDispose { state.parts.remove(slot) }
-        }
-
+        // **Nothing here gates the pixels, and that is the third answer to the same
+        // report.** The first composed a part only once the sheet had settled at its
+        // detent; the second composed it always and revealed it with a clipped
+        // height when the sheet's target passed the detent. Both were "the part
+        // appears", and both were reported as appearing — "it still just appears
+        // partway through the animation ... it needs to be almost as if the content
+        // existed all along, as soon as the user starts dragging it".
+        //
+        // It does exist all along. A sheet is a column pinned to a card's top edge
+        // and the card is only so tall, so content further down the column is
+        // *already there*, below the sheet's bottom edge, and dragging the sheet up
+        // uncovers it at exactly the speed of the finger. There is nothing to
+        // animate, nothing to compose on the frame the drag starts, and nothing
+        // that can arrive late — which is the whole of what was asked for.
+        //
+        // What [from] still decides is whether the part is in the **assistive
+        // tree**. Off the bottom of the window a part cannot be seen or tapped, and
+        // it should not be read out either; `clearAndSetSemantics` rather than
+        // `hideFromAccessibility` for the reason `OverlayHost` writes down where it
+        // hides a dimmed page — the flag leaves the node findable, and measured, it
+        // did.
+        val reachable = from == null || state.willReach(from)
         Column(
-            Modifier
-                // **A collapsed part is not in the assistive tree either.**
-                //
-                // Being unplaced was expected to be enough, and it is not:
-                // measured through `onAllNodesWithTag`, an unplaced part was still
-                // found. `clearAndSetSemantics` rather than
-                // `hideFromAccessibility` for the reason `OverlayHost` writes down
-                // where it hides a dimmed page — the flag leaves the node in the
-                // tree and asks other people's code to honour it, and measured, it
-                // left a button findable. Clearing states the fact in the one
-                // vocabulary every reader of this tree shares.
-                //
-                // Keyed on `shown` rather than on the reveal, so this changes when
-                // the sheet crosses the detent and not on every frame of the
-                // animation. A part on its way out is out as far as a screen
-                // reader is concerned, which is the right answer a beat early
-                // rather than the wrong one.
-                .then(if (shown) Modifier else Modifier.clearAndSetSemantics {})
-                // **Outside the layout below**, so the clip is against the room
-                // the part currently has rather than against its full height. A
-                // part half revealed shows its top half and cuts the rest, which
-                // is what makes it read as unrolling out of the sheet rather than
-                // as a block of text sliding under the one beneath it.
-                .graphicsLayer {
-                    clip = true
-                    // Ahead of the room, and deliberately: a part whose ink
-                    // arrived at the same rate as its height would be legible
-                    // while still being pushed down the sheet. Full by the time
-                    // it has half its room, which is the same ordering the two
-                    // specs used to give — the fade was the fast one.
-                    alpha = (reveal.value * 2f).coerceAtMost(1f)
-                }
-                .layout { measurable, constraints ->
-                    // Measured at its natural height whatever it is showing, so
-                    // the sheet always knows what this part would cost — see
-                    // `SheetState.sheetHeight`, which is the reason a part can
-                    // collapse to nothing without shortening the sheet's tallest
-                    // detent.
-                    val placeable = measurable.measure(constraints)
-                    val natural = placeable.height
-                    val visible = (natural * reveal.value).roundToInt().coerceIn(0, natural)
-                    slot.collapsedBy = natural - visible
-                    layout(placeable.width, visible) {
-                        // **Not placed at zero height**, which is the difference
-                        // between a part that is collapsed and a part that is
-                        // merely flat: an unplaced node draws nothing, hit-tests
-                        // nothing and is not in the semantics tree, so a
-                        // collapsed part is not a row a screen reader reads out
-                        // or a button a thumb can find. `SheetPartsTest` holds
-                        // the last of those.
-                        if (visible > 0) placeable.place(0, 0)
-                    }
-                },
+            modifier = if (reachable) Modifier else Modifier.clearAndSetSemantics {},
             content = content,
         )
     }

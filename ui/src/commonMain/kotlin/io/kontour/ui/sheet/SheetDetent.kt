@@ -44,13 +44,13 @@ class SheetDetent(
          * should be three rows tall, not an empty full-screen panel with three
          * rows at the top.
          *
-         * "Its content" means the content with every
-         * [part][io.kontour.ui.sheet.SheetContentScope.part] shown, including the
-         * ones this detent is what reveals. A sheet whose parts were all gated
-         * could otherwise never be dragged past its collapsed height — the height
-         * this was measured from was the height with everything hidden — which is
-         * why `SheetState` keeps what the content places and what it would place
-         * as two separate numbers.
+         * "Its content" is all of it, including every
+         * [part][io.kontour.ui.sheet.SheetContentScope.part] — a part is laid out
+         * at its full height whatever the sheet is doing, so this height does not
+         * depend on where the sheet currently is. It used to: a part that composed
+         * nothing while it was collapsed made this resolve to the sheet's
+         * *collapsed* height, and a sheet whose parts were all gated could not be
+         * dragged past the content it was already showing.
          */
         val Expanded: SheetDetent = SheetDetent("expanded") { container, sheet ->
             minOf(sheet, container)

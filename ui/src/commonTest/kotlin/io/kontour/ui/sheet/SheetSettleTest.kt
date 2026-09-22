@@ -66,7 +66,7 @@ class SheetSettleTest {
             confirmDetentChange = { true },
         )
         state.containerHeight = 1000f
-        state.contentHeight = 600f
+        state.sheetHeight = 600f
         state.anchoredState.updateAnchors(
             DraggableAnchors {
                 SheetDetent.Hidden at 1000f

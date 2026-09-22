@@ -72,11 +72,11 @@ sheet a detent.
 
 ---
 
-## `part` — content that knows which detents it is for
+## `part` — content that belongs to the sizes that can show it
 
 A sheet that collapses to a bar and opens to half a screen is showing two
 different things, and writing that as a `when` over the current detent is two
-code paths that have to agree. **A part declares its own detent instead.**
+code paths that have to agree. **A part declares which sizes it is for instead.**
 
 ```kotlin
 BottomSheet(state) {
@@ -85,31 +85,33 @@ BottomSheet(state) {
 }
 ```
 
-`from = null` is a part that is always there. It is worth writing anyway: it puts
-every piece of the sheet in the same shape, and makes the ones that come and go
-read as the exceptions.
+`from = null` is a part that is there at every size. It is worth writing anyway:
+it puts every piece of the sheet in the same shape, and makes the ones further
+down read as the ones you have to drag for.
 
-**A part arrives as the sheet passes its detent**, under the finger, and unrolls
-out of the sheet as it comes.
+### Nothing appears, and that is the point
 
-It used to wait for the sheet to settle, and the reason was real:
-`SheetDetent.Expanded` is measured from the content's height, so a part that
-changed that height rebuilt the sheet's anchors, and moving an anchor under a
-finger re-pins a drag already in flight. The cost of waiting was worse than the
-beat it produced, though — a sheet whose parts were *all* gated could not be
-dragged past its collapsed content at all, because the height `Expanded` was
-measured from was the height with everything hidden.
+**A part is laid out in place, at its full height, whatever the sheet is doing.**
+What hides it is the sheet's own bottom edge — a sheet is a column pinned to the
+top of a card, the card is only so tall, and a part further down the column is
+already drawn below what the card shows. Dragging the sheet up uncovers it at
+exactly the speed of the finger. Nothing fades in, nothing is composed on the
+frame the gesture starts, and nothing can arrive late.
 
-So the sheet keeps two heights: what its column places, and what it would place
-with every part out. The second is the one the detents are measured from, and
-revealing a part cannot change it — a part gains in the first exactly what it
-loses in the second, to the pixel. There is nothing left that needed the finger
-to lift.
+Two earlier versions appeared instead, and both were reported as appearing: one
+composed the part when the sheet settled at its detent, the other composed it
+always and revealed it with a clipped height once the drag committed. The third
+answer is to stop revealing anything.
 
-A collapsed part is collapsed for real: it draws nothing, nothing in it can be
-tapped, and a screen reader does not announce it. It *is* composed while it is
-hidden, which is the trade — the reveal frame has no composition in it, and that
-is the frame with a finger on the glass.
+**So order the content the way it is read.** The sheet hides its content at the
+bottom, so a part that belongs to a taller detent goes *below* the parts that are
+always shown — which is the order a header and its details are written in anyway.
+A gated part written above them is above the fold, and will be visible whatever
+its `from` says.
+
+What `from` does decide is whether the part is in the **assistive tree**: off the
+bottom of the window a part cannot be seen or tapped, and it is not read out
+either.
 
 The content lambda's receiver is a `SheetContentScope`, which is a `ColumnScope`
 with `part` added — so `weight`, `align` and everything else a column offers are

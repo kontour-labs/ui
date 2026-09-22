@@ -279,13 +279,11 @@ class SheetState internal constructor(
      * list is written in whatever order a caller found convenient and two detents
      * can resolve to the same height.
      *
-     * **Target, not settled**, and that is last round's trade being taken back
-     * rather than an oversight corrected. A part used to wait for the sheet to
-     * settle because a part changed the content's height, `SheetDetent.Expanded`
-     * is measured from that height, and moving an anchor under a finger re-pins a
-     * drag already in flight. The heights are split now — see [contentHeight] —
-     * so revealing a part cannot move an anchor, and the reason for the beat
-     * between the sheet arriving and the part doing so is gone with it.
+     * **Target, not settled**, so it answers as soon as a drag has committed
+     * rather than once the sheet has stopped. What reads it is
+     * [SheetContentScope.part], and only to decide whether the part is in the
+     * assistive tree: a part's *pixels* are not gated on anything, because the
+     * sheet's own bottom edge is what hides them.
      */
     internal fun willReach(detent: SheetDetent): Boolean {
         val here = offsetOf(anchoredState.targetValue)
@@ -437,79 +435,19 @@ class SheetState internal constructor(
     internal suspend fun releaseOvershoot(spec: AnimationSpec<Float>) = band.release(spec)
 
     /**
-     * What the sheet's column actually placed, in pixels — what is on screen.
+     * The content's own full height in pixels, for [SheetDetent.Expanded].
      *
-     * Less than [sheetHeight] by exactly the room a collapsed part is not taking.
+     * **Every [SheetContentScope.part] is in it, at every detent.** A part used to
+     * be left out while it was collapsed, and that closed a loop: `Expanded` is
+     * this height, so a sheet whose parts were all gated resolved its tallest
+     * detent to its *collapsed* height and could not be dragged any further. The
+     * fix after that kept two numbers — what the column placed and what it would
+     * place — so that revealing a part could not move an anchor. Both are gone
+     * with the reveal: a part is laid out at its full height whatever the sheet is
+     * doing, so this number does not depend on where the sheet is and there was
+     * never anything for the second one to hold.
      */
-    internal var contentHeight by mutableFloatStateOf(0f)
-
-    /**
-     * The room the collapsed parts would take if they were shown, in pixels.
-     *
-     * Summed over whatever parts are in the sheet right now: for each one, its
-     * natural height less the height it is currently placed at. Zero for every
-     * sheet that does not use [SheetContentScope.part].
-     *
-     * **Each part keeps its own number and this adds them up**, which is the
-     * second try at this. The first had the sheet's layout clear a map, measure
-     * the column, and read the total back — one pass, so nothing could be stale.
-     * Except that a parent re-measuring with unchanged constraints does *not*
-     * re-measure a child that has not been invalidated: Compose hands back the
-     * cached placeable, the parts' layout blocks never run, and the clear had
-     * already thrown their numbers away. Measured: `collapsed` read 0 with a
-     * 200dp part collapsed, so `Expanded` resolved to the peek's offset, the
-     * dedupe dropped it, the part's own gate then said "already there", and the
-     * sheet oscillated at about one anchor rebuild per frame. Held per part, a
-     * cached measure simply leaves last pass's answer standing, which is the
-     * right one.
-     */
-    internal val collapsedHeight: Float
-        get() {
-            var total = 0
-            for (part in parts) total += part.collapsedBy
-            return total.toFloat()
-        }
-
-    /**
-     * The parts currently in the sheet's content, in no particular order.
-     *
-     * A plain list of plain objects, added and removed by `part`'s own
-     * `DisposableEffect` and written to from the layout phase. Not snapshot
-     * state, deliberately: the only reader that has to be current is
-     * [updateAnchors], which runs from the sheet's own layout block *after* the
-     * column it measures — so the fresh number is already there, and making this
-     * observable would only add a write-then-read of the same value in one pass,
-     * which is how a layout loop starts.
-     */
-    internal val parts: MutableList<SheetPart> = mutableListOf()
-
-    /**
-     * The content's height **as the anchors see it**, in pixels.
-     *
-     * The sum of what is placed and what is collapsed, and the reason it is a sum
-     * rather than a measurement is the invariant the whole of `part` rests on:
-     * both terms are whole pixels, so a part gains in [contentHeight] exactly
-     * what it loses in [collapsedHeight] and this total is *bit-identical* from
-     * frame to frame while it reveals. `AnchorInputs` therefore compares equal,
-     * `updateAnchors` returns at its early-out, and nothing can re-pin a drag
-     * that is in flight.
-     *
-     * That is what buys the thing a part is for. With the anchors independent of
-     * which parts are showing, `SheetDetent.Expanded` is the height of the whole
-     * sheet whatever is collapsed inside it — so a sheet can be dragged to its
-     * full size *and* a part can reveal during the drag, which were mutually
-     * exclusive while this was one number.
-     *
-     * The one case where the sum does move is a sibling that fills whatever room
-     * it is given — a `verticalScroll`, a `fillMaxHeight`. Then revealing a part
-     * takes room from the sibling rather than adding to the total, and the total
-     * falls. It is also the case where it cannot matter: content that fills its
-     * room has already driven [contentHeight] to the ceiling, where
-     * `minOf(sheet, container)` and `resolveAnchors`' own clamp give the same
-     * offset for any height at all. Exact when the content wraps,
-     * offset-stable when it fills.
-     */
-    internal val sheetHeight: Float get() = contentHeight + collapsedHeight
+    internal var sheetHeight by mutableFloatStateOf(0f)
 
     /**
      * How far down the sheet the peek anchor's *bottom edge* sits, in pixels.
@@ -645,12 +583,7 @@ class SheetState internal constructor(
      */
     val visibleFraction: Float
         get() {
-            // [contentHeight], not [sheetHeight]: this is how much of the sheet is
-            // *on screen*, and a collapsed part is not. Against the full height a
-            // sheet with a part still to reveal would report a fraction under 1
-            // while sitting fully out, so a modal scrim would never quite reach
-            // full dark.
-            val height = contentHeight
+            val height = sheetHeight
             return if (height <= 0f) 0f else (visibleHeight / height).coerceIn(0f, 1f)
         }
 
@@ -1339,25 +1272,6 @@ fun Modifier.sheetPeekAnchor(): Modifier {
         state.measurePeek()
         state.updateAnchors(density)
     }
-}
-
-/**
- * One [SheetContentScope.part]'s room, as the sheet sees it.
- *
- * Held by the part across recompositions and written from its layout block, so
- * `SheetState.collapsedHeight` can add up what the sheet is not currently showing
- * without the parts having to be composed in any particular order — or, indeed,
- * measured on the pass that reads them. See [SheetState.collapsedHeight].
- */
-internal class SheetPart {
-    /**
-     * Natural height less placed height, in whole pixels.
-     *
-     * Whole pixels because the invariant depends on it: the part gains in the
-     * column's placed height exactly what it loses here, so the sum of the two is
-     * the same number frame to frame while it reveals.
-     */
-    var collapsedBy: Int = 0
 }
 
 /** The orientation every sheet in this library drags along. */

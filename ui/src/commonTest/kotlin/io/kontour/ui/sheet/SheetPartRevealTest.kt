@@ -25,11 +25,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A part collapses for real, and the sheet still knows how tall it could be.
+ * A gated part is part of the sheet's height, and of the sheet's own content.
  *
  * The first version of `part` composed nothing while it was hidden, and that one
  * decision closed a loop. A hidden part adds nothing to the content's height,
- * `SheetDetent.Expanded` is the content's height, so a sheet whose parts were all
+ * `SheetDetent.Expanded` *is* the content's height, so a sheet whose parts were all
  * gated resolved `Expanded` to its *collapsed* height — and could not be dragged
  * any taller than the content it was already showing. Worse where the collapsed
  * content was the peek anchor: `Expanded` and `peek` then resolved to the same
@@ -38,16 +38,15 @@ import kotlin.test.assertTrue
  * Three other readings took that `NaN` with them, including the floor an
  * undismissable sheet is held up by.
  *
- * The fix is two heights instead of one: what the column places, and what it
- * would place with every part out. The second is what the anchors see, and it
- * does not move when a part reveals — so the reveal can happen *during* the
- * drag rather than a beat after it, which is the other half of what these arms
- * hold.
+ * A part is simply laid out now, in place, at its full height, whatever the sheet
+ * is doing: the sheet's own bottom edge is what hides it, and dragging the sheet up
+ * uncovers it. So the height is one number again and cannot move when a part comes
+ * into view — which these arms are what hold. That a part is *on screen* from the
+ * first frame of a drag is measured in pixels, by `SheetPartsTest`.
  *
  * The peek detent is used deliberately. It is the arrangement that produced the
- * collision, and a sheet whose only always-present content is its own peek
- * anchor is not a contrived one — it is the map screen this library was written
- * for.
+ * collision, and a sheet whose only always-present content is its own peek anchor
+ * is not a contrived one — it is the map screen this library was written for.
  */
 @OptIn(ExperimentalTestApi::class)
 class SheetPartRevealTest {
@@ -93,21 +92,17 @@ class SheetPartRevealTest {
     }
 
     /**
-     * A collapsed part is not a row a screen reader reads out.
+     * A part below the sheet's edge is not a row a screen reader reads out.
      *
-     * The part is composed while it is hidden — that is what the split heights
-     * buy — so "collapsed" has to mean something stronger than "zero pixels
-     * tall".
+     * It is composed, measured and placed there — that is what makes it appear the
+     * instant a finger moves — so being off the bottom of the window is all that
+     * hides it, and a screen reader does not work in pixels.
      *
-     * **It found that unplacing is not enough.** An unplaced part was still
-     * returned by `onAllNodesWithTag`, so the part clears its semantics as well —
-     * `clearAndSetSemantics`, not `hideFromAccessibility`, for the reason
-     * `OverlayHost` writes down where it hides a dimmed page.
-     *
-     * Alone among these arms it passes against the old implementation too, and
-     * trivially: a hidden part composed nothing at all there, so there was
-     * nothing to announce. It guards what the new one gives up to buy a reveal
-     * with no composition in it.
+     * `clearAndSetSemantics` rather than `hideFromAccessibility`, for the reason
+     * `OverlayHost` writes down where it hides a dimmed page: the flag leaves the
+     * node in the tree and asks other people's code to honour it, and measured, it
+     * left a button findable. An earlier version of this arm found that being
+     * *unplaced* was not enough either.
      */
     @Test
     fun aCollapsedPartIsNotAnnounced() {
@@ -124,23 +119,24 @@ class SheetPartRevealTest {
             0,
             showing,
             "a part gated on `Expanded` is in the semantics tree with the sheet at " +
-                "its peek. It is composed and measured there, so being unplaced is " +
-                "the only thing keeping it out — a screen reader would otherwise " +
-                "read out content nobody can see",
+                "its peek. It is laid out there, below the sheet's edge, so nothing " +
+                "but this keeps a screen reader from reading out content nobody " +
+                "can see",
         )
     }
 
     /**
      * Revealing a part does not rebuild the anchors — not once.
      *
-     * This is the invariant the whole arrangement rests on, and it is exact
-     * rather than approximate: both heights are whole pixels, so the part gains
-     * in one exactly what it loses in the other and `AnchorInputs` compares
-     * equal. If it did not, every reveal would re-pin a drag in flight, which is
-     * the defect the settle delay was there to avoid.
+     * The invariant the whole arrangement rests on, and it holds trivially now
+     * rather than by arithmetic: a part's height does not depend on where the
+     * sheet is, so nothing an anchor is built from changes as the sheet moves. Two
+     * earlier versions had to work for this — one deferred the change to the
+     * settle, one balanced two heights to the pixel — and a rebuild under a finger
+     * re-pins a drag that is already in flight, so it stays asserted.
      */
     @Test
-    fun revealingAPartDoesNotRebuildTheAnchors() {
+    fun bringingAPartIntoViewDoesNotRebuildTheAnchors() {
         var rebuilds = -1
         var moved = Float.NaN
 
@@ -164,24 +160,25 @@ class SheetPartRevealTest {
         assertEquals(
             0,
             rebuilds,
-            "revealing a part rebuilt the anchors $rebuilds time(s). The content's " +
-                "placed height changed, which is expected; the height the anchors " +
-                "are built from must not have",
+            "moving the sheet to its tallest detent rebuilt the anchors $rebuilds " +
+                "time(s). Nothing the anchors are built from depends on where the " +
+                "sheet is",
         )
     }
 
     /**
-     * The part is revealed at the *start* of the sheet's travel, not the end.
+     * The part is **reachable** before the sheet arrives, not after.
      *
-     * The point of the split heights, stated as a distance. `part` keys on where
-     * the sheet is *going*, so the reveal begins on the frame the target changes
-     * — and since revealing cannot move an anchor any more, there is nothing left
-     * that needed it to wait. Measured by stepping the clock by hand and noting
-     * how far the sheet still had to travel when the part first appeared.
+     * Its pixels are never gated, so what this measures is the one thing `from`
+     * still decides: whether the part is in the assistive tree. It keys on where
+     * the sheet is *going* rather than where it has got to, so a part comes into
+     * the tree as the gesture commits rather than a beat after it stops — measured
+     * by stepping the clock by hand and noting how far the sheet still had to
+     * travel when the part first became findable.
      */
     @Test
-    fun aPartIsRevealedBeforeTheSheetArrives() {
-        var revealedAt = Float.NaN
+    fun aPartBecomesReachableBeforeTheSheetArrives() {
+        var reachableAt = Float.NaN
         var landedAt = Float.NaN
 
         runComposeUiTest {
@@ -195,25 +192,25 @@ class SheetPartRevealTest {
             target = SheetDetent.Expanded
             repeat(MovingFrames) {
                 mainClock.advanceTimeByFrame()
-                if (revealedAt.isNaN() &&
+                if (reachableAt.isNaN() &&
                     onAllNodesWithTag(PartTag).fetchSemanticsNodes().isNotEmpty()
                 ) {
-                    revealedAt = sheet.offset
+                    reachableAt = sheet.offset
                 }
             }
             landedAt = sheet.offset
         }
 
         assertTrue(
-            !revealedAt.isNaN(),
-            "the part never appeared at all over $MovingFrames frames",
+            !reachableAt.isNaN(),
+            "the part never entered the assistive tree at all over $MovingFrames frames",
         )
         assertTrue(
-            revealedAt - landedAt > StillToTravel,
-            "the part appeared with the sheet at $revealedAt, which is " +
-                "${revealedAt - landedAt}px from where it came to rest at " +
-                "$landedAt. It is meant to reveal as the sheet passes the detent, " +
-                "not once the sheet has stopped",
+            reachableAt - landedAt > StillToTravel,
+            "the part became reachable with the sheet at $reachableAt, which is " +
+                "${reachableAt - landedAt}px from where it came to rest at " +
+                "$landedAt. It is meant to key on the detent the sheet is heading " +
+                "for, not on the one it has reached",
         )
     }
 
