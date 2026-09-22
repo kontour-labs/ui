@@ -51,10 +51,16 @@ explains why that matters and what `peek` measures.
 **Both ends give.** Pulled above its tallest detent the sheet follows the finger
 a little way, each pixel buying less than the last, and springs back when the
 finger lifts — a sheet that stops dead at a boundary is a gesture that has
-stopped answering. A sheet whose bottom is held rather than open, which is what
-[`ModalBottomSheet`](modal-bottom-sheet.md)'s `dismissible = false` produces,
-does the same thing downward. The stretch is drawn and nothing else: no anchor,
-no detent and nothing the caller sees knows it happened.
+stopped answering. The stretch is drawn and nothing else: no anchor, no detent
+and nothing the caller sees knows it happened.
+
+**A sheet whose bottom is held rather than open does the same thing downward.**
+That is `dismissible = false`, here as well as on
+[`ModalBottomSheet`](modal-bottom-sheet.md): a drag past the lowest resting detent
+stretches and springs back instead of putting the sheet away. `Hidden` stays in
+the anchors, so the app can still close it with `state.hide()` — what the flag
+refuses is the *user* doing it. On a modal sheet it also closes the tap outside
+and the back gesture, neither of which a plain sheet has.
 
 A sheet at [`SheetDetent.Full`](sheets.md) is the exception, and only to the
 *drawing*: it already fills its container, so moving it up would lift its bottom
@@ -83,13 +89,27 @@ BottomSheet(state) {
 every piece of the sheet in the same shape, and makes the ones that come and go
 read as the exceptions.
 
-**A part arrives after the sheet has settled, not as it crosses the detent**, and
-that is a constraint rather than a preference. `SheetDetent.Expanded` is measured
-from the content's own height, so anything that changes that height rebuilds the
-sheet's anchors — and moving an anchor under a finger re-pins a drag that is
-already running. Waiting for the settle puts the change at the one moment nothing
-is being dragged. What you see is a beat between the sheet arriving and the part
-doing so, which reads as the sheet settling into its new size.
+**A part arrives as the sheet passes its detent**, under the finger, and unrolls
+out of the sheet as it comes.
+
+It used to wait for the sheet to settle, and the reason was real:
+`SheetDetent.Expanded` is measured from the content's height, so a part that
+changed that height rebuilt the sheet's anchors, and moving an anchor under a
+finger re-pins a drag already in flight. The cost of waiting was worse than the
+beat it produced, though — a sheet whose parts were *all* gated could not be
+dragged past its collapsed content at all, because the height `Expanded` was
+measured from was the height with everything hidden.
+
+So the sheet keeps two heights: what its column places, and what it would place
+with every part out. The second is the one the detents are measured from, and
+revealing a part cannot change it — a part gains in the first exactly what it
+loses in the second, to the pixel. There is nothing left that needed the finger
+to lift.
+
+A collapsed part is collapsed for real: it draws nothing, nothing in it can be
+tapped, and a screen reader does not announce it. It *is* composed while it is
+hidden, which is the trade — the reveal frame has no composition in it, and that
+is the frame with a finger on the glass.
 
 The content lambda's receiver is a `SheetContentScope`, which is a `ColumnScope`
 with `part` added — so `weight`, `align` and everything else a column offers are

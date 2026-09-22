@@ -1,6 +1,8 @@
 package io.kontour.ui.components.datetime
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,6 +11,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -21,6 +24,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -373,20 +377,26 @@ private fun MonthAndYearButton(
 }
 
 /**
- * Two drums: every month, and a run of years around the one you are in.
+ * Two drums: every month, and a run of years around the one you opened on.
  *
- * **The range is frozen on the first composition** rather than recomputed from
- * the visible year, because the year wheel changes the visible year — a range
- * that followed it would shift the list under the finger by exactly as much as
- * the finger had moved, and the drum would never arrive anywhere. A hundred and
- * twenty years either side of where the calendar started covers a birthday and a
- * mortgage from the same list, and takes its epoch from the app rather than from
- * whenever this file was written.
+ * **They hold their own month and year rather than reading the calendar's**, and
+ * that is the whole shape of this function. The wheels drive
+ * [CalendarNavigationState.jumpTo] live, so a calendar that fed its visible
+ * month back in closed a loop: every row the finger crossed changed the
+ * argument, recomposed both drums, and handed the year wheel a freshly built
+ * list — two hundred and forty-one boxed integers, thrown away a dozen times a
+ * second, and `List` is unstable so the wheel could never skip. Seeded once and
+ * then written to only by the drums themselves, none of that happens and the
+ * grid still follows the finger, because [onPick] is a one-way street.
  *
- * It is widened rather than clamped if the calendar is paged outside it, so the
- * wheel always has a row for the month actually on screen. Without that,
- * `indexOf` returns `-1`, the wheel scrolls to its first row, and the year it
- * shows is not the year the grid is showing.
+ * **The range is frozen on the seed**, which is also what that buys. A range
+ * derived from a *following* year would shift the list under the finger by
+ * exactly as much as the finger had moved and the drum would never arrive
+ * anywhere; the widening this used to need — for a calendar paged outside the
+ * range while the popover was open, which cannot now happen — is gone with it. A
+ * hundred and twenty years either side covers a birthday and a mortgage from the
+ * same list, and takes its epoch from the app rather than from whenever this
+ * file was written.
  *
  * A jump is navigation and not selection: landing on a month whose days are all
  * unselectable shows a grid of disabled days, which is the correct answer and
@@ -394,39 +404,67 @@ private fun MonthAndYearButton(
  */
 @Composable
 private fun MonthAndYearWheels(
-    visible: LocalDate,
-    formats: DateTimeFormats,
+    initial: LocalDate,
     onPick: (LocalDate) -> Unit,
 ) {
     val months = remember { Month.entries }
-    val anchorYear = remember { visible.year }
-    val years = remember(anchorYear, visible.year) {
-        val from = minOf(anchorYear - YearsEitherSide, visible.year)
-        val to = maxOf(anchorYear + YearsEitherSide, visible.year)
-        (from..to).toList()
-    }
+    val from = initial.year - YearsEitherSide
+    val to = initial.year + YearsEitherSide
+    val years = remember(from, to) { (from..to).toList() }
+
+    var monthRow by remember(initial) { mutableIntStateOf(initial.month.ordinal) }
+    var yearRow by remember(initial) { mutableIntStateOf(initial.year - from) }
 
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.weight(1f).semantics { contentDescription = "Month" }) {
-            WheelPicker(
-                items = months,
-                selected = visible.month.ordinal,
-                onSelectedChange = { onPick(LocalDate(visible.year, months[it], 1)) },
-                label = { it.fullName },
-            )
-        }
-        Box(Modifier.weight(1f).semantics { contentDescription = "Year" }) {
-            WheelPicker(
-                items = years,
-                selected = years.indexOf(visible.year).coerceAtLeast(0),
-                onSelectedChange = { onPick(LocalDate(years[it], visible.month, 1)) },
-                label = { it.toString() },
-            )
-        }
+        Drum(
+            description = "Month",
+            items = months,
+            row = { monthRow },
+            onRowChange = { monthRow = it; onPick(LocalDate(years[yearRow], months[it], 1)) },
+            label = { it.fullName },
+            modifier = Modifier.weight(1f),
+        )
+        Drum(
+            description = "Year",
+            items = years,
+            row = { yearRow },
+            onRowChange = { yearRow = it; onPick(LocalDate(years[it], months[monthRow], 1)) },
+            label = { it.toString() },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/**
+ * One of the two drums, with its row read *here* rather than where it is kept.
+ *
+ * `row` is a lambda for one reason: the read is what subscribes, so a read in
+ * [MonthAndYearWheels] would recompose both drums every time either of them
+ * turned — and turning the year wheel would rebuild the month wheel's twelve
+ * rows for a value that had not changed. Read inside this function it
+ * invalidates one drum. The same trick, for the same reason, as `CalendarMonth`'s
+ * `lean = { … }` and `OverlayAppearance`'s `progress: () -> Float`.
+ */
+@Composable
+private fun <T> Drum(
+    description: String,
+    items: List<T>,
+    row: () -> Int,
+    onRowChange: (Int) -> Unit,
+    label: (T) -> String,
+    modifier: Modifier,
+) {
+    Box(modifier.semantics { contentDescription = description }) {
+        WheelPicker(
+            items = items,
+            selected = row(),
+            onSelectedChange = onRowChange,
+            label = label,
+        )
     }
 }
 
@@ -459,6 +497,18 @@ private fun CalendarFrame(
     val todayMonth = today?.let { LocalDate(it.year, it.month, 1) }
     val awayFromToday = todayMonth != null && todayMonth != navigation.visibleMonth
     var chooserOpen by remember { mutableStateOf(false) }
+
+    /**
+     * The month the wheels open on, and then stop hearing about.
+     *
+     * Keyed on `chooserOpen` so it is read when the popover opens and is a
+     * constant for as long as it stays open — which is what lets
+     * `MonthAndYearWheels` *skip* while the drum it contains is turning the
+     * calendar underneath it. Passing `navigation.visibleMonth` straight down
+     * would recompose the wheels on every row crossed for an argument they only
+     * ever read once.
+     */
+    val chooserSeed = remember(chooserOpen) { navigation.visibleMonth }
 
     Column(
         modifier
@@ -560,8 +610,7 @@ private fun CalendarFrame(
                     showArrow = false,
                 ) {
                     MonthAndYearWheels(
-                        visible = navigation.visibleMonth,
-                        formats = formats,
+                        initial = chooserSeed,
                         onPick = navigation::jumpTo,
                     )
             }
@@ -571,6 +620,25 @@ private fun CalendarFrame(
         AnimatedContent(
             targetState = navigation.visibleMonth,
             transitionSpec = {
+                // **Cut rather than slid while the chooser is up.**
+                //
+                // A drum turned through a year jumps the calendar once per row
+                // crossed, and `AnimatedContent` keeps every target it has not
+                // finished leaving composed — so a flick left ten month grids
+                // alive at once, each of them forty-two `DayCell`s carrying two
+                // colour animations and a scale. Something near thirteen hundred
+                // running animations for one gesture, which is the reported mush.
+                //
+                // Nothing the chooser is for is lost. The grid still follows the
+                // drum row by row, which is the liveness; what goes is a 220ms
+                // slide restarted every 30ms, and a transition that never gets
+                // past its first frame is not an animation anybody saw.
+                if (chooserOpen) {
+                    return@AnimatedContent (
+                        EnterTransition.None togetherWith ExitTransition.None
+                        ) using SizeTransform(clip = false) { _, _ -> snap() }
+                }
+
                 // Derived from the transition itself, not from a variable
                 // somebody has to remember to set.
                 //

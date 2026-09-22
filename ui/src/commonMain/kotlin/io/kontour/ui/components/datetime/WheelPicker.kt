@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,10 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -360,6 +359,80 @@ fun <T> WheelPicker(
         }
     }
 
+    /**
+     * How far a row is from the highlight band, in rows, at this instant.
+     *
+     * A lambda read from `graphicsLayer` rather than a value read in
+     * composition, which is the whole of this. The rows used to take
+     * `abs(index - centredIndex)` while they were being composed and hang two
+     * layers off it — an `alpha` and a `scale` — so every row the drum crossed
+     * recomposed every row on screen. Fourteen rows of text, per row, for a
+     * gesture that changed no text at all: a flick through two hundred years is
+     * what that costs, and it was reported as exactly that.
+     *
+     * Read here it is a draw-phase read: the layer re-records and nothing
+     * recomposes. The rest of the library already works this way and says so —
+     * `CalendarMonth` takes `lean = { … }` as a lambda, `OverlayAppearance` takes
+     * `progress: () -> Float` — and this was the one drum that did not.
+     *
+     * Continuous rather than whole rows, and that is a second fix riding on the
+     * first. `centredIndex` is an integer, so the finite wheel faded in steps as
+     * it turned while [InfiniteWheel] — which has always known its distance to a
+     * fraction — faded smoothly; `wheelFade`'s own comment records the two
+     * agreeing "at rest" and it was the only place they did. The list's first
+     * visible row plus its scroll offset *is* the drum's position, in rows, to a
+     * pixel, because the content padding is exactly `edgeItems` rows and every
+     * row is [itemHeight] tall.
+     *
+     * The band is subtracted because it moves the drum and not the highlight, so
+     * a drum held past its last row fades toward the row the eye can see in the
+     * band rather than the one arithmetic says should be there.
+     */
+    val drumDistance: (Int) -> Float = remember(listState, itemPx, band) {
+        { index ->
+            val turned = listState.firstVisibleItemIndex +
+                listState.firstVisibleItemScrollOffset / itemPx -
+                band.offset / itemPx
+            abs(index - turned)
+        }
+    }
+
+    /**
+     * The drum's rows, built once for a given list.
+     *
+     * `LazyColumn` compares its content lambda by identity — a fresh one is a
+     * fresh interval list, and every row on screen recomposes. A drum's
+     * `selected` is set by the caller from the drum's own `onSelectedChange`, so
+     * a turn arrives back here as a changed argument once per row crossed, and
+     * a lambda written inline at the call site below would be rebuilt each time:
+     * the composition this whole block exists to avoid, re-entered through the
+     * back door. Keyed on everything a row is made of, so nothing here can go
+     * stale.
+     */
+    val rows: LazyListScope.() -> Unit = remember(items, label, itemHeight, drumDistance) {
+        {
+            items(items.size) { index ->
+                Box(
+                    Modifier.fillMaxWidth().height(itemHeight),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = label(items[index]),
+                        style = Theme.typography.titleLarge,
+                        colour = Theme.colours.content,
+                        modifier = Modifier.graphicsLayer {
+                            val distance = drumDistance(index)
+                            val shrink = wheelShrink(distance)
+                            alpha = wheelFade(distance)
+                            scaleX = shrink
+                            scaleY = shrink
+                        },
+                    )
+                }
+            }
+        }
+    }
+
     Box(
         modifier
             .height(itemHeight * visibleItems)
@@ -481,23 +554,7 @@ fun <T> WheelPicker(
                 .fillMaxWidth()
                 .graphicsLayer { translationY = band.offset },
         ) {
-            items(items.size) { index ->
-                val distance = abs(index - centredIndex).toFloat()
-                val fade = wheelFade(distance)
-                val shrink = wheelShrink(distance)
-
-                Box(
-                    Modifier.fillMaxWidth().height(itemHeight),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = label(items[index]),
-                        style = Theme.typography.titleLarge,
-                        colour = Theme.colours.content,
-                        modifier = Modifier.alpha(fade).scale(shrink),
-                    )
-                }
-            }
+            rows()
         }
 
         // Carries the drum's value for a screen reader, and nothing else. The
@@ -658,6 +715,20 @@ private fun <T> InfiniteWheel(
     val halfVisible = visibleItems / 2
     val rows = visibleItems + 2
 
+    /**
+     * The topmost row laid out: a whole number, so composition follows the rows
+     * and not the pixels.
+     *
+     * `halfVisible + 1` back from the row at the band — one for each row above
+     * it, plus the spare entering from the top. Derived rather than read
+     * straight, because `derivedStateOf` compares its *result*: turning the drum
+     * within a row changes `offset` and does not change this, so the rows below
+     * are left alone until a row genuinely enters or leaves.
+     */
+    val first by remember(itemPx, halfVisible) {
+        derivedStateOf { floor(offset.value / itemPx).toInt() - halfVisible - 1 }
+    }
+
     Box(
         modifier
             .height(itemHeight * visibleItems)
@@ -769,15 +840,9 @@ private fun <T> InfiniteWheel(
                     )
                 }
         ) {
-            // Read here rather than in `offset {}` so the rows recompose only
-            // when the drum has actually turned past a row, not on every pixel.
-            val turned = offset.value / itemPx
-            val first = floor(turned).toInt() - halfVisible - 1
-
             for (row in 0 until rows) {
                 val position = first + row
                 val index = wrap(position, items.size)
-                val distance = abs(position - turned)
 
                 Box(
                     Modifier.fillMaxWidth().height(itemHeight),
@@ -787,7 +852,22 @@ private fun <T> InfiniteWheel(
                         text = label(items[index]),
                         style = Theme.typography.titleLarge,
                         colour = Theme.colours.content,
-                        modifier = Modifier.alpha(wheelFade(distance)).scale(wheelShrink(distance)),
+                        // The row's *index* is a composition read and its
+                        // distance from the band is not — see `drumDistance` on
+                        // the finite wheel, which this now matches. The comment
+                        // that used to stand here claimed the rows recomposed
+                        // "only when the drum has actually turned past a row"
+                        // and then divided the raw offset in composition, which
+                        // is every pixel of every frame: seven rows of text
+                        // rebuilt sixty times a second for a gesture that
+                        // changes text seven times a second.
+                        modifier = Modifier.graphicsLayer {
+                            val distance = abs(position - offset.value / itemPx)
+                            val shrink = wheelShrink(distance)
+                            alpha = wheelFade(distance)
+                            scaleX = shrink
+                            scaleY = shrink
+                        },
                     )
                 }
             }
@@ -820,10 +900,14 @@ private fun shortestTurn(from: Int, to: Int, size: Int): Int {
  *
  * Falls away steeply: the neighbour is clearly secondary and anything two rows
  * out is barely there. Three anchors — 1, 0.45, 0.2 — interpolated rather than
- * stepped, because [InfiniteWheel] knows a row's distance to a fraction and a
- * drum that dimmed in three steps as it turned would read as a list with a
- * filter on it rather than as a curved surface. The finite wheel passes whole
- * numbers and lands exactly on the anchors, so the two look the same at rest.
+ * stepped, because a drum that dimmed in three steps as it turned would read as a
+ * list with a filter on it rather than as a curved surface.
+ *
+ * **Both drums pass fractions now.** The finite one used to hand this whole
+ * numbers — `abs(index - centredIndex)` — so it landed exactly on the anchors and
+ * stepped between them as it turned, which is the one place the two wheels did not
+ * look alike. Its distance comes off the list's scroll offset since, so at rest
+ * they still agree exactly and in motion they now agree too.
  */
 internal fun wheelFade(distance: Float): Float = when {
     distance <= 1f -> lerp(1f, 0.45f, distance)

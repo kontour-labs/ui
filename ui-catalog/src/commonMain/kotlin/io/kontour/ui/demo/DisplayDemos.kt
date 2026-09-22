@@ -42,6 +42,7 @@ import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
 import io.kontour.ui.components.display.Carousel
+import io.kontour.ui.components.display.CarouselDefaults
 import io.kontour.ui.components.display.CarouselStyle
 import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.ConnectorStyle
@@ -489,15 +490,18 @@ private val indicatorStyle =
 
 private val carouselStyle = Knob.Choice("Pages", CarouselStyle.entries.toList())
 
-// Not a dial, because a knob is a choice or a flag and a third kind would be a
-// bigger thing than the demos. On is the value the component's own docs suggest:
-// enough drift behind the edge to see, well short of the page arriving from off
-// screen.
-private val carouselParallax = Knob.Flag("Parallax")
+/** Narrow enough to read as an edge of the next page rather than as a picture. */
+private val CarouselNarrowPeek = 32.dp
+
+// How much of the next page a hero carousel shows. Not a dial, because a knob is
+// a choice or a flag: on is the component's own default, off is a peek narrow
+// enough to read as an edge rather than as a picture — which is the comparison
+// worth being able to make here.
+private val carouselNarrowPeek = Knob.Flag("Narrow peek")
 
 internal val CarouselDemo = ComponentDemo(
     slug = "carousel",
-    knobs = listOf(carouselStyle, carouselParallax, indicatorStyle),
+    knobs = listOf(carouselStyle, carouselNarrowPeek, indicatorStyle),
 ) {
     val carousel = rememberCarouselState { 4 }
     val scope = rememberCoroutineScope()
@@ -511,7 +515,11 @@ internal val CarouselDemo = ComponentDemo(
             state = carousel,
             contentDescription = "Stop photos",
             style = this@ComponentDemo[carouselStyle],
-            parallax = if (this@ComponentDemo[carouselParallax]) 0.3f else 0f,
+            peek = if (this@ComponentDemo[carouselNarrowPeek]) {
+                CarouselNarrowPeek
+            } else {
+                CarouselDefaults.HeroPeek
+            },
             modifier = Modifier.fillMaxWidth().height(120.dp),
         ) { page ->
             Card(variant = CardVariant.Filled, modifier = Modifier.fillMaxWidth().height(120.dp)) {

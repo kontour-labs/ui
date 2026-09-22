@@ -559,6 +559,40 @@ class ToastStackTest {
      * The widest row of the band above the front card, once per frame, while the
      * pill behind it leaves. Paired with the width that band rests at.
      */
+    /**
+     * The pill shrinks **on the spot**, and gets small enough to see it happen.
+     *
+     * The arm above only asks that it be drawn narrower than it was at rest. That
+     * passed while the pill was pivoting on the edge facing the front card, and it
+     * passed by a hair: the visible sliver of a pill is `toastPeek` — 12dp, 24px
+     * here — and an edge pivot spends the whole of the shrink walking the pill's
+     * top edge down through it. At the old two-thirds target the sliver ran out at
+     * the same moment the shrink did, so a reader saw a band go from 24px to
+     * nothing while the pill itself had barely narrowed. Reported as pills
+     * "disappearing", and asked for instead: shrinking on the spot, toward each
+     * pill's own centre.
+     *
+     * About the centre, the top edge covers half as much ground for the same
+     * shrink — 36px of a 72px pill at the new one-third target — so the sliver
+     * survives long enough for the pill to be *seen* at a third of its width. Half
+     * is the line: an edge-pivoted pill cannot be drawn there at all, because its
+     * ink is gone by the time it is two thirds as wide.
+     */
+    @Test
+    fun aLeavingPillIsSeenAtHalfItsWidth() {
+        val (resting, widths) = pillExitWidths()
+        val small = widths.filter { it > 0 && it <= resting / 2 }
+
+        assertTrue(
+            small.isNotEmpty(),
+            "across the pill's exit the band above the front card measured " +
+                "$widths, against ${resting}px at rest — it was never drawn at half " +
+                "its width while still being drawn at all. That is a pill whose " +
+                "visible sliver ran out before its shrink did, which is the " +
+                "vanishing that was reported.",
+        )
+    }
+
     private fun pillExitWidths(): Pair<Int, List<Int>> {
         var go by mutableStateOf(false)
         var pillId = 0L

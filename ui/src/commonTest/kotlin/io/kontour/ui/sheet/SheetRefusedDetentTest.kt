@@ -33,7 +33,7 @@ class SheetRefusedDetentTest {
         confirmDetentChange: (SheetDetent) -> Boolean,
     ): SheetState = SheetState(detents, initialDetent, confirmDetentChange).apply {
         containerHeight = 1000f
-        sheetHeight = 600f
+        contentHeight = 600f
         updateAnchors(Density(1f))
     }
 

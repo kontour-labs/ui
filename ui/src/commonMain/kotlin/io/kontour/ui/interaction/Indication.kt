@@ -21,6 +21,11 @@ import androidx.compose.ui.Modifier
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -114,6 +119,26 @@ private class KontourIndicationNode(
     /** The wash currently being drawn. Press wins over drag, drag over hover. */
     private var overlayColour: Color = Color.Transparent
 
+    /**
+     * When the current press went down, on the wall clock.
+     *
+     * Null whenever nothing is pressed. The wall clock rather than the frame
+     * clock for the reason `Toast`'s own clock gives: what is being measured is
+     * how long a *finger* was down, which is a fact about the person and not
+     * about how many frames the renderer managed in the meantime.
+     */
+    private var pressedAt: TimeSource.Monotonic.ValueTimeMark? = null
+
+    /**
+     * The job that answers the newest interaction, held so the next one can
+     * cancel it.
+     *
+     * A press arriving while a release is being held back has to take over
+     * immediately, and cancelling mid-animation is safe: an `Animatable` retargets
+     * from wherever it has got to.
+     */
+    private var settle: Job? = null
+
     override fun onAttach() {
         coroutineScope.launch {
             var presses = 0
@@ -141,29 +166,81 @@ private class KontourIndicationNode(
                     else -> Color.Transparent
                 }
 
-                if (target != Color.Transparent) {
-                    overlayColour = target
+                /**
+                 * How long to keep the pressed look before answering a release.
+                 *
+                 * **A tap on a touchscreen is shorter than the animation it
+                 * starts.** Reported from a phone: on the desktop a click shrinks
+                 * the control and darkens it and looks right, and on a phone "it
+                 * sometimes just looks like it's flashing" — because a thumb is
+                 * down for something like 60ms and the release retargeted both
+                 * animatables the moment it arrived, so the shrink turned round a
+                 * third of the way down and the wash never reached its own alpha.
+                 * What a reader saw was a flicker, which is the interface
+                 * acknowledging the tap in a way that cannot be read as
+                 * acknowledgement.
+                 *
+                 * So the press is held for a floor. A slow press — anything at or
+                 * past the floor — is unaffected, which is every mouse click and
+                 * every deliberate hold; only a tap too quick to see gets the rest
+                 * of its own animation. The same shape as
+                 * `ToastDefaults.PromotedFloor`, which tops a promoted toast's
+                 * remaining time up to a floor rather than restarting it, and
+                 * named to match.
+                 *
+                 * Not a rate limiter, which is what `DetentTicker`'s
+                 * `MinimumTickInterval` is and is the wrong precedent: nothing here
+                 * is being dropped, it is being finished.
+                 */
+                val hold = when {
+                    // Still pressed, or something else has taken the control over —
+                    // a drag that grew out of the press, a pointer still hovering.
+                    // There is no flicker to prevent in either case, and holding
+                    // would mean a drag's own wash arriving a tenth of a second
+                    // after the drag did.
+                    pressed || target != Color.Transparent -> Duration.ZERO
+                    else -> pressedAt?.let { PressFloor - it.elapsedNow() }
+                        ?.coerceAtLeast(Duration.ZERO)
+                        ?: Duration.ZERO
                 }
+                pressedAt = if (pressed) pressedAt ?: TimeSource.Monotonic.markNow() else null
 
-                launch {
-                    overlayAlpha.animateTo(
-                        targetValue = if (target == Color.Transparent) 0f else target.alpha,
-                        animationSpec = motion.tweenFast(),
-                    )
-                }
-                launch {
-                    // Asymmetric on purpose. Going down: snappy and critically
-                    // damped, so the control answers the finger immediately.
-                    // Coming back: under-damped, so it overshoots a little and
-                    // settles — which is what reads as playful rather than
-                    // mechanical. Overshooting on the way *down* would just feel
-                    // slow.
-                    scale.animateTo(
-                        targetValue = if (pressed && !motion.reduceMotion) pressScale else 1f,
-                        animationSpec = motion.springOrTween(
-                            if (pressed) motion.springSnappy else motion.springBouncy
-                        ),
-                    )
+                // **Cancelled after the hold, not before it.** The job being
+                // replaced is usually the press's own animation, and cancelling
+                // it up front stops the shrink at wherever it had got to — which
+                // is the flicker again, arrived at from the other direction.
+                // Measured: a tap did not shrink the control at all. After the
+                // delay the press has finished and this is a no-op; a *press*
+                // arriving mid-hold has no delay and so still takes over at once.
+                val previous = settle
+                settle = launch {
+                    if (hold > Duration.ZERO) delay(hold)
+                    previous?.cancel()
+
+                    if (target != Color.Transparent) {
+                        overlayColour = target
+                    }
+
+                    launch {
+                        overlayAlpha.animateTo(
+                            targetValue = if (target == Color.Transparent) 0f else target.alpha,
+                            animationSpec = motion.tweenFast(),
+                        )
+                    }
+                    launch {
+                        // Asymmetric on purpose. Going down: snappy and critically
+                        // damped, so the control answers the finger immediately.
+                        // Coming back: under-damped, so it overshoots a little and
+                        // settles — which is what reads as playful rather than
+                        // mechanical. Overshooting on the way *down* would just feel
+                        // slow.
+                        scale.animateTo(
+                            targetValue = if (pressed && !motion.reduceMotion) pressScale else 1f,
+                            animationSpec = motion.springOrTween(
+                                if (pressed) motion.springSnappy else motion.springBouncy
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -202,6 +279,25 @@ private class KontourIndicationNode(
 
 /** How far a control shrinks while pressed. Subtle on purpose — 3% reads as response, 10% as a bug. */
 const val DefaultPressScale: Float = 0.97f
+
+/**
+ * The shortest a press is allowed to *look*, however briefly it was one.
+ *
+ * A tap is over before its own animation has started: the shrink is a snappy
+ * spring and the wash a `tweenFast`, and a thumb is on the glass for well under
+ * either. Released at once, both turn round part-way and the control flickers
+ * rather than answering — reported from a phone, against a press that looks right
+ * under a mouse for the simple reason that a click lasts longer.
+ *
+ * A hundred and twenty milliseconds: long enough for the shrink to arrive and the
+ * wash to reach its alpha, short enough that a fast double tap is still two taps
+ * rather than one long one. It is a **floor** and not a delay — a press already
+ * past it is answered the instant the finger lifts, which is every mouse click and
+ * every deliberate hold. See [KontourIndication] and the note inside its node.
+ *
+ * A starting point, and the kind of number only a thumb can settle.
+ */
+val PressFloor: Duration = 120.milliseconds
 
 /**
  * A [KontourIndication] wired to the current theme and input modality.

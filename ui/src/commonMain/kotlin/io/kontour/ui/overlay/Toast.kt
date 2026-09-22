@@ -7,6 +7,7 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -51,7 +52,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
@@ -376,12 +376,20 @@ object ToastDefaults {
      * in front of it and is simply not there on the next frame. Reported exactly
      * that way — a secondary toast should shrink and fade rather than vanish.
      *
-     * Two thirds. It has to be a bigger step than the [DepthScale] twelve per
-     * cent that separates one pill from the next: a gentler shrink than that
-     * reads as the stack re-tapering around a toast rather than as the toast
-     * leaving.
+     * **A third, where it used to be two thirds.** The shrink is what carries the
+     * departure now that it happens about the pill's own centre rather than
+     * pivoting on the edge facing the front card — and at two thirds, a pill
+     * shrinking about its middle reads as going translucent in place, which is
+     * how a centre-pivoted exit was reported the first time it was tried. A third
+     * is unmistakably smaller rather than slightly smaller, which is what makes
+     * the difference between a shape leaving and a shape fading.
+     *
+     * Well past the [DepthScale] twelve per cent that separates one pill from the
+     * next, which is the floor this has always had to clear: a gentler shrink
+     * than that reads as the stack re-tapering around a toast rather than as the
+     * toast going.
      */
-    const val PillExitScale: Float = 0.66f
+    const val PillExitScale: Float = 0.34f
 
     /**
      * How much of a waiting toast's own content colour outlines it.
@@ -1025,32 +1033,34 @@ private fun ToastCard(
                 fadeOut(motion.tweenExit()) +
                 scaleOut(motion.tweenExit(), targetScale = 0.94f)
         } else {
-            fadeOut(motion.tweenExit()) +
-                scaleOut(
-                    motion.tweenExit(),
-                    targetScale = ToastDefaults.PillExitScale,
-                    // **Retracted into the stack, not thinned in place.**
-                    //
-                    // Reported as the pill's departure still not being good enough
-                    // after it had already been moved off a slide and onto a shrink.
-                    // The shrink was about its own centre, so the sliver a reader can
-                    // actually see — the peek above the front card — thinned from
-                    // *both* edges while going translucent over the page, and a
-                    // shape that gets smaller in the middle of nowhere reads as
-                    // dissolving rather than leaving.
-                    //
-                    // Pivoted on the edge facing the front card instead, so the part
-                    // that is visible is the part that moves, and it withdraws behind
-                    // the card in front of it. That is what a stack closing up looks
-                    // like. Distinct from the slide this replaced, which is recorded
-                    // above and failed for the opposite reason: it put the pill under
-                    // the front card on the *first* frame, so there was nothing to
-                    // watch at all.
-                    transformOrigin = TransformOrigin(
-                        pivotFractionX = 0.5f,
-                        pivotFractionY = if (towardEdge) 1f else 0f,
-                    ),
+            // **Shrunk on the spot, toward its own centre.**
+            //
+            // Third time on this departure, and this is the one that was asked
+            // for: "they kinda just shrunk on the spot, towards their individual
+            // centre". The two before it each failed at one end of the same
+            // scale. A slide toward the edge put the pill *under* the front card
+            // on the first frame, so there was nothing to watch. A shrink pivoted
+            // on the edge facing that card withdrew behind it, which is a stack
+            // closing up rather than a toast leaving — and it also disagreed with
+            // the resting `graphicsLayer` below, which scales every pill about
+            // its centre. A pill that rests on one pivot and leaves on another is
+            // two shapes.
+            //
+            // The centre is the default, so there is no `transformOrigin` here at
+            // all. What keeps it from reading as *dissolving* — the failure
+            // recorded against the first centre-pivoted attempt — is the other two
+            // numbers: the shrink goes much deeper than it did, and the fade is
+            // held back so the pill is still nearly opaque while it is getting
+            // small. Shrink first, then disappear; the earlier version faded and
+            // shrank at the same rate, which is a pill going translucent in place.
+            fadeOut(
+                tween(
+                    durationMillis = motion.fast - motion.fast / 3,
+                    delayMillis = motion.fast / 3,
+                    easing = motion.exit,
                 )
+            ) +
+                scaleOut(motion.tweenExit(), targetScale = ToastDefaults.PillExitScale)
         },
     ) {
         ToastSurface(

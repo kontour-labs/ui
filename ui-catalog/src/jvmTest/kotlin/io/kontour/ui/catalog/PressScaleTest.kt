@@ -100,6 +100,72 @@ class PressScaleTest {
         )
     }
 
+    /**
+     * A tap too quick to see still plays in full.
+     *
+     * Reported from a phone: the press "looks good on desktop when you click it,
+     * and it sorta shrinks and darkens", but on a phone "you're often not tapping
+     * it for long enough to see that shrinking, and it sometimes just looks like
+     * it's flashing". The cause is arithmetic rather than taste — a thumb is down
+     * for a few tens of milliseconds, the shrink is a spring and the wash a
+     * `tweenFast`, and releasing retargeted both the moment the finger lifted. The
+     * shrink turned round a third of the way down; what is left of an animation
+     * that reverses before it arrives is a flicker.
+     *
+     * Held now for `PressFloor` after the release, so the shrink gets there.
+     *
+     * Measured as the smallest the control's ink ever gets after a press and a
+     * release in the same breath — no frame between them, which is the shortest
+     * press this harness can express and shorter than any real one. The floor is a
+     * wall-clock duration and the scene's frames are not, so twenty frames of
+     * animation pass inside a couple of milliseconds of held press: exactly the
+     * separation being tested, since the point is that the animation is allowed to
+     * finish.
+     */
+    @Test
+    fun aTapTooQuickToSeeStillShrinks() {
+        var bounds = Rect.Zero
+        var resting = 0
+        var held = 0
+        var tapped = Int.MAX_VALUE
+
+        Scene(width = 500, height = 220) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(24.dp)) {
+                Box(Modifier.reportBounds { bounds = it }) {
+                    Button(onClick = {}) { +"Save" }
+                }
+            }
+        }.use { scene ->
+            resting = scene.frames(8).inkWidth()
+            val at = bounds.alongX(0.5f)
+
+            // The control under a finger that stays there, for the number the tap
+            // below has to reach.
+            scene.press(at)
+            held = scene.frames(20).inkWidth()
+            scene.release(at)
+            scene.frames(30)
+
+            // And the same press, let go immediately.
+            scene.press(at)
+            scene.release(at)
+            repeat(20) { tapped = minOf(tapped, scene.frame().inkWidth()) }
+        }
+
+        assertTrue(
+            held < resting,
+            "a held press did not shrink the control at all: $resting→$held. " +
+                "Nothing else here can mean anything if that is false",
+        )
+        assertTrue(
+            tapped <= held,
+            "a tap released in the same breath took the control to ${tapped}px at " +
+                "its smallest, where a held press reaches ${held}px from " +
+                "${resting}px at rest. The press is being answered before its own " +
+                "animation has arrived, which is the flicker that was reported",
+        )
+    }
+
     /** One control, and the name a failure should call it by. */
     private class Case(val name: String, val content: @Composable () -> Unit)
 

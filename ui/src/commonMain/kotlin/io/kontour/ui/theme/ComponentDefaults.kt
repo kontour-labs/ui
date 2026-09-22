@@ -161,6 +161,20 @@ data class ComponentDefaults(
      * the same ratio to the dot that a platform indicator uses.
      */
     val pageIndicatorGap: Dp = 8.dp,
+    /**
+     * How much of the next page a hero carousel shows beside the current one.
+     *
+     * The narrow box in `CarouselStyle.Hero`. Ninety-six: wide enough to read as
+     * a picture with something in it rather than a stripe, narrow enough that the
+     * page you are looking at is plainly the subject. It is also a comfortable
+     * target — a tap on it turns the page — where anything under a touch target
+     * would be an affordance you can see and cannot hit.
+     *
+     * A brand's dial, which is why it is here: how much of the next thing to show
+     * is a decision about the *pictures*, and a gallery of wide landscapes wants
+     * less of it than a row of book covers.
+     */
+    val carouselHeroPeek: Dp = 96.dp,
     val keyValueLabelWidth: Dp = 108.dp,
     val keyValueMinValueWidth: Dp = 96.dp,
     /** The blank between the end of a marquee's text and its repeat. */

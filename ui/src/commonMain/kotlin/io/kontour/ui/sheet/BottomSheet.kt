@@ -1,11 +1,7 @@
 package io.kontour.ui.sheet
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.anchoredDraggable
@@ -59,6 +55,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collapse
 import androidx.compose.ui.semantics.dismiss
 import androidx.compose.ui.semantics.expand
@@ -265,6 +262,25 @@ fun BottomSheet(
      * dragged also cannot fade its scrim halfway: there is no halfway to be at.
      */
     draggable: Boolean = true,
+    /**
+     * Whether the user may put this sheet away by dragging it down.
+     *
+     * `false` gives the sheet a **floor**: a drag below its lowest resting detent
+     * stretches and springs back instead of settling at [SheetDetent.Hidden]. For
+     * a sheet that has to be answered rather than escaped.
+     *
+     * Not the same as leaving [SheetDetent.Hidden] out of the detent list, which
+     * was the only way to say this before and says something else: with no anchor
+     * down there the sheet's travel simply ends, where this keeps the anchor — so
+     * [SheetState.hide] still works, and a finger pushing past the bottom detent
+     * meets something that gives and comes back. The app can always close it; the
+     * user cannot.
+     *
+     * [ModalBottomSheet] passes its own `dismissible` down to this, where it also
+     * closes the tap outside and the back gesture. Neither of those exists on a
+     * plain sheet, so here it is the drag and nothing else.
+     */
+    dismissible: Boolean = true,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /**
      * What the sheet's *chrome* keeps clear of, and what its content is **told
@@ -350,6 +366,19 @@ fun BottomSheet(
     val motion = Theme.motion
     val actionsGap = SheetDefaults.ActionsGap
     val floating = presentation == SheetPresentation.Floating
+
+    // **Written here rather than in [ModalBottomSheet]**, which is where it used
+    // to be, and that had two consequences. A plain sheet could not refuse a
+    // dismissal at all — `SheetState.userDismissible` had exactly one writer and
+    // it was inside the modal — and nothing ever wrote it back to `true`, so a
+    // hoisted state that had been a modal sheet's kept the floor for every plain
+    // sheet it was handed to afterwards. Both of those were one line in the wrong
+    // component.
+    //
+    // In a `SideEffect` rather than written straight out: this publishes a
+    // composition's value to an object that outlives it, and a gesture must not be
+    // able to arrive before the composition it belongs to has finished.
+    SideEffect { state.userDismissible = dismissible }
 
     // The margin a floating sheet keeps, on each of the four sides.
     //
@@ -696,6 +725,11 @@ fun ModalBottomSheet(
     val latestPaneTitle by rememberUpdatedState(paneTitle)
     val latestDragHandle by rememberUpdatedState(dragHandle)
     val latestDraggable by rememberUpdatedState(draggable)
+    // Declared and then dropped on the floor until now: the inner sheet was never
+    // given this, so a caller passing `WindowInsets(0)` to say "whatever is above
+    // me has already handled all of it" was silently ignored and the sheet padded
+    // itself twice.
+    val latestWindowInsets by rememberUpdatedState(windowInsets)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
@@ -704,12 +738,6 @@ fun ModalBottomSheet(
     val showing by rememberUpdatedState(visible)
     val canDismiss by rememberUpdatedState(dismissible)
 
-    // The state has to know, because the two things that enforce it — the drag
-    // and the list inside the sheet — both reach the sheet through it. In a
-    // `SideEffect` rather than written straight out: this is publishing a
-    // composition's value to an object that lives outside it, and a gesture
-    // cannot arrive before the composition it belongs to has finished.
-    SideEffect { state.userDismissible = dismissible }
     LaunchedEffect(state) {
         snapshotOfHidden(state, stillVisible = { showing }) {
             // A sheet that cannot be dismissed does not pass the drag on as a
@@ -773,7 +801,12 @@ fun ModalBottomSheet(
                             contentColour = latestContentColour,
                             paneTitle = latestPaneTitle,
                             draggable = latestDraggable,
+                            // The modal's own, handed down rather than written
+                            // into the state from here: the sheet owns the drag,
+                            // so the sheet is what tells the state about it.
+                            dismissible = canDismiss,
                             dragHandle = latestDragHandle,
+                            windowInsets = latestWindowInsets,
                             content = body,
                         )
                     },
@@ -874,9 +907,7 @@ private fun BoxScope.SheetSurface(
                     // window and changes every frame. The saving below is not
                     // available to it, and the `graphicsLayer` on its content
                     // is what keeps that from reaching the caller's content.
-                    (window - floatingLift(state, floatInsets, this) -
-                        sheetTop(state, true, floatInsets, this))
-                        .coerceIn(0, window)
+                    floatingSurfaceHeight(state, floatInsets, this, window)
                 } else {
                     state.surfaceHeight
                         .coerceAtLeast(0f)
@@ -1010,7 +1041,13 @@ private fun BoxScope.SheetSurface(
                                 constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
                         }
                         val placeable = measurable.measure(room)
-                        state.sheetHeight = placeable.height.toFloat()
+                        // What the column placed. What it did *not* place — a
+                        // collapsed part's room — each part keeps for itself, and
+                        // `updateAnchors` below adds the two together. Measuring
+                        // the column is what fills those in, so the order here is
+                        // the whole of the bookkeeping. See
+                        // `SheetState.collapsedHeight`.
+                        state.contentHeight = placeable.height.toFloat()
                         state.updateAnchors(density)
                         val height = placeable.height.coerceAtMost(constraints.maxHeight)
                         layout(placeable.width, height) { placeable.place(0, 0) }
@@ -1079,12 +1116,26 @@ interface SheetContentScope : ColumnScope {
      * it puts every piece of the sheet in the same shape and makes the ones that
      * come and go legible as the exceptions.
      *
-     * It arrives **after the sheet has settled**, not as it passes the detent.
-     * A part changes the content's height, `SheetDetent.Expanded` is measured
-     * from that height, and moving an anchor under a finger re-pins a drag that
-     * is already running — so the change waits for the one moment nothing is
-     * being dragged. The cost is a beat between the sheet arriving and the part
-     * doing so, which reads as the sheet settling into its new size.
+     * It arrives **as the sheet passes the detent**, under the finger, rather
+     * than once the sheet has stopped. The first version of this waited for the
+     * settle and said why: a part changes the content's height,
+     * `SheetDetent.Expanded` is measured from that height, and moving an anchor
+     * under a finger re-pins a drag already in flight. The reason was sound and
+     * the conclusion cost more than it bought — a sheet whose parts were all
+     * gated could not be dragged past its collapsed content at all, because the
+     * height `Expanded` was measured from was the height with everything hidden.
+     *
+     * So the heights are two numbers now. A collapsed part takes no room and is
+     * still *measured*, and the sheet reports what it would cost separately — so
+     * the anchors do not move when a part reveals, there is nothing left to
+     * re-pin, and the reveal can happen on the frame the sheet passes the detent.
+     * See `SheetState.sheetHeight`.
+     *
+     * A collapsed part is collapsed for real: nothing is drawn, nothing can be
+     * tapped, and a screen reader does not announce it. What it costs is that the
+     * part is *composed* while it is hidden, which is the side of that trade this
+     * takes deliberately — it buys a reveal with no composition in it, and the
+     * frame that reveals is the frame with a finger on the glass.
      */
     @Composable
     fun part(from: SheetDetent? = null, content: @Composable ColumnScope.() -> Unit)
@@ -1104,18 +1155,89 @@ private class SheetParts(
     @Composable
     override fun part(from: SheetDetent?, content: @Composable ColumnScope.() -> Unit) {
         val motion = Theme.motion
-        val here = from == null || state.hasSettledAtLeast(from)
-        AnimatedVisibility(
-            visible = here,
-            // The height is the part of this the sheet's anchors can feel, so it
-            // takes the slower spec and the fade rides on top of it: a part whose
-            // ink arrived before its room did would push the rest of the sheet
-            // down through text that was already legible.
-            enter = expandVertically(motion.tweenDefault()) + fadeIn(motion.tweenFast()),
-            exit = shrinkVertically(motion.tweenDefault()) + fadeOut(motion.tweenFast()),
-        ) {
-            Column(content = content)
+        val shown = from == null || state.willReach(from)
+
+        /**
+         * How much of this part's room it currently has, 0 to 1.
+         *
+         * An `Animatable` read only from the layout block and the layer below, so
+         * a part revealing is a layout and a re-record and not a recomposition —
+         * which matters here more than it usually does, because the frame this
+         * runs on is a frame with a finger on the glass.
+         */
+        val reveal = remember { Animatable(if (shown) 1f else 0f) }
+
+        /** What this part tells the sheet about the room it is not taking. */
+        val slot = remember { SheetPart() }
+
+        LaunchedEffect(shown) {
+            val target = if (shown) 1f else 0f
+            if (reveal.value != target) reveal.animateTo(target, motion.tweenDefault())
         }
+
+        // Registered for as long as the part is composed, which is what keeps a
+        // part that has gone from still being counted.
+        DisposableEffect(slot) {
+            state.parts.add(slot)
+            onDispose { state.parts.remove(slot) }
+        }
+
+        Column(
+            Modifier
+                // **A collapsed part is not in the assistive tree either.**
+                //
+                // Being unplaced was expected to be enough, and it is not:
+                // measured through `onAllNodesWithTag`, an unplaced part was still
+                // found. `clearAndSetSemantics` rather than
+                // `hideFromAccessibility` for the reason `OverlayHost` writes down
+                // where it hides a dimmed page — the flag leaves the node in the
+                // tree and asks other people's code to honour it, and measured, it
+                // left a button findable. Clearing states the fact in the one
+                // vocabulary every reader of this tree shares.
+                //
+                // Keyed on `shown` rather than on the reveal, so this changes when
+                // the sheet crosses the detent and not on every frame of the
+                // animation. A part on its way out is out as far as a screen
+                // reader is concerned, which is the right answer a beat early
+                // rather than the wrong one.
+                .then(if (shown) Modifier else Modifier.clearAndSetSemantics {})
+                // **Outside the layout below**, so the clip is against the room
+                // the part currently has rather than against its full height. A
+                // part half revealed shows its top half and cuts the rest, which
+                // is what makes it read as unrolling out of the sheet rather than
+                // as a block of text sliding under the one beneath it.
+                .graphicsLayer {
+                    clip = true
+                    // Ahead of the room, and deliberately: a part whose ink
+                    // arrived at the same rate as its height would be legible
+                    // while still being pushed down the sheet. Full by the time
+                    // it has half its room, which is the same ordering the two
+                    // specs used to give — the fade was the fast one.
+                    alpha = (reveal.value * 2f).coerceAtMost(1f)
+                }
+                .layout { measurable, constraints ->
+                    // Measured at its natural height whatever it is showing, so
+                    // the sheet always knows what this part would cost — see
+                    // `SheetState.sheetHeight`, which is the reason a part can
+                    // collapse to nothing without shortening the sheet's tallest
+                    // detent.
+                    val placeable = measurable.measure(constraints)
+                    val natural = placeable.height
+                    val visible = (natural * reveal.value).roundToInt().coerceIn(0, natural)
+                    slot.collapsedBy = natural - visible
+                    layout(placeable.width, visible) {
+                        // **Not placed at zero height**, which is the difference
+                        // between a part that is collapsed and a part that is
+                        // merely flat: an unplaced node draws nothing, hit-tests
+                        // nothing and is not in the semantics tree, so a
+                        // collapsed part is not a row a screen reader reads out
+                        // or a button a thumb can find. `SheetPartsTest` holds
+                        // the last of those.
+                        if (visible > 0) placeable.place(0, 0)
+                    }
+                },
+            content = content,
+        )
     }
 }
 
@@ -1190,6 +1312,53 @@ private fun sheetTop(
  * subtracts this — and a lift derived from a position that already has the lift
  * in it is a loop, not a fraction.
  */
+/**
+ * How tall a floating sheet's surface is — and why it stops shrinking.
+ *
+ * Above the lowest detent that is somewhere to *be*, the bottom edge is pinned a
+ * margin off the window's and the height follows the top: that is what a floating
+ * sheet is, and it is unchanged here.
+ *
+ * Below it, the height is frozen at what it was *at* that detent, and this is the
+ * fix for a report that survived a round: a floating sheet still "doesn't get
+ * dragged out of the screen". The two halves of the arithmetic were cancelling.
+ * [sheetTop] places the surface at `raw - lift` and the height was measured as
+ * `window - lift - top`, so the bottom edge came out at `window - lift` — with the
+ * offset gone from the expression entirely. The top descended, the bottom stayed
+ * pinned, and the sheet shrank into the window's edge rather than leaving through
+ * it. [floatingLift]'s own note records finding the bottom edge at 875 on every
+ * frame of a close, before and after the fix that was supposed to move it.
+ *
+ * With the height constant below the floor, the only thing still moving is
+ * [sheetTop] — so the sheet translates down and out exactly as an edge sheet
+ * does, keeping its side margins and all four rounded corners, both of which are
+ * independent of this arithmetic.
+ *
+ * The two branches agree exactly at the floor, where the lift is full and the
+ * frozen height is `window - margin - (floor - margin)`, so nothing jumps as the
+ * sheet crosses it.
+ */
+private fun floatingSurfaceHeight(
+    state: SheetState,
+    floatInsets: WindowInsets,
+    density: Density,
+    window: Int,
+): Int {
+    val floor = state.lowestRestingOffset
+    val raw = offsetOrHidden(state) - state.drawnOvershoot.roundToInt()
+    val following = window -
+        floatingLift(state, floatInsets, density) -
+        sheetTop(state, true, floatInsets, density)
+    if (floor.isNaN() || raw <= floor) return following.coerceIn(0, window)
+    // At the floor the lift is the whole margin, so the top was `floor - margin`
+    // — clamped, because a floating sheet has a top edge too and a detent that
+    // resolves to an offset of zero means "as tall as the window less a margin on
+    // all four sides".
+    val margin = floatInsets.getBottom(density)
+    val settledTop = (floor.roundToInt() - margin).coerceAtLeast(floatInsets.getTop(density))
+    return (window - margin - settledTop).coerceIn(0, window)
+}
+
 private fun floatingLift(state: SheetState, floatInsets: WindowInsets, density: Density): Int {
     val margin = floatInsets.getBottom(density)
     if (margin <= 0) return 0

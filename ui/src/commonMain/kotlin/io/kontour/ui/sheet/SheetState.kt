@@ -197,35 +197,114 @@ class SheetState internal constructor(
      */
     internal val canOvershoot: Boolean
         get() {
-            val tallest = allowedDetents.minOfOrNull { detent ->
-                anchoredState.anchors.positionOf(detent)
-            } ?: return false
+            val tallest = highestAnchored(allowedDetents)
             return !tallest.isNaN() && tallest > 0.5f
         }
 
     /**
-     * Whether the sheet has settled at [detent]'s height or above it.
+     * The offsets of the detents that are actually **in** the anchors.
+     *
+     * `positionOf` answers `NaN` for a detent that is not anchored, and two
+     * detents that resolve to the same height leave only one of them anchored —
+     * `resolveAnchors` drops the duplicate deliberately, because two anchors at
+     * one offset make `settledValue` ambiguous. So `NaN` is an ordinary answer
+     * here rather than an error, and a `minOfOrNull` over a list containing one
+     * is `NaN`: every comparison against it is false, so the whole reading
+     * collapses.
+     *
+     * That is not hypothetical and it is not small. A sheet whose peek anchor was
+     * its only always-present content resolved `Expanded` to the same offset as
+     * its peek, lost `Expanded` to the dedupe, and then reported `NaN` from
+     * [lowestRestingOffset] — which took the floating sheet's landing arithmetic
+     * with it, and [dragFloor] with that, so an undismissable sheet lost the very
+     * floor it exists to have. One dropped anchor, three silent reversions.
+     *
+     * [SheetDetent.Hidden] is skipped: both of these are asked about where the
+     * sheet can *be*, and hidden is where it goes to stop being anywhere. It
+     * makes no difference to [canOvershoot] — hidden is the largest offset, so
+     * it was never the smallest — except for a sheet whose only detent is hidden,
+     * which now reports that it cannot be stretched, which is true.
+     */
+    private fun highestAnchored(detents: List<SheetDetent>): Float =
+        extremeAnchored(detents, highest = true)
+
+    /** See [highestAnchored]. The largest offset, which is the lowest on screen. */
+    private fun lowestAnchored(detents: List<SheetDetent>): Float =
+        extremeAnchored(detents, highest = false)
+
+    private fun extremeAnchored(detents: List<SheetDetent>, highest: Boolean): Float {
+        val anchors = anchoredState.anchors
+        var found = Float.NaN
+        for (detent in detents) {
+            if (detent == SheetDetent.Hidden) continue
+            val at = anchors.positionOf(detent)
+            if (at.isNaN()) continue
+            if (found.isNaN() || (if (highest) at < found else at > found)) found = at
+        }
+        return found
+    }
+
+    /**
+     * Where [detent] puts the sheet's top edge, anchored or not.
+     *
+     * The anchors are the first answer and the arithmetic is the fallback, which
+     * is the whole point: `resolveAnchors` drops a detent that lands on an offset
+     * already taken, so a perfectly meaningful detent can be missing from the
+     * anchors — and `positionOf` then says `NaN`, which is indistinguishable from
+     * "nonsense" to every caller that asks. Recomputed, it says what it has
+     * always meant: the offset the sheet would sit at, which is *also* the offset
+     * of whichever anchor swallowed it.
+     *
+     * `NaN` only before the first layout, where nothing has been measured and
+     * there is genuinely no answer.
+     */
+    internal fun offsetOf(detent: SheetDetent): Float {
+        val anchored = anchoredState.anchors.positionOf(detent)
+        if (!anchored.isNaN()) return anchored
+        val density = anchorDensity ?: return Float.NaN
+        if (containerHeight <= 0f) return Float.NaN
+        return detentOffset(
+            detent = detent,
+            containerHeight = containerHeight,
+            sheetHeight = sheetHeight,
+            peekHeight = peekHeight,
+            density = density,
+        )
+    }
+
+    /**
+     * Whether the sheet is at [detent]'s height or above it, or on its way there.
      *
      * Compared by *position* rather than by index in the detent list, because a
      * list is written in whatever order a caller found convenient and two detents
-     * can resolve to the same height. `false` before there are anchors to ask,
-     * which is the frame a sheet mounts on.
+     * can resolve to the same height.
      *
-     * **Settled, not target.** A sheet's measured content is what
-     * [SheetDetent.Expanded]'s anchor comes from, so anything that changes the
-     * content's height rebuilds the anchors — and doing that under a finger
-     * re-pins a drag that is already in flight. Reading the settled detent moves
-     * the change to the one moment nothing is being dragged, at the cost of a
-     * part arriving a beat after the sheet does.
+     * **Target, not settled**, and that is last round's trade being taken back
+     * rather than an oversight corrected. A part used to wait for the sheet to
+     * settle because a part changed the content's height, `SheetDetent.Expanded`
+     * is measured from that height, and moving an anchor under a finger re-pins a
+     * drag already in flight. The heights are split now — see [contentHeight] —
+     * so revealing a part cannot move an anchor, and the reason for the beat
+     * between the sheet arriving and the part doing so is gone with it.
      */
-    internal fun hasSettledAtLeast(detent: SheetDetent): Boolean {
-        val anchors = anchoredState.anchors
-        val here = anchors.positionOf(anchoredState.settledValue)
-        val there = anchors.positionOf(detent)
+    internal fun willReach(detent: SheetDetent): Boolean {
+        val here = offsetOf(anchoredState.targetValue)
+        val there = offsetOf(detent)
         if (here.isNaN() || there.isNaN()) return false
         // Offsets grow downward, so a taller sheet is a smaller number.
         return here <= there
     }
+
+    /**
+     * The density the anchors were last built against.
+     *
+     * Kept so [offsetOf] can resolve a detent the anchors do not have. A detent
+     * is a `Density.(container, sheet) -> Float`, and every other caller of one
+     * is inside a layout block that has a density to hand; this object is not,
+     * so it keeps the one its anchors were built with. Null before the first
+     * layout, which is the one time there is nothing to resolve against.
+     */
+    private var anchorDensity: Density? = null
 
     /**
      * The offset of the lowest detent that is somewhere to *be*, in pixels.
@@ -241,14 +320,7 @@ class SheetState internal constructor(
      * where the sheet is rather than about what the user may do, so it reads the
      * whole list and answers the same whoever is moving it.
      */
-    internal val lowestRestingOffset: Float
-        get() {
-            val lowest = detents
-                .filter { it != SheetDetent.Hidden }
-                .maxOfOrNull { anchoredState.anchors.positionOf(it) }
-                ?: return Float.NaN
-            return if (lowest.isNaN()) Float.NaN else lowest
-        }
+    internal val lowestRestingOffset: Float get() = lowestAnchored(detents)
 
     /**
      * The furthest down a *drag* may take the sheet, in pixels of offset.
@@ -277,11 +349,7 @@ class SheetState internal constructor(
             // Already away: nothing to hold it up, and a sheet mid-open would
             // otherwise be floored at wherever it happens to be.
             if (anchoredState.settledValue == SheetDetent.Hidden) return Float.NaN
-            val lowest = allowedDetents
-                .filter { it != SheetDetent.Hidden }
-                .maxOfOrNull { anchoredState.anchors.positionOf(it) }
-                ?: return Float.NaN
-            return if (lowest.isNaN()) Float.NaN else lowest
+            return lowestAnchored(allowedDetents)
         }
 
     /**
@@ -368,8 +436,80 @@ class SheetState internal constructor(
     /** Springs the stretch back to nothing. */
     internal suspend fun releaseOvershoot(spec: AnimationSpec<Float>) = band.release(spec)
 
-    /** The content's own full height in pixels, for [SheetDetent.Expanded]. */
-    internal var sheetHeight by mutableFloatStateOf(0f)
+    /**
+     * What the sheet's column actually placed, in pixels — what is on screen.
+     *
+     * Less than [sheetHeight] by exactly the room a collapsed part is not taking.
+     */
+    internal var contentHeight by mutableFloatStateOf(0f)
+
+    /**
+     * The room the collapsed parts would take if they were shown, in pixels.
+     *
+     * Summed over whatever parts are in the sheet right now: for each one, its
+     * natural height less the height it is currently placed at. Zero for every
+     * sheet that does not use [SheetContentScope.part].
+     *
+     * **Each part keeps its own number and this adds them up**, which is the
+     * second try at this. The first had the sheet's layout clear a map, measure
+     * the column, and read the total back — one pass, so nothing could be stale.
+     * Except that a parent re-measuring with unchanged constraints does *not*
+     * re-measure a child that has not been invalidated: Compose hands back the
+     * cached placeable, the parts' layout blocks never run, and the clear had
+     * already thrown their numbers away. Measured: `collapsed` read 0 with a
+     * 200dp part collapsed, so `Expanded` resolved to the peek's offset, the
+     * dedupe dropped it, the part's own gate then said "already there", and the
+     * sheet oscillated at about one anchor rebuild per frame. Held per part, a
+     * cached measure simply leaves last pass's answer standing, which is the
+     * right one.
+     */
+    internal val collapsedHeight: Float
+        get() {
+            var total = 0
+            for (part in parts) total += part.collapsedBy
+            return total.toFloat()
+        }
+
+    /**
+     * The parts currently in the sheet's content, in no particular order.
+     *
+     * A plain list of plain objects, added and removed by `part`'s own
+     * `DisposableEffect` and written to from the layout phase. Not snapshot
+     * state, deliberately: the only reader that has to be current is
+     * [updateAnchors], which runs from the sheet's own layout block *after* the
+     * column it measures — so the fresh number is already there, and making this
+     * observable would only add a write-then-read of the same value in one pass,
+     * which is how a layout loop starts.
+     */
+    internal val parts: MutableList<SheetPart> = mutableListOf()
+
+    /**
+     * The content's height **as the anchors see it**, in pixels.
+     *
+     * The sum of what is placed and what is collapsed, and the reason it is a sum
+     * rather than a measurement is the invariant the whole of `part` rests on:
+     * both terms are whole pixels, so a part gains in [contentHeight] exactly
+     * what it loses in [collapsedHeight] and this total is *bit-identical* from
+     * frame to frame while it reveals. `AnchorInputs` therefore compares equal,
+     * `updateAnchors` returns at its early-out, and nothing can re-pin a drag
+     * that is in flight.
+     *
+     * That is what buys the thing a part is for. With the anchors independent of
+     * which parts are showing, `SheetDetent.Expanded` is the height of the whole
+     * sheet whatever is collapsed inside it — so a sheet can be dragged to its
+     * full size *and* a part can reveal during the drag, which were mutually
+     * exclusive while this was one number.
+     *
+     * The one case where the sum does move is a sibling that fills whatever room
+     * it is given — a `verticalScroll`, a `fillMaxHeight`. Then revealing a part
+     * takes room from the sibling rather than adding to the total, and the total
+     * falls. It is also the case where it cannot matter: content that fills its
+     * room has already driven [contentHeight] to the ceiling, where
+     * `minOf(sheet, container)` and `resolveAnchors`' own clamp give the same
+     * offset for any height at all. Exact when the content wraps,
+     * offset-stable when it fills.
+     */
+    internal val sheetHeight: Float get() = contentHeight + collapsedHeight
 
     /**
      * How far down the sheet the peek anchor's *bottom edge* sits, in pixels.
@@ -505,7 +645,12 @@ class SheetState internal constructor(
      */
     val visibleFraction: Float
         get() {
-            val height = sheetHeight
+            // [contentHeight], not [sheetHeight]: this is how much of the sheet is
+            // *on screen*, and a collapsed part is not. Against the full height a
+            // sheet with a part still to reveal would report a fraction under 1
+            // while sitting fully out, so a modal scrim would never quite reach
+            // full dark.
+            val height = contentHeight
             return if (height <= 0f) 0f else (visibleHeight / height).coerceIn(0f, 1f)
         }
 
@@ -527,7 +672,7 @@ class SheetState internal constructor(
             pendingDetent = detent
             return
         }
-        anchoredState.animateTo(detent)
+        anchoredState.animateTo(anchoredEquivalent(detent))
     }
 
     /** Jumps to [detent] with no animation. For restoring state, not for interaction. */
@@ -537,7 +682,31 @@ class SheetState internal constructor(
             pendingDetent = detent
             return
         }
-        anchoredState.snapTo(detent)
+        anchoredState.snapTo(anchoredEquivalent(detent))
+    }
+
+    /**
+     * The anchored detent that sits where [detent] would, which may not be
+     * [detent] itself.
+     *
+     * A detent resolving to an offset another one already has is dropped from the
+     * anchors — deliberately, since two anchors at one offset make `settledValue`
+     * ambiguous — and `anchoredDraggable` asked to animate to a detent it has no
+     * anchor for goes to `NaN`: the sheet reports itself settled at a position
+     * that is not a number, and every derived reading collapses with it. That is
+     * reachable from ordinary code, not from a mistake: `expand()` asks for the
+     * last detent in the list, and on a sheet whose peek anchor is its only
+     * always-present content, `Expanded` and `peek` are the same offset.
+     *
+     * Same offset, so the sheet goes exactly where it was asked to go; it simply
+     * arrives under the name the anchors kept.
+     */
+    private fun anchoredEquivalent(detent: SheetDetent): SheetDetent {
+        val anchors = anchoredState.anchors
+        if (!anchors.positionOf(detent).isNaN()) return detent
+        val wanted = offsetOf(detent)
+        if (wanted.isNaN()) return detent
+        return anchors.closestAnchor(wanted) ?: detent
     }
 
     private val hasAnchors: Boolean get() = anchoredState.anchors.size > 0
@@ -668,6 +837,7 @@ class SheetState internal constructor(
         }
 
     internal fun updateAnchors(density: Density) {
+        anchorDensity = density
         val inputs = AnchorInputs(
             container = containerHeight.roundToInt(),
             sheet = sheetHeight.roundToInt(),
@@ -1081,38 +1251,63 @@ internal fun resolveAnchors(
     if (containerHeight <= 0f) return positions
 
     for (detent in detents) {
-        val visible = if (detent.id == PeekDetentId && peekHeight > 0f) {
-            peekHeight
-        } else {
-            with(density) { detent.resolve(this, containerHeight, sheetHeight) }
-        }
-        // **Nothing reaches the very top.** A sheet whose top edge lands on
-        // pixel zero has no page above it for its rounded corners to read
-        // against, and on a phone it also puts the drag handle and the header
-        // under the status bar — which is what was reported. `SheetTopGap` is
-        // the same 12dp the backdrop already insets a receding page by, so a
-        // sheet at full height and a page behind a sheet leave the same margin.
-        //
-        // Applied here rather than inside `Full` and `Expanded` because it is a
-        // fact about how far a sheet may travel, not about what either detent
-        // means: `Full` still resolves to "the whole container" and says so, and
-        // a caller's own `fraction(1f)` gets the same treatment without knowing
-        // about it.
-        // A container with no room for the gap does not get one. `minOf(gap,
-        // container)` is the obvious guard and it is the wrong one: on a 6px
-        // container it makes the gap the whole container, so every detent
-        // resolves to "entirely hidden" and the sheet has nowhere to be. A
-        // container that small is a measurement in progress rather than a
-        // window, and leaving it exactly the offsets it had is what does least
-        // harm to it.
-        val gap = with(density) { SheetTopGap.toPx() }
-        val raw = containerHeight - visible.coerceIn(0f, containerHeight)
-        val offset = if (containerHeight > gap) raw.coerceAtLeast(gap) else raw
+        val offset = detentOffset(
+            detent = detent,
+            containerHeight = containerHeight,
+            sheetHeight = sheetHeight,
+            peekHeight = peekHeight,
+            density = density,
+        )
         if (positions.values.none { abs(it - offset) < 0.5f }) {
             positions[detent] = offset
         }
     }
     return positions
+}
+
+/**
+ * Where one detent puts the sheet's top edge, in pixels from the container's top.
+ *
+ * Pulled out of [resolveAnchors] so that [SheetState.offsetOf] can ask the same
+ * question about a detent the anchors do not have — which is the ordinary state
+ * of a detent whose offset another one got to first, since a duplicate is dropped
+ * above. Pure, and takes everything it needs, so the two answers cannot drift.
+ */
+internal fun detentOffset(
+    detent: SheetDetent,
+    containerHeight: Float,
+    sheetHeight: Float,
+    peekHeight: Float,
+    density: Density,
+): Float {
+    val visible = if (detent.id == PeekDetentId && peekHeight > 0f) {
+        peekHeight
+    } else {
+        with(density) { detent.resolve(this, containerHeight, sheetHeight) }
+    }
+    // **Nothing reaches the very top.** A sheet whose top edge lands on
+    // pixel zero has no page above it for its rounded corners to read
+    // against, and on a phone it also puts the drag handle and the header
+    // under the status bar — which is what was reported. `SheetTopGap` is
+    // the same 12dp the backdrop already insets a receding page by, so a
+    // sheet at full height and a page behind a sheet leave the same margin.
+    //
+    // Applied here rather than inside `Full` and `Expanded` because it is a
+    // fact about how far a sheet may travel, not about what either detent
+    // means: `Full` still resolves to "the whole container" and says so, and
+    // a caller's own `fraction(1f)` gets the same treatment without knowing
+    // about it.
+    //
+    // A container with no room for the gap does not get one. `minOf(gap,
+    // container)` is the obvious guard and it is the wrong one: on a 6px
+    // container it makes the gap the whole container, so every detent
+    // resolves to "entirely hidden" and the sheet has nowhere to be. A
+    // container that small is a measurement in progress rather than a
+    // window, and leaving it exactly the offsets it had is what does least
+    // harm to it.
+    val gap = with(density) { SheetTopGap.toPx() }
+    val raw = containerHeight - visible.coerceIn(0f, containerHeight)
+    return if (containerHeight > gap) raw.coerceAtLeast(gap) else raw
 }
 
 /**
@@ -1144,6 +1339,25 @@ fun Modifier.sheetPeekAnchor(): Modifier {
         state.measurePeek()
         state.updateAnchors(density)
     }
+}
+
+/**
+ * One [SheetContentScope.part]'s room, as the sheet sees it.
+ *
+ * Held by the part across recompositions and written from its layout block, so
+ * `SheetState.collapsedHeight` can add up what the sheet is not currently showing
+ * without the parts having to be composed in any particular order — or, indeed,
+ * measured on the pass that reads them. See [SheetState.collapsedHeight].
+ */
+internal class SheetPart {
+    /**
+     * Natural height less placed height, in whole pixels.
+     *
+     * Whole pixels because the invariant depends on it: the part gains in the
+     * column's placed height exactly what it loses here, so the sum of the two is
+     * the same number frame to frame while it reveals.
+     */
+    var collapsedBy: Int = 0
 }
 
 /** The orientation every sheet in this library drags along. */

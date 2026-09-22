@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
@@ -200,6 +201,142 @@ class FloatingSheetTest {
                 "bottom and should be landing on it, not drifting off it with a " +
                 "strip of background underneath the whole way down",
         )
+    }
+
+    /**
+     * A closing floating sheet **slides out whole** rather than collapsing.
+     *
+     * The arm above reads the gap under the sheet and cannot tell these two
+     * apart: a sheet that gives its margin back and shrinks into the window's
+     * edge passes it, which is what the sheet was doing — reported twice, and the
+     * second time as "it still doesn't get dragged out of the screen". The two
+     * halves of the arithmetic were cancelling; `floatingSurfaceHeight` has the
+     * algebra.
+     *
+     * What separates them is how much sheet there is on the frame where the ink
+     * first reaches the last row of the window. Collapsing, the bottom edge is
+     * pinned a shrinking margin up, so it only touches the last row when the
+     * sheet has nothing left — the band is a few pixels. Sliding out, the height
+     * is frozen below the lowest detent and the bottom edge goes *past* the
+     * window: the ink reaches the last row while the sheet is still its full
+     * height, and is cropped by the window rather than shortened.
+     */
+    @Test
+    fun aClosingFloatingSheetKeepsItsHeightOnTheWayOut() {
+        var open by mutableStateOf(false)
+        var settledBand = -1
+        var closingBand = -1
+
+        Scene(width = 600, height = 900) {
+            KontourTheme(reduceMotion = false) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().background(Ground))
+                    ModalBottomSheet(
+                        visible = open,
+                        onDismissRequest = {},
+                        presentation = SheetPresentation.Floating,
+                        containerColour = SheetColour,
+                    ) {
+                        Text("Departures")
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            open = true
+            settledBand = scene.frames(70).sheetBand()
+            open = false
+            // The first frame with the sheet's own colour on the window's last
+            // row. Waited for rather than counted, for the reason the arm above
+            // gives: the close runs in a coroutine on a clock this scene does not
+            // drive.
+            closingBand = scene.renderUntil(timeoutMillis = CloseTimeout) { frame ->
+                frame.gapUnderTheSheet() == 0 && frame.sheetBand() > 0
+            }?.sheetBand() ?: NeverLanded
+        }
+
+        assertTrue(settledBand > 0, "the sheet never drew anything at all")
+        assertTrue(
+            closingBand != NeverLanded,
+            "no frame of the close ever put the sheet's own colour on the last row " +
+                "of the window — it never went out through the bottom at all",
+        )
+        assertTrue(
+            closingBand * 2 > settledBand,
+            "the sheet was ${closingBand}px tall on the frame it reached the " +
+                "bottom of the window, against ${settledBand}px settled. It is " +
+                "collapsing into the edge rather than sliding out through it",
+        )
+    }
+
+    /**
+     * A plain sheet told it cannot be dismissed springs back from a drag.
+     *
+     * `SheetState.userDismissible` had exactly one writer and it was inside
+     * `ModalBottomSheet`, so a plain sheet had no way to say this — the nearest
+     * thing was leaving `Hidden` out of the detent list, which is the arm above
+     * and a different behaviour: no anchor at all, rather than an anchor plus a
+     * floor that gives and comes back.
+     *
+     * Dragged well past the bottom detent and released. What it must not do is
+     * settle at `Hidden`.
+     */
+    @Test
+    fun aPlainSheetThatRefusesDismissalSpringsBack() {
+        var settled: SheetDetent? = null
+        val bar = SheetDetent.height("bar", 120.dp)
+
+        Scene(width = 600, height = 900) {
+            KontourTheme(reduceMotion = true) {
+                val state = rememberSheetState(
+                    // Hidden and one resting detent, so the only anchor below
+                    // the sheet is the one it must refuse to reach. `Expanded`
+                    // here would be *shorter* than the bar — the content is a
+                    // line of text — and a drag downward would settle at it
+                    // perfectly legitimately, which is not what this is about.
+                    detents = listOf(SheetDetent.Hidden, bar),
+                    initialDetent = bar,
+                )
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().background(Ground))
+                    io.kontour.ui.sheet.BottomSheet(
+                        state = state,
+                        dismissible = false,
+                        containerColour = SheetColour,
+                    ) {
+                        Text("Search")
+                    }
+                }
+                settled = state.currentDetent
+            }
+        }.use { scene ->
+            scene.frames(40)
+            // The handle, which is at the top of a sheet showing 120dp of itself.
+            val handle = Offset(300f, 900f - 120f * 2f + 16f)
+            scene.drag(from = handle, to = Offset(300f, 880f), steps = 20)
+            scene.frames(60)
+        }
+
+        assertTrue(
+            settled == bar,
+            "a plain sheet with `dismissible = false` settled at $settled after " +
+                "being dragged to the bottom of the window. `Hidden` is in its " +
+                "anchors so that the app can still close it; a finger must meet a " +
+                "floor instead",
+        )
+    }
+
+    /** The height of the sheet's own ink down the middle of the window. */
+    private fun BufferedImage.sheetBand(): Int {
+        var top = -1
+        var bottom = -1
+        for (y in 0 until height) {
+            if ((getRGB(width / 2, y) and 0xFFFFFF) == SheetRgb) {
+                if (top < 0) top = y
+                bottom = y
+            }
+        }
+        return if (top < 0) 0 else bottom - top + 1
     }
 
     /** Rows between the sheet's lowest ink and the bottom of the window. */

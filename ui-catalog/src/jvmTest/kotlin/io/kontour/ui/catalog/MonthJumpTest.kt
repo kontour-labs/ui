@@ -122,6 +122,73 @@ class MonthJumpTest {
         )
     }
 
+    /**
+     * With the wheels up, a month change **cuts**. With them down, it slides.
+     *
+     * The two arms are one claim: the transition is switched off by the chooser
+     * and not by having been deleted. Reported as the date picker going to mush
+     * while a drum was turning, and the cause is in `AnimatedContent`'s contract
+     * rather than in the transition's length — every target it has not finished
+     * *leaving* stays composed, and a drum flicked through a year hands it a new
+     * one every couple of frames. Ten month grids at forty-two `DayCell`s each,
+     * every cell holding two colour animations and a scale.
+     *
+     * Read off `hasInvalidations` rather than off the pixels, because "is
+     * anything still animating" is exactly the question and a screenshot of a
+     * grid mid-slide is a screenshot of a grid.
+     */
+    @Test
+    fun theGridCutsWhileTheWheelsAreUpAndSlidesWhenTheyAreNot() {
+        lateinit var navigation: CalendarNavigationState
+        var header = Rect.Zero
+
+        Scene(width = 420, height = 760) {
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    navigation = rememberCalendarNavigationState(Start)
+                    DatePicker(
+                        selected = Start,
+                        onSelectedChange = {},
+                        today = Start,
+                        navigation = navigation,
+                        previousIcon = Tabler.Outline.ChevronLeft,
+                        nextIcon = Tabler.Outline.ChevronRight,
+                        chooserIcon = Tabler.Outline.ChevronDown,
+                        modifier = Modifier.fillMaxSize().reportBounds { header = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+
+            // Closed: the month slides, which is what the component is for.
+            navigation.step(1)
+            scene.frames(2)
+            assertTrue(
+                scene.stillAnimating(),
+                "a month change with the chooser closed did not animate at all — " +
+                    "this arm is here so the other one cannot pass by the " +
+                    "transition having been deleted",
+            )
+            scene.renderUntil(2_000) { !scene.stillAnimating() }
+
+            scene.tap(Offset(header.center.x, header.top + HeaderCentre))
+            scene.frames(8)
+            val quiet = scene.renderUntil(2_000) { !scene.stillAnimating() }
+            assertTrue(quiet != null, "the popover never came to rest")
+
+            // Open: the same change, cut.
+            navigation.step(1)
+            scene.frames(3)
+            assertTrue(
+                !scene.stillAnimating(),
+                "the month grid is still animating with the wheels up. Every month " +
+                    "a turning drum passes through is then a grid of forty-two " +
+                    "animating cells kept alive until its exit finishes",
+            )
+        }
+    }
+
     private companion object {
         val Start = LocalDate(2026, 6, 12)
 

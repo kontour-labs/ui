@@ -18,6 +18,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.SaveableStateHolder
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -177,6 +179,46 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
     var selected by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
 
+    /**
+     * What each destination remembers about itself while you are somewhere else.
+     *
+     * A page is composed cold on arrival and thrown away on departure, so every
+     * revisit started at the top of a list the reader had scrolled halfway down —
+     * on a gallery whose pages are long, which is most of them. A
+     * `SaveableStateHolder` keys the saved registry on the destination, so a
+     * `rememberScrollState` or a `rememberLazyListState` comes back where it was
+     * left. Both layouts share the one holder, so resizing the window across a
+     * breakpoint does not lose it either.
+     *
+     * It does not make the *arrival* cheaper and is not claimed to:
+     * `DrawerSelectCostDiagnostic` measures a destination's first frame at 64.2ms
+     * against about 5 for the ones after it, and that is composition, which this
+     * does not skip. Nor does it keep a knob's setting — `rememberKnobs` holds
+     * `mutableStateOf<Any?>`, which has no saver and could not have one while a
+     * knob's value is `Any?`.
+     */
+    val pageState = rememberSaveableStateHolder()
+
+    /**
+     * The destinations, built once.
+     *
+     * Fourteen `NavItem`s with a lambda each, rebuilt inline on every
+     * recomposition of this function — which is every time `selected` changes,
+     * because `selected` is read here. `NavigationSuiteScaffold` takes a `List`,
+     * which is unstable, so a fresh one is a changed argument and the whole rail
+     * or drawer recomposed on every navigation. The same mistake the echo lambda
+     * below is deliberately remembered to avoid.
+     */
+    val destinations = remember {
+        pages.mapIndexed { index, page ->
+            NavItem(
+                label = page.title,
+                icon = page.icon,
+                onClick = { selected = index },
+            )
+        }
+    }
+
     val density = LocalDensity.current
     // `deviceInDarkTheme()`, not Compose's own: this app has a dark switch
     // *and* reports its appearance to the host, and on iOS those are the
@@ -251,16 +293,11 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                                     selected = selected,
                                     onSelectedChange = { selected = it },
                                     action = settingsButton,
+                                    pageState = pageState,
                                 )
                             } else {
                                 NavigationSuiteScaffold(
-                                    items = pages.mapIndexed { index, page ->
-                                        NavItem(
-                                            label = page.title,
-                                            icon = page.icon,
-                                            onClick = { selected = index },
-                                        )
-                                    },
+                                    items = destinations,
                                     selectedIndex = selected,
                                     action = settingsButton,
                                 ) { contentPadding ->
@@ -277,7 +314,11 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                                             .fillMaxSize()
                                             .padding(bottom = contentPadding)
                                     ) {
-                                        pages[selected].content(Modifier.fillMaxWidth())
+                                        CatalogDestination(
+                                            selected = selected,
+                                            pageState = pageState,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
                                     }
                                 }
                             }
@@ -309,6 +350,30 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
 }
 
 /**
+ * The selected destination, holding what it remembered from last time.
+ *
+ * One function for both layouts, because the thing worth getting right here is
+ * shared: a page is composed on arrival and disposed on departure, so without
+ * the [SaveableStateHolder] every return to a page started at the top of a list
+ * the reader had scrolled. The rail and the drawer had a copy of this line each,
+ * and a fix applied to one of them would have been a fix on one window size.
+ *
+ * `internal` for the same reason [pages] is — so a test can drive the swap
+ * without hunting for a navigation item to tap, which is what `PageStateTest`
+ * does.
+ */
+@Composable
+internal fun CatalogDestination(
+    selected: Int,
+    pageState: SaveableStateHolder,
+    modifier: Modifier = Modifier,
+) {
+    pageState.SaveableStateProvider(selected) {
+        pages[selected].content(modifier)
+    }
+}
+
+/**
  * The compact layout: a top bar with a menu button, and the destinations in a
  * modal drawer.
  *
@@ -320,6 +385,7 @@ private fun CompactCatalog(
     selected: Int,
     onSelectedChange: (Int) -> Unit,
     action: @Composable () -> Unit,
+    pageState: SaveableStateHolder,
 ) {
     var drawerOpen by remember { mutableStateOf(false) }
 
@@ -413,7 +479,11 @@ private fun CompactCatalog(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            pages[selected].content(Modifier.fillMaxWidth())
+            CatalogDestination(
+                selected = selected,
+                pageState = pageState,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 

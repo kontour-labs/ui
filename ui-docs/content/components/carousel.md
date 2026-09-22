@@ -63,34 +63,39 @@ input method, and the app has four.
 moves under the viewport, which is what a finger expects and what a carousel has
 always been.
 
-**`CarouselStyle.Wipe` is two boxes trading width.** Neither page moves. The one
-you are leaving keeps the near part of the frame, the one you are arriving at
-takes the far part, and the edge between them follows the finger — at rest one
-page has the whole frame and the other is not drawn at all.
+**`CarouselStyle.Hero` is two boxes side by side, trading width.** The page you
+are on is most of the frame; the next one is a narrow box beside it with a gap
+between them, and a swipe hands the width from one to the other. Material's hero
+carousel, and the arrangement a row of pictures wants — what the eye follows is a
+photograph getting bigger, with the next one already there to say the row
+continues.
 
 ```kotlin
 Carousel(
     carousel,
     contentDescription = "Stop photos",
-    style = CarouselStyle.Wipe,
-    parallax = 0.3f,
+    style = CarouselStyle.Hero,
+    peek = 96.dp,
 ) { page -> Image(photos[page]) }
 ```
 
-Reach for it when each page is **one picture**: a slide reads as a filmstrip
-pulled past a slot, and a wipe reads as the picture itself changing. Avoid it for
-pages with structure — a form, a list — where holding the text still while a hard
-edge crosses it is harder to follow than moving it out of the way.
+`peek` is how much of the next page shows and `pageSpacing` is the gap between
+the two boxes — the one place in a carousel's layout where that spacing is
+something a reader can see. **A third of the frame is the ceiling worth designing
+to**: past that the "next" box is competing with the page you are looking at, and
+a hero carousel with two heroes in it is a two-column list. Nothing clamps it, so
+an over-wide peek costs the hero its width.
 
-`parallax` gives the content back some of its travel without giving up the edge:
-`0` is the plain wipe, `0.2`–`0.3` is a drift behind the edge, `1` is a slide
-seen through a moving window. It is **ignored under reduced motion**, which is
-the whole of what that setting can sensibly remove here — the edge is the style,
-and a wipe already moves less than the strip a slide pulls past the window.
+Reach for it when each page is **one picture**. Avoid it for pages with structure
+— a form, a list — because a page is measured once at the hero's width and masked
+down to whatever its box currently is, so its content is **cropped rather than
+reflowed**. That is the trade, and it is deliberate: a page that re-laid-out
+sixty times a second under a finger is what a carousel of text would cost.
 
-`pageSpacing` is ignored by a wipe, whose two pages have to meet along one edge;
-a gap between them would be a strip of whatever is behind the carousel, moving.
-Everything else is the same either way — the same drag, the same snap, the same
+The last page grows to the whole frame rather than to a hero's width, because
+there is no page after it to fill the gap and the peek.
+
+Everything else is the same as a slide — the same drag, the same snap, the same
 accessibility actions and the same announcement. It changes where the pixels go
 and nothing else.
 

@@ -98,6 +98,7 @@ class ComponentDefaultsValuesTest {
         assertEquals(8.dp, d.pageIndicatorDotSize)
         assertEquals(20.dp, d.pageIndicatorActiveWidth)
         assertEquals(8.dp, d.pageIndicatorGap)
+        assertEquals(96.dp, d.carouselHeroPeek)
         assertEquals(108.dp, d.keyValueLabelWidth)
         assertEquals(96.dp, d.keyValueMinValueWidth)
         assertEquals(48.dp, d.marqueeGap)
@@ -182,6 +183,7 @@ class ComponentDefaultsValuesTest {
                 pageIndicatorDotSize = 8.dp,
                 pageIndicatorActiveWidth = 20.dp,
                 pageIndicatorGap = 8.dp,
+                carouselHeroPeek = 96.dp,
                 keyValueLabelWidth = 108.dp,
                 keyValueMinValueWidth = 96.dp,
                 marqueeGap = 48.dp,
