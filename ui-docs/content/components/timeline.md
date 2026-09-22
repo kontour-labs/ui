@@ -31,10 +31,20 @@ assembled rather than built.
 
 **`connector` is the weight of the leg, not a decoration.** `Solid` is a ride,
 `Dashed` a walk, `Dotted` a wait — a transfer window, an estimate nobody has
-committed to — and `None` ends the rail. The dotted style is drawn as a
-zero-length dash with a round cap, which is a circle of the connector's own
-diameter, so a 4dp train segment and a 2dp walk get dots in proportion rather
-than a fixed one.
+committed to — and `None` ends the rail. A dot is as wide as the connector, so a
+4dp train segment and a 2dp walk get dots in proportion rather than a fixed one.
+
+**Every style reaches the bottom of its row, and getting there took two goes.**
+The dots and the dashes were a dash pattern over the same line the solid style
+draws, and a dash pattern is walked from the start of the path and abandoned
+wherever the path runs out — so the remainder of the gutter was blank and the rail
+appeared to come apart above the next node. The dashes lost up to one gap; the
+dots lost a whole dot, because a partial dot is nothing, and lost one *even when
+the pitch divided the row exactly*, since a zero-length dash that falls on the
+path's own endpoint is not drawn at all. Both are now spaced to the run they have
+rather than to a multiple of the stroke: the dots are placed, one on each end,
+with the pitch stretched by under half a diameter to make a whole number of them
+fit, and the dashes keep their length and give the adjustment to the gap.
 
 `loading = true` puts a spinner where the node's dot would be, for the step a
 timeline is waiting on — a train with no platform yet, a payment being taken. The

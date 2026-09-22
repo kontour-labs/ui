@@ -451,10 +451,29 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
 
         // Marked in the middle of its cell, with the same ring the spectrum
         // uses, so switching modes moves the picture and not the vocabulary.
+        //
+        // **Both axes round. The down one used to truncate**, and it was the only
+        // thing in the grid that was ever a cell out: the marker sat one row
+        // above the cell that had just been tapped, on two of the five rows,
+        // while the colour reported was the right one all along. A marker on the
+        // wrong swatch is indistinguishable from a tap on the wrong swatch, and
+        // it was reported as the second thing.
+        //
+        // A cell writes `1 − row / rows` and this reads it back as
+        // `(1 − value) × rows` — the exact inverse in arithmetic and not in
+        // binary. `1f − 0.8f` is `0.19999999`, five times that is `0.99999994`,
+        // and a truncation of that is row zero. Eighths are exact, so across
+        // never showed it; fifths are not.
+        //
+        // Rounding is also the only right answer for a value the grid never
+        // wrote. The rows hold 1.0, 0.8, 0.6, 0.4 and 0.2, so a caller arriving
+        // with 0.65 belongs to the 0.6 row — nearest cell, not the cell whose
+        // boundary it has most recently passed. `report` above floors, because a
+        // *position* really is inside one cell and not near two.
         val column = (hsv.saturation.coerceIn(0f, 1f) * PaletteColumns - 1f)
             .roundToInt().coerceIn(0, PaletteColumns - 1)
         val row = ((1f - hsv.value.coerceIn(0f, 1f)) * PaletteRows)
-            .toInt().coerceIn(0, PaletteRows - 1)
+            .roundToInt().coerceIn(0, PaletteRows - 1)
         cursor(
             Offset(
                 (column + 0.5f) * cell.width,

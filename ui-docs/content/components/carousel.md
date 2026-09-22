@@ -86,6 +86,19 @@ to**: past that the "next" box is competing with the page you are looking at, an
 a hero carousel with two heroes in it is a two-column list. Nothing clamps it, so
 an over-wide peek costs the hero its width.
 
+**`peek = 0.dp` is one page at a time.** The frame holds the hero and nothing
+else, and the gap opens between the two boxes only while a swipe is in flight —
+there being nothing for it to separate at rest.
+
+`parallax` is how much of the strip's travel the *content* of the page being left
+behind keeps. Its box is pinned to the frame's start and closes over it, so at `0`
+the picture holds still and is taken away; at `1` it travels with the strip and
+slides out under a shrinking window; `0.2`–`0.3` is a drift behind the closing
+edge. It is **ignored under reduced motion** — boxes trading width is the style,
+and a picture drifting underneath the one closing over it is the embellishment on
+top. There is nothing to scale on the page arriving: its box is already at the
+strip's position, so its content travels with it.
+
 Reach for it when each page is **one picture**. Avoid it for pages with structure
 — a form, a list — because a page is measured once at the hero's width and masked
 down to whatever its box currently is, so its content is **cropped rather than

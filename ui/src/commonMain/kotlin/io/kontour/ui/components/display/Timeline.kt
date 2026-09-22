@@ -18,11 +18,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
+import kotlin.math.roundToInt
 
 /** How the connector below a [TimelineItem] is drawn. */
 enum class ConnectorStyle {
@@ -40,10 +43,11 @@ enum class ConnectorStyle {
      * different weight. For the part of an itinerary that is not a leg at all:
      * a wait, a transfer window, an estimate nobody has committed to.
      *
-     * Drawn as a dash of length zero with a round cap rather than as a run of
-     * circles. A zero-length round-capped dash *is* a circle of the stroke's
-     * diameter, so the dot follows [TimelineItem]'s `connectorWidth` for free
-     * and a 4dp train segment and a 2dp walk get dots in proportion.
+     * A dot is as wide as [TimelineItem]'s `connectorWidth`, so a 4dp train
+     * segment and a 2dp walk get dots in proportion. The run is spaced to put one
+     * on each end of it rather than to a fixed pitch — see `dottedRun` for why
+     * that is not the same thing as a dash pattern of zero-length dashes, which
+     * is what this was.
      */
     Dotted,
 
@@ -170,30 +174,37 @@ fun TimelineItem(
                 val nodeGap = TimelineDefaults.NodeGap.toPx()
                 val nodeCentreY = nodeRadius + nodeGap
 
-                if (connector != ConnectorStyle.None) {
-                    val top = nodeCentreY + nodeRadius + nodeGap
-                    if (top < size.height) {
-                        drawLine(
+                val top = nodeCentreY + nodeRadius + nodeGap
+                if (connector != ConnectorStyle.None && top < size.height) {
+                    // **A connector ends where the row ends, whatever it is made
+                    // of.** All three used to be one line with a dash pattern
+                    // over it, and a dash pattern is walked from the start of the
+                    // path and abandoned wherever it has got to — so the run
+                    // finished at the last whole period and the remainder was
+                    // blank. Reported of the dots, which lose a whole dot and can
+                    // lose it even when the pitch divides the run exactly, since
+                    // a zero-length dash sitting on the path's own end is not
+                    // drawn at all. The dashes lose up to one gap the same way.
+                    //
+                    // Both are now spaced to the run they have rather than to a
+                    // multiple of the stroke. See [dottedRun] and [dashes].
+                    val run = size.height - top
+                    when (connector) {
+                        ConnectorStyle.Dotted ->
+                            dottedRun(centreX, top, run, stroke, connectorColour)
+                        ConnectorStyle.Solid, ConnectorStyle.Dashed -> drawLine(
                             color = connectorColour,
                             start = Offset(centreX, top),
                             end = Offset(centreX, size.height),
                             strokeWidth = stroke,
                             cap = StrokeCap.Round,
-                            pathEffect = when (connector) {
-                                ConnectorStyle.Dashed -> PathEffect.dashPathEffect(
-                                    floatArrayOf(stroke * 1.5f, stroke * 2f),
-                                )
-                                // Zero-length, round-capped: a dot of the
-                                // stroke's own diameter. The `cap` above is
-                                // already `Round` for the solid line's ends,
-                                // which is what makes this cost one branch
-                                // rather than a second drawing.
-                                ConnectorStyle.Dotted -> PathEffect.dashPathEffect(
-                                    floatArrayOf(0f, stroke * 2f),
-                                )
-                                ConnectorStyle.Solid, ConnectorStyle.None -> null
+                            pathEffect = if (connector == ConnectorStyle.Dashed) {
+                                dashes(run, stroke)
+                            } else {
+                                null
                             },
                         )
+                        ConnectorStyle.None -> Unit
                     }
                 }
 
@@ -228,3 +239,70 @@ fun TimelineItem(
         )
     }
 }
+
+/**
+ * A run of round dots down [run] pixels from [top], landing on both ends of it.
+ *
+ * [ConnectorStyle.Dotted] used to be a dash of length zero with a round cap
+ * drawn over the same line the other two styles use — which is a neat way to get
+ * a dot of the stroke's own diameter, and the wrong way to finish a run. Skia
+ * walks a dash pattern from the start of the path and stops when the path does,
+ * so the last dot landed on the last whole multiple of the pitch and the
+ * remainder of the gutter was empty. Worse, a zero-length dash that falls on the
+ * path's own endpoint is not drawn at all, so a row whose height *did* divide by
+ * the pitch still came up one dot short. That is the reported "stops just a bit
+ * short of the actual timeline point": between one and two dot diameters of
+ * nothing above the node below.
+ *
+ * Placing the dots fixes the end because the end is one of them. The pitch is
+ * nominally two diameters — a dot and a gap of its own size, which is what makes
+ * this read quieter than a dash at the same weight — and is then stretched or
+ * squeezed by less than half of one so a whole number of them spans the run. At a
+ * 2dp connector that is under 2dp of difference spread over the whole row, which
+ * nothing can see; a gap at one end is the thing that was reported.
+ *
+ * One `drawPoints` rather than a circle each, so this is still one draw call for
+ * the run.
+ */
+private fun DrawScope.dottedRun(
+    x: Float,
+    top: Float,
+    run: Float,
+    stroke: Float,
+    colour: Color,
+) {
+    val steps = (run / (stroke * 2f)).roundToInt().coerceAtLeast(1)
+    val pitch = run / steps
+    drawPoints(
+        points = List(steps + 1) { Offset(x, top + it * pitch) },
+        pointMode = PointMode.Points,
+        color = colour,
+        strokeWidth = stroke,
+        cap = StrokeCap.Round,
+    )
+}
+
+/**
+ * [ConnectorStyle.Dashed]'s pattern, sized so the last dash ends on the run's end.
+ *
+ * The same fault as the dots and a milder version of it: the pattern is a dash
+ * then a gap, so a run that happens to finish inside a gap finishes with up to a
+ * whole gap of nothing. The dash length is left alone — it is the thing that says
+ * "dashed" — and the gap takes the adjustment, so `n` dashes and `n − 1` gaps
+ * span the run exactly and the last dash lands on the bottom of the gutter.
+ *
+ * A run too short for one dash and one gap is drawn as one unbroken dash, because
+ * the alternative is a single mark that does not reach either end of a gutter it
+ * barely fits in.
+ */
+private fun dashes(run: Float, stroke: Float): PathEffect? {
+    val on = stroke * DashLength
+    val gaps = ((run - on) / (on + stroke * DashGap)).roundToInt()
+    if (gaps < 1) return null
+    val pitch = (run - on) / gaps
+    return PathEffect.dashPathEffect(floatArrayOf(on, pitch - on))
+}
+
+/** A dash is a stroke and a half long, and the gap after it two. */
+private const val DashLength = 1.5f
+private const val DashGap = 2f

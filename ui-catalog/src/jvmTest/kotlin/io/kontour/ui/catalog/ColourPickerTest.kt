@@ -322,6 +322,111 @@ class ColourPickerTest {
     }
 
     /**
+     * The palette's marker sits on the swatch that was tapped, on every row.
+     *
+     * Reported as the grid's touch targets not lining up with its swatches —
+     * "sometimes tapping one taps the one above it". The hit test was innocent:
+     * the colour the grid reported was always the colour under the finger. What
+     * was one cell out was the **ring**, and a ring on the wrong swatch is
+     * indistinguishable from a tap on the wrong swatch.
+     *
+     * ### An exact inverse, computed inexactly
+     *
+     * A cell writes `value = 1 − row / rows` and this read it back as
+     * `((1 − value) × rows).toInt()`. That is the exact inverse in real
+     * arithmetic and not in binary: `1f − 0.8f` is `0.19999999`, five times that
+     * is `0.99999994`, and truncating it gives row **zero**. Rows one and two
+     * fell short of their own integers; rows zero, three and four landed on
+     * them. Two rows in five is the "sometimes".
+     *
+     * The column axis had the same shape and never showed it, because eighths
+     * are exact in binary *and* because it rounded rather than truncated. This
+     * sweeps every row, so the two that were wrong fail here and the three that
+     * were right cannot start being wrong.
+     *
+     * ### Why the marker and not the callback
+     *
+     * `aHueSetOnTheTrackSurvivesATapInThePalette` and
+     * `thePaletteGridPicksAColourAndKeepsItsHueTrack` both watch what the grid
+     * emits, and both passed throughout. Nothing but pixels can see this.
+     */
+    @Test
+    fun thePaletteMarkerLandsOnTheSwatchThatWasTapped() {
+        var colour by mutableStateOf(Color(0xFF1E88E5))
+        val wrong = mutableListOf<String>()
+
+        Scene(width = 704, height = 900, reduceMotion = true) {
+            Box(Modifier.fillMaxSize()) {
+                ColourPicker(
+                    colour = colour,
+                    onColourChange = { colour = it },
+                    modifier = Modifier.padding(16.dp).width(320.dp),
+                    mode = ColourPickerMode.Palette,
+                    swatches = emptyList(),
+                    valueField = false,
+                )
+            }
+        }.use { scene ->
+            scene.frames(4)
+            // A different column per row, so the across axis is swept as well
+            // rather than trusted — it is the one that was already right.
+            for (row in 0 until PaletteRows) {
+                val column = row + 1
+                scene.tap(
+                    Offset(
+                        x = GridLeft + (column + 0.5f) * Cell,
+                        y = GridTop + (row + 0.5f) * Cell,
+                    )
+                )
+                val marker = scene.frames(4).markerCentre()
+                if (marker == null) {
+                    wrong += "row $row: no marker drawn inside the grid at all"
+                    continue
+                }
+                val onRow = ((marker.y - GridTop) / Cell).toInt()
+                val onColumn = ((marker.x - GridLeft) / Cell).toInt()
+                if (onRow != row || onColumn != column) {
+                    wrong += "tapped ($row, $column), marked ($onRow, $onColumn)"
+                }
+            }
+        }
+
+        assertTrue(
+            wrong.isEmpty(),
+            "the palette marked a different swatch from the one that was " +
+                "tapped — ${wrong.joinToString("; ")}. The marker is the only " +
+                "thing on screen that says which swatch is chosen, so a marker " +
+                "one cell out reads as a grid whose targets are a row off.",
+        )
+    }
+
+    /**
+     * Where the white ring is, or null if it is not in the grid.
+     *
+     * The ring is opaque white and no cell in the grid can be: the least
+     * saturated column is an eighth of the way in, so every cell has a channel
+     * at or below 224. Inset by a corner radius so the clipped corners — which
+     * show the page behind, and the page is white — cannot be mistaken for it.
+     */
+    private fun java.awt.image.BufferedImage.markerCentre(): Offset? {
+        var x = 0L
+        var y = 0L
+        var found = 0
+        for (row in (GridTop + Inset).toInt() until (GridTop + Rows * Cell - Inset).toInt()) {
+            for (column in
+                (GridLeft + Inset).toInt() until (GridLeft + Columns * Cell - Inset).toInt()
+            ) {
+                if (getRGB(column, row) == White) {
+                    x += column
+                    y += row
+                    found++
+                }
+            }
+        }
+        return if (found < LeastRing) null else Offset(x.toFloat() / found, y.toFloat() / found)
+    }
+
+    /**
      * Palette mode is a palette, and it still has a hue.
      *
      * It used to be neither. The mode guarded the area, the hue track *and* the
@@ -354,5 +459,34 @@ class ColourPickerTest {
             "the hue track under a palette did not move the hue — a palette of " +
                 "one hue is a column of greys, which is why both modes keep it",
         )
+    }
+
+    private companion object {
+        /**
+         * The grid, in the pixels this scene puts it in.
+         *
+         * 320dp of picker inset 16dp at density two, and the grid is the first
+         * thing in the column — so it starts at 32px in and 32px down, is 640px
+         * across, and its 1.6 aspect makes forty 80px squares.
+         */
+        const val GridLeft = 32f
+        const val GridTop = 32f
+        const val Cell = 80f
+        const val Columns = 8
+        const val Rows = 5
+        const val PaletteRows = 5
+
+        /** A corner radius, to keep the clipped corners out of the scan. */
+        const val Inset = 20f
+
+        val White: Int = 0xFFFFFFFF.toInt()
+
+        /**
+         * Less than a ring and far more than a stray pixel.
+         *
+         * A 7dp ring with a 2dp stroke at density two is about 350 opaque
+         * pixels before antialiasing takes the edges off either side.
+         */
+        const val LeastRing = 60
     }
 }

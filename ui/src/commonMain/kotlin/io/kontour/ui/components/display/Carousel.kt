@@ -224,12 +224,31 @@ fun rememberCarouselState(pageCount: () -> Int): CarouselState {
  * @param peek How much of the next page [CarouselStyle.Hero] shows beside the
  *   current one, and read by nothing else.
  *
+ *   **Zero is one page at a time**: the frame holds the hero and nothing else, and
+ *   [pageSpacing] opens between the two boxes only while a swipe is in flight —
+ *   there being nothing for a gap to separate at rest. Every other value reserves
+ *   the gap *and* the peek, so the frame is `[hero][gap][peek]`.
+ *
  *   **A third of the carousel is the ceiling worth designing to** — past that the
  *   "next" box competes with the page being looked at, and a hero carousel with
  *   two heroes in it is a two-column list. It is not clamped, and cannot sensibly
  *   be: the strip's own slots are a peek apart, so a peek narrowed after the fact
  *   would put every box out of step with the slot it is measured in. What an
  *   over-wide one costs is the hero, down to a floor of a third of the frame.
+ * @param parallax How much of the strip's travel the *content* of a page being
+ *   left behind keeps, from `0` for none of it to `1` for all of it. Read only by
+ *   [CarouselStyle.Hero].
+ *
+ *   The box of a page on its way out is pinned to the frame's start and closes
+ *   over its own content — so at `0` the picture holds still and is taken away,
+ *   and at `1` it travels with the strip and slides out under a shrinking window.
+ *   Around `0.2` to `0.3` gives it a drift behind the closing edge without it
+ *   arriving from off screen. There is nothing to scale on the page arriving: its
+ *   box *is* at the strip's position, so its content already travels with it.
+ *
+ *   **Ignored under reduced motion**, which is the whole of what that preference
+ *   can sensibly take away here — boxes trading width is the style, and a picture
+ *   drifting underneath the one closing over it is the embellishment on top.
  */
 @Composable
 fun Carousel(
@@ -241,6 +260,7 @@ fun Carousel(
     contentPadding: PaddingValues = PaddingValues(0.dp),
     pageSpacing: Dp = Theme.spacing.xs,
     peek: Dp = CarouselDefaults.HeroPeek,
+    parallax: Float = 0f,
     previousLabel: String = Theme.strings.previous,
     nextLabel: String = Theme.strings.next,
     content: @Composable (page: Int) -> Unit,
@@ -253,6 +273,11 @@ fun Carousel(
     val density = LocalDensity.current
     val gapPx = with(density) { pageSpacing.toPx() }
     val peekPx = with(density) { peek.coerceAtLeast(0.dp).toPx() }
+
+    // Coerced rather than required: this is the kind of number a caller animates or
+    // reads from a setting, and a carousel that throws at `1.02` on one frame of a
+    // spring is worse than one that draws `1`.
+    val drift = if (Theme.motion.reduceMotion) 0f else parallax.coerceIn(0f, 1f)
 
     /**
      * How far apart the slots are, which for a hero carousel is **less than a
@@ -275,7 +300,14 @@ fun Carousel(
      * gap and a peek short and the carousel spends every fling at the end fighting a
      * position it cannot reach.
      */
-    val spacing = if (hero) -peek else pageSpacing
+    val spacing = when {
+        !hero -> pageSpacing
+        // Nothing to separate at rest, so the gap is not reserved in the frame: the
+        // slots are a whole frame *plus* a gap apart, which puts the next page
+        // entirely off screen until a swipe brings it in. One page at a time.
+        peek <= 0.dp -> pageSpacing
+        else -> -peek
+    }
 
     // One tick per page crossed **under a finger**, and none for a page reached
     // any other way.
@@ -402,6 +434,7 @@ fun Carousel(
                                 count = count,
                                 gap = gapPx,
                                 peek = peekPx,
+                                drift = drift,
                                 shape = Theme.shapes.container,
                             )
                     ) { content(page) }
@@ -458,9 +491,11 @@ private class HeroBox(val width: Float, val shift: Float)
 /**
  * The whole of the hero layout, as a table.
  *
- * With `V` the frame, `S` the peek, `G` the gap, `L = V - G - S` the hero and
- * `P = L + G` the pitch — which is the pitch the `LazyRow` already uses, because a
- * slot is the whole frame and the arrangement pulls the next one `S` back into it:
+ * With `V` the frame, `S` the peek, `G` the gap, `L` the hero and `P = L + G` the
+ * pitch — which is the pitch the `LazyRow` already uses, because a slot is the whole
+ * frame and the arrangement pulls the next one back into it by whatever the frame
+ * reserves. `L` and `P` come from [heroMetrics], which is also where a zero peek is
+ * dealt with:
  *
  * | `d` | width | shift |
  * |---|---|---|
@@ -486,45 +521,68 @@ private class HeroBox(val width: Float, val shift: Float)
  * What the arithmetic gives back is exact tiling. Consecutive boxes are always `G`
  * apart — `(P - fP) - (L - fP) = P - L = G`, with the `f` cancelling — and the
  * boxes and their gaps cover `[0, V]` with nothing left over at either end, at
- * every fraction of every swipe. `CarouselHeroTest` sweeps it frame by frame.
+ * every fraction of every swipe. With a zero peek `L` is `V`, so the one box at rest
+ * *is* the frame and the pair in flight covers all of it but the gap between them.
+ * `CarouselHeroTest` sweeps both.
  *
  * The one shift in the table is what makes a leaving page *shrink into* the start
  * edge rather than slide out through it: its box is pinned at zero while its width
  * runs out, so the picture holds still and is taken away rather than travelling.
  * Written as a placement and in reading order, so a right-to-left row is free.
  *
- * **The last page grows to the whole frame**, which is the `L` cap dropped: there
- * is no page after it to fill the gap and the peek, and the end of a row of
- * pictures being one picture is the only honest thing for it to look like. It is
- * also why the strip carries `S + G` of extra padding at its end — see the
- * carousel's own `padding`.
+ * **The last page grows to the whole frame**, which is the `L` cap dropped: there is
+ * no page after it to fill the gap and the peek, and the end of a row of pictures
+ * being one picture is the only honest thing for it to look like. With a zero peek
+ * the cap is already the frame, so the last page is like every other one.
  */
 private fun heroBoxOf(
     d: Float,
     frame: Float,
-    gap: Float,
-    peek: Float,
+    metrics: HeroMetrics,
     last: Boolean,
 ): HeroBox? {
     if (frame <= 0f) return null
-    // A slot is the whole frame — `fillParentMaxWidth` inside a `LazyRow` is the
-    // viewport less the content padding — and the strip is compressed by a peek, so
-    // the pitch is what the geometry needs without anything having to measure the
-    // viewport. See the carousel's own `spacing`.
-    val pitch = frame - peek
-    // A peek and a gap that between them leave nothing for the hero are a mistake
-    // no arithmetic here can rescue: the *slots* are already a peek apart, because
-    // the arrangement was given the same number in composition, so clamping the
-    // peek here would put every box out of step with the slot it is measured in.
-    // What the floor buys is a carousel that is visibly wrong rather than blank —
-    // without it a peek wider than the frame draws nothing at all, which says
-    // nothing about which number to change.
-    val hero = (pitch - gap).coerceAtLeast(frame / 3f)
-    val width = if (d < 0f) hero + d * pitch else frame - d * pitch
-    val capped = if (d < 0f || last) width else minOf(width, hero)
+    val width = if (d < 0f) metrics.hero + d * metrics.pitch else frame - d * metrics.pitch
+    val capped = if (d < 0f || last) width else minOf(width, metrics.hero)
     if (capped <= 0f) return null
-    return HeroBox(width = capped, shift = if (d < 0f) -d * pitch else 0f)
+    return HeroBox(width = capped, shift = if (d < 0f) -d * metrics.pitch else 0f)
 }
+
+/** The hero's own width and how far apart the slots are, both in pixels. */
+private class HeroMetrics(val hero: Float, val pitch: Float)
+
+/**
+ * The two numbers the style is derived from, taken from the frame and nothing else.
+ *
+ * A slot is the whole frame — `fillParentMaxWidth` inside a `LazyRow` is the
+ * viewport less the content padding — and the arrangement pulls the next slot back
+ * into it, so nothing here has to measure the viewport. The pitch must match that
+ * arrangement exactly or every box is out of step with the slot it is measured in;
+ * see the carousel's own `spacing`, which is this `gap - reserve`.
+ *
+ * **The gap is reserved in the frame only when there is a peek to separate.** With
+ * a peek the frame is `[hero][gap][peek]`, so the reserve is both. With none, there
+ * is nothing beside the hero at rest and the hero is the whole frame: slots are a
+ * frame *plus* a gap apart, the next page is entirely off screen until a swipe
+ * brings it in, and the gap becomes something that opens between two boxes in
+ * flight rather than a strip of background standing at the frame's end. That is
+ * what `peek = 0.dp` means, and without it a zero peek drew a hero one gap short of
+ * the frame with the gap left over at the edge.
+ *
+ * The floor on the hero is for a peek and a gap that between them leave nothing —
+ * a mistake no arithmetic here can rescue, since the slots are already that far
+ * apart. What it buys is a carousel that is visibly wrong rather than blank, which
+ * at least says which number to change. The pitch is left alone by it: the pitch is
+ * the arrangement's, not this function's to correct.
+ */
+private fun heroMetrics(frame: Float, gap: Float, peek: Float): HeroMetrics {
+    val reserve = if (peek > 0f) gap + peek else 0f
+    return HeroMetrics(
+        hero = (frame - reserve).coerceAtLeast(frame / 3f),
+        pitch = frame - reserve + gap,
+    )
+}
+
 
 private fun Modifier.heroPage(
     state: CarouselState,
@@ -532,20 +590,21 @@ private fun Modifier.heroPage(
     count: Int,
     gap: Float,
     peek: Float,
+    drift: Float,
     shape: Shape,
 ): Modifier = this
     .layout { measurable, constraints ->
-        // The shift, applied by *placing* the box rather than by translating it,
-        // so the clip below and everything it gates — drawing, hit-testing — move
-        // with it. `placeRelative` and not `place`: every number in `heroBoxOf` is
-        // in reading order, and a right-to-left row then comes out right with no
-        // `LayoutDirection` anywhere in the geometry. The wipe before this
-        // needed one because it worked in physical draw coordinates.
+        // The shift, applied by *placing* the box rather than by translating it, so
+        // the clip below and everything it gates — drawing, hit-testing — move with
+        // it. `placeRelative` and not `place`: every number in `heroBoxOf` is in
+        // reading order, and a right-to-left row then comes out right with no
+        // `LayoutDirection` anywhere in the geometry. The wipe before this needed one
+        // because it worked in physical draw coordinates.
+        val frame = constraints.maxWidth.toFloat()
         val box = heroBoxOf(
             d = page - state.pagePosition,
-            frame = constraints.maxWidth.toFloat(),
-            gap = gap,
-            peek = peek,
+            frame = frame,
+            metrics = heroMetrics(frame, gap, peek),
             last = page == count - 1,
         )
         val placeable = measurable.measure(constraints)
@@ -557,28 +616,48 @@ private fun Modifier.heroPage(
     .layout { measurable, constraints ->
         val frame = constraints.maxWidth
         val last = page == count - 1
+        val metrics = heroMetrics(frame.toFloat(), gap, peek)
         // Measured **once**, at the width this page's box can reach: the hero's for
         // every page but the last, whose box grows to the whole frame because
         // nothing follows it. Re-measuring to the box's current width instead would
         // reflow the page's content on every frame of a drag, which is the cost a
-        // carousel of pictures must not pay — and the reason the docs say this
-        // style crops rather than reflows.
-        val natural = if (last) frame else (frame - (gap + peek)).roundToInt()
+        // carousel of pictures must not pay — and the reason the docs say this style
+        // crops rather than reflows.
+        val natural = if (last) frame else metrics.hero.roundToInt().coerceIn(0, frame)
         val placeable = measurable.measure(
             constraints.copy(minWidth = natural, maxWidth = natural)
         )
         val box = heroBoxOf(
             d = page - state.pagePosition,
             frame = frame.toFloat(),
-            gap = gap,
-            peek = peek,
+            metrics = metrics,
             last = last,
         )
         val width = box?.width?.roundToInt()?.coerceIn(0, natural) ?: 0
         layout(width, placeable.height) {
+            // **The content's own share of the travel, which is the parallax.**
+            //
+            // The box of a page on its way out is pinned to the frame's start by the
+            // shift above, and its content is pinned with it — the box closes over a
+            // picture that holds still. Handing the content back `drift` of that
+            // shift hands it back that much of the strip's travel: at `1` it slides
+            // out with the strip under a shrinking window, which is the "slide seen
+            // through a moving window" the wipe's own `parallax` named.
+            //
+            // No clamp is needed. The content is the hero's width and the box is
+            // `hero - shift` wide, so the slack behind it is exactly the shift and a
+            // fraction of the shift cannot uncover the box's far edge. Every other
+            // box has no shift, so this is zero and the content travels with its box
+            // — which is the strip's own motion, and has nothing to drift against.
+            //
+            // `placeRelative`, so the content sits at the reading start of its window
+            // and drifts in reading order. In a right-to-left row that is the right
+            // edge, which is also the crop a mirrored carousel wants — where `place`
+            // was showing it the left one.
+            //
             // Not placed at zero width: an empty box draws nothing and hit-tests
             // nothing, which is what a page off the end of the frame should be.
-            if (width > 0) placeable.place(0, 0)
+            if (width > 0) placeable.placeRelative((-drift * (box?.shift ?: 0f)).roundToInt(), 0)
         }
     }
 

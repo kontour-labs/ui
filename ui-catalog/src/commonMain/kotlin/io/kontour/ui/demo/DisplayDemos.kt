@@ -490,18 +490,22 @@ private val indicatorStyle =
 
 private val carouselStyle = Knob.Choice("Pages", CarouselStyle.entries.toList())
 
-/** Narrow enough to read as an edge of the next page rather than as a picture. */
-private val CarouselNarrowPeek = 32.dp
+/** Enough drift behind the closing edge to see, well short of a slide. */
+private const val CarouselDrift = 0.3f
 
-// How much of the next page a hero carousel shows. Not a dial, because a knob is
-// a choice or a flag: on is the component's own default, off is a peek narrow
-// enough to read as an edge rather than as a picture — which is the comparison
-// worth being able to make here.
-private val carouselNarrowPeek = Knob.Flag("Narrow peek")
+// How much of the next page a hero carousel shows. Not a dial, because a knob is a
+// choice or a flag: off is the component's own default, on is none at all — one
+// page in the frame, and the gap opening only while a swipe is in flight.
+private val carouselNoPeek = Knob.Flag("No peek")
+
+// And whether the page being left behind holds still under the box closing over it
+// or travels out with the strip. `0.3` rather than `1` is where the component's own
+// docs put it: a drift behind the edge, not a slide.
+private val carouselParallax = Knob.Flag("Parallax")
 
 internal val CarouselDemo = ComponentDemo(
     slug = "carousel",
-    knobs = listOf(carouselStyle, carouselNarrowPeek, indicatorStyle),
+    knobs = listOf(carouselStyle, carouselNoPeek, carouselParallax, indicatorStyle),
 ) {
     val carousel = rememberCarouselState { 4 }
     val scope = rememberCoroutineScope()
@@ -515,11 +519,8 @@ internal val CarouselDemo = ComponentDemo(
             state = carousel,
             contentDescription = "Stop photos",
             style = this@ComponentDemo[carouselStyle],
-            peek = if (this@ComponentDemo[carouselNarrowPeek]) {
-                CarouselNarrowPeek
-            } else {
-                CarouselDefaults.HeroPeek
-            },
+            peek = if (this@ComponentDemo[carouselNoPeek]) 0.dp else CarouselDefaults.HeroPeek,
+            parallax = if (this@ComponentDemo[carouselParallax]) CarouselDrift else 0f,
             modifier = Modifier.fillMaxWidth().height(120.dp),
         ) { page ->
             Card(variant = CardVariant.Filled, modifier = Modifier.fillMaxWidth().height(120.dp)) {

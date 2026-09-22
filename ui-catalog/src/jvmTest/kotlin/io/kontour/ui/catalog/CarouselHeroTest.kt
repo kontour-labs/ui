@@ -11,6 +11,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.Carousel
@@ -270,6 +272,121 @@ class CarouselHeroTest {
     }
 
     /**
+     * A zero peek is one page at a time, and the gap only exists in flight.
+     *
+     * Asked for as "zero peek, just one visible at a time". The frame reserves room
+     * for a gap only when there is a peek for it to separate — otherwise the hero is
+     * the whole frame, and what would have been a strip of background standing at
+     * the frame's end becomes the gap that opens between two boxes while a swipe is
+     * in flight. Both halves are asserted, because the first draft of this drew a
+     * hero one gap short of the frame and left the gap at the edge.
+     */
+    @Test
+    fun aZeroPeekShowsOnePageAtATime() {
+        var settled: Map<Int, IntRange> = emptyMap()
+        var moving: Map<Int, IntRange> = emptyMap()
+
+        carousel(peek = 0) { scene, _, bounds ->
+            settled = scene.frames(8).spans()
+            scene.drag(
+                from = Offset(bounds.center.x + Slop, bounds.center.y),
+                to = Offset(bounds.center.x + Slop - Width / 2f, bounds.center.y),
+                steps = 24,
+                release = false,
+            )
+            moving = scene.frames(2).spans()
+            scene.release(bounds.center)
+        }
+
+        assertEquals(
+            listOf(Pages[0]),
+            settled.keys.toList(),
+            "the frame held ${settled.size} pages at rest with a zero peek, where " +
+                "one page at a time is the whole of what a zero peek means",
+        )
+        val only = settled.getValue(Pages[0])
+        assertEquals(0, only.first, "the page does not start at the frame's edge")
+        assertEquals(Width - 1, only.last, "the page does not reach the frame's edge")
+
+        assertEquals(
+            2,
+            moving.size,
+            "mid-swipe the frame held ${moving.size} box(es), where two are trading " +
+                "width: $moving",
+        )
+        val leaving = moving.getValue(Pages[0])
+        val arriving = moving.getValue(Pages[1])
+        assertEquals(0, leaving.first, "the leaving box left the frame's start edge")
+        assertEquals(Width - 1, arriving.last, "the arriving box left the frame's end edge")
+        assertTrue(
+            abs((arriving.first - leaving.last - 1) - Gap) <= Slack,
+            "the two boxes were ${arriving.first - leaving.last - 1}px apart, where " +
+                "the gap is ${Gap}px — with no peek to reserve it for, the gap is " +
+                "what opens between them",
+        )
+    }
+
+    /**
+     * Parallax hands the leaving page's content its share of the strip's travel.
+     *
+     * The box of a page on its way out is pinned to the frame's start and closes over
+     * its own content, so at `0` the picture holds still and is taken away — which is
+     * what the stripe at the page's start edge still being there proves. At `1` the
+     * content travels with the strip instead and slides out under the shrinking
+     * window, taking the stripe off the frame with it.
+     *
+     * The same dial the wipe this style replaced carried, and the same polarity.
+     */
+    @Test
+    fun parallaxTakesTheLeavingContentWithTheStrip() {
+        val held = stripeAtTheStart(parallax = 0f)
+        val travelled = stripeAtTheStart(parallax = 1f)
+        val asked = stripeAtTheStart(parallax = 1f, reduceMotion = true)
+
+        assertTrue(
+            held > 0,
+            "with no parallax the leaving page's own start edge is not at the frame's " +
+                "start: its mark drew ${held}px there. The box is pinned and closes " +
+                "over content that holds still",
+        )
+        assertTrue(
+            travelled == 0,
+            "with a full parallax the leaving page's mark still drew ${travelled}px at " +
+                "the frame's start, where the content is meant to have travelled out " +
+                "with the strip",
+        )
+        assertTrue(
+            asked > 0,
+            "under reduced motion a full parallax still took the content away: its " +
+                "mark drew ${asked}px at the frame's start. The boxes trading width " +
+                "are the style; a picture drifting underneath is the embellishment",
+        )
+    }
+
+    /** How much of the leaving page's start mark is at the frame's start, mid-swipe. */
+    private fun stripeAtTheStart(parallax: Float, reduceMotion: Boolean = false): Int {
+        var found = 0
+        carousel(parallax = parallax, stripe = true, reduceMotion = reduceMotion) { scene, _, bounds ->
+            scene.frames(8)
+            scene.drag(
+                from = Offset(bounds.center.x + Slop, bounds.center.y),
+                to = Offset(bounds.center.x + Slop - (Hero + Gap) / 2f, bounds.center.y),
+                steps = 20,
+                release = false,
+            )
+            val frame = scene.frames(2)
+            // Only the leaving box reaches this far into the frame at half a pitch,
+            // so a dark pixel here is its mark and nothing else.
+            val row = frame.height / 2
+            for (x in 0 until StripeWidth.toInt() * 2) {
+                if ((frame.getRGB(x, row) and 0xFFFFFF) == 0) found++
+            }
+            scene.release(bounds.center)
+        }
+        return found
+    }
+
+    /**
      * Runs the block over every frame of a forward drag, with the position the
      * carousel reports *after* that frame.
      *
@@ -314,13 +431,17 @@ class CarouselHeroTest {
         style: CarouselStyle = CarouselStyle.Hero,
         goTo: Int = -1,
         onTap: ((Int) -> Unit)? = null,
+        peek: Int = Peek,
+        parallax: Float = 0f,
+        stripe: Boolean = false,
+        reduceMotion: Boolean = false,
         body: (Scene, CarouselState, Rect) -> Unit,
     ) {
         var bounds = Rect.Zero
         lateinit var state: CarouselState
         var target by mutableIntStateOf(goTo)
 
-        Scene(width = Width, height = 160, density = 1f) {
+        Scene(width = Width, height = 160, density = 1f, reduceMotion = reduceMotion) {
             val carousel = rememberCarouselState { Pages.size }
             state = carousel
             LaunchedEffect(target) { if (target >= 0) carousel.scrollToPage(target) }
@@ -329,7 +450,8 @@ class CarouselHeroTest {
                     state = carousel,
                     contentDescription = "Pages",
                     style = style,
-                    peek = Peek.dp,
+                    peek = peek.dp,
+                    parallax = parallax,
                     pageSpacing = Gap.dp,
                     modifier = Modifier.fillMaxSize().reportBounds { bounds = it },
                 ) { page ->
@@ -337,6 +459,20 @@ class CarouselHeroTest {
                         Modifier
                             .fillMaxSize()
                             .background(Color(Pages[page] or ALPHA))
+                            // A mark at the page's own start edge, for the arms that
+                            // ask where a page's *content* ended up rather than
+                            // where its box did. `drawBehind` rather than an aligned
+                            // child, so it is somewhere fixed in the page whichever
+                            // way the row reads.
+                            .then(
+                                if (stripe) {
+                                    Modifier.drawBehind {
+                                        drawRect(Color.Black, size = Size(StripeWidth, size.height))
+                                    }
+                                } else {
+                                    Modifier
+                                }
+                            )
                             .then(
                                 if (onTap != null) {
                                     Modifier.clickable { onTap(page) }
@@ -382,6 +518,9 @@ class CarouselHeroTest {
         /** Flat and far apart, so one pixel names its page. */
         val Pages = listOf(0xCC2200, 0x0022CC, 0x00AA33, 0xAA00AA)
         const val ALPHA = 0xFF000000.toInt()
+
+        /** Wide enough to count and narrow enough to stay inside the leaving box. */
+        const val StripeWidth = 12f
 
         /** Compose's touch slop, which the first pixels of any drag go to. */
         const val Slop = 20f

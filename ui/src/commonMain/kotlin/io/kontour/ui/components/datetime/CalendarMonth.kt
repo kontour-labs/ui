@@ -1,6 +1,7 @@
 package io.kontour.ui.components.datetime
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,8 +23,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -35,7 +36,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
@@ -57,11 +57,13 @@ import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 import kotlin.math.floor
+import kotlin.math.hypot
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import kotlinx.coroutines.launch
 
 /** How a day sits within a selected range. Drives the cell's shape and fill. */
 enum class RangePosition { None, Start, Middle, End, StartAndEnd }
@@ -207,9 +209,42 @@ fun CalendarMonth(
      * pointer move and only one cell in forty-two is drawn differently for it. The
      * cells read them inside their own `graphicsLayer`, so a move costs a layer
      * invalidation rather than a recomposition of the month.
+     *
+     * **Both axes**, taken from the pointer rather than from the grid index — which
+     * carries a column's fraction and throws the row's away. A finger above or below
+     * a day's middle pulls the cap that way, which is the same dial the range slider
+     * spends on one axis because it only has one.
      */
     val leaningDate = remember { mutableStateOf<LocalDate?>(null) }
-    val leaning = remember { mutableFloatStateOf(0f) }
+    val leaning = remember { mutableStateOf(Offset.Zero) }
+
+    /**
+     * Which way the dragged cap came from, and how much of that journey is left.
+     *
+     * One direction and one `Animatable` for the whole month rather than a pair per
+     * cell, read only from the layer of whichever cell is currently the cap — so a
+     * cap travelling costs no recomposition and no forty-two springs.
+     *
+     * A cap used to arrive by growing out of the edge the range came from: a
+     * `scaleX` from nothing, per cell, which is a wipe. Reported as wanting the head
+     * to *move* between the two dates instead, with the pull a range slider's thumb
+     * has. So this is the slider's own model — the travel springs, the lean toward
+     * the finger is immediate and rides on top — with one difference a calendar
+     * forces: a slider is a line and a month is a grid.
+     *
+     * **The direction is a unit vector and the distance is always one cell.** Two
+     * days next to each other in a row are one cell apart and the cap travels
+     * exactly between them. A day at the end of a row and the one after it are six
+     * columns and a row apart, and a cap that took that literally would fly across
+     * the middle of the month for a tenth of a second, over a fortnight it has
+     * nothing to do with. Normalised, it enters from just left of itself and a
+     * little above — the direction says where the range continues from, and the
+     * distance stays a cell.
+     */
+    val capFrom = remember { mutableStateOf(Offset.Zero) }
+    val capArrive = remember { Animatable(0f) }
+    val capMotion = Theme.motion
+    val capScope = rememberCoroutineScope()
 
     // One measurement for the whole month, not forty-two.
     //
@@ -276,7 +311,21 @@ fun CalendarMonth(
             onDraggingChange = { dragging = it },
             onLeanChange = { date, lean ->
                 leaningDate.value = date
-                leaning.floatValue = lean
+                leaning.value = lean
+            },
+            // A cell crossed, so the cap has a journey to make. Nothing to travel
+            // when the drag starts: a cap appearing under a finger has not come
+            // from anywhere.
+            onCapChange = { from ->
+                capFrom.value = from
+                capScope.launch {
+                    if (from == Offset.Zero) {
+                        capArrive.snapTo(0f)
+                    } else {
+                        capArrive.snapTo(1f)
+                        capArrive.animateTo(0f, capMotion.springOrTween(capMotion.springSnappy))
+                    }
+                }
             },
         ) {
         for (row in 0 until rows) {
@@ -304,7 +353,12 @@ fun CalendarMonth(
                             // it as a value: the lean changes on every pointer
                             // move, and a value would recompose forty-two cells a
                             // frame to move one of them.
-                            lean = { if (leaningDate.value == date) leaning.floatValue else 0f },
+                            lean = { if (leaningDate.value == date) leaning.value else Offset.Zero },
+                            // Where the cap is, in cells, measured from this cell's
+                            // own place in the grid. Read in the layer for the same
+                            // reason `lean` is: it changes on every pointer move and
+                            // moves exactly one cell in forty-two.
+                            capTravel = { capFrom.value * capArrive.value },
                             onSelectedChange = onSelectedChange,
                         )
                     }
@@ -337,10 +391,12 @@ private fun WeekGrid(
     isDateSelectable: (LocalDate) -> Boolean,
     onDragSelect: ((LocalDate, LocalDate) -> Unit)?,
     onDraggingChange: (Boolean) -> Unit,
-    onLeanChange: (LocalDate?, Float) -> Unit,
+    onCapChange: (from: Offset) -> Unit,
+    onLeanChange: (LocalDate?, Offset) -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val currentSelect by rememberUpdatedState(onDragSelect)
+    val currentCap by rememberUpdatedState(onCapChange)
     val currentSelectable by rememberUpdatedState(isDateSelectable)
     val currentDragging by rememberUpdatedState(onDraggingChange)
     val currentLean by rememberUpdatedState(onLeanChange)
@@ -382,6 +438,15 @@ private fun WeekGrid(
                         var anchor: LocalDate? = null
 
                         /**
+                         * The cell the cap was on before this move, so a crossing
+                         * knows which way the range continues from.
+                         *
+                         * A plain local, like `anchor` and for the same reason: it is
+                         * the gesture's own bookkeeping and nobody outside reads it.
+                         */
+                        var cameFrom: Int? = null
+
+                        /**
                          * Where the finger is, as a **fractional** cell index.
                          *
                          * The sub-cell part used to be thrown away on the way to
@@ -414,7 +479,7 @@ private fun WeekGrid(
                             anchor = null
                             ticker.reset()
                             currentDragging(false)
-                            currentLean(null, 0f)
+                            currentLean(null, Offset.Zero)
                         }
 
                         detectDragGestures(
@@ -422,6 +487,10 @@ private fun WeekGrid(
                                 anchor = dateAt(offset)
                                 currentDragging(true)
                                 anchor?.let { currentSelect?.invoke(it, it) }
+                                // Nothing to travel: a cap appearing under a finger
+                                // has not come from anywhere.
+                                cameFrom = positionAt(offset)?.let { floor(it).toInt() }
+                                currentCap(Offset.Zero)
                             },
                             onDragEnd = { release() },
                             onDragCancel = { release() },
@@ -432,11 +501,42 @@ private fun WeekGrid(
                             val date = dateAt(index) ?: return@detectDragGestures
                             ticker.at(floor(index))
                             currentSelect?.invoke(from, date)
+
+                            // A cell crossed: hand `CalendarMonth` the direction the
+                            // cap is coming from, as a unit vector in cells. It is
+                            // normalised rather than literal, so a cap wrapping to
+                            // the next week enters from beside itself rather than
+                            // flying across the month — see `capFrom`.
+                            val cell = floor(index).toInt()
+                            val previous = cameFrom
+                            if (previous != null && previous != cell) {
+                                val across = (previous % 7 - cell % 7).toFloat()
+                                val down = (previous / 7 - cell / 7).toFloat()
+                                val length = hypot(across, down)
+                                currentCap(
+                                    if (length <= 0f) {
+                                        Offset.Zero
+                                    } else {
+                                        Offset(across / length, down / length)
+                                    }
+                                )
+                            }
+                            cameFrom = cell
+
                             // How far the finger is from the cell's own centre, in
-                            // cell widths and signed. `DayCell` multiplies it by
-                            // `DetentPull` — the same fraction a range slider's
-                            // thumb follows a finger past a notch by.
-                            currentLean(date, index - floor(index) - 0.5f)
+                            // cells and signed, on both axes. `DayCell` multiplies it
+                            // by `DetentPull` — the same fraction a range slider's
+                            // thumb follows a finger past a notch by. Taken from the
+                            // pointer rather than from the grid index, which carries
+                            // a column's fraction and throws the row's away.
+                            val pitch = size.width / 7f
+                            currentLean(
+                                date,
+                                Offset(
+                                    x = change.position.x / pitch - cell % 7 - 0.5f,
+                                    y = change.position.y / pitch - cell / 7 - 0.5f,
+                                ),
+                            )
                         }
                     }
                 }
@@ -461,7 +561,8 @@ private fun DayCell(
      * How far past this cell's centre the finger is, in cell widths, or zero for
      * every cell that is not the moving end of the range. Read in the layer.
      */
-    lean: () -> Float,
+    lean: () -> Offset,
+    capTravel: () -> Offset,
     onSelectedChange: (LocalDate) -> Unit,
 ) {
     val tap = rememberTapFeedback()
@@ -558,29 +659,33 @@ private fun DayCell(
     // white ground for the length of the tween.
     val label = if (arriving) animatedLabel else labelTarget
     /**
-     * A cap arriving under a finger slides; a cap arriving under a tap lands.
+     * A cap arriving under a finger **travels**; a cap arriving under a tap lands.
      *
-     * Tapping a day should feel like laying down a stone, and it does. Dragging
-     * a range out is a different gesture and was borrowing the same animation:
-     * the cap sprang into place on every cell the finger crossed, so a drag
-     * across a fortnight was fourteen separate bounces chasing the pointer —
-     * which is the "bouncing looks a bit strange" in the report, and the reason
-     * the same animation reads well on a tap.
+     * Tapping a day should feel like laying down a stone, and it does. Dragging a
+     * range out is a different gesture and has been through two wrong answers.
+     * First it borrowed the tap's animation, so the cap sprang into place on every
+     * cell the finger crossed and a drag across a fortnight was fourteen separate
+     * bounces chasing the pointer. Then it grew along the track out of the edge the
+     * range came from — a `scaleX` from nothing, which is a wipe, and was reported
+     * as one: the head should *move* between the two dates instead.
      *
-     * So while a drag is in progress the cap grows along the track instead, out
-     * of the edge the range is coming from, on a spring with no overshoot in it.
-     * The band extends and its end slides; nothing arrives.
+     * So it moves. The cap is full size and drawn at an animated position, which is
+     * the whole grid's rather than this cell's — see `capAt` in `CalendarMonth` —
+     * and the lean toward the finger rides on top of it. That is a range slider's
+     * thumb, exactly: the notch springs, the pull is immediate, and because the
+     * animated position is a grid index rather than a column, a cap crossing into
+     * the next week travels up and across to the day it came from. One number, both
+     * axes.
      *
-     * ### Only a *cap* slides
+     * ### Only a *cap* travels
      *
-     * This used to be every cell in the range, and a cell in the middle of a
-     * band is not an edge that is moving — it is band. So each cell the finger
-     * passed over stopped being an endpoint, became `Middle`, and scaled its
-     * container along the track to **nothing**: the range emptied out behind
-     * the drag and came back only when the finger lifted. Reported as "they
-     * revert to the background colour until the finger lifts", and as the
-     * reason a drag animated each date separately rather than extending one
-     * strip — fourteen cells each running their own spring to zero.
+     * This used to be every cell in the range, and a cell in the middle of a band
+     * is not an edge that is moving — it is band. So each cell the finger passed
+     * over stopped being an endpoint, became `Middle`, and scaled its container
+     * along the track to **nothing**: the range emptied out behind the drag and came
+     * back only when the finger lifted. Reported as "they revert to the background
+     * colour until the finger lifts", and as the reason a drag animated each date
+     * separately rather than extending one strip.
      */
     val sliding = dragging && isEndpoint && rangePosition != RangePosition.StartAndEnd
 
@@ -642,26 +747,27 @@ private fun DayCell(
                 .matchCellSize()
                 .graphicsLayer {
                     if (sliding) {
-                        // Along the track only, out of the edge the range is
-                        // arriving from: the end cap of a range growing to the
-                        // right comes out of its left side, and the start cap of
-                        // one growing to the left out of its right.
-                        scaleX = fillScale
-                        // **And it leans toward the finger.**
+                        // **The cap is where the grid says it is, plus the pull.**
                         //
-                        // The cap sat exactly on a cell boundary and moved a whole
-                        // cell at a time, which is what "the animation for swiping
-                        // between dates feels a bit off" is: the finger is
-                        // continuous and the thing following it was not. A fraction
-                        // of the overshoot — the fraction a range slider's thumb
-                        // follows a finger past a notch by — reads as the cap being
-                        // *pulled*, and is small enough that it is never nearer the
-                        // next day than the one it is on.
-                        translationX = lean() * SliderDefaults.DetentPull * size.width
-                        transformOrigin = TransformOrigin(
-                            pivotFractionX = if (rangePosition == RangePosition.Start) 1f else 0f,
-                            pivotFractionY = 0.5f,
-                        )
+                        // `capTravel` is the animated cap position measured from this
+                        // cell, in cells, on both axes — so a crossing within a week
+                        // is a slide along the row and one into the next week is a
+                        // move up and across to the day the range came from. The
+                        // pitch is the cell's own dp rather than `size`, which is
+                        // inset on the outside of the range and would leave the cap
+                        // a pixel or two short of each day it passed.
+                        //
+                        // The lean is added on top and is immediate: a fraction of
+                        // the distance to the next day — the fraction a range
+                        // slider's thumb follows a finger past a notch by — which
+                        // reads as the cap being *pulled* rather than stepping. It
+                        // is small enough that the cap is never nearer the next day
+                        // than the one it is on.
+                        val pitch = cellSize.toPx()
+                        val travel = capTravel()
+                        val pull = lean() * SliderDefaults.DetentPull
+                        translationX = (travel.x + pull.x) * pitch
+                        translationY = (travel.y + pull.y) * pitch
                     } else if (filled) {
                         scaleX = fillScale
                         scaleY = fillScale
