@@ -169,11 +169,11 @@ class CursorPlacementTest {
             scene.hover(grip)
             assertEquals(expected(Cursor.Grab), scene.cursor, "over a reorder grip")
 
-            // Picked up, then moved off the grip and onto the row's content. The
-            // reorder gesture waits for the *touch* slop even under a mouse, so
-            // the row trails the pointer by 18dp and the pointer is off a 24dp
-            // grip within a frame of the pickup. The cursor is the drag's, and it
-            // stays grabbing wherever on the held row the pointer is.
+            // Picked up, then moved sideways off the grip and onto the row's
+            // content. The row follows the pointer up and down, not across, so
+            // a wander sideways leaves the 24dp grip behind. The cursor is the
+            // drag's, and it stays grabbing wherever on the held row the pointer
+            // is.
             val onContent = Offset(content.center.x, grip.y + 20f)
             scene.press(grip)
             scene.drag(grip, grip + Offset(0f, 20f))

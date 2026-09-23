@@ -109,15 +109,17 @@ A cursor belongs to a *drag*, not to whatever the pointer happens to be over —
 every desktop's own drag-and-drop it stays put until the drop. Compose has no such
 capture: a held pointer that leaves the element that set the cursor gets the arrow
 back. So a lifted `ReorderableItem` puts `Grabbing` over its whole row and lets it
-win over the row's content, because the reorder gesture waits for the touch slop
-even under a mouse, and the row trails the pointer by 18dp — further than its
-24dp grip is tall.
+win over the row's content: the row follows the pointer up and down, but nothing
+stops the pointer wandering sideways off a 24dp grip.
 
-Something you build that is dragged by a small handle has the same problem. Two
-things keep it away: detect the drag with Compose's own `draggable` or
-`detectDragGestures`, which use a mouse's much smaller slop and so keep the handle
-under the pointer; and set the cursor on the handle from the start, since Compose
-decides which elements a held pointer reports to at the moment it goes down.
+Something you build that is dragged by a small handle has the same problem, and a
+worse one if its drag waits for a finger's slop under a mouse — the handle then
+trails the pointer by 18dp on a desktop and is left behind at once. Two things
+keep it away: detect the drag with Compose's own `draggable` or
+`detectDragGestures`, or with the pointer-aware `awaitVerticalPointerSlopOrCancellation`,
+all of which use a mouse's much smaller slop and so keep the handle under the
+pointer; and set the cursor on the handle from the start, since Compose decides
+which elements a held pointer reports to at the moment it goes down.
 
 ---
 

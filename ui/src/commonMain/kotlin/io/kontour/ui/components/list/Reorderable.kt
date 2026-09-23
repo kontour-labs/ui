@@ -7,7 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.awaitVerticalPointerSlopOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyItemScope
@@ -385,15 +385,14 @@ fun LazyItemScope.ReorderableItem(
                 scaleX = 1f + 0.02f * lift
                 scaleY = 1f + 0.02f * lift
             }
-            // **Held, the whole row is the grip.** The reorder gesture starts only
-            // once the pointer has cleared the *touch* slop, even under a mouse —
-            // 18dp on a desktop — and the row trails it by that much from then
-            // on. The grip is 24dp tall under a mouse, so the pointer is off it
-            // within a frame of the pickup, and a grabbing cursor that lived on
-            // the grip alone was back to the arrow for the rest of the drag. A cursor belongs to the drag
-            // rather than to whatever the pointer is over, which is how every
-            // desktop's own drag-and-drop behaves; overriding the row's children
-            // is the nearest Compose has to that.
+            // **Held, the whole row is the grip.** The row follows the pointer
+            // vertically, but the pointer is free to wander sideways off a 24dp
+            // grip, or past the end of the list where the row stops — and a
+            // grabbing cursor that lived on the grip alone went back to the arrow
+            // the moment it did. A cursor belongs to the drag rather than to
+            // whatever the pointer is over, which is how every desktop's own
+            // drag-and-drop behaves; overriding the row's children is the nearest
+            // Compose has to that.
             .heldCursor(dragging)
             .semantics {
                 customActions = buildList {
@@ -725,7 +724,7 @@ private val ReorderLift: Dp = 8.dp
 private val ReorderHoldSlop = 24.dp
 
 /**
- * A drag, after a long press or after touch slop depending on [immediate].
+ * A drag, after a long press or after the pointer's slop depending on [immediate].
  *
  * One detector rather than two, and that is the point rather than a tidy-up:
  * **which** of the two a gesture wants is decided when the gesture starts, not
@@ -734,7 +733,7 @@ private val ReorderHoldSlop = 24.dp
  *
  * The hold half is `detectDragGesturesAfterLongPress` with one number changed —
  * see [ReorderHoldSlop] — written out rather than wrapped because the movement
- * budget lives inside `awaitLongPressOrCancellation`, which is not public.
+ * budget `awaitLongPressOrCancellation` allows is fixed and not a parameter.
  *
  * @param immediate A mouse, or a dedicated grip: neither has a scroll to steal,
  *   so neither waits half a second for one. Read once per gesture.
@@ -753,9 +752,24 @@ private suspend fun PointerInputScope.detectReorderDrag(
             // Slop rather than a hold. Without it a plain click on a row would
             // pick it up, which is what the long press is for on a touchscreen
             // and what slop is for with a pointer.
-            val moved = awaitTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
-                ?: return@awaitEachGesture
+            //
+            // **The pointer's own slop**, which is an eighth of a dp for a mouse
+            // and the touch slop for a finger. This used to be
+            // `awaitTouchSlopOrCancellation`, which assumes a finger whatever the
+            // pointer is, and dropped the distance past the slop as well — so a
+            // row followed the mouse 18dp behind for the whole of a desktop drag
+            // and slid out from under the grip that had been taken hold of.
+            // Vertical, because a reorder is: a sideways wander is not a drag.
+            var overSlop = 0f
+            val moved = awaitVerticalPointerSlopOrCancellation(down.id, down.type) { change, over ->
+                change.consume()
+                overSlop = over
+            } ?: return@awaitEachGesture
             onDragStart(moved.position)
+            // Delivered as `detectDragGestures` delivers it: the part of the
+            // first movement past the slop is movement, not the price of
+            // starting.
+            if (overSlop != 0f) onDrag(moved, Offset(0f, overSlop))
         } else {
             // `withTimeoutOrNull` returning null is the *success* here: the loop
             // inside it only ever returns early, so reaching the deadline means

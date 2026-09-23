@@ -54,12 +54,10 @@ internal class CursorScene(
 
         /**
          * A desktop's touch slop, which is 18**dp**. The default here is 18
-         * *pixels*, half that at this scene's density, and it hid the reason a
-         * held cursor needs care: a gesture that waits for the touch slop starts
-         * only once the pointer has cleared it, the thing being dragged trails
-         * the pointer by that much from then on, and a 24dp grip is left behind
-         * at once. Compose's own drag detector uses a mouse's much smaller slop
-         * and is unaffected.
+         * *pixels*, half that at this scene's density — and a gesture that
+         * wrongly waits for the touch slop under a mouse loses that much of every
+         * drag, so half of it was hidden. The reorder gesture did exactly that,
+         * and `ReorderMouseTest` measures it against the real number.
          */
         override val viewConfiguration: ViewConfiguration =
             object : ViewConfiguration by PlatformContext.DefaultViewConfiguration {
