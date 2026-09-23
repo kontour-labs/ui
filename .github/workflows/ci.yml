@@ -181,7 +181,8 @@ jobs:
             :ui-samples:compileKotlinJvm \
             :ui-samples:checkDocSamples \
             :ui-nav3:jvmTest \
-            :ui-nav3:checkNoMaterial
+            :ui-nav3:checkNoMaterial \
+            :ui:testAndroidHostTest --tests "io.kontour.ui.input.*"
 
       - name: Check the docs' links resolve
         run: python3 docs/check-links.py
