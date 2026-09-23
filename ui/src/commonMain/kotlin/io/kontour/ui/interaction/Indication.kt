@@ -122,10 +122,11 @@ private class KontourIndicationNode(
     /**
      * When the current press went down, on the wall clock.
      *
-     * Null whenever nothing is pressed. The wall clock rather than the frame
-     * clock for the reason `Toast`'s own clock gives: what is being measured is
-     * how long a *finger* was down, which is a fact about the person and not
-     * about how many frames the renderer managed in the meantime.
+     * Null whenever nothing is pressed. Used for [PressFloor] and nothing else:
+     * the wall clock is right for *how long a finger was down*, which is a fact
+     * about the person rather than about how many frames the renderer managed. It
+     * is wrong for *whether the shrink has arrived*, which is a fact about the
+     * frames — see the hold in [onAttach], which learned that the hard way.
      */
     private var pressedAt: TimeSource.Monotonic.ValueTimeMark? = null
 
@@ -191,30 +192,42 @@ private class KontourIndicationNode(
                  * Not a rate limiter, which is what `DetentTicker`'s
                  * `MinimumTickInterval` is and is the wrong precedent: nothing here
                  * is being dropped, it is being finished.
+                 *
+                 * **The shrink arriving is measured by the shrink.** The floor was
+                 * once the whole of it, on the wall clock — and the animation it
+                 * protects runs on the frame clock. On a phone that dropped frames
+                 * just as the finger lifted, the 120ms ran out while nothing was
+                 * being drawn, and the release turned the shrink round before it
+                 * had begun: the flicker, back on exactly the devices most likely to
+                 * show it. Measured with a stall past the floor, a tap did not move
+                 * the control at all. So a release now waits for the press's own
+                 * animation to finish, however many frames that takes, and only
+                 * then for whatever is left of [PressFloor]. The floor can lengthen
+                 * the hold; it can no longer cut the shrink short.
+                 *
+                 * Still pressed, or something else taking the control over — a drag
+                 * that grew out of the press, a pointer still hovering — is not a
+                 * release, and holds nothing: there is no flicker to prevent, and
+                 * holding would mean a drag's own wash arriving late.
                  */
-                val hold = when {
-                    // Still pressed, or something else has taken the control over —
-                    // a drag that grew out of the press, a pointer still hovering.
-                    // There is no flicker to prevent in either case, and holding
-                    // would mean a drag's own wash arriving a tenth of a second
-                    // after the drag did.
-                    pressed || target != Color.Transparent -> Duration.ZERO
-                    else -> pressedAt?.let { PressFloor - it.elapsedNow() }
-                        ?.coerceAtLeast(Duration.ZERO)
-                        ?: Duration.ZERO
-                }
+                val pressMark = pressedAt
+                val releasing = !pressed && target == Color.Transparent && pressMark != null
                 pressedAt = if (pressed) pressedAt ?: TimeSource.Monotonic.markNow() else null
 
                 // **Cancelled after the hold, not before it.** The job being
                 // replaced is usually the press's own animation, and cancelling
                 // it up front stops the shrink at wherever it had got to — which
-                // is the flicker again, arrived at from the other direction.
-                // Measured: a tap did not shrink the control at all. After the
-                // delay the press has finished and this is a no-op; a *press*
-                // arriving mid-hold has no delay and so still takes over at once.
+                // is the flicker again, arrived at from the other direction. A
+                // release *joins* it instead, so by the time `cancel` runs it has
+                // finished and this is a no-op; a *press* arriving mid-hold joins
+                // nothing and so still takes over at once.
                 val previous = settle
                 settle = launch {
-                    if (hold > Duration.ZERO) delay(hold)
+                    if (releasing) {
+                        previous?.join()
+                        val rest = PressFloor - pressMark.elapsedNow()
+                        if (rest > Duration.ZERO) delay(rest)
+                    }
                     previous?.cancel()
 
                     if (target != Color.Transparent) {
@@ -289,11 +302,14 @@ const val DefaultPressScale: Float = 0.97f
  * rather than answering — reported from a phone, against a press that looks right
  * under a mouse for the simple reason that a click lasts longer.
  *
- * A hundred and twenty milliseconds: long enough for the shrink to arrive and the
- * wash to reach its alpha, short enough that a fast double tap is still two taps
- * rather than one long one. It is a **floor** and not a delay — a press already
- * past it is answered the instant the finger lifts, which is every mouse click and
- * every deliberate hold. See [KontourIndication] and the note inside its node.
+ * A hundred and twenty milliseconds from the press, and only ever *after* the
+ * press's own animation has arrived — the animation is what decides that the
+ * shrink got there, on the frames it was drawn on, and this is the minimum on top
+ * of it. Short enough that a fast double tap is still two taps rather than one long
+ * one. It is a **floor** and not a delay — a press already past it, whose shrink
+ * has finished, is answered the instant the finger lifts, which is every mouse
+ * click and every deliberate hold. See [KontourIndication] and the note inside its
+ * node.
  *
  * A starting point, and the kind of number only a thumb can settle.
  */

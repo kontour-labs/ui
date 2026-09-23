@@ -166,6 +166,60 @@ class PressScaleTest {
         )
     }
 
+    /**
+     * And it still plays in full when the renderer stalls at the moment of the tap.
+     *
+     * The hold was 120ms on the **wall** clock, and the shrink it exists to protect
+     * runs on the **frame** clock. On a phone that drops frames just as the finger
+     * lifts, the floor ran out before the shrink had drawn anything, the release
+     * turned it round, and the flicker the floor was added for came back on exactly
+     * the devices most likely to show it. The arm above caught it first, as a test
+     * that passed on its own and failed under a busy suite — a busy machine is a
+     * janky renderer — and was nearly written off as flaky.
+     *
+     * So this is the jank, on purpose: the tap, then a real stall longer than the
+     * floor before a single frame is drawn. The release has to wait for the shrink
+     * to arrive, not for a stopwatch that started while nothing was being drawn.
+     */
+    @Test
+    fun aTapStillShrinksWhenTheRendererStalls() {
+        var bounds = Rect.Zero
+        var resting = 0
+        var held = 0
+        var tapped = Int.MAX_VALUE
+
+        Scene(width = 500, height = 220) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(24.dp)) {
+                Box(Modifier.reportBounds { bounds = it }) {
+                    Button(onClick = {}) { +"Save" }
+                }
+            }
+        }.use { scene ->
+            resting = scene.frames(8).inkWidth()
+            val at = bounds.alongX(0.5f)
+
+            scene.press(at)
+            held = scene.frames(20).inkWidth()
+            scene.release(at)
+            scene.frames(30)
+
+            scene.press(at)
+            scene.release(at)
+            // Nothing drawn for longer than the whole floor.
+            Thread.sleep(Stall)
+            repeat(20) { tapped = minOf(tapped, scene.frame().inkWidth()) }
+        }
+
+        assertTrue(held < resting, "a held press did not shrink the control at all: $resting→$held")
+        assertTrue(
+            tapped <= held,
+            "after a ${Stall}ms stall a tap took the control only to ${tapped}px, where a " +
+                "held press reaches ${held}px from ${resting}px at rest. The release was " +
+                "timed on the wall clock and ran out while nothing was being drawn, so " +
+                "the shrink was turned round before it had begun",
+        )
+    }
+
     /** One control, and the name a failure should call it by. */
     private class Case(val name: String, val content: @Composable () -> Unit)
 
@@ -231,6 +285,12 @@ class PressScaleTest {
  * getting **bigger** under a finger. Anything past [Solid] is a container or a
  * glyph; nothing that faint is either.
  */
+/**
+ * Longer than `PressFloor`, with room to spare on a slow machine: the whole floor
+ * passes before the first frame after the tap is drawn.
+ */
+private const val Stall = 250L
+
 private fun BufferedImage.inkWidth(): Int {
     val page = getRGB(2, 2)
     var left = -1
