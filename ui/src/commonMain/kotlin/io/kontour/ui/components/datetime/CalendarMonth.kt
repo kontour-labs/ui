@@ -222,8 +222,9 @@ fun CalendarMonth(
      * Which way the dragged cap came from, and how much of that journey is left.
      *
      * One direction and one `Animatable` for the whole month rather than a pair per
-     * cell, read only from the layer of whichever cell is currently the cap — so a
-     * cap travelling costs no recomposition and no forty-two springs.
+     * cell, read only from the layer of the cap being dragged — so a cap travelling
+     * costs no recomposition and no forty-two springs. Only *that* cap: the other end
+     * of the range is a cap as well, and it stays where the finger put it down.
      *
      * A cap used to arrive by growing out of the edge the range came from: a
      * `scaleX` from nothing, per cell, which is a wipe. Reported as wanting the head
@@ -358,7 +359,14 @@ fun CalendarMonth(
                             // own place in the grid. Read in the layer for the same
                             // reason `lean` is: it changes on every pointer move and
                             // moves exactly one cell in forty-two.
-                            capTravel = { capFrom.value * capArrive.value },
+                            //
+                            // And gated on the same date as `lean`, the one under the
+                            // finger. The anchor is a cap too, and without the gate it
+                            // read the same travel and stepped away with every day
+                            // the moving end crossed.
+                            capTravel = {
+                                if (leaningDate.value == date) capFrom.value * capArrive.value else Offset.Zero
+                            },
                             onSelectedChange = onSelectedChange,
                         )
                     }
@@ -686,6 +694,15 @@ private fun DayCell(
      * back only when the finger lifted. Reported as "they revert to the background
      * colour until the finger lifts", and as the reason a drag animated each date
      * separately rather than extending one strip.
+     *
+     * ### And only the cap being dragged
+     *
+     * Both ends of a range being dragged are caps, and both read the one travel. So
+     * the anchor, the end the finger put down and left, jumped a cell the way the
+     * moving end had come from on every day crossed, and sprang home beside it.
+     * Reported as the drag animating both heads. `capTravel` is now gated the way
+     * `lean` always was, on the date under the finger, so the anchor is `sliding`
+     * with nothing to slide by: drawn in place, at full size.
      */
     val sliding = dragging && isEndpoint && rangePosition != RangePosition.StartAndEnd
 

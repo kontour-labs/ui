@@ -172,6 +172,100 @@ class DateRangeStripTest {
         )
     }
 
+    /**
+     * Only the head under the finger travels. The one the drag started from stays
+     * where it was put down.
+     *
+     * Both ends of a range being dragged are caps, and both read the one travel the
+     * moving end springs on — so on every day crossed, the anchor jumped a cell the
+     * way the moving end had come from and sprang home beside it. Reported as the
+     * drag "animating both heads".
+     *
+     * Counted the way [aCapCrossingWeeksTravelsThroughTheRowItLeaves] counts: the
+     * cap's own colour in a cell outside the range, next to the anchor on the side a
+     * crossing would push it. At rest that cell holds its digit and nothing else;
+     * while the moving end crosses a day, an anchor that travelled puts most of a
+     * cell of cap there.
+     *
+     * Both ways round, because the anchor is the `Start` of a range dragged forwards
+     * and the `End` of one dragged backwards.
+     */
+    @Test
+    fun onlyTheDraggedHeadTravels() {
+        // Forwards along the third week: anchored on the 11th, out to the 14th, then
+        // across onto the 15th. A crossing from the left pushes the anchor into the
+        // 10th's cell.
+        val forwards = anchorDrift(anchor = 11, along = 14, crossTo = 15, beside = 10)
+        // Backwards: anchored on the 13th, back to the 11th, then onto the 10th. A
+        // crossing from the right pushes the anchor into the 14th's.
+        val backwards = anchorDrift(anchor = 13, along = 11, crossTo = 10, beside = 14)
+
+        val travelled = listOf("forwards" to forwards, "backwards" to backwards)
+            .filter { (_, drift) -> drift.second - drift.first > Substantial }
+        assertTrue(
+            travelled.isEmpty(),
+            travelled.joinToString("; ") { (name, drift) ->
+                "dragged $name, the cell beside the anchor held ${drift.second}px of the " +
+                    "cap's colour while the moving end crossed a day, against " +
+                    "${drift.first}px of its own digit at rest"
+            } + " — the anchor left its cell and travelled with the head being dragged",
+        )
+    }
+
+    /**
+     * The cap's colour in [beside]'s cell at rest, and the most of it seen while the
+     * moving end crosses from [along] to [crossTo], with the drag anchored on
+     * [anchor]. All four days are in the third week of August 2026.
+     */
+    private fun anchorDrift(anchor: Int, along: Int, crossTo: Int, beside: Int): Pair<Int, Int> {
+        var start by mutableStateOf<LocalDate?>(null)
+        var end by mutableStateOf<LocalDate?>(null)
+        var bounds = Rect.Zero
+        var baseline = 0
+        var travelling = 0
+
+        Scene(width = 700, height = 800) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                DateRangePicker(
+                    start = start,
+                    end = end,
+                    onRangeSelected = { s, e -> start = s; end = e },
+                    today = LocalDate(2026, 8, 1),
+                    modifier = Modifier.reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(6)
+            assertTrue(bounds.width > 0f, "the picker never reported a size")
+
+            scene.drag(from = cell(bounds, anchor), to = cell(bounds, along), steps = 20, release = false)
+            val settled = scene.frames(20)
+            val cap = settled.getRGB(capSample(bounds, along).x.toInt(), capSample(bounds, along).y.toInt())
+            baseline = settled.capIn(bounds, beside, cap)
+
+            // One crossing, in one move.
+            scene.move(cell(bounds, crossTo))
+            repeat(TravelFrames) {
+                travelling = maxOf(travelling, scene.frame().capIn(bounds, beside, cap))
+            }
+            scene.release(cell(bounds, crossTo))
+        }
+        return baseline to travelling
+    }
+
+    /** How much of [cap]'s colour is in the lower part of [day]'s cell, below its digit. */
+    private fun java.awt.image.BufferedImage.capIn(bounds: Rect, day: Int, cap: Int): Int {
+        val size = cellSize(bounds)
+        val centre = cell(bounds, day)
+        var found = 0
+        for (y in (centre.y + size * 0.2f).toInt() until (centre.y + size / 2f).toInt() - 2) {
+            for (x in (centre.x - size / 2f).toInt() + 2 until (centre.x + size / 2f).toInt() - 2) {
+                if (getRGB(x, y) == cap) found++
+            }
+        }
+        return found
+    }
+
     /** Inside a cap and clear of the digit, which is dark on it. */
     private fun capSample(bounds: Rect, day: Int): Offset =
         cell(bounds, day) + Offset(0f, cellSize(bounds) / 3f)
