@@ -17,6 +17,10 @@ androidx-activity = "1.13.0"
 # Icons — used by the catalog and the tests, never by the library itself
 composables-icons = "2.2.1"
 
+# Navigation 3 — `:ui-nav3` only. The scene API is JetBrains' multiplatform
+# build of it; `NavEntry` and the rest of the runtime come from Google's.
+navigation3 = "1.1.1"
+
 # KotlinX
 kotlinx-coroutines = "1.11.0"
 kotlinx-datetime = "0.8.0"
@@ -43,6 +47,9 @@ composables-tabler-outline = { module = "com.composables:icons-tabler-outline-cm
 composables-tabler-filled = { module = "com.composables:icons-tabler-filled-cmp", version.ref = "composables-icons" }
 
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
+
+navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
+navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
 
 [bundles]
 icons = [

@@ -32,6 +32,9 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":ui"))
+            // The Navigation 3 guide's examples, compiled against the module the
+            // way an app would take it.
+            implementation(project(":ui-nav3"))
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

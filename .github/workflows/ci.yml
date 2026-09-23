@@ -179,7 +179,9 @@ jobs:
             :ui-catalog:checkScreenshotAssertions \
             :ui-docs:jvmTest \
             :ui-samples:compileKotlinJvm \
-            :ui-samples:checkDocSamples
+            :ui-samples:checkDocSamples \
+            :ui-nav3:jvmTest \
+            :ui-nav3:checkNoMaterial
 
       - name: Check the docs' links resolve
         run: python3 docs/check-links.py
@@ -265,6 +267,10 @@ jobs:
             :ui:compileKotlinIosSimulatorArm64 \
             :ui-catalog:compileKotlinIosArm64 \
             :ui-catalog:compileKotlinIosSimulatorArm64 \
+            :ui-nav3:compileKotlinJs \
+            :ui-nav3:compileKotlinWasmJs \
+            :ui-nav3:compileKotlinIosArm64 \
+            :ui-nav3:compileKotlinIosSimulatorArm64 \
             :showcase:android:assembleDebug \
             :ui:assemble
 
@@ -387,7 +393,7 @@ jobs:
       # `[Link]` to a symbol that no longer exists fails the build. That is a
       # class of KDoc defect nothing else here can see.
       - name: Build the API reference
-        run: ./gradlew --no-daemon :ui:dokkaGenerateHtml
+        run: ./gradlew --no-daemon :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml
 
       # Only here, and only in this order: it compares the paths the site
       # derived when it was built against the pages the reference published a
@@ -479,7 +485,7 @@ jobs:
         run: |
           ./gradlew --no-daemon --quiet \
             ${{ inputs.version && format('-Pkontour.version={0}', inputs.version) || '' }} \
-            :ui:coordinate
+            :ui:coordinate :ui-nav3:coordinate
 
       # On a tag this takes no version argument and so cannot disagree with the
       # tag: the build reads `GITHUB_REF_TYPE`/`GITHUB_REF_NAME` itself. A manual

@@ -49,6 +49,8 @@ maven("https://maven.pkg.github.com/kontour-labs/ui") {
 
 // build.gradle.kts
 implementation("io.kontour:ui:0.1.0")
+// Optional: Navigation 3 scene strategies over the pane scaffolds
+implementation("io.kontour:ui-nav3:0.1.0")
 ```
 
 [`installing.md`](ui-docs/content/installing.md) has the whole of it: why
@@ -111,9 +113,11 @@ images in the docs.
 ./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
           :ui:checkKdocSamples :ui-catalog:jvmTest :ui-docs:jvmTest \
           :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples \
+          :ui-nav3:jvmTest :ui-nav3:checkNoMaterial \
           :ui:compileIosMainKotlinMetadata \
           :ui-catalog:compileIosMainKotlinMetadata \
-          :ui:dokkaGenerateHtml
+          :ui-nav3:compileIosMainKotlinMetadata \
+          :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml
 python3 docs/check-links.py
 python3 docs/check-components.py
 ```

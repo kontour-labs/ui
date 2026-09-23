@@ -7,6 +7,7 @@
 | [`Scaffold`](scaffold.md) | Top bar, bottom bar, FAB, and the padding for the content |
 | [`ListDetailPaneScaffold`](pane-scaffold.md) | Two panes when there is room, one at a time when there is not |
 | [`SupportingPaneScaffold`](pane-scaffold.md) | Content with a helper pane, or a sheet when narrow |
+| [Navigation 3 scenes](../navigation3.md) | Both pane scaffolds, driven by a Navigation 3 back stack |
 | [`AspectRatioBox`](aspect-ratio-box.md) | Reserves a media slot before its content loads |
 | [`Modifier.pointerCursor`](modifier-pointer-cursor.md) | The mouse cursor over a component, named for what it is |
 | `Motion.fadeThrough` / `sharedAxis` / `containerTransform` | Transition presets |

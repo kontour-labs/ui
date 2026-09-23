@@ -31,8 +31,12 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-// The library. Product-agnostic, and the only module that gets published.
+// The library. Product-agnostic, and published.
 include(":ui")
+
+// Navigation 3 scene strategies over the library's pane scaffolds. Published
+// beside it, and separate so that `:ui` takes no navigation dependency at all.
+include(":ui-nav3")
 
 // The gallery, and the living documentation. Every component in every state it
 // has, and the source of the screenshot goldens — so it is also where most of

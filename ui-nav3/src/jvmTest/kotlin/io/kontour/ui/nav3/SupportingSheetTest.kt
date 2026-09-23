@@ -1,0 +1,103 @@
+package io.kontour.ui.nav3
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.v2.runDesktopComposeUiTest
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.ui.NavDisplay
+import io.kontour.ui.foundation.Text
+import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.theme.KontourTheme
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+/**
+ * The supporting pane as a sheet, driven through a real `NavDisplay`.
+ *
+ * Two ways out, and each must pop exactly one entry. A drag or a scrim tap asks
+ * the back stack to pop, and the sheet has already gone by the time it is asked
+ * to leave. A system back pops first, and the sheet then has to leave on its own
+ * — without reporting that as a *second* dismissal, which would pop the page the
+ * sheet was over as well.
+ */
+@OptIn(ExperimentalTestApi::class)
+class SupportingSheetTest {
+
+    private object Run
+    private object Conditions
+
+    @Composable
+    private fun Display(backStack: SnapshotStateList<Any>, onBack: () -> Unit) {
+        KontourTheme {
+            OverlayHost {
+                NavDisplay(
+                    backStack = backStack,
+                    onBack = onBack,
+                    sceneStrategies = listOf(SupportingPaneSceneStrategy(twoPane = false, null, true)),
+                    entryProvider = entryProvider {
+                        entry<Run>(metadata = mainPane()) { Text("the run") }
+                        entry<Conditions>(metadata = supportingPane()) { Text("the conditions") }
+                    },
+                )
+            }
+        }
+    }
+
+    private fun ComposeUiTest.frames(count: Int) = repeat(count) { mainClock.advanceTimeByFrame() }
+
+    @Test
+    fun dismissingTheSheetPopsExactlyOneEntry() = runDesktopComposeUiTest(width = 400, height = 800) {
+        val backStack = mutableStateListOf<Any>(Run, Conditions)
+        var pops = 0
+        setContent {
+            Display(backStack, onBack = { pops++; backStack.removeLastOrNull() })
+        }
+        waitForIdle()
+        onNodeWithText("the conditions").assertExists()
+        // Under the sheet, and so hidden from a screen reader while it is open.
+        onNodeWithText("the run", useUnmergedTree = true).assertExists()
+
+        // The scrim, as a screen reader presses it — the same request a tap
+        // outside the sheet makes.
+        onNode(hasContentDescription("Close") and SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick))
+            .performSemanticsAction(SemanticsActions.OnClick)
+        waitForIdle()
+
+        assertEquals(1, pops, "dismissing the sheet should pop once")
+        assertEquals(listOf<Any>(Run), backStack.toList())
+        onNodeWithText("the conditions").assertDoesNotExist()
+        onNodeWithText("the run").assertExists()
+    }
+
+    @Test
+    fun aSystemBackClosesTheSheetWithoutASecondPop() = runDesktopComposeUiTest(width = 400, height = 800) {
+        val backStack = mutableStateListOf<Any>(Run, Conditions)
+        var pops = 0
+        setContent {
+            Display(backStack, onBack = { pops++; backStack.removeLastOrNull() })
+        }
+        waitForIdle()
+        mainClock.autoAdvance = false
+
+        // What a system back does: the stack pops, and nobody asked the sheet.
+        backStack.removeLastOrNull()
+        frames(2)
+        // Still composed, on its way down — the overlay waits for the sheet.
+        onNodeWithText("the conditions").assertExists()
+
+        frames(90)
+        mainClock.autoAdvance = true
+        waitForIdle()
+        onNodeWithText("the conditions").assertDoesNotExist()
+        assertEquals(0, pops, "the sheet reported its own exit as a dismissal and popped again")
+        assertEquals(listOf<Any>(Run), backStack.toList())
+    }
+}
