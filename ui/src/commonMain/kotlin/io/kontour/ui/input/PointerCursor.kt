@@ -10,8 +10,8 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
  *
  * Named for what the pointer is *over*, not for what it looks like anywhere in
  * particular. [ResizeColumn] is an east-west arrow on a desktop, a horizontal
- * double arrow on an Android tablet with a mouse and a hand in a browser, and the
- * component asking for it should not have to know which.
+ * double arrow on an Android tablet with a mouse and a `col-resize` bar in a
+ * browser, and the component asking for it should not have to know which.
  *
  * Ten, and each is here because something in this library points at it or is the
  * other half of a pair that does. The list is the part that grows, so the bar for
@@ -109,39 +109,43 @@ enum class Cursor {
  * no way to add either without a per-target `expect`/`actual`, because desktop
  * could build a [PointerIcon] from an AWT cursor and *no other target we ship
  * could*. The first half was true. The second was never checked against the
- * artifacts. Android has a public [PointerIcon] built from one of its own
- * `PointerIcon.TYPE_*` constants — grab and grabbing and both double arrows among
- * them — for a mouse or a stylus on a tablet or a Chromebook. So the pane splitter
- * showed a hand, on two of the three platforms that could have done better, for as
- * long as the note stood. The web is the third, and there the note was right for a
- * reason it did not give: Compose has a CSS-keyword cursor for the browser and
- * keeps it internal, so a library cannot make one.
+ * artifacts, and it was false on both of the other targets that have a pointer.
+ * Android has a public [PointerIcon] built from one of its own `PointerIcon.TYPE_*`
+ * constants — grab and grabbing and both double arrows among them — for a mouse or
+ * a stylus on a tablet or a Chromebook. The web has `PointerIcon.fromKeyword`,
+ * which takes any CSS `cursor` keyword. So the pane splitter showed a hand for as
+ * long as the note stood.
+ *
+ * The same mistake was then made once more, here. The web's CSS cursor class is
+ * internal, and this said so and stopped — without looking for the public way to
+ * make one, which the published klib shows sitting right beside it.
  *
  * The per-target `expect`/`actual` the note was afraid of is four files of one
  * `when` each. What each platform draws for each [Cursor]:
  *
  * | | Desktop | Android | Web | iOS |
  * |---|---|---|---|---|
- * | [Cursor.ResizeColumn] | east-west arrow | horizontal double arrow | *hand* | — |
- * | [Cursor.ResizeRow] | north-south arrow | vertical double arrow | *hand* | — |
- * | [Cursor.Grab] | *hand* | grab | *hand* | — |
- * | [Cursor.Grabbing] | four-way move | grabbing | *hand* | — |
- * | [Cursor.NotAllowed] | *arrow* | no-drop | *arrow* | — |
- * | [Cursor.Progress] | *arrow* | *arrow* | *arrow* | — |
+ * | [Cursor.ResizeColumn] | east-west arrow | horizontal double arrow | `col-resize` | — |
+ * | [Cursor.ResizeRow] | north-south arrow | vertical double arrow | `row-resize` | — |
+ * | [Cursor.Grab] | *hand* | grab | `grab` | — |
+ * | [Cursor.Grabbing] | four-way move | grabbing | `grabbing` | — |
+ * | [Cursor.NotAllowed] | *arrow* | no-drop | `not-allowed` | — |
+ * | [Cursor.Progress] | *arrow* | *arrow* | `progress` | — |
  *
  * Italics are the nearest of the four common shapes, standing in where a platform
- * has nothing that means the same thing — or, on the web, has it and will not lend
- * it. Anything dragged falls back to the hand, which is what it showed before and
- * at least says the thing does something; the arrow would say nothing. AWT has no
+ * has nothing that means the same thing. Anything dragged falls back to the hand,
+ * which is what it showed before and at least says the thing does something; the
+ * arrow would say nothing. The browser has every shape CSS names. AWT has no
  * grab and no forbidden shape, and AWT's and Android's only busy cursors mean
  * *stopped*. The other four [Cursor]s are Compose's own and look the
  * same everywhere. iOS has no cursor backend at all, and a pointer there keeps the
  * system's own shape.
  *
- * Nothing in this repository can *see* a cursor — a rendered frame has no pointer
- * in it — so the mapping is checked to compile on every target and to resolve to
- * the table above on the desktop, and the rest is seen by hovering the desktop
- * showcase.
+ * A rendered frame has no pointer in it, so the cursor is checked where it is
+ * decided instead: a scene that records the cursor it is asked for, for every
+ * component that sets one; a real desktop window, where the AWT cursor is read off
+ * the window; and a browser, hovered. Android is checked to its table, and only a
+ * device can show the rest.
  *
  * @param cursor What the component is. [Cursor.Pointer] for anything that answers
  *   a click, [Cursor.Text] over editable text; see [Cursor] for the rest.

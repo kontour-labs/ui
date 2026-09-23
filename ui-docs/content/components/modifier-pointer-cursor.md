@@ -63,27 +63,24 @@ the library needs them, and each is the other half of a question the rest raise.
 
 | | Desktop | Android | Web | iOS |
 |---|---|---|---|---|
-| `ResizeColumn` | east-west arrow | horizontal double arrow | *hand* | — |
-| `ResizeRow` | north-south arrow | vertical double arrow | *hand* | — |
-| `Grab` | *hand* | grab | *hand* | — |
-| `Grabbing` | four-way move | grabbing | *hand* | — |
-| `NotAllowed` | *arrow* | no-drop | *arrow* | — |
-| `Progress` | *arrow* | *arrow* | *arrow* | — |
+| `ResizeColumn` | east-west arrow | horizontal double arrow | `col-resize` | — |
+| `ResizeRow` | north-south arrow | vertical double arrow | `row-resize` | — |
+| `Grab` | *hand* | grab | `grab` | — |
+| `Grabbing` | four-way move | grabbing | `grabbing` | — |
+| `NotAllowed` | *arrow* | no-drop | `not-allowed` | — |
+| `Progress` | *arrow* | *arrow* | `progress` | — |
 
 The other four are the same on every platform. Italics are the nearest of those
 four, standing in where a platform has nothing that means the same thing.
 
-**The web gets the nearest shape for all six**, and not because a browser lacks
-them — CSS has every one. Compose's cursor for the browser takes a CSS keyword,
-and Compose keeps it internal, so a library cannot make one. Setting the canvas's
-CSS directly would fight Compose, which writes the same property whenever the
-hovered cursor changes, so the two would take turns. The mapping is written and
-waiting for the day that cursor is public.
+**The web draws every one**, by its CSS keyword, through Compose's
+`PointerIcon.fromKeyword`. That is marked experimental in Compose, and the library
+takes the opt-in in one file so an app does not have to.
 
-**Anything dragged falls back to the hand, never the arrow.** The hand is
-imprecise — it says *click*, and these are dragged — but it says the thing does
-something, and it is what all four showed before they had shapes of their own. A
-platform that cannot draw them loses nothing it had.
+**Anything dragged falls back to the hand, never the arrow**, where a platform
+has no shape for it — the desktop's grab. The hand is imprecise — it says *click*,
+and these are dragged — but it says the thing does something, and it is what all
+four showed before they had shapes of their own.
 
 **`Progress` is never the busy cursor.** The ones AWT and Android offer mean *the
 application has stopped responding*, which is an untrue thing to say about a
