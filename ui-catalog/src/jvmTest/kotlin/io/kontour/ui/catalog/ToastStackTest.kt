@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastHostState
@@ -221,6 +222,58 @@ class ToastStackTest {
                 "bar and ${withoutInset}px without one — the stack is not applying " +
                 "the top side of its insets",
         )
+    }
+
+    /**
+     * A stack aligned to the end sits in the corner, and one aligned to the start
+     * in the other.
+     *
+     * A toast is capped at `ToastDefaults.MaxWidth`, so on a wide window the only
+     * placement there was put it in the middle of the bottom edge — as far as it
+     * could be from the corner where desktop platforms have taught people to look
+     * for a notification. On a phone the cap never binds and alignment changes
+     * nothing at all, which is why this scene is a desktop window's width.
+     */
+    @Test
+    fun aStackAlignedToTheEndSitsInTheCorner() {
+        val centred = assertNotNull(surfaceColumns(OverlayAlignment.Center), "a centred stack drew nothing")
+        val end = assertNotNull(surfaceColumns(OverlayAlignment.End), "an end-aligned stack drew nothing")
+        val start = assertNotNull(surfaceColumns(OverlayAlignment.Start), "a start-aligned stack drew nothing")
+
+        val middle = WideScene / 2
+        assertTrue(
+            abs((centred.first + centred.last) / 2 - middle) <= Slack,
+            "the default stack spans $centred in a ${WideScene}px window; it should be centred",
+        )
+        assertTrue(
+            end.first > middle && WideScene - end.last < WideScene / 8,
+            "an end-aligned stack spans $end in a ${WideScene}px window — it belongs " +
+                "against the right edge, and it is where the centred one was",
+        )
+        assertTrue(
+            start.last < middle && start.first < WideScene / 8,
+            "a start-aligned stack spans $start — it belongs against the left edge",
+        )
+    }
+
+    /** Which columns of a wide window the toast stack's surface occupies. */
+    private fun surfaceColumns(alignment: OverlayAlignment): IntRange? {
+        var columns: IntRange? = null
+        Scene(width = WideScene, height = SceneHeight) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts, alignment = alignment)
+                LaunchedEffect(Unit) { toasts.show("Saved for offline", durationMillis = 0) }
+            }
+        }.use { scene ->
+            val image = scene.frames(24)
+            val inked = (0 until image.width).filter { x ->
+                (0 until image.height).any { y -> isSurface(image.getRGB(x, y)) }
+            }
+            if (inked.isNotEmpty()) columns = inked.first()..inked.last()
+        }
+        return columns
     }
 
     /** How far down the window the topmost toast surface begins. */
@@ -1263,6 +1316,9 @@ class ToastStackTest {
      */
     private companion object {
         const val SceneHeight = 400
+
+        /** A desktop window: wide enough that a capped toast has room either side. */
+        const val WideScene = 2000
 
         /**
          * How many frames of a toast's exit to sample.

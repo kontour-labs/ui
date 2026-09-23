@@ -73,6 +73,7 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.overlay.BackdropStyle
 import io.kontour.ui.overlay.LocalOverlayHost
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
@@ -189,12 +190,20 @@ object SheetDefaults {
  *
  * Box(Modifier.fillMaxSize()) {
  *     Map(contentPadding = PaddingValues(bottom = with(density) { sheet.visibleHeight.toDp() }))
- *     BottomSheet(sheet, Modifier.align(Alignment.BottomCenter)) {
+ *     BottomSheet(sheet) {
  *         SheetHeader(Modifier.sheetPeekAnchor()) { +"Perth Underground" }
  *         LazyColumn { … }
  *     }
  * }
  * ```
+ *
+ * **No `Modifier.align` on the sheet.** This example used to pass
+ * `Modifier.align(Alignment.BottomCenter)`, which reads as the natural thing to
+ * write inside a `Box` and put the sheet off the bottom of the window: the sheet
+ * places itself against the *top* of whatever it is in and moves down by its own
+ * offset, a caller's `align` outranks the sheet's own, and bottom-aligning as well
+ * counts the sheet's height twice. It fills what it is put in; where it sits
+ * horizontally is [alignment]'s job.
  *
  * Non-modal by design: nothing behind it is dimmed or blocked, which is the
  * whole point over a map. The user pans the map with the sheet resting at its
@@ -245,6 +254,42 @@ fun BottomSheet(
      * one only decides what it looks like while it does.
      */
     presentation: SheetPresentation = SheetPresentation.Edge,
+    /**
+     * Where along the bottom edge the sheet sits, once the window is wider than
+     * the sheet.
+     *
+     * A sheet stops at [SheetDefaults.MaxWidth]. Below that it is the window, and
+     * this does nothing at all — a phone never sees it. Above it the sheet is a
+     * panel with room either side, and a panel has to sit *somewhere*: centred by
+     * default, or against the start or end edge, which is where a sheet belongs on
+     * a desktop window whose pointer lives on one side of the screen. Start and
+     * end follow the layout direction, so an end-aligned sheet moves to the left
+     * in a right-to-left locale with nothing here doing the mirroring.
+     *
+     * **The cap was written down long before it worked.** `MaxWidth`'s own KDoc
+     * has always said a sheet wider than it is a panel to be centred, while the
+     * box read `fillMaxWidth().widthIn(max = MaxWidth)` — and `fillMaxWidth`
+     * hands its child fixed constraints, so the maximum was coerced straight back
+     * up to the window. The sheet spanned every desktop screen it was ever shown
+     * on. The fix is the order, `widthIn` then `fillMaxWidth`, and this parameter
+     * only exists because the fix left something to decide.
+     */
+    alignment: OverlayAlignment = OverlayAlignment.Center,
+    /**
+     * Where [floatingControls] sit along the sheet's top edge — above its start,
+     * its centre or its end.
+     *
+     * *Of the sheet*, not of the window: the row is exactly as wide as the sheet
+     * and moves with it, so an end-aligned sheet with start-aligned controls puts
+     * them over the sheet's own left corner. That is only a meaningful thing to
+     * say because the sheet now has a width of its own to be relative to.
+     *
+     * The row used to be `Arrangement.End` with no way to change it, while this
+     * parameter's documentation said callers could use an `Arrangement` to say
+     * otherwise — which a `RowScope` lambda cannot do, since it is the row that
+     * owns its arrangement. Weighted spacers were the only way out.
+     */
+    floatingControlsAlignment: OverlayAlignment = OverlayAlignment.End,
     shape: Shape = SheetDefaults.shapeFor(presentation),
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
@@ -325,8 +370,7 @@ fun BottomSheet(
      * has settled hidden. It used to stay parked at the bottom of the window
      * over a sheet that was no longer there.
      *
-     * End-aligned by default. The row is a `RowScope`, so `Arrangement` and
-     * `Modifier.align` are how you say otherwise.
+     * Above the sheet's end by default; [floatingControlsAlignment] moves them.
      */
     floatingControls: (@Composable RowScope.() -> Unit)? = null,
     /**
@@ -517,9 +561,13 @@ fun BottomSheet(
                 // double-counts: the box's top is already at
                 // container - sheetHeight, and the offset is measured from the
                 // container's top, so the sheet ends up that much too low.
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
+                .align(alignment.atBottomEdge)
+                // Capped, then filled — in that order. The other order is the bug
+                // `alignment`'s KDoc records: `fillMaxWidth` fixes the minimum at
+                // the window's width, and `widthIn` cannot lower a minimum it is
+                // handed.
                 .widthIn(max = SheetDefaults.MaxWidth)
+                .fillMaxWidth()
                 // The float, horizontally. A padding at the sides is enough
                 // because nothing here is measured from a side edge; the
                 // vertical half of the same margin is not, and is in `sheetTop`.
@@ -602,9 +650,14 @@ fun BottomSheet(
             var actionsHeight by remember { mutableIntStateOf(0) }
             Row(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
+                    // The sheet's own placement, so the row is exactly the sheet's
+                    // width and stands exactly over it. It used to repeat the
+                    // sheet's modifiers in the same wrong order, and so had the
+                    // same defeated cap — spanning the window over a sheet that, once
+                    // capped, did not.
+                    .align(alignment.atBottomEdge)
                     .widthIn(max = SheetDefaults.MaxWidth)
+                    .fillMaxWidth()
                     .onSizeChanged { actionsHeight = it.height }
                     // The sheet's own offset, less this row's height and a gap,
                     // so it rides the top edge wherever the drag leaves it.
@@ -634,13 +687,38 @@ fun BottomSheet(
                     }
                     .windowInsetsPadding(floatInsets.only(WindowInsetsSides.Horizontal))
                     .padding(horizontal = Theme.spacing.md),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = floatingControlsAlignment.asArrangement,
                 verticalAlignment = Alignment.Bottom,
                 content = floatingControls,
             )
         }
     }
 }
+
+/**
+ * [OverlayAlignment] as the alignment of something top-aligned and then offset.
+ *
+ * `Top*`, not `Bottom*`, for the reason the sheet's box gives where it is
+ * placed: the box is aligned to the container's top and then moved down by
+ * `sheetTop`, and bottom-aligning as well counts the sheet's height twice.
+ *
+ * `TopStart` and `TopEnd` follow the layout direction, which is the whole reason
+ * to spell the parameter in start and end rather than left and right.
+ */
+private val OverlayAlignment.atBottomEdge: Alignment
+    get() = when (this) {
+        OverlayAlignment.Start -> Alignment.TopStart
+        OverlayAlignment.Center -> Alignment.TopCenter
+        OverlayAlignment.End -> Alignment.TopEnd
+    }
+
+/** [OverlayAlignment] as a row's arrangement: which end of the sheet the controls gather at. */
+private val OverlayAlignment.asArrangement: Arrangement.Horizontal
+    get() = when (this) {
+        OverlayAlignment.Start -> Arrangement.Start
+        OverlayAlignment.Center -> Arrangement.Center
+        OverlayAlignment.End -> Arrangement.End
+    }
 
 /**
  * A sheet that takes over the screen until it is dealt with.
@@ -672,6 +750,12 @@ fun ModalBottomSheet(
     ),
     /** See [BottomSheet]. `Floating` lifts the sheet off all three edges. */
     presentation: SheetPresentation = SheetPresentation.Edge,
+    /**
+     * See [BottomSheet]: where the sheet sits once the window is wider than
+     * [SheetDefaults.MaxWidth], and nothing at all below it. Read live, so a sheet
+     * that is already up follows a window resize.
+     */
+    alignment: OverlayAlignment = OverlayAlignment.Center,
     shape: Shape = SheetDefaults.shapeFor(presentation),
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
@@ -719,6 +803,7 @@ fun ModalBottomSheet(
     val latestModifier by rememberUpdatedState(modifier)
     val latestShape by rememberUpdatedState(shape)
     val latestPresentation by rememberUpdatedState(presentation)
+    val latestAlignment by rememberUpdatedState(alignment)
     val latestContainerColour by rememberUpdatedState(containerColour)
     val latestContentColour by rememberUpdatedState(contentColour)
     val latestPaneTitle by rememberUpdatedState(paneTitle)
@@ -795,6 +880,7 @@ fun ModalBottomSheet(
                             state = state,
                             modifier = latestModifier,
                             presentation = latestPresentation,
+                            alignment = latestAlignment,
                             shape = latestShape,
                             containerColour = latestContainerColour,
                             contentColour = latestContentColour,

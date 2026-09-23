@@ -64,6 +64,16 @@ Not the same as `draggable = false`, which stops the sheet moving at all and
 takes its handle with it. An undismissable sheet can still be dragged between its
 detents.
 
+### `alignment` follows the window while the sheet is open
+
+On a window wider than a sheet's 640dp cap, `alignment` puts the sheet at the start,
+centre or end of the bottom edge — see [`BottomSheet`](bottom-sheet.md), where the
+cap and the reason for it are explained. On a phone it does nothing.
+
+It is read live. A modal sheet renders into the overlay host, and whatever it reads
+directly is fixed at the moment it opens; a sheet already up would otherwise ignore a
+window being resized underneath it until it was closed and opened again.
+
 ---
 
 ## Accessibility

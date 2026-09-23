@@ -178,6 +178,49 @@ step.
 
 ---
 
+## `alignment` — where a sheet sits once the window is wider than it
+
+A sheet stops at 640dp. On a phone that is wider than the screen, so the sheet is
+the screen and nothing on this section applies: **a phone never sees any of it.**
+On a tablet in landscape or a desktop window the sheet is a panel with room either
+side of it, and `alignment` says where the panel goes — `Center` by default, or
+against the `Start` or `End` edge. Start and end follow the layout direction, so an
+end-aligned sheet moves to the left in a right-to-left locale on its own.
+
+```kotlin
+BottomSheet(
+    state = sheet,
+    alignment = OverlayAlignment.End,
+    floatingControlsAlignment = OverlayAlignment.Start,
+    floatingControls = { RecentreButton() },
+) { … }
+```
+
+**The cap is older than the parameter, and did not work until the parameter
+arrived.** The width was always meant to stop at 640dp; the sheet was built as
+`fillMaxWidth()` and then `widthIn(max = 640.dp)`, and `fillMaxWidth` fixes the
+minimum width at the window's, which a later maximum cannot lower. So every sheet on
+every desktop spanned the whole window. The fix is the other order — cap, then fill
+— and a capped sheet then has to sit *somewhere*, which is what this decides.
+
+`OverlayAlignment` is the same type a `Popover`, a `DropdownMenu` and a `Select` use
+for the same question: how something lines up along the edge it sits on.
+
+**`floatingControlsAlignment` is relative to the sheet, not the window.** The
+controls row is exactly the sheet's width and stands exactly over it, so
+`OverlayAlignment.Start` puts a recentre button over the sheet's own left corner —
+which, on an end-aligned sheet in a wide window, is nowhere near the window's left
+edge. It is `End` by default, which is where the controls always were.
+
+**Do not align the sheet with a modifier.** `Modifier.align(Alignment.BottomCenter)`
+on a sheet's `modifier` looks natural inside a `Box` and is wrong twice over: the
+sheet places itself against the top of its container and moves down by its own
+offset, so aligning it to the bottom as well counts its height twice, and it would
+override `alignment` besides. The sheet fills whatever it is put in; that is all it
+needs from you.
+
+---
+
 ## Accessibility
 
 Pass **`paneTitle`**. The sheet sets it as pane semantics, which is how a screen

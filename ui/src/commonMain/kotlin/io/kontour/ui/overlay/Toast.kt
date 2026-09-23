@@ -265,9 +265,27 @@ enum class ToastPosition {
     Bottom,
     ;
 
-    /** Where the stack sits in its host. */
-    internal val alignment: Alignment
-        get() = if (this == Top) Alignment.TopCenter else Alignment.BottomCenter
+    /**
+     * Where the stack sits in its host: the edge from this, the corner along it
+     * from [alignment].
+     *
+     * Two arguments rather than four more positions, because only the edge
+     * decides [towardEdge] — which way the stack recedes, slides in and is swiped
+     * away. A `TopEnd` would have to answer whether it recedes up or right, and
+     * every answer to that would be arbitrary.
+     */
+    internal fun alignmentFor(alignment: OverlayAlignment): Alignment = when (this) {
+        Top -> when (alignment) {
+            OverlayAlignment.Start -> Alignment.TopStart
+            OverlayAlignment.Center -> Alignment.TopCenter
+            OverlayAlignment.End -> Alignment.TopEnd
+        }
+        Bottom -> when (alignment) {
+            OverlayAlignment.Start -> Alignment.BottomStart
+            OverlayAlignment.Center -> Alignment.BottomCenter
+            OverlayAlignment.End -> Alignment.BottomEnd
+        }
+    }
 
     /**
      * True when the stack recedes *away* from the viewer's edge — which is up
@@ -548,6 +566,18 @@ fun ToastHost(
     state: ToastHostState,
     modifier: Modifier = Modifier,
     position: ToastPosition = ToastPosition.Bottom,
+    /**
+     * Where along [position]'s edge the stack sits: centred by default, or in a
+     * corner.
+     *
+     * A toast is capped at [ToastDefaults.MaxWidth], so on a phone it is the
+     * width of the screen less its margins and this changes nothing. On a desktop
+     * window it is a card in the middle of the bottom edge, well away from where
+     * the pointer is and from where desktop platforms have taught people to look
+     * for a notification — which is a corner. Start and end follow the layout
+     * direction.
+     */
+    alignment: OverlayAlignment = OverlayAlignment.Center,
     maxVisible: Int = ToastDefaults.MaxVisible,
     showClose: Boolean = false,
     closeLabel: String = Theme.strings.dismiss,
@@ -574,8 +604,19 @@ fun ToastHost(
     // Everything the entry's content reads has to be read *live*: the entry is
     // pushed once, when the stack goes from empty to occupied, and composed by
     // the host from then on.
+    //
+    // Named, and it was positional: six arguments of which two are the same
+    // type sat one slip away from a swapped pair that compiles.
     val latest by rememberUpdatedState(
-        ToastHostConfig(modifier, position, maxVisible, showClose, closeLabel, windowInsets)
+        ToastHostConfig(
+            modifier = modifier,
+            position = position,
+            alignment = alignment,
+            maxVisible = maxVisible,
+            showClose = showClose,
+            closeLabel = closeLabel,
+            windowInsets = windowInsets,
+        )
     )
 
     LaunchedEffect(occupied) {
@@ -674,6 +715,7 @@ private fun rubberBand(pull: Float, limit: Float, towardEdge: Boolean): Float {
 private data class ToastHostConfig(
     val modifier: Modifier,
     val position: ToastPosition,
+    val alignment: OverlayAlignment,
     val maxVisible: Int,
     val showClose: Boolean,
     val closeLabel: String,
@@ -872,7 +914,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
 
     Box(
         Modifier.fillMaxSize().windowInsetsPadding(config.windowInsets),
-        contentAlignment = config.position.alignment,
+        contentAlignment = config.position.alignmentFor(config.alignment),
     ) {
         visible.forEachIndexed { index, toast ->
             key(toast.id) {

@@ -363,14 +363,28 @@ internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
 private val toastPosition =
     Knob.Choice("Position", ToastPosition.entries.toList(), initial = ToastPosition.Bottom)
 
+/**
+ * The corner, which is where a desktop looks for a notification.
+ *
+ * Like the sheet's, it moves nothing on a phone: a toast is capped at
+ * `ToastDefaults.MaxWidth` and only has somewhere to go on a wider window.
+ */
+private val toastAlignment =
+    Knob.Choice("Align", OverlayAlignment.entries.toList(), initial = OverlayAlignment.Center)
+
 internal val ToastDemo = ComponentDemo(
     slug = "toast",
-    knobs = listOf(toastPosition),
+    knobs = listOf(toastPosition, toastAlignment),
 ) {
     val toasts = rememberToastHostState()
     val scope = rememberCoroutineScope()
     Stage {
-        ToastHost(toasts, position = this@ComponentDemo[toastPosition], showClose = true)
+        ToastHost(
+            toasts,
+            position = this@ComponentDemo[toastPosition],
+            alignment = this@ComponentDemo[toastAlignment],
+            showClose = true,
+        )
         Column(
             modifier = Modifier.align(Alignment.Center),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),

@@ -105,6 +105,22 @@ and has two ways out of the way, that is the right trade — and without it a
 sideways swipe inside a vertical list is a race decided by the angle of the first
 few pixels.
 
+**`alignment` puts the stack in a corner.** A toast is capped at
+`ToastDefaults.MaxWidth`, so on a phone it spans the screen less its margins and
+`alignment` changes nothing. On a desktop window the default is a card in the
+middle of the bottom edge — as far as it can be from the pointer and from the
+corner where desktop platforms have taught people to look for a notification.
+`OverlayAlignment.End` puts it there.
+
+```kotlin
+ToastHost(toasts, alignment = OverlayAlignment.End)
+```
+
+It is a second parameter rather than four more values of `ToastPosition`, because
+only the *edge* decides which way the stack recedes, slides in and is swiped away.
+A top-right position would have to answer whether it recedes up or right, and every
+answer to that is arbitrary; the edge and the corner along it are two questions.
+
 ---
 
 ## Accessibility

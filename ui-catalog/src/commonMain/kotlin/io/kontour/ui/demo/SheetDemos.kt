@@ -29,6 +29,7 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
 import io.kontour.ui.sheet.DragHandle
@@ -107,9 +108,25 @@ private fun Departures() {
 private val sheetPresentation =
     Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Edge)
 
+/**
+ * Where the sheet sits once the card is wider than the sheet's 640dp cap.
+ *
+ * **Does nothing on a phone, and that is the feature.** Below the cap the sheet
+ * is the card, and there is nowhere for it to go; the knob moves something only
+ * in a window wide enough for the cap to bind, which on this page means the
+ * desktop catalog. A reader on a phone pressing it and seeing no change is being
+ * shown the rule that a phone is untouched.
+ */
+private val sheetAlignment =
+    Knob.Choice("Align", OverlayAlignment.entries.toList(), OverlayAlignment.Center)
+
+/** Which end of the sheet's own top edge the floating controls gather at. */
+private val sheetControlsAlignment =
+    Knob.Choice("Controls", OverlayAlignment.entries.toList(), OverlayAlignment.End)
+
 internal val BottomSheetDemo = ComponentDemo(
     slug = "bottom-sheet",
-    knobs = listOf(sheetPresentation),
+    knobs = listOf(sheetPresentation, sheetAlignment, sheetControlsAlignment),
 ) {
     val presentation = this[sheetPresentation]
     val sheet = rememberSheetState(
@@ -129,6 +146,8 @@ internal val BottomSheetDemo = ComponentDemo(
         BottomSheet(
             state = sheet,
             presentation = presentation,
+            alignment = this@ComponentDemo[sheetAlignment],
+            floatingControlsAlignment = this@ComponentDemo[sheetControlsAlignment],
             floatingControls = {
                 IconButton(
                     icon = Tabler.Outline.CurrentLocation,
@@ -190,7 +209,7 @@ private val sheetOpen = Knob.Flag("Open", initial = true)
 
 internal val ModalBottomSheetDemo = ComponentDemo(
     slug = "modal-bottom-sheet",
-    knobs = listOf(sheetOpen, sheetDismissible),
+    knobs = listOf(sheetOpen, sheetDismissible, sheetAlignment),
 ) {
     // Keyed on the knob, so toggling it *resets* the sheet rather than fighting
     // it. The sheet has two inputs — the knob and its own dismissal — and one
@@ -209,6 +228,7 @@ internal val ModalBottomSheetDemo = ComponentDemo(
         ModalBottomSheet(
             visible = open,
             onDismissRequest = { open = false },
+            alignment = this@ComponentDemo[sheetAlignment],
             dismissible = dismissible,
         ) {
             SheetHeader {
