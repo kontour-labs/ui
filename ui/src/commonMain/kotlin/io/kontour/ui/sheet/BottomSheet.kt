@@ -735,6 +735,10 @@ private val OverlayAlignment.asArrangement: Arrangement.Horizontal
  * a scrim with dialogs and menus, and a back gesture closes it. Owns its own
  * [SheetState] unless one is passed.
  *
+ * `onDismissRequest` is called once each time the *user* closes the sheet — a
+ * drag, a tap outside, a back gesture — and not when the caller sets `visible`
+ * to false, so it can do something with a consequence, like popping a back stack.
+ *
  * The distinction from [BottomSheet] is not decoration: a modal sheet dims and
  * blocks what is behind it, which is right for a decision and wrong for
  * anything the user needs to keep looking at while they work.
@@ -824,12 +828,23 @@ fun ModalBottomSheet(
 
     LaunchedEffect(state) {
         snapshotOfHidden(state, stillVisible = { showing }) {
+            // **Only while the caller still wants it open.** Reaching the bottom
+            // is a dismissal when something other than the caller put it there —
+            // a drag, a scrim tap, a close inside the sheet. When the caller
+            // closed it with `visible = false`, the sheet arriving at the bottom
+            // is that request being carried out, not a new one. This used to
+            // report every arrival, so a caller who closed the sheet was told a
+            // frame later that the user had dismissed it, and a scrim tap was
+            // reported twice: once by the scrim, once by the landing. Harmless
+            // when the callback is `open = false`; a second pop when it pops a
+            // back stack, which is how the Navigation 3 strategy found it.
+            //
             // A sheet that cannot be dismissed does not pass the drag on as a
             // request. `snapshotOfHidden` then finds the caller still wants it
             // visible and puts it back — which is the whole of "it does not
             // close", using the mechanism that was already there for a caller
             // declining one.
-            if (canDismiss) dismiss()
+            if (canDismiss && showing) dismiss()
         }
     }
 

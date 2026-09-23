@@ -43,6 +43,15 @@ sheet has one meaningful position and the state object exists to describe
 several. Reach for [`BottomSheet`](bottom-sheet.md) when what is behind the sheet
 is still the point.
 
+### `onDismissRequest` is the user's, and comes once
+
+It fires when the *user* closes the sheet — a drag to the bottom, a tap outside,
+a back gesture — and once per closing. Setting `visible = false` yourself is not
+a dismissal and is not reported back to you. So a dismissal can safely *do*
+something, pop a back stack or record an event, rather than only flip the flag
+that closes the sheet. It used to report every arrival at the bottom, which
+counted a tap outside twice and a caller's own close once.
+
 ### `dismissible = false` closes the drag too
 
 For the sheet that has to be answered rather than escaped — a required choice, a
