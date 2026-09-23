@@ -48,6 +48,7 @@ import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
@@ -103,7 +104,7 @@ fun DragHandle(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = DragHandleDefaults.Target)
-            .pointerCursor()
+            .pointerCursor(Cursor.ResizeRow)
             .hoverable(interactions)
             /**
              * Presses, without taking the gesture.

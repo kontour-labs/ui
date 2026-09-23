@@ -13,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -94,7 +93,7 @@ private fun EntryBlock(entry: ApiEntry) {
                     style = Theme.typography.eyebrow,
                     colour = Theme.colours.accent.solid,
                     modifier = Modifier
-                        .pointerCursor(PointerIcon.Hand)
+                        .pointerCursor()
                         .clickable { openExternal(url) },
                 )
             }

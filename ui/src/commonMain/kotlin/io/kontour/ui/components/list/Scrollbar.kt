@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
@@ -201,7 +202,10 @@ fun Scrollbar(
         modifier = modifier
             // Nothing to announce: the list already conveys its own position.
             .clearAndSetSemantics {}
-            .pointerCursor()
+            // Held rather than merely pressed, so the thumb looks taken hold of
+            // for the whole drag. On the bar only: Compose has no cursor capture,
+            // and a pointer that wanders off sideways gets whatever is under it.
+            .pointerCursor(if (dragged) Cursor.Grabbing else Cursor.Grab)
             .hoverable(interactions)
             // The whole bar, not the thumb. Grabbing a thumb means hitting a
             // 32dp-tall target inside a 6dp-wide one; grabbing the bar means

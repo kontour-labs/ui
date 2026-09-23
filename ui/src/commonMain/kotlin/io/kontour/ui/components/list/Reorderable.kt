@@ -49,7 +49,10 @@ import androidx.compose.ui.zIndex
 import kotlinx.coroutines.withTimeoutOrNull
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.heldCursor
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.motion.SlotGap
 import io.kontour.ui.interaction.FeedbackDispatcher
@@ -382,6 +385,16 @@ fun LazyItemScope.ReorderableItem(
                 scaleX = 1f + 0.02f * lift
                 scaleY = 1f + 0.02f * lift
             }
+            // **Held, the whole row is the grip.** The reorder gesture starts only
+            // once the pointer has cleared the *touch* slop, even under a mouse —
+            // 18dp on a desktop — and the row trails it by that much from then
+            // on. The grip is 24dp tall under a mouse, so the pointer is off it
+            // within a frame of the pickup, and a grabbing cursor that lived on
+            // the grip alone was back to the arrow for the rest of the drag. A cursor belongs to the drag
+            // rather than to whatever the pointer is over, which is how every
+            // desktop's own drag-and-drop behaves; overriding the row's children
+            // is the nearest Compose has to that.
+            .heldCursor(dragging)
             .semantics {
                 customActions = buildList {
                     if (index > 0) {
@@ -573,6 +586,11 @@ private fun ReorderGrip(
         modifier = Modifier
             .minimumTouchTarget()
             .clearAndSetSemantics { }
+            // The grip only, not the row: a row's content may be a link, whose
+            // hand a grab cursor across the whole row would hide. The grip is the
+            // part that is only ever dragged, so it says so. Once the row is
+            // lifted, the row's own [heldCursor] takes over.
+            .pointerCursor(Cursor.Grab, enabled = enabled)
             .then(drags),
         contentAlignment = Alignment.Center,
     ) {

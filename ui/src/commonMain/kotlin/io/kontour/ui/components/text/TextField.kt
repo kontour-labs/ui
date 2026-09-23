@@ -41,14 +41,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.error as semanticsError
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 
@@ -177,7 +178,7 @@ fun TextField(
         // the focus tint this field also stopped showing.
         frameModifier = Modifier
             .pointerCursor(
-                PointerIcon.Text,
+                Cursor.Text,
                 enabled = enabled && !readOnly,
             )
             // On the frame, not the input, and that placement is the mechanism:
