@@ -43,6 +43,17 @@ that is the point and a supporting one that qualifies it — filters beside
 results, a legend beside a map. Where a list-detail pair swaps focus, this one
 tucks the supporting pane away.
 
+**The supporting pane slides in and out from the trailing edge**, and the main
+pane widens to meet it rather than jumping. Its content is laid out at its full
+width and clipped while it moves, so it slides rather than squeezing, and
+`supporting` goes on being called until it has gone. On a compact window it is a
+sheet that rises and falls the same way.
+
+**No pane starts again when the layout changes.** Each is the same composable in
+every arrangement, moved rather than rebuilt, so a list keeps its scroll position
+when the window crosses the two-pane breakpoint and the main pane keeps whatever
+it holds while the supporting pane opens and closes. Both used to reset.
+
 ---
 
 ## Accessibility

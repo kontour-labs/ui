@@ -154,12 +154,24 @@ internal class SupportingPaneScene<T : Any>(
     override val entries: List<NavEntry<T>> = listOfNotNull(main, supporting)
 
     override val content: @Composable () -> Unit = {
+        // The supporting entry that was last on the stack, drawn while its pane
+        // slides away. Popping it produces a scene with no supporting entry at
+        // all, and the pane still has a slide to finish. Navigation 3 keeps a
+        // popped entry's state for exactly as long as its content stays composed
+        // and cleans it up the moment it leaves, so drawing it through the slide
+        // is what its own exit animations do. A plain object held here, because
+        // a lambda would not do: the compiler keeps one lambda per call site and
+        // swaps its body, so a held one runs the new scene's.
+        val leaving = remember { mutableStateOf<NavEntry<T>?>(null) }
+        if (supporting != null) leaving.value = supporting
+        val pane: @Composable () -> Unit = { leaving.value?.Content() }
+
         // Two calls rather than one, so a null weight leaves the scaffold's own
         // default in charge instead of a copy of it here.
         if (supportingWeight == null) {
             SupportingPaneScaffold(
                 main = { main.Content() },
-                supporting = { supporting?.Content() },
+                supporting = pane,
                 supportingVisible = supporting != null,
                 onDismissSupporting = onBack,
                 twoPane = true,
@@ -168,7 +180,7 @@ internal class SupportingPaneScene<T : Any>(
         } else {
             SupportingPaneScaffold(
                 main = { main.Content() },
-                supporting = { supporting?.Content() },
+                supporting = pane,
                 supportingVisible = supporting != null,
                 onDismissSupporting = onBack,
                 twoPane = true,

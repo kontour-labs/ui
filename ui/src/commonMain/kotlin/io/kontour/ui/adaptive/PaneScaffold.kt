@@ -17,16 +17,23 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -100,17 +107,23 @@ fun ListDetailPaneScaffold(
     resizable: Boolean = false,
     showDivider: Boolean = true,
 ) {
+    // The same list in both layouts, not two lists that happen to look alike: a
+    // window crossing 840dp used to drop the list's scroll position, because
+    // one pane and two are different branches and a composable that changes
+    // branch starts again.
+    val listPane = rememberPane(list)
+    val detailPane = rememberPane(detail)
     if (twoPane) {
         TwoPane(
             modifier = modifier,
             startWeight = listWeight,
             resizable = resizable,
             showDivider = showDivider,
-            start = list,
-            end = detail,
+            start = listPane,
+            end = detailPane,
         )
     } else {
-        SinglePane(focus = focus, modifier = modifier, list = list, detail = detail)
+        SinglePane(focus = focus, modifier = modifier, list = listPane, detail = detailPane)
     }
 }
 
@@ -134,6 +147,11 @@ fun ListDetailPaneScaffold(
  *
  * The supporting pane goes on the **trailing** side, unlike navigation. It is
  * about the content, not about where you can go.
+ *
+ * On two panes it slides in and out from that side, and [supporting] goes on
+ * being called until it has gone — so content that is only there while the pane
+ * is wanted has to be kept by the caller for the length of the slide. The main
+ * pane is the same composable open or closed, and keeps its state.
  */
 @Composable
 fun SupportingPaneScaffold(
@@ -146,25 +164,123 @@ fun SupportingPaneScaffold(
     supportingWeight: Float = 0.32f,
     showDivider: Boolean = true,
 ) {
-    if (twoPane && supportingVisible) {
-        TwoPane(
+    // The main pane is one pane in every layout. Opening the supporting pane
+    // used to move `main` into a different branch — a `Row` instead of a `Box` —
+    // and a composable that changes branch starts again: scroll positions,
+    // text being typed, anything remembered, gone each time a filter panel
+    // opened. Inside Navigation 3 the entries were movable already, which hid it
+    // there and nowhere else.
+    val mainPane = rememberPane(main)
+
+    // `supporting` keeps being called while the pane slides out, so it has to
+    // have something to draw after `supportingVisible` has gone false. Keeping the
+    // last lambda here would not do it: the compiler hands a composable lambda
+    // the same object on every recomposition and swaps its body in place, so the
+    // "old" one runs the new body. A caller whose content is gone by then — a
+    // Navigation 3 entry popped off the back stack — keeps the content itself,
+    // which `SupportingPaneScene` does.
+    if (twoPane) {
+        TwoPaneSupporting(
             modifier = modifier,
-            startWeight = 1f - supportingWeight,
-            resizable = false,
+            visible = supportingVisible,
+            supportingWeight = supportingWeight,
             showDivider = showDivider,
-            start = main,
-            end = supporting,
+            main = mainPane,
+            supporting = supporting,
         )
     } else {
+        // Composed from the first time it opens, so that closing it is the sheet
+        // sliding down rather than the sheet ceasing to exist mid-frame — and not
+        // before, so a scaffold whose supporting pane never opens does not need
+        // an `OverlayHost` it would never draw in.
+        var opened by remember { mutableStateOf(supportingVisible) }
+        if (supportingVisible) opened = true
         Box(modifier.fillMaxSize()) {
-            main()
-            if (supportingVisible) {
+            mainPane()
+            if (opened) {
                 io.kontour.ui.sheet.ModalBottomSheet(
-                    visible = true,
+                    visible = supportingVisible,
                     onDismissRequest = onDismissSupporting,
                 ) {
                     supporting()
                 }
+            }
+        }
+    }
+}
+
+/**
+ * [content] as movable content, so it keeps its state wherever the layout puts it.
+ *
+ * Both scaffolds put the same panes in different places depending on the window —
+ * a `Row` of two, or one at a time — and a composable that moves to a different
+ * branch is a new composable. Movable content is the same one, moved.
+ */
+@Composable
+private fun rememberPane(content: @Composable () -> Unit): @Composable () -> Unit {
+    val latest by rememberUpdatedState(content)
+    return remember { movableContentOf { latest() } }
+}
+
+/**
+ * The main pane with the supporting pane beside it, sliding in and out.
+ *
+ * One `Row` whether the supporting pane is open or not, so opening it is the pane
+ * arriving rather than the layout being rebuilt. Its share of the width animates
+ * between nothing and [supportingWeight], and while it moves its content is laid
+ * out at the *full* share and clipped, so it slides in from the trailing edge
+ * rather than being squeezed narrower on every frame.
+ *
+ * Critically damped, so the share never passes zero on the way down — a weight
+ * of zero or less is not a layout Compose can make.
+ */
+@Composable
+private fun TwoPaneSupporting(
+    modifier: Modifier,
+    visible: Boolean,
+    supportingWeight: Float,
+    showDivider: Boolean,
+    main: @Composable () -> Unit,
+    supporting: @Composable () -> Unit,
+) {
+    val motion = Theme.motion
+    val share by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = motion.springOrTween(motion.springGentle),
+        label = "supportingPane",
+    )
+    val fraction = share.coerceIn(0f, 1f)
+    var totalWidth by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+
+    Row(
+        modifier = modifier
+            .fillMaxSize()
+            .onSizeChanged { totalWidth = it.width.toFloat() }
+    ) {
+        Box(Modifier.weight(1f - supportingWeight * fraction).fillMaxHeight()) { main() }
+
+        // Out of composition once it has gone, which is what lets a Navigation 3
+        // entry that was popped to close it finally be cleaned up.
+        if (fraction > 0f) {
+            if (showDivider) VerticalDivider(Modifier.alpha(fraction))
+            Box(
+                Modifier
+                    .weight(supportingWeight * fraction)
+                    .fillMaxHeight()
+                    .clipToBounds()
+            ) {
+                val full = with(density) { (totalWidth * supportingWeight).toDp() }
+                Box(
+                    if (fraction < 1f && totalWidth > 0f) {
+                        Modifier
+                            .fillMaxHeight()
+                            .wrapContentWidth(Alignment.Start, unbounded = true)
+                            .requiredWidth(full)
+                    } else {
+                        Modifier.fillMaxSize()
+                    }
+                ) { supporting() }
             }
         }
     }

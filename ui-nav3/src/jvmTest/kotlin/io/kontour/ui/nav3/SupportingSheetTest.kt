@@ -2,6 +2,7 @@ package io.kontour.ui.nav3
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
@@ -99,5 +100,69 @@ class SupportingSheetTest {
         onNodeWithText("the conditions").assertDoesNotExist()
         assertEquals(0, pops, "the sheet reported its own exit as a dismissal and popped again")
         assertEquals(listOf<Any>(Run), backStack.toList())
+    }
+
+    // --- on two panes ------------------------------------------------------
+
+    private var built = 0
+
+    @Composable
+    private fun WideDisplay(backStack: SnapshotStateList<Any>) {
+        KontourTheme {
+            OverlayHost {
+                NavDisplay(
+                    backStack = backStack,
+                    onBack = { backStack.removeLastOrNull() },
+                    sceneStrategies = listOf(SupportingPaneSceneStrategy(twoPane = true, null, true)),
+                    entryProvider = entryProvider {
+                        entry<Run>(metadata = mainPane()) { Text("the run") }
+                        entry<Conditions>(metadata = supportingPane()) {
+                            // Saved state, which Navigation 3 drops only once the
+                            // entry's content has left composition.
+                            val id = rememberSaveable { built++ }
+                            Text("the conditions $id")
+                        }
+                    },
+                )
+            }
+        }
+    }
+
+    @Test
+    fun poppingTheSupportingPaneKeepsItDrawnUntilItHasSlidAway() =
+        runDesktopComposeUiTest(width = 1600, height = 800) {
+            val backStack = mutableStateListOf<Any>(Run, Conditions)
+            setContent { WideDisplay(backStack) }
+            waitForIdle()
+            onNodeWithText("the conditions 0").assertExists()
+
+            mainClock.autoAdvance = false
+            backStack.removeLastOrNull()
+            frames(4)
+            // The entry has left the back stack, and the pane is still sliding
+            // with its content in it rather than empty.
+            onNodeWithText("the conditions 0").assertExists()
+
+            mainClock.autoAdvance = true
+            waitForIdle()
+            onNodeWithText("the conditions 0").assertDoesNotExist()
+            onNodeWithText("the run").assertExists()
+        }
+
+    @Test
+    fun itsSavedStateIsDroppedOnceItHasGone() = runDesktopComposeUiTest(width = 1600, height = 800) {
+        val backStack = mutableStateListOf<Any>(Run, Conditions)
+        setContent { WideDisplay(backStack) }
+        waitForIdle()
+        onNodeWithText("the conditions 0").assertExists()
+
+        backStack.removeLastOrNull()
+        waitForIdle()
+        backStack.add(Conditions)
+        waitForIdle()
+
+        // A fresh entry, not the old one brought back: the content drawn during
+        // the slide was let go of, so Navigation 3 cleaned it up.
+        onNodeWithText("the conditions 1").assertExists()
     }
 }
