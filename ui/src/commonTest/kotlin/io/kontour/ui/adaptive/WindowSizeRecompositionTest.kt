@@ -1,6 +1,7 @@
 package io.kontour.ui.adaptive
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -92,6 +93,47 @@ class WindowSizeRecompositionTest {
             assertTrue(
                 counted.count > settled,
                 "the window went from a phone to a tablet and nothing recomposed",
+            )
+        }
+    }
+
+    @Test
+    fun aNestedWindowChangingShapeLeavesTheOuterOneAlone() {
+        // The catalog's adaptive demos each sit in a frame with a provider of its
+        // own, inside the page's, and dragging a frame's edge crosses boundaries
+        // on purpose. That must be news to the frame's content and to nothing
+        // around it — the page's content is under the *outer* provider, whose
+        // window has not changed at all.
+        var frame by mutableStateOf(400.dp)
+        val page = Compositions()
+        val inside = Compositions()
+
+        runComposeUiTest {
+            setContent {
+                Box(Modifier.width(1400.dp).height(800.dp)) {
+                    WindowSizeClassProvider {
+                        Column {
+                            Counted(page)
+                            Box(Modifier.width(frame).height(300.dp)) {
+                                WindowSizeClassProvider { Counted(inside) }
+                            }
+                        }
+                    }
+                }
+            }
+            waitForIdle()
+            val pageSettled = page.count
+            val insideSettled = inside.count
+
+            // Compact -> Expanded, inside the frame only.
+            frame = 900.dp
+            waitForIdle()
+
+            assertTrue(inside.count > insideSettled, "the frame changed shape and its content did not notice")
+            assertEquals(
+                pageSettled,
+                page.count,
+                "a frame inside the page crossed a boundary and the page around it recomposed",
             )
         }
     }

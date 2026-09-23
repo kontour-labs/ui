@@ -1,14 +1,19 @@
 package io.kontour.ui.samples
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -44,7 +50,9 @@ import io.kontour.ui.foundation.Scrim
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.VerticalDivider
+import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.clearFocusOnTap
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.motion.GlassSurface
 import io.kontour.ui.motion.atmosphere
 import io.kontour.ui.nav.TopBar
@@ -208,6 +216,32 @@ fun AspectRatioBoxBasics() {
             .background(Theme.colours.surfaceSunken),
     ) {
         Screen()
+    }
+}
+
+@Composable
+fun PointerCursors() {
+    var listWidth by remember { mutableStateOf(280.dp) }
+    val density = LocalDensity.current
+
+    Row(Modifier.fillMaxWidth().height(200.dp)) {
+        Box(Modifier.width(listWidth).fillMaxHeight()) { Screen() }
+        // Named for what the pointer is over, not for a picture. A desktop
+        // draws a sideways double arrow here, an Android tablet its own, and a
+        // platform with neither falls back to the hand rather than to nothing.
+        Box(
+            Modifier
+                .width(8.dp)
+                .fillMaxHeight()
+                .pointerCursor(Cursor.ResizeColumn)
+                .draggable(
+                    state = rememberDraggableState { delta ->
+                        listWidth += with(density) { delta.toDp() }
+                    },
+                    orientation = Orientation.Horizontal,
+                ),
+        )
+        Box(Modifier.weight(1f).fillMaxHeight()) { Screen() }
     }
 }
 

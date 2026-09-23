@@ -130,14 +130,6 @@ private val barLabels = Knob.Flag("Labels", initial = true)
 private val barStyle = Knob.Choice("Bar style", NavBarStyle.entries.toList(), NavBarStyle.Free)
 
 /**
- * A vertical fade from transparent to the page colour behind the whole row.
- *
- * `Free` circles carry their own elevation, which separates them from a map and
- * not from a photograph. The fade is *drawn*, not laid out — it reaches 128dp up
- * the screen without the bar measuring a pixel taller — so the demo shows it
- * over content rather than over the frame's own ground.
- */
-/**
  * Swaps the bar's floating action for a [NavSearch].
  *
  * The arrangement Round 12 built and only the gallery ever drew: a search field
@@ -147,6 +139,14 @@ private val barStyle = Knob.Choice("Bar style", NavBarStyle.entries.toList(), Na
  */
 private val barSearch = Knob.Flag("Search in the bar")
 
+/**
+ * A vertical fade from transparent to the page colour behind the whole row.
+ *
+ * `Free` circles carry their own elevation, which separates them from a map and
+ * not from a photograph. The fade is *drawn*, not laid out — it reaches 128dp up
+ * the screen without the bar measuring a pixel taller — so the demo shows it
+ * over content rather than over the frame's own ground.
+ */
 private val barBackdrop = Knob.Flag("Backdrop")
 
 /**

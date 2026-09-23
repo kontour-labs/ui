@@ -5,13 +5,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,8 +29,7 @@ import io.kontour.ui.adaptive.ListDetailPaneScaffold
 import io.kontour.ui.adaptive.PaneFocus
 import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.SupportingPaneScaffold
-import io.kontour.ui.adaptive.WindowSizeClassProvider
-import io.kontour.ui.adaptive.windowSizeClass
+import io.kontour.ui.adaptive.windowAdaptiveInfo
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
@@ -37,13 +37,26 @@ import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.Cursor
+import io.kontour.ui.input.InputModality
+import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.motion.GlassSurface
 import io.kontour.ui.motion.PageTransition
 import io.kontour.ui.motion.atmosphere
 import io.kontour.ui.motion.sharedBounds
 import io.kontour.ui.motion.sharedElement
 import io.kontour.ui.nav.TopBar
+import io.kontour.ui.nav.navigationSuiteTypeFor
 import io.kontour.ui.theme.Theme
+
+/**
+ * Where both pane demos open: just past the 840dp two-pane breakpoint.
+ *
+ * So a desktop opens on two panes and one drag left folds them to one. A phone
+ * never gets this far — the frame holds to the card — and opens on one.
+ */
+private val PaneDemoWidth = 880.dp
 
 /** The key both pages use for the card that becomes the header. */
 private const val HeroKey = "stop-hero"
@@ -61,8 +74,6 @@ private const val TitleKey = "stop-title"
  */
 private val paneFocus = Knob.Choice("Focus", PaneFocus.entries.toList(), PaneFocus.List)
 
-private val paneResizable = Knob.Flag("Resizable")
-
 /**
  * A handle between the two panes that the user can drag.
  *
@@ -70,6 +81,8 @@ private val paneResizable = Knob.Flag("Resizable")
  * and nothing to divide — so it is off by default and the frame below is wide
  * enough here to make it reachable.
  */
+private val paneResizable = Knob.Flag("Resizable")
+
 /**
  * The two scaffolds, which are two answers to one question.
  *
@@ -234,32 +247,55 @@ internal val GlassSurfaceDemo = ComponentDemo(slug = "glass-surface") {
     }
 }
 
-internal val WindowSizeClassDemo = ComponentDemo(slug = "window-size-class") {
-    Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-        listOf(360.dp, 700.dp, 1000.dp).forEach { width ->
-            Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
-                Box(
-                    Modifier
-                        .width(width / 3)
-                        .height(80.dp)
-                        .border(Theme.sizing.borderWidth, Theme.colours.outline, Theme.shapes.small)
-                        .clip(Theme.shapes.small),
-                ) {
-                    // Measured, not assumed: each box reports its own class, so
-                    // three of them side by side on one desktop report three
-                    // different answers.
-                    WindowSizeClassProvider(Modifier.fillMaxSize()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                windowSizeClass.width.name,
-                                style = Theme.typography.labelSmall,
-                            )
-                        }
-                    }
-                }
+/**
+ * The input the frame pretends to have.
+ *
+ * The half of `windowAdaptiveInfo` no window size can show. A 900dp touchscreen
+ * in someone's hands and a 900dp desktop window are the same class, and should
+ * not get the same resize handle; this is what tells them apart.
+ */
+private val frameModality = Knob.Choice("Input", InputModality.entries.toList(), InputModality.Touch)
+
+/**
+ * What a layout inside a window this size would be told.
+ *
+ * Everything here is read *inside* the frame, from the frame's own provider —
+ * so dragging its edge is resizing the window as far as the text is concerned,
+ * and the answers change at the breakpoints the page describes.
+ */
+internal val WindowSizeClassDemo = ComponentDemo(
+    slug = "window-size-class",
+    knobs = listOf(frameModality),
+) {
+    val modality = this[frameModality]
+    AdaptiveFrame(height = 200.dp) {
+        CompositionLocalProvider(LocalInputModality provides modality) {
+            val info = windowAdaptiveInfo
+            Column(
+                Modifier.fillMaxSize().padding(Theme.spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+            ) {
                 Text(
-                    "${(width / 3).value.toInt()}dp",
-                    style = Theme.typography.labelSmall,
+                    "${info.size.width.name} width, ${info.size.height.name.lowercase()} height",
+                    style = Theme.typography.titleMedium,
+                )
+                Text(
+                    "Navigation: ${navigationSuiteTypeFor(info.size.width).name.lowercase()}",
+                    style = Theme.typography.bodySmall,
+                    colour = Theme.colours.contentMuted,
+                )
+                Text(
+                    if (info.hasRoomForTwoPanes) "Room for two panes" else "One pane at a time",
+                    style = Theme.typography.bodySmall,
+                    colour = Theme.colours.contentMuted,
+                )
+                Text(
+                    if (info.isPrecise) {
+                        "${modality.name}: precise pointing"
+                    } else {
+                        "${modality.name}: targets sized for a finger"
+                    },
+                    style = Theme.typography.bodySmall,
                     colour = Theme.colours.contentMuted,
                 )
             }
@@ -282,56 +318,44 @@ internal val PaneScaffoldDemo = ComponentDemo(
     var selected by remember { mutableStateOf(1) }
     val stops = listOf("Perth Underground", "Elizabeth Quay", "Perth Busport", "McIver")
 
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(280.dp)
-            .border(Theme.sizing.borderWidth, Theme.colours.outline, Theme.shapes.medium)
-            .clip(Theme.shapes.medium),
-    ) {
-        // Its own size-class provider: the scaffold shows one pane or two from
-        // the width of *this box*, which is what makes the behaviour visible in
-        // a card rather than only on a tablet.
-        WindowSizeClassProvider(Modifier.fillMaxSize()) {
-            ListDetailPaneScaffold(
-                focus = focus,
-                onBack = { focus = PaneFocus.List },
-                resizable = this@ComponentDemo[paneResizable],
-                list = {
-                    ListGroup(spacing = 2.dp) {
-                        stops.forEachIndexed { index, name ->
-                            item(
-                                label = name,
-                                selected = index == selected,
-                                onClick = { selected = index; focus = PaneFocus.Detail },
-                            )
-                        }
-                    }
-                },
-                detail = {
-                    Column(Modifier.padding(Theme.spacing.md)) {
-                        Text(stops[selected], style = Theme.typography.titleMedium)
-                        Text(
-                            "Departures, alerts and the route map would go here.",
-                            style = Theme.typography.bodySmall,
-                            colour = Theme.colours.contentMuted,
+    // In a frame of its own, so the scaffold shows one pane or two from the
+    // width of *the frame* — drag its edge left past 840dp and the detail
+    // folds away, which until now needed a tablet to see.
+    AdaptiveFrame(initialWidth = PaneDemoWidth) {
+        ListDetailPaneScaffold(
+            focus = focus,
+            onBack = { focus = PaneFocus.List },
+            resizable = this@ComponentDemo[paneResizable],
+            list = {
+                ListGroup(spacing = 2.dp) {
+                    stops.forEachIndexed { index, name ->
+                        item(
+                            label = name,
+                            selected = index == selected,
+                            onClick = { selected = index; focus = PaneFocus.Detail },
                         )
                     }
-                },
-            )
-        }
+                }
+            },
+            detail = {
+                Column(Modifier.padding(Theme.spacing.md)) {
+                    Text(stops[selected], style = Theme.typography.titleMedium)
+                    Text(
+                        "Departures, alerts and the route map would go here.",
+                        style = Theme.typography.bodySmall,
+                        colour = Theme.colours.contentMuted,
+                    )
+                }
+            },
+        )
     }
 }
 
 internal val ScaffoldDemo = ComponentDemo(slug = "scaffold", knobs = listOf(scaffoldFab)) {
     val fabPosition = this[scaffoldFab]
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(280.dp)
-            .border(Theme.sizing.borderWidth, Theme.colours.outline, Theme.shapes.medium)
-            .clip(Theme.shapes.medium),
-    ) {
+    // Framed, so the bars can be watched staying put at every width while the
+    // content between them reflows.
+    AdaptiveFrame {
         Scaffold(
             topBar = { TopBar { +"Favourites" } },
             fabPosition = fabPosition,
@@ -366,49 +390,40 @@ internal val ScaffoldDemo = ComponentDemo(slug = "scaffold", knobs = listOf(scaf
 @Composable
 private fun SupportingPaneDemoBody() {
     var supportingVisible by remember { mutableStateOf(true) }
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(280.dp)
-            .border(Theme.sizing.borderWidth, Theme.colours.outline, Theme.shapes.medium)
-            .clip(Theme.shapes.medium),
-    ) {
-        // The same trick the list-detail body uses: a size-class provider scoped
-        // to this box, so one pane or two follows the *card's* width and the
-        // behaviour is visible without a tablet.
-        WindowSizeClassProvider(Modifier.fillMaxSize()) {
-            SupportingPaneScaffold(
-                supportingVisible = supportingVisible,
-                onDismissSupporting = { supportingVisible = false },
-                main = {
-                    Column(Modifier.padding(Theme.spacing.md)) {
-                        Text("Toodyay Rd run", style = Theme.typography.titleMedium)
-                        Text(
-                            "42.0 km · 38:04 · peak boost 18.6 psi",
-                            style = Theme.typography.bodySmall,
-                            colour = Theme.colours.contentMuted,
-                        )
-                    }
-                },
-                supporting = {
-                    Column(Modifier.padding(Theme.spacing.md)) {
-                        Text("Conditions", style = Theme.typography.labelMedium)
-                        Text(
-                            "24 °C, dry. Two of the four markers fell inside a " +
-                                "rain radius on the previous run.",
-                            style = Theme.typography.bodySmall,
-                            colour = Theme.colours.contentMuted,
-                        )
-                        if (!supportingVisible) return@Column
-                        Button(
-                            onClick = { supportingVisible = false },
-                            variant = ButtonVariant.Ghost,
-                            size = ButtonSize.Small,
-                        ) { +"Hide" }
-                    }
-                },
-            )
-        }
+    // The same frame the list-detail body uses, and the collapse is the
+    // interesting half: narrower than 840dp the supporting pane becomes a sheet.
+    AdaptiveFrame(initialWidth = PaneDemoWidth) {
+        SupportingPaneScaffold(
+            supportingVisible = supportingVisible,
+            onDismissSupporting = { supportingVisible = false },
+            main = {
+                Column(Modifier.padding(Theme.spacing.md)) {
+                    Text("Toodyay Rd run", style = Theme.typography.titleMedium)
+                    Text(
+                        "42.0 km · 38:04 · peak boost 18.6 psi",
+                        style = Theme.typography.bodySmall,
+                        colour = Theme.colours.contentMuted,
+                    )
+                }
+            },
+            supporting = {
+                Column(Modifier.padding(Theme.spacing.md)) {
+                    Text("Conditions", style = Theme.typography.labelMedium)
+                    Text(
+                        "24 °C, dry. Two of the four markers fell inside a " +
+                            "rain radius on the previous run.",
+                        style = Theme.typography.bodySmall,
+                        colour = Theme.colours.contentMuted,
+                    )
+                    if (!supportingVisible) return@Column
+                    Button(
+                        onClick = { supportingVisible = false },
+                        variant = ButtonVariant.Ghost,
+                        size = ButtonSize.Small,
+                    ) { +"Hide" }
+                }
+            },
+        )
     }
     if (!supportingVisible) {
         Button(
@@ -419,11 +434,61 @@ private fun SupportingPaneDemoBody() {
     }
 }
 
+/**
+ * Every cursor as a disabled control would show it: the arrow, set.
+ *
+ * Worth a switch because the answer is the part people get wrong. The obvious
+ * choice for a disabled control is the no-entry sign, and it tells the reader
+ * they have done something forbidden when all they have done is not finish a
+ * form.
+ */
+private val cursorsDisabled = Knob.Flag("Disabled")
+
+/**
+ * Each cursor on a tile of its own, to be hovered.
+ *
+ * A picture cannot show a cursor — a rendered frame has no pointer in it — so
+ * this demo is the one place the set can actually be seen, and only with a
+ * mouse. On a touchscreen the tiles are labels and nothing more, which is
+ * honest: there is no pointer to change.
+ */
+internal val PointerCursorDemo = ComponentDemo(
+    slug = "modifier-pointer-cursor",
+    knobs = listOf(cursorsDisabled),
+) {
+    val enabled = !this[cursorsDisabled]
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+    ) {
+        for (cursor in Cursor.entries) {
+            Box(
+                modifier = Modifier
+                    .width(104.dp)
+                    .height(56.dp)
+                    .clip(Theme.shapes.medium)
+                    .background(Theme.colours.surfaceSunken)
+                    .border(1.dp, Theme.colours.outline, Theme.shapes.medium)
+                    .pointerCursor(cursor, enabled = enabled),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    cursor.name,
+                    style = Theme.typography.labelMedium,
+                    colour = if (enabled) Theme.colours.content else Theme.colours.contentDisabled,
+                )
+            }
+        }
+    }
+}
+
 internal val adaptiveDemos = listOf(
     WindowSizeClassDemo,
     ScaffoldDemo,
     PaneScaffoldDemo,
     AspectRatioBoxDemo,
     GlassSurfaceDemo,
+    PointerCursorDemo,
     PageTransitionDemo,
 )

@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.VerticalDivider
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
@@ -78,9 +79,14 @@ object PaneScaffoldDefaults {
  * On two panes the detail keeps its **empty state** rather than collapsing, so
  * the layout does not reflow the instant a selection is made or cleared.
  *
- * @param twoPane Override the automatic choice. Consults input modality as well
- *   as width: a 900dp touchscreen held in the hands is not a 900dp desktop
- *   window, and a resize handle is a very different thing in each.
+ * @param twoPane Override the automatic choice, which is the window's width
+ *   alone — two panes from 840dp. This used to claim it consulted the input
+ *   modality as well, and never did; it should not start. The modality is
+ *   learned from the first pointer event and assumed to be touch until then, so
+ *   a default that read it would open every desktop window on one pane and
+ *   reflow to two at the first mouse movement. What the modality does change is
+ *   the resize handle, which takes a full touch target when there is no
+ *   pointer to aim it.
  */
 @Composable
 fun ListDetailPaneScaffold(
@@ -256,6 +262,10 @@ private fun TwoPane(
 private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
     val colours = Theme.colours
     val motion = Theme.motion
+    // 12dp is plenty for a mouse and a miss for a thumb, and this is the control
+    // `isPrecise` names as its first example. Under touch the handle reserves
+    // the platform's minimum, with the line still drawn down its middle.
+    val precise = windowAdaptiveInfo.isPrecise
     val interactions = remember { MutableInteractionSource() }
     val hovered by interactions.collectIsHoveredAsState()
 
@@ -267,6 +277,7 @@ private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
 
     Box(
         modifier = Modifier
+            .then(if (precise) Modifier else Modifier.minimumTouchTarget())
             .width(PaneScaffoldDefaults.HandleWidth)
             .fillMaxHeight()
             .pointerCursor(Cursor.ResizeColumn)

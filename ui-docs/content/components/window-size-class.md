@@ -1,6 +1,6 @@
 # `WindowSizeClass`
 
-*Also on this page: `WindowWidthClass`, `WindowHeightClass`, `WindowSizeClassProvider`.*
+*Also on this page: `WindowWidthClass`, `WindowHeightClass`, `WindowSizeClassProvider`, `WindowAdaptiveInfo`.*
 
 What size of window the content is in, in buckets rather than pixels.
 
@@ -30,8 +30,22 @@ moves it.
 
 **It is the size of the container, not the device.** `WindowSizeClassProvider`
 measures with `BoxWithConstraints`, so nesting one inside a 360dp box reports
-`Compact` on a desktop — which is how the catalog draws three device frames side
-by side and gets three different navigation surfaces.
+`Compact` on a desktop — which is how the catalog's adaptive demos sit in a frame
+whose edge you drag, and change shape at the breakpoints as you do.
+
+**The dp values are outside `equals`.** `widthDp` and `heightDp` are there to
+read, but two classes in the same buckets are equal whatever their exact size, so
+a window resized within one class does not recompose everything under it. Read
+the buckets to decide a layout; measure the box yourself if you need its pixels.
+
+**`windowAdaptiveInfo` adds the input to the size**, because the decisions are
+rarely about one alone. `isPrecise` is true where there is a pointer to aim with,
+and it governs what is cheap for a mouse and awkward for a thumb — the pane
+scaffold's resize handle is 12dp under a mouse and a full touch target without
+one. It does not govern *whether* there are two panes: the input is learned from
+the first pointer event and assumed to be touch until then, so a layout that
+waited on it would open every desktop window on one pane and reflow at the first
+mouse movement.
 
 ---
 
