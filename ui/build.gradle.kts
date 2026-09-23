@@ -1,5 +1,3 @@
-import org.gradle.api.artifacts.result.ResolvedComponentResult
-import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -17,103 +15,14 @@ plugins {
 // Publishing
 // ---------------------------------------------------------------------------
 //
-// A release is `git tag v0.2.0` and nothing else. Three sources, in this order:
-//
-//  1. `-Pkontour.version=…`, for a deliberate publish that is not a tag.
-//  2. The tag being built — and **only** a tag.
-//  3. `0.1.0-SNAPSHOT`, for everything else.
-//
-// Rule 2 used to read `GITHUB_REF_NAME` without asking what kind of ref it was,
-// which meant a branch build took the *branch name* as its version. This would
-// have published `io.kontour:ui:claude/compose-multiplatform-components-lz1c97`
-// — a coordinate with a slash in it — the first time anything ran `publish`
-// outside a tag, while the comment above it claimed a branch build was a
-// snapshot. `GITHUB_REF_TYPE` is the field that answers the question.
-//
-// The result is then checked, because the failure mode is silent: an unpublish
-// on a package registry is a support ticket, and the check costs one regex.
-//
-// Everything is read through `providers`, never `System.getenv`. The
-// configuration cache is on (`gradle.properties`), and a direct environment read
-// at configuration time is invisible to it: the cached entry would be reused
-// with last run's token baked in.
-//
-// **This publishes from Linux.** Kotlin 2.x cross-compiles Apple *klibs* — which
-// is what a library consumer resolves — so a Linux publish uploads the complete
-// set, verified by publishing locally and reading `native_targets=ios_arm64` out
-// of the klib manifest. What still needs Xcode is *linking a framework*, and
-// that happens in the consuming app, not here.
-group = "io.kontour"
-version = providers.gradleProperty("kontour.version")
-    .orElse(
-        providers.environmentVariable("GITHUB_REF_TYPE")
-            .zip(providers.environmentVariable("GITHUB_REF_NAME")) { type, name ->
-                if (type == "tag") name.removePrefix("v") else ""
-            }
-            .filter { it.isNotEmpty() }
-    )
-    .orElse("0.1.0-SNAPSHOT")
-    .map { candidate ->
-        require(Regex("""^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$""").matches(candidate)) {
-            "`$candidate` is not a publishable version. A release tag is `v1.2.3`, " +
-                "optionally with a `-rc1`-style suffix; anything else has to come " +
-                "through -Pkontour.version. This check exists because the alternative " +
-                "is noticing after the upload."
-        }
-        candidate
-    }
-    .get()
-
-/**
- * What this build would publish as.
- *
- *     ./gradlew :ui:coordinate
- *
- * The version comes from three sources with a precedence between them, and
- * without this there is no way to ask which one won short of running a publish
- * and reading the upload. That is how a branch build came to be publishable as
- * `io.kontour:ui:some/branch` unnoticed.
- */
-tasks.register("coordinate") {
-    group = "help"
-    description = "Prints the group:artifact:version this build would publish as."
-    // Captured at configuration time: a `doLast` that read `project` would hold
-    // the project reference and break the configuration cache, which is on.
-    val coordinate = "${project.group}:${project.name}:${project.version}"
-    doLast { println(coordinate) }
-}
-
-publishing {
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/kontour-labs/ui")
-            credentials {
-                username = providers.environmentVariable("GITHUB_ACTOR").orNull
-                password = providers.environmentVariable("GITHUB_TOKEN").orNull
-            }
-        }
-    }
-
-    publications.withType<MavenPublication>().configureEach {
-        pom {
-            name = "Kontour UI"
-            description = "A Compose Multiplatform design system built on Foundation, without Material."
-            url = "https://github.com/kontour-labs/ui"
-            licenses {
-                license {
-                    name = "Proprietary"
-                    comments = "All rights reserved. The bundled Outfit fonts are SIL OFL 1.1 " +
-                        "and redistributable in this artifact; see ui/licenses/Outfit-OFL.txt."
-                }
-            }
-            scm {
-                url = "https://github.com/kontour-labs/ui"
-                connection = "scm:git:https://github.com/kontour-labs/ui.git"
-            }
-        }
-    }
-}
+// The version rule, the `coordinate` task, the repository and the POM, shared
+// with `:ui-nav3` so the two published modules can never disagree about which
+// release they are. The reasoning, and the history behind each rule, is with the
+// code: `buildSrc/src/main/kotlin/KontourPublishing.kt`.
+kontourPublishing(
+    displayName = "Kontour UI",
+    summary = "A Compose Multiplatform design system built on Foundation, without Material.",
+)
 
 // ---------------------------------------------------------------------------
 // The API reference
@@ -240,7 +149,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // Compose Foundation and nothing above it. Material is deliberately
-            // absent — see the `checkNoMaterial` task at the bottom of this file.
+            // absent — see `checkNoMaterial`, registered further down this file.
             //
             // `api`, not `implementation`: these types appear in the public API of
             // nearly every component — Modifier, Composable, Color, ImageVector —
@@ -299,71 +208,12 @@ compose.resources {
 
 // ---------------------------------------------------------------------------
 // Material containment
-//
-// Commit 34862a9 removed Material from this project on purpose. The risk is not
-// that someone types `import androidx.compose.material3` — that is easy to spot
-// in review — but that a convenience library pulls it back in transitively and
-// nobody notices until the app is 400 KB heavier and two type scales deep.
-//
-// This walks the fully resolved JVM runtime graph and fails the build if any
-// Material module appears anywhere in it. One target is enough: `:ui` has no
-// per-platform dependencies, so anything that reaches Android or iOS reaches
-// the JVM classpath too.
 // ---------------------------------------------------------------------------
-val forbiddenGroups = setOf(
-    "androidx.compose.material",
-    "androidx.compose.material3",
-    "org.jetbrains.compose.material",
-    "org.jetbrains.compose.material3",
-)
-
-val jvmRuntimeGraph: Provider<ResolvedComponentResult> =
-    configurations.named("jvmRuntimeClasspath")
-        .flatMap { it.incoming.resolutionResult.rootComponent }
-
-val checkNoMaterial = tasks.register("checkNoMaterial") {
-    group = "verification"
-    description = "Fails if a Material dependency reaches the :ui classpath."
-
-    val root = jvmRuntimeGraph
-    val forbidden = forbiddenGroups
-    inputs.property("forbiddenGroups", forbidden)
-
-    doLast {
-        val visited = mutableSetOf<String>()
-        val offenders = sortedSetOf<String>()
-
-        fun walk(component: ResolvedComponentResult) {
-            if (!visited.add(component.id.displayName)) return
-            component.moduleVersion?.let { id ->
-                if (id.group in forbidden) {
-                    offenders += "${id.group}:${id.name}:${id.version}"
-                }
-            }
-            component.dependencies
-                .filterIsInstance<ResolvedDependencyResult>()
-                .forEach { walk(it.selected) }
-        }
-        walk(root.get())
-
-        if (offenders.isNotEmpty()) {
-            throw GradleException(
-                buildString {
-                    appendLine("Material reached the :ui classpath:")
-                    offenders.forEach { appendLine("  - $it") }
-                    appendLine()
-                    appendLine("The design system is built on Compose Foundation only.")
-                    appendLine("Find which dependency pulls this in with:")
-                    appendLine("  ./gradlew :ui:dependencies --configuration jvmRuntimeClasspath")
-                }
-            )
-        }
-    }
-}
-
-tasks.named("check") {
-    dependsOn(checkNoMaterial)
-}
+//
+// Fails the build if any Material module reaches the resolved JVM runtime graph.
+// Shared with `:ui-nav3`, which needs it more: see
+// `buildSrc/src/main/kotlin/MaterialContainment.kt`.
+checkNoMaterial()
 
 // ---------------------------------------------------------------------------
 // API conventions
