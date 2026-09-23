@@ -849,3 +849,34 @@ tasks.withType<Test>().configureEach {
     maxParallelForks = minOf(4, Runtime.getRuntime().availableProcessors())
     maxHeapSize = "1g"
 }
+
+// ---------------------------------------------------------------------------
+// On a real screen
+// ---------------------------------------------------------------------------
+//
+//     xvfb-run -a ./gradlew :ui:jvmOnScreenTest
+//
+// Every other test stops one step short of the screen: it records the cursor a
+// scene asks the platform for. `OnScreenCursorTest` opens a real window, moves the
+// real pointer with `java.awt.Robot` and reads back what the window system was
+// given. It needs a display, so it is kept out of `jvmTest` — which runs anywhere —
+// and has a task of its own, which CI runs under `xvfb-run`. Without a display it
+// fails rather than passing having checked nothing.
+tasks.named<Test>("jvmTest") {
+    filter { excludeTestsMatching("*.OnScreen*Test") }
+}
+
+tasks.register<Test>("jvmOnScreenTest") {
+    group = "verification"
+    description = "Moves a real pointer over a real window and checks the cursor it shows. Needs a display."
+    val jvmTest = tasks.named<Test>("jvmTest").get()
+    testClassesDirs = jvmTest.testClassesDirs
+    classpath = jvmTest.classpath
+    filter { includeTestsMatching("*.OnScreen*Test") }
+    // One window at a time: two forks would fight over the one pointer.
+    maxParallelForks = 1
+    systemProperty(
+        "kontour.onScreen.captureDir",
+        layout.buildDirectory.dir("on-screen").get().asFile.absolutePath,
+    )
+}

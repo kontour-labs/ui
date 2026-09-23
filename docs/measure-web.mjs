@@ -22,7 +22,7 @@
 //                             [--then-tap X,Y]
 //                             [--mobile] [--dark] [--reduce-motion] [--vibration]
 //                             [--clipboard] [--console] [--film DIR,COUNT,MS[,AFTER]]
-//                             [--eval EXPR]
+//                             [--eval EXPR] [--hover X,Y[;X,Y…]]
 //
 // ### What it can and cannot tell you
 //
@@ -775,6 +775,38 @@ async function main() {
 
   // Read *after* the gestures, so what is printed is what the interaction
   // produced rather than whatever the page did while loading.
+  // `--hover X,Y[;X,Y…]` moves the mouse to each point in turn, pressing
+  // nothing, and prints the cursor the page set there. A cursor is decided by
+  // hovering and shows nowhere in a screenshot, so this is the only way to ask
+  // what a reader's pointer turns into over a splitter or a grip. Moved twice, a
+  // pixel apart, because the page learns the input is a mouse from the first
+  // movement and a cursor gated on that appears from the second.
+  //
+  // What is read is the cursor of the deepest element under the point, which is
+  // the one the browser draws. Compose keeps its canvas inside a shadow root, so
+  // `document.querySelector('canvas')` finds nothing, and `elementFromPoint`
+  // stops at the shadow host unless each root is asked in turn.
+  const hoverAt = arg('hover', null)
+  if (hoverAt) {
+    console.log('')
+    for (const point of hoverAt.split(';')) {
+      const [x, y] = point.split(',').map(Number)
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x - 1, y }, sessionId)
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
+      await wait(250)
+      const cursor = await evaluate(`(() => {
+        let el = document.elementFromPoint(${x}, ${y})
+        while (el && el.shadowRoot) {
+          const inner = el.shadowRoot.elementFromPoint(${x}, ${y})
+          if (!inner || inner === el) break
+          el = inner
+        }
+        return el ? el.tagName.toLowerCase() + ' ' + getComputedStyle(el).cursor : 'nothing'
+      })()`)
+      console.log(`hover ${x},${y}  -> ${cursor}`)
+    }
+  }
+
   const expression = arg('eval', null)
   if (expression) {
     const value = await evaluate(`JSON.stringify(${expression})`)

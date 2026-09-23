@@ -184,6 +184,13 @@ jobs:
             :ui-nav3:checkNoMaterial \
             :ui:testAndroidHostTest --tests "io.kontour.ui.input.*"
 
+      # A real window under a real pointer: the one cursor check that reaches the
+      # screen. It needs a display, which the runner does not have until
+      # `xvfb-run` gives it one — so it is its own task, and never part of the
+      # headless `jvmTest` above.
+      - name: Test the cursors on a real window
+        run: xvfb-run -a ./gradlew --no-daemon :ui:jvmOnScreenTest
+
       - name: Check the docs' links resolve
         run: python3 docs/check-links.py
 
