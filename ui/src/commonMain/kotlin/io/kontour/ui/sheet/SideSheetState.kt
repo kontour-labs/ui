@@ -22,7 +22,7 @@ internal enum class SideSheetValue { Resting, Expanded }
  *
  * ```kotlin
  * val filters = rememberSideSheetState()
- * SideSheet(visible = open, onDismissRequest = { open = false }, expandable = true, state = filters) {
+ * SideSheet(visible = open, expandable = true, state = filters) {
  *     SheetHeader { +"Filters" }
  * }
  * // Elsewhere, from a button:
