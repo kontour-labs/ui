@@ -196,7 +196,51 @@ fun Knob(
         label = "knobDetent",
     )
 
-    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
+    // The control's semantics, keys and focus on the node the caller's `modifier`
+    // lands on, as `Slider` puts its semantics: one node that is the knob, which a
+    // caller's tag and assistive technology both find. On an inner node, the node
+    // they found did not say it was disabled, and the one that took focus had no
+    // value to announce.
+    BoxWithConstraints(
+        modifier = modifier
+            .semantics {
+                if (!enabled) disabled()
+                if (contentDescription != null) this.contentDescription = contentDescription
+                progressBarRangeInfo = ProgressBarRangeInfo(
+                    current = value.coerceIn(valueRange),
+                    range = valueRange,
+                    steps = steps,
+                )
+                if (stateDescription != null) this.stateDescription = stateDescription(value)
+                // Withheld when disabled, as on `Slider`: an inert-looking control
+                // that assistive tech can still move is worse than either.
+                if (enabled) {
+                    setProgress { target ->
+                        currentOnValueChange(target.coerceIn(valueRange))
+                        true
+                    }
+                }
+            }
+            .onKeyEvent { event ->
+                if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                val step = if (steps > 0) 1f / intervals else KeyStep
+                val now = fractionOf(value)
+                val next = when (event.key) {
+                    Key.DirectionUp, Key.DirectionRight -> now + step
+                    Key.DirectionDown, Key.DirectionLeft -> now - step
+                    Key.PageUp -> now + maxOf(step, PageStep)
+                    Key.PageDown -> now - maxOf(step, PageStep)
+                    Key.MoveHome -> 0f
+                    Key.MoveEnd -> 1f
+                    else -> return@onKeyEvent false
+                }
+                emit(next, fromHand = false)
+                currentFinished?.invoke()
+                true
+            }
+            .focusable(enabled, interactions),
+        contentAlignment = Alignment.Center,
+    ) {
         // Square, and no bigger than it is given.
         val side = minOf(size, maxWidth, maxHeight)
         val sizePx = with(density) { side.toPx() }
@@ -207,46 +251,10 @@ fun Knob(
 
         Box(
             modifier = Modifier
-                .semantics {
-                    if (!enabled) disabled()
-                    if (contentDescription != null) this.contentDescription = contentDescription
-                    progressBarRangeInfo = ProgressBarRangeInfo(
-                        current = value.coerceIn(valueRange),
-                        range = valueRange,
-                        steps = steps,
-                    )
-                    if (stateDescription != null) this.stateDescription = stateDescription(value)
-                    // Withheld when disabled, as on `Slider`: an inert-looking control
-                    // that assistive tech can still move is worse than either.
-                    if (enabled) {
-                        setProgress { target ->
-                            currentOnValueChange(target.coerceIn(valueRange))
-                            true
-                        }
-                    }
-                }
                 .minimumTouchTarget()
                 .focusRing(interactions, Theme.shapes.pill)
                 .size(side)
                 .alpha(if (enabled) 1f else DisabledAlpha)
-                .onKeyEvent { event ->
-                    if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                    val step = if (steps > 0) 1f / intervals else KeyStep
-                    val now = fractionOf(value)
-                    val next = when (event.key) {
-                        Key.DirectionUp, Key.DirectionRight -> now + step
-                        Key.DirectionDown, Key.DirectionLeft -> now - step
-                        Key.PageUp -> now + maxOf(step, PageStep)
-                        Key.PageDown -> now - maxOf(step, PageStep)
-                        Key.MoveHome -> 0f
-                        Key.MoveEnd -> 1f
-                        else -> return@onKeyEvent false
-                    }
-                    emit(next, fromHand = false)
-                    currentFinished?.invoke()
-                    true
-                }
-                .focusable(enabled, interactions)
                 .pointerCursor(Cursor.Grab, enabled = enabled)
                 .freeDragOwning(
                     enabled = enabled,
