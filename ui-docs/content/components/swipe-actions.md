@@ -8,85 +8,80 @@ gesture exists. `rememberSwipeActionsState(initialValue = SwipeValue.End)` start
 a row already open, and `state.animateTo(SwipeValue.End)` moves an already-drawn
 one — which is how you would hint at the gesture on first run.
 
+**Up to three squircles grow out of the side.** As the row slides, each action is
+its own button in the row's shape and its own colour, with page showing between
+them — small and round at the first pixel of the swipe, because a button is never
+taller than it is wide, and full-height buttons by the time the row has uncovered
+them. Their icons and labels arrive from the row outward, a little after one
+another. Asked for in those words: *"an Apple-like animation where (up to) three
+squircle shapes expand out of the side when you start swiping, and then continuing
+to swipe across will select the rightmost one"*. They used to be panels laid over
+one strip painted in the nearest action's colour.
+
 **Order runs from the screen edge in toward the row**, on both sides. So the
 *first* action of a list is the one furthest from the row, and the last is the
-panel that appears against its edge as the swipe opens. The reason is the full
+button that appears against its edge as the swipe opens. The reason is the full
 swipe: carrying a row all the way runs the first action of the side, and what a
-full swipe looks like is that action growing from the edge until it has the whole
-row. The other way up, the action a full swipe commits to was the one hard
-against the row, and the one at the edge was the one it would never run.
+full swipe looks like is that action taking the strip from the edge.
 
-All of that mirrors, and the mirroring is the framework's rather than the
-component's: `anchoredDraggable` reverses a horizontal drag under RTL and
-`Modifier.offset {}` mirrors the placement it is given, so the offset everything
-here works in is a *logical* one — positive is toward the trailing edge in both
-directions. Flipping it a second time by hand is what made a swiped row in Arabic
-vacate a strip of bare page, with the anchors naming one side and the drawing
-looking for the other.
-
-The panels travel with the row rather than waiting at the edge of the screen for
-it to arrive, so the set slides in behind it and the ground under the row is the
-colour of the action it is about to reach. Pinned to the container instead, a
-half-open swipe uncovered the container's edge first — so the panel on screen for
-most of the gesture was the one furthest from the row, whatever colour the strip
-behind it was.
+All of that mirrors, and the offset everything works in is a *logical* one —
+positive is toward the trailing edge in both directions. The drag turns the
+finger's physical movement into it once, and `Modifier.offset {}` mirrors it back
+on the way out. Flipping it a second time by hand is what made a swiped row in
+Arabic vacate a strip of bare page.
 
 An action shows its label only where there is room for one. A single-line row is
 48dp and an icon above a label wants 59, so on short rows the icon stands alone —
 the label still reaches the screen reader through the row's custom action either
 way.
 
-The action's colour is at full strength from the first pixel. It used to darken
-while letting go would do nothing and lighten as the row crossed its threshold —
-an answer to a real question, delivered as a colour change on a box that is also
-sliding, growing and being tracked by a finger, which reads as a flicker partway
-through the swipe. The answer arrives better as the tick below.
+## How it decides
 
-**One buzz, at the one moment that has a consequence.** `DragThreshold`, as the
-row passes the point where letting go commits the full swipe. It used to be four
-— a tick per action width uncovered, the threshold, a confirmation when the
-action ran, and a settle when the row came back — and the report was a row that
-"goes way too crazy", which is what a pattern reads as when it is not describing
-anything. An `actionWidth` is not a detent: nothing snaps there and nothing rests
-there.
+**Whose gesture it is, early and by direction.** A drag within 45° of sideways is
+the row's from a few pixels in; anything steeper is the list's. It used to wait for
+a full touch slop sideways while the list waited for one downwards, and whichever
+crossed first took the gesture — so a thumb's arc, which always has some drop in
+it, handed the drag to the list. That was *"on iOS the swipe is way too hard to
+do"*. The pixels spent deciding are not lost: the row moves by all of them once it
+has the gesture.
 
-The threshold the buzz marks is **derived from where the commit actually
-happens** rather than set beside it. It used to be six tenths of the row's width,
-a constant of its own, while the commit is decided by the drag settling onto the
-committed anchor — so the two drifted apart as the action count and the row width
-changed, and the buzz stopped meaning "past here, letting go deletes it".
+**Past the point of no return, letting go commits — at any speed.** The point is
+48dp past the actions and at least 55% of the row (and never within 24dp of its far
+edge, so it can always be reached). There the outermost action widens over the
+whole strip while the others fold into it, and one `DragThreshold` buzz marks the
+line. Back off it by 16dp and the takeover undoes itself with a second buzz, since
+backing off has a consequence too.
+
+**Short of it, a flick opens or closes the actions** by the way it was thrown —
+400dp/s and at least 12dp of travel — and a slow release opens them a third of the
+way in (`swipePositionalThreshold`, 0.35) and closes them a third of the way out. A
+flick never commits on its own. It used to: judged by where the throw was aimed,
+a flick meant for the actions and thrown a little hard ran the action. That was
+*"on android, the swiping is still too fiddly"*.
+
+**A tap on a row that is showing its actions closes it**, and does not also reach
+the row's own click. A tap on one of the buttons runs that action and closes the
+row.
+
+**One buzz, at the one moment that has a consequence.** It used to be four — a
+tick per action width uncovered, the threshold, a confirmation when the action ran,
+and a settle when the row came back — and the report was a row that "goes way too
+crazy". A row opened or closed in code, with `animateTo`, is felt not at all.
 
 **Three actions a side, and the fourth is refused.** One target is 88dp, so three
 is 264dp of travel and already most of a phone's width; a fourth is a target
 nobody can reach, and a row that silently hides its last action is worse than one
 that says so.
 
-**Revealing the actions asks for a deliberate distance.** A release carries on to
-the next anchor from just past halfway between them, up from two fifths — which is
-what made the reveal fiddly: a row showed its actions on a gesture that was half a
-mind to.
-
-**Running one asks for more than that.** A slow drag has to carry the row four
-fifths of the way from the actions to the commit, and a firm flick is judged by
-where the throw was aimed rather than by how far it got. Two rules, because the
-gesture is two different gestures.
-
-Raising the threshold used to be the only lever, and it was not even the right one.
-The fling this is built on resolves through a `computeTarget` that takes a velocity
-threshold as well as a positional one, and above that threshold — 125dp/s, slower
-than any swipe anybody makes on purpose — direction decides and distance stops
-mattering. Once the row had passed its actions, the next anchor in the direction of
-travel was the committed one, so an ordinary flick past the reveal ran the action
-whatever the threshold said. That is "I sometimes end up triggering the action",
-and it is why this component now settles itself.
-
 **A full swipe runs the outermost action**, which is the first one declared —
-the one at the screen edge, and the one the row is sliding onto.
-`isFullSwipeAction` says whether the *side* has a full swipe at all; it does not
-choose which action, because there is only one action a full swipe can mean. Past
-the reveal that action grows into the others and the ground behind the row crosses
-to its colour, so what a committing swipe looks like is one action arriving from
-the edge and taking the row.
+the one at the screen edge, and the one that takes the strip at the point of no
+return. `isFullSwipeAction` says whether the *side* has a full swipe at all; it
+does not choose which action, because there is only one action a full swipe can
+mean. A side where nothing opted in has no point of no return: carried as far as it
+goes, it opens.
+
+On a desktop a sideways scroll — a trackpad's two-finger push — moves the row as a
+drag would, and settles it shortly after the last one. It never commits.
 
 `SwipeToDismiss` **needs an undo**. A dismissal with no way back is a data-loss
 bug wearing a gesture; pair it with a [`Toast`](../overlays.md) carrying the
@@ -119,5 +114,5 @@ string, so the two cannot disagree. That matters more than it sounds: split into
 an icon plus a separate description, a caller can write a background that says
 *Delete* and announces *Archive*.
 
-The background icons are decorative and cleared; the row's own content is
-unchanged by the swipe.
+The buttons' icons are decorative and cleared; each button's click carries its
+action's `label`. The row's own content is unchanged by the swipe.

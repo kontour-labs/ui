@@ -444,7 +444,7 @@ internal val ModalNavDrawerDemo = ComponentDemo(slug = "nav-drawer") {
     var open by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf(1) }
     val pages = listOf("Home", "Map", "Plan", "Profile")
-    Frame(height = 300.dp) {
+    Frame(height = 400.dp) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Button(onClick = { open = true }, variant = ButtonVariant.Secondary) {
                 +"Open the drawer"

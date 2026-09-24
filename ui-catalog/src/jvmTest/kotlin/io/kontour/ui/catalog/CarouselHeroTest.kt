@@ -363,6 +363,63 @@ class CarouselHeroTest {
         )
     }
 
+    /**
+     * The picture does not move; its box wipes over it.
+     *
+     * Reported: "it still sometimes looks like the photo slides in and out in hero
+     * mode. It should look like the photo doesn't move, but instead the boxes just
+     * wipe in their current animation to reveal the new photo." The leaving page's
+     * picture already held still — its box is pinned to the frame's start — but the
+     * *arriving* page's picture rode in with its box, and swiping back, the page
+     * going out rode out with its. Each page now holds its picture where it will sit
+     * at rest and only the box's edge moves.
+     *
+     * Read by a mark at each page's **end** edge: at rest a page's end edge is the
+     * frame's end, so a picture that holds still keeps its mark there all the way
+     * through the swipe, and one that travels takes it past the frame's edge, where
+     * it is clipped away. The leaving page's own end mark is inside its shrinking
+     * box's clip, so a mark at the frame's end mid-swipe can only be the arriving
+     * page's. Forwards and backwards, since backwards is the page going out.
+     */
+    @Test
+    fun thePictureHoldsStillWhileItsBoxWipesOverIt() {
+        val forwards = endMarkMidSwipe(startAt = 0, towardStart = true)
+        val backwards = endMarkMidSwipe(startAt = 1, towardStart = false)
+        assertTrue(
+            forwards > 0,
+            "halfway into a forward swipe the arriving picture's end mark was not at the " +
+                "frame's end — the picture is travelling in with its box",
+        )
+        assertTrue(
+            backwards > 0,
+            "halfway into a backward swipe the outgoing picture's end mark was not at the " +
+                "frame's end — the picture is travelling out with its box",
+        )
+    }
+
+    /** How much of an end-edge mark is at the frame's end, halfway through a swipe. */
+    private fun endMarkMidSwipe(startAt: Int, towardStart: Boolean): Int {
+        var found = 0
+        carousel(peek = 0, endStripe = true, goTo = startAt) { scene, _, bounds ->
+            scene.frames(12)
+            val direction = if (towardStart) -1f else 1f
+            val from = Offset(bounds.center.x - direction * Slop, bounds.center.y)
+            scene.drag(
+                from = from,
+                to = Offset(from.x + direction * (Width + Gap) / 2f, from.y),
+                steps = 20,
+                release = false,
+            )
+            val frame = scene.frames(2)
+            val row = frame.height / 2
+            for (x in Width - StripeWidth.toInt() * 2 until Width) {
+                if ((frame.getRGB(x, row) and 0xFFFFFF) == 0) found++
+            }
+            scene.release(bounds.center)
+        }
+        return found
+    }
+
     /** How much of the leaving page's start mark is at the frame's start, mid-swipe. */
     private fun stripeAtTheStart(parallax: Float, reduceMotion: Boolean = false): Int {
         var found = 0
@@ -434,6 +491,7 @@ class CarouselHeroTest {
         peek: Int = Peek,
         parallax: Float = 0f,
         stripe: Boolean = false,
+        endStripe: Boolean = false,
         reduceMotion: Boolean = false,
         body: (Scene, CarouselState, Rect) -> Unit,
     ) {
@@ -468,6 +526,19 @@ class CarouselHeroTest {
                                 if (stripe) {
                                     Modifier.drawBehind {
                                         drawRect(Color.Black, size = Size(StripeWidth, size.height))
+                                    }
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .then(
+                                if (endStripe) {
+                                    Modifier.drawBehind {
+                                        drawRect(
+                                            Color.Black,
+                                            topLeft = Offset(size.width - StripeWidth, 0f),
+                                            size = Size(StripeWidth, size.height),
+                                        )
                                     }
                                 } else {
                                     Modifier

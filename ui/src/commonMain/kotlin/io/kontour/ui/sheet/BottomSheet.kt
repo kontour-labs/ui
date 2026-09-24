@@ -94,13 +94,13 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
-/** Whether a sheet meets the window's edges or floats clear of them. */
+/** Whether a bottom sheet meets the window's edges or floats clear of them. */
 enum class SheetPresentation {
     /**
      * Flush to the bottom and to both sides. A drawer pulled out of the screen.
      *
-     * **The default for the modal sheets** — [ModalBottomSheet], [ModalSideSheet]
-     * and the nav drawer — and what a floating sheet becomes when it is expanded.
+     * **The default for [ModalBottomSheet]**, and what a floating sheet becomes
+     * when it is expanded. The side sheets are always flush to their edge.
      * A modal sheet recedes the page behind it into a frame of its own, and a
      * floating panel in front of that is two frames around one thing; flush to
      * the window, the sheet is the one thing in front and the receded page is
@@ -110,9 +110,9 @@ enum class SheetPresentation {
     Edge,
 
     /**
-     * Lifted off all three edges, with every corner rounded. **The default for the
-     * non-modal sheets**, [BottomSheet] and [SideSheet], which share the screen
-     * with the page rather than taking it over.
+     * Lifted off all three edges, with every corner rounded. **The default for
+     * [BottomSheet]**, which shares the screen with the page rather than taking it
+     * over.
      *
      * A panel *over* the screen rather than a drawer out of it — and the only
      * presentation in which a small sheet looks deliberate: a bar-height sheet
@@ -123,9 +123,6 @@ enum class SheetPresentation {
      * Pulled up to its top detent it stops floating: across the last step of its
      * travel it becomes the [Edge] sheet it would otherwise have been. See
      * [SheetEdgeMorph], and `edgeMorph = null` to keep it floating at every size.
-     *
-     * A [SideSheet] takes it too: inset from its side, the top and the bottom, and
-     * — if it is `expandable` — becoming an edge sheet as it widens to the window.
      */
     Floating,
 }
@@ -160,10 +157,6 @@ enum class SheetPresentation {
  * re-flowing mid-drag: content whose height depends on its width — a line that
  * wraps — would otherwise change the sheet's height, and its anchors with it,
  * while a finger is on it, and the sheet jumped as it neared the top.
- *
- * [SideSheet] has the same morph on the other axis, as a `Boolean`: it has one
- * step — its resting width to the whole window — so there is nothing to choose
- * but whether.
  *
  * @param from Where the morph starts: at or below this the sheet is fully
  *   floating. Null is the resting detent just below [until], so the default is the
@@ -1636,7 +1629,7 @@ private fun edgeness(state: SheetState, morph: SheetEdgeMorph?): Float {
  * shape that is not corner-based cannot be interpolated and changes over once the
  * morph is complete.
  */
-internal fun morphShape(shape: Shape, expanded: Shape, fraction: Float): Shape = when {
+private fun morphShape(shape: Shape, expanded: Shape, fraction: Float): Shape = when {
     fraction <= 0f -> shape
     fraction >= 1f -> expanded
     shape is CornerBasedShape && expanded is CornerBasedShape -> {

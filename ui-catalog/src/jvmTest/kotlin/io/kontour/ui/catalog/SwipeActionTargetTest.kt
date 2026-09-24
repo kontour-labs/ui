@@ -1,6 +1,7 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,6 +26,7 @@ import io.kontour.ui.components.list.rememberSwipeActionsState
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.Spacing
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -81,9 +83,12 @@ class SwipeActionTargetTest {
             // `SwipeActionsDefaults.ActionWidth` is a theme read now, so it
             // cannot be asked outside composition. The theme's own defaults are
             // plain data and are what the component resolves to here.
-            val panelLeft = row.right - with(Density(2f)) {
+            val slotLeft = row.right - with(Density(2f)) {
                 ComponentDefaults().swipeActionWidth.toPx()
             }
+            // The button sits half a gap inside its slot, so the page shows
+            // between it and whatever is next to it.
+            val panelLeft = slotLeft + with(Density(2f)) { Spacing().xs.toPx() } / 2f
             val tap = Offset(panelLeft + Inset, row.center.y)
 
             scene.sendPointerEvent(PointerEventType.Press, tap, type = PointerType.Touch)
@@ -101,6 +106,55 @@ class SwipeActionTargetTest {
         } finally {
             scene.close()
         }
+    }
+
+    /**
+     * A tap on the row itself, while it shows its actions, puts it back — and is not
+     * also a tap on whatever the row opens.
+     */
+    @Test
+    fun tappingARevealedRowClosesItWithoutClickingIt() {
+        var clicked = 0
+        var fired = 0
+        var state: io.kontour.ui.components.list.SwipeActionsState? = null
+
+        Scene(width = 600, height = 160, reduceMotion = true) {
+            val swipe = rememberSwipeActionsState(initialValue = SwipeValue.End)
+            state = swipe
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    state = swipe,
+                    end = listOf(
+                        SwipeAction(
+                            label = "Delete",
+                            icon = Tabler.Outline.Trash,
+                            onAction = { fired++ },
+                            background = Color(0xFFB3261E),
+                        ),
+                    ),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .background(Color.White)
+                            .clickable { clicked++ }
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            // The row has slid 88dp toward the start; its visible part is on the left.
+            scene.tap(Offset(100f, 48f))
+            scene.frames(30)
+        }
+
+        assertTrue(clicked == 0, "the tap closed nothing and opened the row instead ($clicked clicks)")
+        assertTrue(fired == 0, "a tap on the row ran the action")
+        assertTrue(
+            requireNotNull(state).currentValue == SwipeValue.Resting,
+            "a tap on a row showing its actions left it at ${state?.currentValue}",
+        )
     }
 
     private companion object {

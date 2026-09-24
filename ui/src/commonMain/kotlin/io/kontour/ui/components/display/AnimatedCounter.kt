@@ -34,6 +34,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.withinOrNull
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Motion
@@ -41,7 +42,9 @@ import io.kontour.ui.theme.SpringToken
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.theme.Theme
 import kotlin.time.Duration
-import kotlinx.coroutines.delay
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
 
 /**
  * A number that rolls to its new value instead of being replaced.
@@ -166,28 +169,52 @@ fun AnimatedCounter(
     var shown by remember { mutableIntStateOf(value) }
     var warning by remember { mutableStateOf(false) }
 
-    LaunchedEffect(value, warnBefore, motion.reduceMotion) {
-        val falling = value < shown
-        // Down is the one direction worth reporting, and the report is the whole
-        // reason the warning exists at all: a number that rises is good news the
-        // reader can take at their leisure, and a number that falls is a seat
-        // count or a time remaining that they may be about to act on. It fires
-        // whether or not there is a `warnBefore` to hold it, and whether or not
-        // motion is reduced — a reader who has asked for less movement is exactly
-        // the one the drop is quietest for.
-        if (falling) tap()
-        if (!falling || warnBefore <= Duration.ZERO || motion.reduceMotion) {
-            warning = false
-            shown = value
-            return@LaunchedEffect
+    // Down is the one direction worth reporting, and the report is the whole
+    // reason the warning exists at all: a number that rises is good news the
+    // reader can take at their leisure, and a number that falls is a seat count
+    // or a time remaining that they may be about to act on. Once per drop,
+    // whether or not there is a `warnBefore` to hold it, and whether or not
+    // motion is reduced — a reader who has asked for less movement is exactly
+    // the one the drop is quietest for.
+    val heard = remember { PreviousValue(value) }
+    LaunchedEffect(value) {
+        if (value < heard.value) tap()
+        heard.value = value
+    }
+
+    // **One hold, for as long as the counter is composed, and it cannot be
+    // left stuck.**
+    //
+    // This was an effect keyed on `value` that set `warning`, waited, and then
+    // cleared it. A second drop inside the wait relaunched it — which cancelled
+    // the first one in the middle of its `delay`, before the line that cleared
+    // the flag — and the relaunched one saw a warning "already running" and
+    // returned. Nothing was left to finish it. Reported from the catalog as
+    // "Tick down" stopping working entirely if it was pressed quickly enough:
+    // the drawn number froze and never wiggled again.
+    //
+    // Now the value is *collected* rather than keyed on. The flow is conflated,
+    // so drops that land during a hold are not queued — the roll, when it
+    // comes, goes to wherever the value has reached, which is the promise the
+    // `warnBefore` KDoc has always made. The flag is cleared in `finally`, so a
+    // cancelled hold cannot leave it set. And a rise during a hold ends it at
+    // once: good news does not wait for a warning about bad news to finish.
+    val latest by rememberUpdatedState(value)
+    LaunchedEffect(warnBefore, motion.reduceMotion) {
+        snapshotFlow { latest }.collect { target ->
+            if (target >= shown || warnBefore <= Duration.ZERO || motion.reduceMotion) {
+                warning = false
+                shown = target
+                return@collect
+            }
+            warning = true
+            try {
+                withinOrNull(warnBefore.inWholeMilliseconds) { snapshotFlow { latest }.first { it >= shown } }
+            } finally {
+                warning = false
+            }
+            shown = latest
         }
-        // Already warning: the wiggle running is the announcement, and this
-        // effect will be relaunched by the value it lands on.
-        if (warning) return@LaunchedEffect
-        warning = true
-        delay(warnBefore)
-        warning = false
-        shown = value
     }
 
     val text = format(shown)
@@ -258,7 +285,7 @@ fun AnimatedCounter(
         }
     }
 
-    // The wiggle itself: a small horizontal shake, per changing digit.
+    // The wiggle itself: a small vertical bob, per changing digit.
     //
     // An `Animatable` driven by an effect rather than `rememberInfiniteTransition`,
     // and that is not a style choice. An infinite transition runs for as long as
@@ -336,39 +363,28 @@ fun AnimatedCounter(
                     label = "digit$index",
                     modifier = Modifier
                         .width(digitWidth)
-                        // **Every digit about to move trembles the same way.**
+                        // **Every digit about to move trembles the same way, and
+                        // up and down.**
                         //
-                        // It used to alternate — `index % 2`, one cell against the
-                        // next — on the argument that two adjacent changing digits
-                        // in phase read as the whole number sliding again, which is
-                        // the thing the per-digit tremor replaced. Reported from a
-                        // phone as the defect it is: *"if multiple digits are about
-                        // to move, then they wiggle in the same direction"*.
+                        // Up and down because that was asked for: the tremor was a
+                        // side-to-side shake, and the report was that it should
+                        // bob instead. It also agrees with what comes next — the
+                        // roll is vertical, so a digit that has been bobbing in
+                        // its cell rolls out along the line it was already moving
+                        // on, rather than changing direction to go.
                         //
-                        // The argument does not survive contact with `moving`. A
-                        // slide is the *whole* figure travelling, and the digits
-                        // that are not about to change sit still — so `1,200`
-                        // falling to `1,199` shakes two columns while two hold
-                        // their ground, which cannot read as the number moving. On
-                        // the one transition where every digit does change, `200`
-                        // to `199`, a 1.5dp shake at 90ms is not a slide either:
-                        // a slide is vertical, and this is not.
+                        // The same way, not alternating by column: reported from
+                        // a phone as *"if multiple digits are about to move, then
+                        // they wiggle in the same direction"*. The digits that are
+                        // not about to change sit still, so `1,200` falling to
+                        // `1,199` bobs two columns while two hold their ground.
                         //
-                        // It was also not the alternation it claimed to be. The
-                        // parity ran over the *character* index and a group
-                        // separator takes a slot without drawing one, so
-                        // `1,000` → `999` gave the four digits a reader sees the
-                        // signs `+ + − +`.
-                        //
-                        // Unclipped, so 1.5dp of the tremor crosses into the
-                        // next cell. Accepted rather than clipped: a cell is
-                        // exactly a digit wide, so clipping would shave the edge
-                        // off the glyph at the extremes of every cycle, and a
-                        // digit that loses a column of pixels is a worse artefact
-                        // than one that briefly overlaps its neighbour's
-                        // whitespace.
+                        // Unclipped, so 1.5dp of the tremor crosses into the line
+                        // above or below. Accepted rather than clipped: a cell is
+                        // exactly a line tall, so clipping would shave the top off
+                        // the glyph at the extremes of every cycle.
                         .graphicsLayer {
-                            translationX = if (moving.getOrElse(index) { false }) {
+                            translationY = if (moving.getOrElse(index) { false }) {
                                 wobble.value * amplitude
                             } else {
                                 0f

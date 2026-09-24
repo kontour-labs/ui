@@ -74,9 +74,14 @@ import kotlinx.coroutines.launch
  * cover the whole site rather than the card it belongs to, and a scrim would dim
  * the navigation. A host per stage keeps each demo inside its own borders, which
  * is also what makes the scrim visible: there is content behind it to dim.
+ *
+ * 400dp, where it was 260. A dialog, a menu of six or a popover with a line and a
+ * half of text did not fit in 260 with a trigger above them, and on a phone the
+ * stage is also narrower, so what did not fit wrapped taller still — reported as
+ * the overlay previews being cut off, especially on mobile.
  */
 @Composable
-private fun Stage(height: Dp = 260.dp, content: @Composable BoxScope.() -> Unit) {
+private fun Stage(height: Dp = 400.dp, content: @Composable BoxScope.() -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -449,7 +454,7 @@ internal val CommandPaletteDemo = ComponentDemo(
             Command("offline", "Download for offline", onRun = {}, enabled = false),
         )
     }
-    Stage(height = 320.dp) {
+    Stage(height = 440.dp) {
         Button(
             onClick = { open = true },
             variant = ButtonVariant.Secondary,

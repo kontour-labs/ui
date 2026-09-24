@@ -1,11 +1,18 @@
 package io.kontour.ui.components.text
 
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -69,6 +76,73 @@ class PasswordFieldTest {
                 Secret in shownText(),
                 "pressing reveal did not show the password — `revealed` is wired " +
                     "to something that does not draw",
+            )
+        }
+    }
+
+    /**
+     * Backspace takes one character, not the whole password.
+     *
+     * Reported from the catalog. The mask replaced the whole text in one edit, and a
+     * replaced range maps every offset *inside* it back to the whole of the source —
+     * so the one-character deletion a hardware backspace makes on the displayed text
+     * became a deletion of everything.
+     */
+    @Test
+    fun backspaceDeletesOneCharacter() {
+        runComposeUiTest {
+            val state = TextFieldState(Secret)
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    PasswordField(state = state, label = "Password", revealLastTyped = false)
+                }
+            }
+            onNode(hasSetTextAction()).requestFocus()
+            onNode(hasSetTextAction()).performKeyInput { pressKey(Key.Backspace) }
+            waitForIdle()
+            assertEquals(Secret.dropLast(1), state.text.toString())
+        }
+    }
+
+    /**
+     * The character just typed is shown for a moment, and then masked like the rest.
+     *
+     * Asked for: "I'd like to be able to see the most recently-typed character for a
+     * short period of time in that field" — the phone keyboard's own habit, and the
+     * only feedback a reader has that the key they meant is the key they hit.
+     */
+    @Test
+    fun theLastTypedCharacterShowsBrieflyThenMasks() {
+        runComposeUiTest {
+            val state = TextFieldState(Secret)
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    PasswordField(
+                        state = state,
+                        modifier = Modifier.testTag(Tag),
+                        label = "Password",
+                    )
+                }
+            }
+            onNode(hasSetTextAction()).requestFocus()
+            mainClock.autoAdvance = false
+            onNode(hasSetTextAction()).performTextInput("x")
+            mainClock.advanceTimeByFrame()
+            mainClock.advanceTimeByFrame()
+
+            val typing = shownText()
+            assertEquals(Secret.length + 1, typing.length)
+            assertTrue(
+                typing.endsWith("x") && Secret.none { it in typing },
+                "just after typing, the field should show the new character and mask " +
+                    "the rest; it showed \"$typing\"",
+            )
+
+            mainClock.advanceTimeBy(3_000)
+            val later = shownText()
+            assertTrue(
+                'x' !in later,
+                "the typed character was still showing three seconds later: \"$later\"",
             )
         }
     }

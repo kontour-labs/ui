@@ -5,12 +5,16 @@ import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.then
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -19,8 +23,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import io.kontour.ui.components.action.ButtonSize
-import io.kontour.ui.components.action.IconToggleButton
+import io.kontour.ui.components.action.RevealToggleButton
 import io.kontour.ui.theme.Theme
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.delay
 
 /**
  * A password field, with a reveal toggle.
@@ -39,18 +45,25 @@ import io.kontour.ui.theme.Theme
  * pressing it does rather than what it currently is — and it is a toggle rather
  * than a button, so assistive tech also reports which state that currently is.
  *
- * **Pass [revealIcon] alone and the slash draws itself across it.** A second,
- * already-slashed glyph is still accepted as [hideIcon], and the two cross-fade;
- * but the line arriving is the thing that reads as the password being covered
- * up, and it is one icon to supply rather than two. See
- * [IconToggleButton][io.kontour.ui.components.action.IconToggleButton].
+ * **Pass [revealIcon] alone and the slash draws itself across it** while the
+ * password is hidden, and leaves as it is revealed: the eye says what is true
+ * now. A second, already-slashed glyph is still accepted as [hideIcon], and the
+ * two cross-fade; but the line moving is the thing that reads as the password
+ * being covered and uncovered, and it is one icon to supply rather than two.
  *
  * Sets the autofill content type so the platform offers a saved password, and
  * so a password manager can save a new one.
  *
+ * @param revealIcon The eye: shown plain while the password can be read, and
+ *   struck through while it is hidden. No toggle at all without one.
+ * @param hideIcon An already-slashed eye to show while the password is hidden,
+ *   instead of drawing the slash across [revealIcon].
  * @param isNewPassword Set for a sign-up or change-password field. Changes the
  *   autofill hint from "fill an existing password" to "generate and save a new
  *   one", which is what makes password managers offer to create a strong one.
+ * @param revealLastTyped Shows the character just typed for a moment before it
+ *   is masked, the way a phone keyboard does. On by default; turn it off where
+ *   the screen is likely to be watched.
  */
 @Composable
 fun PasswordField(
@@ -66,13 +79,42 @@ fun PasswordField(
     revealLabel: String = Theme.strings.showPassword,
     hideLabel: String = Theme.strings.hidePassword,
     isNewPassword: Boolean = false,
+    revealLastTyped: Boolean = true,
     imeAction: ImeAction = ImeAction.Done,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
     imeChain: ImeChainStep? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     var revealed by remember { mutableStateOf(false) }
-    val mask = remember { PasswordMask() }
+
+    // **The character just typed, shown for a moment.** Asked for as "I'd like to
+    // be able to see the most recently-typed character for a short period of time"
+    // — the phone keyboard's own habit, and the only confirmation a reader has
+    // that the key they meant is the key they hit.
+    //
+    // Found by comparing the text with what it was, not by an input filter: a
+    // single character inserted anywhere is typing, and anything else — a paste,
+    // a deletion, the caller setting the text — shows nothing. Cleared after
+    // [RevealLastTypedFor], on the next edit, and whenever the toggle is used.
+    var lastTyped by remember { mutableIntStateOf(NothingTyped) }
+    if (revealLastTyped) {
+        LaunchedEffect(state) {
+            var before = state.text.toString()
+            snapshotFlow { state.text.toString() }.collect { now ->
+                lastTyped = insertedAt(before, now)
+                before = now
+            }
+        }
+        LaunchedEffect(lastTyped) {
+            if (lastTyped == NothingTyped) return@LaunchedEffect
+            delay(RevealLastTypedFor)
+            lastTyped = NothingTyped
+        }
+    }
+    LaunchedEffect(revealed) { lastTyped = NothingTyped }
+    // Keyed rather than reading state inside the transformation, so a change is a
+    // new transformation and the field re-renders its text for certain.
+    val mask = remember(lastTyped) { PasswordMask(unmasked = lastTyped) }
 
     TextField(
         state = state,
@@ -98,18 +140,19 @@ fun PasswordField(
         interactionSource = interactionSource,
         trailing = if (revealIcon != null) {
             {
-                IconToggleButton(
+                // **The eye says what is true now**: struck through while the
+                // password is hidden, plain while it can be read. It was the other
+                // way round — the slash appeared on reveal, describing what a press
+                // would do — and was reported as reversed: "when the strikethrough
+                // is visible, password should be hidden."
+                //
+                // The label still names the action, which is what a screen reader
+                // user needs from a button; the checkbox state carries the rest.
+                RevealToggleButton(
+                    revealed = revealed,
+                    onRevealedChange = { revealed = it },
                     icon = revealIcon,
-                    checkedIcon = hideIcon,
-                    // Only when the caller has not supplied a slashed glyph of
-                    // its own — two slashes on one eye is a mistake, not a
-                    // stronger signal.
-                    strikethrough = hideIcon == null,
-                    checked = revealed,
-                    onCheckedChange = { revealed = it },
-                    // Describes the action, not the state: pressing it hides.
-                    // The toggle's own ticked/unticked is what says which state
-                    // it is in, so the two do not say the same thing twice.
+                    hiddenIcon = hideIcon,
                     contentDescription = if (revealed) hideLabel else revealLabel,
                     enabled = enabled,
                     size = ButtonSize.XSmall,
@@ -122,20 +165,51 @@ fun PasswordField(
 }
 
 /**
- * Replaces every character with a bullet, for display only.
+ * Where [now] has one more character than [before] and is otherwise the same,
+ * the index of that character; [NothingTyped] for any other change.
+ */
+internal fun insertedAt(before: String, now: String): Int {
+    if (now.length != before.length + 1) return NothingTyped
+    var index = 0
+    while (index < before.length && before[index] == now[index]) index++
+    // Everything after the new character must be what followed it before.
+    for (rest in index until before.length) {
+        if (before[rest] != now[rest + 1]) return NothingTyped
+    }
+    return index
+}
+
+/**
+ * Replaces every character with a bullet, for display only — except [unmasked],
+ * the character just typed, while it is being shown.
  *
  * An `OutputTransformation` rather than `BasicSecureTextField` because this field
- * has to be able to *stop* masking, and a secure field cannot: it is secure by
- * type. One character in, one character out, so every cursor offset and selection
- * range still means what it did.
+ * is a [TextField] — label, frame, supporting line and all — and a secure field
+ * is a different basic field with a scaffold of its own to rebuild.
+ *
+ * **One character at a time.** It used to be one replacement of the whole text,
+ * and a replaced range maps every offset *inside* it back to the whole of what it
+ * replaced — so the one-character deletion a hardware backspace makes on the
+ * displayed text deleted the whole password, reported from the catalog. Replaced
+ * one by one, every range is a single character with no inside, and every cursor
+ * offset and selection maps to itself.
  */
-private class PasswordMask(private val bullet: Char = '\u2022') : OutputTransformation {
+private class PasswordMask(
+    private val unmasked: Int = NothingTyped,
+    private val bullet: String = "\u2022",
+) : OutputTransformation {
     override fun TextFieldBuffer.transformOutput() {
-        val count = length
-        if (count == 0) return
-        replace(0, count, buildString { repeat(count) { append(bullet) } })
+        for (index in 0 until length) {
+            if (index != unmasked) replace(index, index + 1, bullet)
+        }
     }
 }
+
+/** How long the character just typed stays readable. The platforms' own figure. */
+private val RevealLastTypedFor = 1500.milliseconds
+
+/** No character is being shown. */
+private const val NothingTyped = -1
 
 /**
  * A numeric field.
@@ -146,7 +220,11 @@ private class PasswordMask(private val bullet: Char = '\u2022') : OutputTransfor
  *
  * @param allowDecimal Permits a single decimal point. Intermediate states like
  *   `1.` are allowed through — a user typing `1.5` passes through one.
- * @param allowNegative Permits a leading minus.
+ * @param allowNegative Permits a leading minus, with or without [allowDecimal].
+ *
+ * Turning either off — or lowering [maxLength] — while the field holds something
+ * the new rules would not let in clears it, rather than leaving a text no edit
+ * can get out of.
  */
 @Composable
 fun NumberField(
@@ -167,12 +245,26 @@ fun NumberField(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val transformation = remember(allowDecimal, allowNegative, maxLength) {
-        val base = if (allowDecimal) {
-            InputTransformation.decimal(allowNegative)
-        } else {
-            InputTransformation.digitsOnly()
+        val base = when {
+            allowDecimal -> InputTransformation.decimal(allowNegative)
+            // It used to be `digitsOnly()` whenever decimals were off, so
+            // `allowNegative` on its own did nothing at all.
+            allowNegative -> InputTransformation.integer(allowNegative = true)
+            else -> InputTransformation.digitsOnly()
         }
         if (maxLength != null) base.then(InputTransformation.limit(maxLength)) else base
+    }
+
+    // **Rules that narrow under a text they no longer admit clear it.**
+    //
+    // The filters judge the whole text an edit would leave, never the edit — so a
+    // field holding `-1.5` when decimals and negatives are turned off rejected
+    // every edit there was, a backspace included, since each still left a minus or
+    // a point behind. Reported from the catalog as the field refusing to be
+    // edited at all. A text the rules no longer admit is not a value, and an
+    // empty field is one the reader can start again in.
+    LaunchedEffect(allowDecimal, allowNegative, maxLength) {
+        if (!admitsNumber(state.text, allowDecimal, allowNegative, maxLength)) state.clearText()
     }
 
     TextField(

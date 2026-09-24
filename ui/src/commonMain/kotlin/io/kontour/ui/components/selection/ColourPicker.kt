@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.foundation.Hsv
 import io.kontour.ui.foundation.toColour
 import io.kontour.ui.foundation.toHex
@@ -551,12 +552,14 @@ private fun Track(
     val scope = rememberCoroutineScope()
     var width by remember { mutableFloatStateOf(0f) }
     var at by remember { mutableFloatStateOf(0f) }
+    // A track is a slider, and runs into its ends the way one does: once, as
+    // `Slider` reports it. See `EndStopLatch`.
+    val endStop = rememberEndStopLatch()
 
-    // Silent at either end, like every other end stop in the library — see the
-    // note where the spectrum's ticker used to be.
     fun report(x: Float) {
         if (width <= 0f) return
         at = x
+        endStop.at(if (x > width) 1 else if (x < 0f) -1 else 0)
         onFractionChange((x / width).coerceIn(0f, 1f))
     }
 
@@ -579,10 +582,12 @@ private fun Track(
                 interactionSource = null,
                 scope = scope,
                 claimsOn = DragClaim.Press,
-                onStart = { report(it.x) },
+                onStart = {
+                    endStop.arm()
+                    report(it.x)
+                },
                 onDelta = { report(at + it) },
-                // As above: nothing is latched across a gesture here any more.
-                onEnd = {},
+                onEnd = { endStop.reset() },
             )
             .semantics {
                 contentDescription = label

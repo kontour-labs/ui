@@ -65,7 +65,68 @@ class AnimatedCounterWarningTest {
         onNodeWithContentDescription("9").assertIsDisplayed()
     }
 
+    /**
+     * Drops faster than the warning can finish still land, and the counter keeps
+     * warning afterwards.
+     *
+     * Reported from the catalog: tapping "Tick down" repeatedly with the warning
+     * on stopped the counter working altogether. A second drop cancelled the hold
+     * part-way through its delay, which left it believing a warning was still
+     * running, and every later drop returned early on that belief — so the drawn
+     * number froze and never wiggled again.
+     */
+    @Test
+    fun spammedDropsLandOnTheLastValueAndTheNextDropStillWarns() = runComposeUiTest {
+        var seats by mutableIntStateOf(12)
+
+        setContent {
+            KontourTheme(reduceMotion = false) {
+                AnimatedCounter(value = seats, warnBefore = Brief)
+            }
+        }
+        mainClock.autoAdvance = false
+
+        // Nine drops, 50ms apart: every one lands inside the previous warning.
+        repeat(9) {
+            seats -= 1
+            mainClock.advanceTimeBy(50)
+        }
+        mainClock.advanceTimeBy(Brief.inWholeMilliseconds)
+        mainClock.advanceTimeBy(Settle)
+        onNodeWithContentDescription("3").assertIsDisplayed()
+
+        // And it still works: the next drop is held, then lands.
+        seats = 2
+        mainClock.advanceTimeBy(Brief.inWholeMilliseconds / 2)
+        onNodeWithContentDescription("3").assertIsDisplayed()
+        mainClock.advanceTimeBy(Brief.inWholeMilliseconds)
+        mainClock.advanceTimeBy(Settle)
+        onNodeWithContentDescription("2").assertIsDisplayed()
+    }
+
+    /** A rise during a warning is good news, and does not wait for it to finish. */
+    @Test
+    fun aRiseDuringAWarningLandsAtOnce() = runComposeUiTest {
+        var seats by mutableIntStateOf(12)
+
+        setContent {
+            KontourTheme(reduceMotion = false) {
+                AnimatedCounter(value = seats, warnBefore = Warning)
+            }
+        }
+        mainClock.autoAdvance = false
+
+        seats = 9
+        mainClock.advanceTimeBy(100)
+        seats = 30
+        mainClock.advanceTimeBy(Settle)
+        onNodeWithContentDescription("30").assertIsDisplayed()
+    }
+
     private companion object {
+        /** The catalog's own warning: two there-and-backs. */
+        val Brief = 450.milliseconds
+
         val Warning = 2.seconds
 
         /** Long enough for the digit roll to finish once the value lands. */

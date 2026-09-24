@@ -213,6 +213,83 @@ class DateRangeStripTest {
     }
 
     /**
+     * The head being dragged never moves against the drag.
+     *
+     * Reported: "when you drag it across the detent, it snaps back to where it was
+     * before animating across. It should just animate across, like the stepped
+     * slider." The head was drawn at an animated journey from the last cell *plus*
+     * a pull toward the finger. At a crossing the pull flipped from half a cell
+     * ahead to half a cell behind while the journey snapped a whole cell back, so
+     * the head jumped backwards and then sprang the whole way forward. The stepped
+     * slider had the same bug once and its fix is the one used here: the pull is
+     * part of where the spring is going, not something added to where it is.
+     *
+     * Dragged slowly rightwards along the third week, one frame per step, reading
+     * the head's right edge in that row each frame. The anchor is in the week above,
+     * so the only cap in the row is the head.
+     */
+    @Test
+    fun theDraggedHeadNeverMovesAgainstTheDrag() {
+        var start by mutableStateOf<LocalDate?>(null)
+        var end by mutableStateOf<LocalDate?>(null)
+        var bounds = Rect.Zero
+        val edges = mutableListOf<Int>()
+
+        Scene(width = 700, height = 800) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                DateRangePicker(
+                    start = start,
+                    end = end,
+                    onRangeSelected = { s, e -> start = s; end = e },
+                    today = LocalDate(2026, 8, 1),
+                    modifier = Modifier.reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(6)
+            assertTrue(bounds.width > 0f, "the picker never reported a size")
+            scene.drag(from = cell(bounds, 3), to = cell(bounds, 11), steps = 20, release = false)
+            val settled = scene.frames(20)
+            val sample = capSample(bounds, 11)
+            val cap = settled.getRGB(sample.x.toInt(), sample.y.toInt())
+
+            val from = cell(bounds, 11)
+            val to = cell(bounds, 14)
+            val steps = 60
+            for (step in 1..steps) {
+                scene.move(from + (to - from) * (step / steps.toFloat()))
+                edges += scene.frame().rightmostIn(bounds, week = 2, colour = cap)
+            }
+            scene.release(to)
+        }
+
+        val backwards = edges.zipWithNext().withIndex()
+            .filter { (_, pair) -> pair.second < pair.first - 3 }
+            .map { (index, pair) -> "frame ${index + 1}: ${pair.first} → ${pair.second}" }
+        assertTrue(edges.any { it > 0 }, "the head was never found in the third week")
+        assertTrue(
+            backwards.isEmpty(),
+            "dragged rightwards, the head's right edge moved left: ${backwards.joinToString()} " +
+                "— it jumped back at the crossing before springing forward",
+        )
+    }
+
+    /** The rightmost column holding [colour] in the lower half of [week]'s row. */
+    private fun java.awt.image.BufferedImage.rightmostIn(bounds: Rect, week: Int, colour: Int): Int {
+        val size = cellSize(bounds)
+        val gridTop = bounds.bottom - Rows * size
+        val top = (gridTop + (week + 0.7f) * size).toInt()
+        val bottom = (gridTop + (week + 0.95f) * size).toInt()
+        var rightmost = 0
+        for (y in top until bottom) {
+            for (x in bounds.left.toInt() until bounds.right.toInt()) {
+                if (getRGB(x, y) == colour && x > rightmost) rightmost = x
+            }
+        }
+        return rightmost
+    }
+
+    /**
      * The cap's colour in [beside]'s cell at rest, and the most of it seen while the
      * moving end crosses from [along] to [crossTo], with the drag anchored on
      * [anchor]. All four days are in the third week of August 2026.

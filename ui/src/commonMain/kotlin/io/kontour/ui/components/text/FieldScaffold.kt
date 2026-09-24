@@ -16,6 +16,10 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -25,10 +29,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,12 +42,14 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.theme.Theme
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * The frame every form control shares: label above, bordered box, helper or
@@ -150,11 +158,31 @@ internal fun FieldScaffold(
         label = "fieldLabel",
     )
 
+    // **The whole field into view, not only the caret.**
+    //
+    // Foundation brings the *cursor* into view when a field takes focus and when
+    // the keyboard shrinks the viewport around it — so the text line was always
+    // visible, and the rest of the field was not: the bottom of the frame, and the
+    // supporting or error line under it, sat behind the keyboard. Reported as "it
+    // should move the screen up so the bottom of the field is visible, not just the
+    // bottom of the text". So the scaffold asks for itself — label, frame and
+    // message — on focus, and again each time the keyboard's height changes while
+    // it is focused, since that is what shrinks the space it has to be seen in.
+    //
+    // In the scaffold, so `Select`, `Combobox` and `MultiSelect` have it too.
+    val requester = remember { BringIntoViewRequester() }
+    val keyboard = WindowInsets.ime
+    val density = LocalDensity.current
+    LaunchedEffect(focused) {
+        if (!focused) return@LaunchedEffect
+        snapshotFlow { keyboard.getBottom(density) }.collectLatest { requester.bringIntoView() }
+    }
+
     // No `verticalArrangement`: the message slot carries the gap above it, so a
     // field that stops being in error loses the message *and* its gap over the
     // same animation. With `spacedBy` the gap went in one frame at the end —
     // the vertical case of the snap `AnimatedSlot` documents.
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth().bringIntoViewRequester(requester)) {
         if (label != null) {
             Text(
                 // The one label that does not reach `contentScope`: a field

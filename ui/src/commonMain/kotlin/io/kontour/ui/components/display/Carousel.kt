@@ -105,7 +105,8 @@ object CarouselDefaults {
     const val SnapThreshold: Float = 0.25f
 
     /**
-     * How much of the next page [CarouselStyle.Hero] shows beside the current one.
+     * How much of the next page [CarouselStyle.Hero] shows beside the current one:
+     * none, unless a theme says otherwise.
      *
      * A getter onto `ComponentDefaults.carouselHeroPeek` rather than a constant,
      * because how much of the next picture to show is a brand's decision and not
@@ -222,7 +223,8 @@ fun rememberCarouselState(pageCount: () -> Int): CarouselState {
  *   [CarouselStyle.Hero] it is the gap between the two boxes, which is the one
  *   place in the layout a reader can see it.
  * @param peek How much of the next page [CarouselStyle.Hero] shows beside the
- *   current one, and read by nothing else.
+ *   current one, and read by nothing else. **None by default**, from
+ *   `ComponentDefaults.carouselHeroPeek`.
  *
  *   **Zero is one page at a time**: the frame holds the hero and nothing else, and
  *   [pageSpacing] opens between the two boxes only while a swipe is in flight —
@@ -243,8 +245,8 @@ fun rememberCarouselState(pageCount: () -> Int): CarouselState {
  *   over its own content — so at `0` the picture holds still and is taken away,
  *   and at `1` it travels with the strip and slides out under a shrinking window.
  *   Around `0.2` to `0.3` gives it a drift behind the closing edge without it
- *   arriving from off screen. There is nothing to scale on the page arriving: its
- *   box *is* at the strip's position, so its content already travels with it.
+ *   arriving from off screen. The page arriving is not affected: its picture holds
+ *   still, end-aligned in a box whose leading edge wipes across it.
  *
  *   **Ignored under reduced motion**, which is the whole of what that preference
  *   can sensibly take away here — boxes trading width is the style, and a picture
@@ -655,9 +657,25 @@ private fun Modifier.heroPage(
             // edge, which is also the crop a mirrored carousel wants — where `place`
             // was showing it the left one.
             //
+            // **And a page on its way in holds still too**, end-aligned in its box.
+            // Its box is at the strip's position and its content used to be at the
+            // box's start, so the picture rode in with the strip — and swiping back,
+            // rode out with it. Reported: "it still sometimes looks like the photo
+            // slides in and out … it should look like the photo doesn't move, but
+            // instead the boxes just wipe". End-aligned, the picture's end edge is
+            // the box's, and while the box is still growing that is the frame's own
+            // end — so the picture stands where it will rest and the box's leading
+            // edge sweeps across it. With a zero peek, the default, that is true of
+            // the whole swipe. With a peek the box stops growing at the hero's width
+            // a gap and a peek short of home, and covers that last stretch sliding.
+            //
             // Not placed at zero width: an empty box draws nothing and hit-tests
             // nothing, which is what a page off the end of the frame should be.
-            if (width > 0) placeable.placeRelative((-drift * (box?.shift ?: 0f)).roundToInt(), 0)
+            if (width > 0) {
+                val leaving = (box?.shift ?: 0f) > 0f
+                val x = if (leaving) -drift * (box?.shift ?: 0f) else (width - natural).toFloat()
+                placeable.placeRelative(x.roundToInt(), 0)
+            }
         }
     }
 

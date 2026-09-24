@@ -176,6 +176,63 @@ fun rememberDetentTicker(intent: FeedbackIntent = FeedbackIntent.Tick): DetentTi
 }
 
 /**
+ * One report each time a drag runs into the end of a range, and none while it
+ * stays there or backs off it.
+ *
+ * Asked for on every slider: "a haptic in standard mode … that fires when you hit
+ * the end stop". A [DetentTicker] on [FeedbackIntent.DragThreshold] would report
+ * leaving a wall as well as reaching it, which is a threshold's two-sided shape
+ * and not a wall's — so the index handed to it only ever goes *up*, once per wall
+ * entered. Holding the finger against the stop is one report; backing off and
+ * pushing in again is a second.
+ *
+ * `DragThreshold` rather than `Tick`: a tick shares the rate floor with the
+ * detents, and on a stepped slider the last detent's tick and the wall arrive
+ * together, so the wall would be the one dropped.
+ *
+ * Fed the *unclamped* position, so it reports under reduced motion too, where the
+ * rubber band that shows the wall is switched off and the report is the only sign.
+ */
+internal class EndStopLatch(private val ticker: DetentTicker) {
+    private var wall = 0
+    private var hits = 0
+
+    /** A gesture beginning. Arms the ticker without firing. */
+    fun arm() {
+        ticker.reset()
+        wall = 0
+        hits = 0
+        ticker.at(hits)
+    }
+
+    /**
+     * Where the drag is: `-1` past the start, `1` past the end, `0` inside.
+     * Reports on the way into a wall and not on the way out.
+     */
+    fun at(wallNow: Int) {
+        if (wallNow != 0 && wallNow != wall) {
+            hits++
+            ticker.at(hits)
+        }
+        wall = wallNow
+    }
+
+    /** The gesture is over. */
+    fun reset() {
+        ticker.reset()
+        wall = 0
+        hits = 0
+    }
+}
+
+/** Remembers an [EndStopLatch] on the current feedback. */
+@Composable
+internal fun rememberEndStopLatch(): EndStopLatch {
+    val ticker = rememberDetentTicker(FeedbackIntent.DragThreshold)
+    return remember(ticker) { EndStopLatch(ticker) }
+}
+
+/**
  * One rate floor for every light haptic under a theme.
  *
  * The argument for the interval is on [DetentTicker.MinimumTickInterval]; the

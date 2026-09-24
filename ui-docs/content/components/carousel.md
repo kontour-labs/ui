@@ -63,12 +63,13 @@ input method, and the app has four.
 moves under the viewport, which is what a finger expects and what a carousel has
 always been.
 
-**`CarouselStyle.Hero` is two boxes side by side, trading width.** The page you
-are on is most of the frame; the next one is a narrow box beside it with a gap
-between them, and a swipe hands the width from one to the other. Material's hero
-carousel, and the arrangement a row of pictures wants — what the eye follows is a
-photograph getting bigger, with the next one already there to say the row
-continues.
+**`CarouselStyle.Hero` is boxes wiping over pictures that hold still.** By
+default it shows one page at a time; a swipe opens a gap that sweeps across the
+frame, the page leaving is closed over from its end and the page arriving is
+uncovered from its start, and neither picture moves. Give it a `peek` and the next
+page waits as a narrow box beside the current one, trading width with it as you
+swipe — Material's hero carousel, and the arrangement a row of pictures wants when
+the next one should already be there to say the row continues.
 
 ```kotlin
 Carousel(
@@ -86,9 +87,12 @@ to**: past that the "next" box is competing with the page you are looking at, an
 a hero carousel with two heroes in it is a two-column list. Nothing clamps it, so
 an over-wide peek costs the hero its width.
 
-**`peek = 0.dp` is one page at a time.** The frame holds the hero and nothing
-else, and the gap opens between the two boxes only while a swipe is in flight —
-there being nothing for it to separate at rest.
+**No peek is the default, and one page at a time.** The frame holds the hero and
+nothing else, and the gap opens between the two boxes only while a swipe is in
+flight — there being nothing for it to separate at rest. It is also the case in
+which a picture holds perfectly still for the whole swipe; with a peek, a page
+arriving is still until its box reaches the hero's width and then slides the last
+gap-and-a-peek of the way home.
 
 `parallax` is how much of the strip's travel the *content* of the page being left
 behind keeps. Its box is pinned to the frame's start and closes over it, so at `0`
@@ -96,8 +100,9 @@ the picture holds still and is taken away; at `1` it travels with the strip and
 slides out under a shrinking window; `0.2`–`0.3` is a drift behind the closing
 edge. It is **ignored under reduced motion** — boxes trading width is the style,
 and a picture drifting underneath the one closing over it is the embellishment on
-top. There is nothing to scale on the page arriving: its box is already at the
-strip's position, so its content travels with it.
+top. The page arriving is not affected: its picture holds still, end-aligned in
+a box whose leading edge wipes across it. It used to ride in with its box, which
+was reported as the photo sliding in and out rather than being wiped.
 
 Reach for it when each page is **one picture**. Avoid it for pages with structure
 — a form, a list — because a page is measured once at the hero's width and masked

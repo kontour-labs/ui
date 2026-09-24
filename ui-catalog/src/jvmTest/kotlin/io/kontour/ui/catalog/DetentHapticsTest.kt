@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -34,6 +35,8 @@ import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
+import io.kontour.ui.components.list.rememberSwipeActionsState
+import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberReorderableState
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.RangeSlider
@@ -392,35 +395,83 @@ class DetentHapticsTest {
             "dragging across ten steps produced $ticks ticks " +
                 "(${dragged.summary()}). Ten boundaries were crossed.",
         )
-        assertTrue(
-            dragged.none { it != FeedbackIntent.Tick },
-            "the drag fired something other than detents: ${dragged.summary()}",
+        // 0.98 of the slider's bounds is past the end of its track, which is
+        // inset by the thumb, so the drag finishes by running into the end —
+        // reported once, and nothing else is.
+        assertEquals(
+            listOf(FeedbackIntent.DragThreshold),
+            dragged.filter { it != FeedbackIntent.Tick },
+            "the drag fired something other than detents and the one end stop it " +
+                "runs into: ${dragged.summary()}",
         )
     }
 
     /**
-     * A finger pushing past the end of a slider is told nothing at all.
+     * A finger that runs a slider into the end of its range feels it, once.
      *
-     * This asserted the opposite for one round, and the argument it was built on
-     * is worth keeping because it is the one that lost. It said: a tap *onto* a
-     * detent has crossed nothing, and a drag *against* the end has run out of
-     * value while the finger is still moving, which nothing on screen says at the
-     * moment it becomes true — the thumb has already stopped, and a thumb that is
-     * not moving looks the same whether the finger stopped with it.
+     * Asked for: "a haptic in standard mode to all sliders that fires when you hit
+     * the end stop". This was the other way for a round — the end stop reported
+     * nothing, on the argument that the thumb squashing against the wall already
+     * says so — and the argument lost to use: the thumb is under the finger, and a
+     * finger pushing a value it cannot see does not know it has run out until the
+     * number stops changing. `DragThreshold`, so it is not swallowed by the rate
+     * floor right after the last detent's tick; once per wall entered, so holding
+     * the finger against the stop is one report rather than a buzz.
      *
-     * What that missed is that the thumb is not only stopped, it is *squashing*
-     * against the wall and springing back off it. The end stop is the most
-     * conspicuous thing the control does. Reported, and it went — along with the
-     * same report on `RangeSlider`, the colour picker's edges, the carousel's
-     * first and last page and the wheel picker's ends, which were five ways of
-     * saying one thing that did not need saying once.
-     *
-     * A continuous slider, deliberately. With `steps` the detent ticks would
-     * drown the silence under test — and the detents are exactly what must *not*
-     * have gone quiet, which is `aSteppedSliderTicks…` next door.
+     * A continuous slider, so no detent tick is in the record to be confused with it.
      */
     @Test
-    fun aSliderSaysNothingReachingTheEndOfItsRange() {
+    fun aSliderSaysSoOnceWhenItRunsIntoItsEnd() {
+        val (felt, value) = slidAgainstTheEnd(passes = 1)
+        assertTrue(value >= 1f, "the drag never reached the end, so this proves nothing")
+        assertEquals(
+            listOf(FeedbackIntent.DragThreshold), felt,
+            "running a slider into the end of its range fired ${felt.summary()}, where it " +
+                "should report the wall once",
+        )
+    }
+
+    /** Leaving the wall re-arms it: two pushes into the end are two reports. */
+    @Test
+    fun aSliderReportsEachTimeTheEndIsReachedAgain() {
+        val (felt, _) = slidAgainstTheEnd(passes = 2)
+        assertEquals(
+            listOf(FeedbackIntent.DragThreshold, FeedbackIntent.DragThreshold), felt,
+            "into the end, back off it and into it again fired ${felt.summary()}",
+        )
+    }
+
+    /** The range slider's ends are walls too; the other thumb is not. */
+    @Test
+    fun aRangeSliderSaysSoAtTheEndOfItsTrack() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var value by mutableStateOf(0.3f..0.6f)
+        var bounds = Rect.Zero
+        Scene(width = 600, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                    RangeSlider(
+                        value = value,
+                        onValueChange = { value = it },
+                        modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            // On the end thumb, which is the nearer one to 60% of the way along.
+            scene.drag(bounds.alongX(0.6f), Offset(bounds.right + 200f, bounds.center.y), steps = 20, paceMillis = 20)
+            scene.frames(4)
+        }
+        assertTrue(value.endInclusive >= 1f, "the drag never took the end thumb to the end")
+        assertEquals(
+            listOf(FeedbackIntent.DragThreshold), felt,
+            "running a range slider's thumb into the end fired ${felt.summary()}",
+        )
+    }
+
+    /** Drags a continuous slider from the middle past its end [passes] times. */
+    private fun slidAgainstTheEnd(passes: Int): Pair<List<FeedbackIntent>, Float> {
         val felt = mutableListOf<FeedbackIntent>()
         var value by mutableStateOf(0.5f)
         var bounds = Rect.Zero
@@ -437,25 +488,25 @@ class DetentHapticsTest {
             }
         }.use { scene ->
             scene.frames(3)
-            // Mid-track to well past the right-hand end, so the last third of the
-            // gesture is entirely against the wall.
-            scene.drag(
-                bounds.alongX(0.5f),
-                bounds.alongX(1.4f),
-                steps = 20,
-                paceMillis = 20,
-            )
+            // Held down throughout: into the wall, back well clear of it, and in again.
+            val y = bounds.center.y
+            scene.press(bounds.alongX(0.5f))
+            repeat(passes) { pass ->
+                for (step in 1..20) {
+                    scene.move(Offset(bounds.left + bounds.width * (0.5f + 0.9f * step / 20f), y))
+                    scene.frame()
+                }
+                if (pass < passes - 1) {
+                    for (step in 1..20) {
+                        scene.move(Offset(bounds.left + bounds.width * (1.4f - 0.9f * step / 20f), y))
+                        scene.frame()
+                    }
+                }
+            }
+            scene.release(Offset(bounds.right + 100f, y))
             scene.frames(4)
         }
-
-        assertTrue(value >= 1f, "the drag never reached the end, so this proves nothing")
-        assertEquals(
-            emptyList(), felt,
-            "a drag off the end of a slider fired ${felt.summary()}. The thumb has " +
-                "stopped and is visibly squashing against the wall, so there is " +
-                "nothing here a haptic could add that the reader is not already " +
-                "looking at.",
-        )
+        return felt to value
     }
 
     /**
@@ -748,6 +799,79 @@ class DetentHapticsTest {
                 "the row came back — and the report was that it goes way too " +
                 "crazy. `actionWidth` is not a detent: nothing snaps there. What " +
                 "is left is the one edge the user cannot see coming.",
+        )
+    }
+
+    /**
+     * Backing off the point of no return is felt too — it undoes something — and a
+     * row moved in code is felt not at all.
+     */
+    @Test
+    fun aSwipedRowSaysSoBackingOffTheLineAndNothingWhenMovedInCode() {
+        val backedOff = mutableListOf<FeedbackIntent>()
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 200) {
+            Recording(backedOff) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    SwipeActions(
+                        modifier = Modifier.fillMaxWidth().height(72.dp)
+                            .reportBounds { bounds = it },
+                        end = listOf(
+                            SwipeAction("Delete", Tabler.Outline.Trash, {}, Color.Red, isFullSwipeAction = true),
+                        ),
+                    ) {
+                        Box(Modifier.fillMaxWidth().height(72.dp).background(Color.White))
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val out = bounds.alongX(0.1f)
+            scene.drag(bounds.alongX(0.95f), out, steps = 30, release = false)
+            // Back to just past the actions, well short of the line.
+            val back = bounds.alongX(0.7f)
+            repeat(20) { step ->
+                val t = (step + 1) / 20f
+                scene.move(Offset(out.x + (back.x - out.x) * t, out.y))
+                scene.frame()
+            }
+            scene.frames(4)
+            scene.release(back)
+            scene.frames(30)
+        }
+        assertEquals(
+            listOf(FeedbackIntent.DragThreshold, FeedbackIntent.DragThreshold), backedOff,
+            "over the point of no return and back fired ${backedOff.summary()}. The " +
+                "crossing out is one report and the crossing back, which undoes it, is " +
+                "the other.",
+        )
+
+        val inCode = mutableListOf<FeedbackIntent>()
+        Scene(width = 700, height = 200) {
+            Recording(inCode) {
+                val state = rememberSwipeActionsState()
+                LaunchedEffect(Unit) {
+                    state.animateTo(SwipeValue.End)
+                    state.reset()
+                }
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    SwipeActions(
+                        state = state,
+                        modifier = Modifier.fillMaxWidth().height(72.dp),
+                        end = listOf(
+                            SwipeAction("Delete", Tabler.Outline.Trash, {}, Color.Red, isFullSwipeAction = true),
+                        ),
+                    ) {
+                        Box(Modifier.fillMaxWidth().height(72.dp).background(Color.White))
+                    }
+                }
+            }
+        }.use { scene -> scene.frames(60) }
+        assertEquals(
+            emptyList(), inCode,
+            "a row opened and closed in code fired ${inCode.summary()}. Nobody's hand " +
+                "was on it.",
         )
     }
 

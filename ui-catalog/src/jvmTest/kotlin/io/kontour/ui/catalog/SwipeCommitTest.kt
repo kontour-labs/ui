@@ -24,64 +24,85 @@ import kotlin.test.assertTrue
 /**
  * What it takes to run a swipe action, and which action a full swipe runs.
  *
- * Three reports, one gesture:
+ * Reported twice, from two phones, about the same gesture: on Android *"the
+ * swiping is still too fiddly"* — a flick aimed at the actions ran one — and on iOS
+ * *"the swipe is way too hard to do"* — a deliberate drag across the row did not.
+ * Both came from deciding a commit by how the finger was *moving* when it let go.
  *
- * - *"The swipe actions are still a little bit too fiddly… I sometimes end up
- *   triggering the action."*
- * - *"when swiping/flicking to trigger the action, please make sure it's the
- *   outermost one that gets triggered"*
- * - *"that outermost action should expand to fill all actions, and the background
- *   colour should be of that action"*
+ * ### A point of no return instead
  *
- * ### Why the first one was not a threshold problem
+ * The commit is now a place on the row, not a speed: a little way past the actions
+ * and at least half the row. Released past it, the row commits at any speed;
+ * released short of it, it never does, however hard it was thrown. A buzz marks the
+ * line and the outermost action visibly takes the strip there, so the user can see
+ * and feel the decision before they make it.
  *
- * `swipePositionalThreshold` had already been raised from 0.4 to 0.55 for it, and
- * the component's own KDoc said raising it was the only lever there is. It was not
- * even the right lever. Foundation resolves an `anchoredDraggable` fling through a
- * `computeTarget` that takes a **velocity** threshold as well as a positional one,
- * and above that threshold — 125dp/s, a private constant, slower than any swipe
- * anybody makes on purpose — direction decides and distance stops mattering. Once
- * the row had passed its actions, the next anchor in the direction of travel was the
- * committed one. Every ordinary flick past the reveal ran the action, whatever the
- * threshold said.
+ * ### The numbers
  *
- * ### Controlling the velocity from out here
- *
- * `Scene` timestamps its pointer events off the frame clock and renders a frame per
- * move, so a move is 16ms and the velocity is the step size times 62.5 px/s. The two
- * gestures below travel the **same distance** and differ only in how many steps they
- * take, which is the distinction under test: 520px in 4 steps is 8125px/s and a
- * flick; the same 520px in 40 steps is 812px/s and a hand.
+ * Two 88dp actions at this scene's density of 2 reveal at 352px, and the point of
+ * no return is `max(352 + 96, 0.55 · 600)` = 448px. `Scene` timestamps its pointer
+ * events off the frame clock and renders a frame per move, so a move is 16ms and
+ * the velocity is the step size times 62.5 px/s.
  */
 class SwipeCommitTest {
 
     /**
-     * The same travel, twice, at two speeds. Only the flick runs the action.
+     * Carried past the point of no return, the row commits — slowly or thrown.
      *
-     * Sixty per cent of the way from the reveal to the commit: past the 0.55 the
-     * positional threshold asks for, and short of the `CommitShare` a slow drag now
-     * has to earn. On the unfixed component both of these delete the row.
+     * The slow one is the iOS report: it is the gesture a person makes when they
+     * mean it, and the old rule wanted it thrown as well.
      */
     @Test
-    fun aSlowDragRevealsWhereAFlickOfTheSameLengthCommits() {
+    fun aDragPastThePointOfNoReturnCommitsAtAnySpeed() {
         assertEquals(
-            null,
-            swipe(steps = SlowSteps),
-            "a slow drag three fifths of the way from the actions to the commit ran " +
-                "the action. It is past the positional threshold and nowhere near a " +
-                "flick, which is the gesture 'I sometimes end up triggering the " +
-                "action' describes.",
+            "Remove",
+            swipe(steps = SlowSteps, settleBeforeRelease = true),
+            "a drag carried past the point of no return and let go of gently ran " +
+                "nothing. Past the line, letting go is the decision; how fast the " +
+                "finger was moving is not.",
         )
         assertEquals(
             "Remove",
             swipe(steps = FlickSteps),
-            "the same travel, flicked, did not run the action — a firm throw is " +
-                "the gesture the commit is *for*",
+            "the same travel, flicked, did not run the action",
         )
     }
 
     /**
-     * And it is the outermost action a flick runs, not the first to opt in.
+     * Thrown hard but let go of short of the line, it only opens.
+     *
+     * The Android report: a flick aimed at the actions carried on to run one.
+     * 400px in four moves is 6,250px/s — as hard as a thumb throws — and lands past
+     * the actions and short of the 448px line.
+     */
+    @Test
+    fun aFlickShortOfThePointOfNoReturnOnlyReveals() {
+        assertEquals(
+            null,
+            swipe(steps = FlickSteps, travel = ShortOfTheLine),
+            "a hard flick let go of short of the point of no return ran the action. " +
+                "A flick opens or closes the actions; only the line commits.",
+        )
+    }
+
+    /**
+     * Over the line and back again, and nothing runs.
+     *
+     * The line is where the decision is made, so it has to be undoable: a user who
+     * feels the buzz and changes their mind backs off it.
+     */
+    @Test
+    fun backingOffThePointOfNoReturnCancelsTheCommit() {
+        assertEquals(
+            null,
+            swipe(steps = SlowSteps, backTo = ShortOfTheLine, settleBeforeRelease = true),
+            "the row was carried past the point of no return and brought back short " +
+                "of it before letting go, and the action still ran",
+        )
+    }
+
+    /**
+     * And it is the outermost action a full swipe runs, not the first to opt in.
      *
      * Order runs edge-inward, so the first declared action is the one at the screen
      * edge — the one the row is sliding onto, and the one a full swipe visibly
@@ -90,11 +111,11 @@ class SwipeCommitTest {
      * the component's own documented convention.
      */
     @Test
-    fun aFlickRunsTheOutermostActionEvenWhenAnInnerOneOptedIn() {
+    fun aFullSwipeRunsTheOutermostActionEvenWhenAnInnerOneOptedIn() {
         assertEquals(
             "Remove",
-            swipe(steps = FlickSteps, optIn = OptIn.InnerOnly),
-            "the inner action opted in and the outer one did not, and the flick ran " +
+            swipe(steps = SlowSteps, optIn = OptIn.InnerOnly),
+            "the inner action opted in and the outer one did not, and the swipe ran " +
                 "the inner one. A full swipe is the action at the screen edge " +
                 "arriving and taking the row; there is only one action it can mean.",
         )
@@ -103,23 +124,43 @@ class SwipeCommitTest {
     /** A side where nothing opted in still has no full swipe at all. */
     @Test
     fun aSideWithNoOptInStillCannotBeCommitted() {
+        assertEquals(null, swipe(steps = SlowSteps, optIn = OptIn.Neither))
         assertEquals(null, swipe(steps = FlickSteps, optIn = OptIn.Neither))
     }
 
     /**
-     * Past the reveal, the outermost action swallows the strip.
+     * At the point of no return, the outermost action takes the strip.
      *
-     * Counted rather than sampled at a point. The panels are internal, have no
+     * Counted rather than sampled at a point. The buttons are internal, have no
      * semantics of their own and move every frame, so what is observable is ink: how
      * much of the vacated strip is the outer action's colour and how much is the
-     * inner one's. Two actions of equal width start at parity, and three fifths of
-     * the way to the commit the outer one is four times the inner.
+     * inner one's. Short of the line, two actions of equal width share it; past it,
+     * the inner one has folded into the outer.
      *
      * Held rather than released, so the measurement is of the gesture rather than of
-     * what it committed to.
+     * what it committed to. Under reduced motion, so the takeover is a cut and the
+     * frame after the line already shows it.
      */
     @Test
-    fun theOutermostActionGrowsIntoTheStripPastTheReveal() {
+    fun atThePointOfNoReturnTheOutermostActionTakesTheStrip() {
+        val (shortOuter, shortInner) = heldAt(ShortOfTheLine)
+        assertTrue(
+            shortOuter > 0 && shortInner > shortOuter / 2,
+            "held short of the point of no return, the outer action holds " +
+                "${shortOuter}px of the strip and the inner one ${shortInner}px. " +
+                "Short of the line they share it.",
+        )
+        val (outer, inner) = heldAt(Travel)
+        assertTrue(
+            outer > shortOuter && inner == 0,
+            "held past the point of no return, the outer action holds ${outer}px of " +
+                "the strip and the inner one still ${inner}px. Past the line the " +
+                "action that will run is the only one showing.",
+        )
+    }
+
+    /** Each action's ink with the row held [travel] px open, not released. */
+    private fun heldAt(travel: Float): Pair<Int, Int> {
         var bounds = Rect.Zero
         var frame: BufferedImage? = null
 
@@ -140,25 +181,14 @@ class SwipeCommitTest {
             val from = Offset(Width - 20f, bounds.center.y)
             scene.drag(
                 from = from,
-                to = Offset(from.x - Travel, from.y),
+                to = Offset(from.x - travel, from.y),
                 steps = SlowSteps,
                 release = false,
             )
             frame = scene.frames(2)
-            scene.release(Offset(from.x - Travel, from.y))
+            scene.release(Offset(from.x - travel, from.y))
         }
-
-        val (outer, inner) = requireNotNull(frame).inkOf(bounds)
-        assertTrue(
-            outer > 0 && inner >= 0,
-            "no action ink at all — the row did not open",
-        )
-        assertTrue(
-            outer > inner * 2,
-            "the outer action holds ${outer}px of the strip and the inner one " +
-                "${inner}px. Past the reveal the committing action is supposed to be " +
-                "growing into the others, and at parity it is not growing at all.",
-        )
+        return requireNotNull(frame).inkOf(bounds)
     }
 
     /**
@@ -226,18 +256,10 @@ class SwipeCommitTest {
     }
 
     /**
-     * An ordinary flick reveals. Only a throw aimed past the row commits.
+     * An ordinary flick from rest reveals.
      *
-     * The second half of "still a bit fiddly", and it arrived through the *new* rule
-     * rather than the old one. Taking the anchor nearest a flick's projected landing
-     * is right for a sheet, whose detents are evenly spaced, and too generous for a
-     * row, whose reveal sits 88dp out while its commit is the whole width: a flick
-     * projecting 215dp is *nearer* to the commit than to the reveal and runs the
-     * action, having travelled 75px.
-     *
-     * So a commit has to be aimed at, not merely nearest to. 150px in eight moves is
-     * 1172px/s here — comfortably a flick, and projected about 429px, which is past
-     * the 176px reveal and well short of the 600px commit.
+     * The smallest case of the Android report: one action, a 150px flick at
+     * 1,172px/s, well short of the line. It opens the action and nothing runs.
      */
     @Test
     fun anOrdinaryFlickFromRestRevealsRatherThanCommitting() {
@@ -282,8 +304,19 @@ class SwipeCommitTest {
         )
     }
 
-    /** Which action ran, or null if none did. */
-    private fun swipe(steps: Int, optIn: OptIn = OptIn.OuterOnly): String? {
+    /**
+     * Which action ran, or null if none did, after a drag [travel] px toward the
+     * leading edge in [steps] moves — carried back to [backTo] px if given — and let
+     * go of either at once or, with [settleBeforeRelease], after the finger has been
+     * still long enough that it carries no speed.
+     */
+    private fun swipe(
+        steps: Int,
+        optIn: OptIn = OptIn.OuterOnly,
+        travel: Float = Travel,
+        backTo: Float? = null,
+        settleBeforeRelease: Boolean = false,
+    ): String? {
         var ran: String? = null
         var bounds = Rect.Zero
 
@@ -302,11 +335,20 @@ class SwipeCommitTest {
         }.use { scene ->
             scene.frames(4)
             val from = Offset(Width - 20f, bounds.center.y)
-            scene.drag(
-                from = from,
-                to = Offset(from.x - Travel, from.y),
-                steps = steps,
-            )
+            val out = Offset(from.x - travel, from.y)
+            scene.drag(from = from, to = out, steps = steps, release = false)
+            var end = out
+            if (backTo != null) {
+                end = Offset(from.x - backTo, from.y)
+                repeat(steps) { step ->
+                    val t = (step + 1).toFloat() / steps
+                    scene.move(Offset(out.x + (end.x - out.x) * t, from.y))
+                    scene.frame()
+                }
+            }
+            // Past the velocity tracker's 40ms "the finger has stopped" horizon.
+            if (settleBeforeRelease) scene.frames(4)
+            scene.release(end)
             scene.frames(SettleFrames)
         }
         return ran
@@ -360,20 +402,20 @@ class SwipeCommitTest {
         const val Height = 200
         const val RowHeight = 60
 
-        /**
-         * Three fifths of the way from the reveal to the commit, plus the touch slop
-         * the first moves of any gesture go to.
-         *
-         * Two 88dp actions at this scene's density of 2 reveal at 352px, and the
-         * commit anchor is the row's own width of 600. So the reveal-to-commit
-         * distance is 248px and this is `352 + 0.6 * 248 + 20`.
-         */
+        /** Past the 448px point of no return with room to spare. */
         const val Travel = 520f
+
+        /** Past the 352px reveal, short of the 448px point of no return. */
+        const val ShortOfTheLine = 400f
 
         /** 130px a move at 16ms: 8125px/s, well past any definition of a flick. */
         const val FlickSteps = 4
 
-        /** 13px a move: 812px/s, which is a hand moving and not a throw. */
+        /**
+         * 13px a move: 812px/s, a hand moving. Let go of mid-move that is just over
+         * the 800px/s this component counts as a flick, so the cases that mean a
+         * gentle release let the finger come to rest first.
+         */
         const val SlowSteps = 40
 
         /** A flick that is genuinely one and is genuinely short. 1172px/s. */

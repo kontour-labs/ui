@@ -2,7 +2,17 @@ package io.kontour.ui.components.list
 
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.theme.lerpCorners
 import kotlin.math.roundToInt
 
@@ -39,3 +49,32 @@ internal fun rememberMorphedShape(
 
 /** See [rememberMorphedShape]. The same twelve the backdrop's corner ramp uses. */
 private const val MorphSteps = 12
+
+/**
+ * One [Shape] for the life of a row, whose outline is whatever [shape] is now.
+ *
+ * For the press indication, which is built from a shape and compared by it: a row
+ * whose shape morphs — an `ExpandingListItem` header opening — handed its
+ * clickable a new, unequal indication at every step of the morph, and the
+ * clickable replaced the indication's node each time. The node is where a held
+ * press lives, so the wash was thrown away a frame or two after the finger
+ * lifted. Reported as the row not doing "the same hold-the-click-for-a-split-second
+ * animation as the rest of the tappable button-like components".
+ *
+ * The outline is read at draw time, which is when the indication asks for it, so
+ * the wash still follows the morph — it simply belongs to one node the whole way.
+ */
+@Composable
+internal fun rememberLiveShape(shape: Shape): Shape {
+    val live = remember { LiveShape(shape) }
+    SideEffect { live.current = shape }
+    return live
+}
+
+@Stable
+private class LiveShape(initial: Shape) : Shape {
+    var current by mutableStateOf(initial)
+
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+        current.createOutline(size, layoutDirection, density)
+}

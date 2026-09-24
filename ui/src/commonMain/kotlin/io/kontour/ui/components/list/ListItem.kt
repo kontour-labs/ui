@@ -235,6 +235,10 @@ fun ListItem(
         else -> contentColour
     }
 
+    // One indication for the life of the row, whatever its shape does. See
+    // `rememberLiveShape`: a row whose corners morph lost its held press wash.
+    val indicationShape = rememberLiveShape(shape)
+
     val interactive = onClick != null && enabled
     // Note the two conditions. A row with no `onClick` is not a control and gets
     // no click modifier at all; a row *with* one that is disabled is still a
@@ -249,7 +253,7 @@ fun ListItem(
                 interactionSource = interactions,
                 // A whole row flinching is too much movement; the tonal wash is the
                 // feedback here.
-                indication = kontourIndication(shape, pressScale = 1f),
+                indication = kontourIndication(indicationShape, pressScale = 1f),
                 enabled = enabled,
                 role = role,
                 onClick = onClick,
@@ -257,7 +261,7 @@ fun ListItem(
 
         else -> Modifier.pointerCursor(enabled = enabled).clickable(
             interactionSource = interactions,
-            indication = kontourIndication(shape, pressScale = 1f),
+            indication = kontourIndication(indicationShape, pressScale = 1f),
             enabled = enabled,
             role = role,
             onClick = onClick,

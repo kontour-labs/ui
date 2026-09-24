@@ -56,9 +56,20 @@ import kotlin.test.assertTrue
  */
 class PullToRefreshGrowthTest {
 
+    /**
+     * Measured where the circle is first allowed its full size, not at half a pull.
+     *
+     * The circle now keeps `PullToRefreshDefaults.Clearance` of page above and below
+     * it — asked for, as "a little bit more gap between the top of the list when
+     * the user first starts pulling" — so until the gap is the circle plus both
+     * clearances, 56dp of an 80dp pull, it is smaller *by geometry*. That is not
+     * the defect this test is for, and at half a pull it is unavoidable. What this
+     * guards is the compounding: once the size is not bounded, the ink has to be
+     * the sweep's share of the arc and no less.
+     */
     @Test
-    fun theArcIsHalfDrawnAtHalfAPull() {
-        val half = arcInk(fraction = 0.5f)
+    fun theArcIsInStepWithThePullOnceTheCircleIsWhole() {
+        val half = arcInk(fraction = WholeAt)
         val full = arcInk(fraction = 1f)
 
         // Only the full pull is guarded. Half a pull drawing *nothing* is not a
@@ -70,10 +81,10 @@ class PullToRefreshGrowthTest {
         )
         val share = half.toFloat() / full
         assertTrue(
-            share >= MinShare,
-            "at half a pull the arc carried ${half}px of ink against ${full}px at a " +
-                "full one, which is ${(share * 100).toInt()}% of it. The sweep is " +
-                "linear in the pull, so half a pull is meant to be half an arc — " +
+            share >= WholeAt * MinShare / 0.5f,
+            "at ${(WholeAt * 100).toInt()}% of a pull the arc carried ${half}px of ink against " +
+                "${full}px at a full one, which is ${(share * 100).toInt()}% of it. The sweep " +
+                "is linear in the pull, so this is meant to be that share of an arc — " +
                 "anything much under that is the indicator still growing while the " +
                 "arc is, and the two multiply.",
         )
@@ -158,12 +169,19 @@ class PullToRefreshGrowthTest {
         const val ThresholdTravel = 160f
 
         /**
-         * How much of the full arc has to be drawn at half a pull.
+         * How much of the full arc has to be drawn at half a pull, were the circle
+         * whole there; scaled to [WholeAt] where it is used.
          *
          * Half is the target and the bar is a little under it, because the arc
          * has round caps: a short arc keeps both of them, so its ink does not
          * fall quite in proportion to its angle. The defect is nearer a quarter.
          */
         const val MinShare = 0.42f
+
+        /**
+         * The first share of a pull at which the circle may be its full 40dp: the
+         * circle plus 8dp of clearance at each end, over the 80dp threshold.
+         */
+        const val WholeAt = 0.7f
     }
 }

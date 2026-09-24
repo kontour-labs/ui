@@ -342,8 +342,9 @@ whatever the level:
 
 | Fires | Where | Why |
 |---|---|---|
-| A **detent crossed under a finger** | `Slider`, `RangeSlider`, `WheelPicker`, `SegmentedControl`, `TabBar` swipe, `ReorderableItem`, `BottomSheet`, `SideSheet`'s expand grip (both side sheets'), `Carousel`, `ColourPicker`'s palette, `CalendarMonth` dragged | The finger is between two values and the eye is on something else. This is the case haptics exist for. All of them go through `DetentTicker` now, which is where the once-per-crossing guard and the rate limit both live. |
+| A **detent crossed under a finger** | `Slider`, `RangeSlider`, `WheelPicker`, `SegmentedControl`, `TabBar` swipe, `ReorderableItem`, `BottomSheet`, `Carousel`, `ColourPicker`'s palette, `CalendarMonth` dragged | The finger is between two values and the eye is on something else. This is the case haptics exist for. All of them go through `DetentTicker` now, which is where the once-per-crossing guard and the rate limit both live. |
 | A **threshold passed** | `PullToRefresh`, `SwipeActions`, `Switch` dragged, `Toast` swiped | What letting go will do has just changed, and nothing on screen said so first. |
+| A **slider run into its end** | `Slider`, `RangeSlider`, `ColourPicker`'s hue and opacity tracks | `DragThreshold`, once per wall a drag runs into — holding against the stop is one report, and backing off and pushing again is another. On the finger's position rather than the drawn squash, so it reports under reduced motion too. |
 | A **long press becoming a gesture** | `Menu`, `Tooltip`, `ReorderableItem` | The press has been held long enough to mean something. Nothing has visibly happened yet, which is exactly why it needs reporting. |
 | A **destructive question arriving** | `AlertDialog(destructive = true)` | The only one that fires *before* the thing it is about. Optional — see `hapticWarning`. |
 | A **control answering a press** | `Checkbox`, `RadioButton`, `Chip`, `Switch` tapped, `SegmentedControl`, `Stepper`, `Rating`, `ColourSwatchPicker`, `CalendarMonth`, `Accordion`, `ExpandingListItem`, `AnimatedCounter` counting **down** | `Medium` — a step above the texture of a detent going past, on the controls whose whole job is to answer a press. Every one of them goes through `rememberTapFeedback`, which is one call site and one shared rate limit rather than a dozen of each. |
@@ -353,21 +354,16 @@ navigation destination, a stepped slider *tapped* rather than dragged: all
 silent, at every `HapticsLevel`, because they perform no intent at all for a
 level to let through.
 
-**An end stop is the deliberate removal.** There was a sixth row here — a range
-running out, on `Slider`, `RangeSlider`, `ColourPicker`, `Carousel` and
-`WheelPicker` — and it was added on the grounds that it cost nothing against the
-count. Cost is not the test. A finger pushing against the end of a range is
-looking at a thumb that has stopped and is visibly squashing under the push, so
-the buzz was a second report of the most conspicuous thing on screen; and five
-components reporting one thing five different ways is the shape the last sweep
-took before it reached fifty-seven sites.
-
-The drum was the strongest case and went with the rest. A wheel is turned without
-being looked at, which is a real argument, and it is still not enough: a hand
-turning one is already being told about every row it crosses, so the row it stops
-on is the one report in the sequence that adds nothing. The stretch and the
-spring back at either end stay — they are what the finger is actually being
-answered by.
+**A slider's end stop was removed once and has come back.** It went on the
+grounds that a finger pushing against the end of a range is looking at a thumb that
+has stopped and is visibly squashing under the push. It came back when that turned
+out to be wrong in use: the thumb is under the finger doing the pushing, and the
+value the finger is chasing is somewhere else on the screen. Asked for as "a haptic
+in standard mode to all sliders that fires when you hit the end stop", and it is on
+the sliders only — the carousel's first and last page and the wheel's ends stay
+silent. The drum is still the strongest case for one, and it still loses: a hand
+turning a wheel is already being told about every row it crosses, so the row it
+stops on is the one report in the sequence that adds nothing.
 
 **A button is the deliberate omission.** It is the control most likely to appear
 twenty times on a screen, and a press that is already answered by a state change,
@@ -392,7 +388,7 @@ confirmation when the action ran, and a settle when the row came back. A
 `WheelPicker` fired the moment it was composed, before anything touched it, so
 opening a `TimePicker` was three buzzes for arriving at a screen.
 
-**Ten sites are left, and the light tier that has just been added took none of
+**Nine sites are left, and the light tier that has just been added took none of
 them.** That is the part worth understanding, because the obvious reading of
 "twelve components now acknowledge a press" is that the audit has been undone.
 
@@ -406,8 +402,9 @@ construction rather than by each caller remembering it.
 
 The switch's own site went with the move: it performed `DragThreshold` directly
 and now goes through the ticker, which is what left room for the tap helper
-without the ceiling rising. Net zero, and the count the build checks is unchanged
-at ten.
+without the ceiling rising. Net zero at the time; the count the build checks has
+since gone to nine, when `SwipeActions`' point of no return moved onto the ticker
+as well — a threshold is a detent with two sides.
 
 The rule that removed the original forty-seven is the two-tier one above, and what
 holds the line is a count rather than a review: the build fails if the number goes
@@ -424,17 +421,16 @@ removal is the row it is on.
 
 | Component | Fired | Now | Why |
 |---|---|---|---|
-| `Slider` | `Tick` on press, `Tick` per step dragged, `GestureEnd` on release | `Tick` per step **dragged** | A tap sets a value without travelling, so it crosses no detent. The release crosses nothing either. An end stop was added here and then removed: the thumb has stopped and is squashing against the wall, which says it better than a buzz does. |
-| `RangeSlider` | The same three | `Tick` per step dragged | Same rule, same component, two handles. Running into the *other* thumb was never reported either, and for the same reason the ends are not: the shove is already visible in the reach the thumbs deform by. |
+| `Slider` | `Tick` on press, `Tick` per step dragged, `GestureEnd` on release | `Tick` per step **dragged**, `DragThreshold` on running into either end | A tap sets a value without travelling, so it crosses no detent. The release crosses nothing either. The end stop was added, removed and added back — see above. |
+| `RangeSlider` | The same three | `Tick` per step dragged, `DragThreshold` at either end of the track | Same rule, same component, two handles. Running into the *other* thumb is not reported: the shove is already visible in the reach the thumbs deform by, and the other thumb is not the end of anything. |
 | `WheelPicker` | `Tick` on composition, `Tick` per row, `Tick` through a caller's spring | `Tick` per row | `snapshotFlow` emits its current value first, so every wheel buzzed on arrival — three for a `TimePicker`, before the screen had finished appearing. A `Reject` at the first or last value came and went: it was the best argued of the end stops, because a drum really is turned without being looked at, and it was still one report at the end of a sequence that had been reporting every row on the way. |
 | `SegmentedControl` | `Selection` on tap, `GestureEnd` on release | `Tick` per segment **crossed**, `Tap` on a change | A thumb sliding past a segment is a detent, and both tiers are honestly present here: the drag reports crossings and a press reports that the control took it. What went is the `GestureEnd` — the thumb arriving is a thing the eye is on. |
 | `TabBar` | `Selection` on tap ×2 | `Tick` per tab crossed by a **swipe** | Same distinction. Tapping a tab is watched; swiping past one is not. |
 | `ReorderableItem` | `LongPress`, `GestureEnd` on drop | `LongPress` (touch only), `Selection` per position change, `Tick` on drop | The position changes are the news, once per gap crossed. The drop is lighter than they are, and the long press no longer fires on the mouse-and-handle path, where there is no threshold to announce. |
 | `PullToRefresh` | `DragThreshold` | `DragThreshold` | Kept whole: it is the one moment that says letting go will do something. |
-| `SwipeActions` | `Tick` per action width, `DragThreshold`, `Confirm` on run, `GestureEnd` on settle | `DragThreshold` | Four intents across one swipe. `actionWidth` is arithmetic, not an anchor. |
+| `SwipeActions` | `Tick` per action width, `DragThreshold`, `Confirm` on run, `GestureEnd` on settle | `DragThreshold` at the point of no return, and again backing off it | Four intents across one swipe. `actionWidth` is arithmetic, not an anchor. What is left is the line past which letting go runs the action, reported through `DetentTicker` as a two-sided threshold, so a row moved in code with `animateTo` is silent. |
 | `Switch` | `Selection` on tap, and on the crossing, and on release | `Tap` on a tap, `DragThreshold` on the **crossing** of a drag | Two gestures, two different reports, and the switch is the only component that gives both. The drag's is the interesting one: it commits as the thumb goes over the midpoint, so what letting go will do changes under the finger with nothing on screen having said so. The tap's came back after the silence was reported as the control reading dead next to a checkbox that answers — and it goes through the ticker now rather than performing directly, which is a midpoint being a two-sided threshold and is what paid for the tap helper's site. |
 | `BottomSheet` | — | `Tick` per detent **dragged** across | The one the audit left open on purpose. `targetDetent` is the right signal and changes the instant a drag passes the threshold, but nothing told that apart from the same field changing because code called `animateTo` — and a sheet that buzzes when it is opened programmatically is worse than one that is silent. `SheetState.draggedByHand` is that distinction, taken from the drag's own interaction source. Costs nothing against the ceiling: it goes through `DetentTicker` like every other detent. |
-| `SideSheet` | — | `Tick` as an **expandable** sheet's grip is dragged across to the other width | Both side sheets, `ModalSideSheet` too — the grip is one piece of code under both. The bottom sheet's rule on the other axis, and for the same reason: resting and the whole window are two detents, and the grip is dragged without the eye on a number. Only a drag by hand — `expand()` in code, a tap on the grip and a screen reader's action are all watched, and none of them tick. Through `DetentTicker`, so free against the ceiling. |
 | `Carousel` | — | `Tick` per page crossed **under a finger** | A carousel's pages are detents in the strictest sense: the card snaps to one and rests there, and the eye is on the card rather than on a counter. What it must not report is a page reached any other way — the accessibility actions, the indicator's dots and an autoplay all call `scrollToPage`, and a carousel that buzzes when a dot is clicked is buzzing for something the reader is already watching. The drag signal comes from the list's own interaction source, plus the pointer drag's, which does not go through the list at all. |
 | `Toast` | — | `DragThreshold` as the swipe passes its dismiss point | One report, at the one moment in the gesture that has a consequence. The threshold is *derived from the release's own condition* rather than set beside it — one expression decides the buzz and the dismissal — which is the mistake `SwipeActions` shipped and then fixed. Also free against the ceiling: a threshold is a detent with two sides, so it goes through the same ticker with an index of 0 or 1. |
 | `AlertDialog` | — | `Warn`, for a destructive alert | The one addition, and the only haptic that fires for something that has **not** happened yet. Opt-out; inert on a non-destructive alert however it is set. |

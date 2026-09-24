@@ -58,7 +58,9 @@ private fun Screen(content: @Composable BoxScope.() -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(420.dp)
+            // Tall enough that a sheet at `Half` still leaves the page behind it
+            // readable, and a modal sheet's content is not cut off on a phone.
+            .height(520.dp)
             .border(
                 width = Theme.sizing.borderWidth,
                 color = Theme.colours.outline,
@@ -271,27 +273,6 @@ internal val ModalBottomSheetDemo = ComponentDemo(
 
 private val sheetSide = Knob.Choice("Side", SheetSide.entries.toList(), SheetSide.Start)
 
-/** Flush to its edge, or a panel floating clear of three of them. */
-private val sideSheetPresentation =
-    Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Floating)
-
-/**
- * The same choice for the modal sheet, starting where the modal sheet does: at the
- * edge, since the page behind it recedes into a frame of its own.
- */
-private val modalSideSheetPresentation =
-    Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Edge)
-
-/**
- * A grip on the sheet's inner edge that drags it out to the whole window. On a
- * phone the card is barely wider than the sheet, so there is little to drag across
- * — which is the rule for a window with nothing to expand into.
- */
-private val sideSheetExpandable = Knob.Flag("Expandable", initial = true)
-
-/** Whether a floating sheet becomes an edge sheet as it widens. */
-private val sideSheetEdgeMorph = Knob.Flag("Expands to edge", initial = true)
-
 /**
  * The non-modal side sheet: a rail beside a page that stays usable.
  *
@@ -300,7 +281,7 @@ private val sideSheetEdgeMorph = Knob.Flag("Expands to edge", initial = true)
  */
 internal val SideSheetDemo = ComponentDemo(
     slug = "side-sheet",
-    knobs = listOf(sheetSide, sideSheetPresentation, sideSheetExpandable, sideSheetEdgeMorph),
+    knobs = listOf(sheetSide),
 ) {
     var open by remember { mutableStateOf(true) }
     val side = this[sheetSide]
@@ -320,9 +301,6 @@ internal val SideSheetDemo = ComponentDemo(
             visible = open,
             side = side,
             width = 180.dp,
-            presentation = this@ComponentDemo[sideSheetPresentation],
-            expandable = this@ComponentDemo[sideSheetExpandable],
-            edgeMorph = this@ComponentDemo[sideSheetEdgeMorph],
             paneTitle = "Filters",
         ) {
             // No scrim and no back gesture: the app owns `visible`, so the header's
@@ -335,7 +313,7 @@ internal val SideSheetDemo = ComponentDemo(
 
 internal val ModalSideSheetDemo = ComponentDemo(
     slug = "modal-side-sheet",
-    knobs = listOf(sheetSide, modalSideSheetPresentation, sideSheetExpandable, sideSheetEdgeMorph, sheetDismissible),
+    knobs = listOf(sheetSide, sheetDismissible),
 ) {
     var open by remember { mutableStateOf(false) }
     val side = this[sheetSide]
@@ -352,9 +330,6 @@ internal val ModalSideSheetDemo = ComponentDemo(
             onDismissRequest = { open = false },
             side = side,
             width = 240.dp,
-            presentation = this@ComponentDemo[modalSideSheetPresentation],
-            expandable = this@ComponentDemo[sideSheetExpandable],
-            edgeMorph = this@ComponentDemo[sideSheetEdgeMorph],
             dismissible = dismissible,
             onBack = { open = false },
         ) {

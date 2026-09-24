@@ -25,6 +25,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
@@ -39,6 +40,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.horizontalDragOwning
@@ -148,6 +150,16 @@ fun Slider(
      */
     contentDescription: String? = null,
     stateDescription: ((Float) -> String)? = null,
+    /**
+     * The value, in a bubble above the head while it is held.
+     *
+     * Asked for as "the option to display a label above the head as you're
+     * dragging it". Off unless given: most sliders sit beside a number that
+     * already says what they are set to. Shown from the moment the head is
+     * pressed until it is let go, and drawn outside the slider's own bounds — so
+     * give the slider room above it, or a clipping parent will cut the bubble.
+     */
+    valueLabel: ((Float) -> String)? = null,
     onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
@@ -227,6 +239,20 @@ fun Slider(
 
 
     val range = valueRange.endInclusive - valueRange.start
+
+    // The label above the head, measured in composition and drawn in the draw
+    // pass. See `sliderValueLabel`.
+    val labelMeasurer = rememberTextMeasurer()
+    val labelStyle = Theme.typography.labelMedium.copy(color = colours.onSurfaceInverse)
+    val labelProgress by animateFloatAsState(
+        targetValue = if (valueLabel != null && active) 1f else 0f,
+        animationSpec = motion.springOrTween(motion.springSnappy),
+        label = "sliderValueLabel",
+    )
+    val labelPaddingH = with(density) { Theme.spacing.xs.toPx() }
+    val labelPaddingV = with(density) { Theme.spacing.xxs.toPx() }
+    val labelGap = with(density) { SliderLabelGap.toPx() }
+    val rtl = layoutDirection == LayoutDirection.Rtl
     val fraction = if (range == 0f) 0f else ((value - valueRange.start) / range).coerceIn(0f, 1f)
 
     val currentOnValueChange by rememberUpdatedState(onValueChange)
@@ -251,16 +277,14 @@ fun Slider(
     // a frame. `sliderThumb` normalises by the same number.
     val thumbSquashPx = with(LocalDensity.current) { EndStopTravel.toPx() }
 
-    // **An end stop reports nothing, and that is deliberate.**
+    // **An end stop reports once, when the drag runs into it.**
     //
-    // There was a ticker here, latched on which wall the finger was against and
-    // costing nothing against the site count. Free is not the same as wanted: a
-    // finger pushing against the end of a range already knows it is against the
-    // end, because the thumb stopped and the squash above is showing the push
-    // being refused. A haptic is for something the reader could not otherwise
-    // tell, and this is the opposite — a second report of the most visible thing
-    // on screen. The detents keep theirs, which are genuinely invisible: a value
-    // crossing a step under a fingertip that is covering it.
+    // It reported nothing for a while, on the argument that the thumb squashing
+    // against the wall already says so. That lost to use: asked for as "a haptic
+    // in standard mode to all sliders that fires when you hit the end stop". The
+    // thumb is under the finger that is pushing it. Latched on the wall — see
+    // `EndStopLatch` — so holding against it is one report, not a buzz.
+    val endStop = rememberEndStopLatch()
 
     // Read here rather than inside `drawWithCache`, which is not a composable.
     val tickSize = Theme.componentDefaults.sliderTickSize
@@ -520,6 +544,7 @@ fun Slider(
                         // Not carrying yet: the value is at the finger, and the
                         // thumb travels there. See [carrying].
                         carrying = false
+                        endStop.arm()
                         emit(dragFraction)
                     },
                     onDelta = { delta ->
@@ -541,12 +566,16 @@ fun Slider(
                         // the track has to answer before anything is pulled, or
                         // the last pixel of the slider stops reporting.
                         emit(dragFraction)
+                        // On the unclamped position, so it reports under reduced
+                        // motion as well, where the band is switched off.
+                        endStop.at(if (raw > 1f) 1 else if (raw < 0f) -1 else 0)
                         if (!motion.reduceMotion) {
                             band.pull((raw - dragFraction) * widthPx, thumbSquashPx)
                         }
                     },
                     onEnd = {
                         ticker.reset()
+                        endStop.reset()
                         // **Slower than the stretch, and that is the whole
                         // fix.** The thumb's drawn width is
                         // `width·(1−pull) + 1.5r·pull`, so a squash that
@@ -601,7 +630,15 @@ fun Slider(
                         // fraction the track does not draw at.
                         val trackLeft = thumbReachPx
                         val trackWidth = (size.width - thumbReachPx * 2f).coerceAtLeast(0f)
-                        val thumbX = trackLeft + trackWidth * drawnFraction
+                        // **Mirrored right to left**, as the pointer maths above
+                        // always was. The drawing was not: a right-to-left slider
+                        // took a touch at its right-hand end as its minimum and
+                        // then drew the thumb at its left.
+                        val along = if (rtl) 1f - drawnFraction else drawnFraction
+                        val thumbX = trackLeft + trackWidth * along
+                        // The physical direction the value grows in, for the two
+                        // signals below that are measured along the value.
+                        val sense = if (rtl) -1f else 1f
 
                         drawRoundRect(
                             color = inactiveColour,
@@ -609,10 +646,12 @@ fun Slider(
                             size = Size(trackWidth, trackHeightPx),
                             cornerRadius = CornerRadius(trackHeightPx / 2f),
                         )
+                        val filledFrom = if (rtl) thumbX else trackLeft
+                        val filledTo = if (rtl) trackLeft + trackWidth else thumbX
                         drawRoundRect(
                             color = activeColour,
-                            topLeft = Offset(trackLeft, trackTop),
-                            size = Size(thumbX - trackLeft, trackHeightPx),
+                            topLeft = Offset(filledFrom, trackTop),
+                            size = Size(filledTo - filledFrom, trackHeightPx),
                             cornerRadius = CornerRadius(trackHeightPx / 2f),
                         )
 
@@ -627,7 +666,7 @@ fun Slider(
                                 heightPx = tickHeightPx,
                                 coveredColour = colours.onPrimary,
                                 uncoveredColour = colours.contentSubtle,
-                                covered = { x -> x <= thumbX },
+                                covered = { x -> if (rtl) x >= thumbX else x <= thumbX },
                             )
                         }
 
@@ -637,18 +676,32 @@ fun Slider(
                             radiusPx = thumbRadiusPx,
                             scale = thumbScale,
                             aspect = thumbAspect,
-                            reachPx = thumbReach * trackWidth,
+                            reachPx = thumbReach * trackWidth * sense,
                             // The end stop, in its own channel. It used to be
                             // summed into the reach above, which made a thumb
                             // pushed into the end of the track grow backwards
                             // away from the wall — see `sliderThumb`.
-                            squashPx = band.offset,
+                            squashPx = band.offset * sense,
                             // A ring of the page colour keeps the thumb legible
                             // where it overlaps the filled track.
                             ringColour = colours.surface,
                             fillColour = thumbColour,
                             ringPx = SliderThumbRing.toPx(),
                         )
+
+                        if (valueLabel != null && labelProgress > 0f) {
+                            sliderValueLabel(
+                                text = labelMeasurer.measure(valueLabel(value), labelStyle),
+                                centreX = thumbX,
+                                thumbTop = centreY - thumbRadiusPx * thumbScale,
+                                progress = labelProgress,
+                                scaleIn = !motion.reduceMotion,
+                                container = colours.surfaceInverse,
+                                paddingHorizontal = labelPaddingH,
+                                paddingVertical = labelPaddingV,
+                                gap = labelGap,
+                            )
+                        }
                     }
                 }
         ) {}
@@ -688,6 +741,9 @@ object SliderDefaults {
      */
     const val ThumbAspect: Float = 1.5f
 }
+
+/** Between the bottom of a value label and the top of the head it belongs to. */
+internal val SliderLabelGap = 6.dp
 
 /** The page-coloured ring around a thumb. Constant, not scaled — see `sliderThumb`. */
 internal val SliderThumbRing = 2.dp

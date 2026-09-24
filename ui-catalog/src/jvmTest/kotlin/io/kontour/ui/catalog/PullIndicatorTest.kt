@@ -112,6 +112,35 @@ class PullIndicatorTest {
         }
     }
 
+    /**
+     * There is page between the circle and the list from the first pixels of a pull.
+     *
+     * Reported from a phone: the circle needs "a little bit more gap between the top
+     * of the list when the user first starts pulling on it". Sized to the gap, it
+     * filled the gap exactly — its bottom edge resting on the list's top edge until
+     * the gap passed 40dp — so early in a pull it read as sitting on the content
+     * rather than in the space above it. It now keeps [Clearance] of page above and
+     * below at every gap, and is smaller for it while the gap is short.
+     */
+    @Test
+    fun theCircleKeepsItsDistanceFromTheListEarlyInAPull() {
+        pulledTo(EarlyGap) { frame ->
+            val top = frame.contentTop()
+            val (_, rows) = requireNotNull(frame.lightBounds()) { "no indicator was drawn" }
+            val below = top - rows.last - 1
+            val above = rows.first
+            assertTrue(
+                below >= Clearance - 2,
+                "${EarlyGap.toInt()}px into a pull the circle ends ${below}px above the list, " +
+                    "where it should keep ${Clearance}px of page between them",
+            )
+            assertTrue(
+                above >= Clearance - 2,
+                "the circle starts ${above}px below the top, where it should keep ${Clearance}px",
+            )
+        }
+    }
+
     /** Opens the gap to exactly [gap] pixels, lets it settle, and reads the frame. */
     private fun pulledTo(gap: Float, check: (BufferedImage) -> Unit) {
         var state: PullToRefreshState? = null
@@ -170,6 +199,12 @@ class PullIndicatorTest {
     }
 
     private companion object {
+        /** 30dp of pull: under the circle's own size, where it used to fill the gap. */
+        const val EarlyGap = 60f
+
+        /** `Theme.spacing.xs` above and below the circle, at the scene's density of 2. */
+        const val Clearance = 16
+
         /** 40dp of indicator at the scene's density of 2. */
         const val IndicatorPx = 80f
 

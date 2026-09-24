@@ -24,13 +24,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * The non-modal sheets float unless asked not to; the modal ones meet the edge.
+ * The non-modal bottom sheet floats unless asked not to; everything else meets the
+ * edge.
  *
- * Each of these is built with no `presentation` at all. `BottomSheet` and
- * `SideSheet` come out `sheetFloatingInset` — 12dp, 24px at this density — clear of
- * the window's edge they belong to. The modal sheets recede the page behind them,
- * and a floating panel over a receded page was reported as not feeling right — two
- * frames around one thing — so they are flush to their edge unless a caller asks.
+ * Each of these is built with no `presentation` at all. `BottomSheet` comes out
+ * `sheetFloatingInset` — 12dp, 24px at this density — clear of the window's edge.
+ * The modal sheets recede the page behind them, and a floating panel over a
+ * receded page was reported as not feeling right — two frames around one thing —
+ * so they are flush to their edge unless a caller asks. The side sheets have no
+ * floating presentation any more: tried, and not wanted.
  *
  * Measured in a colour only the sheet paints, for the reason every sheet test here
  * gives: a modal dims the page and recedes it, so "not the sheet" is the only
@@ -64,11 +66,11 @@ class SheetDefaultsTest {
     }
 
     @Test
-    fun aSideSheetFloats() {
+    fun aSideSheetIsAnEdgeSheet() {
         val image = scene(1400, 900) {
             SideSheet(visible = true, width = 300.dp, containerColour = SheetColour) {}
         }
-        assertEquals(Margin, image.gapRight(), "a SideSheet with no presentation is not floating")
+        assertEquals(0, image.gapRight(), "a SideSheet is off its edge")
     }
 
     @Test

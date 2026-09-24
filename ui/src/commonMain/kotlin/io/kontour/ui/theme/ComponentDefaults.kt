@@ -134,17 +134,17 @@ data class ComponentDefaults(
     /** Between a row's label and its supporting line. */
     val listItemSpacing: Dp = 2.dp,
     /**
-     * How far between two swipe anchors a release has to be to carry on.
+     * How far into a swipe row's actions a slow release has to be to open them,
+     * and how far back out to close them.
      *
-     * 0.55, from 0.4. At two fifths a row revealed its actions on a gesture that
-     * was half a mind to and a full swipe committed from a little over a third
-     * of the way across, which is the "too fiddly" report. It is here rather
-     * than in `SwipeActionsDefaults` because how hard a row is to swipe is a
-     * feel a design system picks, not a fact about the component — and because
-     * it is the only lever there is: the fling underneath takes a positional
-     * threshold and no velocity.
+     * 0.35, down from 0.55. At 0.55, with a commit beyond it that wanted four
+     * fifths of the rest of the row, a swipe was reported as "way too hard to do"
+     * on iOS. A flick decides by direction and the commit by a point of no return,
+     * so this is only the slow case now. Here rather than in
+     * `SwipeActionsDefaults` because how hard a row is to swipe is a feel a
+     * design system picks, not a fact about the component.
      */
-    val swipePositionalThreshold: Float = 0.55f,
+    val swipePositionalThreshold: Float = 0.35f,
     val scrollbarThickness: Dp = 6.dp,
     val scrollbarHoveredThickness: Dp = 10.dp,
     val swipeActionWidth: Dp = 88.dp,
@@ -164,17 +164,19 @@ data class ComponentDefaults(
     /**
      * How much of the next page a hero carousel shows beside the current one.
      *
-     * The narrow box in `CarouselStyle.Hero`. Ninety-six: wide enough to read as
-     * a picture with something in it rather than a stripe, narrow enough that the
-     * page you are looking at is plainly the subject. It is also a comfortable
-     * target — a tap on it turns the page — where anything under a touch target
-     * would be an affordance you can see and cannot hit.
+     * **None, by default**: one page at a time, the frame holding the hero alone and
+     * the gap opening between two boxes only while a swipe is in flight. Asked for
+     * as the default, and it is also the case in which a hero's picture holds
+     * perfectly still while its box wipes over it — with a peek, a page arriving
+     * slides the last gap-and-a-peek of its way home.
      *
      * A brand's dial, which is why it is here: how much of the next thing to show
-     * is a decision about the *pictures*, and a gallery of wide landscapes wants
-     * less of it than a row of book covers.
+     * is a decision about the *pictures*. Around 96dp reads as a picture with
+     * something in it rather than a stripe, narrow enough that the page being
+     * looked at is plainly the subject, and a comfortable target — a tap on it
+     * turns the page.
      */
-    val carouselHeroPeek: Dp = 96.dp,
+    val carouselHeroPeek: Dp = 0.dp,
     val keyValueLabelWidth: Dp = 108.dp,
     val keyValueMinValueWidth: Dp = 96.dp,
     /** The blank between the end of a marquee's text and its repeat. */

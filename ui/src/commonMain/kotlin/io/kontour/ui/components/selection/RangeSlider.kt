@@ -33,6 +33,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.text.rememberTextMeasurer
+import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
@@ -137,6 +139,13 @@ fun RangeSlider(
     startContentDescription: String = Theme.strings.rangeStart,
     endContentDescription: String = Theme.strings.rangeEnd,
     stateDescription: ((ClosedFloatingPointRange<Float>) -> String)? = null,
+    /**
+     * The value under the finger, in a bubble above the head being held. See
+     * [Slider]'s: off unless given, and drawn outside the control's bounds. One
+     * label, over the thumb the finger has — a thumb being shoved along by it is
+     * not the one being read.
+     */
+    valueLabel: ((Float) -> String)? = null,
     onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
@@ -215,6 +224,16 @@ fun RangeSlider(
      * collapsing and then reopening from the other side.
      */
     var activeThumb by remember { mutableStateOf(Thumb.None) }
+
+    // The label's thumb outlives the drag by as long as the label takes to fade:
+    // `activeThumb` goes back to `None` the moment the finger lifts.
+    val labelled = remember { LabelledThumb() }
+    if (activeThumb != Thumb.None) labelled.thumb = activeThumb
+    val labelProgress by animateFloatAsState(
+        targetValue = if (valueLabel != null && active && activeThumb != Thumb.None) 1f else 0f,
+        animationSpec = motion.springOrTween(motion.springSnappy),
+        label = "rangeSliderValueLabel",
+    )
 
     /**
      * The grow-and-stretch, **per thumb**.
@@ -342,9 +361,17 @@ fun RangeSlider(
      */
     val band = rememberRubberBand()
 
-    // No report at either end of the range — see the note where `Slider`'s used
-    // to be. The thumb has stopped and is visibly giving under the push, which is
-    // the whole of the news.
+    // Once each time a thumb runs into the end of the track — see `Slider`'s. The
+    // other thumb is not a wall: running into it is a shove, and looks like one.
+    val endStop = rememberEndStopLatch()
+
+    // The label over the held thumb. See `Slider`'s.
+    val labelMeasurer = rememberTextMeasurer()
+    val labelStyle = Theme.typography.labelMedium.copy(color = colours.onSurfaceInverse)
+    val labelPaddingH = with(density) { Theme.spacing.xs.toPx() }
+    val labelPaddingV = with(density) { Theme.spacing.xxs.toPx() }
+    val labelGap = with(density) { SliderLabelGap.toPx() }
+    val rtl = layoutDirection == LayoutDirection.Rtl
     // See `Slider`: the limit is the finger's travel past the stop, not a
     // fraction of the thumb, and `sliderThumb` normalises by the same number.
     val thumbSquashPx = with(LocalDensity.current) { EndStopTravel.toPx() }
@@ -714,6 +741,7 @@ fun RangeSlider(
                             }
                             carrying = false
                             emitted = null
+                            endStop.arm()
                         },
                         onDelta = { delta ->
                             val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
@@ -781,6 +809,7 @@ fun RangeSlider(
                                     raw < 0f -> raw
                                     else -> 0f
                                 }
+                                endStop.at(if (raw > 1f) 1 else if (raw < 0f) -1 else 0)
                                 if (past != 0f && !motion.reduceMotion) {
                                     // The band is this thumb's until it has
                                     // sprung all the way home. See [bandThumb].
@@ -845,6 +874,7 @@ fun RangeSlider(
                                 )
                             }
                             ticker.reset()
+                            endStop.reset()
                             dragFraction = Float.NaN
                             pressFraction = Float.NaN
                             carrying = false
@@ -869,8 +899,13 @@ fun RangeSlider(
                             // note in `Slider`. Must match the pointer maths.
                             val trackLeft = thumbReachPx
                             val trackWidth = (size.width - thumbReachPx * 2f).coerceAtLeast(0f)
-                            val startX = trackLeft + trackWidth * drawnStart
-                            val endX = trackLeft + trackWidth * drawnEnd
+                            // Mirrored right to left, as the pointer maths
+                            // always was — see `Slider`.
+                            val startX = trackLeft + trackWidth * (if (rtl) 1f - drawnStart else drawnStart)
+                            val endX = trackLeft + trackWidth * (if (rtl) 1f - drawnEnd else drawnEnd)
+                            val bandLeft = minOf(startX, endX)
+                            val bandRight = maxOf(startX, endX)
+                            val sense = if (rtl) -1f else 1f
 
                             drawRoundRect(
                                 color = inactiveColour,
@@ -883,8 +918,8 @@ fun RangeSlider(
                             // start of the track, and here it does not.
                             drawRoundRect(
                                 color = activeColour,
-                                topLeft = Offset(startX, trackTop),
-                                size = Size(endX - startX, trackHeightPx),
+                                topLeft = Offset(bandLeft, trackTop),
+                                size = Size(bandRight - bandLeft, trackHeightPx),
                                 cornerRadius = CornerRadius(trackHeightPx / 2f),
                             )
 
@@ -904,23 +939,23 @@ fun RangeSlider(
                                     // takes a predicate. Not the *only*
                                     // difference from `Slider`: the painter order
                                     // below and [bandThumb] are the others.
-                                    covered = { x -> x in startX..endX },
+                                    covered = { x -> x in bandLeft..bandRight },
                                 )
                             }
 
                             val startThumb =
                                 DrawnThumb(
                                     startX,
-                                    reachStart * trackWidth,
-                                    squashStart,
+                                    reachStart * trackWidth * sense,
+                                    squashStart * sense,
                                     startScale,
                                     startAspect,
                                 )
                             val endThumb =
                                 DrawnThumb(
                                     endX,
-                                    reachEnd * trackWidth,
-                                    squashEnd,
+                                    reachEnd * trackWidth * sense,
+                                    squashEnd * sense,
                                     endScale,
                                     endAspect,
                                 )
@@ -961,6 +996,28 @@ fun RangeSlider(
                                     ringColour = colours.surface,
                                     fillColour = activeColour,
                                     ringPx = SliderThumbRing.toPx(),
+                                )
+                            }
+
+                            val held = when (labelled.thumb) {
+                                Thumb.Start -> startThumb
+                                Thumb.End -> endThumb
+                                Thumb.None -> null
+                            }
+                            if (valueLabel != null && labelProgress > 0f && held != null) {
+                                sliderValueLabel(
+                                    text = labelMeasurer.measure(
+                                        valueLabel(if (held === startThumb) value.start else value.endInclusive),
+                                        labelStyle,
+                                    ),
+                                    centreX = held.x,
+                                    thumbTop = centreY - thumbRadiusPx * held.scale,
+                                    progress = labelProgress,
+                                    scaleIn = !motion.reduceMotion,
+                                    container = colours.surfaceInverse,
+                                    paddingHorizontal = labelPaddingH,
+                                    paddingVertical = labelPaddingV,
+                                    gap = labelGap,
                                 )
                             }
                         }
@@ -1061,6 +1118,11 @@ private class DrawnThumb(
 )
 
 private enum class Thumb { Start, End, None }
+
+/** Which thumb the value label is over. Not state: only the draw reads it. */
+private class LabelledThumb {
+    var thumb: Thumb = Thumb.None
+}
 
 /**
  * How close two thumbs must be for a drag to defer to direction.

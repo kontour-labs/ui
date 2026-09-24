@@ -62,6 +62,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.withinOrNull
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.adaptive.topEdges
@@ -82,9 +83,9 @@ import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 /** What a toast is reporting. */
 enum class ToastTone { Neutral, Success, Warning, Danger, Accent }
@@ -197,6 +198,16 @@ class ToastHostState {
      */
     internal var clears by mutableIntStateOf(0)
         private set
+
+    /**
+     * When the last toast ran out of time and started to leave.
+     *
+     * Read by the next one to run out, which waits until [ToastStagger] has passed
+     * since, so a stack whose clocks all arrive together still leaves one toast at
+     * a time. Not state: nothing is drawn from it, and it is only read by a clock
+     * that is about to expire.
+     */
+    internal var lastExpiry: TimeSource.Monotonic.ValueTimeMark? = null
 
     /** Starts [id] on its way out. It leaves the list once it has animated away. */
     fun dismiss(id: Long) {
@@ -886,7 +897,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     // Any of the three things that can interrupt the wait, together:
                     // this toast reaches the front, the user sends another one away
                     // by hand, or a finger arrives on the stack.
-                    val moved = withTimeoutOrNull(left) {
+                    val moved = withinOrNull(left) {
                         snapshotFlow { Triple(atFront, state.clears, held.value) }
                             .first { (nowFront, nowClears, nowHeld) ->
                                 nowFront != front || nowClears != clears || nowHeld
@@ -905,9 +916,39 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                         if (front) left = maxOf(left, floor)
                     }
                 }
-                // `expire`, not `dismiss`: running out of time is the stack
-                // working, and must not read as the user clearing one.
-                if (onScreen) state.expire(toast.id) else state.remove(toast)
+                // **Oldest first, and one at a time.**
+                //
+                // Reported: raise a handful, drag one away, and the rest all left
+                // on exactly the same frame, however far apart they were raised.
+                // Clearing one by hand buys the others time, and the purchase
+                // above caps every clock at a full lifetime — so every toast
+                // younger than a second came out of it holding the same number
+                // and ran out together. The promotion floor does the same thing
+                // more quietly.
+                //
+                // The stack is back to front in the order it was raised, so the
+                // order it leaves in is fixed rather than computed: nothing goes
+                // while an older toast is still showing, and nothing goes within
+                // [ToastStagger] of the last one that did. A pinned toast is not
+                // waited for — it is not going anywhere.
+                snapshotFlow {
+                    state.toasts.none { older ->
+                        older.id < toast.id && older.durationMillis > 0 && older.presence.targetState
+                    }
+                }.first { it }
+                if (onScreen) {
+                    val since = state.lastExpiry?.elapsedNow()?.inWholeMilliseconds
+                    if (since != null && since < ToastStagger) delay(ToastStagger - since)
+                    // A finger that arrived during the wait holds this one too.
+                    if (held.value) snapshotFlow { held.value }.first { !it }
+                    state.lastExpiry = TimeSource.Monotonic.markNow()
+                    // `expire`, not `dismiss`: running out of time is the stack
+                    // working, and must not read as the user clearing one.
+                    state.expire(toast.id)
+                } else {
+                    // Nothing to see leave, so nothing to space out.
+                    state.remove(toast)
+                }
             }
         }
     }
@@ -1460,3 +1501,12 @@ private fun ToastSurface(
         }
     }
 }
+
+/**
+ * How long apart two toasts that run out together leave, in milliseconds.
+ *
+ * Long enough that the eye sees one go and then the next — shorter reads as the
+ * stack leaving as one, which was the report — and short enough that a stack of
+ * four is gone within a second of the first leaving.
+ */
+private const val ToastStagger = 250L

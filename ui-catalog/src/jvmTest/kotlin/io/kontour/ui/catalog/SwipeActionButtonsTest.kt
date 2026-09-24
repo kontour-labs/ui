@@ -27,7 +27,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Where a row's actions sit, and what colour the ground behind it is.
+ * Where a row's action buttons sit, and what shows between them.
  *
  * With one action a side there is nothing to get wrong, which is why none of
  * this was noticed until a demo drew three.
@@ -59,21 +59,21 @@ import kotlin.test.assertEquals
  * screen runs. That is the claim — a direction bug shows up as one of the four
  * readings coming back reversed, empty, or short.
  *
- * ### And the ground is the nearest action
+ * ### Separate buttons, with the page between them
  *
- * The strip the row slides off belongs to whatever it is sliding *onto*, which
- * is the action closest to it. Same asymmetry, same reason, and it was wrong on
- * the trailing side for the same reason the order was.
+ * *"(up to) three squircle shapes expand out of the side when you start swiping"*.
+ * The strip the row vacates used to be painted in the nearest action's colour with
+ * the buttons laid over it; now each action is its own squircle in the row's shape,
+ * and the page shows in the gaps, round the corners and above and below a button
+ * that has not yet grown to the row's height.
  *
  * ### Why the pixels
  *
- * The strip is a `drawBehind` on a box that matches the row's size. It has no
- * node of its own, no semantics and no size to query: the colour it paints is
- * the entire thing under test, and it is only ever observable as ink. The panels
- * are reachable by semantics, but only as a *set* — the row exposes them as
- * custom actions, in caller order, which says nothing about where they are.
+ * The buttons are internal and laid out every frame from the live offset. They are
+ * reachable by semantics only as a *set* — the row exposes them as custom actions,
+ * in caller order, which says nothing about where they are or what shape they have.
  */
-class SwipeActionGroundTest {
+class SwipeActionButtonsTest {
 
     /**
      * Three panels, read off a fully open row, from the row's edge outward.
@@ -162,31 +162,76 @@ class SwipeActionGroundTest {
         )
     }
 
+    /**
+     * On a fully open row the page shows between the buttons, between the last one
+     * and the row, and round each button's corners.
+     *
+     * Read at the slot boundaries — where one action's share of the strip meets the
+     * next — which is the middle of each gap, and a few pixels in from a button's
+     * top corner, which a squircle leaves bare.
+     */
     @Test
-    fun aTrailingSwipeRevealsTheNearestActionsColour() {
-        assertEquals(
-            Pinned,
-            groundColour(towardStart = false),
-            "a row swiped onto its trailing actions showed the ground of the " +
-                "action furthest from it. The strip is what the row is sliding " +
-                "onto, so it belongs to the action it is about to reach — which " +
-                "on this side is the *last* one in the list.",
-        )
+    fun thePageShowsBetweenTheButtonsAndRoundTheirCorners() {
+        val readings = openRow { frame, midY, slotEdge, rowTop ->
+            buildList {
+                // Between the outer and middle, and the middle and inner, buttons.
+                add("between the outer two" to frame.colourAt(slotEdge(1), midY))
+                add("between the inner two" to frame.colourAt(slotEdge(2), midY))
+                // Between the inner button and the row it came out from behind.
+                add("between the inner button and the row" to frame.colourAt(slotEdge(3) + 4, midY))
+                // Just inside the outer button's top corner, on the row's top line.
+                add("in the outer button's corner" to frame.colourAt(slotEdge(0) - HalfGap - 3, rowTop + 2))
+            }
+        }
+        readings.forEach { (where, colour) ->
+            assertEquals(
+                Color.White, colour,
+                "$where the page should show, and there was action ink — the " +
+                    "buttons are painted as one strip rather than as separate " +
+                    "squircles",
+            )
+        }
     }
 
     /**
-     * And the other side still works, which is the half that was already right.
+     * Early in a swipe a button is a small squircle in the middle of the row's
+     * height, not a full-height stripe.
      *
-     * Worth keeping: the fix is a branch on the direction, and a branch that got
-     * the second case wrong would look exactly like the first one being fixed.
+     * Each button is no taller than it is wide, so 60px into a swipe on a 128px row
+     * the one button is 44px round and the page shows above and below it.
      */
     @Test
-    fun aLeadingSwipeAlsoRevealsTheNearestActionsColour() {
+    fun earlyInASwipeAButtonIsASquircleNotAStripe() {
+        var above = Color.Unspecified
+        var middle = Color.Unspecified
+
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(Margin.dp)) {
+                SwipeActions(
+                    end = listOf(SwipeAction("Remove", Tabler.Outline.Trash, {}, Remove)),
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp),
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val midY = ((Margin + RowHeight / 2) * Density).toFloat()
+            val from = Offset(Width / 2f, midY)
+            scene.drag(from, Offset(from.x - EarlyTravel, midY), steps = 8, release = false)
+            val frame = scene.frames(2)
+            // The middle of the strip the row has uncovered.
+            val x = Width - Margin * Density - EarlyTravel / 2f
+            middle = frame.colourAt(x, midY)
+            above = frame.colourAt(x, (Margin * Density + 6).toFloat())
+            scene.release(Offset(from.x - EarlyTravel, midY))
+        }
+        assertEquals(Remove, middle, "no action at all in the middle of the uncovered strip")
         assertEquals(
-            Pinned,
-            groundColour(towardStart = true),
-            "a row swiped onto its leading actions showed the wrong ground — on " +
-                "this side the nearest action is the last one in the list",
+            Color.White, above,
+            "60px into a swipe the action is already the row's full height. It is " +
+                "supposed to grow out of the side as a squircle and lengthen into a " +
+                "button as the row uncovers it.",
         )
     }
 
@@ -297,45 +342,41 @@ class SwipeActionGroundTest {
     }
 
     /**
-     * The colour painted immediately behind the row's trailing edge, part-swiped.
-     *
-     * Sampled a few pixels into the strip and vertically centred, which is clear
-     * of the row's rounded corner and of the action buttons' own ink.
+     * A fully open row of three trailing actions, handed to [read] with the row's
+     * middle line, the row's top edge, and the x of the boundary between slot `i`
+     * and slot `i + 1` counted from the screen edge (0 is the edge itself, 3 the
+     * row's).
      */
-    private fun groundColour(towardStart: Boolean): Color {
-        val actions = actions()
-        var sampled = Color.Unspecified
-
+    private fun <T> openRow(
+        read: (frame: java.awt.image.BufferedImage, midY: Float, slotEdge: (Int) -> Float, rowTop: Float) -> T,
+    ): T {
+        var result: T? = null
         Scene(width = Width, height = Height, reduceMotion = true) {
             Box(Modifier.fillMaxSize().background(Color.White).padding(Margin.dp)) {
                 SwipeActions(
-                    start = if (towardStart) actions else emptyList(),
-                    end = if (towardStart) emptyList() else actions,
+                    end = actions(),
+                    state = rememberSwipeActionsState(initialValue = SwipeValue.End),
                     modifier = Modifier.fillMaxWidth().height(RowHeight.dp),
                 ) {
                     ListItem { +"Perth Underground" }
                 }
             }
         }.use { scene ->
-            scene.frames(3)
-            val midY = ((Margin + RowHeight / 2) * Density).toFloat()
-            val from = Offset(Width / 2f, midY)
-            // Far enough to open a wide strip and not so far that it commits.
-            val travel = if (towardStart) Reveal else -Reveal
-            scene.press(from)
-            scene.frame()
-            repeat(8) {
-                scene.move(Offset(from.x + travel * (it + 1) / 8f, midY))
-                scene.frame()
-            }
-            val frame = scene.frame()
-
-            // Just inside the strip, from whichever edge it grew from.
-            val x = if (towardStart) Margin * Density + 4 else Width - Margin * Density - 4
-            sampled = Color(frame.getRGB(x, midY.toInt()))
+            val frame = scene.frames(SettleFrames)
+            val right = Width - Margin * Density
+            val panel = (ActionWidth * Density).toFloat()
+            result = read(
+                frame,
+                ((Margin + RowHeight / 2) * Density).toFloat(),
+                { i -> right - panel * i },
+                (Margin * Density).toFloat(),
+            )
         }
-        return sampled.copy(alpha = 1f)
+        return requireNotNull(result)
     }
+
+    private fun java.awt.image.BufferedImage.colourAt(x: Float, y: Float): Color =
+        Color(getRGB(x.toInt(), y.toInt())).copy(alpha = 1f)
 
     /** The scene's content, with the screen running whichever way is asked for. */
     @Composable
@@ -375,6 +416,12 @@ class SwipeActionGroundTest {
 
         /** Pixels back from the row's edge, well inside the panel behind it. */
         const val Inside = 40f
+
+        /** Half of `SwipeActionsDefaults.Gap`, 8dp, at this scene's density. */
+        const val HalfGap = 8f
+
+        /** Early in a swipe: the one button is `60 - 16` = 44px round. */
+        const val EarlyTravel = 60f
 
         // Flat, far apart, and none of them near the page or the row.
         val Remove = Color(0xFFCC2222)

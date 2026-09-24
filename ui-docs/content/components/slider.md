@@ -82,6 +82,32 @@ place. `Switch` gives the same fraction of itself by the same rule;
 and keeps its own smaller fraction for a reason [its own page](segmented-control.md)
 has.
 
+**The head is a squircle**, and a squircle stretched along the middle while it
+is held — superellipse ends rather than semicircles, which meet the straight
+edges already flat. Drawn rather than clipped to a shape, because it is a
+different size on every frame of a drag.
+
+**`valueLabel` puts the value above the head while it is held**, and takes it
+away when the finger lifts:
+
+```kotlin
+Slider(
+    value = volume,
+    onValueChange = { volume = it },
+    valueLabel = { "${(it * 100).roundToInt()}%" },
+)
+```
+
+It is drawn outside the slider's bounds, so the control's size and hit area are
+the same with or without it — give it room above, or a clipping parent (a card,
+the top of a scroller) will cut the bubble. Off unless given, since most sliders
+sit beside a number that already says what they are set to. `RangeSlider` takes
+the same, over whichever thumb the finger has.
+
+**Running into either end of the range is reported once**, as a haptic, for as
+long as the finger stays against it; backing off and pushing again reports again.
+It is the one report a thumb under a finger cannot make for itself.
+
 **Pass `stateDescription`.** Without it the announcement is a bare percentage,
 which is rarely what the number means.
 

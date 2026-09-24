@@ -87,7 +87,7 @@ class ComponentDefaultsValuesTest {
         assertEquals(48.dp, d.listItemMinHeight)
         assertEquals(64.dp, d.listItemTwoLineMinHeight)
         assertEquals(2.dp, d.listItemSpacing)
-        assertEquals(0.55f, d.swipePositionalThreshold)
+        assertEquals(0.35f, d.swipePositionalThreshold)
         assertEquals(6.dp, d.scrollbarThickness)
         assertEquals(10.dp, d.scrollbarHoveredThickness)
         assertEquals(88.dp, d.swipeActionWidth)
@@ -98,7 +98,7 @@ class ComponentDefaultsValuesTest {
         assertEquals(8.dp, d.pageIndicatorDotSize)
         assertEquals(20.dp, d.pageIndicatorActiveWidth)
         assertEquals(8.dp, d.pageIndicatorGap)
-        assertEquals(96.dp, d.carouselHeroPeek)
+        assertEquals(0.dp, d.carouselHeroPeek)
         assertEquals(108.dp, d.keyValueLabelWidth)
         assertEquals(96.dp, d.keyValueMinValueWidth)
         assertEquals(48.dp, d.marqueeGap)
@@ -176,14 +176,14 @@ class ComponentDefaultsValuesTest {
                 listItemMinHeight = 48.dp,
                 listItemTwoLineMinHeight = 64.dp,
                 listItemSpacing = 2.dp,
-                swipePositionalThreshold = 0.55f,
+                swipePositionalThreshold = 0.35f,
                 scrollbarThickness = 6.dp,
                 scrollbarHoveredThickness = 10.dp,
                 swipeActionWidth = 88.dp,
                 pageIndicatorDotSize = 8.dp,
                 pageIndicatorActiveWidth = 20.dp,
                 pageIndicatorGap = 8.dp,
-                carouselHeroPeek = 96.dp,
+                carouselHeroPeek = 0.dp,
                 keyValueLabelWidth = 108.dp,
                 keyValueMinValueWidth = 96.dp,
                 marqueeGap = 48.dp,

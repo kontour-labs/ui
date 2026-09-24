@@ -82,6 +82,13 @@ object PullToRefreshDefaults {
      * screen, and growing in is what stops it.
      */
     const val GrowthShare: Float = 0.4f
+
+    /**
+     * The page kept between the indicator and each edge of the gap it sits in:
+     * the container's top, and the list coming away from it.
+     */
+    val Clearance: Dp
+        @Composable get() = Theme.spacing.xs
 }
 
 @Stable
@@ -417,6 +424,7 @@ private fun RefreshIndicator(
     // for the buffer, not for the layout. Same fix as `overlayAppearance`, and
     // `Shadow.bleed` is where the two get the number from.
     val room = Theme.elevation.high.bleed
+    val clearance = PullToRefreshDefaults.Clearance
 
     Box(
         modifier = Modifier
@@ -471,7 +479,15 @@ private fun RefreshIndicator(
                 // Read off the *drawn* gap rather than `progress`, which leads it by
                 // a spring's worth of lag on a fast pull — and a bound that trails
                 // what it is bounding is not a bound.
-                val fits = (gap / IndicatorSize.toPx()).coerceIn(0f, 1f)
+                //
+                // **With page above and below it.** Sized to the gap exactly, the
+                // circle's bottom edge rested on the list's top edge for the first
+                // 40dp of every pull, and was reported as needing "a little bit more
+                // gap between the top of the list when the user first starts
+                // pulling". So it fits the gap less a clearance at each end — it is
+                // smaller while the gap is short, and the same 40dp once there is
+                // room — and it is never touching the list it came out from under.
+                val fits = ((gap - 2f * clearance.toPx()) / IndicatorSize.toPx()).coerceIn(0f, 1f)
                 val scale = minOf(appearing, fits)
 
                 scaleX = scale

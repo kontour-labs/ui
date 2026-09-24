@@ -26,12 +26,36 @@ fun InputTransformation.Companion.digitsOnly(): InputTransformation =
  */
 fun InputTransformation.Companion.decimal(allowNegative: Boolean = false): InputTransformation =
     InputTransformation {
-        val text = asCharSequence().toString()
-        val body = if (allowNegative && text.startsWith("-")) text.drop(1) else text
-        val valid = body.isEmpty() ||
-            (body.all { it.isDigit() || it == '.' } && body.count { it == '.' } <= 1)
-        if (!valid || (!allowNegative && text.startsWith("-"))) revertAllChanges()
+        if (!admitsNumber(asCharSequence(), allowDecimal = true, allowNegative)) revertAllChanges()
     }
+
+/**
+ * Rejects anything that is not a whole number, with an optional leading minus.
+ *
+ * [digitsOnly] with room for a sign. `-` on its own is allowed through for the
+ * same reason [decimal] allows `1.`: it is where a user typing `-4` has to pass.
+ */
+fun InputTransformation.Companion.integer(allowNegative: Boolean = false): InputTransformation =
+    InputTransformation {
+        if (!admitsNumber(asCharSequence(), allowDecimal = false, allowNegative)) revertAllChanges()
+    }
+
+/**
+ * Whether [text] is a number — or on its way to one — under these rules.
+ *
+ * The one test [decimal], [integer] and the number field's own clearing share, so
+ * the field cannot disagree with its own filter about what it may hold.
+ */
+internal fun admitsNumber(
+    text: CharSequence,
+    allowDecimal: Boolean,
+    allowNegative: Boolean,
+    maxLength: Int? = null,
+): Boolean {
+    if (maxLength != null && text.length > maxLength) return false
+    val body = if (allowNegative && text.startsWith("-")) text.drop(1) else text
+    return body.all { it.isDigit() || (allowDecimal && it == '.') } && body.count { it == '.' } <= 1
+}
 
 /** Caps the field at [max] characters. */
 fun InputTransformation.Companion.limit(max: Int): InputTransformation =

@@ -12,7 +12,11 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.drawText
 import kotlin.math.PI
+import kotlin.math.pow
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
@@ -187,6 +191,7 @@ internal fun DrawScope.sliderThumb(
         wallOnRight = wallOnRight,
         inset = ringPx,
         style = Stroke(width = ringPx * 2f),
+        squircle = true,
     )
     squashedCapsule(
         left = left,
@@ -196,6 +201,7 @@ internal fun DrawScope.sliderThumb(
         colour = fillColour,
         wallOnRight = wallOnRight,
         inset = ringPx,
+        squircle = true,
     )
 }
 
@@ -334,6 +340,13 @@ internal fun DrawScope.squashedCapsule(
     wallOnRight: Boolean = true,
     inset: Float = 0f,
     style: DrawStyle = Fill,
+    /**
+     * Squircle caps rather than semicircles, while the box is at least as wide as
+     * it is tall — the slider's thumb. `Switch` keeps the round ones, whose pressed
+     * end is concentric with its track's. The egg below is the same either way: it
+     * is only reached in the few frames a squash takes the thumb narrower than tall.
+     */
+    squircle: Boolean = false,
 ) {
     val outerHeight = bottom - top
     val outerWidth = right - left
@@ -347,6 +360,10 @@ internal fun DrawScope.squashedCapsule(
     // different shapes: at the crossover an inset box can be narrower than it is
     // tall while the box around it is not.
     if (outerWidth / 2f >= restingHalf) {
+        if (squircle) {
+            squircleStadium(left + inset, top + inset, right - inset, bottom - inset, colour, style = style)
+            return
+        }
         // Half the height, so the ends are full semicircles — a capsule, and a
         // circle at the moment the two are equal.
         drawRoundRect(
@@ -636,3 +653,124 @@ internal fun DrawScope.sliderTicks(
         }
     }
 }
+
+/**
+ * A stadium whose ends are superellipse halves rather than semicircles: a squircle
+ * when it is as wide as it is tall, and a squircle stretched along the middle when
+ * it is wider.
+ *
+ * The slider's head, which was asked for as a squircle — "the head is not a
+ * squircle, and it should be". A superellipse, `|x|⁴ + |y|⁴ = 1`, has zero
+ * curvature where it meets the straight top and bottom edges, so the join is G2
+ * without anything to ease: the curve is already flat when the flat begins.
+ *
+ * Not `SquircleShape`, for the reason the thumb has always been drawn rather than
+ * clipped: it is a different size on every frame of a drag, and a shape's path
+ * cache is keyed on its size. The outline here is a fixed table of unit points —
+ * no trigonometry at draw time — scaled to the box.
+ */
+internal fun DrawScope.squircleStadium(
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    colour: Color,
+    alpha: Float = 1f,
+    style: DrawStyle = Fill,
+) {
+    val half = (bottom - top) / 2f
+    if (half <= 0f || right - left < half * 2f) return
+    val centreY = (top + bottom) / 2f
+    val leftCentre = left + half
+    val rightCentre = right - half
+    val last = SquircleQuarterX.lastIndex
+    val path = Path()
+    path.moveTo(leftCentre, top)
+    path.lineTo(rightCentre, top)
+    // Top-right quarter, from the top join down to the right-hand tip…
+    for (i in 1..last) path.lineTo(rightCentre + half * SquircleQuarterX[i], centreY - half * SquircleQuarterY[i])
+    // …and bottom-right, from the tip back to the bottom join.
+    for (i in last - 1 downTo 0) path.lineTo(rightCentre + half * SquircleQuarterX[i], centreY + half * SquircleQuarterY[i])
+    path.lineTo(leftCentre, bottom)
+    for (i in 1..last) path.lineTo(leftCentre - half * SquircleQuarterX[i], centreY + half * SquircleQuarterY[i])
+    for (i in last - 1 downTo 0) path.lineTo(leftCentre - half * SquircleQuarterX[i], centreY - half * SquircleQuarterY[i])
+    path.close()
+    drawPath(path, colour, alpha = alpha, style = style)
+}
+
+/**
+ * The slider's value, in a bubble above its head.
+ *
+ * Asked for: "the option to display a label above the head as you're dragging it".
+ * Drawn in the slider's own draw pass rather than composed, because it follows the
+ * thumb every frame of a drag and a composed label would be a recomposition a
+ * frame; and outside the slider's bounds, which a draw can do and a layout cannot,
+ * so the control's size and hit area are the same with or without it. A parent
+ * that clips — a card, the top of a scroller — will cut it, and the docs say so.
+ *
+ * [progress] fades it and, unless [scaleIn] is off, grows it out of the head it
+ * belongs to. Clamped to the control's width, so a thumb at either end still has
+ * its whole label.
+ */
+internal fun DrawScope.sliderValueLabel(
+    text: TextLayoutResult,
+    centreX: Float,
+    thumbTop: Float,
+    progress: Float,
+    scaleIn: Boolean,
+    container: Color,
+    paddingHorizontal: Float,
+    paddingVertical: Float,
+    gap: Float,
+) {
+    if (progress <= 0f) return
+    val height = text.size.height + paddingVertical * 2f
+    val width = maxOf(text.size.width + paddingHorizontal * 2f, height)
+    val left = (centreX - width / 2f).coerceIn(0f, (size.width - width).coerceAtLeast(0f))
+    val bottom = thumbTop - gap
+    val top = bottom - height
+    val pivot = Offset(centreX.coerceIn(left, left + width), bottom)
+    val shown = progress.coerceIn(0f, 1f)
+    withTransform({ if (scaleIn) scale(shown, shown, pivot) }) {
+        squircleStadium(left, top, left + width, bottom, container, alpha = shown)
+        drawText(
+            text,
+            topLeft = Offset(left + (width - text.size.width) / 2f, top + paddingVertical),
+            alpha = shown,
+        )
+    }
+}
+
+/**
+ * One quarter of a unit superellipse (`n = 4`), from the top (0, 1) round to the
+ * right-hand tip (1, 0), as `x` and `y` magnitudes.
+ *
+ * Sampled by `x` over the half nearer the top and by `y` over the half nearer the
+ * tip, so the points are even along the curve: parametrised by angle, a
+ * superellipse bunches its samples where it is flattest and leaves the corner
+ * coarse.
+ */
+private val SquircleQuarter: Pair<FloatArray, FloatArray> = run {
+    // Where the curve crosses the diagonal, x = y = 2^(-1/4).
+    val diagonal = 2.0.pow(-0.25)
+    val steps = SquircleHalfSteps
+    val xs = FloatArray(steps * 2 + 1)
+    val ys = FloatArray(steps * 2 + 1)
+    for (i in 0..steps) {
+        val x = diagonal * i / steps
+        xs[i] = x.toFloat()
+        ys[i] = (1.0 - x.pow(4)).pow(0.25).toFloat()
+    }
+    for (i in 1..steps) {
+        val y = diagonal * (steps - i) / steps
+        xs[steps + i] = (1.0 - y.pow(4)).pow(0.25).toFloat()
+        ys[steps + i] = y.toFloat()
+    }
+    xs to ys
+}
+
+private val SquircleQuarterX: FloatArray = SquircleQuarter.first
+private val SquircleQuarterY: FloatArray = SquircleQuarter.second
+
+/** Samples in each half of a quarter: plenty at a thumb's size, and fixed. */
+private const val SquircleHalfSteps = 12

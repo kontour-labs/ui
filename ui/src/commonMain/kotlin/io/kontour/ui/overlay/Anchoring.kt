@@ -505,6 +505,14 @@ internal fun AnchoredOverlayLayout(
     minWidth: Dp = Dp.Unspecified,
     /** How small the whole thing starts. A tooltip can afford more than a menu. */
     fromScale: Float = 0.9f,
+    /**
+     * The least room a side may have and still be the side it opens on — capped,
+     * on the axis the panel opens along, at the panel's own natural size, so a
+     * panel that fits whole in less still opens where it was asked to. See
+     * [AnchoredOverlayDefaults.MinimumPanel] for the default and a menu's
+     * `MenuMinimumRoom` for why a list wants more.
+     */
+    minimumPanel: Dp = AnchoredOverlayDefaults.MinimumPanel,
     content: @Composable () -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -530,7 +538,8 @@ internal fun AnchoredOverlayLayout(
     val minWidthPx = with(density) {
         if (minWidth == Dp.Unspecified) 0 else minWidth.roundToPx()
     }
-    val minimumPanelPx = with(density) { AnchoredOverlayDefaults.MinimumPanel.roundToPx() }
+    val minimumPanelPx = with(density) { minimumPanel.roundToPx() }
+    val defaultPanelPx = with(density) { AnchoredOverlayDefaults.MinimumPanel.roundToPx() }
 
     // The appearance transform lives here rather than on the panel inside, for
     // two reasons. The arrow is drawn by *this* node, so a panel scaling in its
@@ -589,7 +598,25 @@ internal fun AnchoredOverlayLayout(
         // The fallbacks are in order of how much they give up: the opposite side, and
         // then nothing at all, which is the container's own bound and the behaviour
         // this has always had.
-        val floor = minimumPanelPx
+        // A floor above the default is a caller asking for *enough to use*, and
+        // enough to use can never be more than the whole panel: a two-item menu
+        // that fits in the room below opens below, whatever the floor says. Read
+        // as an intrinsic, before measuring, because the room it decides is what
+        // the panel is measured against — and only when it can matter, since
+        // intrinsics are a second walk of the content.
+        val floor = if (minimumPanelPx > defaultPanelPx) {
+            val natural = measurables.maxOfOrNull { measurable ->
+                val across = overlayConstraints(container, marginPx, minWidthPx, insets)
+                if (vertical) {
+                    measurable.maxIntrinsicHeight(across.maxWidth)
+                } else {
+                    measurable.maxIntrinsicWidth(across.maxHeight)
+                }
+            } ?: 0
+            minOf(minimumPanelPx, natural).coerceAtLeast(defaultPanelPx)
+        } else {
+            minimumPanelPx
+        }
         val preferredRoom =
             roomBeside(anchorInHost, container, preferred, effectiveGap, marginPx, insets)
         val oppositeRoom =

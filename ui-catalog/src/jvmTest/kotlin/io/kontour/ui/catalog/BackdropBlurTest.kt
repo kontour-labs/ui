@@ -21,7 +21,6 @@ import io.kontour.ui.overlay.Dialog
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.ModalSideSheet
-import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 import java.awt.image.BufferedImage
@@ -361,7 +360,6 @@ class BackdropBlurTest {
                 ModalSideSheet(
                     visible = visible,
                     onDismissRequest = {},
-                    presentation = SheetPresentation.Edge,
                 ) { Text("Filters") }
             }
         }.use { scene ->

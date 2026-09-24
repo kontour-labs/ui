@@ -153,9 +153,13 @@ private val avatarSize = Knob.Choice(
 
 internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSize)) {
     val size = this[avatarSize]
-    Row(
+    // Wraps rather than squeezing: at Large, four avatars and a group are wider
+    // than a phone's card, and a squeezed row is how the group's count ended up
+    // drawn as a sliver on an iPhone.
+    FlowRow(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+        itemVerticalAlignment = Alignment.CenterVertically,
     ) {
         Avatar(name = "Aaron", size = size)
         Avatar(name = "Jamie Lee", size = size)
@@ -495,9 +499,13 @@ private val carouselStyle = Knob.Choice("Pages", CarouselStyle.entries.toList())
 private const val CarouselDrift = 0.3f
 
 // How much of the next page a hero carousel shows. Not a dial, because a knob is a
-// choice or a flag: off is the component's own default, on is none at all — one
-// page in the frame, and the gap opening only while a swipe is in flight.
-private val carouselNoPeek = Knob.Flag("No peek")
+// choice or a flag: off is the component's own default — none, one page in the
+// frame and the gap opening only while a swipe is in flight — and on is a peek of
+// the next picture.
+private val carouselPeek = Knob.Flag("Peek")
+
+/** Wide enough to read as a picture rather than a stripe. See `carouselHeroPeek`. */
+private val CarouselPeek = 96.dp
 
 // And whether the page being left behind holds still under the box closing over it
 // or travels out with the strip. `0.3` rather than `1` is where the component's own
@@ -506,7 +514,7 @@ private val carouselParallax = Knob.Flag("Parallax")
 
 internal val CarouselDemo = ComponentDemo(
     slug = "carousel",
-    knobs = listOf(carouselStyle, carouselNoPeek, carouselParallax, indicatorStyle),
+    knobs = listOf(carouselStyle, carouselPeek, carouselParallax, indicatorStyle),
 ) {
     val carousel = rememberCarouselState { 4 }
     val scope = rememberCoroutineScope()
@@ -520,7 +528,7 @@ internal val CarouselDemo = ComponentDemo(
             state = carousel,
             contentDescription = "Stop photos",
             style = this@ComponentDemo[carouselStyle],
-            peek = if (this@ComponentDemo[carouselNoPeek]) 0.dp else CarouselDefaults.HeroPeek,
+            peek = if (this@ComponentDemo[carouselPeek]) CarouselPeek else CarouselDefaults.HeroPeek,
             parallax = if (this@ComponentDemo[carouselParallax]) CarouselDrift else 0f,
             modifier = Modifier.fillMaxWidth().height(120.dp),
         ) { page ->

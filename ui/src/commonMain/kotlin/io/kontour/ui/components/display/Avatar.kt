@@ -3,8 +3,6 @@ package io.kontour.ui.components.display
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -14,10 +12,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -202,14 +204,21 @@ fun AvatarGroup(
     val overlap = size.diameter / 3
     val density = LocalDensity.current
 
-    Row(
-        modifier.semantics(mergeDescendants = true) {
+    // **Laid out as wide as it is drawn.** The overlap used to be
+    // `Modifier.offset`, which moves what is drawn and not what is laid out, so the
+    // group asked its row for five whole avatars and drew them in three and a half.
+    // Reported from an iPhone as a line through the last avatar and no "+2": the
+    // catalog's row could not give it that much on a phone, the count was measured
+    // last against what was left — a sliver — and a pill-clipped sliver with a ring
+    // round it is a line. So each avatar is measured at its own size, whatever is
+    // left, and placed a step along; the group reports exactly the span it covers.
+    Layout(
+        modifier = modifier.semantics(mergeDescendants = true) {
             this.contentDescription = contentDescription
                 ?: if (names.size == 1) names.first() else "${names.size} people"
-        }
-    ) {
-        shown.forEachIndexed { index, name ->
-            Box(Modifier.offset(x = -overlap * index)) {
+        },
+        content = {
+            shown.forEach { name ->
                 Avatar(
                     name = name,
                     // The ring that separates one overlapping avatar from the
@@ -225,31 +234,45 @@ fun AvatarGroup(
                     contentDescription = null,
                 )
             }
-        }
-        if (overflow > 0) {
-            Box(
-                Modifier
-                    .offset(x = -overlap * shown.size)
-                    .size(size.diameter)
-                    .clip(Theme.shapes.pill)
-                    .background(Theme.colours.surfaceSunken)
-                    .border(2.dp, Theme.colours.surface, Theme.shapes.pill),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "+$overflow",
-                    // The same rule the initials follow, for the same reason —
-                    // and this is the call site that made the first fix look
-                    // half-done: a group of scaled initials with an unscaled
-                    // "+2" beside them reads as one avatar in the wrong font.
-                    style = Theme.typography.labelSmall.copy(
-                        fontSize = with(density) { size.textSize.toSp() },
-                        lineHeight = TextUnit.Unspecified,
-                    ),
-                    colour = Theme.colours.contentMuted,
-                    modifier = Modifier.clearAndSetSemantics { },
-                )
+            if (overflow > 0) {
+                Box(
+                    Modifier
+                        .size(size.diameter)
+                        .clip(Theme.shapes.pill)
+                        .background(Theme.colours.surfaceSunken)
+                        .border(AvatarGroupRing, Theme.colours.surface, Theme.shapes.pill),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "+$overflow",
+                        // The same rule the initials follow, for the same reason —
+                        // and this is the call site that made the first fix look
+                        // half-done: a group of scaled initials with an unscaled
+                        // "+2" beside them reads as one avatar in the wrong font.
+                        style = Theme.typography.labelSmall.copy(
+                            fontSize = with(density) { size.textSize.toSp() },
+                            lineHeight = TextUnit.Unspecified,
+                        ),
+                        colour = Theme.colours.contentMuted,
+                        // One line, always: a count that wraps inside a circle is
+                        // clipped away rather than read.
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.clearAndSetSemantics { },
+                    )
+                }
             }
+        },
+    ) { measurables, constraints ->
+        // Each at its own size, not at whatever width is left: a squeezed avatar
+        // is an oval, and a squeezed count is the line that was reported.
+        val placeables = measurables.map { it.measure(Constraints()) }
+        val step = (size.diameter - overlap).roundToPx()
+        val span = (placeables.firstOrNull()?.width ?: 0) + step * (placeables.size - 1).coerceAtLeast(0)
+        val height = placeables.maxOfOrNull { it.height } ?: 0
+        layout(constraints.constrainWidth(span), constraints.constrainHeight(height)) {
+            // Later ones over earlier ones, as a hand of cards.
+            placeables.forEachIndexed { index, placeable -> placeable.placeRelative(step * index, 0) }
         }
     }
 }

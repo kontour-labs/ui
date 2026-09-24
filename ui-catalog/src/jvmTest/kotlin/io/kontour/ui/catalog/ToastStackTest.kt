@@ -455,6 +455,16 @@ class ToastStackTest {
      * is only being *read* at the front. So one that reaches the front with a few
      * hundred milliseconds left is promoted and gone in the same breath.
      *
+     * ### How it reaches the front
+     *
+     * By the one in front being sent away by the app, with `dismissCurrent`. The
+     * stack leaves oldest first now (`afterOneIsSwipedTheRestLeaveOldestFirstAndApart`
+     * in `ToastOrderTest`), so a *shorter* toast in front — the way this used to be
+     * set up — waits for the older one behind it and never promotes it. Sent away
+     * in code rather than by hand, because a hand-clear also buys the others time
+     * (`clearingOneByHandBuysTheOthersTime`), and three fifths of 5,000 is what a
+     * clear at that point would top it up to anyway: the two would be one number.
+     *
      * ### Measured as two emptying times, not one
      *
      * `delay` is the wall clock and this harness renders a 16ms frame in about
@@ -462,47 +472,28 @@ class ToastStackTest {
      * container. Both figures below come out of the same harness on the same
      * machine, and it is their *difference* that is the claim.
      *
-     * ### Why the durations are 5,000 and 3,400 and not 4,000 and 3,800
-     *
-     * The first version of this test used a 200ms gap, and it failed reporting
-     * 4,006ms against 3,994ms — no top-up at all. The gap was the fault, not the
-     * fix. **Promotion happens when the toast in front is *removed*, not when it
-     * expires**, and removal is the far end of an exit animation: about 200ms of
-     * frame time, which is a dozen frames, which is over half a second of real
-     * time here. The toast behind expired before it ever reached the front.
-     *
-     * That is the whole reason the numbers are what they are, and it is also why
-     * the floor makes the result *insensitive* to that lag: whatever remains at
-     * promotion, the answer is the floor. It would take an exit lasting more than
-     * 1,600ms to put this back in a race.
-     *
      * ### What the two bounds separate
      *
-     * The 3,400ms toast is removed at about 4,000ms, so the 5,000ms one is
-     * promoted with roughly 1,000ms left and three fifths of 5,000 is 3,000. A
-     * **restart** — the other behaviour on the table, and the one this host was
-     * rewritten to stop being — would hand it a fresh 5,000 and empty at about
-     * `alone + 4,000`, with a stack of four taking four full durations to clear.
-     *
-     * Measured, not predicted. Against the fix the two runs are 6,710ms and
-     * 4,838ms, a difference of **1,872ms**; with the top-up disabled they are
-     * 4,992ms and 4,821ms, a difference of **171ms**. The bounds are set either
-     * side of that, and clear of the 4,000 a restart would produce.
+     * The one in front is sent away at 3,400ms and removed at about 4,000ms —
+     * **promotion happens when the toast in front is *removed***, the far end of
+     * its exit animation — so the 5,000ms one is promoted with roughly 1,000ms
+     * left, and three fifths of 5,000 is 3,000. A **restart** — the other
+     * behaviour on the table, and the one this host was rewritten to stop being —
+     * would hand it a fresh 5,000 and empty at about `alone + 4,000`, with a stack
+     * of four taking four full durations to clear. Without the floor it empties
+     * with the toast alone.
      */
     @Test
     fun aToastPromotedWithLittleTimeLeftIsToppedUpToAFloor() {
         val alone = emptiesAfter("one 5,000ms toast, never promoted") { toasts ->
             toasts.show("Saved for offline", durationMillis = 5_000)
         }
-        val promoted = emptiesAfter("a 5,000ms toast behind a 3,400ms one") { toasts ->
-            toasts.show("Saved for offline", durationMillis = 5_000)
-            toasts.show("Route updated", durationMillis = 3_400)
-        }
+        val promoted = promotedAfter(sentAwayAt = 3_400)
 
         assertTrue(
             promoted > alone + 1_000,
             "the stack emptied ${promoted}ms after it appeared with the 5,000ms " +
-                "toast waiting behind a 3,400ms one, against ${alone}ms for that " +
+                "toast promoted at about 4,000ms, against ${alone}ms for that " +
                 "same toast on its own — a difference of ${promoted - alone}ms, so " +
                 "the promoted one was not topped up at all. It reached the front " +
                 "with about a second left and went almost immediately",
@@ -515,6 +506,40 @@ class ToastStackTest {
                 "of three fifths does. It is being restarted on promotion, which " +
                 "makes a stack of four take four durations to clear",
         )
+    }
+
+    /**
+     * How long a 5,000ms toast took to empty the stack, from the frame it first had
+     * ink in, with a pinned one in front of it sent away by the app at
+     * [sentAwayAt] — which promotes it without counting as a clear.
+     */
+    private fun promotedAfter(sentAwayAt: Long): Long {
+        var send by mutableStateOf(false)
+        var elapsed = 0L
+        var emptied: BufferedImage? = null
+
+        Scene(width = 600, height = 400) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) {
+                    toasts.show("Saved for offline", durationMillis = 5_000)
+                    toasts.show("Couldn't reach the timetable", durationMillis = 0)
+                }
+                LaunchedEffect(send) { if (send) toasts.dismissCurrent() }
+            }
+        }.use { scene ->
+            val appeared = scene.renderUntil(timeoutMillis = 3_000) { it.stackHeight() > 0 }
+            assertNotNull(appeared, "no toast was drawn at all")
+            val mark = TimeSource.Monotonic.markNow()
+            scene.renderUntil(timeoutMillis = sentAwayAt) { false }
+            send = true
+            emptied = scene.renderUntil(timeoutMillis = 20_000) { it.stackHeight() == 0 }
+            elapsed = mark.elapsedNow().inWholeMilliseconds
+        }
+        assertNotNull(emptied, "the stack never emptied")
+        return elapsed
     }
 
     /**

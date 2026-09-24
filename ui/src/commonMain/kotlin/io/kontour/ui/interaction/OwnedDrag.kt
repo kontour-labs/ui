@@ -12,6 +12,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import kotlin.math.abs
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -46,6 +48,25 @@ internal enum class DragClaim {
      * see the note on the race below.
      */
     Movement,
+
+    /**
+     * Once the finger has moved a little, and only if it moved mostly along the
+     * control's axis — otherwise not at all.
+     *
+     * For a control that lives inside a scroller running the other way and has to
+     * share the finger with it: a swipe row in a list. [Movement] would take every
+     * gesture that starts on the row, so the list could never be scrolled from one;
+     * `draggable` waits for a full touch slop on its own axis while the list waits
+     * for one on the other, and a thumb's arc loses that race to the list more
+     * often than not — which was the swipe being "way too hard" on iOS.
+     *
+     * This decides early and by direction. Movement is gathered, unconsumed, until
+     * it is [DirectionDecisionShare] of the touch slop — well before the list can
+     * claim — and then the gesture is the control's if it is within 45° of the
+     * control's axis, and the list's if it is not. The travel gathered while
+     * deciding is handed on with the claim, so none of it is lost.
+     */
+    Direction,
 }
 
 /**
@@ -158,12 +179,25 @@ internal fun Modifier.horizontalDragOwning(
     onStart: (Offset) -> Unit,
     onDelta: (Float) -> Unit,
     onEnd: () -> Unit,
+    /**
+     * Called with the horizontal velocity, in pixels a second, when the finger
+     * lifts at the end of a drag — before [onEnd], and not for a cancelled one.
+     */
+    onRelease: (Float) -> Unit = {},
 ): Modifier {
     val currentDelta by rememberUpdatedState(onDelta)
-    return ownedDrag(enabled, interactionSource, scope, claimsOn, accepts, onStart, onEnd) { delta ->
+    val currentRelease by rememberUpdatedState(onRelease)
+    return ownedDrag(
+        enabled, interactionSource, scope, claimsOn, accepts, onStart, onEnd,
+        onRelease = { velocity -> currentRelease(velocity.x) },
+        along = Axis.Horizontal,
+    ) { delta ->
         if (delta.x != 0f) currentDelta(delta.x)
     }
 }
+
+/** Which way a drag with a [DragClaim.Direction] is looking for. */
+internal enum class Axis { Horizontal, Vertical, Both }
 
 /**
  * The same drag, down the other axis.
@@ -194,7 +228,7 @@ internal fun Modifier.verticalDragOwning(
     onEnd: () -> Unit,
 ): Modifier {
     val currentDelta by rememberUpdatedState(onDelta)
-    return ownedDrag(enabled, interactionSource, scope, claimsOn, accepts, onStart, onEnd) { delta ->
+    return ownedDrag(enabled, interactionSource, scope, claimsOn, accepts, onStart, onEnd, along = Axis.Vertical) { delta ->
         if (delta.y != 0f) currentDelta(delta.y)
     }
 }
@@ -217,12 +251,21 @@ internal fun Modifier.freeDragOwning(
     interactionSource: MutableInteractionSource?,
     scope: CoroutineScope,
     claimsOn: DragClaim = DragClaim.Press,
+    /** See [horizontalDragOwning]: whether a gesture starting here is this node's. */
+    accepts: (Offset) -> Boolean = { true },
     onStart: (Offset) -> Unit,
     onDelta: (Offset) -> Unit,
     onEnd: () -> Unit,
+    /** The velocity the finger lifted with, before [onEnd]. See [horizontalDragOwning]. */
+    onRelease: (Offset) -> Unit = {},
 ): Modifier {
     val currentDelta by rememberUpdatedState(onDelta)
-    return ownedDrag(enabled, interactionSource, scope, claimsOn, { true }, onStart, onEnd) { delta ->
+    val currentRelease by rememberUpdatedState(onRelease)
+    return ownedDrag(
+        enabled, interactionSource, scope, claimsOn, accepts, onStart, onEnd,
+        onRelease = { currentRelease(it) },
+        along = Axis.Both,
+    ) { delta ->
         if (delta != Offset.Zero) currentDelta(delta)
     }
 }
@@ -242,11 +285,14 @@ private fun Modifier.ownedDrag(
     accepts: (Offset) -> Boolean,
     onStart: (Offset) -> Unit,
     onEnd: () -> Unit,
+    onRelease: (Offset) -> Unit = {},
+    along: Axis = Axis.Both,
     onDelta: (Offset) -> Unit,
 ): Modifier {
     val currentStart by rememberUpdatedState(onStart)
     val currentDelta by rememberUpdatedState(onDelta)
     val currentEnd by rememberUpdatedState(onEnd)
+    val currentRelease by rememberUpdatedState(onRelease)
     val currentAccepts by rememberUpdatedState(accepts)
 
     return if (!enabled) this else this.pointerInput(enabled, interactionSource, claimsOn) {
@@ -284,6 +330,11 @@ private fun Modifier.ownedDrag(
             // every ripple and every press state that the user finished, which is
             // the opposite of what happened.
             var cancelled = false
+            // From the claim onward, for the release velocity.
+            val velocity = VelocityTracker()
+            // What a `Direction` claim has seen while it was still deciding.
+            var gathered = Offset.Zero
+            val decideAt = viewConfiguration.touchSlop * DirectionDecisionShare
             try {
                 while (true) {
                     val event = awaitPointerEvent()
@@ -298,15 +349,38 @@ private fun Modifier.ownedDrag(
                         // whole gesture as a tap on release; consuming it for a
                         // press that never moved would eat the tap this deliberately
                         // stayed out of the way of.
-                        if (press != null) change.consume()
+                        if (press != null) {
+                            change.consume()
+                            velocity.addPosition(change.uptimeMillis, change.position)
+                            currentRelease(velocity.calculateVelocity().let { Offset(it.x, it.y) })
+                        }
                         break
                     }
-                    val delta = change.positionChange()
+                    var delta = change.positionChange()
                     if (press == null) {
                         // Nothing has happened yet, so nothing is claimed and the
                         // event is left for whoever else wants it.
                         if (delta == Offset.Zero) continue
+                        if (claimsOn == DragClaim.Direction) {
+                            // Somebody nearer the pointer, or a scroller that has
+                            // already made up its mind, has the gesture.
+                            if (change.isConsumed) return@awaitEachGesture
+                            gathered += delta
+                            if (gathered.getDistance() < decideAt) continue
+                            val mostlyAlong = when (along) {
+                                Axis.Horizontal -> abs(gathered.x) >= abs(gathered.y)
+                                Axis.Vertical -> abs(gathered.y) >= abs(gathered.x)
+                                Axis.Both -> true
+                            }
+                            // The other way: the scroller's, all of it.
+                            if (!mostlyAlong) return@awaitEachGesture
+                            // Ours, including the travel spent deciding.
+                            delta = gathered
+                        }
                         claim(change.position)
+                        velocity.addPosition(change.uptimeMillis, change.position)
+                    } else {
+                        velocity.addPosition(change.uptimeMillis, change.position)
                     }
                     // Every change, both axes. See above: the cross-axis half is what
                     // the scroller would otherwise use to win the race, and a second
@@ -361,3 +435,12 @@ private fun Modifier.ownedDrag(
         }
     }
 }
+
+/**
+ * How much of the touch slop a [DragClaim.Direction] gathers before it decides.
+ *
+ * Less than all of it, so it decides before a scroller running the other way can
+ * claim; enough that the direction is the finger's and not the jitter of a thumb
+ * settling onto the glass.
+ */
+private const val DirectionDecisionShare = 0.4f

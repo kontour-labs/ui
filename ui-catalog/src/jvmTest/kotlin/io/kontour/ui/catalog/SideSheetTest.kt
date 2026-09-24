@@ -25,9 +25,7 @@ import androidx.compose.ui.test.v2.runDesktopComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.ModalSideSheet
-import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.SideSheet
-import io.kontour.ui.sheet.rememberSideSheetState
 import io.kontour.ui.theme.KontourTheme
 import java.awt.image.BufferedImage
 import kotlin.test.Test
@@ -117,30 +115,6 @@ class SideSheetTest {
         assertTrue(shown > 500, "a visible SideSheet drew $shown columns of itself")
         assertEquals(0, gone, "a SideSheet set invisible is still on screen")
         assertFalse(composed, "a SideSheet that has slid away is still composed")
-    }
-
-    @Test
-    fun itExpandsLikeTheModalOne() {
-        val image = Scene(width = 1400, height = 900) {
-            KontourTheme(reduceMotion = true) {
-                Box(Modifier.fillMaxSize().background(Ground)) {
-                    SideSheet(
-                        visible = true,
-                        width = 300.dp,
-                        presentation = SheetPresentation.Floating,
-                        expandable = true,
-                        state = rememberSideSheetState(initiallyExpanded = true),
-                        containerColour = SheetColour,
-                    ) {}
-                }
-            }
-        }.use { scene -> scene.frames(60) }
-
-        assertTrue(
-            image.rgb(1, 1) == SheetRgb && image.rgb(1398, 1) == SheetRgb &&
-                image.rgb(1, 898) == SheetRgb && image.rgb(1398, 898) == SheetRgb,
-            "an expanded non-modal side sheet does not cover the window",
-        )
     }
 
     @Composable

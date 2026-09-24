@@ -643,7 +643,7 @@ def uncursored_clicks() -> list[str]:
     return behind
 
 
-MAX_HAPTIC_SITES = 10
+MAX_HAPTIC_SITES = 9
 
 
 HAPTIC_CALL = re.compile(r"feedback\.perform\(")

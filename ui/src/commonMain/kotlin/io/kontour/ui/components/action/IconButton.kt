@@ -280,6 +280,71 @@ fun IconToggleButton(
 }
 
 /**
+ * A show/hide toggle whose glyph states what is true now: struck through while
+ * the thing is hidden, plain while it is shown.
+ *
+ * [IconToggleButton] strikes its glyph while *checked*, which is right for the
+ * toggles it was written for — a muted alert, a hidden layer — and was backwards
+ * for a password. Reported: "when the strikethrough is visible, password should
+ * be hidden." A reveal toggle is checked when the thing is *revealed*, so it
+ * needs the slash on the other side of the same state, and that is all this is.
+ *
+ * Internal, because the only caller is [io.kontour.ui.components.text.PasswordField]
+ * and a public toggle with its slash inverted is a second way to say the same thing.
+ * Announced the same way [IconToggleButton] is: a checkbox, checked while revealed,
+ * labelled with [contentDescription].
+ *
+ * @param hiddenIcon Drawn while hidden instead of a slash across [icon].
+ */
+@Composable
+internal fun RevealToggleButton(
+    revealed: Boolean,
+    onRevealedChange: (Boolean) -> Unit,
+    icon: ImageVector,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    hiddenIcon: ImageVector? = null,
+    size: ButtonSize = ButtonSize.XSmall,
+    // A capsule on a square button is a circle, as `pill` would be; the capsule is
+    // the one a theme that squares off its controls can reach.
+    shape: Shape = Theme.shapes.capsule,
+) {
+    val interactions = remember { MutableInteractionSource() }
+    val drawn = hiddenIcon == null
+    val strike by animateFloatAsState(
+        targetValue = if (drawn && !revealed) 1f else 0f,
+        animationSpec = Theme.motion.tweenDefault(),
+        label = "revealToggleStrike",
+    )
+    IconButtonSurface(
+        icon = if (revealed || hiddenIcon == null) icon else hiddenIcon,
+        crossFadeIcon = hiddenIcon != null,
+        strike = if (drawn) ({ strike }) else null,
+        contentDescription = contentDescription,
+        modifier = modifier,
+        enabled = enabled,
+        shape = shape,
+        rotation = 0f,
+        colours = ButtonDefaults.colours(ButtonVariant.Ghost),
+        metrics = ButtonDefaults.metrics(size),
+        interactions = interactions,
+        indication = kontourIndication(
+            shape,
+            ButtonDefaults.pressScale(ButtonVariant.Ghost, size, iconOnly = true),
+        ),
+        behaviour = Modifier.pointerCursor(enabled = enabled).toggleable(
+            value = revealed,
+            interactionSource = interactions,
+            indication = null,
+            enabled = enabled,
+            role = Role.Checkbox,
+            onValueChange = onRevealedChange,
+        ),
+    )
+}
+
+/**
  * The shared body of [IconButton] and [IconToggleButton]: a circular container
  * with one centred, optionally-rotated glyph.
  *

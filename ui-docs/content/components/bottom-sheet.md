@@ -121,9 +121,8 @@ unchanged, and content written before this existed reads and behaves the same.
 
 ## `presentation` — a drawer out of the screen, or a panel over it
 
-**The non-modal sheets float by default** — `BottomSheet` and
-[`SideSheet`](side-sheet.md). `SheetPresentation.Floating` lifts the sheet off all
-three edges and rounds every corner. It reads as a panel *over* the screen rather
+**`BottomSheet` floats by default.** `SheetPresentation.Floating` lifts the sheet
+off all three edges and rounds every corner. It reads as a panel *over* the screen rather
 than a drawer pulled out of it, and it can shrink to the size of a control without
 looking broken — **a bar-height sheet flush to the bottom of the window reads as a
 drawer that failed to open**, and the same thing floating reads as a search field.
@@ -131,12 +130,12 @@ And expanded, it stops floating: see below.
 
 `SheetPresentation.Edge` is flush to the bottom and to both sides, top corners
 rounded, bottom corners square because there is no bottom edge to round. **It is
-the default for the modal sheets** — [`ModalBottomSheet`](modal-bottom-sheet.md),
-[`ModalSideSheet`](modal-side-sheet.md) and the nav drawer. A modal sheet recedes
+the default for [`ModalBottomSheet`](modal-bottom-sheet.md).** A modal sheet recedes
 the page behind it into a frame of its own, and a floating panel in front of that
 is two frames around one thing; tried on a phone, it did not feel right. Ask for
-`Edge` by name on a non-modal sheet that should read as a drawer out of the window
-at every size, or for `Floating` on a modal one.
+`Edge` by name on a `BottomSheet` that should read as a drawer out of the window
+at every size, or for `Floating` on a modal one. The side sheets are always flush
+to their edge.
 
 ```kotlin
 val search = rememberSheetState(

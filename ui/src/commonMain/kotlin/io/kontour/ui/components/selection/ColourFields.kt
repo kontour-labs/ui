@@ -177,6 +177,11 @@ private fun RowScope.HexField(
         label = ColourFormat.Hex.label,
         keyboardType = KeyboardType.Text,
         enabled = enabled,
+        // A form field's own side padding. The tight channel padding below is for
+        // four boxes sharing a picker's width; the hex field has the row to itself,
+        // and at 4dp its text sat against the edge of the fill — reported as the
+        // value box having no padding at all.
+        horizontalPadding = Theme.spacing.sm,
         modifier = Modifier.weight(1f),
     )
 }
@@ -244,6 +249,7 @@ private fun RowScope.Channel(
         label = label,
         keyboardType = KeyboardType.Number,
         enabled = enabled,
+        horizontalPadding = Theme.spacing.xxs,
         modifier = Modifier.weight(1f),
     )
 }
@@ -263,6 +269,7 @@ private fun <T> SyncedField(
     label: String,
     keyboardType: KeyboardType,
     enabled: Boolean,
+    horizontalPadding: Dp,
     modifier: Modifier = Modifier,
 ) {
     val state: TextFieldState = rememberTextFieldState(canonical)
@@ -291,17 +298,19 @@ private fun <T> SyncedField(
         label = label,
         variant = TextFieldVariant.Filled,
         keyboardType = keyboardType,
-        // Tighter than a form's field, because four of them have to share a
-        // picker's width. At the standard padding a channel field is 74dp wide
-        // holding 22dp of text, and 255 renders as "25" with the last digit cut
-        // off — measured, in a 320dp picker, which is the width this is for.
+        // Shorter than a form's field, so the fields sit as one row with the
+        // preview swatch. The side padding is the caller's: a channel field is
+        // tighter than a form's, because four of them have to share a picker's
+        // width. At the standard padding a channel field is 74dp wide holding
+        // 22dp of text, and 255 renders as "25" with the last digit cut off —
+        // measured, in a 320dp picker, which is the width this is for.
         //
         // The label above is what keeps that legible rather than cramped: the
         // letter says which channel, so the box only ever holds up to three
         // digits and never needs room for a word.
         metrics = TextFieldDefaults.metrics().copy(
             minHeight = Theme.sizing.controlHeightMedium,
-            horizontalPadding = Theme.spacing.xxs,
+            horizontalPadding = horizontalPadding,
             verticalPadding = Theme.spacing.xxs,
             gap = Theme.spacing.xxs,
         ),

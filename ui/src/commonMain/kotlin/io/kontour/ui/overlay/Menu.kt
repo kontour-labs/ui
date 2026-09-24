@@ -233,6 +233,7 @@ fun AnchoredDropdownMenu(
                         gap = MenuDefaults.Gap,
                         margin = MenuDefaults.ScreenMargin,
                         minWidth = if (matchAnchorWidth) anchorWidth else Dp.Unspecified,
+                        minimumPanel = MenuMinimumRoom,
                     ) {
                         MenuPanel(
                             modifier = modifier,
@@ -714,4 +715,15 @@ fun ContextMenuArea(
     )
 }
 
-
+/**
+ * The least room a menu opens into, on the side it was asked for, before it tries
+ * the other side: about four and a half rows.
+ *
+ * Reported of the combobox: close to the keyboard, its menu opened below the field
+ * *two rows high* before it would flip above. The floor it was held to was the
+ * popover's — a line of text — and a menu is a list to choose from; two rows of
+ * one is not a list anybody can choose from. The half row is so a reader can see
+ * there is more. Capped at the menu's own height, so a short menu that fits below
+ * still opens below.
+ */
+private val MenuMinimumRoom: Dp = 208.dp

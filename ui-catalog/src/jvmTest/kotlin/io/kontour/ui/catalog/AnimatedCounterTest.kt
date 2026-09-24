@@ -248,7 +248,7 @@ class AnimatedCounterTest {
     }
 
     /**
-     * Every digit about to move trembles the same way.
+     * Every digit about to move trembles the same way, and up and down.
      *
      * Reported from a phone: *"when ticking with a wiggle warning in the animated
      * counter, can we please make sure that if multiple digits are about to move,
@@ -260,13 +260,16 @@ class AnimatedCounterTest {
      * what a reader got was the hundreds and the units going one way and the tens
      * going the other.
      *
+     * And then, a round later: *"can we make the wiggle be up and down instead of
+     * side to side?"* So the shift measured is vertical, and a frame that has
+     * travelled further sideways than up or down fails.
+     *
      * ### Neither existing shake test could see this
      *
      * Both work from `changedColumnsAgainst`, which reports *that* a column moved.
      * Direction needs the ink's centre of mass, so this is the one assertion in the
-     * file that weighs pixels rather than counting them: for each digit cell, where
-     * the ink sits along the row, before the drop and on one frame during the
-     * tremor.
+     * file that weighs pixels rather than counting them: for each digit cell, how
+     * high the ink sits, before the drop and on one frame during the tremor.
      *
      * Read on **one** frame for both digits, because the shake is a single
      * `Animatable` passing through zero — sampled on different frames, two cells
@@ -300,7 +303,7 @@ class AnimatedCounterTest {
 
             value.value = 1199
             val shaking = scene.renderUntil(timeoutMillis = ShakeTimeoutMillis) {
-                abs(it.inkCentre(hundreds) - rest.inkCentre(hundreds)) > MinShift
+                abs(it.inkMiddle(hundreds) - rest.inkMiddle(hundreds)) > MinShift
             }
             assertTrue(
                 shaking != null,
@@ -309,8 +312,16 @@ class AnimatedCounterTest {
             )
 
             val frame = requireNotNull(shaking)
-            val hundredsShift = frame.inkCentre(hundreds) - rest.inkCentre(hundreds)
-            val tensShift = frame.inkCentre(tens) - rest.inkCentre(tens)
+            val hundredsShift = frame.inkMiddle(hundreds) - rest.inkMiddle(hundreds)
+            val tensShift = frame.inkMiddle(tens) - rest.inkMiddle(tens)
+            val sideways = frame.inkCentre(hundreds) - rest.inkCentre(hundreds)
+
+            assertTrue(
+                abs(sideways) < abs(hundredsShift),
+                "the hundreds column moved ${sideways}px sideways and " +
+                    "${hundredsShift}px up or down on this frame. The warning is " +
+                    "supposed to wiggle up and down, not side to side.",
+            )
 
             assertTrue(
                 abs(tensShift) > MinShift,
@@ -356,6 +367,22 @@ class AnimatedCounterTest {
             val rightGap = if (index == runs.lastIndex) run.last else runs[index + 1].first
             ((run.first + leftGap) / 2)..((run.last + rightGap) / 2)
         }
+    }
+
+    /**
+     * How high the ink in [columns] sits, weighted by how much of it each row
+     * holds. A glyph translated down raises this.
+     */
+    private fun BufferedImage.inkMiddle(columns: IntRange): Double {
+        val page = getRGB(2, 2)
+        var weight = 0.0
+        var moment = 0.0
+        for (y in 0 until height) {
+            val ink = columns.count { x -> x in 0 until width && getRGB(x, y) != page }.toDouble()
+            weight += ink
+            moment += ink * y
+        }
+        return if (weight == 0.0) 0.0 else moment / weight
     }
 
     /**
