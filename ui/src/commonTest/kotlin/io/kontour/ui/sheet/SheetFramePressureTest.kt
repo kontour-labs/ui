@@ -175,7 +175,10 @@ class SheetFramePressureTest {
             lateinit var sheet: SheetState
 
             setContent {
-                Harness(visible, SheetPresentation.Floating) { state ->
+                // Pinned floating: the drag below starts at `Half` and goes up,
+                // which is the step a floating sheet now morphs across, and this
+                // is about what floating costs. The morph has its own arm.
+                Harness(visible, SheetPresentation.Floating, edgeMorph = null) { state ->
                     sheet = state
                     Body(counts)
                 }
@@ -204,6 +207,56 @@ class SheetFramePressureTest {
 
         assertBudget("measured", counts.measures, frames)
         assertBudget("drawn", counts.draws, frames)
+    }
+
+    /**
+     * A floating sheet morphing into an edge sheet reflows, and reflows once.
+     *
+     * Across the morph the surface widens by its side margins a little each frame,
+     * so its content is measured at the new width: that is the price of a sheet
+     * whose content follows it out to the edges rather than jumping there at the
+     * end, and it is paid only across that one step. What it must not do is pay it
+     * twice — measured or drawn more than once a frame means something is being
+     * derived from something else that has itself just changed.
+     */
+    @Test
+    fun aMorphingSheetReflowsItsContentAtMostOncePerFrame() {
+        var frames = 0
+        var travelled = 0f
+        val counts = PhaseCounts()
+
+        runComposeUiTest {
+            var visible by mutableStateOf(false)
+            lateinit var sheet: SheetState
+
+            setContent {
+                Harness(visible, SheetPresentation.Floating) { state ->
+                    sheet = state
+                    Body(counts)
+                }
+            }
+            waitForIdle()
+
+            mainClock.autoAdvance = false
+            visible = true
+            repeat(OpenFrames) { mainClock.advanceTimeByFrame() }
+            counts.reset()
+
+            val startedAt = sheet.offset
+            repeat(DraggedFrames) { step ->
+                sheet.anchoredState.dispatchRawDelta(if (step % 2 == 0) -6f else -4f)
+                mainClock.advanceTimeByFrame()
+                frames++
+            }
+            travelled = abs(sheet.offset - startedAt)
+        }
+
+        assertTrue(travelled > 20f, "the morphing sheet moved ${travelled}px, so this measured nothing")
+        assertTrue(
+            counts.measures <= frames && counts.draws <= frames,
+            "a morphing sheet's content was measured ${counts.measures} times and drawn " +
+                "${counts.draws} times over $frames frames — more than once a frame",
+        )
     }
 
     @Test
@@ -251,6 +304,7 @@ class SheetFramePressureTest {
     private fun Harness(
         visible: Boolean,
         presentation: SheetPresentation = SheetPresentation.Edge,
+        edgeMorph: SheetEdgeMorph? = SheetEdgeMorph(),
         content: @Composable (SheetState) -> Unit,
     ) {
         KontourTheme {
@@ -269,6 +323,7 @@ class SheetFramePressureTest {
                         onDismissRequest = {},
                         state = state,
                         presentation = presentation,
+                        edgeMorph = edgeMorph,
                     ) {
                         content(state)
                     }

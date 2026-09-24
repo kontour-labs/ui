@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -26,9 +27,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
@@ -65,6 +68,9 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
@@ -79,8 +85,10 @@ import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.platform.platformDeviceCorners
 import io.kontour.ui.theme.Shadow
+import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.concentricWith
+import io.kontour.ui.theme.lerpCorners
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -104,8 +112,57 @@ enum class SheetPresentation {
      * necessary when its lowest detent is small: a bar-height sheet flush to the
      * bottom of the window reads as a drawer that failed to open, and the same
      * thing floating reads as a control.
+     *
+     * Pulled up to its top detent it stops floating: across the last step of its
+     * travel it becomes the [Edge] sheet it would otherwise have been. See
+     * [SheetEdgeMorph], and `edgeMorph = null` to keep it floating at every size.
      */
     Floating,
+}
+
+/**
+ * How a [SheetPresentation.Floating] sheet turns into an edge sheet as it is expanded.
+ *
+ * A floating panel is the right thing at a sheet's smaller sizes and the wrong one
+ * at its largest: a sheet pulled up to fill the screen is a screen, and a screen
+ * with a margin of background round three sides and rounded corners at the bottom
+ * reads as a card that has been stretched rather than as somewhere to be. So as the
+ * sheet travels from [from] to [until] it becomes the sheet it would have been as
+ * [SheetPresentation.Edge] — its margins go, its corners become the edge sheet's,
+ * and what the margin had been keeping clear of the window's insets is handed to
+ * the content instead.
+ *
+ * **The edges it reaches are the ones the edge sheet reaches**, which is what makes
+ * it right on every size of device without a rule per size. On a phone that is the
+ * bottom and both sides, with top corners concentric with the display's own. On a
+ * tablet or a desktop window, where [SheetDefaults.MaxWidth] stops the sheet short
+ * of the sides, it is the bottom alone, and the sheet stays wherever its
+ * `alignment` put it.
+ *
+ * **It follows the sheet's position, not a clock.** Held halfway through the step
+ * by a finger, the sheet is halfway there; let go, it finishes at the speed of the
+ * spring that is carrying it. Nothing is animated separately, so nothing can fall
+ * behind.
+ *
+ * @param from Where the morph starts: at or below this the sheet is fully
+ *   floating. Null is the resting detent just below [until], so the default is the
+ *   last step of the sheet's travel and nothing else.
+ * @param until Where it is complete: at or above this the sheet is an edge sheet.
+ *   Null is the sheet's highest detent. A sheet with only one detent it can rest
+ *   at has no step to morph across and stays floating; say [from] explicitly to
+ *   morph such a sheet anyway.
+ */
+@Immutable
+class SheetEdgeMorph(
+    val from: SheetDetent? = null,
+    val until: SheetDetent? = null,
+) {
+    override fun equals(other: Any?): Boolean =
+        other is SheetEdgeMorph && other.from == from && other.until == until
+
+    override fun hashCode(): Int = 31 * from.hashCode() + until.hashCode()
+
+    override fun toString(): String = "SheetEdgeMorph(from=$from, until=$until)"
 }
 
 object SheetDefaults {
@@ -255,6 +312,16 @@ fun BottomSheet(
      */
     presentation: SheetPresentation = SheetPresentation.Edge,
     /**
+     * How a floating sheet becomes an edge sheet as it is expanded. See
+     * [SheetEdgeMorph].
+     *
+     * On by default: across the last step of its travel a floating sheet grows to
+     * the edges an edge sheet would reach and takes [expandedShape]. `null` keeps it
+     * floating at every size. Nothing at all for [SheetPresentation.Edge], which is
+     * already what the morph arrives at.
+     */
+    edgeMorph: SheetEdgeMorph? = SheetEdgeMorph(),
+    /**
      * Where along the bottom edge the sheet sits, once the window is wider than
      * the sheet.
      *
@@ -291,6 +358,13 @@ fun BottomSheet(
      */
     floatingControlsAlignment: OverlayAlignment = OverlayAlignment.End,
     shape: Shape = SheetDefaults.shapeFor(presentation),
+    /**
+     * The shape a floating sheet's [shape] becomes as [edgeMorph] completes: the
+     * edge sheet's, concentric with the display's corners where the platform
+     * reports them. Corner by corner, and the curve with them, when both are
+     * corner-based shapes; otherwise it changes over at the end of the morph.
+     */
+    expandedShape: Shape = SheetDefaults.shapeFor(SheetPresentation.Edge),
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
     paneTitle: String? = null,
@@ -409,6 +483,10 @@ fun BottomSheet(
     val motion = Theme.motion
     val actionsGap = SheetDefaults.ActionsGap
     val floating = presentation == SheetPresentation.Floating
+    // Only a floating sheet has anything to morph out of. An edge sheet is what the
+    // morph arrives at, so for one this is null and every floating branch below is
+    // untouched.
+    val morph = if (floating) edgeMorph else null
 
     // **Written here rather than in [ModalBottomSheet]**, which is where it used
     // to be, and that had two consequences. A plain sheet could not refuse a
@@ -571,18 +649,15 @@ fun BottomSheet(
                 // The float, horizontally. A padding at the sides is enough
                 // because nothing here is measured from a side edge; the
                 // vertical half of the same margin is not, and is in `sheetTop`.
-                .then(
-                    if (floating) {
-                        Modifier.windowInsetsPadding(
-                            floatInsets.only(WindowInsetsSides.Horizontal)
-                        )
-                    } else {
-                        Modifier
-                    }
-                )
+                //
+                // Scaled by how much of the float is left, which is all of it
+                // unless the sheet is morphing into an edge sheet — so a padding
+                // computed in the layout phase rather than `windowInsetsPadding`,
+                // which cannot take a fraction and would recompose to change one.
+                .then(if (floating) Modifier.floatingSides(state, floatInsets, morph) else Modifier)
                 // Read in the layout phase, so neither the drag nor the stretch
                 // above the top detent ever recomposes the sheet's content.
-                .offset { IntOffset(0, sheetTop(state, floating, floatInsets, this)) }
+                .offset { IntOffset(0, sheetTop(state, floating, floatInsets, this, morph)) }
                 .then(
                     if (draggable) {
                         Modifier
@@ -615,13 +690,19 @@ fun BottomSheet(
             SheetSurface(
                 state = state,
                 shape = shape,
+                expandedShape = expandedShape,
                 floating = floating,
                 floatInsets = floatInsets,
+                morph = morph,
                 // A floating sheet is already clear of the window's edges, so
                 // padding its content by them again would inset it twice — and
                 // on a gesture-navigation phone that is a bar's worth of dead
                 // space under a sheet the size of a search field.
-                windowInsets = if (floating) NoInsets else windowInsets,
+                //
+                // Unless it can morph: then the content is handed the real
+                // insets, less whatever the margin is still clearing of them,
+                // which is all of them until the morph starts.
+                windowInsets = if (floating && morph == null) NoInsets else windowInsets,
                 containerColour = containerColour,
                 contentColour = contentColour,
                 // A handle on a sheet that cannot be dragged is a lie.
@@ -666,7 +747,7 @@ fun BottomSheet(
                     .offset {
                         IntOffset(
                             0,
-                            sheetTop(state, floating, floatInsets, this) -
+                            sheetTop(state, floating, floatInsets, this, morph) -
                                 actionsHeight -
                                 actionsGap.roundToPx(),
                         )
@@ -685,7 +766,13 @@ fun BottomSheet(
                         val over = (actionsHeight + actionsGap.toPx()).coerceAtLeast(1f)
                         alpha = (state.visibleHeight / over).coerceIn(0f, 1f)
                     }
-                    .windowInsetsPadding(floatInsets.only(WindowInsetsSides.Horizontal))
+                    .then(
+                        if (floating) {
+                            Modifier.floatingSides(state, floatInsets, morph)
+                        } else {
+                            Modifier.windowInsetsPadding(floatInsets.only(WindowInsetsSides.Horizontal))
+                        }
+                    )
                     .padding(horizontal = Theme.spacing.md),
                 horizontalArrangement = floatingControlsAlignment.asArrangement,
                 verticalAlignment = Alignment.Bottom,
@@ -754,6 +841,8 @@ fun ModalBottomSheet(
     ),
     /** See [BottomSheet]. `Floating` lifts the sheet off all three edges. */
     presentation: SheetPresentation = SheetPresentation.Edge,
+    /** See [BottomSheet]: how a floating sheet becomes an edge sheet as it expands. */
+    edgeMorph: SheetEdgeMorph? = SheetEdgeMorph(),
     /**
      * See [BottomSheet]: where the sheet sits once the window is wider than
      * [SheetDefaults.MaxWidth], and nothing at all below it. Read live, so a sheet
@@ -761,6 +850,8 @@ fun ModalBottomSheet(
      */
     alignment: OverlayAlignment = OverlayAlignment.Center,
     shape: Shape = SheetDefaults.shapeFor(presentation),
+    /** See [BottomSheet]: what [shape] becomes once [edgeMorph] completes. */
+    expandedShape: Shape = SheetDefaults.shapeFor(SheetPresentation.Edge),
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
     /**
@@ -807,6 +898,8 @@ fun ModalBottomSheet(
     val latestModifier by rememberUpdatedState(modifier)
     val latestShape by rememberUpdatedState(shape)
     val latestPresentation by rememberUpdatedState(presentation)
+    val latestEdgeMorph by rememberUpdatedState(edgeMorph)
+    val latestExpandedShape by rememberUpdatedState(expandedShape)
     val latestAlignment by rememberUpdatedState(alignment)
     val latestContainerColour by rememberUpdatedState(containerColour)
     val latestContentColour by rememberUpdatedState(contentColour)
@@ -895,8 +988,10 @@ fun ModalBottomSheet(
                             state = state,
                             modifier = latestModifier,
                             presentation = latestPresentation,
+                            edgeMorph = latestEdgeMorph,
                             alignment = latestAlignment,
                             shape = latestShape,
+                            expandedShape = latestExpandedShape,
                             containerColour = latestContainerColour,
                             contentColour = latestContentColour,
                             paneTitle = latestPaneTitle,
@@ -927,8 +1022,10 @@ fun ModalBottomSheet(
 private fun BoxScope.SheetSurface(
     state: SheetState,
     shape: Shape,
+    expandedShape: Shape,
     floating: Boolean,
     floatInsets: WindowInsets,
+    morph: SheetEdgeMorph?,
     windowInsets: WindowInsets,
     containerColour: Color,
     contentColour: Color,
@@ -936,6 +1033,17 @@ private fun BoxScope.SheetSurface(
     density: Density,
     content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
+    // How far into the edge sheet it is becoming, for the one thing that has to be
+    // decided in composition: the shape. Everything else the morph moves is read in
+    // the layout phase. `derivedStateOf`, so a drag recomposes this only while the
+    // fraction is changing — it is 0 all the way below the morph and 1 all the way
+    // above it, and a drag through either recomposes nothing.
+    val edgeness by remember(state, morph) {
+        derivedStateOf { if (morph == null) 0f else edgeness(state, morph) }
+    }
+    val drawnShape = remember(shape, expandedShape, edgeness) {
+        morphShape(shape, expandedShape, edgeness)
+    }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1007,7 +1115,7 @@ private fun BoxScope.SheetSurface(
                     // window and changes every frame. The saving below is not
                     // available to it, and the `graphicsLayer` on its content
                     // is what keeps that from reaching the caller's content.
-                    floatingSurfaceHeight(state, floatInsets, this, window)
+                    floatingSurfaceHeight(state, floatInsets, this, window, morph)
                 } else {
                     state.surfaceHeight
                         .coerceAtLeast(0f)
@@ -1024,7 +1132,7 @@ private fun BoxScope.SheetSurface(
                 state.measurePeek()
                 state.updateAnchors(density)
             },
-        shape = shape,
+        shape = drawnShape,
         colour = containerColour,
         contentColour = contentColour,
         border = contrastEdge(),
@@ -1055,7 +1163,7 @@ private fun BoxScope.SheetSurface(
                     .then(if (floating) Modifier.graphicsLayer() else Modifier)
                     // The top inset, which only `windowInsetsPadding` looks like
                     // it could do. See [sheetTopInset].
-                    .sheetTopInset(state, windowInsets, floating, floatInsets)
+                    .sheetTopInset(state, windowInsets, floating, floatInsets, morph)
                     // Free to be shorter than the surface, never taller.
                     //
                     // `SheetDetent.Expanded` means "as tall as the content", so
@@ -1124,10 +1232,13 @@ private fun BoxScope.SheetSurface(
                         val container = state.containerHeight
                             .coerceAtLeast(0f)
                             .roundToInt()
+                        // A sheet that can morph measures as the edge sheet it
+                        // becomes: a constant either way, so nothing re-measures
+                        // as it moves and `Expanded` has one answer.
                         val ceiling = sheetContentCeiling(
                             container = container,
                             insets = windowInsets,
-                            floating = floating,
+                            floating = floating && morph == null,
                             floatInsets = floatInsets,
                         )
                         val room = when {
@@ -1162,8 +1273,20 @@ private fun BoxScope.SheetSurface(
                     //
                     // The drag handle keeps its own placement either way — it is
                     // at the top, where the bottom inset was never reaching it.
-                    .windowInsetsPadding(
-                        windowInsets.only(WindowInsetsSides.Horizontal)
+                    .then(
+                        if (morph == null) {
+                            Modifier.windowInsetsPadding(
+                                windowInsets.only(WindowInsetsSides.Horizontal)
+                            )
+                        } else {
+                            // Whatever of the side insets the margin has stopped
+                            // clearing, which is none of them while the sheet floats
+                            // and all of them once it is an edge sheet. Margin plus
+                            // padding never falls short of the inset on the way.
+                            Modifier
+                                .insetsTheMarginNoLongerClears(state, windowInsets, floatInsets, morph)
+                                .consumeWindowInsets(windowInsets.only(WindowInsetsSides.Horizontal))
+                        }
                     )
             ) {
                 dragHandle?.invoke()
@@ -1174,7 +1297,16 @@ private fun BoxScope.SheetSurface(
                 // whole of a sheet's content on every frame of the keyboard
                 // sliding up.
                 SheetParts(this, state).content(
-                    windowInsets.only(WindowInsetsSides.Bottom).asPaddingValues()
+                    if (morph == null) {
+                        windowInsets.only(WindowInsetsSides.Bottom).asPaddingValues()
+                    } else {
+                        // The same, less what the bottom margin still clears —
+                        // zero while floating, the whole inset as an edge sheet.
+                        // Resolved by the consumer for the reason above.
+                        remember(windowInsets, state, floatInsets, morph, density) {
+                            BottomInsetTheMarginNoLongerClears(windowInsets, state, floatInsets, morph, density)
+                        }
+                    }
                 )
             }
         }
@@ -1301,6 +1433,7 @@ private fun sheetTop(
     floating: Boolean,
     floatInsets: WindowInsets,
     density: Density,
+    morph: SheetEdgeMorph? = null,
 ): Int {
     val top = offsetOrHidden(state) - state.drawnOvershoot.roundToInt()
     if (!floating) return top
@@ -1328,8 +1461,14 @@ private fun sheetTop(
     // detent that resolves to an offset of zero means "as tall as the window",
     // and a floating sheet that tall is the window less a margin on all four
     // sides, not a panel with its head off the top of the screen.
-    return (top - floatingLift(state, floatInsets, density))
-        .coerceAtLeast(floatInsets.getTop(density))
+    //
+    // The clamp is scaled by the morph as well: an edge sheet's top is its anchor,
+    // which already stops `SheetTopGap` short of the window, and the status bar
+    // under it is `sheetTopInset`'s to pad — so the floating margin up there gives
+    // way at the same rate as the other three.
+    val kept = 1f - edgeness(state, morph)
+    return (top - floatingLift(state, floatInsets, density, morph))
+        .coerceAtLeast((floatInsets.getTop(density) * kept).roundToInt())
 }
 
 /**
@@ -1383,12 +1522,13 @@ private fun floatingSurfaceHeight(
     floatInsets: WindowInsets,
     density: Density,
     window: Int,
+    morph: SheetEdgeMorph?,
 ): Int {
     val floor = state.lowestRestingOffset
     val raw = offsetOrHidden(state) - state.drawnOvershoot.roundToInt()
     val following = window -
-        floatingLift(state, floatInsets, density) -
-        sheetTop(state, true, floatInsets, density)
+        floatingLift(state, floatInsets, density, morph) -
+        sheetTop(state, true, floatInsets, density, morph)
     if (floor.isNaN() || raw <= floor) return following.coerceIn(0, window)
     // At the floor the lift is the whole margin, so the top was `floor - margin`
     // — clamped, because a floating sheet has a top edge too and a detent that
@@ -1399,15 +1539,134 @@ private fun floatingSurfaceHeight(
     return (window - margin - settledTop).coerceIn(0, window)
 }
 
-private fun floatingLift(state: SheetState, floatInsets: WindowInsets, density: Density): Int {
+private fun floatingLift(
+    state: SheetState,
+    floatInsets: WindowInsets,
+    density: Density,
+    morph: SheetEdgeMorph? = null,
+): Int {
     val margin = floatInsets.getBottom(density)
     if (margin <= 0) return 0
+    // Given back at the top of the travel as well as at the bottom: an edge sheet
+    // stands on the window's edge, and a floating one morphing into it lands there
+    // at the rate it morphs. The two never overlap — the pay-back below is below
+    // the lowest resting detent, and the morph is above the one under the top.
+    val kept = 1f - edgeness(state, morph)
     val container = state.containerHeight
     val floor = state.lowestRestingOffset
-    if (floor.isNaN() || container <= floor) return margin
+    if (floor.isNaN() || container <= floor) return (margin * kept).roundToInt()
     val raw = offsetOrHidden(state) - state.drawnOvershoot.roundToInt()
     val landed = ((container - raw) / (container - floor)).coerceIn(0f, 1f)
-    return (margin * landed).roundToInt()
+    return (margin * landed * kept).roundToInt()
+}
+
+/**
+ * How far a floating sheet has become an edge sheet: 0 while it floats, 1 once it
+ * is one. See [SheetEdgeMorph]. Read from the raw offset, like the lift, and in
+ * whichever phase asks — layout for the geometry, composition for the shape.
+ */
+private fun edgeness(state: SheetState, morph: SheetEdgeMorph?): Float {
+    if (morph == null) return 0f
+    val raw = offsetOrHidden(state) - state.drawnOvershoot.roundToInt()
+    return state.edgeMorphFraction(morph, raw.toFloat())
+}
+
+/**
+ * [shape] on its way to [expanded], [fraction] of the way there.
+ *
+ * Corner by corner through `lerpCorners`, and the squircle's curve with them when
+ * both have one — the edge sheet's may be the display's own, and a curve that
+ * changed over at the end would be a step in an otherwise continuous morph. A
+ * shape that is not corner-based cannot be interpolated and changes over once the
+ * morph is complete.
+ */
+private fun morphShape(shape: Shape, expanded: Shape, fraction: Float): Shape = when {
+    fraction <= 0f -> shape
+    fraction >= 1f -> expanded
+    shape is CornerBasedShape && expanded is CornerBasedShape -> {
+        val corners = shape.lerpCorners(expanded, fraction)
+        if (shape is SquircleShape && expanded is SquircleShape && corners is SquircleShape) {
+            corners.withSmoothing(shape.smoothing + (expanded.smoothing - shape.smoothing) * fraction)
+        } else {
+            corners
+        }
+    }
+    else -> shape
+}
+
+/**
+ * A floating sheet's side margin, less however much of it the morph has given away.
+ *
+ * Physical sides, because window insets are: a cutout on the left is on the left in
+ * either layout direction. And the insets are consumed for what is inside, as the
+ * `windowInsetsPadding` this replaced consumed them, so content that pads itself by
+ * the safe area is not inset a second time.
+ */
+private fun Modifier.floatingSides(
+    state: SheetState,
+    floatInsets: WindowInsets,
+    morph: SheetEdgeMorph?,
+): Modifier = layout { measurable, constraints ->
+    val kept = 1f - edgeness(state, morph)
+    val left = (floatInsets.getLeft(this, layoutDirection) * kept).roundToInt()
+    val right = (floatInsets.getRight(this, layoutDirection) * kept).roundToInt()
+    val placeable = measurable.measure(constraints.offset(horizontal = -(left + right)))
+    layout(
+        constraints.constrainWidth(placeable.width + left + right),
+        constraints.constrainHeight(placeable.height),
+    ) { placeable.place(left, 0) }
+}.consumeWindowInsets(floatInsets.only(WindowInsetsSides.Horizontal))
+
+/**
+ * The side insets a morphing sheet's margin has stopped clearing, as padding.
+ *
+ * The same rounding as [floatingSides], so the margin and this add up to the inset
+ * to the pixel at every fraction rather than leaving a pixel's gap or overlap.
+ */
+private fun Modifier.insetsTheMarginNoLongerClears(
+    state: SheetState,
+    insets: WindowInsets,
+    floatInsets: WindowInsets,
+    morph: SheetEdgeMorph?,
+): Modifier = layout { measurable, constraints ->
+    val kept = 1f - edgeness(state, morph)
+    val left = (insets.getLeft(this, layoutDirection) -
+        (floatInsets.getLeft(this, layoutDirection) * kept).roundToInt()).coerceAtLeast(0)
+    val right = (insets.getRight(this, layoutDirection) -
+        (floatInsets.getRight(this, layoutDirection) * kept).roundToInt()).coerceAtLeast(0)
+    val placeable = measurable.measure(constraints.offset(horizontal = -(left + right)))
+    layout(
+        constraints.constrainWidth(placeable.width + left + right),
+        constraints.constrainHeight(placeable.height),
+    ) { placeable.place(left, 0) }
+}
+
+/**
+ * The bottom inset a morphing sheet hands its content: none of it while the sheet
+ * floats, since its margin clears it, and all of it once it is an edge sheet.
+ *
+ * A `PaddingValues` rather than a number, for the reason the edge sheet hands out
+ * `asPaddingValues()`: it is resolved where it is used, which for a `LazyColumn`
+ * is its measure pass, so the content is re-measured as it changes and never
+ * recomposed. The margin is scaled by the morph alone and not by the pay-back on
+ * the way out, so a closing sheet does not re-measure its content every frame.
+ */
+@Stable
+private class BottomInsetTheMarginNoLongerClears(
+    private val insets: WindowInsets,
+    private val state: SheetState,
+    private val floatInsets: WindowInsets,
+    private val morph: SheetEdgeMorph?,
+    private val density: Density,
+) : PaddingValues {
+    override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+    override fun calculateTopPadding(): Dp = 0.dp
+    override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+    override fun calculateBottomPadding(): Dp = with(density) {
+        val kept = 1f - edgeness(state, morph)
+        val margin = (floatInsets.getBottom(this) * kept).roundToInt()
+        (insets.getBottom(this) - margin).coerceAtLeast(0).toDp()
+    }
 }
 
 /**
@@ -1461,9 +1720,10 @@ private fun Modifier.sheetTopInset(
     insets: WindowInsets,
     floating: Boolean,
     floatInsets: WindowInsets,
+    morph: SheetEdgeMorph?,
 ): Modifier = layout { measurable, constraints ->
     val inset = insets.getTop(this)
-    val top = (inset - sheetTop(state, floating, floatInsets, this)).coerceIn(0, inset)
+    val top = (inset - sheetTop(state, floating, floatInsets, this, morph)).coerceIn(0, inset)
     val placeable = measurable.measure(constraints.offset(vertical = -top))
     val height = (placeable.height + top).coerceAtMost(constraints.maxHeight)
     layout(placeable.width, height) { placeable.place(0, top) }

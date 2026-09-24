@@ -176,6 +176,54 @@ sheet dragged down by hand gives it back at the speed of the hand and one let go
 gives it back at the speed of the spring, with no second animation to keep in
 step.
 
+### Expanded, a floating sheet becomes an edge sheet
+
+A floating panel is right at a sheet's smaller sizes and wrong at its largest: a
+sheet pulled up to fill the screen *is* the screen, and a screen with a strip of
+background round three sides and rounded corners at the bottom reads as a card
+that has been stretched. So **across the last step of its travel** — from the
+resting detent just below the top, to the top — a floating sheet morphs into the
+edge sheet it would otherwise have been. Its margins close up, its corners become
+the edge sheet's, and it arrives as one exactly as it settles.
+
+**The edges it reaches are the ones the edge sheet reaches**, which is what makes
+it right on every size of device without a rule per size:
+
+| Window | Where the expanded sheet ends up |
+|---|---|
+| Phone, portrait or landscape | The bottom and both sides, top corners concentric with the display's |
+| Tablet or desktop, wider than the 640dp cap | The bottom only, at the cap's width, wherever `alignment` put it |
+| Cutouts, side insets, a gesture bar | The surface reaches the window's edge and the **content** is handed the insets, exactly as an edge sheet's is |
+
+It follows the sheet's position rather than a clock, like the margin paid back on
+the way out: held halfway through the step by a finger, the sheet is halfway
+there, and let go it finishes at the speed of the spring carrying it.
+
+```kotlin
+BottomSheet(
+    state = sheet,
+    presentation = SheetPresentation.Floating,
+    // The default: the last step, into the edge sheet's shape.
+    edgeMorph = SheetEdgeMorph(),
+    // Or finish earlier, from the bar up to Half:
+    // edgeMorph = SheetEdgeMorph(from = bar, until = SheetDetent.Half),
+    // Or never: a floating panel at every size.
+    // edgeMorph = null,
+) { … }
+```
+
+`expandedShape` is what `shape` becomes, and defaults to the edge sheet's. Corners
+and the squircle's curve interpolate when both are corner-based shapes.
+
+A sheet with only one detent it can rest at — a `ModalBottomSheet` with its
+default `[Hidden, Expanded]` — has no step to morph across, and stays floating;
+say `from` to morph one anyway.
+
+**One cost, confined to the step.** As the sheet widens by its side margins its
+content is measured at the new width each frame, so it follows the sheet out to
+the edges rather than jumping there at the end. Below the step a floating sheet
+costs exactly what it did, and above it the sheet is an edge sheet standing still.
+
 ---
 
 ## `alignment` — where a sheet sits once the window is wider than it

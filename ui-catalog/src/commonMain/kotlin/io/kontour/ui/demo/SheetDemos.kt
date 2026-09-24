@@ -37,6 +37,7 @@ import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.sheet.SheetHeaderStyle
+import io.kontour.ui.sheet.SheetEdgeMorph
 import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.sheet.SideSheet
@@ -120,13 +121,22 @@ private val sheetPresentation =
 private val sheetAlignment =
     Knob.Choice("Align", OverlayAlignment.entries.toList(), OverlayAlignment.Center)
 
+/**
+ * Whether a floating sheet becomes an edge sheet as it is pulled up to its top
+ * detent — the default — or stays a floating panel at every size.
+ *
+ * Does nothing at `Edge`, which is what the morph arrives at. Drag the sheet from
+ * Half to its full height with this on and the margins close up as it goes.
+ */
+private val sheetEdgeMorph = Knob.Flag("Expands to edge", initial = true)
+
 /** Which end of the sheet's own top edge the floating controls gather at. */
 private val sheetControlsAlignment =
     Knob.Choice("Controls", OverlayAlignment.entries.toList(), OverlayAlignment.End)
 
 internal val BottomSheetDemo = ComponentDemo(
     slug = "bottom-sheet",
-    knobs = listOf(sheetPresentation, sheetAlignment, sheetControlsAlignment),
+    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment),
 ) {
     val presentation = this[sheetPresentation]
     val sheet = rememberSheetState(
@@ -146,6 +156,7 @@ internal val BottomSheetDemo = ComponentDemo(
         BottomSheet(
             state = sheet,
             presentation = presentation,
+            edgeMorph = if (this@ComponentDemo[sheetEdgeMorph]) SheetEdgeMorph() else null,
             alignment = this@ComponentDemo[sheetAlignment],
             floatingControlsAlignment = this@ComponentDemo[sheetControlsAlignment],
             floatingControls = {

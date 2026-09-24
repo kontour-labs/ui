@@ -321,6 +321,43 @@ class SheetState internal constructor(
     internal val lowestRestingOffset: Float get() = lowestAnchored(detents)
 
     /**
+     * How far through [morph] a floating sheet is with its top edge at [raw]: 0 at
+     * or below `morph.from`, 1 at or above `morph.until`, and linear between.
+     *
+     * In offsets rather than detents so it reads the same for a finger, a spring and
+     * a stretch above the top — whatever is moving the sheet, the morph is where the
+     * sheet is. 0 for a null morph, before there are anchors, and for a sheet with
+     * no step to morph across: `until` its lowest resting detent and `from` not
+     * given, which leaves nothing below it to start from.
+     */
+    internal fun edgeMorphFraction(morph: SheetEdgeMorph?, raw: Float): Float {
+        if (morph == null) return 0f
+        val until = morph.until?.let(::offsetOf) ?: highestAnchored(detents)
+        if (until.isNaN()) return 0f
+        val from = morph.from?.let(::offsetOf) ?: restingBelow(until)
+        if (from.isNaN() || from <= until) return 0f
+        return ((from - raw) / (from - until)).coerceIn(0f, 1f)
+    }
+
+    /**
+     * The nearest resting detent's offset below [offset] — the next larger one —
+     * or `NaN` when there is none. [SheetDetent.Hidden] is not somewhere to rest.
+     */
+    private fun restingBelow(offset: Float): Float {
+        val anchors = anchoredState.anchors
+        var found = Float.NaN
+        for (detent in detents) {
+            if (detent == SheetDetent.Hidden) continue
+            val at = anchors.positionOf(detent)
+            // Half a pixel, so a detent that resolved onto the same offset as
+            // `until` is not taken for the one below it.
+            if (at.isNaN() || at <= offset + 0.5f) continue
+            if (found.isNaN() || at < found) found = at
+        }
+        return found
+    }
+
+    /**
      * The furthest down a *drag* may take the sheet, in pixels of offset.
      *
      * `NaN` when there is nothing to stop at — which is the ordinary case, where
