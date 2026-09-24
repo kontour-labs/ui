@@ -116,6 +116,9 @@ enum class SheetPresentation {
      * Pulled up to its top detent it stops floating: across the last step of its
      * travel it becomes the [Edge] sheet it would otherwise have been. See
      * [SheetEdgeMorph], and `edgeMorph = null` to keep it floating at every size.
+     *
+     * A [SideSheet] takes it too: inset from its side, the top and the bottom, and
+     * — if it is `expandable` — becoming an edge sheet as it widens to the window.
      */
     Floating,
 }
@@ -143,6 +146,10 @@ enum class SheetPresentation {
  * by a finger, the sheet is halfway there; let go, it finishes at the speed of the
  * spring that is carrying it. Nothing is animated separately, so nothing can fall
  * behind.
+ *
+ * [SideSheet] has the same morph on the other axis, as a `Boolean`: it has one
+ * step — its resting width to the whole window — so there is nothing to choose
+ * but whether.
  *
  * @param from Where the morph starts: at or below this the sheet is fully
  *   floating. Null is the resting detent just below [until], so the default is the
@@ -1580,7 +1587,7 @@ private fun edgeness(state: SheetState, morph: SheetEdgeMorph?): Float {
  * shape that is not corner-based cannot be interpolated and changes over once the
  * morph is complete.
  */
-private fun morphShape(shape: Shape, expanded: Shape, fraction: Float): Shape = when {
+internal fun morphShape(shape: Shape, expanded: Shape, fraction: Float): Shape = when {
     fraction <= 0f -> shape
     fraction >= 1f -> expanded
     shape is CornerBasedShape && expanded is CornerBasedShape -> {
