@@ -448,6 +448,14 @@ Two corrections, in order:
 2. **Shift.** Slide along the other axis until the whole thing is inside the
    container, keeping `margin` and the window's own insets clear of the edges.
 
+**Only the part of an inset that reaches the host counts.** The insets are the
+window's — status bar, home indicator, keyboard — and a host is not always the
+window. One inside a card half-way down the page is nowhere near the status bar,
+and taking 47dp off its top and 34dp off its bottom left a popover in a 260dp card
+too little room on either side, so it was shifted back up over its own anchor. A
+host edge that is further from the window's edge than the inset is deep keeps
+nothing clear on that side.
+
 **The flip is rarer than it reads**, because the content is measured against the
 room on the preferred side *before* it is measured at all. A panel bounded to its
 own side fits there by construction, so the flip is left for the case it is

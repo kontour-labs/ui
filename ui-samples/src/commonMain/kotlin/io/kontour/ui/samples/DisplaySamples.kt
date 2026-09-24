@@ -1,5 +1,15 @@
 package io.kontour.ui.samples
 
+import kotlin.math.roundToInt
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Alignment
+import io.kontour.ui.components.display.BubblePosition
+import io.kontour.ui.components.display.BubbleSide
+import io.kontour.ui.components.display.ChatBubble
+import io.kontour.ui.components.display.GaugeTickPlacement
+import io.kontour.ui.components.display.GaugeIndicator
+import io.kontour.ui.components.display.GaugeDefaults
+import io.kontour.ui.components.display.Gauge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -67,6 +77,60 @@ fun StatBasics() {
         +"Next departure"
         supporting("Platform 2")
         trend(StatTrend.Positive, "2 min earlier than usual")
+    }
+}
+
+@Composable
+fun GaugeBasics() {
+    // An engine's speed: a needle over a gradient, labelled ticks inside the arc.
+    Gauge(
+        value = 8_500f,
+        valueRange = 0f..10_000f,
+        indicator = GaugeIndicator.Needle,
+        majorTicks = 6,
+        minorTicks = 1,
+        tickLabel = { "${(it / 1000).roundToInt()}K" },
+        colours = GaugeDefaults.colours(indicator = listOf(Color(0xFFFF5C9E), Color(0xFF7C5CFF))),
+        contentDescription = "Engine speed",
+        stateDescription = { "${it.roundToInt()} revolutions a minute" },
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("8.5k", style = Theme.typography.titleLarge)
+            Text("RPM", style = Theme.typography.labelSmall)
+        }
+    }
+
+    // A thermostat: a thumb on a thicker arc, the reading in the middle.
+    Gauge(
+        value = 40f,
+        valueRange = 0f..100f,
+        thickness = 20.dp,
+        indicator = GaugeIndicator.Thumb,
+        majorTicks = 11,
+        tickPlacement = GaugeTickPlacement.Outside,
+        contentDescription = "Humidity",
+    ) {
+        Text("40", style = Theme.typography.displaySmall)
+    }
+}
+
+@Composable
+fun ChatBubbleBasics() {
+    val messages = listOf(
+        "sam" to "Is the 950 running tonight?",
+        "sam" to "The app says it's delayed",
+        "me" to "Every 15 minutes until 11pm",
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        messages.forEachIndexed { index, (sender, text) ->
+            ChatBubble(
+                side = if (sender == "me") BubbleSide.Outgoing else BubbleSide.Incoming,
+                // Consecutive messages from one sender are a run; the last has the tail.
+                position = BubblePosition.of(messages, index) { it.first },
+            ) {
+                Text(text)
+            }
+        }
     }
 }
 

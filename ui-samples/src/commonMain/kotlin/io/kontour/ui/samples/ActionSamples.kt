@@ -35,6 +35,7 @@ import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.components.action.SplitButton
 import io.kontour.ui.components.action.TextButton
 import io.kontour.ui.components.action.TextIconButton
+import io.kontour.ui.components.action.VerticalButtonGroup
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.action.VerticalToolbar
@@ -125,6 +126,14 @@ fun ButtonGroupBasics() {
             icon = Tabler.Outline.CurrentLocation,
         )
         item(onClick = { zoomIn() }, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+    }
+}
+
+@Composable
+fun VerticalButtonGroupBasics() {
+    VerticalButtonGroup {
+        item(onClick = { zoomIn() }, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+        item(onClick = { zoomOut() }, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
     }
 }
 

@@ -71,6 +71,16 @@ import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Text
+import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.Spacer
+import io.kontour.ui.components.selection.Slider
+import io.kontour.ui.components.display.BubblePosition
+import io.kontour.ui.components.display.BubbleSide
+import io.kontour.ui.components.display.ChatBubble
+import io.kontour.ui.components.display.GaugeTickPlacement
+import io.kontour.ui.components.display.GaugeIndicator
+import io.kontour.ui.components.display.GaugeDefaults
+import io.kontour.ui.components.display.Gauge
 import io.kontour.ui.motion.marquee
 import io.kontour.ui.theme.Theme
 import kotlin.time.Duration
@@ -670,6 +680,98 @@ internal val SpinnerDemo = ComponentDemo(slug = "spinner") {
     }
 }
 
+// --- Gauge -----------------------------------------------------------------
+
+private val gaugeIndicator = Knob.Choice("Indicator", GaugeIndicator.entries.toList(), GaugeIndicator.Needle)
+private val gaugeTicks = Knob.Choice("Ticks", GaugeTickPlacement.entries.toList(), GaugeTickPlacement.Inside)
+
+/** Pink to purple along the scale, like the dial it was drawn from; off is the theme's accent. */
+private val gaugeGradient = Knob.Flag("Gradient", initial = true)
+
+/** Off, a new reading is drawn where it lands rather than travelling there. */
+private val gaugeAnimated = Knob.Flag("Animated", initial = true)
+
+internal val GaugeDemo = ComponentDemo(
+    slug = "gauge",
+    knobs = listOf(gaugeIndicator, gaugeTicks, gaugeGradient, gaugeAnimated),
+) {
+    var rpm by remember { mutableStateOf(8_500f) }
+    val indicator = this[gaugeIndicator]
+    val ticks = this[gaugeTicks]
+    val gradient = this[gaugeGradient]
+    val animated = this[gaugeAnimated]
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+    ) {
+        Gauge(
+            value = rpm,
+            valueRange = 0f..10_000f,
+            size = 200.dp,
+            indicator = indicator,
+            majorTicks = 6,
+            minorTicks = 1,
+            tickLabel = { "${(it / 1000).roundToInt()}K" },
+            tickPlacement = ticks,
+            animated = animated,
+            colours = GaugeDefaults.colours(
+                indicator = if (gradient) listOf(GaugePink, GaugePurple) else listOf(Theme.colours.primary),
+            ),
+            contentDescription = "Engine speed",
+            stateDescription = { "${it.roundToInt()} revolutions a minute" },
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("${(rpm / 100).roundToInt() / 10f}k", style = Theme.typography.titleLarge)
+                Text("RPM", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
+            }
+        }
+        Slider(
+            value = rpm,
+            onValueChange = { rpm = it },
+            valueRange = 0f..10_000f,
+            contentDescription = "Engine speed",
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+private val GaugePink = Color(0xFFFF5C9E)
+private val GaugePurple = Color(0xFF7C5CFF)
+
+// --- ChatBubble ------------------------------------------------------------
+
+private val bubbleSide = Knob.Choice("Side", BubbleSide.entries.toList(), BubbleSide.Outgoing)
+private val bubblePosition = Knob.Choice("Position", BubblePosition.entries.toList(), BubblePosition.Only)
+
+/** Off leaves every bubble of a run without one, for a quieter thread. */
+private val bubbleTail = Knob.Flag("Tail", initial = true)
+
+internal val ChatBubbleDemo = ComponentDemo(
+    slug = "chat-bubble",
+    knobs = listOf(bubbleSide, bubblePosition, bubbleTail),
+) {
+    val side = this[bubbleSide]
+    val position = this[bubblePosition]
+    val tail = this[bubbleTail]
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        ChatBubble(side = BubbleSide.Incoming, position = BubblePosition.First, tail = tail) {
+            Text("Is the 950 running tonight?")
+        }
+        ChatBubble(
+            side = BubbleSide.Incoming,
+            position = BubblePosition.Last,
+            tail = tail,
+            meta = { Text("9:41") },
+        ) {
+            Text("The app says it's delayed")
+        }
+        Spacer(Modifier.height(Theme.spacing.sm))
+        ChatBubble(side = side, position = position, tail = tail, meta = { Text("9:42 · Read") }) {
+            Text("Every 15 minutes until 11pm, then every 30 overnight.")
+        }
+    }
+}
+
 internal val displayDemos = listOf(
     CardDemo,
     TagDemo,
@@ -691,4 +793,6 @@ internal val displayDemos = listOf(
     PageIndicatorDemo,
     KeyValueListDemo,
     KbdDemo,
+    GaugeDemo,
+    ChatBubbleDemo,
 )

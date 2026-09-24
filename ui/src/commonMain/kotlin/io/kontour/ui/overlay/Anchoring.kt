@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
@@ -30,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.Theme
+import kotlin.math.roundToInt
 
 /**
  * Which side of its anchor an overlay prefers to sit on.
@@ -436,6 +439,13 @@ internal fun Modifier.parentBounds(onBounds: (Rect?) -> Unit): Modifier =
  */
 private val ArrowOverlap: Dp = 1.dp
 
+/**
+ * The window insets an anchored overlay keeps clear of, when they are not the
+ * window's own — which is only ever a test: a desktop scene has no status bar or
+ * home indicator to report, and the cases worth testing are the ones a phone has.
+ */
+internal val LocalOverlaySafeArea = compositionLocalOf<WindowInsets?> { null }
+
 /** A pointer showing which element an overlay belongs to. */
 @Immutable
 data class ArrowSpec(
@@ -520,15 +530,15 @@ internal fun AnchoredOverlayLayout(
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val geometry = remember { ArrowPath() }
     val anchorMemory = remember { AnchorMemory() }
-    // The host fills the window and applies no insets of its own, so without this
-    // the room "below" an anchor near the bottom of a phone includes the navigation
-    // bar. The keyboard is in there for the same reason a dialog includes it: a
-    // popover is as likely to hold a text field.
+    // The host applies no insets of its own, so without this the room "below" an
+    // anchor near the bottom of a phone includes the navigation bar. The keyboard
+    // is in there for the same reason a dialog includes it: a popover is as likely
+    // to hold a text field.
     //
     // Held as the `WindowInsets` rather than resolved here, so the pixels are read
     // in the measure pass and an animating keyboard re-places the overlay instead of
     // recomposing it.
-    val safeArea = WindowInsets.allEdges
+    val safeArea = LocalOverlaySafeArea.current ?: WindowInsets.allEdges
 
     val gapPx = with(density) { gap.roundToPx() }
     val marginPx = with(density) { margin.roundToPx() }
@@ -566,11 +576,21 @@ internal fun AnchoredOverlayLayout(
         // The arrow takes up part of the gap, so the surface sits back far
         // enough for the tip to reach the anchor instead of overlapping it.
         val effectiveGap = gapPx + arrowHeightPx.toInt()
+        // **Only the part of each inset that reaches into this host.** The insets
+        // are the window's, and a host is not always the window: the catalog's
+        // stages, a card with its own host, a pane. Taking a phone's 47dp status
+        // bar and 34dp home indicator off the edges of a 260dp card half-way down
+        // the page left less than the 64dp floor on either side of an anchor in
+        // its middle, and the panel was shifted back up over the control it was
+        // meant to point at — reported as the popover appearing in the wrong
+        // place. An edge that is further from the window's than the inset is deep
+        // has nothing to keep clear of.
+        val fromRoot = host.edgesFromRoot
         val insets = AnchorInsets(
-            left = safeArea.getLeft(this, layoutDirection),
-            top = safeArea.getTop(this),
-            right = safeArea.getRight(this, layoutDirection),
-            bottom = safeArea.getBottom(this),
+            left = (safeArea.getLeft(this, layoutDirection) - fromRoot.left).coerceAtLeast(0),
+            top = (safeArea.getTop(this) - fromRoot.top).coerceAtLeast(0),
+            right = (safeArea.getRight(this, layoutDirection) - fromRoot.right).coerceAtLeast(0),
+            bottom = (safeArea.getBottom(this) - fromRoot.bottom).coerceAtLeast(0),
         )
 
         // **The anchor is read before the content is measured**, which is the whole
@@ -806,6 +826,19 @@ internal fun OverlaySurface(
     )
 }
 
-/** Records where the host sits, so root-space anchors can be made host-local. */
+/**
+ * Records where the host sits, so root-space anchors can be made host-local and
+ * window insets host-sized.
+ */
 internal fun Modifier.trackHostOrigin(state: OverlayHostState): Modifier =
-    onGloballyPositioned { state.originInRoot = it.positionInRoot() }
+    onGloballyPositioned { coordinates ->
+        val origin = coordinates.positionInRoot()
+        state.originInRoot = origin
+        val root = coordinates.findRootCoordinates().size
+        state.edgesFromRoot = AnchorInsets(
+            left = origin.x.roundToInt().coerceAtLeast(0),
+            top = origin.y.roundToInt().coerceAtLeast(0),
+            right = (root.width - origin.x - coordinates.size.width).roundToInt().coerceAtLeast(0),
+            bottom = (root.height - origin.y - coordinates.size.height).roundToInt().coerceAtLeast(0),
+        )
+    }

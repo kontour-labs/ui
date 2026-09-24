@@ -16,6 +16,7 @@ Controls that record a choice.
 | [`ColourPicker`](colour-picker.md) | Any colour, or a set of them | `ColourSwatchPicker`, when the set is all there is |
 | [`Slider`](slider.md) | A value in a continuous range | A `NumberField`, when the exact figure matters |
 | [`RangeSlider`](range-slider.md) | A band — two values on one track | Two `Slider`s, which cannot stop each other crossing |
+| [`Knob`](knob.md) | A value set by turning a dial | A `Slider`, when there is a line's worth of room |
 | [`Stepper`](stepper.md) | A small exact count | A `Slider`, when the number is approximate |
 | [`Rating`](rating.md) | A score out of five | A `Slider`, when the scale is not a score |
 

@@ -1,5 +1,7 @@
 package io.kontour.ui.samples
 
+import io.kontour.ui.foundation.Text
+import io.kontour.ui.components.selection.Knob
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -134,6 +136,21 @@ fun ColourSwatchPickerBasics() {
         swatchColour = { it.colour },
         swatchLabel = { it.displayName },
     )
+}
+
+@Composable
+fun KnobBasics() {
+    var volume by remember { mutableStateOf(0.4f) }
+
+    Knob(
+        value = volume,
+        onValueChange = { volume = it },
+        steps = 9,
+        contentDescription = "Volume",
+        stateDescription = { "${(it * 100).roundToInt()}%" },
+    ) {
+        Text("${(volume * 100).roundToInt()}")
+    }
 }
 
 @Composable

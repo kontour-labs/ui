@@ -341,10 +341,10 @@ internal fun DrawScope.squashedCapsule(
     inset: Float = 0f,
     style: DrawStyle = Fill,
     /**
-     * Squircle caps rather than semicircles, while the box is at least as wide as
-     * it is tall — the slider's thumb. `Switch` keeps the round ones, whose pressed
-     * end is concentric with its track's. The egg below is the same either way: it
-     * is only reached in the few frames a squash takes the thumb narrower than tall.
+     * Squircle caps rather than semicircles — the slider's thumb — and a squircle
+     * squashed into the box when it is narrower than tall, in place of the egg.
+     * `Switch` keeps the round ends, whose pressed end is concentric with its
+     * track's, and the egg.
      */
     squircle: Boolean = false,
 ) {
@@ -359,11 +359,32 @@ internal fun DrawScope.squashedCapsule(
     // Decided on the **outer** box, so the ring and the fill are never two
     // different shapes: at the crossover an inset box can be narrower than it is
     // tall while the box around it is not.
+    // **A hair narrower than tall is still the resting squircle.** A released
+    // squash is a spring, and a spring settles within its visibility threshold of
+    // home rather than on it — so the thumb came to rest a fraction of a pixel
+    // narrower than tall, took the egg below, and was drawn round: six pixels
+    // narrower at the end of the track than anywhere else on it, for good.
+    // `EndStopSquashTest` found it. Widened to square about its own centre, which
+    // is a sub-pixel change nobody can see.
+    if (squircle && outerWidth / 2f >= restingHalf - SquircleSettleSlack) {
+        val across = maxOf(outerWidth, outerHeight) / 2f
+        val middle = (left + right) / 2f
+        squircleStadium(
+            middle - across + inset, top + inset, middle + across - inset, bottom - inset,
+            colour, style = style,
+        )
+        return
+    }
+    // **Narrower than tall, a squircle head squashes as a squircle.** The egg
+    // below is a circle's squash, and between the two a thumb coming home from a
+    // squash went squircle, round, squircle — six pixels narrower for the frames
+    // it spent just under square, then back. Scaled into its box instead, it is
+    // the resting shape at the moment the two meet, and a vertical squircle past it.
+    if (squircle && outerWidth / 2f < restingHalf) {
+        squircleOval(left + inset, top + inset, right - inset, bottom - inset, colour, style)
+        return
+    }
     if (outerWidth / 2f >= restingHalf) {
-        if (squircle) {
-            squircleStadium(left + inset, top + inset, right - inset, bottom - inset, colour, style = style)
-            return
-        }
         // Half the height, so the ends are full semicircles — a capsule, and a
         // circle at the moment the two are equal.
         drawRoundRect(
@@ -678,8 +699,10 @@ internal fun DrawScope.squircleStadium(
     alpha: Float = 1f,
     style: DrawStyle = Fill,
 ) {
-    val half = (bottom - top) / 2f
-    if (half <= 0f || right - left < half * 2f) return
+    // The narrower of the two, so a box that rounding has left a hair narrower
+    // than tall still draws — as the squircle it is to within that hair.
+    val half = minOf(bottom - top, right - left) / 2f
+    if (half <= 0f) return
     val centreY = (top + bottom) / 2f
     val leftCentre = left + half
     val rightCentre = right - half
@@ -696,6 +719,35 @@ internal fun DrawScope.squircleStadium(
     for (i in last - 1 downTo 0) path.lineTo(leftCentre - half * SquircleQuarterX[i], centreY - half * SquircleQuarterY[i])
     path.close()
     drawPath(path, colour, alpha = alpha, style = style)
+}
+
+/**
+ * A superellipse filling the box — the squircle head's squash, narrower than it is
+ * tall. The same curve as [squircleStadium]'s caps, stretched to the box's own two
+ * radii, so at a square box the two are the same shape.
+ */
+internal fun DrawScope.squircleOval(
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    colour: Color,
+    style: DrawStyle = Fill,
+) {
+    val a = (right - left) / 2f
+    val b = (bottom - top) / 2f
+    if (a <= 0f || b <= 0f) return
+    val cx = (left + right) / 2f
+    val cy = (top + bottom) / 2f
+    val last = SquircleQuarterX.lastIndex
+    val path = Path()
+    path.moveTo(cx, cy - b)
+    for (i in 1..last) path.lineTo(cx + a * SquircleQuarterX[i], cy - b * SquircleQuarterY[i])
+    for (i in last - 1 downTo 0) path.lineTo(cx + a * SquircleQuarterX[i], cy + b * SquircleQuarterY[i])
+    for (i in 1..last) path.lineTo(cx - a * SquircleQuarterX[i], cy + b * SquircleQuarterY[i])
+    for (i in last - 1 downTo 0) path.lineTo(cx - a * SquircleQuarterX[i], cy - b * SquircleQuarterY[i])
+    path.close()
+    drawPath(path, colour, style = style)
 }
 
 /**
@@ -774,3 +826,6 @@ private val SquircleQuarterY: FloatArray = SquircleQuarter.second
 
 /** Samples in each half of a quarter: plenty at a thumb's size, and fixed. */
 private const val SquircleHalfSteps = 12
+
+/** How far short of square a squircle thumb can be and still be drawn as one, in pixels. */
+private const val SquircleSettleSlack: Float = 1f

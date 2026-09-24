@@ -37,6 +37,28 @@ Two variants from `TextFieldVariant`: `Outlined` and `Filled`. `Filled` takes a
 `contrastEdge()` at the high-contrast tier, since a filled field on a filled
 surface is otherwise two tones with no boundary.
 
+### The keyboard
+
+**A field that takes focus brings itself into view whole** — label, frame and the
+supporting or error line under it — and again whenever the keyboard's height
+changes while it is focused. Foundation only brings the *caret* into view, which
+left the bottom of the frame and its message behind the keyboard. `Select`,
+`Combobox` and `MultiSelect` go through the same scaffold and do the same.
+
+**Make room for the keyboard once.** With the content padded by the keyboard's
+inset — `safeDrawing`, `imePadding()`, or a scaffold that uses either — the host
+must not move the view for the keyboard as well, or the two add up to a
+keyboard's height of blank space between the keyboard and the field:
+
+- **iOS:** `ComposeUIViewController(configure = { onFocusBehavior = OnFocusBehavior.DoNothing })`.
+  The default shifts the whole view up to keep the focused field above the
+  keyboard.
+- **Android:** `android:windowSoftInputMode="adjustResize"` on the activity, and
+  `enableEdgeToEdge()`, so the window reports the keyboard as an inset instead of
+  panning the window under it.
+
+The catalog's hosts do both.
+
 ---
 
 ## Accessibility

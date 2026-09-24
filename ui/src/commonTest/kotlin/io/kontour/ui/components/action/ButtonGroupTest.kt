@@ -1,5 +1,12 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -127,6 +134,66 @@ class ButtonGroupTest {
             first.left > last.left,
             "under RTL the first action should sit to the right of the last, " +
                 "but first is at ${first.left} and last at ${last.left}",
+        )
+    }
+
+    /**
+     * Down a column the rule turns on its side: the first button squares its
+     * bottom corners and the last its top ones, and nothing squares a side edge.
+     */
+    @Test
+    fun aVerticalGroupSquaresTheCornersFacingUpAndDown() {
+        val round = RoundedCornerShape(12.dp)
+        val square = CornerSize(ButtonGroupDefaults.InnerCorner)
+        val rounded = CornerSize(12.dp)
+
+        val first = ButtonGroupPosition.First.shape(round, orientation = Orientation.Vertical) as CornerBasedShape
+        assertEquals(
+            listOf(rounded, rounded, square, square),
+            listOf(first.topStart, first.topEnd, first.bottomEnd, first.bottomStart),
+            "the top button of a vertical group rounds its top and squares its bottom",
+        )
+        val last = ButtonGroupPosition.Last.shape(round, orientation = Orientation.Vertical) as CornerBasedShape
+        assertEquals(
+            listOf(square, square, rounded, rounded),
+            listOf(last.topStart, last.topEnd, last.bottomEnd, last.bottomStart),
+            "the bottom button of a vertical group squares its top and rounds its bottom",
+        )
+        val across = ButtonGroupPosition.First.shape(round) as CornerBasedShape
+        assertEquals(
+            listOf(rounded, square, square, rounded),
+            listOf(across.topStart, across.topEnd, across.bottomEnd, across.bottomStart),
+            "and a row is unchanged: the first button squares the corners facing its neighbour",
+        )
+    }
+
+    /**
+     * Every button in a column takes the widest one's width, and the first is on
+     * top whichever way the screen reads.
+     */
+    @Test
+    fun aVerticalGroupIsOneWidthAndReadsTopDownInBothDirections() = runComposeUiTest {
+        setContent {
+            KontourTheme {
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    VerticalButtonGroup {
+                        item(onClick = {}) { +"Go" }
+                        item(onClick = {}) { +"Plan a longer journey" }
+                    }
+                }
+            }
+        }
+
+        // The merged tree, so each is the button the text is in rather than the text.
+        val short = onNodeWithText("Go").getUnclippedBoundsInRoot()
+        val long = onNodeWithText("Plan a longer journey").getUnclippedBoundsInRoot()
+        assertEquals(
+            long.width, short.width,
+            "a vertical group's buttons should all be as wide as the widest",
+        )
+        assertTrue(
+            short.top < long.top,
+            "the first action should be on top, and it is at ${short.top} against ${long.top}",
         )
     }
 }

@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.ui.Alignment
+import io.kontour.ui.components.selection.Knob
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -590,6 +592,57 @@ class DetentHapticsTest {
             "two boxes ticked a fifth of a second apart fired ${apart.summary()}. " +
                 "The floor is there to thin a stream, not to make the second control " +
                 "in a form inert.",
+        )
+    }
+
+    /**
+     * A knob ticks per step it is turned past, and says so once when it runs into
+     * its end — the slider's rule, round.
+     */
+    @Test
+    fun aKnobTicksPerStepTurnedAndSaysSoAtItsEnd() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var value by mutableStateOf(0.5f)
+        var bounds = Rect.Zero
+        Scene(width = 600, height = 600, reduceMotion = true) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
+                    Knob(
+                        value = value,
+                        onValueChange = { value = it },
+                        steps = 9,
+                        size = 200.dp,
+                        modifier = Modifier.reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val centre = bounds.center
+            val radius = bounds.width * 0.35f
+            fun at(degrees: Double) = Offset(
+                centre.x + (kotlin.math.cos(degrees * Math.PI / 180) * radius).toFloat(),
+                centre.y + (kotlin.math.sin(degrees * Math.PI / 180) * radius).toFloat(),
+            )
+            // From the top, clockwise past the end of the scale at 45°: 0.5 to 1
+            // is five steps, and then the wall.
+            scene.press(at(-90.0))
+            scene.frame()
+            repeat(40) { i ->
+                scene.move(at(-90.0 + 160.0 * (i + 1) / 40))
+                scene.frame()
+                Thread.sleep(30)
+            }
+            scene.frames(4)
+            scene.release(at(70.0))
+            scene.frames(6)
+        }
+        val ticks = felt.count { it == FeedbackIntent.Tick }
+        assertTrue(ticks in 4..6, "turning 0.5 to the end of ten steps ticked $ticks times (${felt.summary()})")
+        assertEquals(
+            listOf(FeedbackIntent.DragThreshold),
+            felt.filter { it != FeedbackIntent.Tick },
+            "running a knob into its end should report once and nothing else did: ${felt.summary()}",
         )
     }
 

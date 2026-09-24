@@ -1,5 +1,8 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.components.action.VerticalButtonGroup
+import io.kontour.ui.components.action.ButtonGroupScope
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -242,17 +245,20 @@ private val groupVariant =
     Knob.Choice("Variant", ButtonVariant.entries.toList(), ButtonVariant.Tertiary)
 private val groupSize = Knob.Choice("Size", ButtonSize.entries.toList(), ButtonSize.Medium)
 
+/** `Vertical` is `VerticalButtonGroup`: the same rule, turned on its side. */
+private val groupOrientation =
+    Knob.Choice("Orientation", Orientation.entries.toList(), Orientation.Horizontal)
+
 internal val ButtonGroupDemo = ComponentDemo(
     slug = "button-group",
-    knobs = listOf(groupVariant, groupSize),
+    knobs = listOf(groupVariant, groupSize, groupOrientation),
 ) {
     // The builder collects rather than composes, so `echo` cannot be called
     // from inside it — hoisted, which is what a caller has to do too.
     val out: () -> Unit = { echo("Zoom out") }
     val recentre: () -> Unit = { echo("Recentre") }
     val into: () -> Unit = { echo("Zoom in") }
-
-    ButtonGroup(variant = this[groupVariant], size = this[groupSize]) {
+    val items: ButtonGroupScope.() -> Unit = {
         item(onClick = out, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
         item(
             onClick = recentre,
@@ -260,6 +266,13 @@ internal val ButtonGroupDemo = ComponentDemo(
             icon = Tabler.Outline.CurrentLocation,
         )
         item(onClick = into, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+    }
+
+    when (this[groupOrientation]) {
+        Orientation.Horizontal ->
+            ButtonGroup(variant = this[groupVariant], size = this[groupSize], content = items)
+        Orientation.Vertical ->
+            VerticalButtonGroup(variant = this[groupVariant], size = this[groupSize], content = items)
     }
 }
 

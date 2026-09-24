@@ -1,5 +1,10 @@
 package io.kontour.ui.contract
 
+import io.kontour.ui.components.selection.Knob
+import io.kontour.ui.components.display.BubbleSide
+import io.kontour.ui.components.display.ChatBubble
+import io.kontour.ui.components.display.GaugeIndicator
+import io.kontour.ui.components.display.Gauge
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -679,6 +684,24 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
+        // Turned, not tapped: the slider's contract in a round body.
+        ComponentSpec(
+            "Knob",
+            role = null,
+            activatedByClick = false,
+        ) { modifier, enabled, _ ->
+            Knob(
+                value = 0.4f,
+                onValueChange = {},
+                modifier = modifier,
+                enabled = enabled,
+                steps = 9,
+                contentDescription = "Volume",
+            )
+        }
+    )
+
+    add(
         // Dragged, not tapped. The other four rules still apply, and the disabled
         // one still applies in its "says so" half.
         ComponentSpec(
@@ -800,6 +823,44 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 value("4 min")
                 +"Next departure"
                 supporting("Platform 2")
+            }
+        }
+    )
+
+    add(
+        // Read, not operated, like `Stat`: a progress reading with no role and
+        // nothing to press. `GaugeTest` covers the reading and the drawing.
+        ComponentSpec(
+            "Gauge",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 180,
+        ) { modifier, _, _ ->
+            Gauge(
+                value = 0.65f,
+                modifier = modifier,
+                indicator = GaugeIndicator.Needle,
+                majorTicks = 5,
+                tickLabel = { "${(it * 100).toInt()}" },
+                contentDescription = "Battery",
+            )
+        }
+    )
+
+    add(
+        // A message, not a control. Here for its render and the layout rules —
+        // a bubble has to survive 200% type in RTL, tail and all.
+        ComponentSpec(
+            "ChatBubble",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+        ) { modifier, _, _ ->
+            ChatBubble(side = BubbleSide.Outgoing, modifier = modifier) {
+                Text("Every 15 minutes until 11pm")
             }
         }
     )

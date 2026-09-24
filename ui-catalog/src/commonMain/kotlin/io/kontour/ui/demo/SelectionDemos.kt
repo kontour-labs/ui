@@ -43,6 +43,8 @@ import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.foundation.Text
+import kotlin.math.roundToInt
+import io.kontour.ui.components.selection.Knob as KnobControl
 import io.kontour.ui.theme.Theme
 
 private val checkboxEnabled = Knob.Flag("Enabled", initial = true)
@@ -462,6 +464,44 @@ internal val ColourPickerDemo = ComponentDemo(
 /** Narrow enough to be a sheet's worth of picker, wide enough for four fields. */
 private val PickerWidth = 320.dp
 
+// --- Knob ------------------------------------------------------------------
+
+/** On, it stops at eleven places with a tick at each, and a detent felt at each. */
+private val knobStepped = Knob.Flag("Steps")
+private val knobEnabled = Knob.Flag("Enabled", initial = true)
+
+internal val KnobDemo = ComponentDemo(slug = "knob", knobs = listOf(knobStepped, knobEnabled)) {
+    var volume by remember { mutableStateOf(0.4f) }
+    var balance by remember { mutableStateOf(0.5f) }
+    val stepped = this[knobStepped]
+    val enabled = this[knobEnabled]
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        KnobControl(
+            value = volume,
+            onValueChange = { volume = it },
+            steps = if (stepped) 9 else 0,
+            enabled = enabled,
+            contentDescription = "Volume",
+            stateDescription = { "${(it * 100).roundToInt()}%" },
+            onValueChangeFinished = { echo("Volume ${(volume * 100).roundToInt()}%") },
+        ) {
+            Text("${(volume * 100).roundToInt()}", style = Theme.typography.titleMedium)
+        }
+        KnobControl(
+            value = balance,
+            onValueChange = { balance = it },
+            valueRange = 0f..1f,
+            steps = if (stepped) 9 else 0,
+            enabled = enabled,
+            size = 72.dp,
+            contentDescription = "Balance",
+        )
+    }
+}
+
 internal val selectionDemos = listOf(
     CheckboxDemo,
     TriStateCheckboxDemo,
@@ -477,4 +517,5 @@ internal val selectionDemos = listOf(
     RatingDemo,
     ColourSwatchPickerDemo,
     ColourPickerDemo,
+    KnobDemo,
 )

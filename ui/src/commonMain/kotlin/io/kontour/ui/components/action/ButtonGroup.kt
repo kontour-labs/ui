@@ -1,8 +1,13 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.layout.LayoutScopeMarker
@@ -97,33 +102,100 @@ fun ButtonGroup(
             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.Seam),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            actions.forEachIndexed { index, action ->
-                val position = ButtonGroupPosition.of(index, actions.size)
-                val enabledHere = enabled && action.enabled
+            GroupedButtons(actions, enabled, size, variant, shape, Orientation.Horizontal)
+        }
+    }
+}
 
-                if (action.icon != null && action.content == null) {
-                    IconButton(
-                        icon = action.icon,
-                        contentDescription = action.contentDescription.orEmpty(),
-                        onClick = action.onClick,
-                        enabled = enabledHere,
-                        variant = variant,
-                        size = size,
-                        shape = position.shape(shape),
-                        interactionSource = action.interactionSource,
-                    )
-                } else {
-                    Button(
-                        onClick = action.onClick,
-                        enabled = enabledHere,
-                        variant = variant,
-                        size = size,
-                        shape = position.shape(shape),
-                        interactionSource = action.interactionSource,
-                        content = action.content ?: {},
-                    )
-                }
-            }
+/**
+ * A [ButtonGroup] stacked top to bottom, for a cluster that lives down the side
+ * of something — a map's zoom controls, a canvas's tools.
+ *
+ * ```kotlin
+ * VerticalButtonGroup {
+ *     item(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+ *     item(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+ * }
+ * ```
+ *
+ * The same rule turned on its side: only the top of the first button and the
+ * bottom of the last round, and the seams run across. Every button takes the
+ * width of the widest, so a column of labelled buttons is one straight-sided
+ * shape rather than a ragged stack. The first action is at the top in either
+ * layout direction — reading order down a column does not mirror.
+ *
+ * @param size Applied to every button, so a group cannot end up ragged.
+ * @param variant Applied to every button. `Tertiary` by default, as for
+ *   [ButtonGroup].
+ * @param shape The group's outside corners; the ones facing a neighbour take
+ *   [ButtonGroupDefaults.InnerCorner].
+ */
+@Composable
+fun VerticalButtonGroup(
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    size: ButtonSize = ButtonSize.Medium,
+    variant: ButtonVariant = ButtonVariant.Tertiary,
+    shape: CornerBasedShape = Theme.shapes.control,
+    content: ButtonGroupScope.() -> Unit,
+) {
+    val actions = buttonGroupActions(content)
+    // The group owns the touch target here too, across rather than down: see
+    // [ButtonGroup] for why the buttons must not each reserve it.
+    CompositionLocalProvider(LocalTouchTargetOwnedByParent provides true) {
+        Column(
+            modifier = modifier
+                .semantics { isTraversalGroup = true }
+                .width(IntrinsicSize.Max)
+                .defaultMinSize(minWidth = Theme.sizing.minTouchTarget),
+            verticalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.Seam),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            GroupedButtons(actions, enabled, size, variant, shape, Orientation.Vertical)
+        }
+    }
+}
+
+/** The buttons of a group, each shaped for where it sits along [orientation]. */
+@Composable
+private fun GroupedButtons(
+    actions: List<ButtonGroupAction>,
+    enabled: Boolean,
+    size: ButtonSize,
+    variant: ButtonVariant,
+    shape: CornerBasedShape,
+    orientation: Orientation,
+) {
+    // Down a column every button stretches to the widest; along a row each keeps
+    // its own width.
+    val each = if (orientation == Orientation.Vertical) Modifier.fillMaxWidth() else Modifier
+    actions.forEachIndexed { index, action ->
+        val position = ButtonGroupPosition.of(index, actions.size)
+        val enabledHere = enabled && action.enabled
+
+        if (action.icon != null && action.content == null) {
+            IconButton(
+                icon = action.icon,
+                contentDescription = action.contentDescription.orEmpty(),
+                onClick = action.onClick,
+                modifier = each,
+                enabled = enabledHere,
+                variant = variant,
+                size = size,
+                shape = position.shape(shape, orientation = orientation),
+                interactionSource = action.interactionSource,
+            )
+        } else {
+            Button(
+                onClick = action.onClick,
+                modifier = each,
+                enabled = enabledHere,
+                variant = variant,
+                size = size,
+                shape = position.shape(shape, orientation = orientation),
+                interactionSource = action.interactionSource,
+                content = action.content ?: {},
+            )
         }
     }
 }
@@ -148,19 +220,31 @@ enum class ButtonGroupPosition {
  * `start`/`end` rather than left/right, so the first button rounds the corners
  * the reader starts from in either direction. A group built with left and right
  * is a group whose seams are on the wrong side in Arabic.
+ *
+ * @param orientation Which way the group runs. [Orientation.Vertical] squares the
+ *   bottom of the first button and the top of the last, for
+ *   [VerticalButtonGroup].
  */
 fun ButtonGroupPosition.shape(
     shape: CornerBasedShape,
     square: Dp = ButtonGroupDefaults.InnerCorner,
+    orientation: Orientation = Orientation.Horizontal,
 ): Shape {
     val flat = CornerSize(square)
     return when (this) {
         ButtonGroupPosition.Only -> shape
-        ButtonGroupPosition.First -> shape.copy(topEnd = flat, bottomEnd = flat)
         ButtonGroupPosition.Middle ->
             shape.copy(topStart = flat, topEnd = flat, bottomStart = flat, bottomEnd = flat)
 
-        ButtonGroupPosition.Last -> shape.copy(topStart = flat, bottomStart = flat)
+        ButtonGroupPosition.First -> when (orientation) {
+            Orientation.Horizontal -> shape.copy(topEnd = flat, bottomEnd = flat)
+            Orientation.Vertical -> shape.copy(bottomStart = flat, bottomEnd = flat)
+        }
+
+        ButtonGroupPosition.Last -> when (orientation) {
+            Orientation.Horizontal -> shape.copy(topStart = flat, bottomStart = flat)
+            Orientation.Vertical -> shape.copy(topStart = flat, topEnd = flat)
+        }
     }
 }
 

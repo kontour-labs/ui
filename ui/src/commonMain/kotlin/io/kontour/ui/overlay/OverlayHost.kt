@@ -200,6 +200,17 @@ class OverlayHostState {
     internal var originInRoot: Offset by mutableStateOf(Offset.Zero)
 
     /**
+     * How far each of the host's edges is from the same edge of the root, in
+     * pixels. All zero for a host that fills the window.
+     *
+     * Read by anchored overlays to take only the part of a window inset that
+     * reaches into this host: a status bar is 47dp off the top of the window, and
+     * nothing at all off the top of a card half-way down the page. See
+     * `AnchoredOverlayLayout`.
+     */
+    internal var edgesFromRoot: AnchorInsets by mutableStateOf(AnchorInsets.None)
+
+    /**
      * How far the entry that owns the backdrop is in, or null when none does.
      *
      * A lambda rather than a value, and for the same reason [Scrim] takes one:

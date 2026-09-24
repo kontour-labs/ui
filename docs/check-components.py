@@ -758,7 +758,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 25
+MAX_CIRCLES = 26
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -787,6 +787,10 @@ def circles() -> list[str]:
     which was keeping a circular arc away from lozenges; what is left is the job
     it was written for, which is keeping the *uncapped* rule away from things a
     theme is entitled to cap.
+
+    **25 to 26 for `Knob`**, whose focus ring is the one shape in it that is not
+    drawn: a knob is round from what it is — a dial — on a square box, which is
+    the case this list is for.
 
     **22 to 24, and it is the same sweep finishing rather than a new argument.**
     Round 26 moved "the ten circles" onto `pill` so the 18dp cap could not reach

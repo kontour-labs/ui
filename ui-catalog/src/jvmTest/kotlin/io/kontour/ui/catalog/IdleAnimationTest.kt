@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog
 
+import io.kontour.ui.components.display.GaugeIndicator
+import io.kontour.ui.components.display.Gauge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -48,6 +50,15 @@ class IdleAnimationTest {
     @Test
     fun aDeterminateProgressBarIsNotAnAnimation() = assertSettles("LinearProgress(progress = 0.6f)") {
         LinearProgress(progress = 0.6f, modifier = Modifier.width(200.dp))
+    }
+
+    /**
+     * A gauge that has reached its reading asks for nothing. Its value is read in
+     * draw from an `Animatable` that is only ever moved by a new reading.
+     */
+    @Test
+    fun aGaugeAtItsReadingIsNotAnAnimation() = assertSettles("Gauge(value = 0.65f)") {
+        Gauge(value = 0.65f, indicator = GaugeIndicator.Needle, majorTicks = 5)
     }
 
     @Test

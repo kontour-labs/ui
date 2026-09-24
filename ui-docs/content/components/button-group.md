@@ -1,5 +1,7 @@
 # `ButtonGroup`
 
+*Also on this page: `VerticalButtonGroup`.*
+
 <!--sample:ButtonGroupBasics-->
 ```kotlin
 ButtonGroup {
@@ -48,17 +50,37 @@ Any single action can be disabled without the others, which is what lets a
 cluster grey a button rather than hide it. A cluster that changes width as you
 use it is worse than one with a greyed button in it.
 
+### Stacked: `VerticalButtonGroup`
+
+The same group turned on its side, for a cluster that lives down the edge of
+something — a map's zoom controls, a canvas's tools:
+
+<!--sample:VerticalButtonGroupBasics-->
+```kotlin
+VerticalButtonGroup {
+    item(onClick = { zoomIn() }, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+    item(onClick = { zoomOut() }, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+}
+```
+
+Only the top of the first button and the bottom of the last round, and the seams
+run across. Every button takes the width of the widest, so a column of labelled
+buttons is one straight-sided shape rather than a ragged stack. The first action
+is on top in either layout direction: reading order down a column does not
+mirror. `ButtonGroupPosition.shape` takes the `orientation` for anyone building
+the same shape by hand.
+
 ---
 
 ## Accessibility
 
 The group is an `isTraversalGroup`, so its buttons are read together rather than
-being interleaved with whatever is beside them on screen.
+being interleaved with whatever is beside them on screen — in a row or a column.
 
 Every `item` needs a `contentDescription`, because a group of icon buttons is a
 row of controls with no text in it. "Zoom out", "Recentre", "Zoom in" — not
 "minus", "target", "plus", which describe the glyph rather than the action.
 
-The group reserves `minTouchTarget` in height once, rather than each button
-reserving it and centring inside — which is what keeps the buttons flush against
+The group reserves `minTouchTarget` once — in height for a row, in width for a
+column — rather than each button reserving it and centring inside — which is what keeps the buttons flush against
 each other without any of them shrinking below the minimum.
