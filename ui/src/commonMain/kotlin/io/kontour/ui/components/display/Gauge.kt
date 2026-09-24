@@ -84,6 +84,10 @@ import kotlin.math.max
  *   the hub and the innermost thing drawn on the scale — the tick labels, the ticks,
  *   or the arc when neither is inside it. 0.8, the default, stops clear of them;
  *   1 reaches them; more crosses them, as far as the arc's outer edge.
+ * @param needleMatchesFill Whether the needle, and its hub, take the fill's colour at
+ *   the value — the band the reading is in, or the gradient there — rather than
+ *   `colours.needle`. Crossing a hard band edge it changes with the band; through
+ *   a smoothed one it blends.
  * @param majorTicks How many labelled marks, counting both ends — six for 0, 2K, …
  *   10K. Zero for none.
  * @param minorTicks How many shorter marks between each pair of major ones.
@@ -110,6 +114,7 @@ fun Gauge(
     colours: DialColours = GaugeDefaults.colours(),
     indicator: GaugeIndicator = GaugeIndicator.None,
     needleLength: Float = GaugeDefaults.NeedleLength,
+    needleMatchesFill: Boolean = false,
     majorTicks: Int = 0,
     minorTicks: Int = 0,
     tickLabel: ((Float) -> String)? = null,
@@ -127,6 +132,8 @@ fun Gauge(
     val labelStyle = Theme.typography.labelSmall.copy(color = colours.tickLabel)
     val measurer = rememberTextMeasurer()
     val sweep = sweepAngle.coerceIn(MinSweep, FullTurn)
+    // A band's gaps, and an unbanded scale, are the dial's own colour.
+    val scaleDefault = Theme.colours.primary
 
     // Read in draw and nowhere else, so a gauge at rest does no work and a moving
     // one only redraws.
@@ -210,7 +217,8 @@ fun Gauge(
                     }
                     val tickWidth = GaugeTickWidth.toPx()
                     val minorPx = GaugeMinorTick.toPx()
-                    val fill = dialFill(geometry, thicknessPx, cap, colours.indicator.stops(range))
+                    val stops = colours.indicator.stops(range, scaleDefault)
+                    val fill = dialFill(geometry, thicknessPx, cap, stops)
                     // No further than the arc's outer edge, and never shorter than the
                     // arc is thick — in that order, because a dial squeezed to nothing
                     // has an outer edge nearer than that.
@@ -235,7 +243,7 @@ fun Gauge(
                                 geometry, needle, at,
                                 length = needleReach,
                                 width = thicknessPx * NeedleWidthShare,
-                                colour = colours.needle,
+                                colour = if (needleMatchesFill) colourAlong(stops, at) else colours.needle,
                             )
                         }
                         if (hasThumb) {

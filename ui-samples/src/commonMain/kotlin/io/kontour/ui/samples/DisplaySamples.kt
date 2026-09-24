@@ -120,14 +120,17 @@ fun GaugeBasics() {
 @Composable
 fun GaugeColourBands() {
     // Zones on a tachometer, in revolutions — the gauge's own units, so the scale
-    // is only said once. Green to 6,000, amber to 8,000, red to the end.
+    // is only said once. Green to 6,000, amber to 8,000, red to the end, and the
+    // needle in the colour of the zone it points at.
     Gauge(
         value = 7_200f,
         valueRange = 0f..10_000f,
         indicator = GaugeIndicator.Needle,
         needleLength = 1f,
+        needleMatchesFill = true,
         colours = GaugeDefaults.colours(
-            indicator = ScaleColours.bands(start = Theme.colours.success.solid) {
+            indicator = ScaleColours.bands {
+                band(from = 0f, colour = Theme.colours.success.solid)
                 band(from = 6_000f, colour = Theme.colours.warning.solid)
                 band(from = 8_000f, colour = Theme.colours.danger.solid)
             },
@@ -140,12 +143,26 @@ fun GaugeColourBands() {
         value = 7_200f,
         valueRange = 0f..10_000f,
         colours = GaugeDefaults.colours(
-            indicator = ScaleColours.bands(start = Theme.colours.success.solid, smoothing = 0.6f) {
+            indicator = ScaleColours.bands(smoothing = 0.6f) {
+                band(from = 0f, colour = Theme.colours.success.solid)
                 band(from = 6_000f, colour = Theme.colours.warning.solid)
                 band(from = 8_000f, colour = Theme.colours.danger.solid)
             },
         ),
         contentDescription = "Engine speed",
+    )
+
+    // A comfort band that stops short: 20 to 24 degrees is green, and the scale
+    // either side of it is the gauge's own colour.
+    Gauge(
+        value = 22f,
+        valueRange = 10f..30f,
+        colours = GaugeDefaults.colours(
+            indicator = ScaleColours.bands {
+                band(from = 20f, until = 24f, colour = Theme.colours.success.solid)
+            },
+        ),
+        contentDescription = "Room temperature",
     )
 }
 

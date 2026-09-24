@@ -507,7 +507,8 @@ internal val KnobDemo = ComponentDemo(
     val colours = when (this[knobFill]) {
         "Gradient" -> KnobDefaults.colours(indicator = ScaleColours.gradient(listOf(KnobTeal, KnobBlue)))
         "Bands" -> KnobDefaults.colours(
-            indicator = ScaleColours.bands(start = Theme.colours.success.solid) {
+            indicator = ScaleColours.bands {
+                band(from = 0f, colour = Theme.colours.success.solid)
                 band(from = 0.7f, colour = Theme.colours.warning.solid)
                 band(from = 0.9f, colour = Theme.colours.danger.solid)
             },

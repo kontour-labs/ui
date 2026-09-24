@@ -710,6 +710,13 @@ private val gaugeNeedleLength =
 private val gaugeNeedleColour =
     Knob.Choice("Needle colour", listOf("Content", "Accent", "Danger"), "Content", name = { it })
 
+/**
+ * The needle in the fill's colour at the reading — the band it is in — over the
+ * colour chosen above. With bands, turn the reading past 6,000 and 8,000 to see it
+ * change.
+ */
+private val gaugeNeedleMatchesFill = Knob.Flag("Needle matches fill")
+
 /** Off, a new reading is drawn where it lands rather than travelling there. */
 private val gaugeAnimated = Knob.Flag("Animated", initial = true)
 
@@ -733,6 +740,7 @@ internal val GaugeDemo = ComponentDemo(
         gaugeFill,
         gaugeNeedleLength,
         gaugeNeedleColour,
+        gaugeNeedleMatchesFill,
         gaugeAnimated,
     ),
 ) {
@@ -764,6 +772,7 @@ internal val GaugeDemo = ComponentDemo(
             cap = if (this@ComponentDemo[gaugeFlatEnds]) StrokeCap.Butt else StrokeCap.Round,
             indicator = indicator,
             needleLength = this@ComponentDemo[gaugeNeedleLength],
+            needleMatchesFill = this@ComponentDemo[gaugeNeedleMatchesFill],
             majorTicks = 6,
             minorTicks = 1,
             tickLabel = { "${(it / 1000).roundToInt()}K" },
@@ -794,7 +803,8 @@ private val GaugePurple = Color(0xFF7C5CFF)
 /** The tachometer's zones, in revolutions: green to 6,000, amber to 8,000, then red. */
 @Composable
 private fun rpmBands(smoothing: Float): ScaleColours =
-    ScaleColours.bands(start = Theme.colours.success.solid, smoothing = smoothing) {
+    ScaleColours.bands(smoothing = smoothing) {
+        band(from = 0f, colour = Theme.colours.success.solid)
         band(from = 6_000f, colour = Theme.colours.warning.solid)
         band(from = 8_000f, colour = Theme.colours.danger.solid)
     }

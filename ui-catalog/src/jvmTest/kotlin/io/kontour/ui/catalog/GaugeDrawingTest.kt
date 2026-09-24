@@ -157,6 +157,48 @@ class GaugeDrawingTest {
         assertTrue(!needleAt(0.5f, 100.0), "and one of 0.5 should stop short of 100px")
     }
 
+    /**
+     * With `needleMatchesFill`, the needle is the colour of the band it points into.
+     *
+     * "Can we have an option for the needle follow the band colour at its value?"
+     * Red to 6, green to 8, blue to the end; the needle at 7 is green and at 9 blue,
+     * read 60px up its length. Without the option it is the needle colour, black.
+     */
+    @Test
+    fun aMatchingNeedleIsTheColourOfItsBand() {
+        fun needleColour(value: Float, matches: Boolean): Triple<Int, Int, Int> {
+            val frame = Scene(width = 400, height = 400, reduceMotion = true) {
+                Box(Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
+                    Gauge(
+                        value = value,
+                        valueRange = 0f..10f,
+                        size = 200.dp,
+                        thickness = 20.dp,
+                        indicator = GaugeIndicator.Needle,
+                        needleMatchesFill = matches,
+                        colours = GaugeDefaults.colours(
+                            indicator = ScaleColours.bands {
+                                band(from = 0f, colour = Color.Red)
+                                band(from = 6f, colour = Color.Green)
+                                band(from = 8f, colour = Color.Blue)
+                            },
+                            needle = Color.Black,
+                        ),
+                    )
+                }
+            }.use { it.frames(4) }
+            // 60px out from the middle along the needle, which points at `value`.
+            val angle = (StartAngle + Sweep * value / 10f) * PI / 180.0
+            return frame.rgb(200 + cos(angle) * 60, 200 + sin(angle) * 60)
+        }
+        val (r7, g7, b7) = needleColour(7f, matches = true)
+        assertTrue(g7 > 200 && r7 < 60 && b7 < 60, "at 7 the needle should be the green band's, was ($r7, $g7, $b7)")
+        val (r9, g9, b9) = needleColour(9f, matches = true)
+        assertTrue(b9 > 200 && r9 < 60 && g9 < 60, "at 9 it should be the blue band's, was ($r9, $g9, $b9)")
+        val (r, g, b) = needleColour(7f, matches = false)
+        assertTrue(r < 40 && g < 40 && b < 40, "without the option it should be the needle colour, was ($r, $g, $b)")
+    }
+
     private fun renderBands(smoothing: Float): BufferedImage =
         Scene(width = 400, height = 400, reduceMotion = true) {
             Box(Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
@@ -166,7 +208,8 @@ class GaugeDrawingTest {
                     size = 200.dp,
                     thickness = 20.dp,
                     colours = GaugeDefaults.colours(
-                        indicator = ScaleColours.bands(start = Color.Red, smoothing = smoothing) {
+                        indicator = ScaleColours.bands(smoothing = smoothing) {
+                            band(from = 0f, colour = Color.Red)
                             band(from = 6f, colour = Color.Green)
                             band(from = 8f, colour = Color.Blue)
                         },

@@ -89,6 +89,27 @@ internal fun dialFill(
 }
 
 /**
+ * The colour [stops] give at [fraction] of the scale — the colour the fill is there.
+ *
+ * Blended in sRGB between the stops either side, as the arc's gradient is, so a
+ * needle painted with it is the colour of the arc it points at; at a hard edge, the
+ * band that starts there.
+ */
+internal fun colourAlong(stops: List<Pair<Float, Color>>, fraction: Float): Color {
+    var index = 0
+    for (i in stops.indices) if (stops[i].first <= fraction) index = i
+    val (at, colour) = stops[index]
+    val (next, nextColour) = stops.getOrNull(index + 1) ?: return colour
+    val t = if (next > at) ((fraction - at) / (next - at)).coerceIn(0f, 1f) else 0f
+    return Color(
+        red = colour.red + (nextColour.red - colour.red) * t,
+        green = colour.green + (nextColour.green - colour.green) * t,
+        blue = colour.blue + (nextColour.blue - colour.blue) * t,
+        alpha = colour.alpha + (nextColour.alpha - colour.alpha) * t,
+    )
+}
+
+/**
  * The track the whole length of the scale, and the [fill] between [from] and [to]
  * (fractions of the scale, in either order).
  */

@@ -149,6 +149,8 @@ fun Knob(
     val ticker = rememberDetentTicker()
     val endStop = rememberEndStopLatch()
     val sweep = sweepAngle.coerceIn(MinSweep, FullTurn)
+    // A band's gaps, and an unbanded scale, are the dial's own colour.
+    val scaleDefault = Theme.colours.primary
     val span = valueRange.endInclusive - valueRange.start
 
     fun fractionOf(v: Float): Float = if (span <= 0f) 0f else ((v - valueRange.start) / span).coerceIn(0f, 1f)
@@ -316,7 +318,7 @@ fun Knob(
                     val tickWidth = KnobTickWidth.toPx()
                     val tickLength = KnobTick.toPx()
                     val tickEdge = radius + thicknessPx / 2f + KnobTickGap.toPx()
-                    val fill = dialFill(geometry, thicknessPx, StrokeCap.Round, colours.indicator.stops(valueRange))
+                    val fill = dialFill(geometry, thicknessPx, StrokeCap.Round, colours.indicator.stops(valueRange, scaleDefault))
                     onDrawBehind {
                         // Coerced: `springSnappy` overshoots, and a notch past the end
                         // of its own scale reads as a fault rather than a bounce.
