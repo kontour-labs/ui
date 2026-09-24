@@ -34,8 +34,8 @@ import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.overlay.coachMark
 import io.kontour.ui.overlay.rememberOverlayQueue
 import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetHeader
-import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 import kotlin.test.AfterTest
@@ -180,7 +180,7 @@ private fun LeavingSheets(dismissAfterFrames: Int) {
                 }
             }
             MotionPanel("Side sheet") {
-                SideSheet(
+                ModalSideSheet(
                     visible = showing.value,
                     onDismissRequest = { showing.value = false },
                     width = 220.dp,

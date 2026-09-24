@@ -23,7 +23,7 @@ import io.kontour.ui.components.display.Card
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.OverlayHost
-import io.kontour.ui.sheet.SideSheet
+import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 import kotlin.test.Test
@@ -121,7 +121,7 @@ class FirstOpenCostDiagnostic {
                 KontourTheme {
                     OverlayHost(Modifier.fillMaxSize()) {
                         Column(Modifier.fillMaxSize()) { content() }
-                        SideSheet(visible = visible, onDismissRequest = { visible = false }) {
+                        ModalSideSheet(visible = visible, onDismissRequest = { visible = false }) {
                             content()
                         }
                     }

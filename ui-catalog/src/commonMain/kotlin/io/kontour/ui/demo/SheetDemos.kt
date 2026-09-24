@@ -34,10 +34,11 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
 import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetDetent
+import io.kontour.ui.sheet.SheetEdgeMorph
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.sheet.SheetHeaderStyle
-import io.kontour.ui.sheet.SheetEdgeMorph
 import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.sheet.SideSheet
@@ -107,7 +108,7 @@ private fun Departures() {
  * and what moves is three edges and four corners.
  */
 private val sheetPresentation =
-    Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Edge)
+    Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Floating)
 
 /**
  * Where the sheet sits once the card is wider than the sheet's 640dp cap.
@@ -272,7 +273,7 @@ private val sheetSide = Knob.Choice("Side", SheetSide.entries.toList(), SheetSid
 
 /** Flush to its edge, or a panel floating clear of three of them. */
 private val sideSheetPresentation =
-    Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Edge)
+    Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Floating)
 
 /**
  * A grip on the sheet's inner edge that drags it out to the whole window. On a
@@ -284,8 +285,49 @@ private val sideSheetExpandable = Knob.Flag("Expandable", initial = true)
 /** Whether a floating sheet becomes an edge sheet as it widens. */
 private val sideSheetEdgeMorph = Knob.Flag("Expands to edge", initial = true)
 
+/**
+ * The non-modal side sheet: a rail beside a page that stays usable.
+ *
+ * The button on the page is still pressable with the rail open — which is the
+ * whole difference from the modal sheet below, and the thing to try.
+ */
 internal val SideSheetDemo = ComponentDemo(
     slug = "side-sheet",
+    knobs = listOf(sheetSide, sideSheetPresentation, sideSheetExpandable, sideSheetEdgeMorph),
+) {
+    var open by remember { mutableStateOf(true) }
+    val side = this[sheetSide]
+    Screen {
+        // On the side the rail is not, so it stays pressable with the rail open —
+        // which is the difference from the modal sheet, and the thing to try.
+        Button(
+            onClick = { open = !open; echo(if (open) "Filters shown" else "Filters hidden") },
+            variant = ButtonVariant.Secondary,
+            size = ButtonSize.Small,
+            modifier = Modifier
+                .align(if (side == SheetSide.Start) Alignment.BottomEnd else Alignment.BottomStart)
+                .padding(Theme.spacing.md),
+        ) { +(if (open) "Hide" else "Filters") }
+
+        SideSheet(
+            visible = open,
+            side = side,
+            width = 180.dp,
+            presentation = this@ComponentDemo[sideSheetPresentation],
+            expandable = this@ComponentDemo[sideSheetExpandable],
+            edgeMorph = this@ComponentDemo[sideSheetEdgeMorph],
+            paneTitle = "Filters",
+        ) {
+            // No scrim and no back gesture: the app owns `visible`, so the header's
+            // close button is how the rail goes away.
+            SheetHeader(onClose = { open = false }) { +"Filters" }
+            FilterBody()
+        }
+    }
+}
+
+internal val ModalSideSheetDemo = ComponentDemo(
+    slug = "modal-side-sheet",
     knobs = listOf(sheetSide, sideSheetPresentation, sideSheetExpandable, sideSheetEdgeMorph, sheetDismissible),
 ) {
     var open by remember { mutableStateOf(false) }
@@ -298,7 +340,7 @@ internal val SideSheetDemo = ComponentDemo(
             modifier = Modifier.align(Alignment.Center),
         ) { +"Filters" }
 
-        SideSheet(
+        ModalSideSheet(
             visible = open,
             onDismissRequest = { open = false },
             side = side,
@@ -312,18 +354,24 @@ internal val SideSheetDemo = ComponentDemo(
             // The header's own close button is the way out when the scrim is
             // not one — `onClose` defaults to `closeEnclosingSheet()`.
             SheetHeader { +"Filters" }
-            Column(
-                modifier = Modifier.padding(horizontal = Theme.spacing.md),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-            ) {
-                Text("Only show routes that", style = Theme.typography.labelMedium)
-                Text(
-                    "run in the next hour",
-                    style = Theme.typography.bodySmall,
-                    colour = Theme.colours.contentMuted,
-                )
-            }
+            FilterBody()
         }
+    }
+}
+
+/** What both side sheet demos hold. */
+@Composable
+private fun FilterBody() {
+    Column(
+        modifier = Modifier.padding(horizontal = Theme.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+    ) {
+        Text("Only show routes that", style = Theme.typography.labelMedium)
+        Text(
+            "run in the next hour",
+            style = Theme.typography.bodySmall,
+            colour = Theme.colours.contentMuted,
+        )
     }
 }
 
@@ -385,6 +433,7 @@ internal val sheetDemos = listOf(
     BottomSheetDemo,
     ModalBottomSheetDemo,
     SideSheetDemo,
+    ModalSideSheetDemo,
     SheetHeaderDemo,
     DragHandleDemo,
 )

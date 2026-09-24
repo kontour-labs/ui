@@ -139,6 +139,48 @@ class FloatingSheetMorphTest {
     }
 
     /**
+     * A sheet with one size to be — a `ModalBottomSheet` on its defaults — has no
+     * step to morph across, so the morph runs over the last stretch before the top
+     * of the window instead. Content tall enough to reach the top arrives as an
+     * edge sheet; the arm after this one is the same sheet with a line of text in
+     * it, which still floats.
+     */
+    @Test
+    fun aTallSingleSizeSheetIsAnEdgeSheet() {
+        val image = modal { Box(Modifier.fillMaxWidth().height(1200.dp)) }
+
+        assertEquals(0, image.gapUnderTheSheet(), "a tall single-size floating sheet still floats above the bottom")
+        assertTrue(
+            image.isSheet(1, image.height - 2) && image.isSheet(image.width - 2, image.height - 2),
+            "a tall single-size floating sheet does not reach the window's bottom corners",
+        )
+    }
+
+    @Test
+    fun aShortSingleSizeSheetStillFloats() {
+        val image = modal { Box(Modifier.fillMaxWidth().height(120.dp)) }
+
+        assertEquals(FloatingMargin, image.gapUnderTheSheet(), "a short single-size floating sheet lost its margin")
+    }
+
+    private fun modal(content: @androidx.compose.runtime.Composable () -> Unit): BufferedImage =
+        Scene(width = 600, height = 900) {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().background(Ground))
+                    io.kontour.ui.sheet.ModalBottomSheet(
+                        visible = true,
+                        onDismissRequest = {},
+                        presentation = SheetPresentation.Floating,
+                        containerColour = SheetColour,
+                        windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
+                        dragHandle = null,
+                    ) { content() }
+                }
+            }
+        }.use { scene -> scene.frames(60) }
+
+    /**
      * What the margin stops clearing, the content is told about.
      *
      * A floating sheet hands its content no bottom padding and no side padding,

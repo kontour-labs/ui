@@ -1,6 +1,7 @@
 package io.kontour.ui.sheet
 
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
@@ -84,10 +85,12 @@ import kotlinx.coroutines.launch
 enum class SheetSide { Start, End }
 
 /**
- * A sheet that slides in from the side.
+ * A sheet that slides in from the side and takes over the screen until it is dealt
+ * with: a scrim behind it, focus held inside it, dismissed by a tap outside, by back,
+ * or by its own close button.
  *
  * ```kotlin
- * SideSheet(visible = filtersOpen, onDismissRequest = { filtersOpen = false }) {
+ * ModalSideSheet(visible = filtersOpen, onDismissRequest = { filtersOpen = false }) {
  *     SheetHeader { +"Filters" }
  *     …
  * }
@@ -113,7 +116,7 @@ enum class SheetSide { Start, End }
  *   and supplementary things belong on the trailing side.
  */
 @Composable
-fun SideSheet(
+fun ModalSideSheet(
     visible: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
@@ -131,15 +134,14 @@ fun SideSheet(
     /**
      * Whether the sheet meets the window's edges or floats clear of them.
      *
-     * [SheetPresentation.Edge], the default, is what a side sheet has always been:
-     * flush to its side, the top and the bottom, with only the corners facing the
-     * content rounded. [SheetPresentation.Floating] lifts it off those three edges
-     * by `Theme.componentDefaults.sheetFloatingInset` — unioned with [windowInsets],
-     * so it is a minimum clearance and not a gap added to the system's — and rounds
-     * every corner, which is the panel-over-the-page reading a floating bottom sheet
-     * has.
+     * [SheetPresentation.Floating], the default, lifts it off its side, the top and
+     * the bottom by `Theme.componentDefaults.sheetFloatingInset` — unioned with
+     * [windowInsets], so it is a minimum clearance and not a gap added to the
+     * system's — and rounds every corner, which is the panel-over-the-page reading
+     * a floating bottom sheet has. [SheetPresentation.Edge] is flush to its side,
+     * the top and the bottom, with only the corners facing the content rounded.
      */
-    presentation: SheetPresentation = SheetPresentation.Edge,
+    presentation: SheetPresentation = SheetPresentation.Floating,
     shape: CornerBasedShape = SideSheetDefaults.shapeFor(presentation),
     /**
      * Whether the sheet can be widened to the whole window.
@@ -291,6 +293,7 @@ fun SideSheet(
                         paneTitle = latestPaneTitle,
                         onBack = latestOnBack,
                         backLabel = latestBackLabel,
+                        progress = LocalOverlayProgress.current,
                         // Captured as an object, not a measurement: the modifier
                         // reads the live inset at layout time, so the sheet still
                         // lifts when the keyboard opens after it was shown.
@@ -301,6 +304,118 @@ fun SideSheet(
             )
         )
     }
+}
+
+/**
+ * A panel from the side that shares the screen with the page beside it.
+ *
+ * ```kotlin
+ * Box(Modifier.fillMaxSize()) {
+ *     DepartureList()
+ *     SideSheet(visible = filtersOpen, paneTitle = "Filters") {
+ *         SheetHeader(onClose = { filtersOpen = false }) { +"Filters" }
+ *         …
+ *     }
+ * }
+ * ```
+ *
+ * The side sheet's counterpart of [BottomSheet], where [ModalSideSheet] is the
+ * counterpart of [ModalBottomSheet]. Nothing behind it is dimmed, blocked or taken
+ * out of the keyboard's reach: the list beside a filter rail is still the list, and
+ * a change to a filter is seen in it as it is made. For a sheet that owns the
+ * screen until it is answered, use [ModalSideSheet].
+ *
+ * **It lives in your layout**, not in the [io.kontour.ui.overlay.OverlayHost]: put
+ * it in a `Box` over the content it sits beside, and it fills that box and places
+ * itself against the side it belongs to. Where it is not, the page underneath gets
+ * every touch and every click.
+ *
+ * **The app owns [visible].** There is no scrim to tap and no back gesture to
+ * catch, so nothing here asks to be closed; give the sheet's header an `onClose`
+ * that sets `visible` to false. It slides in and out on its own spring, and is not
+ * composed at all once it has slid away.
+ *
+ * Everything else is [ModalSideSheet]'s: floating by default, [expandable] to the
+ * whole window with a grip on its inner edge, and becoming an edge sheet as it
+ * widens.
+ */
+@Composable
+fun SideSheet(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    side: SheetSide = SheetSide.End,
+    /** See [ModalSideSheet]. */
+    width: Dp = SideSheetDefaults.Width,
+    /** See [ModalSideSheet]. Floating by default. */
+    presentation: SheetPresentation = SheetPresentation.Floating,
+    shape: CornerBasedShape = SideSheetDefaults.shapeFor(presentation),
+    /** See [ModalSideSheet]: a grip on the inner edge that widens the sheet to the window. */
+    expandable: Boolean = false,
+    state: SideSheetState = rememberSideSheetState(),
+    /** See [ModalSideSheet]: a floating sheet becomes an edge sheet as it widens. */
+    edgeMorph: Boolean = true,
+    expandedShape: CornerBasedShape = SideSheetDefaults.ExpandedShape,
+    containerColour: Color = Theme.colours.surfaceRaised,
+    contentColour: Color = Theme.colours.content,
+    /** See [ModalSideSheet]. */
+    onBack: (() -> Unit)? = null,
+    backLabel: String = Theme.strings.back,
+    paneTitle: String? = null,
+    /** See [ModalSideSheet]. */
+    windowInsets: WindowInsets = WindowInsets.allEdges,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val motion = Theme.motion
+    // Its own motion rather than the overlay host's, since it is not in the host:
+    // the same spring a sheet settles on, and a tween under reduced motion.
+    val shown by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = motion.springOrTween(motion.springGentle),
+        label = "sideSheet",
+    )
+    // Read through a lambda, in placement, so sliding re-places the sheet without
+    // recomposing it.
+    val progress = rememberUpdatedState(shown)
+
+    // A sheet closed while expanded opens again at its resting width — the modal
+    // sheet's rule, for the same reason.
+    var closedAfterShowing by remember { mutableStateOf(false) }
+    var shownOnce by remember { mutableStateOf(false) }
+    LaunchedEffect(visible) {
+        if (!visible) {
+            if (shownOnce) closedAfterShowing = true
+            return@LaunchedEffect
+        }
+        if (closedAfterShowing) {
+            state.reset()
+            closedAfterShowing = false
+        }
+        shownOnce = true
+    }
+
+    // Not composed once it has slid away: a sheet that is not there should not be
+    // in the assistive tree, nor holding its content's state against the next time.
+    if (!visible && shown <= 0f) return
+
+    SideSheetPanel(
+        modifier = modifier,
+        side = side,
+        width = width,
+        presentation = presentation,
+        shape = shape,
+        expandable = expandable,
+        state = state,
+        edgeMorph = edgeMorph,
+        expandedShape = expandedShape,
+        containerColour = containerColour,
+        contentColour = contentColour,
+        paneTitle = paneTitle,
+        onBack = onBack,
+        backLabel = backLabel,
+        windowInsets = windowInsets,
+        progress = { progress.value },
+        content = content,
+    )
 }
 
 object SideSheetDefaults {
@@ -367,14 +482,16 @@ private fun SideSheetPanel(
     onBack: (() -> Unit)?,
     backLabel: String,
     windowInsets: WindowInsets,
+    // How far in the sheet has slid, 0 to 1. Driven from outside in both
+    // directions — by the overlay host for a modal sheet, by the sheet's own
+    // animation for one that is not — because a panel that set its own `appeared`
+    // flag on first composition could only ever run 0 -> 1, which is why nothing in
+    // the library animated *out*.
+    progress: () -> Float,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val density = LocalDensity.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    // Driven by the host, in both directions — a panel that set its own
-    // `appeared` flag on first composition could only ever run 0 -> 1, which is
-    // why nothing in the library animated *out*.
-    val progress = LocalOverlayProgress.current
 
     // Physical edge, once the layout direction has been applied.
     val fromRight = (side == SheetSide.End) != isRtl

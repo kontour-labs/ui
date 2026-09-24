@@ -7,19 +7,18 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -32,44 +31,42 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.ui.a11y.minimumTouchTarget
-import io.kontour.ui.motion.chevronTurn
+import io.kontour.ui.adaptive.leadingEdges
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.ProvideContentColour
-import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorEdge
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.LocalSelectionIndicator
 import io.kontour.ui.foundation.LocalSelectionIndicatorLeaving
+import io.kontour.ui.foundation.ProvideContentColour
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.SelectionIndicatorBox
-import io.kontour.ui.foundation.rememberSelectionIndicatorState
-import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.motion.chevronTurn
+import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetSide
-import io.kontour.ui.sheet.SideSheet
-import io.kontour.ui.adaptive.leadingEdges
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.filterNotNull
@@ -198,7 +195,7 @@ fun NavDrawer(
  * ```
  *
  * The phone and small-tablet form. Renders through
- * [io.kontour.ui.sheet.SideSheet], so it stacks correctly with dialogs, dims
+ * [io.kontour.ui.sheet.ModalSideSheet], so it stacks correctly with dialogs, dims
  * what is behind it and closes on a back gesture — all of which a hand-rolled
  * sliding panel has to reimplement.
  *
@@ -228,7 +225,7 @@ fun ModalNavDrawer(
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable NavDrawerScope.() -> Unit,
 ) {
-    SideSheet(
+    ModalSideSheet(
         visible = visible,
         onDismissRequest = onDismissRequest,
         modifier = modifier,

@@ -21,7 +21,7 @@ prose that is about the family rather than any one of them.
 | [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `ExpandingListItem` `SettingRow` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` `Modifier.fadingEdges` |
 | [**Navigation**](components/navigation.md) | Getting between screens | `NavigationSuiteScaffold` `NavItem` `NavBar` `NavRail` `NavDrawer` `ModalNavDrawer` `TopBar` `TabBar` `Breadcrumbs` `Pagination` |
 | [**Overlays**](components/overlays.md) | Things drawn over everything | `OverlayHost` `Dialog` `AlertDialog` `DropdownMenu` `SubMenu` `ContextMenuArea` `Popover` `Tooltip` `Toast` `LoadingOverlay` `CommandPalette` |
-| [**Sheets**](components/sheets.md) | Bottom and side panels | `BottomSheet` `ModalBottomSheet` `SideSheet` `SheetHeader` `DragHandle` |
+| [**Sheets**](components/sheets.md) | Bottom and side panels | `BottomSheet` `ModalBottomSheet` `SideSheet` `ModalSideSheet` `SheetHeader` `DragHandle` |
 | [**Adaptive**](components/adaptive.md) | Layout and motion by window | `Scaffold` `ListDetailPaneScaffold` `WindowSizeClass` `AspectRatioBox` `Modifier.pointerCursor` `GlassSurface` `PageTransition` `Motion.*` |
 | [**Foundation**](components/foundation.md) | What the rest is built from | `Text` `Icon` `Surface` `HorizontalDivider` `VerticalDivider` `Scrim` `SelectionIndicatorBox` `Modifier.clearFocusOnTap` |
 
@@ -51,7 +51,7 @@ The comparisons that get made wrongly, and where each is argued:
 | `Stat` vs `KeyValueList` vs `SettingRow` | [`KeyValueList`](components/key-value-list.md) |
 | `EmptyState` vs `ErrorState` | [`EmptyState`](components/empty-state.md) |
 | `Pagination` vs `LoadMore` | [navigation](components/pagination.md) |
-| The five sheet entry points | [sheets](components/sheets.md) |
+| The six sheet entry points | [sheets](components/sheets.md) |
 
 ---
 

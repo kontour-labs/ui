@@ -1,7 +1,9 @@
 package io.kontour.ui.samples
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -21,6 +23,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.sheet.BottomSheet
 import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.sheet.SheetSide
@@ -97,9 +100,32 @@ fun ModalBottomSheetBasics() {
 
 @Composable
 fun SideSheetBasics() {
+    var filtersOpen by remember { mutableStateOf(true) }
+
+    Box(Modifier.fillMaxSize()) {
+        // The list stays the list: nothing is dimmed or blocked, so a filter
+        // changed in the sheet is seen taking effect beside it.
+        Departures()
+
+        SideSheet(visible = filtersOpen, paneTitle = "Filters") {
+            // No scrim to tap and no back gesture to catch — the app owns
+            // `visible`, so the header's close button is how it goes away.
+            SheetHeader(onClose = { filtersOpen = false }) { +"Filters" }
+            Column(
+                modifier = Modifier.padding(horizontal = Theme.spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            ) {
+                Text("Only show routes that run in the next hour")
+            }
+        }
+    }
+}
+
+@Composable
+fun ModalSideSheetBasics() {
     var open by remember { mutableStateOf(false) }
 
-    SideSheet(
+    ModalSideSheet(
         visible = open,
         onDismissRequest = { open = false },
         side = SheetSide.End,

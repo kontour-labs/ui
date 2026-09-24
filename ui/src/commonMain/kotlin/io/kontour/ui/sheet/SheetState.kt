@@ -335,8 +335,26 @@ class SheetState internal constructor(
         val until = morph.until?.let(::offsetOf) ?: highestAnchored(detents)
         if (until.isNaN()) return 0f
         val from = morph.from?.let(::offsetOf) ?: restingBelow(until)
-        if (from.isNaN() || from <= until) return 0f
+        if (from.isNaN()) return nearTheTop(morph, raw)
+        if (from <= until) return 0f
         return ((from - raw) / (from - until)).coerceIn(0f, 1f)
+    }
+
+    /**
+     * The morph for a sheet with no step to morph across: over the last
+     * [SheetEdgeMorph.nearTop] of travel before the top of the window.
+     *
+     * The top is [SheetTopGap], the floor under every anchor and where a sheet whose
+     * content fills the window rests — so that sheet is an edge sheet at rest, one
+     * with a line of text in it rests far below and floats, and a tall one opening
+     * morphs over the last stretch of its arrival.
+     */
+    private fun nearTheTop(morph: SheetEdgeMorph, raw: Float): Float {
+        val density = anchorDensity ?: return 0f
+        val top = with(density) { SheetTopGap.toPx() }
+        val reach = with(density) { morph.nearTop.toPx() }
+        if (reach <= 0f) return if (raw <= top) 1f else 0f
+        return ((top + reach - raw) / reach).coerceIn(0f, 1f)
     }
 
     /**

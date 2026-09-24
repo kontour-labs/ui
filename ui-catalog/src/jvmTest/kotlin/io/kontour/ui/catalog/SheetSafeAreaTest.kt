@@ -1,16 +1,16 @@
 package io.kontour.ui.catalog
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.Modifier
@@ -22,6 +22,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
 import io.kontour.ui.sheet.SheetDetent
+import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.rememberSheetState
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
@@ -113,6 +114,8 @@ class SheetSafeAreaTest {
                         LaunchedEffect(Unit) { sheet.animateTo(openAt) }
                         BottomSheet(
                             sheet,
+                            // Edge geometry is the subject: pinned now that sheets float by default.
+                            presentation = SheetPresentation.Edge,
                             // No handle, so the first content node's top is
                             // where the chrome would begin.
                             dragHandle = null,
@@ -314,6 +317,8 @@ class SheetSafeAreaTest {
                         LaunchedEffect(Unit) { sheet.animateTo(SheetDetent.Full) }
                         BottomSheet(
                             sheet,
+                            // Edge geometry is the subject: pinned now that sheets float by default.
+                            presentation = SheetPresentation.Edge,
                             dragHandle = null,
                             windowInsets = WindowInsets(bottom = BottomInset.dp),
                         ) { padding ->
@@ -405,6 +410,8 @@ class SheetSafeAreaTest {
                         }
                         BottomSheet(
                             sheet,
+                            // Edge geometry is the subject: pinned now that sheets float by default.
+                            presentation = SheetPresentation.Edge,
                             dragHandle = null,
                             windowInsets = WindowInsets(bottom = BottomInset.dp),
                         ) { padding ->

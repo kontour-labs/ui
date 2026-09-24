@@ -121,17 +121,18 @@ unchanged, and content written before this existed reads and behaves the same.
 
 ## `presentation` — a drawer out of the screen, or a panel over it
 
-`SheetPresentation.Edge` is the default and is what a sheet has always been:
-flush to the bottom and to both sides, top corners rounded, bottom corners square
-because there is no bottom edge to round.
+**Every sheet floats by default** — `BottomSheet`, `ModalBottomSheet` and both
+side sheets. `SheetPresentation.Floating` lifts the sheet off all three edges and
+rounds every corner. It reads as a panel *over* the screen rather than a drawer
+pulled out of it, and it can shrink to the size of a control without looking
+broken — **a bar-height sheet flush to the bottom of the window reads as a drawer
+that failed to open**, and the same thing floating reads as a search field. And
+expanded, it stops floating: see below.
 
-`SheetPresentation.Floating` lifts it off all three edges and rounds every
-corner. Two things follow, and they are the reasons to reach for it. It reads as
-a panel *over* the screen rather than a drawer pulled out of it, which is what a
-sheet that is permanently present should look like. And it can shrink to the size
-of a control without looking broken — **a bar-height sheet flush to the bottom of
-the window reads as a drawer that failed to open**, and the same thing floating
-reads as a search field.
+`SheetPresentation.Edge` is what a sheet used to be by default: flush to the
+bottom and to both sides, top corners rounded, bottom corners square because
+there is no bottom edge to round. Ask for it by name when the sheet should read
+as a drawer out of the window at every size.
 
 ```kotlin
 val search = rememberSheetState(
@@ -140,7 +141,7 @@ val search = rememberSheetState(
     initialDetent = SheetDetent.height("bar", 64.dp),
 )
 
-BottomSheet(state = search, presentation = SheetPresentation.Floating) {
+BottomSheet(state = search) {
     TextField(state = query, placeholder = "Search stops")
 }
 ```
@@ -202,7 +203,6 @@ there, and let go it finishes at the speed of the spring carrying it.
 ```kotlin
 BottomSheet(
     state = sheet,
-    presentation = SheetPresentation.Floating,
     // The default: the last step, into the edge sheet's shape.
     edgeMorph = SheetEdgeMorph(),
     // Or finish earlier, from the bar up to Half:
@@ -215,9 +215,14 @@ BottomSheet(
 `expandedShape` is what `shape` becomes, and defaults to the edge sheet's. Corners
 and the squircle's curve interpolate when both are corner-based shapes.
 
-A sheet with only one detent it can rest at — a `ModalBottomSheet` with its
-default `[Hidden, Expanded]` — has no step to morph across, and stays floating;
-say `from` to morph one anyway.
+**A sheet with only one detent it can rest at** — a `ModalBottomSheet` with its
+default `[Hidden, Expanded]` — has no step to morph across, so it morphs over the
+last `nearTop` (64dp) of travel before the top of the window instead. Content
+short enough to rest well below the top floats; content tall enough to fill the
+window arrives as an edge sheet, and morphs over the last stretch of opening.
+Content that lands just short of the top rests partly morphed, which is the edge
+of the rule and why the distance is short; say `from` to morph over a step of
+your own.
 
 **One cost, confined to the step.** As the sheet widens by its side margins its
 content is measured at the new width each frame, so it follows the sheet out to

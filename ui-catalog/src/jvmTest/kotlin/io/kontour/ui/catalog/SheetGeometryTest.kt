@@ -16,6 +16,7 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetHeader
+import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.SheetState
 import io.kontour.ui.sheet.rememberSheetState
 import io.kontour.ui.sheet.sheetPeekAnchor
@@ -103,6 +104,8 @@ class SheetGeometryTest {
                         LaunchedEffect(Unit) { sheet.animateTo(openAt) }
                         BottomSheet(
                             sheet,
+                            // Edge geometry is the subject: pinned now that sheets float by default.
+                            presentation = SheetPresentation.Edge,
                             modifier = Modifier.onGloballyPositioned {
                                 surfaceHeight = it.size.height.toFloat()
                             },
@@ -308,7 +311,7 @@ class SheetGeometryTest {
                         )
                         captured = sheet
                         LaunchedEffect(Unit) { sheet.animateTo(SheetDetent.Half) }
-                        BottomSheet(sheet, dragHandle = null) {
+                        BottomSheet(sheet, presentation = SheetPresentation.Edge, dragHandle = null) {
                             Box(Modifier.height(400.dp)) { Text("body") }
                         }
                     }

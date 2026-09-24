@@ -99,19 +99,21 @@ enum class SheetPresentation {
     /**
      * Flush to the bottom and to both sides. A drawer pulled out of the screen.
      *
-     * The default, and what a sheet has always been. Its bottom corners are
-     * square because there is no bottom edge to round.
+     * What a sheet used to be by default, and still what it becomes when a
+     * floating one is expanded. Ask for it by name for a sheet that should read as
+     * a drawer at every size. Its bottom corners are square because there is no
+     * bottom edge to round.
      */
     Edge,
 
     /**
-     * Lifted off all three edges, with every corner rounded.
+     * Lifted off all three edges, with every corner rounded. **The default**, for
+     * every sheet in the library.
      *
-     * A panel *over* the screen rather than a drawer out of it. Worth reaching
-     * for when the sheet is permanently present rather than summoned, and
-     * necessary when its lowest detent is small: a bar-height sheet flush to the
-     * bottom of the window reads as a drawer that failed to open, and the same
-     * thing floating reads as a control.
+     * A panel *over* the screen rather than a drawer out of it — and the only
+     * presentation in which a small sheet looks deliberate: a bar-height sheet
+     * flush to the bottom of the window reads as a drawer that failed to open, and
+     * the same thing floating reads as a control.
      *
      * Pulled up to its top detent it stops floating: across the last step of its
      * travel it becomes the [Edge] sheet it would otherwise have been. See
@@ -155,21 +157,32 @@ enum class SheetPresentation {
  *   floating. Null is the resting detent just below [until], so the default is the
  *   last step of the sheet's travel and nothing else.
  * @param until Where it is complete: at or above this the sheet is an edge sheet.
- *   Null is the sheet's highest detent. A sheet with only one detent it can rest
- *   at has no step to morph across and stays floating; say [from] explicitly to
- *   morph such a sheet anyway.
+ *   Null is the sheet's highest detent.
+ * @param nearTop For a sheet with no step to morph across — one resting detent,
+ *   which is a `ModalBottomSheet` on its defaults — how far below the top of the
+ *   window the morph starts. Such a sheet is floating wherever it rests short of the
+ *   top, and an edge sheet when its content is tall enough to reach it: it morphs
+ *   over the last [nearTop] of its travel, which is where a tall sheet finishes
+ *   opening. Content that lands within this of the top rests partly morphed, which
+ *   is the edge of the rule and the reason the distance is short.
  */
 @Immutable
 class SheetEdgeMorph(
     val from: SheetDetent? = null,
     val until: SheetDetent? = null,
+    val nearTop: Dp = DefaultNearTop,
 ) {
     override fun equals(other: Any?): Boolean =
-        other is SheetEdgeMorph && other.from == from && other.until == until
+        other is SheetEdgeMorph && other.from == from && other.until == until && other.nearTop == nearTop
 
-    override fun hashCode(): Int = 31 * from.hashCode() + until.hashCode()
+    override fun hashCode(): Int = 31 * (31 * from.hashCode() + until.hashCode()) + nearTop.hashCode()
 
-    override fun toString(): String = "SheetEdgeMorph(from=$from, until=$until)"
+    override fun toString(): String = "SheetEdgeMorph(from=$from, until=$until, nearTop=$nearTop)"
+
+    companion object {
+        /** The last stretch before the top a single-size sheet morphs over. */
+        val DefaultNearTop: Dp = 64.dp
+    }
 }
 
 object SheetDefaults {
@@ -297,18 +310,18 @@ fun BottomSheet(
     /**
      * Whether the sheet meets the window's edges or floats clear of them.
      *
-     * [SheetPresentation.Edge] is the default and is what a sheet has always
-     * been: flush to the bottom and to both sides, with its top corners rounded
-     * and its bottom ones square because there is no bottom to round.
-     *
-     * [SheetPresentation.Floating] lifts it off all three edges by
+     * [SheetPresentation.Floating], the default, lifts it off all three edges by
      * [Theme.componentDefaults][io.kontour.ui.theme.ComponentDefaults.sheetFloatingInset] and rounds every corner. Two things follow
      * that are the reason to reach for it. It reads as a *panel over* the screen
      * rather than a drawer pulled out of it, which is what a sheet that is
      * permanently present wants to look like. And it can shrink to something the
      * size of a control without looking like a drawer that failed to open — a
      * search field parked at the bottom of a map, which is the case this was
-     * asked for.
+     * asked for. Expanded, it becomes an edge sheet — see [edgeMorph].
+     *
+     * [SheetPresentation.Edge] is flush to the bottom and to both sides, with its
+     * top corners rounded and its bottom ones square because there is no bottom to
+     * round: a drawer out of the window at every size.
      *
      * **Collapsing instead of dismissing is a detent question, not this one.**
      * A sheet's anchors come from its own detent list, so one whose detents are
@@ -317,7 +330,7 @@ fun BottomSheet(
      * exactly as it does above its top. That works at either presentation; this
      * one only decides what it looks like while it does.
      */
-    presentation: SheetPresentation = SheetPresentation.Edge,
+    presentation: SheetPresentation = SheetPresentation.Floating,
     /**
      * How a floating sheet becomes an edge sheet as it is expanded. See
      * [SheetEdgeMorph].
@@ -846,8 +859,8 @@ fun ModalBottomSheet(
         detents = listOf(SheetDetent.Hidden, SheetDetent.Expanded),
         initialDetent = SheetDetent.Hidden,
     ),
-    /** See [BottomSheet]. `Floating` lifts the sheet off all three edges. */
-    presentation: SheetPresentation = SheetPresentation.Edge,
+    /** See [BottomSheet]. Floating by default, and an edge sheet once its content reaches the top. */
+    presentation: SheetPresentation = SheetPresentation.Floating,
     /** See [BottomSheet]: how a floating sheet becomes an edge sheet as it expands. */
     edgeMorph: SheetEdgeMorph? = SheetEdgeMorph(),
     /**

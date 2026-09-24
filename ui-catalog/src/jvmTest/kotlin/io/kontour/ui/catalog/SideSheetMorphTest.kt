@@ -18,9 +18,9 @@ import androidx.compose.ui.test.v2.runDesktopComposeUiTest
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.SheetSide
-import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.sheet.SideSheetState
 import io.kontour.ui.sheet.rememberSideSheetState
 import io.kontour.ui.theme.KontourTheme
@@ -181,7 +181,7 @@ class SideSheetMorphTest {
             KontourTheme(reduceMotion = true) {
                 state = rememberSideSheetState()
                 OverlayHost(Modifier.fillMaxSize()) {
-                    SideSheet(
+                    ModalSideSheet(
                         visible = true,
                         onDismissRequest = {},
                         width = 300.dp,
@@ -239,7 +239,7 @@ class SideSheetMorphTest {
             val state = rememberSideSheetState(initiallyExpanded = expanded)
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Ground))
-                SideSheet(
+                ModalSideSheet(
                     visible = true,
                     onDismissRequest = {},
                     side = side,
