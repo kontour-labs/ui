@@ -362,6 +362,9 @@ private fun EntryHost(
     // appearance. Both are lambdas for the same reason, and it is the reason
     // this line exists at all: see [LocalOverlayProgress].
     val reader: () -> Float = remember { { progress.value } }
+    // Read where it is used, in measure, so a panel can hold its placement for the
+    // length of its exit without recomposing to find out it is leaving.
+    val leavingReader: () -> Boolean = remember(state, entry.key) { { state.isLeaving(entry.key) } }
 
     DisposableEffect(state, dimmed, fraction) {
         if (dimmed) state.backdropFraction = fraction
@@ -419,7 +422,10 @@ private fun EntryHost(
             traversalIndex = (index + 1).toFloat()
         }
     ) {
-        CompositionLocalProvider(LocalOverlayProgress provides reader) {
+        CompositionLocalProvider(
+            LocalOverlayProgress provides reader,
+            LocalOverlayLeaving provides leavingReader,
+        ) {
             entry.content()
         }
     }
@@ -452,6 +458,13 @@ private fun EntryHost(
  * recomposition cost alone, which is reason enough.
  */
 internal val LocalOverlayProgress = compositionLocalOf<() -> Float> { { 1f } }
+
+/**
+ * Whether this overlay is on its way out. A lambda, read where it matters — an
+ * anchored panel reads it in measure to leave from the side it was on. See
+ * `AnchoredOverlayLayout`.
+ */
+internal val LocalOverlayLeaving = compositionLocalOf<() -> Boolean> { { false } }
 
 /**
  * The one entry in [stack] whose scrim is actually drawn dark.

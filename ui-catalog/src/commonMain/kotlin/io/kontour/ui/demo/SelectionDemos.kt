@@ -32,6 +32,7 @@ import io.kontour.ui.components.selection.ColourPickerMode
 import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
+import io.kontour.ui.components.selection.KnobDefaults
 import io.kontour.ui.components.selection.RadioButton
 import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.RangeSlider
@@ -276,10 +277,19 @@ private val sliderEnabled = Knob.Flag("Enabled", initial = true)
  */
 private val sliderMinorTicks = Knob.Flag("Minor ticks", initial = true)
 
+/**
+ * The value above the thumb while it is held.
+ *
+ * On, because it only shows during a drag — a still page looks the same either
+ * way, and the reader finds it by pressing.
+ */
+private val sliderValueLabel = Knob.Flag("Value label", initial = true)
+
 internal val SliderDemo = ComponentDemo(
     slug = "slider",
-    knobs = listOf(sliderSteps, sliderTicks, sliderMinorTicks, sliderEnabled),
+    knobs = listOf(sliderSteps, sliderTicks, sliderMinorTicks, sliderValueLabel, sliderEnabled),
 ) {
+    val label = this[sliderValueLabel]
     var amount by remember { mutableStateOf(0.35f) }
     var stepped by remember { mutableStateOf(3f) }
     val enabled = this[sliderEnabled]
@@ -293,6 +303,7 @@ internal val SliderDemo = ComponentDemo(
                 steps = 3,
                 minorTicks = if (this@ComponentDemo[sliderMinorTicks]) 1 else 0,
                 showTicks = ticks,
+                valueLabel = if (label) { value -> "${value.roundToInt()}" } else null,
                 enabled = enabled,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -306,6 +317,7 @@ internal val SliderDemo = ComponentDemo(
         Slider(
             value = amount,
             onValueChange = { amount = it },
+            valueLabel = if (label) { value -> "${(value * 100).roundToInt()}%" } else null,
             enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -316,10 +328,14 @@ private val rangeSliderSteps = Knob.Flag("Stepped")
 private val rangeSliderTicks = Knob.Flag("Ticks", initial = true)
 private val rangeSliderEnabled = Knob.Flag("Enabled", initial = true)
 
+/** The held thumb's value above it, and a pushed one's too. */
+private val rangeSliderValueLabel = Knob.Flag("Value label", initial = true)
+
 internal val RangeSliderDemo = ComponentDemo(
     slug = "range-slider",
-    knobs = listOf(rangeSliderSteps, rangeSliderTicks, rangeSliderEnabled),
+    knobs = listOf(rangeSliderSteps, rangeSliderTicks, rangeSliderValueLabel, rangeSliderEnabled),
 ) {
+    val label = this[rangeSliderValueLabel]
     var window by remember { mutableStateOf(0.25f..0.7f) }
     var hours by remember { mutableStateOf(8f..17f) }
     val enabled = this[rangeSliderEnabled]
@@ -334,6 +350,7 @@ internal val RangeSliderDemo = ComponentDemo(
             steps = 13,
             showTicks = ticks,
             minDistance = 1f,
+            valueLabel = if (label) { value -> "${value.roundToInt()}:00" } else null,
             enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -341,6 +358,7 @@ internal val RangeSliderDemo = ComponentDemo(
         RangeSlider(
             value = window,
             onValueChange = { window = it },
+            valueLabel = if (label) { value -> "${(value * 100).roundToInt()}%" } else null,
             enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -470,7 +488,23 @@ private val PickerWidth = 320.dp
 private val knobStepped = Knob.Flag("Steps")
 private val knobEnabled = Knob.Flag("Enabled", initial = true)
 
-internal val KnobDemo = ComponentDemo(slug = "knob", knobs = listOf(knobStepped, knobEnabled)) {
+/** How far the knob turns from one end to the other. */
+private val knobSweep =
+    Knob.Choice("Sweep", listOf(180f, 270f, 320f), 270f, name = { "${it.roundToInt()}°" })
+
+/** The fill as a gradient along the scale, the way the gauge draws one. */
+private val knobGradient = Knob.Flag("Gradient")
+
+internal val KnobDemo = ComponentDemo(
+    slug = "knob",
+    knobs = listOf(knobStepped, knobSweep, knobGradient, knobEnabled),
+) {
+    val sweep = this[knobSweep]
+    val colours = if (this[knobGradient]) {
+        KnobDefaults.colours(indicator = listOf(KnobTeal, KnobBlue))
+    } else {
+        KnobDefaults.colours()
+    }
     var volume by remember { mutableStateOf(0.4f) }
     var balance by remember { mutableStateOf(0.5f) }
     val stepped = this[knobStepped]
@@ -484,6 +518,8 @@ internal val KnobDemo = ComponentDemo(slug = "knob", knobs = listOf(knobStepped,
             onValueChange = { volume = it },
             steps = if (stepped) 9 else 0,
             enabled = enabled,
+            sweepAngle = sweep,
+            colours = colours,
             contentDescription = "Volume",
             stateDescription = { "${(it * 100).roundToInt()}%" },
             onValueChangeFinished = { echo("Volume ${(volume * 100).roundToInt()}%") },
@@ -496,11 +532,16 @@ internal val KnobDemo = ComponentDemo(slug = "knob", knobs = listOf(knobStepped,
             valueRange = 0f..1f,
             steps = if (stepped) 9 else 0,
             enabled = enabled,
+            sweepAngle = sweep,
+            colours = colours,
             size = 72.dp,
             contentDescription = "Balance",
         )
     }
 }
+
+private val KnobTeal = Color(0xFF2EC4B6)
+private val KnobBlue = Color(0xFF3A86FF)
 
 internal val selectionDemos = listOf(
     CheckboxDemo,

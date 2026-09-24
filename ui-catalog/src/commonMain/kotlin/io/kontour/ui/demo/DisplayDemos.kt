@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertTriangle
@@ -691,9 +692,26 @@ private val gaugeGradient = Knob.Flag("Gradient", initial = true)
 /** Off, a new reading is drawn where it lands rather than travelling there. */
 private val gaugeAnimated = Knob.Flag("Animated", initial = true)
 
+/** How far round the scale goes, with the gap always centred at the bottom. */
+private val gaugeSweep =
+    Knob.Choice("Sweep", listOf(180f, 240f, 270f, 320f), 270f, name = { "${it.roundToInt()}°" })
+private val gaugeThickness =
+    Knob.Choice("Thickness", listOf(6.dp, 12.dp, 20.dp), 12.dp, name = { "${it.value.roundToInt()}dp" })
+
+/** Square ends on the track and the fill, for a dial read as an instrument. */
+private val gaugeFlatEnds = Knob.Flag("Flat ends")
+
 internal val GaugeDemo = ComponentDemo(
     slug = "gauge",
-    knobs = listOf(gaugeIndicator, gaugeTicks, gaugeGradient, gaugeAnimated),
+    knobs = listOf(
+        gaugeIndicator,
+        gaugeTicks,
+        gaugeSweep,
+        gaugeThickness,
+        gaugeFlatEnds,
+        gaugeGradient,
+        gaugeAnimated,
+    ),
 ) {
     var rpm by remember { mutableStateOf(8_500f) }
     val indicator = this[gaugeIndicator]
@@ -708,6 +726,9 @@ internal val GaugeDemo = ComponentDemo(
             value = rpm,
             valueRange = 0f..10_000f,
             size = 200.dp,
+            sweepAngle = this@ComponentDemo[gaugeSweep],
+            thickness = this@ComponentDemo[gaugeThickness],
+            cap = if (this@ComponentDemo[gaugeFlatEnds]) StrokeCap.Butt else StrokeCap.Round,
             indicator = indicator,
             majorTicks = 6,
             minorTicks = 1,

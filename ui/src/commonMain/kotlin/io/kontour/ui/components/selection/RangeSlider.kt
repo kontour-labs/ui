@@ -371,6 +371,8 @@ fun RangeSlider(
     val labelPaddingH = with(density) { Theme.spacing.xs.toPx() }
     val labelPaddingV = with(density) { Theme.spacing.xxs.toPx() }
     val labelGap = with(density) { SliderLabelGap.toPx() }
+    // The switch's pill: round at rest, a G2 pill stretched. See `sliderThumb`.
+    val pill = Theme.shapes.pill
     val rtl = layoutDirection == LayoutDirection.Rtl
     // See `Slider`: the limit is the finger's travel past the stop, not a
     // fraction of the thumb, and `sliderThumb` normalises by the same number.
@@ -996,6 +998,7 @@ fun RangeSlider(
                                     ringColour = colours.surface,
                                     fillColour = activeColour,
                                     ringPx = SliderThumbRing.toPx(),
+                                    capsule = pill,
                                 )
                             }
 
@@ -1018,6 +1021,7 @@ fun RangeSlider(
                                     paddingHorizontal = labelPaddingH,
                                     paddingVertical = labelPaddingV,
                                     gap = labelGap,
+                                    shape = pill,
                                 )
                             }
                         }

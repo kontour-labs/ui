@@ -82,10 +82,12 @@ place. `Switch` gives the same fraction of itself by the same rule;
 and keeps its own smaller fraction for a reason [its own page](segmented-control.md)
 has.
 
-**The head is a squircle**, and a squircle stretched along the middle while it
-is held — superellipse ends rather than semicircles, which meet the straight
-edges already flat. Drawn rather than clipped to a shape, because it is a
-different size on every frame of a drag.
+**The head is the switch's pill**: a circle at rest, and a pill whose round ends
+meet its straight sides G2-continuously once it lengthens under the finger —
+drawn from `Shapes.pill`, the shape `Switch`'s track and thumb use. On a square box
+that shape has no straight run for its smoothing to ease into and is exactly a
+circle, so resting and held are one shape at two lengths. The value's bubble is
+the same pill.
 
 **`valueLabel` puts the value above the head while it is held**, and takes it
 away when the finger lifts:

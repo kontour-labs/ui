@@ -245,7 +245,8 @@ fun rememberCarouselState(pageCount: () -> Int): CarouselState {
  *   over its own content — so at `0` the picture holds still and is taken away,
  *   and at `1` it travels with the strip and slides out under a shrinking window.
  *   Around `0.2` to `0.3` gives it a drift behind the closing edge without it
- *   arriving from off screen. The page arriving is not affected: its picture holds
+ *   arriving from off screen. **The page arriving drifts by the same share**, in
+ *   from the end as its box opens, so both pictures move together; at `0` it holds
  *   still, end-aligned in a box whose leading edge wipes across it.
  *
  *   **Ignored under reduced motion**, which is the whole of what that preference
@@ -671,9 +672,20 @@ private fun Modifier.heroPage(
             //
             // Not placed at zero width: an empty box draws nothing and hit-tests
             // nothing, which is what a page off the end of the frame should be.
+            //
+            // **Parallax moves both.** With a drift, the arriving picture gives back
+            // the same share of the strip's travel the leaving one keeps: it starts
+            // that far toward the end and closes the distance as its box opens, so
+            // the two pictures drift together behind the wipe instead of one drifting
+            // and one standing still. At `0` it is end-aligned and holds still; at `1`
+            // it is start-aligned and rides in with its box.
             if (width > 0) {
-                val leaving = (box?.shift ?: 0f) > 0f
-                val x = if (leaving) -drift * (box?.shift ?: 0f) else (width - natural).toFloat()
+                val shift = box?.shift ?: 0f
+                val x = if (shift > 0f) {
+                    -drift * shift
+                } else {
+                    -(natural - width) * (1f - drift)
+                }
                 placeable.placeRelative(x.roundToInt(), 0)
             }
         }

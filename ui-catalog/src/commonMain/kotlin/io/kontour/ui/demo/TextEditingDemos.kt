@@ -123,10 +123,15 @@ private val numberNegative = Knob.Flag("Negatives")
 // difference is what the keyboard and the manager do.
 private val passwordIsNew = Knob.Flag("Sign-up field")
 
+/**
+ * The character just typed shows for a moment before it becomes a dot, the way
+ * a phone's own password fields do. Off masks every character as it arrives.
+ */
+private val passwordRevealLast = Knob.Flag("Show last typed", initial = true)
 
 internal val SpecialisedFieldsDemo = ComponentDemo(
     slug = "specialised-fields",
-    knobs = listOf(numberDecimal, numberNegative, passwordIsNew),
+    knobs = listOf(numberDecimal, numberNegative, passwordIsNew, passwordRevealLast),
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -136,6 +141,7 @@ internal val SpecialisedFieldsDemo = ComponentDemo(
             state = rememberTextFieldState("hunter2"),
             label = if (this@ComponentDemo[passwordIsNew]) "Choose a password" else "Password",
             isNewPassword = this@ComponentDemo[passwordIsNew],
+            revealLastTyped = this@ComponentDemo[passwordRevealLast],
             revealIcon = Tabler.Outline.Eye,
             modifier = Modifier.fillMaxWidth(),
         )

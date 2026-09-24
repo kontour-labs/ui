@@ -758,7 +758,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 26
+MAX_CIRCLES = 28
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -787,6 +787,15 @@ def circles() -> list[str]:
     which was keeping a circular arc away from lozenges; what is left is the job
     it was written for, which is keeping the *uncapped* rule away from things a
     theme is entitled to cap.
+
+    **26 to 28 for the slider thumbs** — `Slider` and `RangeSlider`, one each.
+    A thumb at rest is a circle on a square box, which is this list's own test;
+    held, it stretches into a lozenge, and the reporter asked for that lozenge to
+    be *the switch's*: "i meant like the pill shape of the switch. it should still
+    have that circular shape when not pressed, but the pill it expands to should
+    be g2 continuous". A capped `capsule` would square the resting thumb off under
+    a theme that caps its controls, which is the one thing a thumb must not do. It
+    had been a hand-drawn superellipse, which was round at rest in no theme.
 
     **25 to 26 for `Knob`**, whose focus ring is the one shape in it that is not
     drawn: a knob is round from what it is — a dial — on a square box, which is

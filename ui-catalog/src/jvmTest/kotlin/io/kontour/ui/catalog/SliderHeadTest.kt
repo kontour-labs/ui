@@ -23,7 +23,8 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * The slider's head: a squircle, with the value above it while it is held.
+ * The slider's head: round at rest, a G2 pill when held, with the value above it
+ * while it is held.
  *
  * Both asked for in one breath: "the head is not a squircle, and it should be",
  * and "can we add the option to display a label above the head as you're dragging
@@ -33,15 +34,22 @@ import kotlin.test.assertTrue
 class SliderHeadTest {
 
     /**
+     * Round at rest, and a pill once held — the switch's pill, whose ends meet its
+     * sides G2-continuously.
+     *
      * Read from the thumb's own fill, out from its centre: along the track and along
      * the diagonal. A circle reaches as far on the diagonal as it does across — a
-     * ratio of 1 — and a squircle's corners reach further, about 1.19 for the one
-     * drawn here. Measured at rest, where the thumb is exactly as wide as it is tall.
+     * ratio of 1 — where the superellipse head this replaced reached about 1.19,
+     * which read as a rounded square: "when i said make it a squircle, i meant like
+     * the pill shape of the switch. it should still have that circular shape when
+     * not pressed".
      */
     @Test
-    fun theThumbIsASquircle() {
+    fun theThumbIsRoundAtRestAndAPillWhenHeld() {
         var bounds = Rect.Zero
-        val frame = Scene(width = 600, height = 200, reduceMotion = true) {
+        var rest: BufferedImage? = null
+        var held: BufferedImage? = null
+        Scene(width = 600, height = 200, reduceMotion = false) {
             Box(Modifier.fillMaxSize().background(Color.White).padding(40.dp)) {
                 Slider(
                     value = 0.5f,
@@ -49,19 +57,35 @@ class SliderHeadTest {
                     modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
                 )
             }
-        }.use { scene -> scene.frames(6) }
+        }.use { scene ->
+            rest = scene.frames(6)
+            scene.press(bounds.center)
+            held = scene.frames(30)
+            scene.release(bounds.center)
+        }
 
         val cx = bounds.center.x.roundToInt()
         val cy = bounds.center.y.roundToInt()
-        val fill = frame.getRGB(cx, cy)
-        val across = frame.reach(cx, cy, 1, 0, fill).toFloat()
-        val diagonal = frame.reach(cx, cy, 1, -1, fill) * sqrt(2f)
-        val ratio = diagonal / across
+        val atRest = requireNotNull(rest)
+        val fill = atRest.getRGB(cx, cy)
+        val across = atRest.reach(cx, cy, 1, 0, fill).toFloat()
+        val up = atRest.reach(cx, cy, 0, -1, fill).toFloat()
+        val diagonal = atRest.reach(cx, cy, 1, -1, fill) * sqrt(2f)
         assertTrue(across > 8, "found no thumb at the slider's centre ($across px across)")
         assertTrue(
-            ratio > 1.1f,
-            "the thumb reaches ${diagonal}px along its diagonal against ${across}px across, a " +
-                "ratio of $ratio — a circle, where a squircle's corners reach further",
+            diagonal / across in 0.93f..1.07f,
+            "at rest the thumb reaches ${diagonal}px along its diagonal against ${across}px " +
+                "across — a ratio of ${diagonal / across}, where a circle's is 1",
+        )
+
+        val pressed = requireNotNull(held)
+        val heldFill = pressed.getRGB(cx, cy)
+        val heldAcross = pressed.reach(cx, cy, 1, 0, heldFill).toFloat()
+        val heldUp = pressed.reach(cx, cy, 0, -1, heldFill).toFloat()
+        assertTrue(
+            heldAcross > heldUp * 1.2f,
+            "held, the thumb should lengthen into a pill: it is ${heldAcross}px across and " +
+                "${heldUp}px up from its centre (at rest $across and $up)",
         )
     }
 

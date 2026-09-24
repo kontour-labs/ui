@@ -8,15 +8,23 @@ gesture exists. `rememberSwipeActionsState(initialValue = SwipeValue.End)` start
 a row already open, and `state.animateTo(SwipeValue.End)` moves an already-drawn
 one — which is how you would hint at the gesture on first run.
 
-**Up to three squircles grow out of the side.** As the row slides, each action is
-its own button in the row's shape and its own colour, with page showing between
-them — small and round at the first pixel of the swipe, because a button is never
-taller than it is wide, and full-height buttons by the time the row has uncovered
-them. Their icons and labels arrive from the row outward, a little after one
-another. Asked for in those words: *"an Apple-like animation where (up to) three
-squircle shapes expand out of the side when you start swiping, and then continuing
-to swipe across will select the rightmost one"*. They used to be panels laid over
-one strip painted in the nearest action's colour.
+**Up to three squircles grow out of the side, one after another.** As the row
+slides, each action is its own button in the row's shape and its own colour, with
+page showing between them. The one at the screen edge grows first; the next starts
+only when the row has moved far enough to make room for it, and so on — *"can you
+make it so they grow one after the other, as the item moves out of the way?"*. Each
+is small and round when it appears, because a button is never taller than it is
+wide, and a full-height button by the time the row has uncovered it. Asked for in
+those words: *"an Apple-like animation where (up to) three squircle shapes expand
+out of the side when you start swiping, and then continuing to swipe across will
+select the rightmost one"*. They used to be panels laid over one strip painted in
+the nearest action's colour, and then buttons that all grew at once.
+
+**The icon and label grow in with their button.** An icon fades and scales up as
+its button arrives, and the label unfolds under it — fading in while the space for
+it opens — once the button is tall enough for both. The label used to switch on
+the frame there was room for it, which read as a jump: *"it's a little bit janky
+when the text first appears when you swipe"*. Under reduced motion both only fade.
 
 **Order runs from the screen edge in toward the row**, on both sides. So the
 *first* action of a list is the one furthest from the row, and the last is the
@@ -72,6 +80,17 @@ crazy". A row opened or closed in code, with `animateTo`, is felt not at all.
 is 264dp of travel and already most of a phone's width; a fourth is a target
 nobody can reach, and a row that silently hides its last action is worse than one
 that says so.
+
+**A full swipe ends on a tick.** Let go past the point of no return and the row
+goes to the far edge, where the outermost action holds the whole strip — the others
+stay folded away the whole time, not only while the finger is past the line. There
+the action's icon gives way to a check mark, drawn in a stroke, and the row holds a
+moment to show it before the action runs and the row comes home. The row always
+spent a moment at the edge; it read as a pause, *"it stays at the end for just
+that little bit too long"*, so the tick puts the moment to use and makes it a
+little longer on purpose. It is optional: `fullSwipeConfirmation = false` runs the
+action the moment the row arrives, for a list where the row disappearing is
+confirmation enough. Under reduced motion the tick appears rather than draws.
 
 **A full swipe runs the outermost action**, which is the first one declared —
 the one at the screen edge, and the one that takes the strip at the point of no

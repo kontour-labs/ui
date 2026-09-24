@@ -96,7 +96,8 @@ fun PasswordField(
     // single character inserted anywhere is typing, and anything else — a paste,
     // a deletion, the caller setting the text — shows nothing. Cleared after
     // [RevealLastTypedFor], on the next edit, and whenever the toggle is used.
-    var lastTyped by remember { mutableIntStateOf(NothingTyped) }
+    val lastTypedState = remember { mutableIntStateOf(NothingTyped) }
+    var lastTyped by lastTypedState
     if (revealLastTyped) {
         LaunchedEffect(state) {
             var before = state.text.toString()
@@ -112,9 +113,14 @@ fun PasswordField(
         }
     }
     LaunchedEffect(revealed) { lastTyped = NothingTyped }
-    // Keyed rather than reading state inside the transformation, so a change is a
-    // new transformation and the field re-renders its text for certain.
-    val mask = remember(lastTyped) { PasswordMask(unmasked = lastTyped) }
+    // **One mask for the life of the field**, reading the revealed index from
+    // state as it runs. It used to be remembered *keyed* on that index, so every
+    // keystroke handed the field a new `OutputTransformation` — and a new one is a
+    // new transformed state inside `BasicTextField`, which restarts the platform's
+    // input session. On Android that is the keyboard going away and coming back on
+    // every key. The field already re-runs its output transformation when state
+    // read inside it changes, so the key was never needed.
+    val mask = remember { PasswordMask(unmasked = { lastTypedState.intValue }) }
 
     TextField(
         state = state,
@@ -195,12 +201,14 @@ internal fun insertedAt(before: String, now: String): Int {
  * offset and selection maps to itself.
  */
 private class PasswordMask(
-    private val unmasked: Int = NothingTyped,
+    /** Read as the mask runs, so a change re-renders the text without a new mask. */
+    private val unmasked: () -> Int = { NothingTyped },
     private val bullet: String = "\u2022",
 ) : OutputTransformation {
     override fun TextFieldBuffer.transformOutput() {
+        val shown = unmasked()
         for (index in 0 until length) {
-            if (index != unmasked) replace(index, index + 1, bullet)
+            if (index != shown) replace(index, index + 1, bullet)
         }
     }
 }

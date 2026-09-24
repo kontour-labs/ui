@@ -193,10 +193,20 @@ internal val SettingRowDemo = ComponentDemo(slug = "setting-row") {
  */
 private val swipeActionCount = Knob.Choice("Actions", listOf(1, 2, 3), 1, name = { "$it" })
 
+/**
+ * Whether a full swipe shows a tick before it runs its action.
+ *
+ * Asked for as optional, so both are one press apart: on, the row holds at the
+ * far edge while the icon turns into a drawn check mark; off, the action runs the
+ * moment the row gets there.
+ */
+private val swipeConfirmation = Knob.Flag("Tick on full swipe", initial = true)
+
 internal val SwipeActionsDemo = ComponentDemo(
     slug = "swipe-actions",
-    knobs = listOf(swipeActionCount),
+    knobs = listOf(swipeActionCount, swipeConfirmation),
 ) {
+    val confirmation = this[swipeConfirmation]
     // The first stays the full-swipe action whatever the count: a full swipe
     // runs the *first* action of the side, so moving it would change two things
     // at once.
@@ -232,6 +242,7 @@ internal val SwipeActionsDemo = ComponentDemo(
         )
         SwipeActions(
             end = trailing.take(this@ComponentDemo[swipeActionCount]),
+            fullSwipeConfirmation = confirmation,
             start = listOf(
                 SwipeAction(
                     label = "Favourite",
@@ -250,6 +261,7 @@ internal val SwipeActionsDemo = ComponentDemo(
             onDismissRequest = { echo("Dismissed") },
             label = "Remove",
             icon = Tabler.Outline.Trash,
+            fullSwipeConfirmation = confirmation,
         ) {
             ListItem {
                 +"Elizabeth Quay Station"

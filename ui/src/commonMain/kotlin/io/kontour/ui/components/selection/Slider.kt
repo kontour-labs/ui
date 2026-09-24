@@ -252,6 +252,8 @@ fun Slider(
     val labelPaddingH = with(density) { Theme.spacing.xs.toPx() }
     val labelPaddingV = with(density) { Theme.spacing.xxs.toPx() }
     val labelGap = with(density) { SliderLabelGap.toPx() }
+    // The switch's pill: round at rest, a G2 pill stretched. See `sliderThumb`.
+    val pill = Theme.shapes.pill
     val rtl = layoutDirection == LayoutDirection.Rtl
     val fraction = if (range == 0f) 0f else ((value - valueRange.start) / range).coerceIn(0f, 1f)
 
@@ -687,6 +689,7 @@ fun Slider(
                             ringColour = colours.surface,
                             fillColour = thumbColour,
                             ringPx = SliderThumbRing.toPx(),
+                            capsule = pill,
                         )
 
                         if (valueLabel != null && labelProgress > 0f) {
@@ -700,6 +703,7 @@ fun Slider(
                                 paddingHorizontal = labelPaddingH,
                                 paddingVertical = labelPaddingV,
                                 gap = labelGap,
+                                shape = pill,
                             )
                         }
                     }

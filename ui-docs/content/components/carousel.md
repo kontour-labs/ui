@@ -100,9 +100,12 @@ the picture holds still and is taken away; at `1` it travels with the strip and
 slides out under a shrinking window; `0.2`–`0.3` is a drift behind the closing
 edge. It is **ignored under reduced motion** — boxes trading width is the style,
 and a picture drifting underneath the one closing over it is the embellishment on
-top. The page arriving is not affected: its picture holds still, end-aligned in
-a box whose leading edge wipes across it. It used to ride in with its box, which
-was reported as the photo sliding in and out rather than being wiped.
+top. **The page arriving drifts by the same share**, in from the end as its box
+opens, so the two pictures move together behind the wipe. At `0` both hold still:
+the arriving picture is end-aligned in a box whose leading edge wipes across it.
+It used to ride in with its box whatever the parallax, which was reported first as
+the photo sliding in and out rather than being wiped, and then — once it held
+still — as only the outgoing picture doing the parallax.
 
 Reach for it when each page is **one picture**. Avoid it for pages with structure
 — a form, a list — because a page is measured once at the hero's width and masked

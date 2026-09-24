@@ -3,7 +3,9 @@ package io.kontour.ui.components.text
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.semantics.SemanticsNode
@@ -143,6 +145,46 @@ class PasswordFieldTest {
             assertTrue(
                 'x' !in later,
                 "the typed character was still showing three seconds later: \"$later\"",
+            )
+        }
+    }
+
+    /**
+     * Typing does not restart the keyboard.
+     *
+     * Reported from Android: *"whenever you type something into the password field,
+     * the keyboard jumps away then reappears"*. The last-typed reveal handed the field
+     * a new output transformation on every keystroke, and a new transformation is a
+     * new input session — so the keyboard was asked for again, each time. Counted
+     * here as the platform input requests the field makes after it has focus.
+     */
+    @OptIn(ExperimentalComposeUiApi::class)
+    @Test
+    fun typingDoesNotAskForTheKeyboardAgain() {
+        runComposeUiTest {
+            val state = TextFieldState(Secret)
+            var requests = 0
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    InterceptPlatformTextInput(
+                        interceptor = { request, next ->
+                            requests++
+                            next.startInputMethod(request)
+                        },
+                    ) {
+                        PasswordField(state = state, modifier = Modifier.testTag(Tag), label = "Password")
+                    }
+                }
+            }
+            onNode(hasSetTextAction()).requestFocus()
+            waitForIdle()
+            val onFocus = requests
+            repeat(4) { onNode(hasSetTextAction()).performTextInput("x") }
+            waitForIdle()
+            assertEquals(
+                onFocus, requests,
+                "typing four characters asked for the keyboard ${requests - onFocus} more " +
+                    "times after focus ($onFocus) — each one is the keyboard hiding and coming back",
             )
         }
     }

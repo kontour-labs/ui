@@ -315,8 +315,13 @@ class NarrowGestureTest {
             val state = SwipeStateHolder()
             Specimen(
                 content = {
-                    state.state = rememberSwipeActionsState()
+                    val swipe = rememberSwipeActionsState()
+                    state.state = swipe
                     SwipeActions(
+                        // Its own state, so "came to rest showing the action" can be
+                        // read: a full swipe now holds at the edge for its tick before
+                        // the action runs, and this looks before that is over.
+                        state = swipe,
                         modifier = Modifier.fillMaxWidth(),
                         end = listOf(
                             SwipeAction(

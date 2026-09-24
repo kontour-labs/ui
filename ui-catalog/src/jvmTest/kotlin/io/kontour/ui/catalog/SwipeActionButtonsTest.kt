@@ -25,6 +25,7 @@ import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberSwipeActionsState
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * Where a row's action buttons sit, and what shows between them.
@@ -144,21 +145,23 @@ class SwipeActionButtonsTest {
      * left in the other.
      *
      * `end` is loaded too, with a different colour, so a run that opened the
-     * wrong side comes back naming it rather than coming back empty.
+     * wrong side comes back naming it rather than coming back empty. Read a little
+     * way into the strip, where the actions being dealt out one at a time put the
+     * side's outermost action first.
      */
     @Test
     fun aSwipeTowardTheTrailingEdgeOpensTheStartActions() {
         assertEquals(
-            Pinned,
+            Remove,
             swipedTowardTrailing(rtl = false),
             "swiping a row toward the trailing edge in LTR — rightward — has to " +
-                "open its `start` actions",
+                "open its `start` actions, the outermost of them first",
         )
         assertEquals(
-            Pinned,
+            Remove,
             swipedTowardTrailing(rtl = true),
             "and leftward in RTL, which is the same gesture on a screen that runs " +
-                "the other way. A `Remove` here is the two sides swapped.",
+                "the other way. The `end` action's green here is the two sides swapped.",
         )
     }
 
@@ -236,6 +239,63 @@ class SwipeActionButtonsTest {
     }
 
     /**
+     * The actions are dealt out one after the other: short of one action's width,
+     * only the outermost is showing.
+     *
+     * Asked for: "if there's multiple actions, can you make it so they grow one after
+     * the other, as the item moves out of the way?" They used to share the strip
+     * from the first pixel, all three swelling at once.
+     */
+    @Test
+    fun theActionsGrowOneAfterTheOther() {
+        val (first, early) = inkWhileHeld(travel = 140f)
+        assertTrue(
+            first.getValue(Remove) > 0 && first.getValue(Archived) == 0 && first.getValue(Pinned) == 0,
+            "140px into a swipe of three 176px actions only the outermost should be showing, " +
+                "and the strip held ${first.map { (c, n) -> "${nameOf(c)} $n" }}",
+        )
+        val (second, _) = inkWhileHeld(travel = 260f)
+        assertTrue(
+            second.getValue(Remove) > 0 && second.getValue(Archived) > 0 && second.getValue(Pinned) == 0,
+            "260px in, the outermost should be full and the next one growing, with the " +
+                "third still to come: ${second.map { (c, n) -> "${nameOf(c)} $n" }}",
+        )
+        assertTrue(early > 0, "no action ink at all early in the swipe")
+    }
+
+    /** Each action colour's pixels in the row's band, held [travel] px into a swipe. */
+    private fun inkWhileHeld(travel: Float): Pair<Map<Color, Int>, Int> {
+        val counts = mutableMapOf(Remove to 0, Archived to 0, Pinned to 0)
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(Margin.dp)) {
+                SwipeActions(end = actions(), modifier = Modifier.fillMaxWidth().height(RowHeight.dp)) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val midY = ((Margin + RowHeight / 2) * Density).toFloat()
+            val from = Offset(Width / 2f, midY)
+            scene.drag(from, Offset(from.x - travel, midY), steps = 12, release = false)
+            val frame = scene.frames(2)
+            for (y in (Margin * Density + 4) until ((Margin + RowHeight) * Density - 4)) {
+                for (x in 0 until Width) {
+                    val c = Color(frame.getRGB(x, y)).copy(alpha = 1f)
+                    if (c in counts) counts[c] = counts.getValue(c) + 1
+                }
+            }
+            scene.release(Offset(from.x - travel, midY))
+        }
+        return counts to counts.values.sum()
+    }
+
+    private fun nameOf(colour: Color) = when (colour) {
+        Remove -> "Remove"
+        Archived -> "Archive"
+        else -> "Pin"
+    }
+
+    /**
      * Each panel's colour on a fully open row, ordered from the row outward.
      */
     private fun panelColours(towardStart: Boolean, rtl: Boolean = false): List<Color> {
@@ -301,7 +361,7 @@ class SwipeActionButtonsTest {
                 Box(Modifier.fillMaxSize().background(Color.White).padding(Margin.dp)) {
                     SwipeActions(
                         start = actions(),
-                        end = listOf(SwipeAction("Remove", Tabler.Outline.Trash, {}, Remove)),
+                        end = listOf(SwipeAction("Remove", Tabler.Outline.Trash, {}, EndOnly)),
                         modifier = Modifier.fillMaxWidth().height(RowHeight.dp),
                     ) {
                         ListItem { +"Perth Underground" }
@@ -427,5 +487,8 @@ class SwipeActionButtonsTest {
         val Remove = Color(0xFFCC2222)
         val Archived = Color(0xFFCC8800)
         val Pinned = Color(0xFF2244CC)
+
+        /** The one `end` action where both sides are loaded, so a wrong side names itself. */
+        val EndOnly = Color(0xFF22AA44)
     }
 }

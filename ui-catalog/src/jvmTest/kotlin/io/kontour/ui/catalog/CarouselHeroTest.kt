@@ -397,6 +397,60 @@ class CarouselHeroTest {
         )
     }
 
+    /**
+     * With parallax on, the arriving picture drifts as well as the leaving one.
+     *
+     * Reported: "please make sure when a hero carousel has the parallax effect on,
+     * both the incoming and outgoing images do the parallax". Only the leaving
+     * picture drifted; the arriving one held still whatever the parallax said. A
+     * mark on the arriving page, 30% of a pitch into a swipe: with a parallax of a
+     * half it should stand half of that 30% further toward the end than with none.
+     */
+    @Test
+    fun withParallaxTheArrivingPictureDriftsToo() {
+        val (still, _) = arrivingMark(parallax = 0f)
+        val (drifting, away) = arrivingMark(parallax = 0.5f)
+        // The arriving page keeps the parallax's share of however far from home it
+        // still is — read from the carousel, since the touch slop takes a little of
+        // any drag.
+        val expected = 0.5f * away * (Width + Gap)
+        assertTrue(
+            still > 0 && drifting > 0,
+            "the arriving page's mark was not found (at $still with no parallax, $drifting with)",
+        )
+        assertTrue(
+            abs((drifting - still) - expected) < 4f,
+            "with a parallax of 0.5 the arriving picture's mark was at ${drifting}px against " +
+                "${still}px with none — ${drifting - still}px apart, where drifting with the " +
+                "leaving picture puts it ${expected}px further toward the end",
+        )
+    }
+
+    /**
+     * Where the arriving page's mark is, [SwipeShare] of a pitch into a forward swipe,
+     * and how many pages from home that page still is.
+     */
+    private fun arrivingMark(parallax: Float): Pair<Int, Float> {
+        var x = -1
+        var away = 0f
+        carousel(peek = 0, parallax = parallax, markOn = 1) { scene, state, bounds ->
+            scene.frames(8)
+            val from = Offset(bounds.center.x + Slop, bounds.center.y)
+            scene.drag(
+                from = from,
+                to = Offset(from.x - SwipeShare * (Width + Gap), from.y),
+                steps = 20,
+                release = false,
+            )
+            val frame = scene.frames(2)
+            away = 1f - state.pagePosition
+            val row = frame.height / 2
+            x = (0 until Width).firstOrNull { (frame.getRGB(it, row) and 0xFFFFFF) == 0 } ?: -1
+            scene.release(bounds.center)
+        }
+        return x to away
+    }
+
     /** How much of an end-edge mark is at the frame's end, halfway through a swipe. */
     private fun endMarkMidSwipe(startAt: Int, towardStart: Boolean): Int {
         var found = 0
@@ -492,6 +546,8 @@ class CarouselHeroTest {
         parallax: Float = 0f,
         stripe: Boolean = false,
         endStripe: Boolean = false,
+        /** The one page with a mark 60% of the way across it, or -1 for none. */
+        markOn: Int = -1,
         reduceMotion: Boolean = false,
         body: (Scene, CarouselState, Rect) -> Unit,
     ) {
@@ -545,6 +601,19 @@ class CarouselHeroTest {
                                 }
                             )
                             .then(
+                                if (page == markOn) {
+                                    Modifier.drawBehind {
+                                        drawRect(
+                                            Color.Black,
+                                            topLeft = Offset(size.width * 0.6f, 0f),
+                                            size = Size(StripeWidth, size.height),
+                                        )
+                                    }
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .then(
                                 if (onTap != null) {
                                     Modifier.clickable { onTap(page) }
                                 } else {
@@ -579,6 +648,9 @@ class CarouselHeroTest {
     }
 
     private companion object {
+        /** How far into a swipe the parallax arm looks, as a share of a pitch. */
+        const val SwipeShare = 0.7f
+
         const val Width = 400
         const val Peek = 100
         const val Gap = 20

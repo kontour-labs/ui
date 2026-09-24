@@ -187,6 +187,8 @@ internal fun positionAnchored(
     margin: Int,
     isRtl: Boolean,
     insets: AnchorInsets = AnchorInsets.None,
+    /** A side to stay on whatever the room says — an overlay on its way out. */
+    keepSide: ResolvedSide? = null,
 ): AnchoredPlacement {
     val preferred = resolvedSide(side, isRtl)
     val opposite = preferred.opposite
@@ -200,6 +202,7 @@ internal fun positionAnchored(
     }
 
     val resolved = when {
+        keepSide != null -> keepSide
         roomOn(preferred) >= needsOn(preferred) -> preferred
         roomOn(opposite) >= needsOn(opposite) -> opposite
         roomOn(opposite) > roomOn(preferred) -> opposite
@@ -477,6 +480,18 @@ private class AnchorMemory {
 }
 
 /**
+ * The side an overlay was last placed on while it was showing, and what it was
+ * measured against there — held so it can leave from where it was.
+ *
+ * Plain rather than snapshot state, for [AnchorMemory]'s reason: written in the
+ * measure pass that reads it.
+ */
+private class PlacedSide {
+    var side: ResolvedSide? = null
+    var constraints: Constraints? = null
+}
+
+/**
  * Places [content] beside [anchorInRoot], flipping and shifting to stay on
  * screen.
  *
@@ -530,6 +545,8 @@ internal fun AnchoredOverlayLayout(
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val geometry = remember { ArrowPath() }
     val anchorMemory = remember { AnchorMemory() }
+    val placedSide = remember { PlacedSide() }
+    val leaving = LocalOverlayLeaving.current
     // The host applies no insets of its own, so without this the room "below" an
     // anchor near the bottom of a phone includes the navigation bar. The keyboard
     // is in there for the same reason a dialog includes it: a popover is as likely
@@ -647,12 +664,17 @@ internal fun AnchoredOverlayLayout(
             else -> 0
         }
 
-        val placeables = measurables.map {
-            it.measure(
-                overlayConstraints(container, marginPx, minWidthPx, insets)
-                    .withinSideRoom(room, vertical)
-            )
-        }
+        // **Leaving from where it was.** Reported on a combobox: it opens above the
+        // field when the keyboard leaves no room below, and tapping elsewhere closes
+        // the keyboard and the menu together — so for the length of the menu's exit
+        // the room below came back, the flip undid itself, and the menu jumped back
+        // under the field on its way out. Once an overlay is leaving it keeps the
+        // side it was on and the size it had there, and still follows its anchor,
+        // which may be moving as the keyboard goes.
+        val keptSide = if (leaving()) placedSide.side else null
+        val measuredAgainst = placedSide.constraints.takeIf { keptSide != null }
+            ?: overlayConstraints(container, marginPx, minWidthPx, insets).withinSideRoom(room, vertical)
+        val placeables = measurables.map { it.measure(measuredAgainst) }
         val contentSize = IntSize(
             placeables.maxOfOrNull { it.width } ?: 0,
             placeables.maxOfOrNull { it.height } ?: 0,
@@ -668,7 +690,12 @@ internal fun AnchoredOverlayLayout(
             margin = marginPx,
             isRtl = isRtl,
             insets = insets,
+            keepSide = keptSide,
         )
+        if (keptSide == null) {
+            placedSide.side = placement.side
+            placedSide.constraints = measuredAgainst
+        }
 
         val width = container.width.orContent(contentSize.width).coerceAtLeast(1)
         val height = container.height.orContent(contentSize.height).coerceAtLeast(1)

@@ -192,6 +192,98 @@ class SwipeCommitTest {
     }
 
     /**
+     * Through the whole of a full swipe the outermost action holds the strip: the
+     * others stay folded away on the way out, during the tick and on the way back.
+     *
+     * "If there's multiple actions, swiping should cause the outermost action to get
+     * triggered and fill the width, and the other one/two actions should be
+     * collapsed." They were collapsed while the finger was past the line and opened
+     * back up the moment it let go, because the takeover followed the finger alone.
+     */
+    @Test
+    fun theOthersStayFoldedAwayUntilAFullSwipeIsDone() {
+        var bounds = Rect.Zero
+        val inner = mutableListOf<Int>()
+        var ran: String? = null
+        Scene(width = Width, height = Height) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly) { ran = it },
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            val to = Offset(from.x - Travel, from.y)
+            scene.drag(from = from, to = to, steps = SlowSteps, release = false)
+            scene.frames(4)
+            scene.release(to)
+            repeat(SettleFrames * 2) { inner += scene.frame().inkOf(bounds).second }
+        }
+        assertEquals("Remove", ran, "the full swipe ran nothing")
+        assertTrue(
+            inner.all { it == 0 },
+            "after letting go past the point of no return the inner action came back into " +
+                "view (${inner.filter { it > 0 }.size} frames, up to ${inner.max()}px) — the " +
+                "outermost is supposed to keep the strip until the row is home",
+        )
+    }
+
+    /**
+     * The tick comes before the action, and only when it is asked for.
+     *
+     * "It stays at the end for just that little bit too long. Maybe we could take
+     * advantage of that, and have the icon get swapped for a checkmark … a bit
+     * longer … optional." Counted in frames from letting go to the action running.
+     */
+    @Test
+    fun aFullSwipeTicksBeforeItRunsUnlessToldNotTo() {
+        val ticked = framesToRun(confirmation = true)
+        val plain = framesToRun(confirmation = false)
+        assertTrue(plain in 0..30, "with no confirmation the action took $plain frames to run")
+        assertTrue(
+            ticked > plain + 15,
+            "with the tick the action ran after $ticked frames against $plain without — the " +
+                "row is supposed to hold at the edge long enough to show it",
+        )
+    }
+
+    private fun framesToRun(confirmation: Boolean): Int {
+        var bounds = Rect.Zero
+        var ran: String? = null
+        var frames = -1
+        Scene(width = Width, height = Height) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly) { ran = it },
+                    fullSwipeConfirmation = confirmation,
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            val to = Offset(from.x - Travel, from.y)
+            scene.drag(from = from, to = to, steps = SlowSteps, release = false)
+            scene.frames(4)
+            scene.release(to)
+            for (i in 0 until 200) {
+                scene.frame()
+                if (ran != null) {
+                    frames = i
+                    break
+                }
+            }
+        }
+        return frames
+    }
+
+    /**
      * A full swipe runs the action **and puts the row back**.
      *
      * Reported after the first version of the settle shipped: *"when you swipe it all
@@ -422,7 +514,11 @@ class SwipeCommitTest {
         const val ShortFlick = 150f
         const val ShortFlickSteps = 8
 
-        const val SettleFrames = 40
+        /**
+         * Enough for a full swipe to reach the edge, draw its tick, hold it and run
+         * — about 45 frames of that is the tick — and for the row to come home.
+         */
+        const val SettleFrames = 90
 
         /** Pure, so a pixel can be classified without knowing the theme. */
         val Outer = Color.Red

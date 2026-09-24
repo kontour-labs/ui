@@ -456,6 +456,12 @@ too little room on either side, so it was shifted back up over its own anchor. A
 host edge that is further from the window's edge than the inset is deep keeps
 nothing clear on that side.
 
+**It leaves from where it was.** Once an overlay is closing it keeps the side it
+opened on and the size it had there, following its anchor but no longer choosing
+a side. A combobox that opened above the field because the keyboard took the room
+below closes as the keyboard does — and while choosing, it flipped back under the
+field for the length of its exit.
+
 **The flip is rarer than it reads**, because the content is measured against the
 room on the preferred side *before* it is measured at all. A panel bounded to its
 own side fits there by construction, so the flip is left for the case it is

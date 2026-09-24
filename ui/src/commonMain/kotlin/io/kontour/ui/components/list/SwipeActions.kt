@@ -1,8 +1,16 @@
 package io.kontour.ui.components.list
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.AnchoredDraggableState
@@ -18,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -36,9 +45,15 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -70,8 +85,8 @@ import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /** One action revealed by swiping a row. */
@@ -247,14 +262,22 @@ object SwipeActionsDefaults {
  * ### What it looks like
  *
  * As the row slides, up to three separate squircles grow out of the edge it is
- * leaving, one per action, each in its own colour, with page showing between them
- * — small and round at the first pixel of the swipe, full-height buttons by the
- * time the row has uncovered them. Carry the row on past its actions and, at the
+ * leaving, one per action, each in its own colour, with page showing between them.
+ * **They grow one after another**: the one at the screen edge first, and the next
+ * only once the row has moved far enough to make room for it — small and round
+ * when each appears, full-height buttons by the time the row has uncovered them.
+ * An icon grows in as its button does, and a label unfolds under it once the
+ * button is tall enough to hold both. Carry the row on past its actions and, at the
  * point of no return, the outermost one takes over the whole strip while the
- * others fold into it: letting go then runs it. Asked for in those words — "an
- * Apple-like animation where (up to) three squircle shapes expand out of the side
- * when you start swiping, and then continuing to swipe across will select the
- * rightmost one".
+ * others fold into it: letting go then runs it, and the others stay folded until
+ * the row is home. Asked for in those words — "an Apple-like animation where (up
+ * to) three squircle shapes expand out of the side when you start swiping, and
+ * then continuing to swipe across will select the rightmost one".
+ *
+ * A full swipe ends on a tick. The row holds at the far edge while the action's
+ * icon gives way to a check mark, drawn in, and runs the action once it has been
+ * seen — the moment the row used to spend there anyway, put to use. Off with
+ * `fullSwipeConfirmation = false`.
  *
  * ### How it decides
  *
@@ -287,6 +310,11 @@ object SwipeActionsDefaults {
  * @param end Revealed by swiping toward the leading edge. Conventionally the
  *   destructive ones, since that is the direction people already flick to
  *   delete. Same limit.
+ * @param fullSwipeConfirmation Whether a full swipe shows its action done before
+ *   it runs it: the action's icon turns into a tick, drawn, and the row holds at
+ *   the far edge a moment longer to show it. Off runs the action the moment the
+ *   row arrives, for a list where the next thing on screen is confirmation
+ *   enough.
  */
 @Composable
 fun SwipeActions(
@@ -297,6 +325,7 @@ fun SwipeActions(
     state: SwipeActionsState = rememberSwipeActionsState(),
     shape: Shape = Theme.shapes.container,
     actionWidth: Dp = SwipeActionsDefaults.ActionWidth,
+    fullSwipeConfirmation: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -363,17 +392,55 @@ fun SwipeActions(
         action.onAction()
     }
 
+    /**
+     * A full swipe, from the moment it is decided until the row is home again.
+     *
+     * The outermost action holds the whole strip and the others stay folded away
+     * for all of it — the travel out, the tick and the return. It used to follow
+     * `committing` alone, which letting go clears, so the inner actions opened back
+     * up while the row was on its way to the edge.
+     */
+    var fullSwipe by remember { mutableStateOf(false) }
+
+    /** How far the outermost action's icon has turned into a tick, 0 to 1. */
+    val confirmation = remember { Animatable(0f) }
+    val confirm by rememberUpdatedState(fullSwipeConfirmation)
+    val reduceMotion by rememberUpdatedState(motion.reduceMotion)
+
     // Fires on *settling*, not mid-drag, so nothing runs while the finger is still
     // down and could still take it back.
+    //
+    // **The tick is drawn before the action runs**, not after: an action that
+    // removes the row — the usual one on a full swipe — would take the row and its
+    // tick with it. So the moment the row arrives at the far edge is spent showing
+    // what is about to happen, and then it happens. That moment was always there,
+    // as the row sitting at the edge "for just that little bit too long"; now it
+    // says something, and is a little longer for it.
     LaunchedEffect(state) {
         snapshotFlow { state.anchoredState.settledValue }.collect { settledAt ->
             val action = when (settledAt) {
                 SwipeValue.StartCommitted -> fullStart
                 SwipeValue.EndCommitted -> fullEnd
                 else -> null
-            } ?: return@collect
+            }
+            if (action == null) {
+                if (settledAt == SwipeValue.Resting) fullSwipe = false
+                return@collect
+            }
+            fullSwipe = true
+            if (confirm) {
+                if (reduceMotion) {
+                    confirmation.snapTo(1f)
+                } else {
+                    confirmation.animateTo(1f, tween(SwipeConfirmDrawMillis))
+                }
+                // Held on the frame clock, like the drawing before it, so the
+                // pause is part of the animation rather than a timer beside it.
+                Animatable(0f).animateTo(1f, tween(SwipeConfirmHoldMillis))
+            }
             onFull(action)
             state.reset()
+            confirmation.snapTo(0f)
         }
     }
 
@@ -414,6 +481,7 @@ fun SwipeActions(
     // The row's settle, one at a time: a new drag cancels a settle in flight.
     var settling by remember { mutableStateOf<Job?>(null) }
     val settleSpec: AnimationSpec<Float> = motion.springOrTween(motion.springDefault)
+    val commitSpec: AnimationSpec<Float> = motion.springOrTween(motion.springSnappy)
 
     fun settle(velocity: Float) {
         val from = state.anchoredState.offset
@@ -429,6 +497,8 @@ fun SwipeActions(
             flickTravel = flickTravelPx,
             revealShare = revealShare,
         )
+        val committed = target == SwipeValue.StartCommitted || target == SwipeValue.EndCommitted
+        if (committed) fullSwipe = true
         committing = false
         pointOfNoReturn.reset()
         settling?.cancel()
@@ -436,8 +506,11 @@ fun SwipeActions(
             val anchors = state.anchoredState.anchors
             val to = anchors.positionOf(target)
             if (to.isNaN()) return@launch
+            // Out to the edge on the quicker spring: a committed row has somewhere
+            // to be, and the soft one spent its last few pixels arriving.
+            val spec = if (committed) commitSpec else settleSpec
             state.anchoredState.anchoredDrag(target) { _, _ ->
-                animate(from, to, velocity, settleSpec) { value, speed -> dragTo(value, speed) }
+                animate(from, to, velocity, spec) { value, speed -> dragTo(value, speed) }
             }
         }
     }
@@ -446,8 +519,8 @@ fun SwipeActions(
     // point of no return. Its own spring, so crossing the line is a motion rather
     // than a cut.
     val takeover = remember { Animatable(0f) }
-    LaunchedEffect(committing) {
-        val target = if (committing) 1f else 0f
+    LaunchedEffect(committing, fullSwipe) {
+        val target = if (committing || fullSwipe) 1f else 0f
         if (motion.reduceMotion) takeover.snapTo(target)
         else takeover.animateTo(target, motion.springOrTween(motion.springSnappy))
     }
@@ -494,6 +567,7 @@ fun SwipeActions(
                 reveal = { if (side > 0) startTravel else -endTravel },
                 offset = { state.anchoredState.offset },
                 takeover = { takeover.value },
+                confirmation = { confirmation.value },
                 reduceMotion = motion.reduceMotion,
                 onClick = { action ->
                     action.onAction()
@@ -666,14 +740,15 @@ internal fun swipeTarget(
  * the row is leaving.
  *
  * Laid out every frame from the live offset, in the layout phase, so a swipe costs
- * a measure and never a recomposition. With `W` the strip the row has vacated and
- * `n` actions, each has a slot `W / n` wide and a button in it a gap narrower and
- * no taller than it is wide — so the first pixels of a swipe are small circles, and
- * they lengthen into full-height buttons as the row uncovers them. The shape is the
- * row's own, which a squircle clamps to its size on the way.
+ * a measure and never a recomposition.
  *
- * [takeover] widens the outermost button over the whole strip and folds the
- * others away, past the point of no return.
+ * **One after the other.** The outermost grows first, at the edge the row uncovers
+ * first; the next starts beside it once it has its full width, and so on toward the
+ * row — so a swipe reads as the actions being dealt out rather than all swelling at
+ * once. Each is no taller than it is wide, so each begins as a small circle and
+ * lengthens into a full-height button. Past the reveal they share the extra width
+ * evenly, and [takeover] then widens the outermost over the whole strip and folds
+ * the others away.
  */
 @Composable
 private fun SwipeActionButtons(
@@ -685,6 +760,7 @@ private fun SwipeActionButtons(
     reveal: () -> Float,
     offset: () -> Float,
     takeover: () -> Float,
+    confirmation: () -> Float,
     reduceMotion: Boolean,
     onClick: (SwipeAction) -> Unit,
 ) {
@@ -693,17 +769,20 @@ private fun SwipeActionButtons(
         modifier = modifier,
         content = {
             actions.forEachIndexed { edgeIndex, action ->
-                // Counted from the row outward, so the one the row uncovers first
-                // arrives first.
-                val fromRow = count - 1 - edgeIndex
                 SwipeActionButton(
                     action = action,
                     shape = shape,
                     arrival = {
-                        val w = abs(offset().let { if (it.isNaN()) 0f else it })
-                        val r = reveal()
-                        if (r <= 0f) 1f else staggered(w / r, fromRow, count)
+                        val live = abs(offset().let { if (it.isNaN()) 0f else it })
+                        val full = fullButtonWidth(reveal(), count, gap)
+                        if (full <= 0f) {
+                            1f
+                        } else {
+                            (grownWidth(edgeIndex, live, count, reveal(), gap) / full).coerceIn(0f, 1f)
+                        }
                     },
+                    // Only the outermost is ever the one a full swipe runs.
+                    confirmation = if (edgeIndex == 0) confirmation else NoConfirmation,
                     reduceMotion = reduceMotion,
                     onClick = { onClick(action) },
                 )
@@ -714,12 +793,12 @@ private fun SwipeActionButtons(
         val rowHeight = constraints.maxHeight
         val live = offset().let { if (it.isNaN()) 0f else abs(it) }.coerceAtMost(boxWidth.toFloat())
         val t = takeover().coerceIn(0f, 1f)
-        val slot = live / count
-        val natural = (slot - gap).coerceAtLeast(0f)
         val usable = (live - gap).coerceAtLeast(0f)
+        val span = reveal()
 
         val widths = FloatArray(count) { i ->
-            if (i == 0) natural + (usable - natural) * t else natural * (1f - t)
+            val grown = grownWidth(i, live, count, span, gap)
+            if (i == 0) grown + (usable - grown) * t else grown * (1f - t)
         }
         val placeables = measurables.mapIndexed { i, measurable ->
             val w = widths[i].roundToInt().coerceAtLeast(0)
@@ -727,28 +806,36 @@ private fun SwipeActionButtons(
             measurable.measure(Constraints.fixed(w, h))
         }
         layout(boxWidth, rowHeight) {
-            // From the edge inward, each after the last with a gap between, the
-            // gaps folding away with the buttons during a takeover.
+            // From the edge inward, each after the last with a gap between — a gap
+            // only once there is a button to have one, and folding away with the
+            // buttons during a takeover.
             var along = gap / 2f
             placeables.forEachIndexed { i, placeable ->
                 val y = (rowHeight - placeable.height) / 2
                 val x = if (fromLeadingEdge) along else boxWidth - along - placeable.width
                 placeable.placeRelative(x.roundToInt(), y)
-                along += widths[i] + if (i == 0) gap else gap * (1f - t)
+                if (widths[i] > 0f) along += widths[i] + if (i == 0) gap else gap * (1f - t)
             }
         }
     }
 }
 
+/** A button's width once it has all of it, at the full reveal. */
+private fun fullButtonWidth(reveal: Float, count: Int, gap: Float): Float =
+    if (count <= 0) 0f else (reveal / count - gap).coerceAtLeast(0f)
+
 /**
- * How far into its entrance a button is, for a swipe [progress] of the way to its
- * reveal: the one nearest the row first, the others a little behind in turn.
+ * Button [index]'s width, counted from the edge, with [live] of the strip uncovered:
+ * dealt out one after the other up to the reveal, and sharing the strip evenly past
+ * it. The two agree at the reveal, where every button is exactly full.
  */
-private fun staggered(progress: Float, fromRow: Int, count: Int): Float {
-    val lag = SwipeStagger * fromRow
-    val room = (1f - SwipeStagger * (count - 1)).coerceAtLeast(0.1f)
-    return ((progress - lag) / room).coerceIn(0f, 1f)
+private fun grownWidth(index: Int, live: Float, count: Int, reveal: Float, gap: Float): Float {
+    val full = fullButtonWidth(reveal, count, gap)
+    if (live >= reveal) return (live / count - gap).coerceAtLeast(0f)
+    return (live - index * (full + gap) - gap).coerceIn(0f, full)
 }
+
+private val NoConfirmation: () -> Float = { 0f }
 
 @Composable
 private fun SwipeActionButton(
@@ -756,6 +843,8 @@ private fun SwipeActionButton(
     shape: Shape,
     /** How far into its entrance the icon and label are, 0 to 1, read in the layer. */
     arrival: () -> Float,
+    /** How far the icon has turned into a tick, 0 to 1, read in draw. */
+    confirmation: () -> Float,
     reduceMotion: Boolean,
     onClick: () -> Unit,
 ) {
@@ -794,21 +883,29 @@ private fun SwipeActionButton(
             val roomForLabel = maxHeight >= Theme.sizing.iconLarge + Theme.spacing.xxs + labelHeight &&
                 maxWidth >= Theme.sizing.iconLarge * 2
             val roomForIcon = maxWidth >= Theme.sizing.iconMedium && maxHeight >= Theme.sizing.iconMedium
-            if (roomForIcon) {
+            // **Arriving, not appearing.** Both came in on the frame there was
+            // room for them, which on a swipe is a pop partway through a smooth
+            // motion — reported as "a little bit janky when the text first
+            // appears". They fade and grow in as the room opens instead, and out
+            // the same way. A fade alone under reduced motion.
+            AnimatedVisibility(
+                visible = roomForIcon,
+                enter = if (reduceMotion) fadeIn() else fadeIn() + scaleIn(initialScale = SwipeContentFrom),
+                exit = if (reduceMotion) fadeOut() else fadeOut() + scaleOut(targetScale = SwipeContentFrom),
+            ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
                 ) {
-                    Icon(
-                        imageVector = action.icon,
-                        contentDescription = null,
-                        size = Theme.sizing.iconLarge,
-                        tint = content,
-                    )
+                    ConfirmingIcon(action.icon, content, confirmation, reduceMotion)
                     // Dropping it costs nothing a screen reader can tell: the label
                     // still reaches `CustomAccessibilityAction` on the row and
                     // `onClickLabel` on this button.
-                    if (roomForLabel) {
+                    AnimatedVisibility(
+                        visible = roomForLabel,
+                        enter = if (reduceMotion) fadeIn() else fadeIn() + expandVertically(),
+                        exit = if (reduceMotion) fadeOut() else fadeOut() + shrinkVertically(),
+                    ) {
                         Text(
                             text = action.label,
                             style = Theme.typography.labelSmall,
@@ -819,6 +916,65 @@ private fun SwipeActionButton(
                 }
             }
         }
+    }
+}
+
+/**
+ * The action's icon, turning into a tick as [confirmation] runs from 0 to 1: the
+ * icon shrinks and fades over the first part, and the tick is drawn stroke by
+ * stroke over the rest.
+ */
+@Composable
+private fun ConfirmingIcon(
+    icon: ImageVector,
+    tint: Color,
+    confirmation: () -> Float,
+    reduceMotion: Boolean,
+) {
+    val stroke = with(LocalDensity.current) { SwipeTickStroke.toPx() }
+    Box(
+        modifier = Modifier
+            .size(Theme.sizing.iconLarge)
+            .drawWithCache {
+                val w = size.width
+                val h = size.height
+                val tick = Path().apply {
+                    moveTo(w * TickStartX, h * TickStartY)
+                    lineTo(w * TickTurnX, h * TickTurnY)
+                    lineTo(w * TickEndX, h * TickEndY)
+                }
+                val measure = PathMeasure().apply { setPath(tick, false) }
+                val length = measure.length
+                val drawn = Path()
+                val style = Stroke(stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                onDrawWithContent {
+                    val c = confirmation()
+                    if (c < 1f) drawContent()
+                    val p = ((c - TickFrom) / (1f - TickFrom)).coerceIn(0f, 1f)
+                    if (p > 0f) {
+                        drawn.rewind()
+                        measure.getSegment(0f, length * p, drawn, true)
+                        drawPath(drawn, tint, style = style)
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            size = Theme.sizing.iconLarge,
+            tint = tint,
+            modifier = Modifier.graphicsLayer {
+                val gone = (confirmation() / IconOutBy).coerceIn(0f, 1f)
+                alpha = 1f - gone
+                if (!reduceMotion) {
+                    val scale = 1f - (1f - SwipeContentFrom) * gone
+                    scaleX = scale
+                    scaleY = scale
+                }
+            },
+        )
     }
 }
 
@@ -856,11 +1012,29 @@ private val SwipeCommitHysteresis: Dp = 16.dp
 /** The point of no return is at least this share of the row. */
 private const val SwipeFullShare: Float = 0.55f
 
-/** How far behind the one before it each button's entrance runs. */
-private const val SwipeStagger: Float = 0.15f
-
 /** The size a button's icon and label grow from. */
 private const val SwipeContentFrom: Float = 0.6f
+
+/** How long the tick takes to turn up and be drawn. */
+private const val SwipeConfirmDrawMillis: Int = 380
+
+/** How long the finished tick is held before the action runs and the row returns. */
+private const val SwipeConfirmHoldMillis: Int = 320
+
+/** The tick's stroke. */
+private val SwipeTickStroke: Dp = 2.5.dp
+
+/** The share of the confirmation the icon takes to leave, and the tick waits for. */
+private const val IconOutBy: Float = 0.35f
+private const val TickFrom: Float = 0.3f
+
+// The tick, in the icon's own box: down to the turn, then up to the end.
+private const val TickStartX: Float = 0.2f
+private const val TickStartY: Float = 0.52f
+private const val TickTurnX: Float = 0.42f
+private const val TickTurnY: Float = 0.72f
+private const val TickEndX: Float = 0.8f
+private const val TickEndY: Float = 0.3f
 
 /**
  * A row that can be swiped away entirely.
@@ -882,6 +1056,10 @@ private const val SwipeContentFrom: Float = 0.6f
  * Give the user a way back. A dismissal with no undo is a data-loss bug wearing
  * a gesture — pair it with a
  * [io.kontour.ui.overlay.Toast] carrying an undo action.
+ *
+ * @param fullSwipeConfirmation Whether the row shows a tick at the far edge before
+ *   it is dismissed, as [SwipeActions] does. Off dismisses it the moment it gets
+ *   there.
  */
 @Composable
 fun SwipeToDismiss(
@@ -893,6 +1071,7 @@ fun SwipeToDismiss(
     background: Color = Theme.colours.danger.solid,
     state: SwipeActionsState = rememberSwipeActionsState(),
     shape: Shape = Theme.shapes.container,
+    fullSwipeConfirmation: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     SwipeActions(
@@ -909,6 +1088,7 @@ fun SwipeToDismiss(
         state = state,
         enabled = enabled,
         shape = shape,
+        fullSwipeConfirmation = fullSwipeConfirmation,
         content = content,
     )
 }
