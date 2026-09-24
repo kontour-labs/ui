@@ -329,13 +329,24 @@ class SheetState internal constructor(
      * sheet is. 0 for a null morph, before there are anchors, and for a sheet with
      * no step to morph across: `until` its lowest resting detent and `from` not
      * given, which leaves nothing below it to start from.
+     *
+     * **A default `from` is never nearer the top than [SheetEdgeMorph.nearTop].**
+     * The step below the top is whatever the content makes it, and content a few dp
+     * taller than `Half` made it a few dp: the whole morph happened in a frame of
+     * any travel, reported as the expand-to-edge animation that "just snaps". It
+     * appeared when the catalog's frame grew and its sheet's content landed just
+     * above `Half`. So a step shorter than that starts the morph lower down, and a
+     * sheet resting on such a detent — nearly at the top already — is nearly an
+     * edge sheet. A `from` the caller gave is where they said.
      */
     internal fun edgeMorphFraction(morph: SheetEdgeMorph?, raw: Float): Float {
         if (morph == null) return 0f
         val until = morph.until?.let(::offsetOf) ?: highestAnchored(detents)
         if (until.isNaN()) return 0f
-        val from = morph.from?.let(::offsetOf) ?: restingBelow(until)
-        if (from.isNaN()) return nearTheTop(morph, until)
+        val below = morph.from?.let(::offsetOf) ?: restingBelow(until)
+        if (below.isNaN()) return nearTheTop(morph, until)
+        val shortest = anchorDensity?.let { with(it) { morph.nearTop.toPx() } } ?: 0f
+        val from = if (morph.from != null) below else maxOf(below, until + shortest)
         if (from <= until) return 0f
         return ((from - raw) / (from - until)).coerceIn(0f, 1f)
     }

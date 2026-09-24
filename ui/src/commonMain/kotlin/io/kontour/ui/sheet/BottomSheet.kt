@@ -160,7 +160,9 @@ enum class SheetPresentation {
  *
  * @param from Where the morph starts: at or below this the sheet is fully
  *   floating. Null is the resting detent just below [until], so the default is the
- *   last step of the sheet's travel and nothing else.
+ *   last step of the sheet's travel — but never less than [nearTop] of it: a last
+ *   step of a few dp, which is what content just taller than `Half` makes, would
+ *   put the whole morph in a frame, so the morph starts that far down instead.
  * @param until Where it is complete: at or above this the sheet is an edge sheet.
  *   Null is the sheet's highest detent.
  * @param nearTop For a sheet with no step to morph across — one resting detent,
@@ -171,7 +173,8 @@ enum class SheetPresentation {
  *   whole way, so nothing changes shape as the sheet arrives. The top is where a
  *   full-height sheet actually stops — under the status bar, not the window's edge.
  *   Content that rests within this of it is partly morphed, which is the edge of
- *   the rule and the reason the distance is short.
+ *   the rule and the reason the distance is short. It is also the least distance
+ *   a default morph runs over.
  */
 @Immutable
 class SheetEdgeMorph(

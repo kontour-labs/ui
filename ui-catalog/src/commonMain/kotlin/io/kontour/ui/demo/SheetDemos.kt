@@ -93,7 +93,12 @@ private fun Departures() {
         ),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
-        repeat(5) { index ->
+        // Enough rows that the sheet's full height is a step above `Half` in the
+        // 520dp frame, which is the step the expand-to-edge morph runs across. Five
+        // left the content a few dp taller than `Half`, and the morph looked like a
+        // snap — which the sheet now guards against itself, but a demo of the step
+        // should have one.
+        repeat(8) { index ->
             Text(
                 "${950 + index} to Elizabeth Quay — ${4 + index * 7} min",
                 style = Theme.typography.bodyMedium,

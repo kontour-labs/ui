@@ -111,6 +111,52 @@ class FloatingSheetMorphTest {
     }
 
     /**
+     * A last step of a few dp still morphs over a distance, rather than in a frame.
+     *
+     * "You seem to have broken the expand to edge animation. It just snaps." The
+     * catalog's frame grew from 420dp to 520dp, and its sheet's content — about
+     * 262dp — went from well above `Half` to a few dp above it. The morph runs
+     * across the step from the resting detent below the top to the top, so it ran
+     * across those few dp: a frame or two of any travel.
+     *
+     * Here `Half` is 225dp and the content 230dp. Dragged by hand from a peek to
+     * the top, at 15px a frame, the sheet is caught partway morphed on a handful of
+     * frames — not the one or none a 5dp morph leaves room for.
+     */
+    @Test
+    fun aShortLastStepStillMorphsOverADistance() {
+        val between = mutableListOf<Int>()
+        Scene(width = 600, height = 900) {
+            Harness(
+                initial = SheetDetent.peek(120.dp),
+                detents = listOf(SheetDetent.Hidden, SheetDetent.peek(120.dp), SheetDetent.Half, SheetDetent.Expanded),
+                content = { Box(Modifier.fillMaxWidth().height(230.dp)) },
+            )
+        }.use { scene ->
+            val settled = scene.frames(40)
+            val top = settled.topOfTheSheet()
+            val handle = Offset(300f, top + 16f)
+            // Up past where the top detent's edge rests, 440px down, and a little
+            // beyond: the sheet stops at the top and the finger can carry on.
+            val travel = top - 400f
+            scene.press(handle)
+            scene.frame()
+            repeat(40) { step ->
+                scene.move(handle - Offset(0f, travel * (step + 1) / 40f))
+                val beside = scene.frame().gapBesideTheSheet()
+                if (beside in 1 until FloatingMargin) between += beside
+            }
+            scene.release(handle - Offset(0f, travel))
+        }
+        assertTrue(
+            between.size >= 4,
+            "dragged from a peek to the top of a sheet whose last step is 5dp, it was partway " +
+                "morphed on ${between.size} frames ($between) — the morph happened in the last step's " +
+                "few dp, which is a snap",
+        )
+    }
+
+    /**
      * On a window wider than the sheet's cap, the edge sheet it becomes meets the
      * bottom and nothing else: the cap still binds, and the sheet stays where its
      * alignment puts it.
