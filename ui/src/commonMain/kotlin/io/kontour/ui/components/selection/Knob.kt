@@ -54,9 +54,7 @@ import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.atan2
 import kotlin.math.roundToInt
 
 /**
@@ -81,16 +79,19 @@ import kotlin.math.roundToInt
  *
  * ### Turning it
  *
- * **Round, the way a knob turns.** The value follows the angle of the finger
- * around the centre, and keeps following it however many times the finger goes
- * round, up to either end. Near the centre, where an angle means nothing, an up
- * or down drag turns it instead.
+ * **Dragged in a line, from anywhere on it.** Up or right is more, down or left
+ * is less, wherever the finger lands — the way knobs on a screen work in audio
+ * apps. It used to follow the finger's angle around the middle, which a finger
+ * on a small dial does badly and which made a straight drag go either way
+ * depending on where it started: up on the right-hand side turned it *down*.
+ * Right is more in both layout directions, because the dial does not mirror —
+ * at the top of it, where the notch starts, more is to the right.
  *
- * **Thrown, it spins.** Let go while turning quickly and it carries on, slowing,
+ * **Thrown, it spins.** Let go while dragging quickly and it carries on, slowing,
  * through the steps — the spinning-wheel feel — and stops at an end if it reaches
  * one. Not under reduced motion, where it stops where it was let go.
  *
- * **Stepped, it has detents**, the way a stepped [Slider] does. Turning between
+ * **Stepped, it has detents**, the way a stepped [Slider] does. Dragged between
  * two steps, the notch leans from the step it is on toward the finger — never all
  * the way, so it reads as held by the step — and crossing to the next one it
  * carries on from where it had got to rather than jumping. Let go, or moved from
@@ -152,12 +153,11 @@ fun Knob(
     fun snapped(fraction: Float): Float =
         if (steps == 0) fraction else (fraction * intervals).roundToInt().toFloat() / intervals
 
-    // The gesture's own position, unclamped, so a turn past an end has to come back
+    // The gesture's own position, unclamped, so a drag past an end has to come back
     // the way it went before the value moves again.
     var raw by remember { mutableStateOf(Float.NaN) }
-    var pointer by remember { mutableStateOf(Offset.Zero) }
-    var pointerFresh by remember { mutableStateOf(false) }
     var spin by remember { mutableStateOf<Job?>(null) }
+    val travelPx = with(density) { KnobDragTravel.toPx() }
 
     fun emit(fraction: Float, fromHand: Boolean) {
         val landed = snapped(fraction.coerceIn(0f, 1f))
@@ -255,46 +255,28 @@ fun Knob(
                     claimsOn = DragClaim.Movement,
                     // The round face and track, not the square's corners.
                     accepts = { at -> (at - centre).getDistance() <= radius + thicknessPx },
-                    onStart = { at ->
+                    onStart = {
                         spin?.cancel()
                         raw = fractionOf(value)
-                        pointer = at
-                        pointerFresh = true
                         ticker.reset()
                         ticker.at((snapped(raw) * intervals).roundToInt())
                         endStop.arm()
                     },
                     onDelta = { delta ->
-                        // The claim hands over where the finger *is*, and then the move
-                        // that got it there: the first delta ends at the start point.
-                        val fresh = pointerFresh
-                        val from = if (fresh) pointer - delta else pointer
-                        val to = from + delta
-                        pointer = to
-                        pointerFresh = false
                         val base = if (raw.isNaN()) fractionOf(value) else raw
-                        raw = if ((to - centre).getDistance() < radius * CentreShare) {
-                            // Near the middle an angle is noise: up is more.
-                            base - delta.y / (radius * VerticalTravel)
-                        } else {
-                            base + turnBetween(from - centre, to - centre) / sweep
-                        }
+                        raw = base + knobDragTurn(delta, travelPx)
                         endStop.at(if (raw > 1f) 1 else if (raw < 0f) -1 else 0)
                         emit(raw, fromHand = true)
                     },
                     onRelease = { velocity ->
                         if (motion.reduceMotion || raw.isNaN()) return@freeDragOwning
-                        val r = pointer - centre
-                        val reach = r.getDistance()
-                        if (reach < radius * CentreShare) return@freeDragOwning
-                        // Degrees a second, from the part of the release across the radius.
-                        val cross = r.x * velocity.y - r.y * velocity.x
-                        val turning = cross / (reach * reach) * 180f / PI.toFloat()
-                        if (abs(turning) < FlickTurn) return@freeDragOwning
+                        // The range a second, read along the drag's own axes.
+                        val turning = knobDragTurn(velocity, travelPx)
+                        if (abs(turning) * travelPx < with(density) { KnobFlick.toPx() }) return@freeDragOwning
                         val startAt = raw.coerceIn(0f, 1f)
                         spin = scope.launch {
                             try {
-                                AnimationState(startAt, turning / sweep).animateDecay(exponentialDecay(SpinFriction)) {
+                                AnimationState(startAt, turning).animateDecay(exponentialDecay(SpinFriction)) {
                                     // `this.value`: the spin's, not the knob's parameter.
                                     val at = this.value
                                     // The spin is the hand, for the lean.
@@ -353,18 +335,13 @@ fun Knob(
 }
 
 /**
- * The turn from [from] to [to] about the origin, in degrees, the short way round —
- * so a finger crossing the gap at the bottom, where the angle jumps from 180 to
- * −180, reads as the few degrees it moved.
+ * How much of the range a drag of [delta] turns the knob, with [travel] pixels for
+ * the whole of it: right and up are more, left and down are less, and the two axes
+ * add — so a drag up and to the right is quicker than either, and one down and to
+ * the right is the finger not meaning either.
  */
-internal fun turnBetween(from: Offset, to: Offset): Float {
-    val a = atan2(from.y, from.x) * 180f / PI.toFloat()
-    val b = atan2(to.y, to.x) * 180f / PI.toFloat()
-    var d = b - a
-    while (d > HalfTurn) d -= FullTurn
-    while (d < -HalfTurn) d += FullTurn
-    return d
-}
+internal fun knobDragTurn(delta: Offset, travel: Float): Float =
+    if (travel <= 0f) 0f else (delta.x - delta.y) / travel
 
 object KnobDefaults {
     /** The knob's width and height. */
@@ -406,14 +383,15 @@ private val KnobTick: Dp = 4.dp
 private val KnobTickGap: Dp = 3.dp
 private val KnobTickWidth: Dp = 1.5.dp
 
-/** Inside this share of the radius a drag is up-and-down rather than round. */
-private const val CentreShare: Float = 0.3f
+/**
+ * How far a drag goes for the whole range, whatever the knob's size: a step of ten
+ * is 20dp, a comfortable distance to feel each detent, and a full sweep is a
+ * thumb's length rather than the width of the screen.
+ */
+private val KnobDragTravel: Dp = 200.dp
 
-/** How many radii an up-and-down drag travels for the whole range. */
-private const val VerticalTravel: Float = 4f
-
-/** Degrees a second a release has to be turning at to spin on. */
-private const val FlickTurn: Float = 90f
+/** How fast, along the drag, a release has to be moving to spin on. */
+private val KnobFlick: Dp = 400.dp
 
 /** How quickly a spin slows: `exponentialDecay`'s friction. */
 private const val SpinFriction: Float = 2f
@@ -428,5 +406,4 @@ private const val NotchFrom: Float = 0.45f
 private const val NotchTo: Float = 0.85f
 private const val DisabledAlpha: Float = 0.38f
 private const val MinSweep: Float = 30f
-private const val HalfTurn: Float = 180f
 private const val FullTurn: Float = 360f

@@ -64,10 +64,13 @@ class KnobTest {
     }
 
     @Test
-    fun aTurnIsTheShortWayRound() {
-        // Across the gap at the bottom, where the angle jumps from 180 to -180.
-        val turn = turnBetween(Offset(-1f, 0.05f), Offset(-1f, -0.05f))
-        assertTrue(abs(turn) < 10f, "a few pixels across the jump should be a few degrees, was $turn")
-        assertTrue(abs(turnBetween(Offset(0f, -1f), Offset(1f, 0f)) - 90f) < 0.01f, "top to right is a quarter turn clockwise")
+    fun upAndRightAreMoreDownAndLeftAreLess() {
+        val travel = 400f
+        assertTrue(knobDragTurn(Offset(0f, -100f), travel) > 0f, "a drag up should turn it up")
+        assertTrue(knobDragTurn(Offset(100f, 0f), travel) > 0f, "a drag right should turn it up")
+        assertTrue(knobDragTurn(Offset(0f, 100f), travel) < 0f, "a drag down should turn it down")
+        assertTrue(knobDragTurn(Offset(-100f, 0f), travel) < 0f, "a drag left should turn it down")
+        assertEquals(0.25f, knobDragTurn(Offset(0f, -100f), travel), "a quarter of the travel is a quarter of the range")
+        assertEquals(0.5f, knobDragTurn(Offset(100f, -100f), travel), "up and to the right is both")
     }
 }

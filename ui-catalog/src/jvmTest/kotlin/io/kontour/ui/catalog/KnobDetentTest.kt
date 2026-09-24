@@ -18,8 +18,6 @@ import java.awt.image.BufferedImage
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -32,39 +30,42 @@ import kotlin.test.assertTrue
  * stepped mode?" It went from step to step in one frame, turned or keyed.
  *
  * A 200dp knob with three steps — four intervals of 67.5° — at 0.5, so its notch
- * starts straight up. What is measured is the notch: the only red on the page, and
- * its angle about the middle of the knob.
+ * starts straight up. A drag's travel is 200dp, 400px at this density, so a step is
+ * 100px of drag. What is measured is the notch: the only red on the page, and its
+ * angle about the middle of the knob.
  */
 class KnobDetentTest {
 
     /**
-     * Turned a third of a step past its step and held there, the notch leans
+     * Dragged a third of a step past its step and held there, the notch leans
      * toward the finger — 0.45 of the way, as the slider's thumb does — without
      * leaving the step for it.
      */
     @Test
     fun heldBetweenStepsTheNotchLeansTowardTheFinger() {
         var angle = 0.0
-        knob(reduceMotion = false) { scene, at ->
-            scene.press(at(Top))
+        knob(reduceMotion = false) { scene, middle ->
+            scene.press(middle)
             scene.frame()
             for (i in 1..10) {
-                scene.move(at(Top + 25.0 * i / 10))
+                scene.move(middle + Offset(StepPx / 3 * i / 10, 0f))
                 scene.frame()
             }
             angle = notchAngle(scene.frames(30))
         }
+        val finger = Top + Interval / 3
         assertTrue(
             angle > Top + 5 && angle < Top + 20,
-            "held 25° past its step the notch is at ${angle.format()}° — it should lean " +
-                "toward the finger at ${(Top + 25).format()}° from the step at ${Top.format()}°, " +
-                "about ${(Top + 25 * 0.45).format()}°",
+            "held a third of a step past its step the notch is at ${angle.format()}° — it " +
+                "should lean toward the finger's ${finger.format()}° from the step at " +
+                "${Top.format()}°, to about ${(Top + Interval / 3 * 0.45).format()}°",
         )
     }
 
     /**
      * Across a step, the notch only ever goes the way the finger does, and when the
-     * finger lets go it springs onto the step it reached.
+     * finger lets go it springs onto the step it reached — 1.2 steps along, so the
+     * next one.
      *
      * The slider's own report, one control over: with the lean added to the spring's
      * output rather than its target, crossing a step flips the lean while the spring
@@ -74,21 +75,22 @@ class KnobDetentTest {
     fun turnedAcrossAStepTheNotchNeverGoesBack() {
         val angles = mutableListOf<Double>()
         var landed = 0.0
-        knob(reduceMotion = false) { scene, at ->
-            scene.press(at(Top))
+        knob(reduceMotion = false) { scene, middle ->
+            val end = middle + Offset(StepPx * 1.2f, 0f)
+            scene.press(middle)
             scene.frame()
             for (i in 1..30) {
-                scene.move(at(Top + 60.0 * i / 30))
+                scene.move(middle + Offset(StepPx * 1.2f * i / 30, 0f))
                 angles += notchAngle(scene.frame())
             }
             scene.frames(4)
-            scene.release(at(Top + 60.0))
+            scene.release(end)
             landed = notchAngle(scene.frames(40))
         }
         val back = angles.zipWithNext().maxOf { (a, b) -> a - b }
         assertTrue(
             back < 0.5,
-            "turned clockwise across a step, the notch went back by ${back.format()}° on one " +
+            "dragged across a step, the notch went back by ${back.format()}° on one " +
                 "frame: ${angles.joinToString { it.format() }}",
         )
         assertTrue(
@@ -129,14 +131,14 @@ class KnobDetentTest {
     }
 
     /**
-     * A stepped knob at 0.5 in a scene, handed to [run] with a way to find a point
-     * on its face at an angle. With [next], the value is set to it after the first
-     * frames, as a key press would.
+     * A stepped knob at 0.5 in a scene, handed to [run] with the middle of its face.
+     * With [next], the value is set to it after the first frames, as a key press
+     * would.
      */
     private fun knob(
         reduceMotion: Boolean,
         next: Float? = null,
-        run: (Scene, (Double) -> Offset) -> Unit,
+        run: (Scene, Offset) -> Unit,
     ) {
         var value by mutableStateOf(0.5f)
         var bounds = Rect.Zero
@@ -158,14 +160,8 @@ class KnobDetentTest {
         }.use { scene ->
             scene.frames(3)
             centre = bounds.center
-            val radius = bounds.width * 0.35f
             if (next != null) value = next
-            run(scene) { degrees ->
-                Offset(
-                    centre.x + (cos(degrees * PI / 180) * radius).toFloat(),
-                    centre.y + (sin(degrees * PI / 180) * radius).toFloat(),
-                )
-            }
+            run(scene, centre)
         }
     }
 
@@ -199,5 +195,8 @@ class KnobDetentTest {
 
         /** One step of three: a quarter of 270°. */
         const val Interval = 67.5
+
+        /** One step of drag: a quarter of the 400px travel. */
+        const val StepPx = 100f
     }
 }

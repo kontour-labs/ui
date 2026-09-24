@@ -19,44 +19,49 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.Knob
-import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A knob turns the way a finger goes round it, spins on when thrown, and leaves
- * the page to scroll from the corners of its square.
+ * A knob follows a straight drag — up or right is more, from anywhere on it —
+ * spins on when thrown, and leaves the page to scroll from the corners of its
+ * square.
  *
- * A 200dp knob at density 2: its middle is the middle of its bounds, and 270° of
- * scale means a quarter turn is a third of the range.
+ * A 200dp knob at density 2. A drag's whole travel is 200dp, which is 400px here,
+ * so 100px is a quarter of the range.
  */
 class KnobGestureTest {
 
+    /**
+     * Up or right is more and down or left is less, wherever on the knob the
+     * finger lands.
+     *
+     * "Can we make it so dragging up/down and side-to-side will make it change, in
+     * the right direction?" It followed the finger's angle around the middle, so a
+     * straight drag went whichever way that angle did: up on the right-hand side
+     * of the knob turned it down, and right along the bottom turned it down too.
+     */
     @Test
-    fun aQuarterTurnClockwiseIsAThirdOfTheRange() {
-        val (value, _) = turn(fromDegrees = -90.0, byDegrees = 90.0, settle = true, reduceMotion = true)
-        assertTrue(
-            abs(value - (0.5f + 1f / 3f)) < 0.02f,
-            "a quarter turn from the top should take 0.5 to 0.83, and took it to $value",
-        )
-    }
-
-    @Test
-    fun aQuarterTurnBackIsAThirdTheOtherWay() {
-        val (value, _) = turn(fromDegrees = -90.0, byDegrees = -90.0, settle = true, reduceMotion = true)
-        assertTrue(abs(value - (0.5f - 1f / 3f)) < 0.02f, "took 0.5 to $value, not 0.17")
+    fun aStraightDragGoesTheWayItPointsFromAnywhereOnTheKnob() {
+        for ((name, from) in Places) {
+            for ((way, by, expected) in Ways) {
+                val value = drag(from = from, by = by, reduceMotion = true).first
+                assertTrue(
+                    abs(value - expected) < 0.02f,
+                    "a drag $way from the knob's $name should take 0.5 to $expected, and took it to $value",
+                )
+            }
+        }
     }
 
     @Test
     fun thrownItSpinsOnPastWhereItWasLetGo() {
-        val (thrown, atRelease) = turn(fromDegrees = -90.0, byDegrees = 60.0, settle = false, steps = 6, reduceMotion = false)
+        val (thrown, atRelease) = drag(from = Offset.Zero, by = Offset(0f, -120f), moves = 6, settle = false, reduceMotion = false)
         assertTrue(
             thrown > atRelease + 0.02f,
-            "let go while turning fast, it stopped where the finger left it ($atRelease → $thrown)",
+            "let go while moving fast, it stopped where the finger left it ($atRelease → $thrown)",
         )
     }
 
@@ -70,12 +75,15 @@ class KnobGestureTest {
         assertEquals(0, faceScroll, "a drag on the knob's face scrolled the page by $faceScroll")
     }
 
-    /** The value after turning round the knob, and the value when the finger lifted. */
-    private fun turn(
-        fromDegrees: Double,
-        byDegrees: Double,
-        settle: Boolean,
-        steps: Int = 30,
+    /**
+     * The value after a drag of [by] from [from] (relative to the knob's middle) in
+     * [moves] moves, and the value when the finger lifted.
+     */
+    private fun drag(
+        from: Offset,
+        by: Offset,
+        moves: Int = 20,
+        settle: Boolean = true,
         reduceMotion: Boolean,
     ): Pair<Float, Float> {
         var value by mutableStateOf(0.5f)
@@ -92,23 +100,18 @@ class KnobGestureTest {
             }
         }.use { scene ->
             scene.frames(3)
-            val centre = bounds.center
-            val radius = bounds.width * 0.35f
-            fun at(degrees: Double) = Offset(
-                centre.x + (cos(degrees * PI / 180) * radius).toFloat(),
-                centre.y + (sin(degrees * PI / 180) * radius).toFloat(),
-            )
-            scene.press(at(fromDegrees))
+            val start = bounds.center + from
+            scene.press(start)
             scene.frame()
-            repeat(steps) { i ->
-                scene.move(at(fromDegrees + byDegrees * (i + 1) / steps))
+            repeat(moves) { i ->
+                scene.move(start + by * ((i + 1).toFloat() / moves))
                 // A throw lifts on its last move rather than a frame later, or the
                 // velocity it lifts with is the stop, not the throw.
-                if (settle || i < steps - 1) scene.frame()
+                if (settle || i < moves - 1) scene.frame()
             }
             if (settle) scene.frames(4)
             atRelease = value
-            scene.release(at(fromDegrees + byDegrees))
+            scene.release(start + by)
             scene.frames(60)
         }
         return value to atRelease
@@ -139,5 +142,24 @@ class KnobGestureTest {
             scene.frames(10)
         }
         return requireNotNull(scroll).value to value
+    }
+
+    private companion object {
+        /** Where on the face a drag starts, from its middle. */
+        val Places = listOf(
+            "middle" to Offset.Zero,
+            "left" to Offset(-120f, 0f),
+            "right" to Offset(120f, 0f),
+            "top" to Offset(0f, -120f),
+            "bottom" to Offset(0f, 120f),
+        )
+
+        /** Which way it goes, how far, and the value it should end on. */
+        val Ways = listOf(
+            Triple("up", Offset(0f, -100f), 0.75f),
+            Triple("right", Offset(100f, 0f), 0.75f),
+            Triple("down", Offset(0f, 100f), 0.25f),
+            Triple("left", Offset(-100f, 0f), 0.25f),
+        )
     }
 }
