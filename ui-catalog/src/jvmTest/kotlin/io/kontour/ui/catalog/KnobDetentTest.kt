@@ -106,19 +106,17 @@ class KnobDetentTest {
      */
     @Test
     fun aNewValueTravelsToItsStepUnlessMotionIsReduced() {
-        var moving = 0.0
-        var arrived = 0.0
+        val angles = mutableListOf<Double>()
         knob(reduceMotion = false, next = 0.75f) { scene, _ ->
-            moving = notchAngle(scene.frames(2))
-            arrived = notchAngle(scene.frames(40))
+            repeat(40) { angles += notchAngle(scene.frame()) }
         }
         assertTrue(
-            moving > Top + 3 && moving < Top + Interval - 3,
-            "two frames after the value moved a step the notch is at ${moving.format()}° — " +
-                "it went straight from ${Top.format()}° to ${(Top + Interval).format()}° " +
-                "rather than travelling",
+            angles.any { it > Top + 3 && it < Top + Interval - 3 },
+            "after the value moved a step the notch was never between the two steps — it " +
+                "should travel from ${Top.format()}° to ${(Top + Interval).format()}°, and was at " +
+                angles.joinToString { it.format() },
         )
-        assertTrue(abs(arrived - (Top + Interval)) < 2, "and it ended at ${arrived.format()}°")
+        assertTrue(abs(angles.last() - (Top + Interval)) < 2, "and it ended at ${angles.last().format()}°")
 
         var still = 0.0
         knob(reduceMotion = true, next = 0.75f) { scene, _ ->

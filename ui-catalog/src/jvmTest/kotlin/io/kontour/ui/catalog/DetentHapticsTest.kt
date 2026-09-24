@@ -619,22 +619,17 @@ class DetentHapticsTest {
         }.use { scene ->
             scene.frames(3)
             val centre = bounds.center
-            val radius = bounds.width * 0.35f
-            fun at(degrees: Double) = Offset(
-                centre.x + (kotlin.math.cos(degrees * Math.PI / 180) * radius).toFloat(),
-                centre.y + (kotlin.math.sin(degrees * Math.PI / 180) * radius).toFloat(),
-            )
-            // From the top, clockwise past the end of the scale at 45°: 0.5 to 1
-            // is five steps, and then the wall.
-            scene.press(at(-90.0))
+            // Right from the middle, 260px of a 400px travel: 0.5 to 1 is five
+            // steps, and then the wall.
+            scene.press(centre)
             scene.frame()
             repeat(40) { i ->
-                scene.move(at(-90.0 + 160.0 * (i + 1) / 40))
+                scene.move(centre + Offset(260f * (i + 1) / 40, 0f))
                 scene.frame()
                 Thread.sleep(30)
             }
             scene.frames(4)
-            scene.release(at(70.0))
+            scene.release(centre + Offset(260f, 0f))
             scene.frames(6)
         }
         val ticks = felt.count { it == FeedbackIntent.Tick }

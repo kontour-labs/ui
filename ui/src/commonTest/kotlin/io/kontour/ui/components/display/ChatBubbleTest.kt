@@ -1,8 +1,11 @@
 package io.kontour.ui.components.display
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -50,6 +53,33 @@ class ChatBubbleTest {
         assertTrue(
             abs(incoming.left - reach) < 1f,
             "and an incoming one the same on the other side: $incoming",
+        )
+    }
+
+    /**
+     * The tail takes the bottom corner and nothing above it, so a one-line bubble
+     * keeps its round end over the tail.
+     *
+     * "The tail shape of the chat message is a bit of a weird shape, and it doesn't
+     * really blend with the actual message bubble." The tail was joined to the body
+     * by a rectangle reaching the corner's radius *plus the tail's width* up the
+     * side, which on a one-line bubble — 36dp tall, an 18dp corner — is past the
+     * middle: the end was squared off into a flat wall and the tail stood on its
+     * foot. Measured as how far a thin band 11px above the middle reaches toward
+     * the sender's edge: the round end there stops about 1.7px short of it.
+     */
+    @Test
+    fun aOneLineBubbleKeepsItsRoundEndAboveTheTail() {
+        val line = Size(300f, 72f)
+        val outline = ChatBubbleShape(RoundedCornerShape(18.dp), onEnd = true, tail = true, 6.dp)
+            .createOutline(line, LayoutDirection.Ltr, density) as Outline.Generic
+        val band = Path().apply { addRect(Rect(0f, 25f, line.width, 25.5f)) }
+        val across = Path.combine(PathOperation.Intersect, outline.path, band).getBounds()
+        val edge = line.width - reach
+        assertTrue(
+            across.right < edge - 1f,
+            "11px above the middle of a one-line bubble the outline reaches ${across.right}, " +
+                "against a round end that stops short of $edge — the tail has squared off the end",
         )
     }
 
