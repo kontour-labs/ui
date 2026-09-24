@@ -33,10 +33,14 @@ letterbox across a very wide window, and a side sheet uses the shape of the scre
 instead. For a panel that shares the screen with the page, use
 [`SideSheet`](side-sheet.md).
 
-It **floats by default**, and takes `expandable`, `edgeMorph` and
-`expandedShape` exactly as [`SideSheet`](side-sheet.md#floating-and-expanding-to-the-whole-window)
-does: a grip on its inner edge widens it to the whole window, and a floating
-sheet becomes an edge sheet on the way.
+It is **flush to its side by default**, where `SideSheet` floats: a modal sheet
+recedes the page behind it, and a floating panel in front of a receded page is two
+frames around one thing. `presentation = SheetPresentation.Floating` floats it
+anyway. It takes `expandable`, `edgeMorph` and `expandedShape` exactly as
+[`SideSheet`](side-sheet.md#floating-and-expanding-to-the-whole-window) does: a
+grip on its inner edge widens it to the whole window, and a floating sheet becomes
+an edge sheet on the way. `ModalNavDrawer` is one of these, and flush by default
+with it.
 
 `scrim = ScrimStyle.None` lets the page behind take pointer events and stops the
 sheet trapping focus, but it is still an overlay in the `OverlayHost`, above

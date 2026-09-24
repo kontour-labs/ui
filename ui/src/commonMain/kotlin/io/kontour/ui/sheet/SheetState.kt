@@ -335,26 +335,73 @@ class SheetState internal constructor(
         val until = morph.until?.let(::offsetOf) ?: highestAnchored(detents)
         if (until.isNaN()) return 0f
         val from = morph.from?.let(::offsetOf) ?: restingBelow(until)
-        if (from.isNaN()) return nearTheTop(morph, raw)
+        if (from.isNaN()) return nearTheTop(morph, until)
         if (from <= until) return 0f
         return ((from - raw) / (from - until)).coerceIn(0f, 1f)
     }
 
     /**
-     * The morph for a sheet with no step to morph across: over the last
-     * [SheetEdgeMorph.nearTop] of travel before the top of the window.
+     * The morph for a sheet with no step to morph across, decided by **where it
+     * rests** — [resting], its one detent's offset — and not by where it is.
      *
-     * The top is [SheetTopGap], the floor under every anchor and where a sheet whose
-     * content fills the window rests — so that sheet is an edge sheet at rest, one
-     * with a line of text in it rests far below and floats, and a tall one opening
-     * morphs over the last stretch of its arrival.
+     * Full if it rests at the top of the window, none if it rests further than
+     * [SheetEdgeMorph.nearTop] below it, and between only for content that lands in
+     * that last stretch. It used to follow the live offset over that stretch, which
+     * was reported as the sheet "snapping" fully open near the top: a tall sheet
+     * opened floating and changed shape in its last few frames. Decided by the rest,
+     * it is one shape the whole way up and the whole way down.
+     *
+     * The top is [fullHeightTop], where a sheet whose content fills the window really
+     * rests: below the status bar, which on a phone is well below [SheetTopGap] — the
+     * number this used to measure from, so a full-height sheet rested half changed.
      */
-    private fun nearTheTop(morph: SheetEdgeMorph, raw: Float): Float {
+    private fun nearTheTop(morph: SheetEdgeMorph, resting: Float): Float {
         val density = anchorDensity ?: return 0f
-        val top = with(density) { SheetTopGap.toPx() }
+        val top = fullHeightTop.takeUnless { it.isNaN() } ?: with(density) { SheetTopGap.toPx() }
         val reach = with(density) { morph.nearTop.toPx() }
-        if (reach <= 0f) return if (raw <= top) 1f else 0f
-        return ((top + reach - raw) / reach).coerceIn(0f, 1f)
+        // Half a pixel, so a sheet resting exactly at the top is fully there.
+        if (reach <= 0f) return if (resting <= top + 0.5f) 1f else 0f
+        return ((top + reach - resting) / reach).coerceIn(0f, 1f)
+    }
+
+    /**
+     * Where a sheet whose content fills the window rests: the container less the
+     * room the content is given. Written by the sheet's content measurement, which
+     * is the one place that knows the insets. `NaN` until then.
+     */
+    internal var fullHeightTop by mutableFloatStateOf(Float.NaN)
+
+    /**
+     * The offset of the tallest resting detent, when **every** resting detent is
+     * independent of the content — `Half`, a fraction, a height, a peek — and `NaN`
+     * as soon as one is not.
+     *
+     * What the content is measured against. A sheet whose tallest detent is `Half`
+     * shows half a window of content at most, and a list measured taller than that
+     * has rows past the bottom of the window that no scrolling reaches. Only
+     * detents that do not depend on the content can say so without a cycle — the
+     * content's height is what `Expanded` resolves from — which is why one
+     * content-dependent detent in the list turns this off.
+     *
+     * Tested rather than named: a detent is resolved against an empty sheet and a
+     * window-tall one, and one that answers the same both times does not depend on
+     * its content, whoever wrote it.
+     */
+    internal fun tallestFixedTop(): Float {
+        val density = anchorDensity ?: return Float.NaN
+        val container = containerHeight
+        if (container <= 0f) return Float.NaN
+        var top = Float.NaN
+        for (detent in detents) {
+            if (detent == SheetDetent.Hidden) continue
+            val empty = detent.resolve(density, container, 0f)
+            val full = detent.resolve(density, container, container)
+            if (kotlin.math.abs(empty - full) > 0.5f) return Float.NaN
+            val at = offsetOf(detent)
+            if (at.isNaN()) return Float.NaN
+            if (top.isNaN() || at < top) top = at
+        }
+        return top
     }
 
     /**

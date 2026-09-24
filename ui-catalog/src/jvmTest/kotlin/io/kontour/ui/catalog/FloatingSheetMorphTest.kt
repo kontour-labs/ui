@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -7,9 +8,20 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -181,6 +193,188 @@ class FloatingSheetMorphTest {
         }.use { scene -> scene.frames(60) }
 
     /**
+     * A tall single-size sheet is an edge sheet from the moment it starts opening.
+     *
+     * Reported as the floating sheet "snapping" fully open near the top. The rule
+     * used to follow the live offset over the last stretch before the top, so a
+     * tall sheet opened floating and changed shape in its last few frames — and on
+     * a phone with a status bar it measured from the wrong top, and rested half
+     * changed. It decides by where the sheet *rests* now, so nothing changes while
+     * it moves: every frame of the open that shows the sheet shows it flush.
+     */
+    @Test
+    fun aTallSingleSizeSheetOpensAsAnEdgeSheet() {
+        var open by mutableStateOf(false)
+        val gaps = mutableListOf<Int>()
+        Scene(width = 600, height = 900) {
+            TallModal(open = open, rows = 80)
+        }.use { scene ->
+            scene.frames(4)
+            open = true
+            repeat(40) {
+                val frame = scene.frame()
+                // Only once the sheet's top is well clear of the row being read: the
+                // first frame to reach it crosses it at the top corner, whose curve
+                // is a gap beside an edge sheet too.
+                if (frame.topOfTheSheet() < frame.height - 100 - CornerClearance) {
+                    gaps += frame.gapBesideTheSheet()
+                }
+            }
+        }
+        assertTrue(gaps.isNotEmpty(), "the sheet never reached the row being read")
+        assertTrue(
+            gaps.all { it == 0 },
+            "a tall single-size floating sheet was off the side by $gaps across its opening — " +
+                "it floated and then changed shape, where it should arrive as the edge sheet it rests as",
+        )
+    }
+
+    /**
+     * The same sheet, scrolled to the end: the last row comes to rest on the sheet.
+     *
+     * Reported as not being able to scroll to the bottom of a floating sheet. Resting
+     * half changed, its surface stopped a part-margin short of the window while its
+     * content was measured to the window's bottom, so the end of the scroller was
+     * under the sheet's own edge.
+     */
+    @Test
+    fun aTallFloatingSheetScrollsToItsLastRow() {
+        var last = Rect.Zero
+        var scroll: ScrollState? = null
+        val image = Scene(width = 600, height = 900) {
+            TallModal(open = true, rows = 80, onScroll = { scroll = it }, onLastRow = { last = it })
+        }.use { scene ->
+            scene.frames(60)
+            checkNotNull(scroll).dispatchRawDelta(1_000_000f)
+            scene.frames(10)
+        }
+        val surfaceBottom = image.height - 1 - image.gapUnderTheSheet()
+        assertTrue(last.height > 0f, "the last row was never positioned")
+        assertTrue(
+            last.bottom <= surfaceBottom + 1,
+            "scrolled to the end, the last row's bottom was at ${last.bottom} and the sheet's own " +
+                "bottom edge at $surfaceBottom — the end of the content is under the sheet",
+        )
+    }
+
+    /**
+     * The content stays still while the surface grows around it.
+     *
+     * It used to reflow at every width the morph passed through, and content whose
+     * height depends on its width — a line of text that wraps — changed the sheet's
+     * height, and with it the anchors, in the middle of the drag: the other half of
+     * the reported snap.
+     */
+    @Test
+    fun theContentKeepsItsWidthThroughTheMorph() {
+        fun widthAt(at: SheetDetent, held: Boolean): Float {
+            var width = -1f
+            Scene(width = 600, height = 900) {
+                Harness(initial = at) {
+                    Box(Modifier.fillMaxWidth().height(1200.dp).onGloballyPositioned { width = it.size.width.toFloat() })
+                }
+            }.use { scene ->
+                val settled = scene.frames(40)
+                if (held) {
+                    val top = settled.topOfTheSheet()
+                    val handle = Offset(300f, top + 16f)
+                    scene.drag(from = handle, to = handle - Offset(0f, (top - 24f) / 2f + 36f), steps = 24, release = false)
+                    scene.frames(10)
+                }
+            }
+            return width
+        }
+        val floating = widthAt(SheetDetent.Half, held = false)
+        val halfway = widthAt(SheetDetent.Half, held = true)
+        val expanded = widthAt(SheetDetent.Expanded, held = false)
+        assertTrue(
+            floating == halfway && halfway == expanded,
+            "the content was $floating wide floating, $halfway halfway through the morph and $expanded " +
+                "expanded — it reflowed as the sheet widened",
+        )
+    }
+
+    /**
+     * A list in a sheet whose tallest detent is short reaches its last row there.
+     *
+     * The content was measured at nearly the window's height whatever the sheet's
+     * tallest detent, so a list in a sheet that stops at `Half` had a viewport
+     * running far below the window, and its last rows could never be scrolled into
+     * view. Floating sheets are the ones that stop short — a bar and a half — so this
+     * is where it was found.
+     */
+    @Test
+    fun aListInAShortFloatingSheetReachesItsEnd() {
+        var last = Rect.Zero
+        var list: LazyListState? = null
+        Scene(width = 600, height = 900) {
+            Harness(
+                initial = SheetDetent.Half,
+                detents = listOf(SheetDetent.Hidden, SheetDetent.height("bar", 64.dp), SheetDetent.Half),
+            ) { padding ->
+                val state = rememberLazyListState()
+                list = state
+                LazyColumn(Modifier.fillMaxWidth(), state = state, contentPadding = padding) {
+                    items(100) { index ->
+                        Box(
+                            Modifier.fillMaxWidth().height(48.dp).then(
+                                if (index == 99) Modifier.onGloballyPositioned { last = it.unclipped() } else Modifier
+                            )
+                        )
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(40)
+            checkNotNull(list).dispatchRawDelta(1_000_000f)
+            scene.frames(10)
+        }
+        assertTrue(last.height > 0f, "the last row was never positioned")
+        assertTrue(
+            last.bottom <= 900f,
+            "scrolled to the end at Half, the last row's bottom was at ${last.bottom}, where the " +
+                "window ends at 900 — the list's viewport runs off the bottom of the window",
+        )
+    }
+
+    /** A modal floating sheet with a scroller taller than the window, and a status bar. */
+    @androidx.compose.runtime.Composable
+    private fun TallModal(
+        open: Boolean,
+        rows: Int,
+        onScroll: (ScrollState) -> Unit = {},
+        onLastRow: (Rect) -> Unit = {},
+    ) {
+        KontourTheme(reduceMotion = true) {
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Ground))
+                io.kontour.ui.sheet.ModalBottomSheet(
+                    visible = open,
+                    onDismissRequest = {},
+                    presentation = SheetPresentation.Floating,
+                    containerColour = SheetColour,
+                    windowInsets = WindowInsets(top = 40.dp),
+                    dragHandle = null,
+                ) { padding ->
+                    val scroll = rememberScrollState()
+                    onScroll(scroll)
+                    androidx.compose.foundation.layout.Column(
+                        Modifier.verticalScroll(scroll).padding(bottom = padding.calculateBottomPadding())
+                    ) {
+                        repeat(rows) { index ->
+                            Box(
+                                Modifier.fillMaxWidth().height(48.dp).then(
+                                    if (index == rows - 1) Modifier.onGloballyPositioned { onLastRow(it.unclipped()) } else Modifier
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * What the margin stops clearing, the content is told about.
      *
      * A floating sheet hands its content no bottom padding and no side padding,
@@ -266,6 +460,16 @@ class FloatingSheetMorphTest {
         }
     }
 
+    /**
+     * Where a node really is, uncut. `boundsInRoot` clips to every parent, so a row
+     * under the sheet's edge reads as shorter than it is and one off the window as
+     * empty — which is exactly the case these measure.
+     */
+    private fun androidx.compose.ui.layout.LayoutCoordinates.unclipped(): Rect {
+        val at = positionInRoot()
+        return Rect(at.x, at.y, at.x + size.width, at.y + size.height)
+    }
+
     private fun BufferedImage.isSheet(x: Int, y: Int): Boolean = (getRGB(x, y) and 0xFFFFFF) == SheetRgb
 
     /** Rows between the sheet's lowest ink and the bottom of the window, down the middle. */
@@ -300,5 +504,8 @@ class FloatingSheetMorphTest {
 
         /** `componentDefaults.sheetFloatingInset`, 12dp, at the scene's density of 2. */
         const val FloatingMargin = 24
+
+        /** Further than any top corner in the library reaches, at the scene's density. */
+        const val CornerClearance = 120
     }
 }

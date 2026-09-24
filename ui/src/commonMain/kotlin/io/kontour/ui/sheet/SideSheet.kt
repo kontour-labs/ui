@@ -134,14 +134,19 @@ fun ModalSideSheet(
     /**
      * Whether the sheet meets the window's edges or floats clear of them.
      *
-     * [SheetPresentation.Floating], the default, lifts it off its side, the top and
-     * the bottom by `Theme.componentDefaults.sheetFloatingInset` — unioned with
-     * [windowInsets], so it is a minimum clearance and not a gap added to the
-     * system's — and rounds every corner, which is the panel-over-the-page reading
-     * a floating bottom sheet has. [SheetPresentation.Edge] is flush to its side,
-     * the top and the bottom, with only the corners facing the content rounded.
+     * [SheetPresentation.Edge], the default, is flush to its side, the top and the
+     * bottom, with only the corners facing the content rounded. A modal sheet
+     * recedes the page behind it, and a floating panel over a receded page is two
+     * frames around one thing — the reason the non-modal [SideSheet] floats and
+     * this does not.
+     *
+     * [SheetPresentation.Floating] lifts it off its side, the top and the bottom by
+     * `Theme.componentDefaults.sheetFloatingInset` — unioned with [windowInsets],
+     * so it is a minimum clearance and not a gap added to the system's — and
+     * rounds every corner, which is the panel-over-the-page reading a floating
+     * bottom sheet has.
      */
-    presentation: SheetPresentation = SheetPresentation.Floating,
+    presentation: SheetPresentation = SheetPresentation.Edge,
     shape: CornerBasedShape = SideSheetDefaults.shapeFor(presentation),
     /**
      * Whether the sheet can be widened to the whole window.
@@ -335,9 +340,10 @@ fun ModalSideSheet(
  * that sets `visible` to false. It slides in and out on its own spring, and is not
  * composed at all once it has slid away.
  *
- * Everything else is [ModalSideSheet]'s: floating by default, [expandable] to the
- * whole window with a grip on its inner edge, and becoming an edge sheet as it
- * widens.
+ * Everything else is [ModalSideSheet]'s — [expandable] to the whole window with a
+ * grip on its inner edge, and becoming an edge sheet as it widens — except that
+ * this one floats by default, where the modal one is an edge sheet: nothing
+ * behind it recedes, so the panel is the only frame on the screen.
  */
 @Composable
 fun SideSheet(

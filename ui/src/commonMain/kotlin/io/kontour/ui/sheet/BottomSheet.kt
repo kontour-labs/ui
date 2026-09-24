@@ -99,21 +99,26 @@ enum class SheetPresentation {
     /**
      * Flush to the bottom and to both sides. A drawer pulled out of the screen.
      *
-     * What a sheet used to be by default, and still what it becomes when a
-     * floating one is expanded. Ask for it by name for a sheet that should read as
-     * a drawer at every size. Its bottom corners are square because there is no
-     * bottom edge to round.
+     * **The default for the modal sheets** — [ModalBottomSheet], [ModalSideSheet]
+     * and the nav drawer — and what a floating sheet becomes when it is expanded.
+     * A modal sheet recedes the page behind it into a frame of its own, and a
+     * floating panel in front of that is two frames around one thing; flush to
+     * the window, the sheet is the one thing in front and the receded page is
+     * plainly behind it. Its bottom corners are square because there is no bottom
+     * edge to round.
      */
     Edge,
 
     /**
-     * Lifted off all three edges, with every corner rounded. **The default**, for
-     * every sheet in the library.
+     * Lifted off all three edges, with every corner rounded. **The default for the
+     * non-modal sheets**, [BottomSheet] and [SideSheet], which share the screen
+     * with the page rather than taking it over.
      *
      * A panel *over* the screen rather than a drawer out of it — and the only
      * presentation in which a small sheet looks deliberate: a bar-height sheet
      * flush to the bottom of the window reads as a drawer that failed to open, and
-     * the same thing floating reads as a control.
+     * the same thing floating reads as a control. A modal sheet can still ask for
+     * it; see [Edge] for why that is not the default.
      *
      * Pulled up to its top detent it stops floating: across the last step of its
      * travel it becomes the [Edge] sheet it would otherwise have been. See
@@ -149,6 +154,13 @@ enum class SheetPresentation {
  * spring that is carrying it. Nothing is animated separately, so nothing can fall
  * behind.
  *
+ * **The content keeps its floating width throughout.** The surface grows out to
+ * the edges around it and the content stays where it was, so an expanded sheet's
+ * content sits a margin further in than an edge sheet's. That is the price of not
+ * re-flowing mid-drag: content whose height depends on its width — a line that
+ * wraps — would otherwise change the sheet's height, and its anchors with it,
+ * while a finger is on it, and the sheet jumped as it neared the top.
+ *
  * [SideSheet] has the same morph on the other axis, as a `Boolean`: it has one
  * step — its resting width to the whole window — so there is nothing to choose
  * but whether.
@@ -159,12 +171,14 @@ enum class SheetPresentation {
  * @param until Where it is complete: at or above this the sheet is an edge sheet.
  *   Null is the sheet's highest detent.
  * @param nearTop For a sheet with no step to morph across — one resting detent,
- *   which is a `ModalBottomSheet` on its defaults — how far below the top of the
- *   window the morph starts. Such a sheet is floating wherever it rests short of the
- *   top, and an edge sheet when its content is tall enough to reach it: it morphs
- *   over the last [nearTop] of its travel, which is where a tall sheet finishes
- *   opening. Content that lands within this of the top rests partly morphed, which
- *   is the edge of the rule and the reason the distance is short.
+ *   which is a `ModalBottomSheet` on its defaults — how close to the top its rest
+ *   has to be for it to be an edge sheet. Decided by **where the sheet rests**, not
+ *   where it is: content tall enough to reach the top is an edge sheet from the
+ *   first frame of opening to the last of closing, and short content floats the
+ *   whole way, so nothing changes shape as the sheet arrives. The top is where a
+ *   full-height sheet actually stops — under the status bar, not the window's edge.
+ *   Content that rests within this of it is partly morphed, which is the edge of
+ *   the rule and the reason the distance is short.
  */
 @Immutable
 class SheetEdgeMorph(
@@ -859,8 +873,13 @@ fun ModalBottomSheet(
         detents = listOf(SheetDetent.Hidden, SheetDetent.Expanded),
         initialDetent = SheetDetent.Hidden,
     ),
-    /** See [BottomSheet]. Floating by default, and an edge sheet once its content reaches the top. */
-    presentation: SheetPresentation = SheetPresentation.Floating,
+    /**
+     * See [BottomSheet]. **An edge sheet by default**, where the non-modal sheet
+     * floats: a modal sheet recedes the page behind it, and a floating panel over a
+     * receded page is two frames around one thing — reported as not feeling right.
+     * `Floating` is still there to ask for.
+     */
+    presentation: SheetPresentation = SheetPresentation.Edge,
     /** See [BottomSheet]: how a floating sheet becomes an edge sheet as it expands. */
     edgeMorph: SheetEdgeMorph? = SheetEdgeMorph(),
     /**
@@ -1255,12 +1274,29 @@ private fun BoxScope.SheetSurface(
                         // A sheet that can morph measures as the edge sheet it
                         // becomes: a constant either way, so nothing re-measures
                         // as it moves and `Expanded` has one answer.
-                        val ceiling = sheetContentCeiling(
+                        val window = sheetContentCeiling(
                             container = container,
                             insets = windowInsets,
                             floating = floating && morph == null,
                             floatInsets = floatInsets,
                         )
+                        // Where a sheet this tall rests, for the single-size morph:
+                        // below the status bar rather than at the gap.
+                        if (container > 0) state.fullHeightTop = (container - window).toFloat()
+                        // And no taller than the sheet can ever be seen. A sheet whose
+                        // tallest detent is `Half` shows half a window of content at
+                        // most; measured at the window, a list in it had rows past
+                        // the bottom of the screen that no scrolling could reach.
+                        // Only when every detent is independent of the content — see
+                        // [SheetState.tallestFixedTop] — which is what keeps this from
+                        // chasing its own tail through `Expanded`.
+                        val fixedTop = state.tallestFixedTop()
+                        val ceiling = if (fixedTop.isNaN() || container <= 0) {
+                            window
+                        } else {
+                            val top = maxOf(fixedTop.roundToInt(), windowInsets.getTop(this))
+                            minOf(window, (container - top).coerceAtLeast(1))
+                        }
                         val room = when {
                             container > 0 ->
                                 constraints.copy(minHeight = 0, maxHeight = ceiling)
@@ -1304,7 +1340,7 @@ private fun BoxScope.SheetSurface(
                             // and all of them once it is an edge sheet. Margin plus
                             // padding never falls short of the inset on the way.
                             Modifier
-                                .insetsTheMarginNoLongerClears(state, windowInsets, floatInsets, morph)
+                                .keepsTheFloatingWidth(state, floatInsets, morph)
                                 .consumeWindowInsets(windowInsets.only(WindowInsetsSides.Horizontal))
                         }
                     )
@@ -1638,22 +1674,29 @@ private fun Modifier.floatingSides(
 }.consumeWindowInsets(floatInsets.only(WindowInsetsSides.Horizontal))
 
 /**
- * The side insets a morphing sheet's margin has stopped clearing, as padding.
+ * A morphing sheet's content, held at the width it had while the sheet floated.
  *
- * The same rounding as [floatingSides], so the margin and this add up to the inset
- * to the pixel at every fraction rather than leaving a pixel's gap or overlap.
+ * The surface grows around it: the padding on each side is exactly what the surface
+ * has grown by there, so the content stands still while the margins close up. It
+ * used to reflow at every width the morph passed through, and content whose height
+ * depends on its width — a line of text that wraps — changed the sheet's height,
+ * and the anchors with it, in the middle of a drag. That was half of the reported
+ * "snap" near the top.
+ *
+ * The same rounding as [floatingSides], so surface and content agree to the pixel.
+ * The floating margin is at least the window's inset on each side, so the content
+ * is clear of a cutout at every fraction without asking the insets again.
  */
-private fun Modifier.insetsTheMarginNoLongerClears(
+private fun Modifier.keepsTheFloatingWidth(
     state: SheetState,
-    insets: WindowInsets,
     floatInsets: WindowInsets,
     morph: SheetEdgeMorph?,
 ): Modifier = layout { measurable, constraints ->
     val kept = 1f - edgeness(state, morph)
-    val left = (insets.getLeft(this, layoutDirection) -
-        (floatInsets.getLeft(this, layoutDirection) * kept).roundToInt()).coerceAtLeast(0)
-    val right = (insets.getRight(this, layoutDirection) -
-        (floatInsets.getRight(this, layoutDirection) * kept).roundToInt()).coerceAtLeast(0)
+    val leftMargin = floatInsets.getLeft(this, layoutDirection)
+    val rightMargin = floatInsets.getRight(this, layoutDirection)
+    val left = (leftMargin - (leftMargin * kept).roundToInt()).coerceAtLeast(0)
+    val right = (rightMargin - (rightMargin * kept).roundToInt()).coerceAtLeast(0)
     val placeable = measurable.measure(constraints.offset(horizontal = -(left + right)))
     layout(
         constraints.constrainWidth(placeable.width + left + right),
@@ -1784,14 +1827,17 @@ private fun Modifier.sheetTopInset(
  * comes from `sheetHeight`, and `sheetHeight` comes from the measurement this
  * feeds. The constant closes the loop.
  *
- * ### What this does not fix
+ * ### A sheet whose tallest detent is a short one
  *
- * A sheet whose *tallest* detent is a short one — `Half`, a `peek` — still
- * measures its content against nearly the whole window while only part of it is
- * on screen, so a scroller inside one has the same unreachable tail. That is
- * older than this function and was not what was reported; fixing it needs either
- * the live offset or the cycle above, so it is written down here rather than
- * guessed at.
+ * Handled by the caller, not here: a sheet whose detents are all independent of
+ * its content — a bar and `Half`, say — is measured at the visible height of the
+ * tallest of them, from [SheetState.tallestFixedTop]. It used to be measured
+ * against nearly the whole window while only half of it was ever on screen, so a
+ * list inside had a tail no scrolling reached; reported of a floating sheet, which
+ * is the presentation that short top detents come with. There is no cycle, since
+ * those detents' offsets do not depend on the content. A sheet with `Expanded` in
+ * its list is left as it was: it grows to its content, so its scroller already
+ * reaches its end at `Expanded`.
  */
 private fun Density.sheetContentCeiling(
     container: Int,

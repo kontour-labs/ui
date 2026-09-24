@@ -2,10 +2,16 @@ package io.kontour.ui.platform
 
 import android.os.Build
 import android.view.RoundedCorner
+import android.view.View
+import android.view.ViewTreeObserver
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -39,6 +45,22 @@ import androidx.compose.ui.unit.dp
  *
  * No `runCatching` anywhere: `RoundedCorner` and a string lookup cannot throw. A
  * read that cannot throw is better than one that is caught.
+ *
+ * ### Read again whenever the window lays out
+ *
+ * The corners are state, re-read on every global layout and on attach, and not a
+ * value read once in composition. Reported from a Pixel 11 Pro XL as the sheet and
+ * the receding page having corners *too tight* — the same curve as a Pixel 9, a
+ * smaller radius. The one read happened wherever the composition first ran, which
+ * for the backdrop is the app's first frame, and until the platform has delivered
+ * the window's insets `rootWindowInsets` has no corners in it. That read answered
+ * "nothing", nothing asked again, and the shapes fell back to the scale's own
+ * 34dp. Whether the insets are there on the first frame is a race a device can win
+ * or lose, which is how two phones with the same corner could disagree.
+ *
+ * A global layout follows every insets dispatch, and a rotation, so the first real
+ * answer and every later change recompose whoever asked. It is written only when
+ * it changes, so an ordinary layout costs four reads and a comparison.
  */
 @Composable
 internal actual fun platformDeviceCorners(): DeviceCorners? {
@@ -56,6 +78,48 @@ internal actual fun platformDeviceCorners(): DeviceCorners? {
         return listed?.copy(smoothing = smoothing)
     }
 
+    val corners = remember(view, density) {
+        mutableStateOf(readCorners(view, density, listed, smoothing))
+    }
+    DisposableEffect(view, density) {
+        fun reread() {
+            val now = readCorners(view, density, listed, smoothing)
+            if (now != corners.value) corners.value = now
+        }
+        // Kept, not looked up again on dispose: a view's observer before it is
+        // attached is a stand-in that is merged into the window's on attach, and
+        // removing from one that is no longer alive throws.
+        var observer = view.viewTreeObserver
+        val onLayout = ViewTreeObserver.OnGlobalLayoutListener { reread() }
+        val onAttach = object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) = reread()
+            override fun onViewDetachedFromWindow(v: View) = Unit
+        }
+        observer.addOnGlobalLayoutListener(onLayout)
+        view.addOnAttachStateChangeListener(onAttach)
+        // The effect runs after the composition that read the first value, and the
+        // insets may have arrived in between.
+        reread()
+        onDispose {
+            if (!observer.isAlive) observer = view.viewTreeObserver
+            observer.removeOnGlobalLayoutListener(onLayout)
+            view.removeOnAttachStateChangeListener(onAttach)
+        }
+    }
+    return corners.value
+}
+
+/**
+ * The four corners as the window reports them now, the table filling what it does
+ * not. API 31 and up only; the caller has checked.
+ */
+@RequiresApi(Build.VERSION_CODES.S)
+private fun readCorners(
+    view: View,
+    density: Density,
+    listed: DeviceCorners?,
+    smoothing: Float?,
+): DeviceCorners? {
     // Null until the view is attached, which is an ordinary state on the first
     // composition rather than an error — and the table is a better answer than
     // nothing for that frame too.

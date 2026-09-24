@@ -276,6 +276,13 @@ private val sideSheetPresentation =
     Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Floating)
 
 /**
+ * The same choice for the modal sheet, starting where the modal sheet does: at the
+ * edge, since the page behind it recedes into a frame of its own.
+ */
+private val modalSideSheetPresentation =
+    Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Edge)
+
+/**
  * A grip on the sheet's inner edge that drags it out to the whole window. On a
  * phone the card is barely wider than the sheet, so there is little to drag across
  * — which is the rule for a window with nothing to expand into.
@@ -328,7 +335,7 @@ internal val SideSheetDemo = ComponentDemo(
 
 internal val ModalSideSheetDemo = ComponentDemo(
     slug = "modal-side-sheet",
-    knobs = listOf(sheetSide, sideSheetPresentation, sideSheetExpandable, sideSheetEdgeMorph, sheetDismissible),
+    knobs = listOf(sheetSide, modalSideSheetPresentation, sideSheetExpandable, sideSheetEdgeMorph, sheetDismissible),
 ) {
     var open by remember { mutableStateOf(false) }
     val side = this[sheetSide]
@@ -345,7 +352,7 @@ internal val ModalSideSheetDemo = ComponentDemo(
             onDismissRequest = { open = false },
             side = side,
             width = 240.dp,
-            presentation = this@ComponentDemo[sideSheetPresentation],
+            presentation = this@ComponentDemo[modalSideSheetPresentation],
             expandable = this@ComponentDemo[sideSheetExpandable],
             edgeMorph = this@ComponentDemo[sideSheetEdgeMorph],
             dismissible = dismissible,

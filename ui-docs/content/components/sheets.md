@@ -238,6 +238,12 @@ measures its content at the room it actually has, so a long `Column` wrapped in
 Content that fits is unaffected — `SheetDetent.Expanded` still means "as tall as
 the content".
 
+**The room is the tallest the sheet can be.** A sheet whose detents are all fixed
+sizes — a bar and `Half`, say — measures its content at the tallest of them rather
+than at the window, so a list in a sheet that never goes above half height still
+reaches its last row. It used to be measured a window tall with only half of that
+ever on screen.
+
 This used to be the other way round: the content was measured at an unbounded
 height and then placed in the room the sheet had, so anything past the window's
 bottom edge simply was not drawn — and adding a `verticalScroll` to fix it threw,

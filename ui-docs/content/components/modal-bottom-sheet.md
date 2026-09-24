@@ -43,17 +43,21 @@ sheet has one meaningful position and the state object exists to describe
 several. Reach for [`BottomSheet`](bottom-sheet.md) when what is behind the sheet
 is still the point.
 
-### It floats, until its content reaches the top
+### An edge sheet by default
 
-Like every sheet, a modal one **floats by default**: lifted off the bottom and
-both sides by the floating margin, every corner rounded. On its default detents,
-`[Hidden, Expanded]`, it has one size to be — as tall as its content — and so it
-has no step to morph across the way a `BottomSheet` does between its detents.
-Instead it morphs over the last `SheetEdgeMorph.nearTop` of travel before the top
-of the window: a rename field or a confirmation floats, and a sheet whose content
-fills the window arrives as an edge sheet, flush to every edge it meets. See
-[`BottomSheet`](bottom-sheet.md#expanded-a-floating-sheet-becomes-an-edge-sheet);
-`presentation = SheetPresentation.Edge` keeps it flush at every size.
+Where [`BottomSheet`](bottom-sheet.md) floats, a modal sheet is **flush to the
+bottom and both sides** by default, top corners rounded. A modal sheet recedes
+the page behind it into a frame of its own, and a floating panel in front of that
+is two frames around one thing — it was the default for a while, and on a phone
+it did not feel right.
+
+`presentation = SheetPresentation.Floating` still floats one, lifted off the
+bottom and both sides with every corner rounded. On its default detents,
+`[Hidden, Expanded]`, it has one size to be — as tall as its content — and so
+**where it rests decides** whether it floats: a rename field or a confirmation
+floats the whole way up and back, and a sheet whose content fills the window is
+an edge sheet from its first frame to its last. See
+[`BottomSheet`](bottom-sheet.md#expanded-a-floating-sheet-becomes-an-edge-sheet).
 
 ### `onDismissRequest` is the user's, and comes once
 

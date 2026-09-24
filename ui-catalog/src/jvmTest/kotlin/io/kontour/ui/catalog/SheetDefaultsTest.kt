@@ -24,12 +24,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Every sheet floats unless it is asked not to.
+ * The non-modal sheets float unless asked not to; the modal ones meet the edge.
  *
- * Each of these is built with no `presentation` at all, and each should come out
- * `sheetFloatingInset` — 12dp, 24px at this density — clear of the window's edge it
- * belongs to. `Edge` is still there for a caller who wants a drawer out of the
- * window rather than a panel over it; it is no longer what you get without saying.
+ * Each of these is built with no `presentation` at all. `BottomSheet` and
+ * `SideSheet` come out `sheetFloatingInset` — 12dp, 24px at this density — clear of
+ * the window's edge they belong to. The modal sheets recede the page behind them,
+ * and a floating panel over a receded page was reported as not feeling right — two
+ * frames around one thing — so they are flush to their edge unless a caller asks.
  *
  * Measured in a colour only the sheet paints, for the reason every sheet test here
  * gives: a modal dims the page and recedes it, so "not the sheet" is the only
@@ -38,13 +39,13 @@ import kotlin.test.assertEquals
 class SheetDefaultsTest {
 
     @Test
-    fun aModalBottomSheetFloats() {
+    fun aModalBottomSheetIsAnEdgeSheet() {
         val image = scene(600, 900) {
             ModalBottomSheet(visible = true, onDismissRequest = {}, containerColour = SheetColour) {
                 Text("Rename favourite")
             }
         }
-        assertEquals(Margin, image.gapUnder(), "a ModalBottomSheet with no presentation is not floating")
+        assertEquals(0, image.gapUnder(), "a ModalBottomSheet with no presentation floats over the receded page")
     }
 
     @Test
@@ -71,21 +72,21 @@ class SheetDefaultsTest {
     }
 
     @Test
-    fun aModalSideSheetFloats() {
+    fun aModalSideSheetIsAnEdgeSheet() {
         val image = scene(1400, 900) {
             ModalSideSheet(visible = true, onDismissRequest = {}, width = 300.dp, containerColour = SheetColour) {}
         }
-        assertEquals(Margin, image.gapRight(), "a ModalSideSheet with no presentation is not floating")
+        assertEquals(0, image.gapRight(), "a ModalSideSheet with no presentation floats over the receded page")
     }
 
     /**
-     * The drawer is built on the modal side sheet and takes its default: the
-     * navigation floats too, from the leading edge. It has no colour parameter, so
+     * The drawer is built on the modal side sheet and takes its default: flush to
+     * the leading edge. It has no colour parameter, so
      * its own surface is sampled well inside it, and the gap is the columns before
      * that colour starts — the page there is dimmed and receded, and neither is it.
      */
     @Test
-    fun aModalNavDrawerFloats() {
+    fun aModalNavDrawerIsAnEdgeSheet() {
         val image = scene(1400, 900) {
             ModalNavDrawer(visible = true, onDismissRequest = {}) {}
         }
@@ -95,7 +96,7 @@ class SheetDefaultsTest {
         for (x in 0 until image.width) {
             if ((image.getRGB(x, y) and 0xFFFFFF) == drawer) { gap = x; break }
         }
-        assertEquals(Margin, gap, "a ModalNavDrawer is not floating off its leading edge")
+        assertEquals(0, gap, "a ModalNavDrawer with no presentation floats off its leading edge")
     }
 
     private fun scene(width: Int, height: Int, content: @Composable () -> Unit): BufferedImage =

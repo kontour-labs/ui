@@ -49,13 +49,16 @@ expects.
 
 ## Floating, and expanding to the whole window
 
-Both side sheets **float by default**: lifted off their side, the top and the
-bottom by `Theme.componentDefaults.sheetFloatingInset`, with every corner
-rounded — a panel over the page rather than a drawer out of the window's edge. It
-is the floating bottom sheet's presentation on the other axis, with the same
-margin, unioned with the window's insets rather than added to them.
+`SideSheet` **floats by default**: lifted off its side, the top and the bottom by
+`Theme.componentDefaults.sheetFloatingInset`, with every corner rounded — a panel
+over the page rather than a drawer out of the window's edge. It is the floating
+bottom sheet's presentation on the other axis, with the same margin, unioned with
+the window's insets rather than added to them.
 `presentation = SheetPresentation.Edge` puts the sheet flush against its side,
-with only the corners facing the content rounded.
+with only the corners facing the content rounded — which is where
+[`ModalSideSheet`](modal-side-sheet.md) starts, since a modal sheet recedes the
+page behind it and a floating panel in front of that is two frames around one
+thing.
 
 `expandable = true` puts a **grip on the sheet's inner edge** — the one facing the
 page — that drags the sheet out to the far side of the window and back. A tap on

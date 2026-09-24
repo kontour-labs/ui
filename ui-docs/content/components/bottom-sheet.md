@@ -121,18 +121,22 @@ unchanged, and content written before this existed reads and behaves the same.
 
 ## `presentation` — a drawer out of the screen, or a panel over it
 
-**Every sheet floats by default** — `BottomSheet`, `ModalBottomSheet` and both
-side sheets. `SheetPresentation.Floating` lifts the sheet off all three edges and
-rounds every corner. It reads as a panel *over* the screen rather than a drawer
-pulled out of it, and it can shrink to the size of a control without looking
-broken — **a bar-height sheet flush to the bottom of the window reads as a drawer
-that failed to open**, and the same thing floating reads as a search field. And
-expanded, it stops floating: see below.
+**The non-modal sheets float by default** — `BottomSheet` and
+[`SideSheet`](side-sheet.md). `SheetPresentation.Floating` lifts the sheet off all
+three edges and rounds every corner. It reads as a panel *over* the screen rather
+than a drawer pulled out of it, and it can shrink to the size of a control without
+looking broken — **a bar-height sheet flush to the bottom of the window reads as a
+drawer that failed to open**, and the same thing floating reads as a search field.
+And expanded, it stops floating: see below.
 
-`SheetPresentation.Edge` is what a sheet used to be by default: flush to the
-bottom and to both sides, top corners rounded, bottom corners square because
-there is no bottom edge to round. Ask for it by name when the sheet should read
-as a drawer out of the window at every size.
+`SheetPresentation.Edge` is flush to the bottom and to both sides, top corners
+rounded, bottom corners square because there is no bottom edge to round. **It is
+the default for the modal sheets** — [`ModalBottomSheet`](modal-bottom-sheet.md),
+[`ModalSideSheet`](modal-side-sheet.md) and the nav drawer. A modal sheet recedes
+the page behind it into a frame of its own, and a floating panel in front of that
+is two frames around one thing; tried on a phone, it did not feel right. Ask for
+`Edge` by name on a non-modal sheet that should read as a drawer out of the window
+at every size, or for `Floating` on a modal one.
 
 ```kotlin
 val search = rememberSheetState(
@@ -215,19 +219,24 @@ BottomSheet(
 `expandedShape` is what `shape` becomes, and defaults to the edge sheet's. Corners
 and the squircle's curve interpolate when both are corner-based shapes.
 
-**A sheet with only one detent it can rest at** — a `ModalBottomSheet` with its
-default `[Hidden, Expanded]` — has no step to morph across, so it morphs over the
-last `nearTop` (64dp) of travel before the top of the window instead. Content
-short enough to rest well below the top floats; content tall enough to fill the
-window arrives as an edge sheet, and morphs over the last stretch of opening.
-Content that lands just short of the top rests partly morphed, which is the edge
-of the rule and why the distance is short; say `from` to morph over a step of
-your own.
+**A sheet with only one detent it can rest at** — a floating `ModalBottomSheet`
+on its default `[Hidden, Expanded]` — has no step to morph across, so **where it
+rests decides**: content tall enough to reach the top is an edge sheet from the
+first frame of opening to the last of closing, and short content floats the whole
+way. The top is where a full-height sheet actually stops, below the status bar.
+Content that rests within `nearTop` (64dp) of it is partly morphed, which is the
+edge of the rule and why the distance is short; say `from` to morph over a step
+of your own. It used to follow the live position over that last 64dp, and a tall
+sheet opened floating and changed shape in its final frames — reported as the
+sheet "snapping" open near the top.
 
-**One cost, confined to the step.** As the sheet widens by its side margins its
-content is measured at the new width each frame, so it follows the sheet out to
-the edges rather than jumping there at the end. Below the step a floating sheet
-costs exactly what it did, and above it the sheet is an edge sheet standing still.
+**The content keeps its floating width.** As the sheet widens by its side margins
+the surface grows out around the content and the content stays where it was, so
+an expanded sheet's content sits a margin further in than an edge sheet's would.
+That is the price of not re-flowing in the middle of a drag: a line that wraps
+differently at each width changes the sheet's height, and its detents with it,
+while a finger is on it — the other half of the reported snap. It also means
+nothing is re-measured across the step.
 
 ---
 

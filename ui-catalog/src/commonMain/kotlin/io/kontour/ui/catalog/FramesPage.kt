@@ -135,6 +135,22 @@ internal fun FramesPage(modifier: Modifier = Modifier) {
             style = Theme.typography.bodySmall,
             colour = Theme.colours.contentMuted,
         )
+
+        platformCornerReadout()?.let { lines -> Corners(lines) }
+    }
+}
+
+/** What the display reports about its corners. See [platformCornerReadout]. */
+@Composable
+private fun Corners(lines: List<String>) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(
+            Modifier.padding(Theme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        ) {
+            Text("Display corners", style = Theme.typography.titleSmall)
+            lines.forEach { line -> Text(line, style = Theme.typography.mono) }
+        }
     }
 }
 
