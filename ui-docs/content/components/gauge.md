@@ -50,8 +50,10 @@ personality shows in a number:
   whether the fill ends there or carries on. The round cap at the start of the
   scale stays the first colour, with no seam where the gradient comes back round.
 - **What marks the value** — `GaugeIndicator.None` (the fill alone), `Needle` (a
-  tapered needle on a hub, the speedometer) or `Thumb` (a disc on the arc, the
-  thermostat).
+  tapered needle on a hub, the speedometer), `Thumb` (a disc on the arc, the
+  thermostat), or `NeedleAndThumb`, the needle pointing at a thumb: the value
+  marked where it is read and pointed at from the middle, for a dial read from
+  across a room.
 - **Ticks** — `majorTicks` counts both ends, so 0, 2K, … 10K is six; `minorTicks`
   sit between each pair; `tickLabel` writes the major ones; `tickPlacement` puts
   them inside the arc or outside it. Outside leaves the middle to the content.

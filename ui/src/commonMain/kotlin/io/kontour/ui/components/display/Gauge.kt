@@ -77,7 +77,7 @@ import kotlin.math.max
  * @param colours One indicator colour is a flat fill; several are a gradient
  *   along the scale, the first at the start.
  * @param indicator What marks the value besides the fill: nothing, a needle from
- *   the centre, or a thumb on the arc.
+ *   the centre, a thumb on the arc, or both.
  * @param majorTicks How many labelled marks, counting both ends — six for 0, 2K, …
  *   10K. Zero for none.
  * @param minorTicks How many shorter marks between each pair of major ones.
@@ -146,7 +146,9 @@ fun Gauge(
         }
         val labelExtent = labels.maxOfOrNull { max(it.size.width, it.size.height) }?.toFloat() ?: 0f
         val outside = tickPlacement == GaugeTickPlacement.Outside
-        val thumbPx = if (indicator == GaugeIndicator.Thumb) thicknessPx * ThumbShare else thicknessPx / 2f
+        val hasNeedle = indicator == GaugeIndicator.Needle || indicator == GaugeIndicator.NeedleAndThumb
+        val hasThumb = indicator == GaugeIndicator.Thumb || indicator == GaugeIndicator.NeedleAndThumb
+        val thumbPx = if (hasThumb) thicknessPx * ThumbShare else thicknessPx / 2f
         // Square, and no bigger than it is given: a narrow column gets a smaller dial
         // rather than one drawn past its edges.
         val side = minOf(size, maxWidth, maxHeight)
@@ -163,7 +165,7 @@ fun Gauge(
         val contentInset = with(density) { (sizePx / 2f - inner * InscribedShare).coerceAtLeast(0f).toDp() }
         // Under a needle the middle is the hub, so the content starts below it — the
         // reading under the pivot, as on a speedometer.
-        val belowHub = if (indicator == GaugeIndicator.Needle) {
+        val belowHub = if (hasNeedle) {
             with(density) {
                 (sizePx / 2f + thicknessPx * NeedleWidthShare / 2f * NeedleHubShare + tickGapPx).toDp()
             }
@@ -212,15 +214,18 @@ fun Gauge(
                             tickWidth, colours.tick, inward = !outside,
                         )
                         dialTickLabels(geometry, labels, labelAt)
-                        when (indicator) {
-                            GaugeIndicator.None -> Unit
-                            GaugeIndicator.Needle -> dialNeedle(
+                        // The needle first, so with both the thumb sits on top of
+                        // the arc and the needle points at it from underneath.
+                        if (hasNeedle) {
+                            dialNeedle(
                                 geometry, needle, at,
                                 length = (inner * NeedleShare).coerceAtLeast(thicknessPx),
                                 width = thicknessPx * NeedleWidthShare,
                                 colour = colours.needle,
                             )
-                            GaugeIndicator.Thumb -> dialThumb(
+                        }
+                        if (hasThumb) {
+                            dialThumb(
                                 geometry, at, radius = thumbPx,
                                 ring = GaugeThumbRing.toPx(),
                                 fill = colours.thumb, ringColour = colours.thumbRing,
@@ -235,9 +240,9 @@ fun Gauge(
                     end = contentInset,
                     top = maxOf(contentInset, belowHub),
                     // The bottom of the dial is its open gap, which is room.
-                    bottom = if (indicator == GaugeIndicator.Needle) 0.dp else contentInset,
+                    bottom = if (hasNeedle) 0.dp else contentInset,
                 ),
-                contentAlignment = if (indicator == GaugeIndicator.Needle) Alignment.TopCenter else Alignment.Center,
+                contentAlignment = if (hasNeedle) Alignment.TopCenter else Alignment.Center,
                 content = content,
             )
         }
@@ -254,6 +259,13 @@ enum class GaugeIndicator {
 
     /** A disc on the arc at the value — the thermostat. */
     Thumb,
+
+    /**
+     * The needle pointing at a thumb on the arc: the value marked where it is read
+     * and pointed at from the middle, for a dial read at a glance from across a
+     * room.
+     */
+    NeedleAndThumb,
 }
 
 /** Which side of a [Gauge]'s arc its ticks and their labels sit on. */

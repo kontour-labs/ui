@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.Gauge
 import io.kontour.ui.components.display.GaugeDefaults
+import io.kontour.ui.components.display.GaugeIndicator
 import java.awt.image.BufferedImage
 import kotlin.math.PI
 import kotlin.math.cos
@@ -63,6 +64,37 @@ class GaugeDrawingTest {
             if (ltr.getRGB(x, y) != rtl.getRGB(x, y)) differing++
         }
         assertEquals(0, differing, "right to left drew the gauge differently in $differing pixels")
+    }
+
+    /**
+     * Both indicators at once: the needle from the middle and the thumb on the arc.
+     *
+     * "I'd like to be able to have needle and thumb indicators as an option." At 0.5
+     * both point straight up. A 20dp arc with a thumb is 34px of thumb radius, which
+     * puts the arc's centre line at 166px from the middle; the needle is 20px wide
+     * and 117px long, so 60px up from the middle is on it.
+     */
+    @Test
+    fun withBothIndicatorsTheNeedlePointsAtTheThumb() {
+        val frame = Scene(width = 400, height = 400, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
+                Gauge(
+                    value = 0.5f,
+                    size = 200.dp,
+                    thickness = 20.dp,
+                    indicator = GaugeIndicator.NeedleAndThumb,
+                    colours = GaugeDefaults.colours(
+                        indicator = listOf(Color.Blue),
+                        needle = Color.Green,
+                        thumb = Color.Magenta,
+                    ),
+                )
+            }
+        }.use { it.frames(4) }
+        val (nr, ng, nb) = frame.rgb(200.0, 140.0)
+        assertTrue(ng > 200 && nr < 60 && nb < 60, "60px up from the middle should be the needle, and is ($nr, $ng, $nb)")
+        val (tr, tg, tb) = frame.rgb(200.0, 34.0)
+        assertTrue(tr > 200 && tb > 200 && tg < 60, "the top of the arc should be the thumb, and is ($tr, $tg, $tb)")
     }
 
     private fun render(direction: LayoutDirection): BufferedImage =

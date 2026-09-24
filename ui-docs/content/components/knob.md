@@ -32,6 +32,15 @@ spinning-wheel feel. Under reduced motion it stops where it was let go.
 `steps` works as it does on a slider: how many stops between the ends, each with a
 tick mark outside the track. Zero turns smoothly.
 
+**Stepped, it has the slider's detents.** Turned between two steps, the notch and
+the fill lean from the step they are on toward the finger — 0.45 of the way, the
+slider's own `SliderDefaults.DetentPull`, so it reads as held by the step rather
+than following freely — and crossing to the next step they carry on from where they
+had got to. Let go, spun to a stop or moved with the keyboard, the knob springs onto
+its step rather than appearing there. It used to go from step to step in a frame:
+*"can we add the detent-like behaviour that the slider has, so it animates in
+stepped mode?"*. Under reduced motion it sits on its step.
+
 **Felt as well as seen.** A tick per step passed, turned or spinning, and one
 report on running into either end — the same end stop every slider has.
 

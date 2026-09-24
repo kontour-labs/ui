@@ -2,6 +2,7 @@ package io.kontour.ui.components.selection
 
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.animateDecay
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -89,6 +90,12 @@ import kotlin.math.roundToInt
  * through the steps — the spinning-wheel feel — and stops at an end if it reaches
  * one. Not under reduced motion, where it stops where it was let go.
  *
+ * **Stepped, it has detents**, the way a stepped [Slider] does. Turning between
+ * two steps, the notch leans from the step it is on toward the finger — never all
+ * the way, so it reads as held by the step — and crossing to the next one it
+ * carries on from where it had got to rather than jumping. Let go, or moved from
+ * the keyboard, it springs onto its step. Under reduced motion it sits on its step.
+ *
  * **A tick per step it passes**, turned or spinning, and one report on running
  * into either end.
  *
@@ -164,6 +171,30 @@ fun Knob(
         endStop.reset()
         currentFinished?.invoke()
     }
+
+    // Only a stepped knob has detents to lean against, as on `Slider`. A continuous
+    // one draws its value straight through: easing a value that already tracks the
+    // finger would only be lag.
+    val detented = steps > 0 && !motion.reduceMotion
+
+    /**
+     * Where the notch and the fill are going: the step, pulled part of the way
+     * toward where the hand has turned it, by the slider's own
+     * [SliderDefaults.DetentPull].
+     *
+     * The pull is inside the spring's **target**, for the reason `Slider` gives:
+     * added to the spring's output instead, the lean flips sides the instant a step
+     * is crossed while the spring is still on the old step, and the notch jumps back
+     * before it goes forward.
+     */
+    val detentTarget = fractionOf(value).let { at ->
+        if (detented && !raw.isNaN()) at + (raw.coerceIn(0f, 1f) - at) * SliderDefaults.DetentPull else at
+    }
+    val detentDrawn = animateFloatAsState(
+        targetValue = detentTarget,
+        animationSpec = motion.springOrTween(motion.springSnappy),
+        label = "knobDetent",
+    )
 
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
         // Square, and no bigger than it is given.
@@ -266,6 +297,8 @@ fun Knob(
                                 AnimationState(startAt, turning / sweep).animateDecay(exponentialDecay(SpinFriction)) {
                                     // `this.value`: the spin's, not the knob's parameter.
                                     val at = this.value
+                                    // The spin is the hand, for the lean.
+                                    raw = at
                                     if (at >= 1f || at <= 0f) {
                                         endStop.at(if (at >= 1f) 1 else -1)
                                         emit(at, fromHand = true)
@@ -291,7 +324,9 @@ fun Knob(
                     val tickLength = KnobTick.toPx()
                     val tickEdge = radius + thicknessPx / 2f + KnobTickGap.toPx()
                     onDrawBehind {
-                        val at = fractionOf(value)
+                        // Coerced: `springSnappy` overshoots, and a notch past the end
+                        // of its own scale reads as a fault rather than a bounce.
+                        val at = if (detented) detentDrawn.value.coerceIn(0f, 1f) else fractionOf(value)
                         dialArcs(geometry, thicknessPx, StrokeCap.Round, colours.track, colours.indicator, 0f, at)
                         if (steps > 0) {
                             dialTicks(
