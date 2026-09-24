@@ -12,6 +12,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.display.ScaleColours
 import io.kontour.ui.components.selection.Knob
 import io.kontour.ui.components.selection.KnobDefaults
 import java.awt.image.BufferedImage
@@ -148,7 +149,7 @@ class KnobDetentTest {
                     steps = 3,
                     size = 200.dp,
                     colours = KnobDefaults.colours(
-                        indicator = listOf(Color.Blue),
+                        indicator = ScaleColours.solid(Color.Blue),
                         face = Color.White,
                         notch = Color.Red,
                     ),

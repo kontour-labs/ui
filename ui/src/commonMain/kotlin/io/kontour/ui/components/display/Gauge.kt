@@ -39,7 +39,7 @@ import kotlin.math.max
  *     indicator = GaugeIndicator.Needle,
  *     majorTicks = 6,
  *     tickLabel = { "${(it / 1000).toInt()}K" },
- *     colours = GaugeDefaults.colours(indicator = listOf(pink, purple)),
+ *     colours = GaugeDefaults.colours(indicator = ScaleColours.gradient(listOf(pink, purple))),
  * ) {
  *     Stat { value("8.5k"); +"RPM" }
  * }
@@ -51,10 +51,11 @@ import kotlin.math.max
  *
  * Everything about the picture is a parameter, because gauges are the one place
  * an app's personality shows up in a number: how far round the scale goes, how
- * thick the arc is and how its ends are cut, whether the fill is one colour or a
- * gradient along the scale, whether it points with a needle or marks the value
- * with a thumb, how many ticks there are and whether they are labelled, inside
- * the arc or out. The middle is a slot — a number and a unit, an icon, nothing.
+ * thick the arc is and how its ends are cut, whether the fill is one colour, a
+ * gradient or bands along the scale ([ScaleColours]), whether it points with a
+ * needle — how long, in what colour — or marks the value with a thumb, how many
+ * ticks there are and whether they are labelled, inside the arc or out. The middle
+ * is a slot — a number and a unit, an icon, nothing.
  *
  * ### The fill starts at [origin]
  *
@@ -74,10 +75,15 @@ import kotlin.math.max
  *   at the bottom. 270 by default; 180 is a half-dial, 360 a ring.
  * @param thickness The arc's width. The thumb and the needle scale with it.
  * @param cap How the arc's two ends and the fill's ends are cut.
- * @param colours One indicator colour is a flat fill; several are a gradient
- *   along the scale, the first at the start.
+ * @param colours The fill is `indicator`, a [ScaleColours]: one colour, a gradient
+ *   along the scale, or bands at values on it in the gauge's own units. The needle
+ *   is `needle`.
  * @param indicator What marks the value besides the fill: nothing, a needle from
  *   the centre, a thumb on the arc, or both.
+ * @param needleLength How far the needle reaches, as a share of the room between
+ *   the hub and the innermost thing drawn on the scale — the tick labels, the ticks,
+ *   or the arc when neither is inside it. 0.8, the default, stops clear of them;
+ *   1 reaches them; more crosses them, as far as the arc's outer edge.
  * @param majorTicks How many labelled marks, counting both ends — six for 0, 2K, …
  *   10K. Zero for none.
  * @param minorTicks How many shorter marks between each pair of major ones.
@@ -103,6 +109,7 @@ fun Gauge(
     cap: StrokeCap = StrokeCap.Round,
     colours: DialColours = GaugeDefaults.colours(),
     indicator: GaugeIndicator = GaugeIndicator.None,
+    needleLength: Float = GaugeDefaults.NeedleLength,
     majorTicks: Int = 0,
     minorTicks: Int = 0,
     tickLabel: ((Float) -> String)? = null,
@@ -203,10 +210,17 @@ fun Gauge(
                     }
                     val tickWidth = GaugeTickWidth.toPx()
                     val minorPx = GaugeMinorTick.toPx()
+                    val fill = dialFill(geometry, thicknessPx, cap, colours.indicator.stops(range))
+                    // No further than the arc's outer edge, and never shorter than the
+                    // arc is thick — in that order, because a dial squeezed to nothing
+                    // has an outer edge nearer than that.
+                    val needleReach = (inner * needleLength)
+                        .coerceAtMost(radius + thicknessPx / 2f)
+                        .coerceAtLeast(thicknessPx)
                     onDrawBehind {
                         val at = fractionOf(shown.value)
                         dialArcs(
-                            geometry, thicknessPx, cap, colours.track, colours.indicator,
+                            geometry, thicknessPx, cap, colours.track, fill,
                             from = fractionOf(origin), to = at,
                         )
                         dialTicks(
@@ -219,7 +233,7 @@ fun Gauge(
                         if (hasNeedle) {
                             dialNeedle(
                                 geometry, needle, at,
-                                length = (inner * NeedleShare).coerceAtLeast(thicknessPx),
+                                length = needleReach,
                                 width = thicknessPx * NeedleWidthShare,
                                 colour = colours.needle,
                             )
@@ -280,8 +294,8 @@ enum class GaugeTickPlacement {
 /**
  * The colours of a dial — a [Gauge] or a [io.kontour.ui.components.selection.Knob].
  *
- * @param indicator The fill. One colour is flat; several are a gradient along the
- *   whole scale, first colour at the start.
+ * @param indicator The fill's colours along the scale: one colour, a gradient, or
+ *   bands at values in the dial's own units. See [ScaleColours].
  * @param track The arc behind the fill.
  * @param tick The tick marks.
  * @param tickLabel The text at the major ticks.
@@ -291,7 +305,7 @@ enum class GaugeTickPlacement {
  */
 @Immutable
 data class DialColours(
-    val indicator: List<Color>,
+    val indicator: ScaleColours,
     val track: Color,
     val tick: Color,
     val tickLabel: Color,
@@ -310,10 +324,16 @@ object GaugeDefaults {
     /** Three quarters of a turn, open at the bottom. */
     val SweepAngle: Float get() = GaugeSweep
 
-    /** The theme's colours for a dial; pass several [indicator] colours for a gradient. */
+    /** A needle that stops clear of the scale's ticks and labels. */
+    val NeedleLength: Float get() = NeedleShare
+
+    /**
+     * The theme's colours for a dial. The fill is the accent; pass
+     * [ScaleColours.gradient] or [ScaleColours.bands] as [indicator] for more.
+     */
     @Composable
     fun colours(
-        indicator: List<Color> = listOf(Theme.colours.primary),
+        indicator: ScaleColours = ScaleColours.solid(Theme.colours.primary),
         track: Color = Theme.colours.surfaceSunken,
         tick: Color = Theme.colours.outline,
         tickLabel: Color = Theme.colours.contentMuted,

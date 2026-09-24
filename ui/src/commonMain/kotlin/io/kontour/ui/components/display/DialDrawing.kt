@@ -54,22 +54,50 @@ internal class DialGeometry(
 }
 
 /**
- * The track the whole length of the scale, and the fill between [from] and [to]
- * (fractions of the scale, in either order).
+ * A dial's fill, worked out once per size rather than on every frame: one flat
+ * [colour], or a sweep [brush] turned so that it starts where the scale does.
+ */
+internal class DialFill(val colour: Color, val brush: Brush?, val capDegrees: Float)
+
+/**
+ * The fill for colour [stops] along the scale — fractions of it, as
+ * [ScaleColours.stops] gives them.
  *
- * **Several [indicator] colours are a gradient along the scale**, not along the
- * fill: a colour means a value, so the part of the arc at 80% is the same colour
- * whether the fill ends there or carries on past it. The gradient is a sweep
- * turned to start where the scale does — offset by the round cap's own angle, so
- * the cap at the start of the scale is the first colour rather than the last one
- * wrapping round to meet it.
+ * **Colours are laid along the scale**, not along the fill: a colour means a value,
+ * so the part of the arc at 80% is the same colour whether the fill ends there or
+ * carries on past it. The brush is a sweep turned to start where the scale does —
+ * offset by the round cap's own angle, so the cap at the start of the scale is the
+ * first colour rather than the last one wrapping round to meet it. Two stops at one
+ * place are a hard edge, which is what a band's is.
+ */
+internal fun dialFill(
+    geometry: DialGeometry,
+    thickness: Float,
+    cap: StrokeCap,
+    stops: List<Pair<Float, Color>>,
+): DialFill {
+    val first = stops.first().second
+    val capDegrees = if (cap == StrokeCap.Butt) 0f else thickness / 2f / geometry.radius * 180f / PI.toFloat()
+    if (stops.all { it.second == first }) return DialFill(first, null, capDegrees)
+    val lead = (capDegrees / 360f).coerceAtMost(0.5f)
+    val span = (geometry.sweep / 360f).coerceAtMost(1f - lead * 2f)
+    val along = buildList {
+        add(0f to first)
+        stops.forEach { (at, colour) -> add(lead + span * at to colour) }
+    }.toTypedArray()
+    return DialFill(first, Brush.sweepGradient(colorStops = along, center = geometry.centre), capDegrees)
+}
+
+/**
+ * The track the whole length of the scale, and the [fill] between [from] and [to]
+ * (fractions of the scale, in either order).
  */
 internal fun DrawScope.dialArcs(
     geometry: DialGeometry,
     thickness: Float,
     cap: StrokeCap,
     track: Color,
-    indicator: List<Color>,
+    fill: DialFill,
     from: Float,
     to: Float,
 ) {
@@ -86,11 +114,12 @@ internal fun DrawScope.dialArcs(
     )
     val low = minOf(from, to).coerceIn(0f, 1f)
     val high = maxOf(from, to).coerceIn(0f, 1f)
-    if (high - low <= 0f || indicator.isEmpty()) return
+    if (high - low <= 0f) return
 
-    if (indicator.size == 1) {
+    val brush = fill.brush
+    if (brush == null) {
         drawArc(
-            color = indicator.first(),
+            color = fill.colour,
             startAngle = geometry.angleAt(low),
             sweepAngle = geometry.sweep * (high - low),
             useCenter = false,
@@ -100,20 +129,10 @@ internal fun DrawScope.dialArcs(
         )
         return
     }
-
-    val capDegrees = if (cap == StrokeCap.Butt) 0f else thickness / 2f / geometry.radius * 180f / PI.toFloat()
-    val lead = (capDegrees / 360f).coerceAtMost(0.5f)
-    val span = (geometry.sweep / 360f).coerceAtMost(1f - lead * 2f)
-    val stops = buildList {
-        add(0f to indicator.first())
-        indicator.forEachIndexed { index, colour ->
-            add(lead + span * index / (indicator.size - 1) to colour)
-        }
-    }.toTypedArray()
-    rotate(degrees = geometry.start - capDegrees, pivot = geometry.centre) {
+    rotate(degrees = geometry.start - fill.capDegrees, pivot = geometry.centre) {
         drawArc(
-            brush = Brush.sweepGradient(colorStops = stops, center = geometry.centre),
-            startAngle = capDegrees + geometry.sweep * low,
+            brush = brush,
+            startAngle = fill.capDegrees + geometry.sweep * low,
             sweepAngle = geometry.sweep * (high - low),
             useCenter = false,
             topLeft = topLeft,

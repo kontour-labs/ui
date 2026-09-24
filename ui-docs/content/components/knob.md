@@ -41,6 +41,12 @@ The spinning-wheel feel. Under reduced motion it stops where it was let go.
 `steps` works as it does on a slider: how many stops between the ends, each with a
 tick mark outside the track. Zero turns smoothly.
 
+**Its fill is coloured like a gauge's**: `KnobDefaults.colours(indicator = …)` takes
+a `ScaleColours` — one colour, a gradient along the scale, or bands at values in
+the knob's own units, `ScaleColours.bands(start = green) { band(from = 0.9f,
+colour = red) }`, hard-edged unless given a `smoothing`. See
+[`Gauge`](gauge.md#colour-bands).
+
 **Stepped, it has the slider's detents.** Dragged between two steps, the notch and
 the fill lean from the step they are on toward the finger — 0.45 of the way, the
 slider's own `SliderDefaults.DetentPull`, so it reads as held by the step rather

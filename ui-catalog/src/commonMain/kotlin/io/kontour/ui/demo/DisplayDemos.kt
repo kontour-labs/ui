@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,6 +80,7 @@ import io.kontour.ui.components.display.BubblePosition
 import io.kontour.ui.components.display.BubbleSide
 import io.kontour.ui.components.display.ChatBubble
 import io.kontour.ui.components.display.GaugeTickPlacement
+import io.kontour.ui.components.display.ScaleColours
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.GaugeDefaults
 import io.kontour.ui.components.display.Gauge
@@ -686,8 +688,27 @@ internal val SpinnerDemo = ComponentDemo(slug = "spinner") {
 private val gaugeIndicator = Knob.Choice("Indicator", GaugeIndicator.entries.toList(), GaugeIndicator.Needle)
 private val gaugeTicks = Knob.Choice("Ticks", GaugeTickPlacement.entries.toList(), GaugeTickPlacement.Inside)
 
-/** Pink to purple along the scale, like the dial it was drawn from; off is the theme's accent. */
-private val gaugeGradient = Knob.Flag("Gradient", initial = true)
+/**
+ * What the fill is painted with. Bands are the tachometer's green, amber and red at
+ * 6,000 and 8,000 — given in revolutions, the gauge's own units — and smooth bands
+ * the same with their edges blended.
+ */
+private enum class DialFillDemo { Solid, Gradient, Bands, SmoothBands }
+
+private val gaugeFill = Knob.Choice(
+    "Fill",
+    DialFillDemo.entries.toList(),
+    DialFillDemo.Gradient,
+    name = { if (it == DialFillDemo.SmoothBands) "Smooth bands" else it.name },
+)
+
+/** How far the needle reaches; the middle is the default, clear of the labels. */
+private val gaugeNeedleLength =
+    Knob.Choice("Needle length", listOf(0.5f, 0.8f, 1.3f), 0.8f, name = { "$it" })
+
+/** The needle's colour: the text colour by default, or the accent, or the warning red. */
+private val gaugeNeedleColour =
+    Knob.Choice("Needle colour", listOf("Content", "Accent", "Danger"), "Content", name = { it })
 
 /** Off, a new reading is drawn where it lands rather than travelling there. */
 private val gaugeAnimated = Knob.Flag("Animated", initial = true)
@@ -709,14 +730,26 @@ internal val GaugeDemo = ComponentDemo(
         gaugeSweep,
         gaugeThickness,
         gaugeFlatEnds,
-        gaugeGradient,
+        gaugeFill,
+        gaugeNeedleLength,
+        gaugeNeedleColour,
         gaugeAnimated,
     ),
 ) {
     var rpm by remember { mutableStateOf(8_500f) }
     val indicator = this[gaugeIndicator]
     val ticks = this[gaugeTicks]
-    val gradient = this[gaugeGradient]
+    val fill = when (this[gaugeFill]) {
+        DialFillDemo.Solid -> ScaleColours.solid(Theme.colours.primary)
+        DialFillDemo.Gradient -> ScaleColours.gradient(listOf(GaugePink, GaugePurple))
+        DialFillDemo.Bands -> rpmBands(smoothing = 0f)
+        DialFillDemo.SmoothBands -> rpmBands(smoothing = 0.6f)
+    }
+    val needleColour = when (this[gaugeNeedleColour]) {
+        "Accent" -> Theme.colours.primary
+        "Danger" -> Theme.colours.danger.solid
+        else -> Theme.colours.content
+    }
     val animated = this[gaugeAnimated]
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -730,14 +763,13 @@ internal val GaugeDemo = ComponentDemo(
             thickness = this@ComponentDemo[gaugeThickness],
             cap = if (this@ComponentDemo[gaugeFlatEnds]) StrokeCap.Butt else StrokeCap.Round,
             indicator = indicator,
+            needleLength = this@ComponentDemo[gaugeNeedleLength],
             majorTicks = 6,
             minorTicks = 1,
             tickLabel = { "${(it / 1000).roundToInt()}K" },
             tickPlacement = ticks,
             animated = animated,
-            colours = GaugeDefaults.colours(
-                indicator = if (gradient) listOf(GaugePink, GaugePurple) else listOf(Theme.colours.primary),
-            ),
+            colours = GaugeDefaults.colours(indicator = fill, needle = needleColour),
             contentDescription = "Engine speed",
             stateDescription = { "${it.roundToInt()} revolutions a minute" },
         ) {
@@ -758,6 +790,14 @@ internal val GaugeDemo = ComponentDemo(
 
 private val GaugePink = Color(0xFFFF5C9E)
 private val GaugePurple = Color(0xFF7C5CFF)
+
+/** The tachometer's zones, in revolutions: green to 6,000, amber to 8,000, then red. */
+@Composable
+private fun rpmBands(smoothing: Float): ScaleColours =
+    ScaleColours.bands(start = Theme.colours.success.solid, smoothing = smoothing) {
+        band(from = 6_000f, colour = Theme.colours.warning.solid)
+        band(from = 8_000f, colour = Theme.colours.danger.solid)
+    }
 
 // --- ChatBubble ------------------------------------------------------------
 

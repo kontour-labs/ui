@@ -22,6 +22,7 @@ import com.composables.icons.tabler.outline.Ship
 import com.composables.icons.tabler.outline.Sparkles
 import com.composables.icons.tabler.outline.Train
 import com.composables.icons.tabler.outline.X
+import io.kontour.ui.components.display.ScaleColours
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.ChipGroup
@@ -492,18 +493,26 @@ private val knobEnabled = Knob.Flag("Enabled", initial = true)
 private val knobSweep =
     Knob.Choice("Sweep", listOf(180f, 270f, 320f), 270f, name = { "${it.roundToInt()}°" })
 
-/** The fill as a gradient along the scale, the way the gauge draws one. */
-private val knobGradient = Knob.Flag("Gradient")
+/**
+ * What the fill is painted with: the accent, a gradient along the scale, or bands —
+ * green, then amber from 70%, then red from 90%, given in the knob's own units.
+ */
+private val knobFill = Knob.Choice("Fill", listOf("Solid", "Gradient", "Bands"), "Solid", name = { it })
 
 internal val KnobDemo = ComponentDemo(
     slug = "knob",
-    knobs = listOf(knobStepped, knobSweep, knobGradient, knobEnabled),
+    knobs = listOf(knobStepped, knobSweep, knobFill, knobEnabled),
 ) {
     val sweep = this[knobSweep]
-    val colours = if (this[knobGradient]) {
-        KnobDefaults.colours(indicator = listOf(KnobTeal, KnobBlue))
-    } else {
-        KnobDefaults.colours()
+    val colours = when (this[knobFill]) {
+        "Gradient" -> KnobDefaults.colours(indicator = ScaleColours.gradient(listOf(KnobTeal, KnobBlue)))
+        "Bands" -> KnobDefaults.colours(
+            indicator = ScaleColours.bands(start = Theme.colours.success.solid) {
+                band(from = 0.7f, colour = Theme.colours.warning.solid)
+                band(from = 0.9f, colour = Theme.colours.danger.solid)
+            },
+        )
+        else -> KnobDefaults.colours()
     }
     var volume by remember { mutableStateOf(0.4f) }
     var balance by remember { mutableStateOf(0.5f) }

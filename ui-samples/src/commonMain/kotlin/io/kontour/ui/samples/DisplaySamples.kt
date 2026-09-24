@@ -10,6 +10,7 @@ import io.kontour.ui.components.display.GaugeTickPlacement
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.GaugeDefaults
 import io.kontour.ui.components.display.Gauge
+import io.kontour.ui.components.display.ScaleColours
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -90,7 +91,9 @@ fun GaugeBasics() {
         majorTicks = 6,
         minorTicks = 1,
         tickLabel = { "${(it / 1000).roundToInt()}K" },
-        colours = GaugeDefaults.colours(indicator = listOf(Color(0xFFFF5C9E), Color(0xFF7C5CFF))),
+        colours = GaugeDefaults.colours(
+            indicator = ScaleColours.gradient(listOf(Color(0xFFFF5C9E), Color(0xFF7C5CFF))),
+        ),
         contentDescription = "Engine speed",
         stateDescription = { "${it.roundToInt()} revolutions a minute" },
     ) {
@@ -112,6 +115,38 @@ fun GaugeBasics() {
     ) {
         Text("40", style = Theme.typography.displaySmall)
     }
+}
+
+@Composable
+fun GaugeColourBands() {
+    // Zones on a tachometer, in revolutions — the gauge's own units, so the scale
+    // is only said once. Green to 6,000, amber to 8,000, red to the end.
+    Gauge(
+        value = 7_200f,
+        valueRange = 0f..10_000f,
+        indicator = GaugeIndicator.Needle,
+        needleLength = 1f,
+        colours = GaugeDefaults.colours(
+            indicator = ScaleColours.bands(start = Theme.colours.success.solid) {
+                band(from = 6_000f, colour = Theme.colours.warning.solid)
+                band(from = 8_000f, colour = Theme.colours.danger.solid)
+            },
+        ),
+        contentDescription = "Engine speed",
+    )
+
+    // The same zones blended at their edges.
+    Gauge(
+        value = 7_200f,
+        valueRange = 0f..10_000f,
+        colours = GaugeDefaults.colours(
+            indicator = ScaleColours.bands(start = Theme.colours.success.solid, smoothing = 0.6f) {
+                band(from = 6_000f, colour = Theme.colours.warning.solid)
+                band(from = 8_000f, colour = Theme.colours.danger.solid)
+            },
+        ),
+        contentDescription = "Engine speed",
+    )
 }
 
 @Composable

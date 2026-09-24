@@ -42,7 +42,9 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.DialColours
 import io.kontour.ui.components.display.DialGeometry
+import io.kontour.ui.components.display.ScaleColours
 import io.kontour.ui.components.display.dialArcs
+import io.kontour.ui.components.display.dialFill
 import io.kontour.ui.components.display.dialTicks
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.focusRing
@@ -109,8 +111,9 @@ import kotlin.math.roundToInt
  * @param sweepAngle How far round the scale goes, in degrees, centred on the gap
  *   at the bottom.
  * @param thickness The track's width.
- * @param colours The fill along the track is `indicator`; the face is `thumb`
- *   ringed in `thumbRing`, and the notch on it is `needle`.
+ * @param colours The fill along the track is `indicator`, a [ScaleColours] — one
+ *   colour, a gradient, or bands at values in the knob's own units; the face is
+ *   `thumb` ringed in `thumbRing`, and the notch on it is `needle`.
  * @param stateDescription What a screen reader says for the value, from it.
  * @param content Centred on the face — the value, a unit, an icon.
  */
@@ -313,11 +316,12 @@ fun Knob(
                     val tickWidth = KnobTickWidth.toPx()
                     val tickLength = KnobTick.toPx()
                     val tickEdge = radius + thicknessPx / 2f + KnobTickGap.toPx()
+                    val fill = dialFill(geometry, thicknessPx, StrokeCap.Round, colours.indicator.stops(valueRange))
                     onDrawBehind {
                         // Coerced: `springSnappy` overshoots, and a notch past the end
                         // of its own scale reads as a fault rather than a bounce.
                         val at = if (detented) detentDrawn.value.coerceIn(0f, 1f) else fractionOf(value)
-                        dialArcs(geometry, thicknessPx, StrokeCap.Round, colours.track, colours.indicator, 0f, at)
+                        dialArcs(geometry, thicknessPx, StrokeCap.Round, colours.track, fill, 0f, at)
                         if (steps > 0) {
                             dialTicks(
                                 geometry, majors = steps + 2, minorsBetween = 0, edge = tickEdge,
@@ -364,7 +368,7 @@ object KnobDefaults {
     /** The theme's colours for a knob: a raised face with a notch, over a track. */
     @Composable
     fun colours(
-        indicator: List<Color> = listOf(Theme.colours.primary),
+        indicator: ScaleColours = ScaleColours.solid(Theme.colours.primary),
         track: Color = Theme.colours.surfaceSunken,
         tick: Color = Theme.colours.outline,
         face: Color = Theme.colours.surfaceRaised,
