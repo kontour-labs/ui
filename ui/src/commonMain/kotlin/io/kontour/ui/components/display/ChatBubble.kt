@@ -29,6 +29,7 @@ import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.cornerReaches
 
 /**
  * One message in a conversation.
@@ -216,7 +217,7 @@ object ChatBubbleDefaults {
 }
 
 /** [shape] with the sender's corners tightened where this bubble meets others of its run. */
-private fun bodyShape(
+internal fun bodyShape(
     shape: CornerBasedShape,
     side: BubbleSide,
     position: BubblePosition,
@@ -240,14 +241,18 @@ private fun bodyShape(
  * A bubble's outline: [body] inset by [tailWidth] on its sender's side, and, with
  * [tail], its bottom corner on that side drawn out into a tail.
  *
- * **The tail replaces the corner, it is not added to it.** It leaves the bubble's
- * side above where the corner would begin, running straight down the side, bends
- * out to a tip at the bottom, and hooks back into the bottom edge where the corner
- * would have ended — meeting both edges running the way they run, so the outline
- * is one continuous line with no seam where the tail starts. It used to be a
- * separate spike joined to a rectangle that reached up the whole side, which
- * squared off a single-line bubble's round end and left the tail a flat wall with
- * a point on it: "a bit of a weird shape, and it doesn't really blend".
+ * **The tail replaces the corner, it is not added to it.** The corner is filled
+ * square from just before its curve starts on either edge — how far that is comes
+ * from the body itself, [cornerReaches], since a squircle's curve starts well past
+ * its radius. The side runs straight down into the tail, which bends out to a tip
+ * on the bottom edge, so the bottom is one flat line from the far corner's curve
+ * to the tip.
+ *
+ * Earlier tails met the body where its corner curve began and hooked back onto
+ * the bottom from a little above it, so the body's curve showed through at the
+ * join — "you can sort of see the bubble's curve start on that bottom corner" —
+ * and before that were a spike on a rectangle reaching up the whole side, which
+ * squared off a one-line bubble's round end.
  *
  * The side is logical — [onEnd] is the end in either direction — and resolved here
  * against the layout direction, so a right-to-left thread's tails point left.
@@ -268,36 +273,41 @@ internal class ChatBubbleShape(
         if (!right) path.translate(Offset(reach, 0f))
         if (!tail || bodySize.width <= 0f || bodySize.height <= 0f) return Outline.Generic(path)
 
-        // The corner the tail replaces, as the body draws it: no more than half the
-        // bubble's height or width, which is where a corner saturates.
-        val cornerSize = if (onEnd) body.bottomEnd else body.bottomStart
-        val corner = cornerSize.toPx(bodySize, density)
-            .coerceIn(reach, minOf(bodySize.width, bodySize.height) / 2f)
+        // Where the body's own curves let go of its edges — the squircle's reach,
+        // which is further than its radius — named for a tail on the right.
+        val reaches = body.cornerReaches(bodySize, density, layoutDirection)
+        val replaced = if (right) reaches.bottomRight else reaches.bottomLeft
+        val far = if (right) reaches.bottomLeft else reaches.bottomRight
+        val above = if (right) reaches.topRight else reaches.topLeft
         val w = size.width
         val h = size.height
-        // Clear of the corner's smoothing on both edges, so the tail meets the side
-        // and the bottom where they are straight — and never above the middle of the
-        // side, which on a one-line bubble is the widest point of its round end.
-        val rise = (corner * TailClearance).coerceAtMost(h / 2f)
-        val back = (corner * TailClearance).coerceAtMost(bodySize.width / 2f)
         val edge = w - reach
+        val seam = with(density) { TailSeam.toPx() }
+        // The whole corner is filled square, from a little before its curve starts
+        // on each edge. Along the bottom no further than the far corner's curve,
+        // and up the side no further than the top corner's — on a one-line bubble,
+        // the middle of its round end, which stays round.
+        val junction = maxOf(edge - replaced.x - seam, far.x)
+        val sideStart = maxOf(h - replaced.y - seam, above.y).coerceIn(0f, h)
+        // The tail bends away from the side about as high as the corner it
+        // replaces would have started, and never above the middle.
+        val rise = maxOf(replaced.y, reach * TailClearance).coerceAtMost(h / 2f)
+        val flareStart = maxOf(h - rise, sideStart)
         // Drawn for a tail on the right, then mirrored if it belongs on the left.
         fun x(at: Float) = if (right) at else w - at
         val tailPath = Path().apply {
-            moveTo(x(edge), h - rise)
+            moveTo(x(junction), sideStart)
+            lineTo(x(edge), sideStart)
             // Straight on down the side, then out to the tip.
+            lineTo(x(edge), flareStart)
             cubicTo(
-                x(edge), h - rise * TailDrop,
+                x(edge), flareStart + (h - flareStart) * TailDrop,
                 x(edge + reach * TailFlare), h - reach * TailFlareLift,
                 x(w), h,
             )
-            // Back from the tip, lifting a little off the bottom, and down onto it.
-            cubicTo(
-                x(w - reach * TailHook), h - reach * TailHookLift,
-                x(edge - back * TailLanding), h,
-                x(edge - back), h,
-            )
-            lineTo(x(edge - back), h - rise)
+            // And straight back along the bottom from the tip: one flat line from
+            // the far corner's curve to the point.
+            lineTo(x(junction), h)
             close()
         }
         return Outline.Generic(Path.combine(PathOperation.Union, path, tailPath))
@@ -323,13 +333,13 @@ private val BubbleTailWidth: Dp = 6.dp
 /** How faint the meta line is against the message. */
 private const val MetaAlpha: Float = 0.7f
 
-// The tail's curves. Its start and end are the corner's radius times
-// [TailClearance] up the side and along the bottom; the rest are shares of how
-// far it rises and of its own reach.
+// The tail's curves: shares of how far it rises and of its own reach.
+// [TailClearance] is the least it rises, in reaches, for a bubble whose corner is
+// smaller than the tail.
 private const val TailClearance: Float = 1.6f
 private const val TailDrop: Float = 0.5f
 private const val TailFlare: Float = 0.15f
 private const val TailFlareLift: Float = 1.3f
-private const val TailHook: Float = 1.2f
-private const val TailHookLift: Float = 0.25f
-private const val TailLanding: Float = 0.5f
+
+/** How far before a corner's curve starts the tail takes over the edge. */
+private val TailSeam: Dp = 0.5.dp

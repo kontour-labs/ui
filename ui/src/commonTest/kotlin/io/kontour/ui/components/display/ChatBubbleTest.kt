@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -9,6 +10,10 @@ import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.theme.CapsuleCap
+import io.kontour.ui.theme.CapsuleCornerSize
+import io.kontour.ui.theme.SquircleShape
+import io.kontour.ui.theme.cornerReaches
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -83,6 +88,87 @@ class ChatBubbleTest {
         )
     }
 
+    /**
+     * The underside of the tail is the bubble's bottom edge carried on, dead flat,
+     * from where the far corner lets go of it out under the tail.
+     *
+     * "The tail shape on the chat bubble still doesn't look right. It doesn't quite
+     * line up with the bottom of the chat bubble, so you can sort of see the
+     * bubble's curve start on that bottom corner." The tail met the body exactly
+     * where the squircle's bottom corner starts to curve, and hooked back onto the
+     * bottom from a little above it, so for a stretch the underside was neither the
+     * body's straight edge nor the tail's: the corner showed through as a dip.
+     *
+     * Read as a thin band along the bottom at every pixel between the far corner and
+     * the edge: the outline has to fill it down to the bottom, and from half a pixel
+     * above it.
+     */
+    @Test
+    fun theTailsUndersideRunsFlatIntoTheBubblesBottom() {
+        for (position in listOf(BubblePosition.Only, BubblePosition.Last)) {
+            for (size in listOf(Size(300f, 72f), Size(300f, 112f), Size(120f, 72f))) {
+                for (direction in LayoutDirection.entries) {
+                    val (outline, body) = squircleBubble(position, size, direction)
+                    val h = size.height
+                    val bodySize = Size(size.width - reach, h)
+                    val reaches = body.cornerReaches(bodySize, density, direction)
+                    val right = direction == LayoutDirection.Ltr
+                    val far = if (right) reaches.bottomLeft.x else reaches.bottomRight.x
+                    val edge = size.width - reach
+                    val arm = "$position $size $direction"
+                    assertTrue(outline.getBounds().bottom <= h + 0.1f, "$arm: the tail hangs below the bubble")
+                    // On past the body's edge, under the tail, to halfway to its tip.
+                    var x = far + 1f
+                    while (x <= edge + reach / 2f) {
+                        val at = if (right) x else size.width - x
+                        val band = Path().apply { addRect(Rect(at - 0.25f, h - 0.6f, at + 0.25f, h)) }
+                        val ink = Path.combine(PathOperation.Intersect, outline, band).getBounds()
+                        assertTrue(
+                            !ink.isEmpty && ink.bottom >= h - 0.1f && ink.top <= h - 0.5f,
+                            "$arm: at ${x}px of a bubble whose edge is at ${edge}px the bottom is $ink, " +
+                                "not flat along $h",
+                        )
+                        x += 1f
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * The side on the tail's side runs straight down from the top corner into the
+     * tail, whatever that corner is.
+     *
+     * The last bubble of a run has a tight top corner on the sender's side, which
+     * leaves its bottom corner room to start curving far up the side — above where
+     * the tail began, so the side pinched in and out again on the way down.
+     */
+    @Test
+    fun aLastBubblesSideRunsStraightIntoTheTail() {
+        for (size in listOf(Size(300f, 72f), Size(300f, 112f))) {
+            for (direction in LayoutDirection.entries) {
+                val (outline, body) = squircleBubble(BubblePosition.Last, size, direction)
+                val right = direction == LayoutDirection.Ltr
+                val reaches = body.cornerReaches(Size(size.width - reach, size.height), density, direction)
+                val top = if (right) reaches.topRight.y else reaches.topLeft.y
+                val edge = size.width - reach
+                var y = top + 1f
+                while (y <= size.height / 2f) {
+                    val left = if (right) edge - 0.6f else size.width - edge
+                    val sliver = Rect(left, y - 0.25f, left + 0.6f, y + 0.25f)
+                    val ink = Path.combine(
+                        PathOperation.Intersect, outline, Path().apply { addRect(sliver) },
+                    ).getBounds()
+                    assertTrue(
+                        !ink.isEmpty && ink.left <= sliver.left + 0.05f && ink.right >= sliver.right - 0.05f,
+                        "$size $direction: ${y}px down, the side should reach the edge; ink there is $ink",
+                    )
+                    y += 1f
+                }
+            }
+        }
+    }
+
     @Test
     fun anIncomingTailPointsToTheStart() {
         val ltr = bounds(onEnd = false, tail = true, LayoutDirection.Ltr)
@@ -103,5 +189,19 @@ class ChatBubbleTest {
         )
         assertEquals(BubblePosition.Only, BubblePosition.of(0, 1))
         assertEquals(BubblePosition.Middle, BubblePosition.of(1, 3))
+    }
+
+    /** An outgoing bubble on the library's own capsule, as [ChatBubble] builds it. */
+    private fun squircleBubble(
+        position: BubblePosition,
+        size: Size,
+        direction: LayoutDirection,
+    ): Pair<Path, SquircleShape> {
+        val body = bodyShape(
+            SquircleShape(CapsuleCornerSize(cap = CapsuleCap)), BubbleSide.Outgoing, position, CornerSize(4.dp),
+        ) as SquircleShape
+        val outline = ChatBubbleShape(body, onEnd = true, tail = true, 6.dp)
+            .createOutline(size, direction, density) as Outline.Generic
+        return outline.path to body
     }
 }

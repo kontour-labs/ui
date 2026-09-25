@@ -8,6 +8,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import kotlin.math.PI
@@ -136,40 +137,7 @@ class SquircleShape(
         bottomRight: Float,
         bottomLeft: Float,
     ): Path {
-        val w = size.width
-        val h = size.height
-        val ceiling = min(w, h) / 2f
-
-        // Clamp to the half-dimension first so the budgets below are computed from
-        // radii that could actually be drawn.
-        val tl = topLeft.coerceIn(0f, ceiling)
-        val tr = topRight.coerceIn(0f, ceiling)
-        val br = bottomRight.coerceIn(0f, ceiling)
-        val bl = bottomLeft.coerceIn(0f, ceiling)
-
-        // Budgets in travel order: the edge this corner is entered along, then
-        // the one it leaves along. Top-left is entered up the left edge, which it
-        // shares with bottom-left, and left along the top edge, shared with
-        // top-right.
-        val corners = listOf(
-            Corner(
-                Offset(0f, 0f), Offset(0f, -1f), Offset(1f, 0f), tl,
-                share(tl, bl, h), share(tl, tr, w),
-            ),
-            Corner(
-                Offset(w, 0f), Offset(1f, 0f), Offset(0f, 1f), tr,
-                share(tr, tl, w), share(tr, br, h),
-            ),
-            Corner(
-                Offset(w, h), Offset(0f, 1f), Offset(-1f, 0f), br,
-                share(br, tr, h), share(br, bl, w),
-            ),
-            Corner(
-                Offset(0f, h), Offset(-1f, 0f), Offset(0f, -1f), bl,
-                share(bl, br, w), share(bl, tl, h),
-            ),
-        )
-
+        val corners = corners(size, topLeft, topRight, bottomRight, bottomLeft)
         val path = Path()
         val params = corners.map { params(it) }
 
@@ -187,6 +155,75 @@ class SquircleShape(
         appendCorner(path, corners[0], params[0])
         path.close()
         return path
+    }
+
+    /**
+     * The four corners in travel order, clockwise from the top-left, each with its
+     * radius and its budget on the two edges it touches. What the path is drawn
+     * from, and what [reaches] measures, so the two cannot disagree.
+     */
+    private fun corners(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+    ): List<Corner> {
+        val w = size.width
+        val h = size.height
+        val ceiling = min(w, h) / 2f
+
+        // Clamp to the half-dimension first so the budgets below are computed from
+        // radii that could actually be drawn.
+        val tl = topLeft.coerceIn(0f, ceiling)
+        val tr = topRight.coerceIn(0f, ceiling)
+        val br = bottomRight.coerceIn(0f, ceiling)
+        val bl = bottomLeft.coerceIn(0f, ceiling)
+
+        // Budgets in travel order: the edge this corner is entered along, then
+        // the one it leaves along. Top-left is entered up the left edge, which it
+        // shares with bottom-left, and left along the top edge, shared with
+        // top-right.
+        return listOf(
+            Corner(
+                Offset(0f, 0f), Offset(0f, -1f), Offset(1f, 0f), tl,
+                share(tl, bl, h), share(tl, tr, w),
+            ),
+            Corner(
+                Offset(w, 0f), Offset(1f, 0f), Offset(0f, 1f), tr,
+                share(tr, tl, w), share(tr, br, h),
+            ),
+            Corner(
+                Offset(w, h), Offset(0f, 1f), Offset(-1f, 0f), br,
+                share(br, tr, h), share(br, bl, w),
+            ),
+            Corner(
+                Offset(0f, h), Offset(-1f, 0f), Offset(0f, -1f), bl,
+                share(bl, br, w), share(bl, tl, h),
+            ),
+        )
+    }
+
+    /**
+     * How far each corner's curve runs along its two edges, for the visual radii
+     * [createOutline] is handed — which is where the edge stops being straight.
+     */
+    internal fun reaches(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+    ): CornerReaches {
+        val params = corners(size, topLeft, topRight, bottomRight, bottomLeft).map { params(it) }
+        // Each corner is entered along one edge and left along the other, so which
+        // of its two sides is the horizontal one alternates around the ring.
+        return CornerReaches(
+            topLeft = Offset(params[0].outgoing.p, params[0].incoming.p),
+            topRight = Offset(params[1].incoming.p, params[1].outgoing.p),
+            bottomRight = Offset(params[2].outgoing.p, params[2].incoming.p),
+            bottomLeft = Offset(params[3].incoming.p, params[3].outgoing.p),
+        )
     }
 
     /**
@@ -414,6 +451,59 @@ fun SquircleShape(
     CornerSize(bottomStart),
     smoothing,
 )
+
+/**
+ * How far each corner's curve runs along its two edges, in px from the corner's
+ * point, with the corners in visual order: [Offset.x] along the horizontal edge,
+ * [Offset.y] along the vertical one. Past it, the edge is straight.
+ */
+internal class CornerReaches(
+    val topLeft: Offset,
+    val topRight: Offset,
+    val bottomRight: Offset,
+    val bottomLeft: Offset,
+)
+
+/**
+ * Where this shape's edges stop being straight, drawn at [size].
+ *
+ * For a [SquircleShape], the reach its path is built from — smoothing included,
+ * so a little over the radius wherever there is room. For any other corner shape,
+ * the radius. Both see the corners as the outline does: scaled down in pairs when
+ * two on one side would overlap, and swapped start for end right to left.
+ */
+internal fun CornerBasedShape.cornerReaches(
+    size: Size,
+    density: Density,
+    layoutDirection: LayoutDirection,
+): CornerReaches {
+    var topStart = topStart.toPx(size, density)
+    var topEnd = topEnd.toPx(size, density)
+    var bottomEnd = bottomEnd.toPx(size, density)
+    var bottomStart = bottomStart.toPx(size, density)
+    // The same scaling CornerBasedShape.createOutline does before it hands the
+    // radii to the shape.
+    val minDimension = size.minDimension
+    if (topStart + bottomStart > minDimension) {
+        val scale = minDimension / (topStart + bottomStart)
+        topStart *= scale
+        bottomStart *= scale
+    }
+    if (topEnd + bottomEnd > minDimension) {
+        val scale = minDimension / (topEnd + bottomEnd)
+        topEnd *= scale
+        bottomEnd *= scale
+    }
+    val ltr = layoutDirection == LayoutDirection.Ltr
+    val topLeft = if (ltr) topStart else topEnd
+    val topRight = if (ltr) topEnd else topStart
+    val bottomRight = if (ltr) bottomEnd else bottomStart
+    val bottomLeft = if (ltr) bottomStart else bottomEnd
+
+    if (this is SquircleShape) return reaches(size, topLeft, topRight, bottomRight, bottomLeft)
+    fun radius(r: Float) = r.coerceIn(0f, minDimension).let { Offset(it, it) }
+    return CornerReaches(radius(topLeft), radius(topRight), radius(bottomRight), radius(bottomLeft))
+}
 
 private const val DEG = PI / 180.0
 private const val RAD = 180.0 / PI
