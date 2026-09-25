@@ -75,3 +75,15 @@ internal class Departure(val name: String, val detail: String)
 
 /** Null while it loads, which is the state the example is about. */
 internal val departures: List<Departure>? = null
+
+/** A commit, for the history example: newest first, each naming its parents. */
+internal class Commit(val sha: String, val message: String, val author: String, val parents: List<String>)
+
+internal val commits = listOf(
+    Commit("e41", "Merge feature/maps", "Sam", listOf("c32", "b17")),
+    Commit("b17", "Map tiles", "Kai", listOf("a09")),
+    Commit("c32", "Fix stop search", "Ari", listOf("a09")),
+    Commit("a09", "Add journey planner", "Sam", emptyList()),
+)
+
+internal fun openCommit(commit: Commit) = Unit

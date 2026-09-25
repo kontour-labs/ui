@@ -1,6 +1,7 @@
 package io.kontour.ui.contract
 
 import io.kontour.ui.components.selection.Knob
+import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.components.display.BubbleSide
 import io.kontour.ui.components.display.ChatBubble
 import io.kontour.ui.components.display.ConnectorStyle
@@ -891,6 +892,38 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 item("Perth Station", trailing = "08:12")
                 item("Walk 4 min", connector = ConnectorStyle.Dashed, filled = false)
                 item("Elizabeth Quay", trailing = "08:21")
+            }
+        }
+    )
+
+    add(
+        // A history drawn as lanes beside list rows. The rows are `ListItem`s,
+        // held to the contract there; this is the render of a merge.
+        ComponentSpec(
+            "BranchTimeline",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 240,
+        ) { modifier, _, _ ->
+            BranchTimeline(
+                items = listOf(
+                    "m" to listOf("b", "f"),
+                    "f" to listOf("a"),
+                    "b" to listOf("a"),
+                    "a" to emptyList(),
+                ),
+                id = { it.first },
+                parents = { it.second },
+                modifier = modifier,
+            ) { commit ->
+                +when (commit.first) {
+                    "m" -> "Merge feature/maps"
+                    "f" -> "Map tiles"
+                    "b" -> "Fix stop search"
+                    else -> "Add journey planner"
+                }
             }
         }
     )

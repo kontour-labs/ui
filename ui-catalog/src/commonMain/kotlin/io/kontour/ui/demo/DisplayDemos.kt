@@ -68,6 +68,7 @@ import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
+import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.components.display.TimelineItem
 import io.kontour.ui.components.display.TimelineList
 import io.kontour.ui.components.display.TimelineListStyle
@@ -383,6 +384,78 @@ internal val TimelineListDemo = ComponentDemo(
             picked = 3
             echo("Opened Perth Busport")
         }
+    }
+}
+
+/** One commit of a demo history: the list is newest first, each above its parents. */
+private class DemoCommit(val sha: String, val message: String, val author: String, val parents: List<String>)
+
+private val linearHistory = listOf(
+    DemoCommit("c4", "Show platform changes", "Sam", listOf("c3")),
+    DemoCommit("c3", "Fix stop search", "Ari", listOf("c2")),
+    DemoCommit("c2", "Add journey planner", "Sam", listOf("c1")),
+    DemoCommit("c1", "Initial commit", "Ari", emptyList()),
+)
+
+private val featureHistory = listOf(
+    DemoCommit("m1", "Merge feature/timetables", "Sam", listOf("c3", "f2")),
+    DemoCommit("f2", "Cache timetables offline", "Kai", listOf("f1")),
+    DemoCommit("c3", "Fix stop search", "Ari", listOf("c2")),
+    DemoCommit("f1", "Timetable model", "Kai", listOf("c2")),
+    DemoCommit("c2", "Add journey planner", "Sam", listOf("c1")),
+    DemoCommit("c1", "Initial commit", "Ari", emptyList()),
+)
+
+private val branchingHistory = listOf(
+    DemoCommit("r2", "Release 2.1", "Ari", listOf("r1")),
+    DemoCommit("m2", "Merge feature/maps", "Sam", listOf("c4", "f2")),
+    DemoCommit("f2", "Map tiles", "Kai", listOf("f1")),
+    DemoCommit("c4", "Update dependencies", "Sam", listOf("c3")),
+    DemoCommit("r1", "Hotfix: crash on launch", "Ari", listOf("c3")),
+    DemoCommit("f1", "Map view", "Kai", listOf("c3")),
+    DemoCommit("c3", "Fix stop search", "Ari", listOf("c2")),
+    DemoCommit("c2", "Add journey planner", "Sam", listOf("c1")),
+    DemoCommit("c1", "Initial commit", "Ari", emptyList()),
+)
+
+private val branchHistory = Knob.Choice(
+    "History",
+    listOf("Linear", "Feature merged", "Two branches"),
+    initial = "Two branches",
+)
+
+/** The release commits' lane in one colour of its own, from the tip down. */
+private val branchReleaseColour = Knob.Flag("Colour release lane", initial = false)
+
+internal val BranchTimelineDemo = ComponentDemo(
+    slug = "branch-timeline",
+    knobs = listOf(branchHistory, branchReleaseColour),
+) {
+    val commits = when (this[branchHistory]) {
+        "Linear" -> linearHistory
+        "Feature merged" -> featureHistory
+        else -> branchingHistory
+    }
+    val release = Theme.colours.success.solid
+    var picked by remember { mutableStateOf<String?>(null) }
+    BranchTimeline(
+        items = commits,
+        id = { it.sha },
+        parents = { it.parents },
+        modifier = Modifier.fillMaxWidth(),
+        isSelected = { it.sha == picked },
+        onItemClick = {
+            picked = it.sha
+            echo("Opened ${it.message}")
+        },
+        laneColour = if (this[branchReleaseColour]) {
+            { commit -> release.takeIf { commit.sha.startsWith("r") } }
+        } else {
+            null
+        },
+    ) { commit ->
+        +commit.message
+        supporting { +"${commit.author} · ${commit.sha}" }
     }
 }
 
@@ -940,6 +1013,7 @@ internal val displayDemos = listOf(
     CalloutDemo,
     TimelineDemo,
     TimelineListDemo,
+    BranchTimelineDemo,
     RedactionDemo,
     SkeletonDemo,
     EmptyStateDemo,

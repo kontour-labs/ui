@@ -3,6 +3,7 @@ package io.kontour.ui.samples
 import kotlin.math.roundToInt
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
+import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.components.display.BubblePosition
 import io.kontour.ui.components.display.BubbleSide
 import io.kontour.ui.components.display.ChatBubble
@@ -429,6 +430,22 @@ fun TimelineListBasics() {
         item("Elizabeth Quay", supporting = "Stand C", trailing = "08:21") {
             openStop("Elizabeth Quay")
         }
+    }
+}
+
+@Composable
+fun BranchTimelineBasics() {
+    // Only which commit comes from which: the lanes are laid out from that. The
+    // merge's second parent opens a lane of its own, which closes back into the
+    // commit it forked from.
+    BranchTimeline(
+        items = commits,
+        id = { it.sha },
+        parents = { it.parents },
+        onItemClick = { openCommit(it) },
+    ) { commit ->
+        +commit.message
+        supporting { +"${commit.author} · ${commit.sha}" }
     }
 }
 

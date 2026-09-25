@@ -20,6 +20,7 @@ Things that show rather than take input.
 | [`Callout`](callout.md) | The markdown blockquote treatment | `Banner`, for anything dismissible |
 | [`Timeline`](timeline.md) | A vertical sequence — the itinerary | A plain list, when there is no progression |
 | [`TimelineList`](timeline-list.md) | A trip's stops as list rows on the rail, each one tappable | `Timeline`, when the steps are not things to open |
+| [`BranchTimeline`](branch-timeline.md) | A history that forks and merges, like `git log --graph` | `TimelineList`, when nothing branches |
 | [`Accordion`](accordion.md) | Disclosure, with hoisted state | — |
 | [`Stat`](stat.md) | One figure, said loudly | `KeyValueList`, when none of them is the headline |
 | [`KeyValueList`](key-value-list.md) | Label-and-value facts about one thing | `SettingRow`, only if the rows are tappable |
