@@ -71,6 +71,7 @@ import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.display.TimelineLabelPlacement
 import io.kontour.ui.components.display.TimelineList
 import io.kontour.ui.components.display.TimelineListStyle
 import io.kontour.ui.components.display.rememberCarouselState
@@ -290,27 +291,27 @@ private val timelineAcross = Knob.Flag("Horizontal", initial = false)
 /** Across, every stop as wide as the widest, so the nodes are evenly spaced. */
 private val timelineEqualWidths = Knob.Flag("Equal widths", initial = false)
 
+/** Across, the stops' words under the rail, over it, or taking turns. */
+private val timelineLabels = Knob.Choice("Labels", TimelineLabelPlacement.entries.toList())
+
+/** How far along the trip is, in stops: at one, or partway along the leg after it. */
+private val timelineProgress = Knob.Choice(
+    "Progress",
+    listOf("None", "At Perth Station", "Walking", "On the bus", "Arrived"),
+)
+
 internal val TimelineDemo = ComponentDemo(
     slug = "timeline",
-    knobs = listOf(timelineConnector, timelineLoading, timelineAcross, timelineEqualWidths),
+    knobs = listOf(timelineConnector, timelineLoading, timelineAcross, timelineLabels, timelineEqualWidths, timelineProgress),
 ) {
     val walking = this[timelineLoading]
     val connector = this[timelineConnector]
     val stops: @Composable () -> Unit = {
-        TimelineItem(nodeColour = Color(0xFF1B5E20)) {
+        TimelineItem {
             Text("Perth Station", style = Theme.typography.titleSmall)
-            Text(
-                "08:12 — Platform 3",
-                style = Theme.typography.bodySmall,
-                colour = Theme.colours.contentMuted,
-            )
+            Text("08:12 — Platform 3", style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
         }
-        TimelineItem(
-            connector = connector,
-            filled = false,
-            loading = walking,
-            nodeColour = Theme.colours.outlineStrong,
-        ) {
+        TimelineItem(connector = connector, filled = false, loading = walking) {
             Text(
                 // In the words as well as in the node, which is the rule the
                 // component's own KDoc states: the spinner is not announced.
@@ -319,15 +320,31 @@ internal val TimelineDemo = ComponentDemo(
                 colour = Theme.colours.contentMuted,
             )
         }
-        TimelineItem(connector = ConnectorStyle.None, nodeColour = Color(0xFF1B5E20)) {
+        TimelineItem {
             Text("Elizabeth Quay", style = Theme.typography.titleSmall)
-            Text("08:31", style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
+            Text("08:21 — Route 950", style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
+        }
+        TimelineItem(connector = ConnectorStyle.None) {
+            Text("Perth Busport", style = Theme.typography.titleSmall)
+            Text("08:29 — Stand 24", style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
         }
     }
+    val progress = when (this[timelineProgress]) {
+        "At Perth Station" -> 0f
+        "Walking" -> 1.5f
+        "On the bus" -> 2.4f
+        "Arrived" -> 3f
+        else -> null
+    }
     if (this[timelineAcross]) {
-        HorizontalTimeline(Modifier.fillMaxWidth(), equalWidths = this[timelineEqualWidths]) { stops() }
+        HorizontalTimeline(
+            Modifier.fillMaxWidth(),
+            progress = progress,
+            labelPlacement = this[timelineLabels],
+            equalWidths = this[timelineEqualWidths],
+        ) { stops() }
     } else {
-        Timeline(Modifier.fillMaxWidth()) { stops() }
+        Timeline(Modifier.fillMaxWidth(), progress = progress) { stops() }
     }
 }
 
@@ -351,46 +368,30 @@ internal val TimelineListDemo = ComponentDemo(
     knobs = listOf(timelineListStyle, timelineListProgress, timelineListLoading),
 ) {
     val waiting = this[timelineListLoading]
-    var picked by remember { mutableStateOf(0) }
+    // Every stop opens; none is picked. A stop list says where the trip goes,
+    // and progress — not a selection — says where it has got to.
     TimelineList(
         Modifier.fillMaxWidth(),
         style = this[timelineListStyle],
         progress = this[timelineListProgress].stops,
         leadIn = ConnectorStyle.Dotted,
     ) {
-        item(
-            nodeColour = Color(0xFF1B5E20),
-            selected = picked == 0,
-            onClick = { picked = 0; echo("Opened Perth Station") },
-        ) {
+        item(nodeColour = Color(0xFF1B5E20), onClick = { echo("Opened Perth Station") }) {
             +"Perth Station"
             supporting { +"Platform 3 · Joondalup line" }
             trailing { Text("08:12", colour = Theme.colours.contentMuted) }
         }
-        item(
-            connector = ConnectorStyle.Dashed,
-            filled = false,
-            loading = waiting,
-            selected = picked == 1,
-            onClick = { picked = 1; echo("Opened the walk") },
-        ) {
+        item(connector = ConnectorStyle.Dashed, filled = false, loading = waiting, onClick = { echo("Opened the walk") }) {
             +if (waiting) "Finding your platform" else "Walk to Elizabeth Quay"
             supporting { +"4 min · 350 m" }
         }
-        item(
-            nodeColour = Color(0xFF0D47A1),
-            selected = picked == 2,
-            onClick = { picked = 2; echo("Opened Elizabeth Quay") },
-        ) {
+        item(nodeColour = Color(0xFF0D47A1), onClick = { echo("Opened Elizabeth Quay") }) {
             overline { +"Route 950" }
             +"Elizabeth Quay"
             supporting { +"Stand C" }
             trailing { Text("08:21", colour = Theme.colours.contentMuted) }
         }
-        item("Perth Busport", supporting = "Stand 24", trailing = "08:29") {
-            picked = 3
-            echo("Opened Perth Busport")
-        }
+        item("Perth Busport", supporting = "Stand 24", trailing = "08:29") { echo("Opened Perth Busport") }
     }
 }
 

@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.display.TimelineLabelPlacement
 import io.kontour.ui.foundation.Text
 import java.awt.image.BufferedImage
 import kotlin.math.abs
@@ -125,6 +126,96 @@ class HorizontalTimelineTest {
         assertTrue(ink.isNotEmpty(), "nothing drawn along the rail")
         assertTrue(ink.max() > first.right - 2 * NodeRadiusPx - 8, "the node should be at the right of its item; ink ends at ${ink.max()}")
         assertTrue(ink.min() < first.left + 4, "the rail should run to the item's left, its end; ink starts at ${ink.min()}")
+    }
+
+    /** Over the rail: every label above one line of nodes, and nothing under it. */
+    @Test
+    fun aboveLabelsSitOverOneRail() {
+        val (labels, rail) = placed(TimelineLabelPlacement.Above, List(3) { "Stage $it" })
+        assertTrue(labels.all { it.bottom < rail }, "every label should end above the rail at $rail: $labels")
+        assertTrue(labels.all { abs(it.bottom - labels[0].bottom) < 1f }, "and all sit on it alike: $labels")
+    }
+
+    /**
+     * Taking turns: evens under the rail, odds over it; neighbours may overlap
+     * across the rail, but never two on the same side — which is what lets the
+     * whole timeline come out narrower than with every label underneath.
+     */
+    @Test
+    fun alternatingLabelsTakeTurnsAndNeverCollide() {
+        val names = listOf("Ordered online", "Packed at the depot", "Handed to the courier", "Out for delivery", "Delivered")
+        val (labels, rail) = placed(TimelineLabelPlacement.Alternating, names)
+        labels.forEachIndexed { i, label ->
+            if (i % 2 == 0) {
+                assertTrue(label.top > rail, "label $i should be under the rail: $label")
+            } else {
+                assertTrue(label.bottom < rail, "label $i should be over the rail: $label")
+            }
+        }
+        for (i in 0 until labels.size - 2) {
+            assertTrue(labels[i].right <= labels[i + 2].left + 1f, "labels $i and ${i + 2} collide: ${labels[i]} and ${labels[i + 2]}")
+        }
+        val (below, _) = placed(TimelineLabelPlacement.Below, names)
+        assertTrue(
+            labels.last().left < below.last().left - 100f,
+            "taking turns should bring the last stage in: ${labels.last().left} against ${below.last().left}",
+        )
+    }
+
+    /** Taking turns with equal widths: the nodes are evenly spaced. */
+    @Test
+    fun alternatingWithEqualWidthsSpacesNodesEvenly() {
+        val (labels, _) = placed(TimelineLabelPlacement.Alternating, listOf("A", "Packed at the depot", "C", "D"), equalWidths = true)
+        val steps = labels.zipWithNext { a, b -> b.left - a.left }
+        assertTrue(steps.all { abs(it - steps[0]) < 1.5f }, "the nodes should be evenly spaced: $steps")
+    }
+
+    /** Right to left, taking turns still starts under the rail, at the right. */
+    @Test
+    fun alternatingMirrorsRightToLeft() {
+        val (labels, rail) = placed(TimelineLabelPlacement.Alternating, List(3) { "Stage $it" }, direction = LayoutDirection.Rtl)
+        assertTrue(labels[0].top > rail && labels[1].bottom < rail, "the first under, the second over: $labels")
+        assertTrue(labels[0].right > labels[1].right, "and the first to the right of the second: $labels")
+    }
+
+    /** Where each label landed, and the rail's line, for one placement. */
+    private fun placed(
+        placement: TimelineLabelPlacement,
+        names: List<String>,
+        equalWidths: Boolean = false,
+        direction: LayoutDirection = LayoutDirection.Ltr,
+    ): Pair<List<Rect>, Float> {
+        val bounds = arrayOfNulls<Rect>(names.size)
+        var band = Rect.Zero
+        Scene(width = 1600, height = 400) {
+            CompositionLocalProvider(LocalLayoutDirection provides direction) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    HorizontalTimeline(
+                        modifier = Modifier.reportBounds { band = it },
+                        labelPlacement = placement,
+                        equalWidths = equalWidths,
+                    ) {
+                        names.forEachIndexed { i, name ->
+                            TimelineItem(
+                                modifier = Modifier.reportBounds { bounds[i] = it },
+                                connector = if (i == names.lastIndex) ConnectorStyle.None else ConnectorStyle.Solid,
+                            ) { Text(name) }
+                        }
+                    }
+                }
+            }
+        }.use { it.frames(4) }
+        val labels = bounds.map { it!! }
+        // The rail is the one line no label crosses: between the lowest bottom
+        // over it and the highest top under it, or just past the labels on one side.
+        val over = labels.filter { it.bottom <= band.top + (band.height / 2) }.maxOfOrNull { it.bottom }
+        val under = labels.filter { it.top > band.top + (band.height / 2) }.minOfOrNull { it.top }
+        val rail = when {
+            over != null && under != null -> (over + under) / 2
+            over != null -> over + RailAboveLabel
+            else -> under!! - RailAboveLabel
+        }
+        return labels to rail
     }
 
     /** How far along its band the ink of one item goes, in one style, at one width. */

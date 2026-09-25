@@ -40,6 +40,9 @@ import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.ParentDataModifierNode
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -72,6 +75,23 @@ enum class ConnectorStyle {
 
     /** Nothing. For the last item, or a deliberate break. */
     None,
+}
+
+/** Where a [HorizontalTimeline]'s labels go against its rail. */
+enum class TimelineLabelPlacement {
+    /** Under the rail, each starting at its node. */
+    Below,
+
+    /** Over the rail, for a timeline that sits along the bottom of something. */
+    Above,
+
+    /**
+     * Taking turns, the first under the rail and the next over it. Each label
+     * only has to clear the next one on its own side, two nodes on, so the
+     * stages can sit closer than their names are long — more of them across a
+     * phone before any has to wrap.
+     */
+    Alternating,
 }
 
 /**
@@ -371,9 +391,11 @@ private fun AcrossItem(
             )
         }
     }
+    val index = slot.index
     Column(
         modifier = Modifier
             .then(TimelinePartElement(TimelinePart(slot, TimelinePart.Kind.Label, band)))
+            .semantics { traversalIndex = index.toFloat() }
             .then(modifier)
             // Never so narrow that the connector has nowhere to run.
             .widthIn(min = band + AcrossMinimumRun)
@@ -475,6 +497,8 @@ private class TimelinePartNode(var part: TimelinePart) : Modifier.Node(), Parent
  *
  * @param progress How far along the stages are, counted in items, as a
  *   [Timeline]'s is.
+ * @param labelPlacement Each item's content under the rail, over it, or
+ *   taking turns.
  * @param equalWidths Every item as wide as the widest — or, if they would not
  *   fill the width available, as wide as an even share of it. Evenly spaced
  *   nodes, for stages whose spacing should not say anything about their names.
@@ -488,6 +512,7 @@ private class TimelinePartNode(var part: TimelinePart) : Modifier.Node(), Parent
 fun HorizontalTimeline(
     modifier: Modifier = Modifier,
     progress: Float? = null,
+    labelPlacement: TimelineLabelPlacement = TimelineLabelPlacement.Below,
     equalWidths: Boolean = false,
     colours: TimelineColours = TimelineDefaults.colours(),
     scrollState: ScrollState = rememberScrollState(),
@@ -500,9 +525,19 @@ fun HorizontalTimeline(
     ) {
         BoxWithConstraints(modifier.fillMaxWidth()) {
             val viewport = if (constraints.hasBoundedWidth) constraints.maxWidth else 0
-            Layout(content = content, modifier = Modifier.horizontalScroll(scrollState)) { measurables, outer ->
+            Layout(
+                content = content,
+                // Read in item order, whichever side of the rail each label is on.
+                modifier = Modifier.horizontalScroll(scrollState).semantics { isTraversalGroup = true },
+            ) { measurables, outer ->
                 val items = acrossItems(measurables)
                 items.forEachIndexed { index, item -> item.slot?.let { if (it.index != index) it.index = index } }
+                fun above(index: Int) = when (labelPlacement) {
+                    TimelineLabelPlacement.Below -> false
+                    TimelineLabelPlacement.Above -> true
+                    TimelineLabelPlacement.Alternating -> index % 2 == 1
+                }
+                val alternating = labelPlacement == TimelineLabelPlacement.Alternating
                 // Room before the first node for its pulse, while there is one to show.
                 val inset = if (progress != null && items.isNotEmpty()) {
                     (items[0].bandHeight / 2 * (PulseReach - 1f)).roundToPx()
@@ -514,7 +549,8 @@ fun HorizontalTimeline(
                 val height = outer.maxHeight
                 val maxBand = items.maxOfOrNull { it.bandHeight.roundToPx() } ?: 0
                 val labelHeight = if (height == Constraints.Infinity) height else (height - maxBand - gap).coerceAtLeast(0)
-                val even = if (equalWidths && items.isNotEmpty()) {
+                val minPitches = items.map { (it.bandHeight + AcrossMinimumRun).roundToPx() }
+                val even = if (equalWidths && items.isNotEmpty() && !alternating) {
                     maxOf(
                         items.maxOf { it.label?.maxIntrinsicWidth(height) ?: 0 }.coerceAtMost(widest),
                         viewport / items.size,
@@ -531,22 +567,47 @@ fun HorizontalTimeline(
                         },
                     )
                 }
-                // Each node is as far along as the labels before it are wide,
-                // and each band runs to the next node.
-                val pitches = items.mapIndexed { i, item ->
-                    labels[i]?.width ?: (item.bandHeight + AcrossMinimumRun).roundToPx()
+                val widths = items.indices.map { labels[it]?.width ?: minPitches[it] }
+                // Where each node is. In a row of labels, as far along as the
+                // labels before it are wide; taking turns, far enough on that a
+                // label clears the one two before it, on its own side.
+                val x = IntArray(items.size + 1)
+                for (i in items.indices) {
+                    x[i + 1] = when {
+                        !alternating -> x[i] + widths[i]
+                        equalWidths -> 0
+                        i == 0 -> x[i] + minPitches[i]
+                        else -> maxOf(x[i] + minPitches[i], x[i - 1] + widths[i - 1])
+                    }
+                }
+                if (alternating && equalWidths && items.isNotEmpty()) {
+                    val pitch = maxOf(
+                        minPitches.max(),
+                        (widths.max() + 1) / 2,
+                        viewport / items.size,
+                    )
+                    for (i in 1..items.size) x[i] = i * pitch
+                }
+                // The last item's band runs as far as its own label, or its
+                // shortest run; taking turns, the next label on may be wider.
+                if (alternating && items.isNotEmpty()) {
+                    x[items.size] = x[items.size - 1] + maxOf(minPitches.last(), if (equalWidths) x[1] else widths.last())
                 }
                 val bands = items.mapIndexed { i, item ->
-                    item.band?.measure(Constraints.fixed(pitches[i], item.bandHeight.roundToPx()))
+                    item.band?.measure(Constraints.fixed(x[i + 1] - x[i], item.bandHeight.roundToPx()))
                 }
-                val tallest = labels.maxOfOrNull { it?.height ?: 0 } ?: 0
-                layout(inset + pitches.sum(), maxBand + gap + tallest) {
-                    var x = inset
+                val overHeight = items.indices.filter { above(it) }.maxOfOrNull { labels[it]?.height ?: 0 }
+                val underHeight = items.indices.filter { !above(it) }.maxOfOrNull { labels[it]?.height ?: 0 }
+                val railTop = if (overHeight != null) overHeight + gap else 0
+                val width = maxOf(x[items.size], items.indices.maxOfOrNull { x[it] + widths[it] } ?: 0)
+                layout(inset + width, railTop + maxBand + if (underHeight != null) gap + underHeight else 0) {
                     items.indices.forEach { i ->
                         // Every node on one line, whatever size each one is.
-                        bands[i]?.let { it.placeRelative(x, (maxBand - it.height) / 2) }
-                        labels[i]?.placeRelative(x, maxBand + gap)
-                        x += pitches[i]
+                        bands[i]?.let { it.placeRelative(inset + x[i], railTop + (maxBand - it.height) / 2) }
+                        labels[i]?.let {
+                            val y = if (above(i)) railTop - gap - it.height else railTop + maxBand + gap
+                            it.placeRelative(inset + x[i], y)
+                        }
                     }
                 }
             }

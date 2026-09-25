@@ -1,6 +1,6 @@
 # `Timeline`
 
-*Also on this page: `TimelineItem`, `HorizontalTimeline`, `TimelineColours`.*
+*Also on this page: `TimelineItem`, `HorizontalTimeline`, `TimelineColours`, `TimelineLabelPlacement`.*
 
 <!--sample:TimelineBasics-->
 ```kotlin
@@ -123,6 +123,15 @@ content's**: a click or a width applies to the words, not the rail.
 
 `progress` works across as it does down, with the first stage moved in far
 enough that its pulse is not cut off at the edge.
+
+`labelPlacement` puts the items' content `Below` the rail, the default, or
+`Above` it, for a timeline that sits along the bottom of something. With
+**`Alternating`** the labels take turns, the first under the rail and the next
+over it. Each label only has to clear the next one on its own side, two stages
+on, so the stages sit closer than their names are long, and more of them fit
+across a phone before any has to wrap or the timeline has to scroll. Every node
+stays on one line whichever side its label is, and a screen reader still reads
+the stages in order, not all the ones above the rail first.
 
 ---
 
