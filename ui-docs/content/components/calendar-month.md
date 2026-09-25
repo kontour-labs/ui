@@ -31,9 +31,14 @@ also where the grid stops widening: past it the digits are as large as they will
 get and more width only buys a larger empty circle around the same number.
 
 **Dragging a range extends one band.** Only the end the finger is moving
-animates, sweeping along the track out of the edge the range is arriving from;
-everything behind it is drawn. A cell in the middle of a run is not an edge that
-is moving.
+travels, leaning toward the finger between days; everything behind it is drawn.
+While the finger is down the grid draws the band itself, so it flows into the days
+ahead of the finger and out of the ones it is leaving rather than changing a day
+at a time — see [`DateRangePicker`](date-range-picker.md). Right to left, the
+columns and the band mirror with the layout.
+
+A month drawn on its own drags within itself. Inside a `DateRangePicker` the drag
+is held above the pager, so it carries on when the month changes.
 
 > A day cell used to announce its selection from a decorative sibling, so a
 > screen reader could read a date as selected when it was not. Found by the

@@ -22,6 +22,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -32,6 +37,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -205,6 +213,11 @@ fun DatePicker(
  * the current start restarts the range there rather than producing a backwards
  * one — which is what people actually mean when they do it.
  *
+ * A range can also be dragged out in one gesture, and the drag crosses months:
+ * page with the header's arrows using another finger, or hold the handle on the
+ * arrow that appears beside the month's first or last day until its ring fills.
+ * Either way the drag carries on in the new month from where the finger is.
+ *
  * @param onRangeSelected Receives the range so far. The end is null while only a start
  *   has been chosen, so a caller can keep its confirm button disabled.
  */
@@ -256,6 +269,34 @@ fun DateRangePicker(
      */
     firstDayOfWeek: DayOfWeek = formats.firstDayOfWeek,
 ) {
+    // **The drag is held here, over the pager, not in the month.** A month grid
+    // is one page of the pager and leaves with it, so a drag that lived in one
+    // ended the moment the month changed — whether by the header's arrows pressed
+    // with a second finger or by the arrows the drag itself shows at the month's
+    // edges — and the month paged in never heard about the finger. Held above,
+    // it carries on across the border. See `CalendarDragState`.
+    val drag = rememberCalendarDrag()
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val weekFormats = remember(formats, firstDayOfWeek) { formats.startingOn(firstDayOfWeek) }
+    val currentNavigation by rememberUpdatedState(navigation)
+    SideEffect {
+        // Ordering the two ends is this component's business, because only it
+        // knows that a range's `start` is the earlier of the two.
+        drag.onSelect = { from, to ->
+            if (to < from) onRangeSelected(to, from) else onRangeSelected(from, to)
+        }
+        drag.isSelectable = isDateSelectable
+        drag.onStep = { currentNavigation.step(it) }
+        drag.geometry = {
+            GridGeometry.of(
+                month = currentNavigation.visibleMonth,
+                formats = weekFormats,
+                origin = Offset(0f, drag.gridTop),
+                cell = drag.width / Columns,
+                rtl = rtl,
+            )
+        }
+    }
     CalendarFrame(
         modifier = modifier,
         navigation = navigation,
@@ -265,6 +306,7 @@ fun DateRangePicker(
         today = today,
         todayIcon = todayIcon,
         chooserIcon = chooserIcon,
+        drag = drag,
     ) { month ->
         CalendarMonth(
             month = month,
@@ -279,13 +321,8 @@ fun DateRangePicker(
             isDateSelectable = isDateSelectable,
             today = today,
             rangePositionOf = { date -> rangePosition(date, start, end) },
-            // Drag out a range in one gesture, in either direction. The
-            // calendar reports where the finger went down and where it is now;
-            // ordering them is this component's business, because only it knows
-            // that a range's `start` is the earlier of the two.
-            onDragSelect = { from, to ->
-                if (to < from) onRangeSelected(to, from) else onRangeSelected(from, to)
-            },
+            // Dragged out in one gesture, in either direction, by the drag held
+            // above — which every month in the pager draws from.
             formats = formats,
             firstDayOfWeek = firstDayOfWeek,
         )
@@ -487,9 +524,20 @@ private fun CalendarFrame(
     today: LocalDate?,
     todayIcon: ImageVector?,
     chooserIcon: ImageVector?,
+    drag: CalendarDragState? = null,
     content: @Composable (LocalDate) -> Unit,
 ) {
     val motion = Theme.motion
+
+    // A month changing under a finger that is still down — a header arrow pressed
+    // with another finger, or a dwell on a month arrow — is read as a move: the
+    // drag carries on in the new month, from where the finger is.
+    if (drag != null) {
+        val currentNavigation by rememberUpdatedState(navigation)
+        LaunchedEffect(drag) {
+            snapshotFlow { currentNavigation.visibleMonth }.collect { drag.track() }
+        }
+    }
 
     // Only worth offering from somewhere else. Paging three months forward and
     // wanting to come back is the whole case; a button that is always there and
@@ -617,6 +665,14 @@ private fun CalendarFrame(
             }
         }
 
+        // The drag's pointer input sits on this box, outside the pager, so the
+        // gesture does not leave with the month it started in.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .then(if (drag != null) Modifier.calendarDragInput(drag) else Modifier)
+        ) {
+        CompositionLocalProvider(LocalCalendarDrag provides drag) {
         AnimatedContent(
             targetState = navigation.visibleMonth,
             transitionSpec = {
@@ -665,6 +721,8 @@ private fun CalendarFrame(
             label = "calendarMonth",
         ) { month ->
             content(month)
+        }
+        }
         }
     }
 }

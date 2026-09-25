@@ -66,7 +66,7 @@ Listed so the shape of the finished system is visible.
 **Selection, remaining** — `FilePicker`
 
 **Date and time, remaining** — `DurationPicker`, and a multi-month scrolling
-calendar for range selection across month boundaries
+calendar that shows several months at once
 
 **Text editing, remaining** — `OtpField`, `TagInput`, `CurrencyField`
 

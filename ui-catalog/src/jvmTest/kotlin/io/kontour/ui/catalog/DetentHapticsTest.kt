@@ -1163,6 +1163,56 @@ class DetentHapticsTest {
      * a date already reports a `Tap` — a day cell is the smallest target the library
      * has — and a `Tick` on top of it would be the same news twice.
      */
+    /**
+     * A month paged by dwelling on its arrow mid-drag is a threshold passed, once:
+     * what the drag is choosing from has just changed under the finger.
+     */
+    @Test
+    fun aMonthPagedMidDragIsOneThreshold() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var start by mutableStateOf<LocalDate?>(null)
+        var end by mutableStateOf<LocalDate?>(null)
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 800) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    DateRangePicker(
+                        start = start,
+                        end = end,
+                        onRangeSelected = { s, e -> start = s; end = e },
+                        today = LocalDate(2026, 8, 1),
+                        modifier = Modifier.reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(6)
+            val size = bounds.width / 7f
+            val gridTop = bounds.bottom - 6 * size
+            fun cell(day: Int): Offset {
+                val index = day - 1 + 5
+                return Offset(
+                    bounds.left + (index % 7 + 0.5f) * size,
+                    gridTop + (index / 7 + 0.5f) * size,
+                )
+            }
+            scene.drag(from = cell(28), to = cell(31), steps = 12, release = false, paceMillis = 12)
+            // Onto the arrow in the blank after the 31st, and held past the dwell.
+            val arrow = cell(31) + Offset(size, 0f)
+            scene.move(arrow)
+            scene.frames(60)
+            scene.release(arrow)
+            scene.frames(10)
+        }
+
+        assertEquals(
+            1,
+            felt.count { it == FeedbackIntent.DragThreshold },
+            "paging by a dwell mid-drag fired ${felt.summary()} — one threshold for the month changing",
+        )
+    }
+
     @Test
     fun aDraggedRangeTicksPerDayAndATappedDateDoesNot() {
         val dragged = mutableListOf<FeedbackIntent>()

@@ -1,19 +1,15 @@
 package io.kontour.ui.components.datetime
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,11 +19,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import io.kontour.ui.interaction.FeedbackIntent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,7 +43,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -50,7 +54,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.a11y.minimumTouchTarget
-import io.kontour.ui.components.selection.SliderDefaults
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberDetentTicker
@@ -58,13 +61,11 @@ import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 import kotlin.math.floor
-import kotlin.math.hypot
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
-import kotlinx.coroutines.launch
 
 /** How a day sits within a selected range. Drives the cell's shape and fill. */
 enum class RangePosition { None, Start, Middle, End, StartAndEnd }
@@ -186,75 +187,53 @@ fun CalendarMonth(
         weekFormats.columnOf(firstOfMonth.dayOfWeek)
     }
 
+    // The drag this month draws from. A date picker holds one over its pager, so
+    // that a drag outlives the month it started in — see `CalendarDragState`. A
+    // month on its own, handed `onDragSelect`, holds its own.
+    val host = LocalCalendarDrag.current
+    val own = if (host == null && onDragSelect != null) rememberCalendarDrag() else null
+    val drag = host ?: own
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    if (own != null) {
+        SideEffect {
+            own.onSelect = onDragSelect
+            own.isSelectable = isDateSelectable
+            own.geometry = { GridGeometry.of(firstOfMonth, weekFormats, Offset.Zero, own.width / Columns, rtl) }
+        }
+        // A caller paging a month on its own while a finger is down: the drag
+        // carries on in the new month from where the finger is.
+        LaunchedEffect(own, firstOfMonth) { own.track() }
+    }
+
     /**
-     * Whether a range is being dragged out right now.
+     * Whether a range is being dragged out in this month right now, from the anchor
+     * landing until the release has settled.
      *
      * A tapped day lands like a stone and a dragged one should not: the cap
      * bounced into place on every cell the finger crossed, so a drag across a
      * fortnight was fourteen separate arrivals. See `DayCell`, where this
-     * chooses between the two.
+     * chooses between the two. And while it holds, the band is the grid's to
+     * draw, not the days' — see `drawLiveBand`.
      */
-    var dragging by remember { mutableStateOf(false) }
+    val live = drag != null && drag.live && drag.month == firstOfMonth
+    val head = if (live) drag.head else null
+    val paging = live && drag.onStep != null
+    val edge = if (paging) drag.edge else null
+    val motion = Theme.motion
 
     /**
-     * The moving end of a range, and how far past its own cell the finger is.
+     * The month arrows, shown as the handle nears the month's first or last days.
      *
-     * Reported as: *"dragging is a bit of a 'detent', and the area between the two
-     * points gets filled in as the user drags"* — taking after the range slider,
-     * which the report named. `SliderDefaults.DetentPull` is the fraction of the
-     * overshoot a thumb follows a finger by, and its own KDoc says what this is for:
-     * *"`0f` is a thumb that teleports between notches; `1f` is a continuous slider
-     * that happens to report quantised values."* A day grid teleported.
-     *
-     * State rather than a value, because the lean changes on every pointer move and
-     * only one cell in forty-two is drawn differently for it. The cells read it
-     * inside their own `graphicsLayer`, so a move costs a layer invalidation rather
-     * than a recomposition of the month.
-     *
-     * **Both axes**, taken from the pointer rather than from the grid index — which
-     * carries a column's fraction and throws the row's away. A finger above or below
-     * a day's middle pulls the cap that way, which is the same dial the range slider
-     * spends on one axis because it only has one.
+     * The other half of dragging across a border, beside the header's arrows
+     * pressed with a second finger: *"as you drag it towards the start or end of a
+     * month, a small arrow next to the first/last day pointing to the
+     * previous/next month appears. When you drag over that arrow for enough
+     * time … it switches to the corresponding month, and the drag continues."*
      */
-    val leaningDate = remember { mutableStateOf<LocalDate?>(null) }
-
-    /**
-     * Where the dragged cap is drawn, in cells from the leaning date's own cell, on
-     * both axes.
-     *
-     * One `Animatable` for the whole month rather than a pair per cell, read only
-     * from the layer of the cap being dragged — so a cap travelling costs no
-     * recomposition and no forty-two springs. Only *that* cap: the other end of the
-     * range is a cap as well, and it stays where the finger put it down.
-     *
-     * **The pull is where the spring is going, not something added to where it
-     * is.** The stepped slider learned this first, and its `DetentPull` KDoc has
-     * the whole story. The cap was drawn at an animated journey from the last cell
-     * *plus* an immediate pull toward the finger — and at a crossing the pull
-     * flipped from half a cell ahead to half a cell behind while the journey
-     * snapped a whole cell back, so the head jumped backwards and then sprang the
-     * whole way forward. Reported as: "when you drag it across the detent, it snaps
-     * back to where it was before animating across. It should just animate across,
-     * like the stepped slider." Now the spring's target is the pull, and a crossing
-     * *re-bases* the spring rather than restarting it: the value is moved by the
-     * step between the two cells, so the cap is drawn exactly where it was a frame
-     * ago and springs only the rest of the way.
-     *
-     * **The step is a unit vector, and always one cell long.** Two days next to
-     * each other in a row are one cell apart and the cap travels exactly between
-     * them. A day at the end of a row and the one after it are six columns and a
-     * row apart, and a cap that took that literally would fly across the middle of
-     * the month for a tenth of a second, over a fortnight it has nothing to do with.
-     * Normalised, it enters from just left of itself and a little above — the
-     * direction says where the range continues from, and the distance stays a cell.
-     */
-    val cap = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
-    // The crossing a pointer move has just made, handed from `onCapChange` to the
-    // `onLeanChange` that follows it in the same move, so that the re-base and the
-    // new target land in one step. `Offset.Zero` is a drag beginning.
-    val crossing = remember { CapCrossing() }
-    val capMotion = Theme.motion
-    val capScope = rememberCoroutineScope()
+    val nearStart = paging && (edge == DwellEdge.Previous || (head != null && head.sameMonth(firstOfMonth) && head.day <= EdgeDays))
+    val nearEnd = paging && (edge == DwellEdge.Next || (head != null && head.sameMonth(firstOfMonth) && head.day > daysInMonth - EdgeDays))
+    val startArrow by animateFloatAsState(if (nearStart) 1f else 0f, motion.tweenFast(), label = "previousMonthArrow")
+    val endArrow by animateFloatAsState(if (nearEnd) 1f else 0f, motion.tweenFast(), label = "nextMonthArrow")
 
     // One measurement for the whole month, not forty-two.
     //
@@ -286,6 +265,8 @@ fun CalendarMonth(
         // column heading.
         val weekdayBase = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal)
         val weekdayStyle = remember(weekdayBase, cellSize) { weekdayBase.grownFor(cellSize) }
+        val colours = Theme.colours
+        val insetPx = with(LocalDensity.current) { CalendarMonthDefaults.CellInset.toPx() }
         Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth()) {
             weekFormats.weekdayInitials().forEachIndexed { index, initial ->
@@ -311,38 +292,83 @@ fun CalendarMonth(
         val cells = leadingBlanks + daysInMonth
         val rows = (cells + 6) / 7
 
-        WeekGrid(
-            rows = rows,
-            leadingBlanks = leadingBlanks,
-            daysInMonth = daysInMonth,
-            month = month,
-            isDateSelectable = isDateSelectable,
-            onDragSelect = onDragSelect,
-            onDraggingChange = { dragging = it },
-            // Every move: re-base for a crossing if there was one, then aim at the
-            // pull. In one coroutine, so the date the cap is measured from and the
-            // value it is measured by change together.
-            onLeanChange = { date, lean ->
-                val from = crossing.from
-                crossing.from = null
-                capScope.launch {
-                    when {
-                        date == null || from == Offset.Zero -> cap.snapTo(Offset.Zero)
-                        from != null -> cap.snapTo(cap.value + from)
+        // The weeks. The hit test is derived from the grid rather than from each
+        // cell's reported bounds: the columns are seven equal weights and every
+        // row is one cell tall, so it is the same arithmetic the layout does, and
+        // forty-two `onGloballyPositioned` callbacks would buy nothing over it.
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (own != null) Modifier.calendarDragInput(own) else Modifier)
+                // Where the weeks start under the weekday initials, for a drag
+                // held above the pager. Relative to this month's own box, which
+                // the pager's slide does not move.
+                .then(
+                    if (host != null) {
+                        Modifier.onGloballyPositioned { host.gridTop = it.positionInParent().y }
+                    } else {
+                        Modifier
                     }
-                    leaningDate.value = date
-                    if (date != null) {
-                        cap.animateTo(
-                            lean * SliderDefaults.DetentPull,
-                            capMotion.springOrTween(capMotion.springSnappy),
-                        )
+                )
+                .drawBehind {
+                    val state = drag ?: return@drawBehind
+                    val anchor = state.anchor ?: return@drawBehind
+                    if (!live) return@drawBehind
+                    val anchorAt = if (anchor.sameMonth(firstOfMonth)) leadingBlanks + anchor.day - 1 else null
+                    val point = state.point.value
+                    val moving = state.head
+                    val forward = when {
+                        anchorAt == null -> anchor < firstOfMonth
+                        moving != null && moving != anchor -> moving > anchor
+                        else -> floor(point.y.coerceIn(0f, rows - 0.01f)) * Columns + point.x >= anchorAt + 0.5f
                     }
+                    drawLiveBand(
+                        leadingBlanks = leadingBlanks,
+                        daysInMonth = daysInMonth,
+                        rows = rows,
+                        anchorAt = anchorAt,
+                        forward = forward,
+                        point = point,
+                        colour = colours.accent.container,
+                        inset = insetPx,
+                        rtl = rtl,
+                    )
                 }
-            },
-            // A cell crossed, so the cap has a step to be re-based by. Nothing to
-            // travel when the drag starts: a cap appearing under a finger has not
-            // come from anywhere.
-            onCapChange = { from -> crossing.from = from },
+                .drawWithContent {
+                    drawContent()
+                    val state = drag ?: return@drawWithContent
+                    if (startArrow <= 0f && endArrow <= 0f) return@drawWithContent
+                    val cell = size.width / Columns
+                    val rowHeight = size.height / rows
+                    val outside = (ArrowRadius + ArrowGap).toPx() / cell
+                    val lastColumn = (leadingBlanks + daysInMonth - 1) % Columns
+                    // In the blank beside the edge day when there is one; hung just
+                    // past the grid's edge, level with it, when the month starts on
+                    // the first weekday or ends on the last.
+                    val previousAt = if (leadingBlanks > 0) leadingBlanks - 0.5f else -outside
+                    val nextAt = if (lastColumn < Columns - 1) lastColumn + 1.5f else Columns + outside
+                    fun across(column: Float) = (if (rtl) Columns - column else column) * cell
+                    drawMonthArrow(
+                        centre = Offset(across(previousAt), rowHeight / 2f),
+                        pointsLeft = !rtl,
+                        progress = if (state.edge == DwellEdge.Previous) state.dwell.value else 0f,
+                        alpha = startArrow,
+                        face = colours.surfaceRaised,
+                        ring = colours.outline,
+                        fill = colours.primary,
+                        chevron = colours.content,
+                    )
+                    drawMonthArrow(
+                        centre = Offset(across(nextAt), (rows - 0.5f) * rowHeight),
+                        pointsLeft = rtl,
+                        progress = if (state.edge == DwellEdge.Next) state.dwell.value else 0f,
+                        alpha = endArrow,
+                        face = colours.surfaceRaised,
+                        ring = colours.outline,
+                        fill = colours.primary,
+                        chevron = colours.content,
+                    )
+                },
         ) {
         for (row in 0 until rows) {
             Row(Modifier.fillMaxWidth()) {
@@ -364,18 +390,18 @@ fun CalendarMonth(
                             rangePosition = rangePositionOf?.invoke(date) ?: RangePosition.None,
                             formats = formats,
                             cellSize = cellSize,
-                            dragging = dragging,
+                            dragging = live,
+                            travelling = live && drag.leaning == date,
                             // Where the cap is, in cells, measured from this cell's
-                            // own place in the grid. Read in the layer for the same
-                            // reason `lean` is: it changes on every pointer move and
-                            // moves exactly one cell in forty-two.
+                            // own place in the grid. Read in the layer: it changes on
+                            // every pointer move and moves exactly one cell in
+                            // forty-two.
                             //
-                            // And gated on the same date as `lean`, the one under the
-                            // finger. The anchor is a cap too, and without the gate it
-                            // read the same travel and stepped away with every day
-                            // the moving end crossed.
+                            // And gated on the date under the finger. The anchor is a
+                            // cap too, and without the gate it read the same travel
+                            // and stepped away with every day the moving end crossed.
                             capTravel = {
-                                if (leaningDate.value == date) cap.value else Offset.Zero
+                                if (drag != null && drag.leaning == date) drag.cap.value else Offset.Zero
                             },
                             onSelectedChange = onSelectedChange,
                         )
@@ -389,179 +415,26 @@ fun CalendarMonth(
 }
 
 /**
- * The month's rows, with a drag that selects across them.
+ * The drag a month or a picker holds: the state, and the two things it reports to
+ * the hand — a day crossed, and a month paged.
  *
- * Its own composable so the gesture's arithmetic sits next to nothing else. The
- * hit test is derived from the grid rather than from each cell's reported
- * bounds: the columns are seven equal weights and every row is one cell tall, so
- * this is the same arithmetic the layout does, and forty-two
- * `onGloballyPositioned` callbacks would buy nothing over it.
- *
- * `detectDragGestures` waits for touch slop, so a tap still belongs to the cell
- * it landed on and the two gestures never argue over one press.
+ * A day is a detent in the strictest sense — the selection snaps to one and rests
+ * there — so it goes through the same guard and shared rate floor as `Slider`,
+ * `WheelPicker` and the rest. A month paged mid-drag is a threshold passed: what
+ * the drag is choosing from has just changed under the finger.
  */
 @Composable
-private fun WeekGrid(
-    rows: Int,
-    leadingBlanks: Int,
-    daysInMonth: Int,
-    month: LocalDate,
-    isDateSelectable: (LocalDate) -> Boolean,
-    onDragSelect: ((LocalDate, LocalDate) -> Unit)?,
-    onDraggingChange: (Boolean) -> Unit,
-    onCapChange: (from: Offset) -> Unit,
-    onLeanChange: (LocalDate?, Offset) -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val currentSelect by rememberUpdatedState(onDragSelect)
-    val currentCap by rememberUpdatedState(onCapChange)
-    val currentSelectable by rememberUpdatedState(isDateSelectable)
-    val currentDragging by rememberUpdatedState(onDraggingChange)
-    val currentLean by rememberUpdatedState(onLeanChange)
-
-    /**
-     * A day crossed under the finger, reported once.
-     *
-     * The grid was silent: forty-two cells, a drag across a fortnight, and
-     * nothing in the hand to say a boundary had been passed. A day is a detent in
-     * the strictest sense — the selection snaps to one and rests there — and the
-     * cell index is already the index the ticker wants, so this is the same guard
-     * and the same shared rate floor that `Slider`, `WheelPicker` and the rest go
-     * through. See `DetentTicker`.
-     */
-    val ticker = rememberDetentTicker()
-
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .then(
-                if (onDragSelect == null) {
-                    Modifier
-                } else {
-                    // `month` is a key because `dateAt` builds dates out of it;
-                    // without it a block launched in August goes on reporting
-                    // August dates after the calendar has paged to September.
-                    Modifier.pointerInput(leadingBlanks, daysInMonth, rows, month) {
-                        /**
-                         * Where the finger went down.
-                         *
-                         * A plain local, and it has to be. This was hoisted into
-                         * the composition and read back inside the gesture, where
-                         * it is a value *captured when the block was launched* —
-                         * which is before the drag started, so it was `null` on
-                         * every move and the range never grew past the day it
-                         * began on. The gesture's own anchor is not state anybody
-                         * else reads, so nobody else should be holding it.
-                         */
-                        var anchor: LocalDate? = null
-
-                        /**
-                         * The cell the cap was on before this move, so a crossing
-                         * knows which way the range continues from.
-                         *
-                         * A plain local, like `anchor` and for the same reason: it is
-                         * the gesture's own bookkeeping and nobody outside reads it.
-                         */
-                        var cameFrom: Int? = null
-
-                        /**
-                         * Where the finger is, as a **fractional** cell index.
-                         *
-                         * The sub-cell part used to be thrown away on the way to
-                         * an integer day, and it is the whole of the detent: how
-                         * far between two dates the finger has come is exactly
-                         * what a leaning end has to lean by, and exactly what
-                         * tells a tick it has crossed something.
-                         */
-                        fun positionAt(offset: Offset): Float? {
-                            if (size.width <= 0 || rows == 0) return null
-                            val cell = size.width / 7f
-                            val column = offset.x / cell
-                            val row = (offset.y / cell).toInt()
-                            if (column < 0f || column >= 7f) return null
-                            if (row !in 0 until rows) return null
-                            return row * 7f + column
-                        }
-
-                        fun dateAt(index: Float): LocalDate? {
-                            val day = floor(index).toInt() - leadingBlanks + 1
-                            if (day < 1 || day > daysInMonth) return null
-                            val date = LocalDate(month.year, month.month, day)
-                            return if (currentSelectable(date)) date else null
-                        }
-
-                        fun dateAt(offset: Offset): LocalDate? =
-                            positionAt(offset)?.let { dateAt(it) }
-
-                        fun release() {
-                            anchor = null
-                            ticker.reset()
-                            currentDragging(false)
-                            currentLean(null, Offset.Zero)
-                        }
-
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                anchor = dateAt(offset)
-                                currentDragging(true)
-                                anchor?.let { currentSelect?.invoke(it, it) }
-                                // Nothing to travel: a cap appearing under a finger
-                                // has not come from anywhere.
-                                cameFrom = positionAt(offset)?.let { floor(it).toInt() }
-                                currentCap(Offset.Zero)
-                            },
-                            onDragEnd = { release() },
-                            onDragCancel = { release() },
-                        ) { change, _ ->
-                            val from = anchor ?: return@detectDragGestures
-                            val index = positionAt(change.position)
-                                ?: return@detectDragGestures
-                            val date = dateAt(index) ?: return@detectDragGestures
-                            ticker.at(floor(index))
-                            currentSelect?.invoke(from, date)
-
-                            // A cell crossed: hand `CalendarMonth` the direction the
-                            // cap is coming from, as a unit vector in cells. It is
-                            // normalised rather than literal, so a cap wrapping to
-                            // the next week enters from beside itself rather than
-                            // flying across the month — see `capFrom`.
-                            val cell = floor(index).toInt()
-                            val previous = cameFrom
-                            if (previous != null && previous != cell) {
-                                val across = (previous % 7 - cell % 7).toFloat()
-                                val down = (previous / 7 - cell / 7).toFloat()
-                                val length = hypot(across, down)
-                                currentCap(
-                                    if (length <= 0f) {
-                                        Offset.Zero
-                                    } else {
-                                        Offset(across / length, down / length)
-                                    }
-                                )
-                            }
-                            cameFrom = cell
-
-                            // How far the finger is from the cell's own centre, in
-                            // cells and signed, on both axes. `DayCell` multiplies it
-                            // by `DetentPull` — the same fraction a range slider's
-                            // thumb follows a finger past a notch by. Taken from the
-                            // pointer rather than from the grid index, which carries
-                            // a column's fraction and throws the row's away.
-                            val pitch = size.width / 7f
-                            currentLean(
-                                date,
-                                Offset(
-                                    x = change.position.x / pitch - cell % 7 - 0.5f,
-                                    y = change.position.y / pitch - cell / 7 - 0.5f,
-                                ),
-                            )
-                        }
-                    }
-                }
-            ),
-        content = content,
-    )
+internal fun rememberCalendarDrag(): CalendarDragState {
+    val scope = rememberCoroutineScope()
+    val days = rememberDetentTicker()
+    val pages = rememberDetentTicker(FeedbackIntent.DragThreshold)
+    val drag = remember(scope, days, pages) { CalendarDragState(scope, days, pages) }
+    val motion = Theme.motion
+    SideEffect { drag.motion = motion }
+    return drag
 }
+
+private fun LocalDate.sameMonth(first: LocalDate): Boolean = year == first.year && month == first.month
 
 @Composable
 private fun DayCell(
@@ -574,7 +447,10 @@ private fun DayCell(
     rangePosition: RangePosition,
     formats: DateTimeFormats,
     cellSize: Dp,
+    /** A drag is live in this month: the band is the grid's, not the days'. */
     dragging: Boolean,
+    /** This day is the moving end of that drag. */
+    travelling: Boolean,
     /**
      * How far past this cell's centre the finger is, in cell widths, or zero for
      * every cell that is not the moving end of the range. Read in the layer.
@@ -603,7 +479,13 @@ private fun DayCell(
 
     // A run of selected days reads as continuous because the middle keeps square
     // edges and only the ends are capped.
-    val shape: Shape = when (rangePosition) {
+    //
+    // **The end being dragged is a whole pill.** The band under it now reaches
+    // into it from wherever the finger is, so its square side had nothing to be
+    // square against: leaning down toward the next week, the corner on the band's
+    // side hung below the row like a flag. Round on both sides it sits on the band
+    // however it leans, and where it sits level the band fills its corners.
+    val shape: Shape = when (if (travelling) RangePosition.StartAndEnd else rangePosition) {
         RangePosition.Middle -> RectangleShape
         RangePosition.Start -> Theme.shapes.pill.copy(
             topEnd = androidx.compose.foundation.shape.CornerSize(0),
@@ -658,7 +540,17 @@ private fun DayCell(
     // The same shape as the exit above and for the same reason, which is why the
     // two are one expression now: a colour that animates *toward* the finger is the
     // only one of the four that ever wanted to.
-    val container = if (arriving && !dragging) animatedContainer else containerTarget
+    //
+    // **And nothing at all in the middle of a live drag**, where the grid draws the
+    // band — see `drawLiveBand` — so that it can flow out of days the finger is
+    // leaving as well as into the ones it is heading for. Only what is *drawn*
+    // changes: the target, and the animation toward it, run as before, so a day
+    // handed back at the end of the drag is already the colour it should be.
+    val container = when {
+        dragging && rangePosition == RangePosition.Middle -> colours.accent.container.invisible()
+        arriving && !dragging -> animatedContainer
+        else -> containerTarget
+    }
 
     val labelTarget = when {
         !enabled -> colours.contentDisabled
@@ -909,9 +801,4 @@ internal fun TextStyle.grownFor(cellSize: Dp): TextStyle {
         fontSize = fontSize * growth,
         lineHeight = if (lineHeight.isSpecified) lineHeight * growth else lineHeight,
     )
-}
-
-/** A crossing waiting for the lean that comes with it. See `crossing` in [CalendarMonth]. */
-private class CapCrossing {
-    var from: Offset? = null
 }
