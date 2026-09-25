@@ -25,7 +25,8 @@ import kotlin.test.assertTrue
  * [TimelineItem]s laid across the page by a [HorizontalTimeline].
  *
  * Across, a node sits at the start of its item with the content under it, and its
- * connector runs to the item's end edge, where the next node begins — the same
+ * connector runs to the item's end edge, where the next node begins. An item's
+ * modifier is its label's, so the rail is found above the bounds it reports. The same
  * geometry as down the page, turned. So the checks are the vertical timeline's
  * turned too: every connector style reaches the end of its item, measured against
  * the solid one, and the layout mirrors right to left.
@@ -119,7 +120,7 @@ class HorizontalTimelineTest {
             }
         }.use { image = it.frames(4) }
         assertTrue(abs(first.right - 600f) < 1f, "the first item should sit against the right edge: $first")
-        val row = (first.top + BandCentre).toInt()
+        val row = (first.top - RailAboveLabel).toInt()
         val ink = (0 until image.width).filter { image.dark(it, row) }
         assertTrue(ink.isNotEmpty(), "nothing drawn along the rail")
         assertTrue(ink.max() > first.right - 2 * NodeRadiusPx - 8, "the node should be at the right of its item; ink ends at ${ink.max()}")
@@ -143,7 +144,7 @@ class HorizontalTimelineTest {
             }
         }.use { image = it.frames(8) }
         assertTrue(bounds.width > 0f, "the item never reported a size")
-        val row = (bounds.top + BandCentre).toInt()
+        val row = (bounds.top - RailAboveLabel).toInt()
         val last = (bounds.left.toInt() until minOf(image.width, (bounds.right + Overhang).toInt()))
             .lastOrNull { image.dark(it, row) } ?: error("nothing drawn along the rail for $style")
         return last.toFloat()
@@ -155,8 +156,11 @@ class HorizontalTimelineTest {
     }
 
     private companion object {
-        /** The node's centre below the item's top: a 2dp gap and a 6dp radius, at density two. */
-        const val BandCentre = 16f
+        /**
+         * The rail above an item's label, which is what its modifier measures:
+         * half the 16dp band, and the 8dp gap under it, at density two.
+         */
+        const val RailAboveLabel = 32f
         const val NodeRadiusPx = 12f
         const val Overhang = 8f
         const val Tolerance = 2f

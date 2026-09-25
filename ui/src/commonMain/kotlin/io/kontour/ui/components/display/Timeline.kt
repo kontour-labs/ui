@@ -26,7 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.ParentDataModifierNode
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
@@ -229,8 +233,13 @@ fun TimelineItem(
 }
 
 /**
- * A [TimelineItem] across a [HorizontalTimeline]: a band along its top with the
- * node at its start and the connector to its end edge, and the content under it.
+ * A [TimelineItem] across a [HorizontalTimeline], as two parts the timeline lays
+ * out: a band with the node at its start and the connector to its end edge, and
+ * the content — the label — which the timeline puts under the band.
+ *
+ * Two parts rather than one item so the timeline can space the nodes by the
+ * labels and put every band on one line, whatever the labels do. The caller's
+ * [modifier] is the label's: it is the part with something to click or measure.
  */
 @Composable
 private fun AcrossItem(
@@ -242,14 +251,15 @@ private fun AcrossItem(
     connectorWidth: Dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val slot = remember { TimelineSlot() }
     val band = nodeSize + TimelineNodeGap * 2
-    Column(
-        modifier = modifier
-            // Never so narrow that the connector has nowhere to run.
-            .widthIn(min = band + AcrossMinimumRun)
+    Box(
+        Modifier
+            .then(TimelinePartElement(TimelinePart(slot, TimelinePart.Kind.Band, band)))
             .drawBehind {
                 // The same rail, turned across: the node a gap in from the start
-                // edge, whichever side that is, and the leg to the end edge.
+                // edge, whichever side that is, and the leg to the end edge —
+                // where the next item's band begins.
                 val nodeRadius = nodeSize.toPx() / 2f
                 val centre = TimelineNodeGap.toPx() + nodeRadius
                 drawRail(
@@ -260,28 +270,55 @@ private fun AcrossItem(
                     nodeAlong = centre,
                     nodeRadius = nodeRadius,
                 )
-            }
-            // The content stops short of the next node, as a row's content stops
-            // short of the next row down the page.
-            .padding(end = Theme.spacing.md),
+            },
     ) {
-        Box(Modifier.height(band)) {
-            if (loading) {
-                Spinner(
-                    modifier = Modifier.align(Alignment.CenterStart).padding(start = TimelineNodeGap),
-                    size = nodeSize,
-                    colour = nodeColour,
-                    strokeWidth = connectorWidth,
-                )
-            }
+        if (loading) {
+            Spinner(
+                modifier = Modifier.align(Alignment.CenterStart).padding(start = TimelineNodeGap),
+                size = nodeSize,
+                colour = nodeColour,
+                strokeWidth = connectorWidth,
+            )
         }
-        Column(
-            // Under the node, starting where it does.
-            modifier = Modifier.padding(start = TimelineNodeGap, top = Theme.spacing.xs),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            content = content,
-        )
     }
+    Column(
+        modifier = Modifier
+            .then(TimelinePartElement(TimelinePart(slot, TimelinePart.Kind.Label, band)))
+            .then(modifier)
+            // Never so narrow that the connector has nowhere to run.
+            .widthIn(min = band + AcrossMinimumRun)
+            // Starting where the node does, and stopping short of the next
+            // node, as a row's content stops short of the next row down.
+            .padding(start = TimelineNodeGap, end = Theme.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        content = content,
+    )
+}
+
+/** One item's place in a [HorizontalTimeline], shared by its two parts. */
+internal class TimelineSlot
+
+/** Which part of which item a layout node is, for the [HorizontalTimeline] laying it out. */
+internal class TimelinePart(val slot: TimelineSlot, val kind: Kind, val band: Dp) {
+    enum class Kind { Band, Label }
+}
+
+/**
+ * Tags a node as a [TimelinePart]. Put first in the chain, so it is what the
+ * timeline reads whatever the caller's modifier says.
+ */
+private class TimelinePartElement(val part: TimelinePart) : ModifierNodeElement<TimelinePartNode>() {
+    override fun create() = TimelinePartNode(part)
+    override fun update(node: TimelinePartNode) {
+        node.part = part
+    }
+    override fun equals(other: Any?) = other is TimelinePartElement && other.part.slot === part.slot &&
+        other.part.kind == part.kind && other.part.band == part.band
+    override fun hashCode() = 31 * (31 * part.slot.hashCode() + part.kind.hashCode()) + part.band.hashCode()
+}
+
+private class TimelinePartNode(var part: TimelinePart) : Modifier.Node(), ParentDataModifierNode {
+    override fun Density.modifyParentData(parentData: Any?): Any = part
 }
 
 /**
@@ -323,39 +360,83 @@ fun HorizontalTimeline(
     scrollState: ScrollState = rememberScrollState(),
     content: @Composable () -> Unit,
 ) {
+    val labelGap = Theme.spacing.xs
     CompositionLocalProvider(LocalTimelineOrientation provides Orientation.Horizontal) {
         BoxWithConstraints(modifier.fillMaxWidth()) {
             val viewport = if (constraints.hasBoundedWidth) constraints.maxWidth else 0
             Layout(content = content, modifier = Modifier.horizontalScroll(scrollState)) { measurables, outer ->
+                val items = acrossItems(measurables)
                 val widest = AcrossMaximumWidth.roundToPx()
+                val gap = labelGap.roundToPx()
                 val height = outer.maxHeight
-                val even = if (equalWidths && measurables.isNotEmpty()) {
+                val maxBand = items.maxOfOrNull { it.bandHeight.roundToPx() } ?: 0
+                val labelHeight = if (height == Constraints.Infinity) height else (height - maxBand - gap).coerceAtLeast(0)
+                val even = if (equalWidths && items.isNotEmpty()) {
                     maxOf(
-                        measurables.maxOf { it.maxIntrinsicWidth(height) }.coerceAtMost(widest),
-                        viewport / measurables.size,
+                        items.maxOf { it.label?.maxIntrinsicWidth(height) ?: 0 }.coerceAtMost(widest),
+                        viewport / items.size,
                     )
                 } else {
                     null
                 }
-                val placeables = measurables.map {
-                    it.measure(
+                val labels = items.map {
+                    it.label?.measure(
                         if (even != null) {
-                            Constraints(minWidth = even, maxWidth = even, maxHeight = height)
+                            Constraints(minWidth = even, maxWidth = even, maxHeight = labelHeight)
                         } else {
-                            Constraints(maxWidth = widest, maxHeight = height)
+                            Constraints(maxWidth = widest, maxHeight = labelHeight)
                         },
                     )
                 }
-                layout(placeables.sumOf { it.width }, placeables.maxOfOrNull { it.height } ?: 0) {
+                // Each node is as far along as the labels before it are wide,
+                // and each band runs to the next node.
+                val pitches = items.mapIndexed { i, item ->
+                    labels[i]?.width ?: (item.bandHeight + AcrossMinimumRun).roundToPx()
+                }
+                val bands = items.mapIndexed { i, item ->
+                    item.band?.measure(Constraints.fixed(pitches[i], item.bandHeight.roundToPx()))
+                }
+                val tallest = labels.maxOfOrNull { it?.height ?: 0 } ?: 0
+                layout(pitches.sum(), maxBand + gap + tallest) {
                     var x = 0
-                    placeables.forEach {
-                        it.placeRelative(x, 0)
-                        x += it.width
+                    items.indices.forEach { i ->
+                        // Every node on one line, whatever size each one is.
+                        bands[i]?.let { it.placeRelative(x, (maxBand - it.height) / 2) }
+                        labels[i]?.placeRelative(x, maxBand + gap)
+                        x += pitches[i]
                     }
                 }
             }
         }
     }
+}
+
+/** One item across a [HorizontalTimeline]: its band and its label, as the timeline measures them. */
+private class AcrossParts(var band: Measurable? = null, var label: Measurable? = null, var bandHeight: Dp = 0.dp)
+
+/**
+ * The timeline's children paired up by item. A child that is not part of a
+ * [TimelineItem] is an item of its own with no band — a label on the page.
+ */
+private fun acrossItems(measurables: List<Measurable>): List<AcrossParts> {
+    val items = ArrayList<AcrossParts>()
+    val bySlot = HashMap<TimelineSlot, AcrossParts>()
+    measurables.forEach { measurable ->
+        val part = measurable.parentData as? TimelinePart
+        if (part == null) {
+            items += AcrossParts(label = measurable)
+            return@forEach
+        }
+        val item = bySlot.getOrPut(part.slot) { AcrossParts().also { items += it } }
+        when (part.kind) {
+            TimelinePart.Kind.Band -> {
+                item.band = measurable
+                item.bandHeight = part.band
+            }
+            TimelinePart.Kind.Label -> item.label = measurable
+        }
+    }
+    return items
 }
 
 /** The shortest connector an item across a [HorizontalTimeline] draws. */
