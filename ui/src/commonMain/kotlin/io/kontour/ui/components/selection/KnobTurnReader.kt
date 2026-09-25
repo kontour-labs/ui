@@ -4,42 +4,49 @@ import androidx.compose.ui.geometry.Offset
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sign
+import kotlin.math.sin
 
 /**
  * Reads a drag on a [Knob] as the turn it means — a drag in a line, or the finger
  * going round — and says how much of the range each move is worth.
  *
- * "Can we somehow combine the circular spinning motion of the knob with the
- * left/right and up/down motion?" The two readings are both right: up or right is
- * more, and round clockwise is more. **They agree over the top-left half of the
- * knob** — along the top, right is clockwise; up the left side, up is clockwise —
- * **and disagree over the bottom-right half**, where down the right side is less
- * as a drag and more as a turn. So which one a gesture is cannot be read from its
- * direction. It is read from its **shape**: a finger going round the knob curves,
- * and its heading turns as fast as it sweeps round the middle; a finger going in a
- * line does not curve at all, however much angle it happens to sweep.
+ * Modelled on Apple's GarageBand knob, the one most people have used: circles turn
+ * it, and a straight drag **locks into a slider along its axis** — vertical or
+ * horizontal — whose direction depends on where on the knob it pulls. Here that is
+ * decided at **the notch**, where the knob is: "if it started on the very end … and
+ * I try to drag it up, I'm expecting … to pull it back around to 0".
  *
- * ### How a gesture is read
+ * ### A drag pulls the notch, and keeps pulling
  *
- * - **It starts undecided.** Where the two readings agree it follows the drag,
- *   which is the same answer either way. Where they disagree it holds, for the few
- *   dp it takes to tell — and then applies what it held the way it decided, so
- *   nothing a finger did is lost, and neither reading ever goes the wrong way first.
- * - **It decides once it has travelled [decideAfter]**: a turn if the path curved
- *   with its sweep round the middle — the heading between its first half and its
- *   second turned by at least half the angle swept, the way a circle's does — and
- *   a drag otherwise.
- * - **A drag that becomes a circle becomes a turn**: the last stretch of the path
- *   sweeping [PromoteSweep] and curving the way a circle does. A turn stays a turn
- *   until the finger lifts, so a circle that wobbles does not fall back.
- * - **Near the middle an angle is noise**, so inside [reach] of it there is no
- *   turn to read and a gesture there is a drag.
+ * The first stretch of a straight drag decides its direction: whichever way it
+ * moves the notch along the arc — clockwise more, anticlockwise less. At the end of
+ * the scale, low on the right, up pulls the notch back towards the top, so it is
+ * less. Where the drag runs straight across the arc at the notch — up or down with
+ * the notch at the top — it pulls neither way, and the ordinary rule decides: up or
+ * right is more. So does a pull into the end stop the value is already at, so that
+ * right at zero is still more, and nothing a finger does at an end is refused.
  *
- * Turned, the knob follows the finger's angle — a turn of [sweep] degrees is the
- * whole range — so a finger that grabbed the notch keeps it under the finger. Dragged,
- * [travel] pixels are the whole range, up and right more.
+ * Then it is a slider along the axis it started on, in the direction it chose:
+ * carried on, it keeps turning the same way — past the top and round — "pull the
+ * knob up, but then keep pulling it in the same direction"; brought back, it turns
+ * back.
+ *
+ * ### Going round
+ *
+ * A finger going round the knob curves, its heading turning as fast as it sweeps
+ * round the middle; a finger going in a line does not curve at all. So the shape of
+ * the first stretch also says whether it is a turn, and a turn follows the finger's
+ * angle — a turn of [sweep] degrees is the whole range. A drag that carries on into
+ * a circle becomes a turn, and a turn stays one until the finger lifts.
+ *
+ * Until it has decided, the knob follows the two readings where they agree and
+ * holds where they disagree, and at the decision it makes up whatever the decided
+ * reading says it should have done. Neither reading goes the wrong way first, and
+ * nothing a finger did is lost. Near the middle, an angle is noise, and a gesture
+ * there is a drag.
  */
 internal class KnobTurnReader {
 
@@ -53,8 +60,21 @@ internal class KnobTurnReader {
     private var decideAfter = 0f
     private var fresh = false
     private var pointer = Offset.Zero
-    private var heldDrag = 0f
-    private var heldTurn = 0f
+    private var begin = Offset.Zero
+
+    /** The value when the gesture began, as a share of the range. */
+    private var fraction = 0f
+
+    /** Where the notch was, in degrees clockwise from three o'clock. */
+    private var notch = 0f
+
+    /** What has been handed out so far while undecided, and what a turn would have. */
+    private var given = 0f
+    private var turned = 0f
+
+    /** A decided drag: the axis it runs along, and which way along it is more. */
+    private var axis = Offset.Zero
+    private var sense = 1f
 
     // The path so far — or, once decided, its most recent stretch: where the finger
     // was, how far it had come, how far round the middle it had swept, and whether
@@ -68,23 +88,35 @@ internal class KnobTurnReader {
     val turning: Boolean get() = mode == Mode.Turn
 
     /**
-     * A new gesture at [at], on a dial whose middle is [centre] and whose track's
-     * radius is [radius]. The first [move] after this is the one that brought the
-     * finger to [at], as a drag's claim hands it over.
+     * A new gesture at [at], on a dial whose middle is [centre], whose track's radius
+     * is [radius] and whose scale starts at [start] degrees and runs [sweep], with
+     * the value at [fraction] of it. The first [move] after this is the one that
+     * brought the finger to [at], as a drag's claim hands it over.
      */
-    fun start(at: Offset, centre: Offset, radius: Float, sweep: Float, travel: Float, decideAfter: Float) {
+    fun start(
+        at: Offset,
+        centre: Offset,
+        radius: Float,
+        start: Float,
+        sweep: Float,
+        fraction: Float,
+        travel: Float,
+        decideAfter: Float,
+    ) {
         mode = Mode.Undecided
         this.centre = centre
         reach = radius * ReachShare
         this.sweep = sweep
+        this.fraction = fraction.coerceIn(0f, 1f)
+        notch = start + sweep * this.fraction
         this.travel = travel
         // A slow circle on a big knob covers little angle per dp; give it the same
         // arc to show itself in as a small one.
         this.decideAfter = max(decideAfter, radius * DecideArc)
         fresh = true
         pointer = at
-        heldDrag = 0f
-        heldTurn = 0f
+        given = 0f
+        turned = 0f
         points.clear()
         travelled.clear()
         swept.clear()
@@ -96,12 +128,12 @@ internal class KnobTurnReader {
         val from = if (fresh) pointer - delta else pointer
         val to = from + delta
         if (fresh) {
+            begin = from
             record(from, 0f, 0f, (from - centre).getDistance() >= reach)
             fresh = false
         }
         pointer = to
 
-        val drag = knobDragTurn(delta, travel)
         val a = from - centre
         val b = to - centre
         val canTurn = a.getDistance() >= reach && b.getDistance() >= reach
@@ -114,24 +146,25 @@ internal class KnobTurnReader {
             Mode.Drag -> {
                 if (goingRound(windowStart(), PromoteSweep, PromoteCurve)) mode = Mode.Turn
                 trim()
-                drag
+                along(delta)
             }
             Mode.Undecided -> {
-                val now = if (turn == 0f || sign(turn) == sign(drag)) {
-                    drag
+                turned += turn
+                val dragged = draggedSoFar()
+                val out = if (dragged == 0f || turned == 0f || sign(dragged) == sign(turned)) {
+                    dragged - given
                 } else {
-                    heldDrag += drag
-                    heldTurn += turn
                     0f
                 }
+                given += out
                 if (travelled.last() < decideAfter) {
-                    now
+                    out
                 } else if (goingRound(0, DecideSweep, DecideCurve)) {
                     mode = Mode.Turn
-                    now + heldTurn
+                    out + settle(turned)
                 } else {
-                    mode = Mode.Drag
-                    now + heldDrag
+                    decideDrag()
+                    out + settle(draggedSoFar())
                 }
             }
         }
@@ -139,8 +172,8 @@ internal class KnobTurnReader {
 
     /**
      * How fast, as a share of the range a second, a release at [velocity] turns the
-     * knob, read the way the gesture was: round the middle for a turn, along the
-     * axes for a drag. [minimumSpeed] is how fast the finger has to be moving, along
+     * knob, read the way the gesture was: round the middle for a turn, along its axis
+     * for a drag. [minimumSpeed] is how fast the finger has to be moving, along
      * whichever it was, for it to count; below that, null.
      */
     fun release(velocity: Offset, minimumSpeed: Float): Float? {
@@ -152,8 +185,60 @@ internal class KnobTurnReader {
             if (abs(across) / distance < minimumSpeed) return null
             return across / (distance * distance) * DegreesPerRadian / sweep
         }
-        val along = knobDragTurn(velocity, travel)
-        return if (abs(along) * travel < minimumSpeed) null else along
+        if (mode == Mode.Undecided) decideDrag()
+        val speed = velocity.x * axis.x + velocity.y * axis.y
+        return if (abs(speed) < minimumSpeed) null else sense * speed / travel
+    }
+
+    /** What is owed at a decision: the decided reading's total less what was given. */
+    private fun settle(total: Float): Float {
+        val owed = total - given
+        given = total
+        return owed
+    }
+
+    /** A decided drag's worth of [delta]: along its axis, the way it chose. */
+    private fun along(delta: Offset): Float = sense * (delta.x * axis.x + delta.y * axis.y) / travel
+
+    /** What the straight drag so far would have turned the knob, read as it would decide now. */
+    private fun draggedSoFar(): Float {
+        val net = pointer - begin
+        if (net.getDistance() < 1f) return 0f
+        val (onAxis, pull) = dragOf(net)
+        return pull * (net.x * onAxis.x + net.y * onAxis.y) / travel
+    }
+
+    private fun decideDrag() {
+        mode = Mode.Drag
+        val net = pointer - begin
+        val (onAxis, pull) = dragOf(if (net.getDistance() < 1f) Offset(0f, -1f) else net)
+        axis = onAxis
+        sense = pull
+    }
+
+    /**
+     * The axis a drag of [net] runs along — up or right, whichever it mostly is — and
+     * which way along it is more: the way it pulls the notch round the arc, or, where
+     * it pulls neither way or would pull into the end the value is already at, up or
+     * right.
+     */
+    private fun dragOf(net: Offset): Pair<Offset, Float> {
+        val onAxis = if (abs(net.y) >= abs(net.x)) Up else Right
+        val forward = sign(net.x * onAxis.x + net.y * onAxis.y).takeIf { it != 0f } ?: 1f
+        val radians = notch * PI.toFloat() / 180f
+        // Clockwise round the dial at the notch, on screen, where y runs down.
+        val tangent = Offset(-sin(radians), cos(radians))
+        val length = net.getDistance()
+        val pulling = (net.x * tangent.x + net.y * tangent.y) / length
+        val round = when {
+            abs(pulling) < PullShare -> forward
+            pulling > 0f && fraction >= 1f - AtEnd -> forward
+            pulling < 0f && fraction <= AtEnd -> forward
+            else -> sign(pulling)
+        }
+        // Which way along the axis is more: the way the drag went, if that is the way
+        // it turns the knob, and the other way if not.
+        return onAxis to round * forward
     }
 
     private fun record(at: Offset, step: Float, degrees: Float, canTurn: Boolean) {
@@ -227,10 +312,23 @@ internal class KnobTurnReader {
         const val PromoteSweep: Float = 45f
         const val PromoteCurve: Float = 0.6f
 
+        /**
+         * How much of a drag has to run along the arc at the notch for it to pull
+         * the notch — within 60° of the arc. Less, and it runs across the arc.
+         */
+        const val PullShare: Float = 0.5f
+
+        /** Within this of an end, the value is at it. */
+        const val AtEnd: Float = 0.001f
+
         /** Past this many points out of any window, the oldest are dropped. */
         const val TrimAfter: Int = 64
 
         const val DegreesPerRadian: Float = (180 / PI).toFloat()
+
+        /** A drag's two axes, pointing the way that is more by the ordinary rule. */
+        val Up = Offset(0f, -1f)
+        val Right = Offset(1f, 0f)
     }
 }
 

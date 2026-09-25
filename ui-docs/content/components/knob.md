@@ -21,28 +21,38 @@ on it. The input half of [`Gauge`](gauge.md), drawing the same scale. Where a
 settings sit in a grid — an equaliser, a mixer, a synth's panel — or where the
 thing being set is itself a turn.
 
-**Turned or dragged, whichever the finger does.** Go round the knob and it turns
-with the finger's angle — a finger that grabbed the notch keeps it under the finger.
-Drag it in a line instead and up or right is more, down or left is less, from
-anywhere on it, 200dp for the whole range whatever the knob's size.
+**Turned or dragged, the way GarageBand's knobs are.** Go round the knob and it
+turns with the finger's angle — a finger that grabbed the notch keeps it under the
+finger. Drag it in a line instead and it becomes a slider along that line's axis,
+up and down or across, 200dp for the whole range whatever the knob's size.
 
-The two readings agree over the top-left half of the knob — along the top, right is
-clockwise; up the left side, up is clockwise — and disagree over the bottom-right,
-where down the right-hand side is less as a drag and more as a turn. So the knob
-tells them apart by **the shape of the path**, not its direction: a finger going
-round curves, its heading turning as fast as it sweeps round the middle, and a
-finger going in a line does not curve at all. Each gesture starts undecided,
-following the drag where the two agree and holding still where they disagree, and
-within the first 12dp or so it decides — then applies what it held the way it
-decided, so neither reading goes the wrong way first and nothing is lost. A drag
-that carries on into a circle becomes a turn; a turn stays one until the finger
-lifts. Near the middle, where an angle is noise, it is always a drag. Asked for as
-*"can we somehow combine the circular spinning motion of the knob with the
-left/right and up/down motion?"*, after a round of dragging only.
+**Which way a drag turns it depends on the notch.** A drag pulls the notch the way
+it moves it round the arc: at the end of the scale, low on the right, dragging up
+pulls it back towards zero; high on the right, dragging down pulls it on round. That
+is GarageBand's rule — its knobs turn clockwise to a drag down their right-hand side
+— read at the notch rather than under the finger, because the notch is where the
+knob is and a finger covers most of a small one. Where a drag runs straight across
+the arc at the notch, as up and down do with the notch at the top, it pulls neither
+way and the ordinary rule decides: up or right is more. So does a pull into the end
+the value is already at, so a drag at either end always moves it.
 
-Right is more in both layout directions. The dial does not mirror — it fills
-clockwise everywhere, like a gauge — and at the top of it, where the notch starts,
-clockwise is to the right.
+**The direction holds for the gesture.** Carried on, a drag keeps turning the knob
+the way it started, past the top and round — *"if it starts as dragging up, then we
+probably want to pull the knob up, but then keep pulling it in the same
+direction"*. Brought back, it turns back.
+
+**A circle and a line are told apart by their shape.** A finger going round curves,
+its heading turning as fast as it sweeps round the middle, and a finger going in a
+line does not curve at all. Each gesture starts undecided, following the two readings
+where they agree and holding still where they disagree, and within the first 12dp or
+so it decides — then makes up what it held, so it never goes the wrong way first and
+nothing is lost. A drag that carries on into a circle becomes a turn; a turn stays
+one until the finger lifts. Near the middle, where an angle is noise, it is always a
+drag.
+
+None of it mirrors in a right-to-left layout. The dial fills clockwise everywhere,
+like a gauge, so the way a drag pulls the notch is the same in both directions, and
+so is the ordinary rule's right.
 
 **Thrown, it spins.** Let go while moving quickly — 400dp a second or more, round
 the knob or along the drag, whichever the gesture was — and it carries on, slowing,

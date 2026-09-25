@@ -76,6 +76,19 @@ class KnobGestureTest {
         }
     }
 
+    /**
+     * At the end of its scale, a drag up pulls the knob back towards zero.
+     *
+     * "If it started on the very end (so like bottom-right of the circle) and I try
+     * to drag it up, I'm expecting to have the turning gesture to pull it back around
+     * to 0." A drag up of 200px, half the 400px travel, from the middle of the face.
+     */
+    @Test
+    fun atTheEndADragUpPullsItBack() {
+        val (value, _) = drag(from = Offset.Zero, by = Offset(0f, -200f), reduceMotion = true, initial = 1f)
+        assertTrue(abs(value - 0.5f) < 0.02f, "dragged up 200px from the end, the knob went to $value, not 0.5")
+    }
+
     /** The value after going round the knob at 70% of its radius, and the lowest it went on the way. */
     private fun circle(fromDegrees: Double, byDegrees: Double): Pair<Float, Float> {
         var value by mutableStateOf(0.5f)
@@ -141,8 +154,9 @@ class KnobGestureTest {
         moves: Int = 20,
         settle: Boolean = true,
         reduceMotion: Boolean,
+        initial: Float = 0.5f,
     ): Pair<Float, Float> {
-        var value by mutableStateOf(0.5f)
+        var value by mutableStateOf(initial)
         var bounds = Rect.Zero
         var atRelease = 0f
         Scene(width = 600, height = 600, reduceMotion = reduceMotion) {

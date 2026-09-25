@@ -80,16 +80,18 @@ import kotlin.math.roundToInt
  *
  * ### Turning it
  *
- * **Turned or dragged, whichever the finger does.** Go round the knob and it turns
- * with the finger's angle, so a finger that grabbed the notch keeps it; drag it in
- * a line and up or right is more, down or left less, from anywhere on it. The two
- * agree over the top-left half of the knob and disagree over the bottom-right, so
- * which one a gesture is gets read from its shape — a circle curves as it sweeps
- * round the middle and a line does not — within the first few dp, holding still
- * rather than guessing where the two disagree. A drag that turns into a circle
- * becomes a turn. See `KnobTurnReader`. Right is more in both layout directions,
- * because the dial does not mirror: at the top, where the notch starts, clockwise
- * is to the right.
+ * **Turned or dragged, the way GarageBand's knobs are.** Go round the knob and it
+ * turns with the finger's angle, so a finger that grabbed the notch keeps it. Drag
+ * it in a line and it becomes a slider along that line's axis — up and down, or
+ * across — and **which way is more depends on the notch**: the drag pulls the notch
+ * the way it moves it round the arc. At the end of the scale, low on the right, up
+ * pulls it back towards zero; where a drag runs straight across the arc at the notch,
+ * or would pull into the end it is already at, up or right is more. Once chosen, the
+ * direction holds for the gesture, so a drag carried on keeps turning the knob the
+ * same way, past the top and round. Which of the two a gesture is gets read from its
+ * shape — a circle curves as it sweeps round the middle and a line does not — within
+ * the first few dp, without going the wrong way while it tells. See
+ * `KnobTurnReader`.
  *
  * **Thrown, it spins.** Let go while moving quickly and it carries on, slowing,
  * through the steps — the spinning-wheel feel — and stops at an end if it reaches
@@ -275,8 +277,17 @@ fun Knob(
                     accepts = { at -> (at - centre).getDistance() <= radius + thicknessPx },
                     onStart = { at ->
                         spin?.cancel()
-                        reader.start(at, centre, radius, sweep, travelPx, decidePx)
                         raw = fractionOf(value)
+                        reader.start(
+                            at = at,
+                            centre = centre,
+                            radius = radius,
+                            start = DialGeometry.startFor(sweep),
+                            sweep = sweep,
+                            fraction = raw,
+                            travel = travelPx,
+                            decideAfter = decidePx,
+                        )
                         ticker.reset()
                         ticker.at((snapped(raw) * intervals).roundToInt())
                         endStop.arm()
