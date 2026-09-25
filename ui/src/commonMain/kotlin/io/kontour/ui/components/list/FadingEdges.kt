@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
 /** How opaque each edge's fade is, 0 to 1. */
@@ -93,23 +94,29 @@ fun Modifier.fadingEdges(
             val extent = if (orientation == Orientation.Vertical) size.height else size.width
             if (extent <= 0f) return@drawWithContent
             val stop = (fadeLengthPx / extent).coerceAtMost(0.4f)
+            // Right to left, a horizontal scroller's earlier content is off its
+            // right edge, so the two fades change sides. They used not to, and
+            // faded the newest end of a right-to-left row.
+            val mirrored = orientation == Orientation.Horizontal && layoutDirection == LayoutDirection.Rtl
+            val before = if (mirrored) fade.end else fade.start
+            val after = if (mirrored) fade.start else fade.end
 
-            if (fade.start > 0f) {
+            if (before > 0f) {
                 drawRect(
                     brush = edgeBrush(
                         orientation = orientation,
-                        from = 0f to Color.Black.copy(alpha = fade.start),
+                        from = 0f to Color.Black.copy(alpha = before),
                         to = stop to Color.Transparent,
                     ),
                     blendMode = BlendMode.DstOut,
                 )
             }
-            if (fade.end > 0f) {
+            if (after > 0f) {
                 drawRect(
                     brush = edgeBrush(
                         orientation = orientation,
                         from = (1f - stop) to Color.Transparent,
-                        to = 1f to Color.Black.copy(alpha = fade.end),
+                        to = 1f to Color.Black.copy(alpha = after),
                     ),
                     blendMode = BlendMode.DstOut,
                 )

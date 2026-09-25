@@ -125,4 +125,23 @@ data class Strings(
     val closeNavigation: String = "Close navigation",
     val expandNavigation: String = "Expand navigation",
     val collapseNavigation: String = "Collapse navigation",
+
+    // Activity calendar
+    /** The quiet end of an activity calendar's legend. */
+    val activityLess: String = "Less",
+    /** Its busy end. */
+    val activityMore: String = "More",
+    /**
+     * One day of an activity calendar, as its tooltip and a screen reader say it
+     * — a format, like [pageOfCount], because it needs the count and the date.
+     */
+    val activityOnDay: (count: Int, date: String) -> String = { count, date ->
+        when (count) {
+            0 -> "No activity on $date"
+            1 -> "1 activity on $date"
+            else -> "$count activities on $date"
+        }
+    },
+    /** A week of an activity calendar, named by the day it starts. */
+    val weekOf: (date: String) -> String = { date -> "Week of $date" },
 )

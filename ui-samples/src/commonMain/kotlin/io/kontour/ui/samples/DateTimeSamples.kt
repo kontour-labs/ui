@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
@@ -63,6 +64,21 @@ fun TimeFieldBasics() {
     // A read-only field that opens a picker — `onClick`, not `onValueChange`.
     // Typing a time into a text field is how you get 25:61.
     TimeField(value = departAt, onClick = { start() }, label = "Leave at")
+}
+
+@Composable
+fun ActivityCalendarBasics() {
+    var picked by remember { mutableStateOf<LocalDate?>(null) }
+
+    // A year to today, a shade a day. Point at a day, long-press it or reach it
+    // with the arrow keys to see its count; tap it to pick it.
+    ActivityCalendar(
+        activity = tripsByDay,
+        end = LocalDate(2026, 6, 5),
+        today = LocalDate(2026, 6, 5),
+        selected = picked,
+        onDayClick = { picked = it },
+    )
 }
 
 @Composable

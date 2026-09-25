@@ -87,3 +87,6 @@ internal val commits = listOf(
 )
 
 internal fun openCommit(commit: Commit) = Unit
+
+/** A year of trips a day, for the activity calendar example. */
+internal val tripsByDay: Map<kotlinx.datetime.LocalDate, Int> = emptyMap()

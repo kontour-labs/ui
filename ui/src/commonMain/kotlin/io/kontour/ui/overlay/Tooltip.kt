@@ -218,9 +218,13 @@ fun Tooltip(
     )
 }
 
-/** The bubble itself, without the triggering. Shared by both entry points. */
+/**
+ * The bubble itself, without the triggering. Shared by both entry points, and by
+ * a component that decides for itself when and where its tooltip shows — an
+ * activity calendar's, which moves from cell to cell under one pointer.
+ */
 @Composable
-private fun TooltipOverlay(
+internal fun TooltipOverlay(
     visible: Boolean,
     anchor: Rect?,
     content: @Composable ContentScope.() -> Unit,

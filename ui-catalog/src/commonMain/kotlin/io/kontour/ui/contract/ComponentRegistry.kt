@@ -1,6 +1,7 @@
 package io.kontour.ui.contract
 
 import io.kontour.ui.components.selection.Knob
+import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.components.display.BubbleSide
 import io.kontour.ui.components.display.ChatBubble
@@ -143,7 +144,9 @@ import io.kontour.ui.theme.Theme
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
 import kotlinx.datetime.LocalTime
 
 /**
@@ -943,6 +946,33 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 TimelineItem(connector = ConnectorStyle.Dashed) { Text("Packed") }
                 TimelineItem(connector = ConnectorStyle.None, filled = false) { Text("Delivered") }
             }
+        }
+    )
+
+    add(
+        // A year of shades. Twelve weeks here, so the specimen reads at the
+        // shared width; the tap, the tooltip and the week nodes are
+        // `ActivityCalendarTest`'s.
+        ComponentSpec(
+            "ActivityCalendar",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            // Seven rows of cells as large as they grow, the month names above
+            // and the legend below.
+            renderHeight = 220,
+        ) { modifier, _, _ ->
+            val end = LocalDate(2026, 6, 5)
+            ActivityCalendar(
+                activity = (0 until 84).associate { back ->
+                    end.minus(DatePeriod(days = back)) to (back * 7 + back / 3) % 5
+                },
+                end = end,
+                modifier = modifier,
+                weeks = 12,
+                today = end,
+            )
         }
     )
 

@@ -13,6 +13,9 @@ import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.ChevronLeft
 import com.composables.icons.tabler.outline.ChevronRight
+import io.kontour.ui.components.datetime.ActivityCalendar
+import io.kontour.ui.components.datetime.ActivityCalendarDefaults
+import io.kontour.ui.components.datetime.ActivityLevels
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
@@ -24,8 +27,11 @@ import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.datetime.WheelPicker
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
+import kotlinx.datetime.DatePeriod
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.minus
 import kotlin.time.Duration.Companion.minutes
 
 /**
@@ -167,7 +173,61 @@ internal val RelativeTimeTextDemo = ComponentDemo(
     }
 }
 
+/**
+ * A made-up year of trips, the same on every run: a hash of each day, quieter
+ * at weekends, with about a third of days empty.
+ */
+private fun demoActivity(end: LocalDate): Map<LocalDate, Int> = (0 until 371).associate { back ->
+    val day = end.minus(DatePeriod(days = back))
+    val hash = ((day.toEpochDays() * 2_654_435_761L) ushr 9) % 13
+    val weekend = day.dayOfWeek == DayOfWeek.SATURDAY || day.dayOfWeek == DayOfWeek.SUNDAY
+    day to (if (hash < 4) 0 else (hash - 3).toInt()).let { if (weekend) it / 3 else it }
+}
+
+private val activityLook = Knob.Choice("Look", listOf("GitHub", "Minimal"))
+
+private val activityLevels = Knob.Choice("Levels", listOf("Quantiles", "Thresholds"))
+
+private val activityMonths = Knob.Flag("Month labels", initial = true)
+
+private val activityWeekdays = Knob.Flag("Weekday labels", initial = true)
+
+private val activityLegend = Knob.Flag("Legend", initial = true)
+
+internal val ActivityCalendarDemo = ComponentDemo(
+    slug = "activity-calendar",
+    knobs = listOf(activityLook, activityLevels, activityMonths, activityWeekdays, activityLegend),
+) {
+    val end = LocalDate(2026, 6, 5)
+    val activity = remember { demoActivity(end) }
+    var picked by remember { mutableStateOf<LocalDate?>(null) }
+    val formats = LocalDateTimeFormats.current
+    ActivityCalendar(
+        activity = activity,
+        end = end,
+        modifier = Modifier.fillMaxWidth(),
+        today = end,
+        selected = picked,
+        onDayClick = {
+            picked = it
+            echo("${activity[it] ?: 0} on ${formats.dateShort(it)}")
+        },
+        levels = if (this[activityLevels] == "Thresholds") {
+            ActivityLevels.Thresholds(listOf(1, 3, 6, 9))
+        } else {
+            ActivityLevels.Quantiles
+        },
+        colours = ActivityCalendarDefaults.colours(
+            full = if (this[activityLook] == "GitHub") Theme.colours.success.solid else Theme.colours.info.solid,
+        ),
+        monthLabels = this[activityMonths],
+        weekdayLabels = this[activityWeekdays],
+        legend = this[activityLegend],
+    )
+}
+
 internal val dateTimeDemos = listOf(
+    ActivityCalendarDemo,
     DatePickerDemo,
     DateRangePickerDemo,
     CalendarMonthDemo,
