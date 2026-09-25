@@ -16,6 +16,7 @@ app/ui/src/commonMain/kotlin/io/kontour/ui/
     text/         text fields
     display/      cards, badges, avatars, progress, banners
     list/         list items, sections, swipe actions, reordering
+    table/        tables
   nav/            bars, rails, drawers, tabs
   overlay/        dialogs, menus, tooltips, toasts
   sheet/          bottom and side sheets

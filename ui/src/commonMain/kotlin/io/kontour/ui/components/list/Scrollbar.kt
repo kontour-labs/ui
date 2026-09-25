@@ -322,8 +322,30 @@ internal fun scrollbarGeometry(state: ScrollableState): ScrollbarGeometry = when
         }
     }
 
+    is ScrollExtent -> if (state.extentMax <= 0) {
+        ScrollbarGeometry(1f, 0f)
+    } else {
+        val viewport = state.extentViewport.toFloat()
+        scrollbarGeometry(
+            viewport = viewport,
+            contentLength = viewport + state.extentMax,
+            scrolled = state.extentValue.toFloat(),
+        )
+    }
+
     // No position to report. Hidden rather than drawn wrong.
     else -> ScrollbarGeometry(1f, 0f)
+}
+
+/**
+ * A scrollable state of the library's own that can say where it is, in pixels —
+ * a table's sideways scroll, which is not a `ScrollState` because its bounds are
+ * set by the table rather than by a scroll modifier.
+ */
+internal interface ScrollExtent {
+    val extentValue: Int
+    val extentMax: Int
+    val extentViewport: Int
 }
 
 /**

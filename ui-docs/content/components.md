@@ -18,7 +18,7 @@ prose that is about the family rather than any one of them.
 | [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `NumberField` `PhoneField` `EmailField` `Select` `MultiSelect` `Combobox` `TextSelectionToolbar` `rememberImeChain` |
 | [**Date and time**](components/date-time.md) | Calendars and clocks | `ActivityCalendar` `CalendarMonth` `DatePicker` `DateRangePicker` `TimePicker` `TimeField` `WheelPicker` `RelativeTimeText` `DateTimeFormats` |
 | [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Spinner` `Skeleton` `Redacted` `EmptyState` `Banner` `Callout` `Timeline` `TimelineList` `BranchTimeline` `Accordion` `AnimatedCounter` `Modifier.marquee` `Stat` `KeyValueList` `Carousel` `PageIndicator` `Kbd` `Gauge` `ChatBubble` |
-| [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `ExpandingListItem` `SettingRow` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` `Modifier.fadingEdges` |
+| [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `ExpandingListItem` `SettingRow` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` `Modifier.fadingEdges` `Table` |
 | [**Navigation**](components/navigation.md) | Getting between screens | `NavigationSuiteScaffold` `NavItem` `NavBar` `NavRail` `NavDrawer` `ModalNavDrawer` `TopBar` `TabBar` `Breadcrumbs` `Pagination` |
 | [**Overlays**](components/overlays.md) | Things drawn over everything | `OverlayHost` `Dialog` `AlertDialog` `DropdownMenu` `SubMenu` `ContextMenuArea` `Popover` `Tooltip` `Toast` `LoadingOverlay` `CommandPalette` |
 | [**Sheets**](components/sheets.md) | Bottom and side panels | `BottomSheet` `ModalBottomSheet` `SideSheet` `ModalSideSheet` `SheetHeader` `DragHandle` |
@@ -74,5 +74,5 @@ calendar for range selection across month boundaries
 
 ### Deliberately not being built
 
-`CodeBlock`, `Gauge`, `DataTable` and `TreeList` are admin-web patterns with no
-usage in the mobile app, and are not being built on spec.
+`CodeBlock` and `TreeList` are admin-web patterns with no usage in the mobile
+app, and are not being built on spec.

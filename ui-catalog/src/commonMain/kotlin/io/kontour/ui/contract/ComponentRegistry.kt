@@ -3,6 +3,8 @@ package io.kontour.ui.contract
 import io.kontour.ui.components.selection.Knob
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.display.BranchTimeline
+import io.kontour.ui.components.table.Table
+import io.kontour.ui.components.table.TableSort
 import io.kontour.ui.components.display.BubbleSide
 import io.kontour.ui.components.display.ChatBubble
 import io.kontour.ui.components.display.ConnectorStyle
@@ -973,6 +975,32 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 weeks = 12,
                 today = end,
             )
+        }
+    )
+
+    add(
+        // A table's rows are its controls, and each is under test in
+        // `TableSemanticsTest`; the specimen is here for its render and the
+        // width sweep, which squeezes its columns until they scroll.
+        ComponentSpec(
+            "Table",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 200,
+        ) { modifier, _, _ ->
+            Table(
+                items = listOf("950" to "Elizabeth Quay", "T1" to "Fremantle", "103" to "Joondalup"),
+                modifier = modifier,
+                stickyColumns = 1,
+                striped = true,
+                sort = TableSort("Route"),
+                onSortChange = {},
+            ) {
+                column("Route", width = 72.dp) { +it.first }
+                column("Destination", weight = 1f) { +it.second }
+            }
         }
     )
 

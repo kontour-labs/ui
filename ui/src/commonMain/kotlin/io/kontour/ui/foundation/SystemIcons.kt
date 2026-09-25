@@ -9,6 +9,8 @@ import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Dots
 import com.composables.icons.tabler.outline.AlertCircle
 import com.composables.icons.tabler.outline.AlertTriangle
+import com.composables.icons.tabler.outline.ArrowDown
+import com.composables.icons.tabler.outline.ArrowUp
 import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.CircleCheck
 import com.composables.icons.tabler.outline.InfoCircle
@@ -50,6 +52,13 @@ import com.composables.icons.tabler.filled.Star as FilledStar
 object SystemIcons {
     /** Marks the selected item in a list of choices. */
     val Check: ImageVector get() = Tabler.Outline.Check
+
+    /**
+     * A table column sorted smallest first, and largest first. Structural: a
+     * sorted header with no arrow does not say which way it is sorted.
+     */
+    val SortAscending: ImageVector get() = Tabler.Outline.ArrowUp
+    val SortDescending: ImageVector get() = Tabler.Outline.ArrowDown
 
     /** The indeterminate state of a tri-state control, and a stepper's "less". */
     val Dash: ImageVector get() = Tabler.Outline.Minus

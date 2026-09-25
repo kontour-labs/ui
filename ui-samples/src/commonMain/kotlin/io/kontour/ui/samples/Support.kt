@@ -90,3 +90,14 @@ internal fun openCommit(commit: Commit) = Unit
 
 /** A year of trips a day, for the activity calendar example. */
 internal val tripsByDay: Map<kotlinx.datetime.LocalDate, Int> = emptyMap()
+
+/** A service on a departure board, for the table example. */
+internal class Service(val route: String, val destination: String, val time: String)
+
+internal val services = listOf(
+    Service("950", "Elizabeth Quay", "8:12"),
+    Service("T1", "Fremantle", "8:15"),
+    Service("103", "Joondalup", "8:21"),
+)
+
+internal fun openService(service: Service) = Unit

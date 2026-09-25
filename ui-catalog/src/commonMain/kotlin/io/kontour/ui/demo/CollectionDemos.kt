@@ -49,6 +49,11 @@ import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.components.list.rememberReorderableState
 import io.kontour.ui.components.list.settingValue
 import io.kontour.ui.components.selection.Switch
+import io.kontour.ui.components.table.SortDirection
+import io.kontour.ui.components.table.Table
+import io.kontour.ui.components.table.TableLines
+import io.kontour.ui.components.table.TableSelection
+import io.kontour.ui.components.table.TableSort
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
@@ -423,6 +428,92 @@ internal val FadingEdgesDemo = ComponentDemo(slug = "modifier-fading-edges") {
     }
 }
 
+/** A departure board's row: the same forty on every run. */
+private class DemoDeparture(
+    val id: Int,
+    val route: String,
+    val destination: String,
+    val platform: Int,
+    val departs: String,
+    val fare: Int,
+)
+
+private val demoDepartures = List(40) { index ->
+    val destinations = listOf(
+        "Elizabeth Quay", "Fremantle", "Joondalup", "Midland", "Armadale",
+        "Mandurah", "Perth Airport", "Ellenbrook", "Scarborough Beach", "Cannington",
+    )
+    DemoDeparture(
+        id = index,
+        route = listOf("950", "T1", "103", "Y", "86", "30", "FRM", "MAN")[index % 8],
+        destination = destinations[(index * 7) % destinations.size],
+        platform = 1 + (index * 5) % 9,
+        departs = "${8 + index / 6}:${((index * 10) % 60).toString().padStart(2, '0')}",
+        fare = 330 + (index % 4) * 145,
+    )
+}
+
+private val tableLines = Knob.Choice("Lines", TableLines.entries.toList(), TableLines.Rows)
+
+private val tableSelection = Knob.Choice("Selection", TableSelection.entries.toList())
+
+private val tableStriped = Knob.Flag("Striped", initial = true)
+
+private val tableOutlined = Knob.Flag("Outlined", initial = false)
+
+/** The route column pinned at the start while the rest scroll across. */
+private val tablePinRoute = Knob.Flag("Pin route", initial = true)
+
+private val tableFooter = Knob.Flag("Footer", initial = true)
+
+internal val TableDemo = ComponentDemo(
+    slug = "table",
+    knobs = listOf(tableLines, tableSelection, tableStriped, tableOutlined, tablePinRoute, tableFooter),
+) {
+    var sort by remember { mutableStateOf<TableSort?>(null) }
+    var selected by remember { mutableStateOf(emptySet<Any>()) }
+    // Sorting is the caller's: the table says what was asked for, and this puts
+    // the rows in that order.
+    val rows = remember(sort) {
+        val by: Comparator<DemoDeparture> = when (sort?.column) {
+            "Route" -> compareBy { it.route }
+            "Destination" -> compareBy { it.destination }
+            "Platform" -> compareBy { it.platform }
+            "Fare" -> compareBy { it.fare }
+            else -> compareBy { it.id }
+        }
+        demoDepartures.sortedWith(if (sort?.direction == SortDirection.Descending) by.reversed() else by)
+    }
+    val footer = this[tableFooter]
+    Table(
+        items = rows,
+        modifier = Modifier.fillMaxWidth().height(320.dp),
+        key = { it.id },
+        stickyColumns = if (this[tablePinRoute]) 1 else 0,
+        striped = this[tableStriped],
+        lines = this[tableLines],
+        outlined = this[tableOutlined],
+        sort = sort,
+        onSortChange = { sort = it },
+        selection = this[tableSelection],
+        selected = selected,
+        onSelectedChange = { selected = it },
+        onRowClick = { echo("Opened the ${it.departs} to ${it.destination}") },
+    ) {
+        column("Route", width = 72.dp) { +it.route }
+        column("Destination", weight = 1f, minWidth = 160.dp) { +it.destination }
+        column("Platform", numeric = true) { +"${it.platform}" }
+        column("Departs", numeric = true, sortable = false, footer = if (footer) ({ +"${rows.size} services" }) else null) {
+            +it.departs
+        }
+        column("Fare", numeric = true, footer = if (footer) ({ +dollars(rows.sumOf { it.fare }) }) else null) {
+            +dollars(it.fare)
+        }
+    }
+}
+
+private fun dollars(cents: Int): String = "$${cents / 100}.${(cents % 100).toString().padStart(2, '0')}"
+
 internal val collectionDemos = listOf(
     ListItemDemo,
     ExpandingListItemDemo,
@@ -434,4 +525,5 @@ internal val collectionDemos = listOf(
     LoadMoreDemo,
     ScrollbarDemo,
     FadingEdgesDemo,
+    TableDemo,
 )

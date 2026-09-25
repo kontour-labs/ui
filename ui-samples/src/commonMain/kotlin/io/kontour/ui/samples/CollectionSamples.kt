@@ -1,5 +1,6 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -9,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
@@ -37,6 +39,10 @@ import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.components.table.TableSort
+import io.kontour.ui.components.table.TableAlign
+import io.kontour.ui.components.table.Table
+import io.kontour.ui.components.table.SortDirection
 
 @Composable
 fun ListItemBasics(stops: List<Stop>) {
@@ -196,3 +202,28 @@ fun FadingEdgesBasics() {
         Text("Departures")
     }
 }
+
+@Composable
+fun TableBasics() {
+    var sort by remember { mutableStateOf<TableSort?>(null) }
+    val rows = remember(sort) {
+        // The table says what the reader asked for; the caller does the sorting.
+        val by = compareBy<Service> { if (sort?.column == "Route") it.route else it.time }
+        services.sortedWith(if (sort?.direction == SortDirection.Descending) by.reversed() else by)
+    }
+
+    Table(
+        items = rows,
+        modifier = Modifier.height(240.dp),
+        stickyColumns = 1,
+        striped = true,
+        sort = sort,
+        onSortChange = { sort = it },
+        onRowClick = { openService(it) },
+    ) {
+        column("Route", width = 72.dp) { +it.route }
+        column("Destination", weight = 1f) { +it.destination }
+        column("Departs", align = TableAlign.End) { +it.time }
+    }
+}
+

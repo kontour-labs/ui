@@ -132,7 +132,7 @@ default mode gates a contributor's tree with no token and no rate limit. Re-run
 | 5 | Date and time | core built |
 | 6 | Text editing | core built |
 | 7 | Display and content | core built |
-| 8 | Collections | done — `DataTable`/`TreeList` deliberately skipped |
+| 8 | Collections | done — `TreeList` deliberately skipped |
 | 9 | Overlays | done, with `Select`, `Combobox`, `MultiSelect` and the text toolbar |
 | 10 | Sheets | done |
 | 11 | Navigation | done |

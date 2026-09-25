@@ -126,6 +126,14 @@ data class Strings(
     val expandNavigation: String = "Expand navigation",
     val collapseNavigation: String = "Collapse navigation",
 
+    // Tables
+    /** A sorted column's header, sorted smallest first. */
+    val sortedAscending: String = "Sorted ascending",
+    /** And largest first. */
+    val sortedDescending: String = "Sorted descending",
+    /** A row's checkbox, where the row has nothing better to be called. */
+    val selectRow: String = "Select row",
+
     // Activity calendar
     /** The quiet end of an activity calendar's legend. */
     val activityLess: String = "Less",
