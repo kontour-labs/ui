@@ -1,8 +1,12 @@
 package io.kontour.ui.components.display
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -12,20 +16,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.PointMode
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
-import kotlin.math.roundToInt
 
 /** How the connector below a [TimelineItem] is drawn. */
 enum class ConnectorStyle {
@@ -45,14 +50,19 @@ enum class ConnectorStyle {
      *
      * A dot is as wide as [TimelineItem]'s `connectorWidth`, so a 4dp train
      * segment and a 2dp walk get dots in proportion. The run is spaced to put one
-     * on each end of it rather than to a fixed pitch — see `dottedRun` for why
-     * that is not the same thing as a dash pattern of zero-length dashes, which
-     * is what this was.
+     * on each end of it rather than to a fixed pitch — see `drawConnectorRun` for
+     * why that is not the same thing as a dash pattern of zero-length dashes,
+     * which is what this was.
      */
     Dotted,
 
     /** Nothing. For the last item, or a deliberate break. */
     None,
+}
+
+object TimelineDefaults {
+    /** Space above the node, and between it and the line leaving it. */
+    val NodeGap: Dp get() = TimelineNodeGap
 }
 
 /**
@@ -76,28 +86,47 @@ enum class ConnectorStyle {
  * three lines of content gets a longer line than one with one. That is the
  * detail that makes a timeline look built rather than assembled: a fixed-height
  * connector leaves gaps against tall rows and overshoots short ones.
+ *
+ * For the same events across the page — a delivery's stages, a short trip —
+ * see [HorizontalTimeline], which takes the same [TimelineItem]s. For an
+ * itinerary whose stops are list rows, with trailing content and a tap each,
+ * see [TimelineList].
  */
-object TimelineDefaults {
-    /** Space above the node, and between it and the line leaving it. */
-    val NodeGap: Dp = 2.dp
-}
-
 @Composable
 fun Timeline(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(modifier.fillMaxWidth(), content = content)
+    CompositionLocalProvider(LocalTimelineOrientation provides Orientation.Vertical) {
+        Column(modifier.fillMaxWidth(), content = content)
+    }
 }
 
 /**
- * One event in a [Timeline].
+ * One event in a [Timeline] or a [HorizontalTimeline].
+ *
+ * Down a [Timeline] the node sits in a gutter beside the content, level with its
+ * first line, and the connector runs down the gutter to the bottom of the row.
+ * Across a [HorizontalTimeline] the node sits above the content, at its start,
+ * and the connector runs along to the item's end edge — where the next item's
+ * node begins, the same gap on from it as down the page.
  *
  * @param connector How to join this item to the next. The last item should pass
  *   [ConnectorStyle.None].
  * @param nodeColour The dot's colour. Takes a route colour straight from a feed.
+ * @param connectorColour The line's colour, to the next item.
  * @param filled A solid dot for a place the traveller actually stops; a hollow
  *   one for a point they pass through.
+ * @param loading Whether this step is happening now, drawn as a spinner in place
+ *   of the dot. For the step a timeline is waiting on — a train that has not been
+ *   assigned a platform, a payment being taken. The connector is unchanged: the
+ *   itinerary still runs on, and only the node says which part of it is in
+ *   flight. **Say it in the words as well**: the node is drawn, not announced —
+ *   the same rule [filled] carries — so put "in progress" in the item's own text.
+ * @param nodeSize The dot's diameter.
+ * @param gutterWidth The width of the column the node and connector run down,
+ *   beside the content. Down a [Timeline] only; across a [HorizontalTimeline] the
+ *   node sits above the content and there is no gutter.
  * @param connectorWidth How thick the line to the next item is. Per item, not
  *   per timeline, because a leg's weight is part of what it *is*: a 4dp train
  *   segment and a 2dp walk between two stations says which part of the journey
@@ -111,24 +140,16 @@ fun TimelineItem(
     nodeColour: Color = Theme.colours.primary,
     connectorColour: Color = Theme.colours.outlineStrong,
     filled: Boolean = true,
-    /**
-     * Whether this step is happening now, drawn as a spinner in place of the dot.
-     *
-     * For the step a timeline is waiting on — a train that has not been assigned
-     * a platform, a payment being taken. The connector below it is unchanged: the
-     * itinerary still runs on, and only the node says which part of it is in
-     * flight.
-     *
-     * **Say it in the words as well.** The node is drawn, not announced — the
-     * same rule [filled] carries — so a row that is only a spinner tells a screen
-     * reader nothing at all. Put "in progress" in the item's own text.
-     */
     loading: Boolean = false,
     nodeSize: Dp = 12.dp,
     gutterWidth: Dp = 28.dp,
     connectorWidth: Dp = Theme.sizing.borderWidthStrong,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    if (LocalTimelineOrientation.current == Orientation.Horizontal) {
+        AcrossItem(modifier, connector, nodeColour, connectorColour, filled, loading, nodeSize, connectorWidth, content)
+        return
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -148,7 +169,7 @@ fun TimelineItem(
                 Spinner(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = TimelineDefaults.NodeGap),
+                        .padding(top = TimelineNodeGap),
                     size = nodeSize,
                     colour = nodeColour,
                     // The same weight as the ring it stands in for.
@@ -171,61 +192,25 @@ fun TimelineItem(
                 // The gap above and below the node is its own measure, not the
                 // stroke's — a thick segment should not shove its dot down the
                 // gutter and out of line with the ones above it.
-                val nodeGap = TimelineDefaults.NodeGap.toPx()
+                val nodeGap = TimelineNodeGap.toPx()
                 val nodeCentreY = nodeRadius + nodeGap
 
                 val top = nodeCentreY + nodeRadius + nodeGap
-                if (connector != ConnectorStyle.None && top < size.height) {
-                    // **A connector ends where the row ends, whatever it is made
-                    // of.** All three used to be one line with a dash pattern
-                    // over it, and a dash pattern is walked from the start of the
-                    // path and abandoned wherever it has got to — so the run
-                    // finished at the last whole period and the remainder was
-                    // blank. Reported of the dots, which lose a whole dot and can
-                    // lose it even when the pitch divides the run exactly, since
-                    // a zero-length dash sitting on the path's own end is not
-                    // drawn at all. The dashes lose up to one gap the same way.
-                    //
-                    // Both are now spaced to the run they have rather than to a
-                    // multiple of the stroke. See [dottedRun] and [dashes].
-                    val run = size.height - top
-                    when (connector) {
-                        ConnectorStyle.Dotted ->
-                            dottedRun(centreX, top, run, stroke, connectorColour)
-                        ConnectorStyle.Solid, ConnectorStyle.Dashed -> drawLine(
-                            color = connectorColour,
-                            start = Offset(centreX, top),
-                            end = Offset(centreX, size.height),
-                            strokeWidth = stroke,
-                            cap = StrokeCap.Round,
-                            pathEffect = if (connector == ConnectorStyle.Dashed) {
-                                dashes(run, stroke)
-                            } else {
-                                null
-                            },
-                        )
-                        ConnectorStyle.None -> Unit
-                    }
+                if (top < size.height) {
+                    drawConnectorRun(
+                        connector,
+                        from = Offset(centreX, top),
+                        to = Offset(centreX, size.height),
+                        stroke = stroke,
+                        colour = connectorColour,
+                    )
                 }
 
                 // The spinner above is the node while this is loading, so the
                 // dot is not drawn at all rather than drawn under it. The
                 // connector is: a step in flight still leads somewhere.
-                if (loading) return@Canvas
-
-                if (filled) {
-                    drawCircle(
-                        color = nodeColour,
-                        radius = nodeRadius,
-                        center = Offset(centreX, nodeCentreY),
-                    )
-                } else {
-                    drawCircle(
-                        color = nodeColour,
-                        radius = nodeRadius - stroke / 2f,
-                        center = Offset(centreX, nodeCentreY),
-                        style = Stroke(width = stroke),
-                    )
+                if (!loading) {
+                    drawTimelineNode(Offset(centreX, nodeCentreY), nodeRadius, stroke, nodeColour, filled)
                 }
             }
         }
@@ -241,68 +226,146 @@ fun TimelineItem(
 }
 
 /**
- * A run of round dots down [run] pixels from [top], landing on both ends of it.
- *
- * [ConnectorStyle.Dotted] used to be a dash of length zero with a round cap
- * drawn over the same line the other two styles use — which is a neat way to get
- * a dot of the stroke's own diameter, and the wrong way to finish a run. Skia
- * walks a dash pattern from the start of the path and stops when the path does,
- * so the last dot landed on the last whole multiple of the pitch and the
- * remainder of the gutter was empty. Worse, a zero-length dash that falls on the
- * path's own endpoint is not drawn at all, so a row whose height *did* divide by
- * the pitch still came up one dot short. That is the reported "stops just a bit
- * short of the actual timeline point": between one and two dot diameters of
- * nothing above the node below.
- *
- * Placing the dots fixes the end because the end is one of them. The pitch is
- * nominally two diameters — a dot and a gap of its own size, which is what makes
- * this read quieter than a dash at the same weight — and is then stretched or
- * squeezed by less than half of one so a whole number of them spans the run. At a
- * 2dp connector that is under 2dp of difference spread over the whole row, which
- * nothing can see; a gap at one end is the thing that was reported.
- *
- * One `drawPoints` rather than a circle each, so this is still one draw call for
- * the run.
+ * A [TimelineItem] across a [HorizontalTimeline]: a band along its top with the
+ * node at its start and the connector to its end edge, and the content under it.
  */
-private fun DrawScope.dottedRun(
-    x: Float,
-    top: Float,
-    run: Float,
-    stroke: Float,
-    colour: Color,
+@Composable
+private fun AcrossItem(
+    modifier: Modifier,
+    connector: ConnectorStyle,
+    nodeColour: Color,
+    connectorColour: Color,
+    filled: Boolean,
+    loading: Boolean,
+    nodeSize: Dp,
+    connectorWidth: Dp,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
-    val steps = (run / (stroke * 2f)).roundToInt().coerceAtLeast(1)
-    val pitch = run / steps
-    drawPoints(
-        points = List(steps + 1) { Offset(x, top + it * pitch) },
-        pointMode = PointMode.Points,
-        color = colour,
-        strokeWidth = stroke,
-        cap = StrokeCap.Round,
-    )
+    val band = nodeSize + TimelineNodeGap * 2
+    Column(
+        modifier = modifier
+            // Never so narrow that the connector has nowhere to run.
+            .widthIn(min = band + AcrossMinimumRun)
+            .drawBehind {
+                val nodeRadius = nodeSize.toPx() / 2f
+                val stroke = connectorWidth.toPx()
+                val nodeGap = TimelineNodeGap.toPx()
+                val y = nodeGap + nodeRadius
+                // Laid out from the start edge, whichever side that is.
+                val rtl = layoutDirection == LayoutDirection.Rtl
+                fun x(fromStart: Float) = if (rtl) size.width - fromStart else fromStart
+                val nodeX = nodeGap + nodeRadius
+                val runStart = nodeX + nodeRadius + nodeGap
+                if (runStart < size.width) {
+                    drawConnectorRun(
+                        connector,
+                        from = Offset(x(runStart), y),
+                        to = Offset(x(size.width), y),
+                        stroke = stroke,
+                        colour = connectorColour,
+                    )
+                }
+                if (!loading) drawTimelineNode(Offset(x(nodeX), y), nodeRadius, stroke, nodeColour, filled)
+            }
+            // The content stops short of the next node, as a row's content stops
+            // short of the next row down the page.
+            .padding(end = Theme.spacing.md),
+    ) {
+        Box(Modifier.height(band)) {
+            if (loading) {
+                Spinner(
+                    modifier = Modifier.align(Alignment.CenterStart).padding(start = TimelineNodeGap),
+                    size = nodeSize,
+                    colour = nodeColour,
+                    strokeWidth = connectorWidth,
+                )
+            }
+        }
+        Column(
+            // Under the node, starting where it does.
+            modifier = Modifier.padding(start = TimelineNodeGap, top = Theme.spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            content = content,
+        )
+    }
 }
 
 /**
- * [ConnectorStyle.Dashed]'s pattern, sized so the last dash ends on the run's end.
+ * [TimelineItem]s across the page, joined left to right — right to left in a
+ * right-to-left layout — and scrolled sideways when there are more than fit.
  *
- * The same fault as the dots and a milder version of it: the pattern is a dash
- * then a gap, so a run that happens to finish inside a gap finishes with up to a
- * whole gap of nothing. The dash length is left alone — it is the thing that says
- * "dashed" — and the gap takes the adjustment, so `n` dashes and `n − 1` gaps
- * span the run exactly and the last dash lands on the bottom of the gutter.
+ * ```kotlin
+ * HorizontalTimeline {
+ *     TimelineItem { Text("Ordered"); Text("Mon", style = Theme.typography.bodySmall) }
+ *     TimelineItem { Text("Packed"); Text("Tue", style = Theme.typography.bodySmall) }
+ *     TimelineItem(filled = false, connector = ConnectorStyle.None) { Text("Delivered") }
+ * }
+ * ```
  *
- * A run too short for one dash and one gap is drawn as one unbroken dash, because
- * the alternative is a single mark that does not reach either end of a gutter it
- * barely fits in.
+ * For a handful of stages read at a glance — an order's progress, a short trip —
+ * where [Timeline] down the page would spend a screen on four words. The items
+ * are the same [TimelineItem]s with the same connectors and nodes; laid out
+ * across, each puts its node at its start with the content under it, and its
+ * connector runs to where the next one begins.
+ *
+ * Each item is as wide as its content, up to a limit past which its text wraps,
+ * so a long stage name does not push the rest off the page.
+ *
+ * **Not a `Row`.** Its items are measured by the timeline, inside a scroller, so
+ * a `weight` would be asked to share an unbounded width; [equalWidths] is how to
+ * ask for even spacing instead.
+ *
+ * @param equalWidths Every item as wide as the widest — or, if they would not
+ *   fill the width available, as wide as an even share of it. Evenly spaced
+ *   nodes, for stages whose spacing should not say anything about their names.
+ * @param scrollState Where the timeline is scrolled to, for a caller that wants
+ *   to bring the current stage into view.
+ * @param content The [TimelineItem]s, in order.
  */
-private fun dashes(run: Float, stroke: Float): PathEffect? {
-    val on = stroke * DashLength
-    val gaps = ((run - on) / (on + stroke * DashGap)).roundToInt()
-    if (gaps < 1) return null
-    val pitch = (run - on) / gaps
-    return PathEffect.dashPathEffect(floatArrayOf(on, pitch - on))
+@Composable
+fun HorizontalTimeline(
+    modifier: Modifier = Modifier,
+    equalWidths: Boolean = false,
+    scrollState: ScrollState = rememberScrollState(),
+    content: @Composable () -> Unit,
+) {
+    CompositionLocalProvider(LocalTimelineOrientation provides Orientation.Horizontal) {
+        BoxWithConstraints(modifier.fillMaxWidth()) {
+            val viewport = if (constraints.hasBoundedWidth) constraints.maxWidth else 0
+            Layout(content = content, modifier = Modifier.horizontalScroll(scrollState)) { measurables, outer ->
+                val widest = AcrossMaximumWidth.roundToPx()
+                val height = outer.maxHeight
+                val even = if (equalWidths && measurables.isNotEmpty()) {
+                    maxOf(
+                        measurables.maxOf { it.maxIntrinsicWidth(height) }.coerceAtMost(widest),
+                        viewport / measurables.size,
+                    )
+                } else {
+                    null
+                }
+                val placeables = measurables.map {
+                    it.measure(
+                        if (even != null) {
+                            Constraints(minWidth = even, maxWidth = even, maxHeight = height)
+                        } else {
+                            Constraints(maxWidth = widest, maxHeight = height)
+                        },
+                    )
+                }
+                layout(placeables.sumOf { it.width }, placeables.maxOfOrNull { it.height } ?: 0) {
+                    var x = 0
+                    placeables.forEach {
+                        it.placeRelative(x, 0)
+                        x += it.width
+                    }
+                }
+            }
+        }
+    }
 }
 
-/** A dash is a stroke and a half long, and the gap after it two. */
-private const val DashLength = 1.5f
-private const val DashGap = 2f
+/** The shortest connector an item across a [HorizontalTimeline] draws. */
+private val AcrossMinimumRun: Dp = 24.dp
+
+/** The widest an item across a [HorizontalTimeline] grows before its text wraps. */
+private val AcrossMaximumWidth: Dp = 200.dp

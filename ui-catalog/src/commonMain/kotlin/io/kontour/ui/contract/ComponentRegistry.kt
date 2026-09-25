@@ -3,6 +3,10 @@ package io.kontour.ui.contract
 import io.kontour.ui.components.selection.Knob
 import io.kontour.ui.components.display.BubbleSide
 import io.kontour.ui.components.display.ChatBubble
+import io.kontour.ui.components.display.ConnectorStyle
+import io.kontour.ui.components.display.HorizontalTimeline
+import io.kontour.ui.components.display.Timeline
+import io.kontour.ui.components.display.TimelineItem
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.Gauge
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -846,6 +850,44 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 tickLabel = { "${(it * 100).toInt()}" },
                 contentDescription = "Battery",
             )
+        }
+    )
+
+    add(
+        // Drawn, not operated: the rail and nodes are pictures of a sequence and
+        // the words beside them are read in order. `TimelineConnectorTest`
+        // measures the connectors; this is here for the render and the width sweep.
+        ComponentSpec(
+            "Timeline",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 160,
+        ) { modifier, _, _ ->
+            Timeline(modifier) {
+                TimelineItem { Text("Perth Station") }
+                TimelineItem(connector = ConnectorStyle.Dotted, filled = false) { Text("Walk 4 min") }
+                TimelineItem(connector = ConnectorStyle.None) { Text("Elizabeth Quay") }
+            }
+        }
+    )
+
+    add(
+        // The same items across the page. Here for its render, and for the width
+        // sweep, which is what squeezes an item until its text wraps.
+        ComponentSpec(
+            "HorizontalTimeline",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+        ) { modifier, _, _ ->
+            HorizontalTimeline(modifier) {
+                TimelineItem { Text("Ordered") }
+                TimelineItem(connector = ConnectorStyle.Dashed) { Text("Packed") }
+                TimelineItem(connector = ConnectorStyle.None, filled = false) { Text("Delivered") }
+            }
         }
     )
 

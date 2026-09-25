@@ -1,6 +1,6 @@
 # `Timeline`
 
-*Also on this page: `TimelineItem`.*
+*Also on this page: `TimelineItem`, `HorizontalTimeline`.*
 
 <!--sample:TimelineBasics-->
 ```kotlin
@@ -15,7 +15,7 @@ Timeline {
     }
     // The last item draws no connector below it, because there is nothing
     // for it to connect to.
-    TimelineItem(filled = false) {
+    TimelineItem(filled = false, connector = ConnectorStyle.None) {
         Text("Perth Busport", style = Theme.typography.titleSmall)
         Text("08:29 · Stand 24", style = Theme.typography.bodySmall)
     }
@@ -56,12 +56,54 @@ hollow dot it replaces. `Spinner` otherwise derives its stroke from its size,
 which at a 12dp node is 1.5dp against the ring's 2dp: a step going into progress
 got visibly thinner and the rail around it did not.
 
+## Across the page
+
+<!--sample:HorizontalTimelineBasics-->
+```kotlin
+// The same items, laid across: each node at its item's start, the content
+// under it, and the connector running on to the next.
+HorizontalTimeline {
+    TimelineItem {
+        Text("Ordered", style = Theme.typography.titleSmall)
+        Text("Mon 3", style = Theme.typography.bodySmall)
+    }
+    TimelineItem {
+        Text("Packed", style = Theme.typography.titleSmall)
+        Text("Tue 4", style = Theme.typography.bodySmall)
+    }
+    TimelineItem(connector = ConnectorStyle.Dashed) {
+        Text("On its way", style = Theme.typography.titleSmall)
+        Text("Wed 5", style = Theme.typography.bodySmall)
+    }
+    TimelineItem(filled = false, connector = ConnectorStyle.None) {
+        Text("Delivered", style = Theme.typography.titleSmall)
+        Text("Thu 6, expected", style = Theme.typography.bodySmall)
+    }
+}
+```
+`HorizontalTimeline` lays the same `TimelineItem`s across the page, for a handful
+of stages read at a glance: an order's progress, a short trip. Each item puts its
+node at its start with the content under it, and its connector runs to the
+item's end edge, where the next node begins. The connectors are the same three
+styles, and every one of them reaches the next node here too.
+
+Each item is as wide as its content, up to about 200dp, past which its text
+wraps. **`equalWidths = true`** makes every item as wide as the widest, or an
+even share of the width when that is more. Use it when the spacing between
+stages should not depend on how long their names are. When the items are wider
+than the screen, the timeline scrolls sideways, and `scrollState` lets you bring
+the current stage into view. Right to left, the first stage is at the right.
+
+It is not a `Row`, and its items get no `RowScope`: they are measured inside a
+scroller, where a `weight` would be asked to share an unbounded width.
+`equalWidths` is the way to ask for even spacing.
+
 ---
 
 ## Accessibility
 
 The timeline is a `Column` and its items are read top to bottom, which is the
-order they mean. Nothing here adds a role: a journey is a sequence of content,
+order they mean. A `HorizontalTimeline` is read start to end, the same order. Nothing here adds a role: a journey is a sequence of content,
 not a control.
 
 The connectors and nodes are drawn, not announced, so the *text* has to carry the

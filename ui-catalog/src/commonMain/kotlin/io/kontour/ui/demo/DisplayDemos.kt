@@ -66,6 +66,7 @@ import io.kontour.ui.components.display.StatTrend
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.display.TagTone
+import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.TimelineItem
 import io.kontour.ui.components.display.rememberCarouselState
@@ -274,11 +275,24 @@ private val timelineConnector =
  */
 private val timelineLoading = Knob.Flag("Walk in progress", initial = false)
 
+/**
+ * The same three stops laid across the page, by a `HorizontalTimeline`.
+ *
+ * The items are the ones the vertical timeline takes, unchanged: which way they
+ * run is the container's to say.
+ */
+private val timelineAcross = Knob.Flag("Horizontal", initial = false)
+
+/** Across, every stop as wide as the widest, so the nodes are evenly spaced. */
+private val timelineEqualWidths = Knob.Flag("Equal widths", initial = false)
+
 internal val TimelineDemo = ComponentDemo(
     slug = "timeline",
-    knobs = listOf(timelineConnector, timelineLoading),
+    knobs = listOf(timelineConnector, timelineLoading, timelineAcross, timelineEqualWidths),
 ) {
-    Timeline(Modifier.fillMaxWidth()) {
+    val walking = this[timelineLoading]
+    val connector = this[timelineConnector]
+    val stops: @Composable () -> Unit = {
         TimelineItem(nodeColour = Color(0xFF1B5E20)) {
             Text("Perth Station", style = Theme.typography.titleSmall)
             Text(
@@ -287,9 +301,8 @@ internal val TimelineDemo = ComponentDemo(
                 colour = Theme.colours.contentMuted,
             )
         }
-        val walking = this@ComponentDemo[timelineLoading]
         TimelineItem(
-            connector = this@ComponentDemo[timelineConnector],
+            connector = connector,
             filled = false,
             loading = walking,
             nodeColour = Theme.colours.outlineStrong,
@@ -306,6 +319,11 @@ internal val TimelineDemo = ComponentDemo(
             Text("Elizabeth Quay", style = Theme.typography.titleSmall)
             Text("08:31", style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
         }
+    }
+    if (this[timelineAcross]) {
+        HorizontalTimeline(Modifier.fillMaxWidth(), equalWidths = this[timelineEqualWidths]) { stops() }
+    } else {
+        Timeline(Modifier.fillMaxWidth()) { stops() }
     }
 }
 

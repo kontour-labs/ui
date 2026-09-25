@@ -938,7 +938,7 @@ def ungated_transforms() -> list[str]:
 # the floor is not zero: `ScrollbarDefaults` returns a fallback `0.dp` from a
 # `remember` and `TextFieldDefaults` fades a container by `0.5f`, and neither is
 # a dial anybody wants.
-MAX_DEFAULTS_LITERALS = 78
+MAX_DEFAULTS_LITERALS = 77
 
 # Every field on `ComponentDefaults` is read by something.
 #

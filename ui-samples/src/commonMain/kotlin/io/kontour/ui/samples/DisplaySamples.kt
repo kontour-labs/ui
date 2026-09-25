@@ -59,6 +59,8 @@ import io.kontour.ui.components.display.StatTrend
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.display.TagTone
+import io.kontour.ui.components.display.ConnectorStyle
+import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.TimelineItem
 import io.kontour.ui.components.display.rememberCarouselState
@@ -404,9 +406,33 @@ fun TimelineBasics() {
         }
         // The last item draws no connector below it, because there is nothing
         // for it to connect to.
-        TimelineItem(filled = false) {
+        TimelineItem(filled = false, connector = ConnectorStyle.None) {
             Text("Perth Busport", style = Theme.typography.titleSmall)
             Text("08:29 · Stand 24", style = Theme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+fun HorizontalTimelineBasics() {
+    // The same items, laid across: each node at its item's start, the content
+    // under it, and the connector running on to the next.
+    HorizontalTimeline {
+        TimelineItem {
+            Text("Ordered", style = Theme.typography.titleSmall)
+            Text("Mon 3", style = Theme.typography.bodySmall)
+        }
+        TimelineItem {
+            Text("Packed", style = Theme.typography.titleSmall)
+            Text("Tue 4", style = Theme.typography.bodySmall)
+        }
+        TimelineItem(connector = ConnectorStyle.Dashed) {
+            Text("On its way", style = Theme.typography.titleSmall)
+            Text("Wed 5", style = Theme.typography.bodySmall)
+        }
+        TimelineItem(filled = false, connector = ConnectorStyle.None) {
+            Text("Delivered", style = Theme.typography.titleSmall)
+            Text("Thu 6, expected", style = Theme.typography.bodySmall)
         }
     }
 }
