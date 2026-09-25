@@ -154,13 +154,18 @@ internal fun LaneGraph.bentEarly(): LaneGraph {
     for (i in 0 until rows.lastIndex) {
         for (edge in rows[i + 1].incoming) {
             if (edge.from == edge.to) continue
-            passing[i].replaceAll { if (it.to == edge.from) it.copy(to = edge.to) else it }
-            outgoing[i].replaceAll { if (it.to == edge.from) it.copy(to = edge.to) else it }
-            incoming[i + 1].replaceAll { if (it == edge) it.copy(from = edge.to) else it }
+            passing[i].update { if (it.to == edge.from) it.copy(to = edge.to) else it }
+            outgoing[i].update { if (it.to == edge.from) it.copy(to = edge.to) else it }
+            incoming[i + 1].update { if (it == edge) it.copy(from = edge.to) else it }
         }
     }
     return LaneGraph(
         rows = rows.mapIndexed { i, row -> LaneRow(row.node, row.ink, incoming[i], passing[i], outgoing[i]) },
         width = width,
     )
+}
+
+/** Each element replaced by [transform] of it — `replaceAll`, which is Java's and not in common code. */
+private inline fun <T> MutableList<T>.update(transform: (T) -> T) {
+    for (index in indices) this[index] = transform(this[index])
 }

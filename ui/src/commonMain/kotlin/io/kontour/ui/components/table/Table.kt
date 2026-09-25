@@ -149,9 +149,13 @@ object TableDefaults {
         container, header, headerContent, content, stripe, selected, selectedContent, lines, headerLine,
     )
 
-    /** A row's floor: a touch target, so a row that does something can be hit. */
+    /**
+     * A row's floor: a control's height, so a row that does something is one a
+     * finger can hit — and the same on every platform, because a row's height is
+     * how the table looks rather than how big its target is.
+     */
     val RowMinHeight: Dp
-        @Composable @ReadOnlyComposable get() = Theme.sizing.minTouchTarget
+        @Composable @ReadOnlyComposable get() = Theme.sizing.controlHeightMedium
 
     /** The space either side of a cell's content. */
     val CellPadding: Dp
@@ -160,13 +164,9 @@ object TableDefaults {
     /** The narrowest a fitted or weighted column goes. */
     val MinColumnWidth: Dp get() = TableMinColumnWidth
 
-    /**
-     * The checkbox column of a table with [TableSelection.Multiple]: a checkbox
-     * with a cell's padding either side, and never less than a touch target.
-     */
+    /** The checkbox column of a table with [TableSelection.Multiple]: a checkbox with a cell's padding either side. */
     val SelectionColumnWidth: Dp
-        @Composable @ReadOnlyComposable get() =
-            maxOf(Theme.sizing.minTouchTarget, CheckboxVisualSize + Theme.spacing.sm + Theme.spacing.sm)
+        @Composable @ReadOnlyComposable get() = CheckboxVisualSize + Theme.spacing.sm + Theme.spacing.sm
 
     /** An outlined table's corners: a card's. */
     val Shape: Shape

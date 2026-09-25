@@ -333,8 +333,14 @@ internal val TimelineDemo = ComponentDemo(
 private val timelineListStyle = Knob.Choice("Style", TimelineListStyle.entries.toList())
 
 /** How far along the trip is, in stops. Halfway between two is on the leg. */
-private val timelineListProgress =
-    Knob.Choice("Progress", listOf<Float?>(null, 0f, 1.5f, 3f), name = { it?.toString() ?: "None" })
+private enum class TripProgress(val label: String, val stops: Float?) {
+    None("None", null),
+    Start("At Perth Station", 0f),
+    Walking("Walking", 1.5f),
+    Arrived("Arrived", 3f),
+}
+
+private val timelineListProgress = Knob.Choice("Progress", TripProgress.entries.toList(), name = { it.label })
 
 /** The stop being waited on: a spinner where its node was, and the words say so. */
 private val timelineListLoading = Knob.Flag("Loading", initial = false)
@@ -348,7 +354,7 @@ internal val TimelineListDemo = ComponentDemo(
     TimelineList(
         Modifier.fillMaxWidth(),
         style = this[timelineListStyle],
-        progress = this[timelineListProgress],
+        progress = this[timelineListProgress].stops,
         leadIn = ConnectorStyle.Dotted,
     ) {
         item(
