@@ -3,6 +3,7 @@ package io.kontour.ui.components.datetime
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,8 +21,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,12 +33,21 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.VectorPainter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -62,6 +74,7 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
@@ -69,17 +82,21 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.input.rememberFocusRingVisible
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.TooltipDefaults
 import io.kontour.ui.overlay.TooltipOverlay
 import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlinx.coroutines.delay
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
@@ -87,8 +104,6 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
-import kotlin.math.ceil
-import kotlin.math.floor
 
 /** How an [ActivityCalendar] turns a day's count into a shade. */
 @Immutable
@@ -125,6 +140,35 @@ data class ActivityCalendarColours(
     val label: Color,
     val selection: Color,
     val today: Color,
+)
+
+/**
+ * What an [ActivityCalendar] draws on one day as well as its shade: a holiday's
+ * corner, a trip's icon, a count spelled out on a busy day. Any of the parts
+ * can be combined; leave out the ones a day does not need.
+ *
+ * @param icon A glyph in the middle of the cell, about three fifths its size.
+ * @param text A few characters in the middle of the cell — a count, a letter —
+ *   drawn small, and smaller still if they would not fit. Ignored with [icon].
+ * @param corner A dog-ear: the cell's top end corner folded over, in this colour.
+ * @param dot A small dot under the middle of the cell, in this colour.
+ * @param outline A ring inside the cell's edge, in this colour.
+ * @param fill The cell's colour in place of its shade.
+ * @param contentColour The icon's or text's colour. Unspecified picks whichever
+ *   of light and dark reads better on the cell.
+ * @param description What the mark means, in words: said after the day's count
+ *   in its tooltip and to a screen reader, since a corner or an icon is not.
+ */
+@Immutable
+data class ActivityMark(
+    val icon: ImageVector? = null,
+    val text: String? = null,
+    val corner: Color = Color.Unspecified,
+    val dot: Color = Color.Unspecified,
+    val outline: Color = Color.Unspecified,
+    val fill: Color = Color.Unspecified,
+    val contentColour: Color = Color.Unspecified,
+    val description: String? = null,
 )
 
 object ActivityCalendarDefaults {
@@ -203,16 +247,26 @@ object ActivityCalendarDefaults {
  *
  * ### Size
  *
- * Cells fit the width available, between 8dp and 16dp. A width that would need
- * them smaller scrolls sideways instead, opening at the most recent week, which
- * is the end anybody looks at first. [cellSize] fixes them.
+ * Cells fit the width available, between 20dp and 28dp, so with the gap every
+ * day is at least a 24dp target. A width that would need them smaller scrolls
+ * sideways instead, opening at the most recent week, which is the end anybody
+ * looks at first. [cellSize] fixes them — smaller for an overview that has to
+ * fit a year and is not for picking from.
+ *
+ * ### Marks
+ *
+ * [markFor] decorates days: a corner folded over for a holiday, an icon for a
+ * trip, a count written out on a busy day. See [ActivityMark].
  *
  * ### Touch, pointer and keys
  *
  * With [onDayClick] a tap picks a day. A pointer resting on a cell, a long press
- * on one, or the keyboard's cursor shows the day's count in a tooltip. The arrow
- * keys move by a day down a column and a week across, Home and End go to the
- * first and last day, and Enter picks.
+ * on one, or the keyboard's cursor shows the day's count in a tooltip. On touch,
+ * a long press can then slide: the tooltip follows the finger a day at a time,
+ * and lifting picks the day under it — a way onto the right day without having
+ * to tap it exactly. Slide off the grid before lifting to pick nothing. The
+ * arrow keys move by a day down a column and a week across, Home and End go to
+ * the first and last day, and Enter picks.
  *
  * @param activity How much happened each day. Days not in the map had nothing.
  * @param end The last day shown.
@@ -224,6 +278,8 @@ object ActivityCalendarDefaults {
  * @param onDayClick Makes the days pickable. Without it the calendar is a picture
  *   with tooltips.
  * @param today Drawn with an inner ring.
+ * @param markFor What to draw on a day besides its shade, given its date and
+ *   count, or null for nothing. Asked once per day shown.
  * @param levels How counts become shades.
  * @param colours The shades, labels and rings.
  * @param cellSize A fixed cell size. Unspecified fits the width.
@@ -248,6 +304,7 @@ fun ActivityCalendar(
     selected: LocalDate? = null,
     onDayClick: ((LocalDate) -> Unit)? = null,
     today: LocalDate? = null,
+    markFor: ((date: LocalDate, count: Int) -> ActivityMark?)? = null,
     levels: ActivityLevels = ActivityLevels.Quantiles,
     colours: ActivityCalendarColours = ActivityCalendarDefaults.colours(),
     cellSize: Dp = Dp.Unspecified,
@@ -277,6 +334,26 @@ fun ActivityCalendar(
         }
     }
 
+    // Each shown day's mark, in the same order as the shades.
+    val marks = remember(activity, grid, markFor) {
+        if (markFor == null) {
+            null
+        } else {
+            Array(columns * 7) { index ->
+                grid.dateAt(index / 7, index % 7)?.let { markFor(it, activity[it] ?: 0) }
+            }
+        }
+    }
+    val painters = HashMap<ImageVector, VectorPainter>()
+    marks?.mapNotNullTo(LinkedHashSet()) { it?.icon }?.forEach { icon ->
+        key(icon) { painters[icon] = rememberVectorPainter(icon) }
+    }
+    fun say(date: LocalDate, count: Int): String {
+        val words = describe(date, count)
+        val meaning = markFor?.invoke(date, count)?.description ?: return words
+        return "$words. $meaning"
+    }
+
     val labelStyle = Theme.typography.labelSmall
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -300,6 +377,8 @@ fun ActivityCalendar(
     var hoverDay by remember { mutableStateOf<LocalDate?>(null) }
     var pressDay by remember { mutableStateOf<LocalDate?>(null) }
     var hoverShown by remember { mutableStateOf(false) }
+    val ticker = rememberDetentTicker()
+    val pick by rememberUpdatedState(if (interactive) onDayClick else null)
     // A pointer has to rest before the first tooltip, as everywhere else; moving
     // from one cell to the next with one already showing moves it straight away.
     LaunchedEffect(hoverDay == null) {
@@ -415,9 +494,10 @@ fun ActivityCalendar(
                                     week = week,
                                     grid = grid,
                                     activity = activity,
+                                    marks = marks,
                                     formats = formats,
                                     weekOf = strings.weekOf,
-                                    describe = describe,
+                                    describe = ::say,
                                     selected = selected,
                                     onDayClick = if (interactive) onDayClick else null,
                                 )
@@ -433,17 +513,52 @@ fun ActivityCalendar(
                             .requiredSize(gridWidth, gridHeight)
                             .onGloballyPositioned { coordinates[0] = it }
                             .pointerCursor(enabled = interactive)
-                            .pointerInput(interactive, grid, rtl, cell, cellGap, monthBand) {
+                            .pointerInput(grid, rtl, cell, cellGap, monthBand) {
                                 detectTapGestures(
                                     onTap = { at ->
                                         val day = hit(at) ?: return@detectTapGestures
                                         pressDay = null
-                                        if (interactive) {
+                                        pick?.let {
                                             cursor = day
-                                            onDayClick(day)
+                                            it(day)
                                         }
                                     },
-                                    onLongPress = { at -> pressDay = hit(at) },
+                                    // The scrub below has long presses; claimed
+                                    // here so that lifting after one is not a tap.
+                                    onLongPress = {},
+                                )
+                            }
+                            .pointerInput(grid, rtl, cell, cellGap, monthBand) {
+                                // Long press, then slide: the tooltip follows the
+                                // finger day by day, and lifting picks the day
+                                // under it. Off the grid, nothing is under it.
+                                fun scrubTo(at: Offset) {
+                                    val day = hit(at)
+                                    pressDay = day
+                                    day?.let { grid.cellOf(it) }?.let { (column, row) -> ticker.at(column * 7 + row) }
+                                }
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { at ->
+                                        ticker.reset()
+                                        scrubTo(at)
+                                    },
+                                    onDrag = { change, _ ->
+                                        change.consume()
+                                        scrubTo(change.position)
+                                    },
+                                    onDragEnd = {
+                                        ticker.reset()
+                                        val day = pressDay
+                                        val action = pick
+                                        if (day != null && action != null) {
+                                            cursor = day
+                                            action(day)
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        ticker.reset()
+                                        pressDay = null
+                                    },
                                 )
                             }
                             .pointerInput(grid, rtl, cell, cellGap, monthBand) {
@@ -487,6 +602,37 @@ fun ActivityCalendar(
                                     emptyList()
                                 }
                                 fun leftOf(column: Int): Float = if (rtl) width - column * step - size else column * step
+                                val cellPath = Path().apply { addOutline(outline) }
+                                val ear = size * DogEarShare
+                                val dogEar = Path().apply {
+                                    // The top end corner: right, or left right to left.
+                                    val edge = if (rtl) 0f else size
+                                    val inward = if (rtl) ear else size - ear
+                                    moveTo(inward, 0f)
+                                    lineTo(edge, 0f)
+                                    lineTo(edge, ear)
+                                    close()
+                                }
+                                val iconSize = size * MarkIconShare
+                                val markTexts = marks?.mapNotNullTo(LinkedHashSet()) { it?.text }?.associateWith { text ->
+                                    val room = size - MarkTextPadding.toPx() * 2
+                                    val natural = measurer.measure(text, labelStyle, maxLines = 1, softWrap = false)
+                                    if (natural.size.width <= room || natural.size.width == 0) {
+                                        natural
+                                    } else {
+                                        measurer.measure(
+                                            text,
+                                            labelStyle.copy(fontSize = labelStyle.fontSize * (room / natural.size.width)),
+                                            maxLines = 1,
+                                            softWrap = false,
+                                        )
+                                    }
+                                }.orEmpty()
+                                val markRing = cellShape.createOutline(
+                                    Size(size - MarkRingInset.toPx() * 2, size - MarkRingInset.toPx() * 2),
+                                    layoutDirection,
+                                    this,
+                                )
 
                                 onDrawBehind {
                                     months.forEach { (column, text) ->
@@ -498,10 +644,18 @@ fun ActivityCalendar(
                                         for (row in 0..6) {
                                             val shade = shades[column * 7 + row]
                                             if (shade < 0) continue
+                                            val mark = marks?.get(column * 7 + row)
+                                            val ground = mark?.fill?.takeIf { it.isSpecified } ?: colours.levels[shade]
                                             translate(x, band + row * step) {
-                                                drawOutline(outline, colours.levels[shade])
+                                                drawOutline(outline, ground)
                                                 if (edge != null) {
                                                     drawOutline(outline, edge.brush, style = Stroke(edge.width.toPx()))
+                                                }
+                                                if (mark != null) {
+                                                    drawMark(
+                                                        mark, size, ground, cellPath, dogEar, markRing,
+                                                        painters[mark.icon], iconSize, mark.text?.let { markTexts[it] },
+                                                    )
                                                 }
                                             }
                                         }
@@ -566,7 +720,7 @@ fun ActivityCalendar(
             TooltipOverlay(
                 visible = true,
                 anchor = anchor,
-                content = { +describe(tip, activity[tip] ?: 0) },
+                content = { +say(tip, activity[tip] ?: 0) },
                 modifier = Modifier,
                 side = OverlaySide.Top,
                 alignment = OverlayAlignment.Center,
@@ -612,6 +766,7 @@ private fun WeekNode(
     week: Int,
     grid: ActivityGrid,
     activity: Map<LocalDate, Int>,
+    marks: Array<ActivityMark?>?,
     formats: DateTimeFormats,
     weekOf: (String) -> String,
     describe: (LocalDate, Int) -> String,
@@ -625,7 +780,12 @@ private fun WeekNode(
     }
     Box(
         Modifier.semantics {
-            val busy = days.filter { (activity[it] ?: 0) > 0 }
+            // The days with something to say: a count, or a mark that means something.
+            val busy = (0..6).mapNotNull { row ->
+                grid.dateAt(week, row)?.takeIf {
+                    (activity[it] ?: 0) > 0 || marks?.get(week * 7 + row)?.description != null
+                }
+            }
             val said = if (busy.isEmpty()) {
                 listOf(describe(days.first(), 0))
             } else {
@@ -646,6 +806,42 @@ private fun WeekNode(
             }
         },
     )
+}
+
+/** One day's [ActivityMark], drawn over its cell's ground at the cell's top left. */
+private fun DrawScope.drawMark(
+    mark: ActivityMark,
+    size: Float,
+    ground: Color,
+    cell: Path,
+    dogEar: Path,
+    ring: Outline,
+    painter: VectorPainter?,
+    iconSize: Float,
+    text: TextLayoutResult?,
+) {
+    if (mark.corner.isSpecified) clipPath(cell) { drawPath(dogEar, mark.corner) }
+    if (mark.dot.isSpecified) {
+        val radius = size * MarkDotShare
+        drawCircle(mark.dot, radius, Offset(size / 2f, size - radius - size * MarkDotLift))
+    }
+    if (mark.outline.isSpecified) {
+        val inset = MarkRingInset.toPx()
+        translate(inset, inset) { drawOutline(ring, mark.outline, style = Stroke(MarkRingWidth.toPx())) }
+    }
+    val content = mark.contentColour.takeIf { it.isSpecified } ?: contentColourFor(ground)
+    if (painter != null) {
+        val at = (size - iconSize) / 2f
+        translate(at, at) {
+            with(painter) { draw(Size(iconSize, iconSize), colorFilter = ColorFilter.tint(content)) }
+        }
+    } else if (text != null) {
+        drawText(
+            text,
+            content,
+            topLeft = Offset((size - text.size.width) / 2f, (size - text.size.height) / 2f),
+        )
+    }
 }
 
 /**
@@ -719,9 +915,19 @@ private const val ActivityLevelCount: Int = 4
 private val ActivityCellGap: Dp = 3.dp
 private val ActivityCellShape: Shape = SquircleShape(CornerSize(ActivityCellCornerPercent))
 private const val ActivityCellCornerPercent: Int = 20
-private val MinCell: Dp = 8.dp
-private val MaxCell: Dp = 16.dp
+/** With the 3dp gap, a 24dp target: the least WCAG asks of something to pick. */
+private val MinCell: Dp = 20.dp
+private val MaxCell: Dp = 28.dp
 private val OneDp: Dp = 1.dp
+
+/** A mark's parts, as shares of the cell they are drawn on. */
+private const val DogEarShare: Float = 0.42f
+private const val MarkIconShare: Float = 0.6f
+private const val MarkDotShare: Float = 0.1f
+private const val MarkDotLift: Float = 0.1f
+private val MarkTextPadding: Dp = 2.dp
+private val MarkRingInset: Dp = 2.dp
+private val MarkRingWidth: Dp = 1.5.dp
 
 /** How far along from empty to full the first shade starts. */
 private const val LevelFloor: Float = 0.3f

@@ -10,10 +10,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Plane
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.ChevronLeft
 import com.composables.icons.tabler.outline.ChevronRight
 import io.kontour.ui.components.datetime.ActivityCalendar
+import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.ActivityCalendarDefaults
 import io.kontour.ui.components.datetime.ActivityLevels
 import io.kontour.ui.components.datetime.CalendarMonth
@@ -194,14 +196,34 @@ private val activityWeekdays = Knob.Flag("Weekday labels", initial = true)
 
 private val activityLegend = Knob.Flag("Legend", initial = true)
 
+/** Days decorated as well as shaded: holidays folded over, trips with an icon, busy days counted. */
+private val activityMarks = Knob.Choice("Marks", listOf("None", "Holidays", "Trips", "Busy days", "All"))
+
+/** Western Australia's public holidays in the demo's year. */
+private val holidays = listOf(
+    LocalDate(2026, 1, 1), LocalDate(2026, 1, 26), LocalDate(2026, 3, 2), LocalDate(2026, 4, 3),
+    LocalDate(2026, 4, 6), LocalDate(2026, 4, 27), LocalDate(2026, 6, 1),
+    LocalDate(2025, 9, 29), LocalDate(2025, 12, 25), LocalDate(2025, 12, 26),
+)
+
+/** Days away, with a plane on them. */
+private val trips = mapOf(
+    LocalDate(2026, 2, 13) to "Flight to Sydney",
+    LocalDate(2026, 2, 17) to "Flight home",
+    LocalDate(2026, 5, 8) to "Flight to Broome",
+)
+
 internal val ActivityCalendarDemo = ComponentDemo(
     slug = "activity-calendar",
-    knobs = listOf(activityLook, activityLevels, activityMonths, activityWeekdays, activityLegend),
+    knobs = listOf(activityLook, activityLevels, activityMonths, activityWeekdays, activityLegend, activityMarks),
 ) {
     val end = LocalDate(2026, 6, 5)
     val activity = remember { demoActivity(end) }
     var picked by remember { mutableStateOf<LocalDate?>(null) }
     val formats = LocalDateTimeFormats.current
+    val marks = this[activityMarks]
+    val holidayColour = Theme.colours.warning.solid
+    val tripColour = Theme.colours.info.solid
     ActivityCalendar(
         activity = activity,
         end = end,
@@ -223,6 +245,22 @@ internal val ActivityCalendarDemo = ComponentDemo(
         monthLabels = this[activityMonths],
         weekdayLabels = this[activityWeekdays],
         legend = this[activityLegend],
+        markFor = if (marks == "None") {
+            null
+        } else {
+            { date, count ->
+                val all = marks == "All"
+                when {
+                    (all || marks == "Holidays") && date in holidays ->
+                        ActivityMark(corner = holidayColour, description = "Public holiday")
+                    (all || marks == "Trips") && date in trips ->
+                        ActivityMark(icon = Tabler.Outline.Plane, fill = tripColour, description = trips.getValue(date))
+                    (all || marks == "Busy days") && count >= 8 ->
+                        ActivityMark(text = "$count", description = "A busy day")
+                    else -> null
+                }
+            }
+        },
     )
 }
 

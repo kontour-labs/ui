@@ -1,5 +1,7 @@
 package io.kontour.ui.samples
 
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Plane
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -7,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import io.kontour.ui.components.datetime.ActivityCalendar
+import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
@@ -16,6 +19,7 @@ import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.datetime.WheelPicker
+import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
@@ -78,6 +82,26 @@ fun ActivityCalendarBasics() {
         today = LocalDate(2026, 6, 5),
         selected = picked,
         onDayClick = { picked = it },
+    )
+}
+
+@Composable
+fun ActivityCalendarMarks() {
+    val holiday = Theme.colours.warning.solid
+    // A mark draws on a day as well as its shade — a folded corner, an icon, a
+    // count spelled out — and says in words what it means, for the tooltip and
+    // the screen reader, which cannot see a corner.
+    ActivityCalendar(
+        activity = tripsByDay,
+        end = LocalDate(2026, 6, 5),
+        markFor = { date, count ->
+            when {
+                date in publicHolidays -> ActivityMark(corner = holiday, description = "Public holiday")
+                date in flights -> ActivityMark(icon = Tabler.Outline.Plane, description = flights.getValue(date))
+                count >= 10 -> ActivityMark(text = "$count")
+                else -> null
+            }
+        },
     )
 }
 

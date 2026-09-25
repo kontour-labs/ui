@@ -1,6 +1,6 @@
 # `ActivityCalendar`
 
-*Also on this page: `ActivityLevels`, `ActivityCalendarColours`.*
+*Also on this page: `ActivityLevels`, `ActivityCalendarColours`, `ActivityMark`.*
 
 <!--sample:ActivityCalendarBasics-->
 ```kotlin
@@ -65,11 +65,53 @@ colour is "nothing".
 
 ## Size
 
-Cells fit the width available, between 8dp and 16dp. **A width that would need
-smaller cells scrolls sideways instead**, and it opens on the most recent week,
-which is the one anybody looks at first. `cellSize` fixes the size, and
-`cellGap` and `cellShape` set the spacing and the corners. The default shape is
-a small squircle, the library's own corner. Pass `Theme.shapes.pill` for dots.
+Cells fit the width available, between 20dp and 28dp, **so every day is a
+target of at least 24dp with its gap**, the least WCAG asks of something to
+pick. A width that would need smaller cells scrolls sideways instead, and it
+opens on the most recent week, which is the one anybody looks at first: a year
+on a phone shows its last three months or so, and scrolls back through the rest.
+`cellSize` fixes the size — smaller for an overview that has to fit a year and
+is not for picking from — and `cellGap` and `cellShape` set the spacing and the
+corners. The default shape is a small squircle, the library's own corner. Pass
+`Theme.shapes.pill` for dots.
+
+## Marks
+
+<!--sample:ActivityCalendarMarks-->
+```kotlin
+val holiday = Theme.colours.warning.solid
+// A mark draws on a day as well as its shade — a folded corner, an icon, a
+// count spelled out — and says in words what it means, for the tooltip and
+// the screen reader, which cannot see a corner.
+ActivityCalendar(
+    activity = tripsByDay,
+    end = LocalDate(2026, 6, 5),
+    markFor = { date, count ->
+        when {
+            date in publicHolidays -> ActivityMark(corner = holiday, description = "Public holiday")
+            date in flights -> ActivityMark(icon = Tabler.Outline.Plane, description = flights.getValue(date))
+            count >= 10 -> ActivityMark(text = "$count")
+            else -> null
+        }
+    },
+)
+```
+`markFor` draws on a day as well as its shade. An `ActivityMark` can have any
+of these, together:
+
+- **`corner`**: a dog-ear, the cell's top end corner folded over in a colour. For
+  a kind of day: a holiday, a payday.
+- **`icon`** or **`text`**: a glyph, or a few characters written small, in the
+  middle of the cell, in whichever of light and dark reads on it. For one
+  particular day: a flight, a count too big to leave to a shade.
+- **`dot`** and **`outline`**: a dot under the middle, a ring inside the edge.
+- **`fill`**: the cell's colour in place of its shade.
+
+**Say what a mark means in `description`.** It follows the day's count in the
+tooltip and in its week's words for a screen reader — "4 activities on Friday,
+5 June 2026. Public holiday" — because a corner or an icon is drawn, not
+announced. The marks are drawn in the same pass as the shades, so a year of them
+costs no more than a year without.
 
 ## Picking and reading a day
 
@@ -79,8 +121,13 @@ picked day. Every day can show its count in a tooltip, however it is reached:
 | Input | Shows the count | Picks |
 |---|---|---|
 | Mouse | Resting on a cell, then from cell to cell as it moves | A click |
-| Touch | A long press | A tap |
+| Touch | A long press, then from day to day as the finger slides | A tap, or lifting after a slide |
 | Keyboard | The cursor's day | Enter or Space |
+
+**On touch, a long press slides.** The tooltip follows the finger a day at a
+time, with a tick for each, and lifting picks the day under it, so a finger
+does not have to land exactly on a cell to pick it. Slide off the grid before
+lifting to pick nothing.
 
 On the keyboard the calendar is one stop in the Tab order. Up and Down move a
 day, Left and Right a week (mirrored right to left), and Home and End go to the
@@ -92,7 +139,7 @@ day's count means, in its tooltip and to a screen reader. By default it is
 
 `CalendarMonth` is a month for choosing a date: big targets, one month at a
 time, dates you move between. This calendar is a year for reading: small cells,
-every day at once, and a pattern you see before you look at any single day.
+a lot of days at once, and a pattern you see before you look at any single day.
 Picking a day here is for showing that day's detail somewhere else.
 
 ---

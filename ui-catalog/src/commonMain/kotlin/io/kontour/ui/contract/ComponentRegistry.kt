@@ -2,6 +2,7 @@ package io.kontour.ui.contract
 
 import io.kontour.ui.components.selection.Knob
 import io.kontour.ui.components.datetime.ActivityCalendar
+import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.components.table.Table
 import io.kontour.ui.components.table.TableSort
@@ -954,9 +955,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        // A year of shades. Twelve weeks here, so the specimen reads at the
-        // shared width; the tap, the tooltip and the week nodes are
-        // `ActivityCalendarTest`'s.
+        // A year of shades. Ten weeks here, so the specimen reads at the
+        // shared width, and two marks; the tap, the scrub, the tooltip and the
+        // week nodes are `ActivityCalendarTest`'s.
         ComponentSpec(
             "ActivityCalendar",
             role = null,
@@ -965,17 +966,27 @@ val componentRegistry: List<ComponentSpec> = buildList {
             underContract = false,
             // Seven rows of cells as large as they grow, the month names above
             // and the legend below.
-            renderHeight = 220,
+            renderHeight = 250,
         ) { modifier, _, _ ->
             val end = LocalDate(2026, 6, 5)
+            val holiday = LocalDate(2026, 6, 1)
+            val warning = Theme.colours.warning.solid
+            val info = Theme.colours.info.solid
             ActivityCalendar(
-                activity = (0 until 84).associate { back ->
+                activity = (0 until 70).associate { back ->
                     end.minus(DatePeriod(days = back)) to (back * 7 + back / 3) % 5
                 },
                 end = end,
                 modifier = modifier,
-                weeks = 12,
+                weeks = 10,
                 today = end,
+                markFor = { date, _ ->
+                    when (date) {
+                        holiday -> ActivityMark(corner = warning, description = "Public holiday")
+                        end.minus(DatePeriod(days = 10)) -> ActivityMark(dot = info, description = "Trip")
+                        else -> null
+                    }
+                },
             )
         }
     )

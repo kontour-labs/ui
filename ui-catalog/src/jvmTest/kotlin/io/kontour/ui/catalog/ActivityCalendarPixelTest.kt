@@ -13,7 +13,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityCalendarColours
+import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.DateTimeFormats
+import io.kontour.ui.foundation.SystemIcons
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -67,7 +69,48 @@ class ActivityCalendarPixelTest {
         assertTrue(image.near(x, y, Level2), "the ring should leave the cell its colour")
     }
 
-    private fun render(direction: LayoutDirection, selected: LocalDate?): Pair<BufferedImage, Rect> {
+    /**
+     * Marks drawn over their cells: a dog-ear in the top end corner, a dot under
+     * the middle, a fill in place of the shade, and an icon in the middle — right
+     * to left, the dog-ear is in the top left.
+     */
+    @Test
+    fun marksAreDrawnWhereTheySay() {
+        for (direction in LayoutDirection.entries) {
+            val (image, bounds) = render(direction, selected = null) { date, _ ->
+                when (date) {
+                    end -> ActivityMark(corner = Ear, dot = Dot)
+                    end.minus(DatePeriod(days = 1)) -> ActivityMark(fill = Fill, icon = SystemIcons.Star, contentColour = Color.Black)
+                    else -> null
+                }
+            }
+            val (x, y) = centreOfEnd(bounds, direction)
+            val top = y - (Cell / 2).toInt()
+            val endward = if (direction == LayoutDirection.Ltr) 1 else -1
+            val farCorner = x + endward * (Cell / 2 - 4).toInt()
+            val nearCorner = x - endward * (Cell / 2 - 4).toInt()
+            assertTrue(image.near(farCorner, top + 4, Ear), "$direction: the top end corner is folded: ${hex(image.getRGB(farCorner, top + 4))}")
+            assertTrue(image.near(nearCorner, top + 4, Level2), "$direction: and the other one is not: ${hex(image.getRGB(nearCorner, top + 4))}")
+            assertTrue(image.near(x, top + 19, Dot), "$direction: a dot under the middle: ${hex(image.getRGB(x, top + 19))}")
+            // Thursday, the row above.
+            val thursday = y - Pitch.toInt()
+            assertTrue(image.near(nearCorner, thursday, Fill), "$direction: a fill in place of the shade")
+            // A thin outline glyph at 14px is antialiased grey more than black.
+            val inked = (-7..7).sumOf { dx ->
+                (-7..7).count { dy ->
+                    val p = image.getRGB(x + dx, thursday + dy)
+                    ((p shr 16 and 0xFF) + (p shr 8 and 0xFF) + (p and 0xFF)) / 3 < 140
+                }
+            }
+            assertTrue(inked > 10, "$direction: an icon in the middle of the cell, $inked dark pixels")
+        }
+    }
+
+    private fun render(
+        direction: LayoutDirection,
+        selected: LocalDate?,
+        markFor: ((LocalDate, Int) -> ActivityMark?)? = null,
+    ): Pair<BufferedImage, Rect> {
         var bounds = Rect.Zero
         lateinit var image: BufferedImage
         Scene(width = 300, height = 300) {
@@ -78,6 +121,7 @@ class ActivityCalendarPixelTest {
                         end = end,
                         modifier = Modifier.reportBounds { bounds = it },
                         selected = selected,
+                        markFor = markFor,
                         colours = colours,
                         cellSize = 12.dp,
                         monthLabels = false,
@@ -111,6 +155,9 @@ class ActivityCalendarPixelTest {
         val Level1 = Color(0xFF88CC88)
         val Level2 = Color(0xFF116611)
         val Ring = Color(0xFFCC0000)
+        val Ear = Color(0xFFCC00CC)
+        val Dot = Color(0xFF0000CC)
+        val Fill = Color(0xFFEECC00)
         const val Cell = 24f
         const val Pitch = 30f
     }

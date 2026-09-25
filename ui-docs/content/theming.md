@@ -342,7 +342,7 @@ whatever the level:
 
 | Fires | Where | Why |
 |---|---|---|
-| A **detent crossed under a finger** | `Slider`, `RangeSlider`, `Knob`, `WheelPicker`, `SegmentedControl`, `TabBar` swipe, `ReorderableItem`, `BottomSheet`, `Carousel`, `ColourPicker`'s palette, `CalendarMonth` dragged | The finger is between two values and the eye is on something else. This is the case haptics exist for. All of them go through `DetentTicker` now, which is where the once-per-crossing guard and the rate limit both live. |
+| A **detent crossed under a finger** | `Slider`, `RangeSlider`, `Knob`, `WheelPicker`, `SegmentedControl`, `TabBar` swipe, `ReorderableItem`, `BottomSheet`, `Carousel`, `ColourPicker`'s palette, `CalendarMonth` dragged, `ActivityCalendar` scrubbed | The finger is between two values and the eye is on something else. This is the case haptics exist for. All of them go through `DetentTicker` now, which is where the once-per-crossing guard and the rate limit both live. |
 | A **threshold passed** | `PullToRefresh`, `SwipeActions`, `Switch` dragged, `Toast` swiped | What letting go will do has just changed, and nothing on screen said so first. |
 | A **slider run into its end** | `Slider`, `RangeSlider`, `Knob`, `ColourPicker`'s hue and opacity tracks | `DragThreshold`, once per wall a drag runs into — holding against the stop is one report, and backing off and pushing again is another. On the finger's position rather than the drawn squash, so it reports under reduced motion too. |
 | A **long press becoming a gesture** | `Menu`, `Tooltip`, `ReorderableItem` | The press has been held long enough to mean something. Nothing has visibly happened yet, which is exactly why it needs reporting. |

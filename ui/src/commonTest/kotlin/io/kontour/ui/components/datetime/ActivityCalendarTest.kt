@@ -1,6 +1,11 @@
 package io.kontour.ui.components.datetime
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -126,14 +131,105 @@ class ActivityCalendarTest {
         onNode(hasContentDescription("Woche vom 1 Jun 2026", substring = true)).assertExists()
     }
 
+    /**
+     * Long press, slide, lift: the day under the finger when it lifts is the one
+     * picked — not the one the press began on — and a scrub is not also a tap.
+     */
+    @Test
+    fun aScrubPicksTheDayUnderTheFingerWhenItLifts() = runComposeUiTest {
+        val picked = mutableListOf<LocalDate>()
+        setContent {
+            KontourTheme {
+                OverlayHost { Calendar(onDayClick = { picked += it }) }
+            }
+        }
+        onRoot().performTouchInput {
+            down(centreOf(5, 1, density))
+            advanceEventTime(LongPress)
+            moveTo(centreOf(6, 1, density))
+            moveTo(centreOf(7, 2, density))
+            up()
+        }
+        // Column 7, row 2: Wednesday this week.
+        assertEquals(listOf(LocalDate(2026, 6, 3)), picked)
+    }
+
+    /** Slid off the grid before lifting, nothing is picked. */
+    @Test
+    fun aScrubLiftedOffTheGridPicksNothing() = runComposeUiTest {
+        val picked = mutableListOf<LocalDate>()
+        setContent {
+            KontourTheme {
+                OverlayHost { Calendar(onDayClick = { picked += it }) }
+            }
+        }
+        onRoot().performTouchInput {
+            down(centreOf(5, 1, density))
+            advanceEventTime(LongPress)
+            moveTo(centreOf(6, 1, density))
+            moveTo(centreOf(6, 12, density))
+            up()
+        }
+        assertEquals(emptyList(), picked)
+    }
+
+    /** A mark's description follows the day's count, in its tooltip and in its week's words. */
+    @Test
+    fun aMarkIsSaidAfterTheCount() = runComposeUiTest {
+        setContent {
+            KontourTheme {
+                OverlayHost {
+                    Calendar(
+                        onDayClick = {},
+                        markFor = { date, _ -> if (date == end) ActivityMark(corner = Color.Red, description = "Payday") else null },
+                    )
+                }
+            }
+        }
+        onRoot().performMouseInput { moveTo(centreOf(7, 4, density)) }
+        mainClock.advanceTimeBy(TooltipDelay)
+        waitForIdle()
+        onNodeWithText("4 activities on Friday, 5 June 2026. Payday").assertExists()
+        onNode(hasContentDescription("Payday", substring = true)).assertExists()
+    }
+
+    /** Left to fit, the cells are big enough to pick: 20dp at least, so 24dp with the gap. */
+    @Test
+    fun cellsLeftToFitAreBigEnoughToPick() = runComposeUiTest {
+        var width = 0
+        setContent {
+            KontourTheme {
+                Box(Modifier.width(200.dp).onSizeChanged { width = it.width }) {
+                    ActivityCalendar(
+                        activity = activity,
+                        end = end,
+                        weeks = 53,
+                        weekdayLabels = false,
+                        monthLabels = false,
+                        legend = false,
+                    )
+                }
+            }
+        }
+        // 53 weeks in 200dp would be 3dp cells; they stay 20dp and scroll instead.
+        val column = onAllNodes(hasContentDescription("Week of", substring = true))[0].fetchSemanticsNode().size.width
+        assertEquals((20 * density.density).toInt(), column, "a week's column should be a 20dp cell wide")
+        assertTrue(width > 0)
+    }
+
     @androidx.compose.runtime.Composable
-    private fun Calendar(selected: LocalDate? = null, onDayClick: (LocalDate) -> Unit) {
+    private fun Calendar(
+        selected: LocalDate? = null,
+        markFor: ((LocalDate, Int) -> ActivityMark?)? = null,
+        onDayClick: (LocalDate) -> Unit,
+    ) {
         ActivityCalendar(
             activity = activity,
             end = end,
             weeks = 8,
             selected = selected,
             onDayClick = onDayClick,
+            markFor = markFor,
             cellSize = 12.dp,
             monthLabels = false,
             weekdayLabels = false,
@@ -147,5 +243,8 @@ class ActivityCalendarTest {
     private companion object {
         /** Past the pointer's resting time. */
         const val TooltipDelay = 600L
+
+        /** Past a long press's timeout. */
+        const val LongPress = 700L
     }
 }
