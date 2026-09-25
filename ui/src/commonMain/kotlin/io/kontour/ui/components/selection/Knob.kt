@@ -56,7 +56,6 @@ import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -81,15 +80,18 @@ import kotlin.math.roundToInt
  *
  * ### Turning it
  *
- * **Dragged in a line, from anywhere on it.** Up or right is more, down or left
- * is less, wherever the finger lands — the way knobs on a screen work in audio
- * apps. It used to follow the finger's angle around the middle, which a finger
- * on a small dial does badly and which made a straight drag go either way
- * depending on where it started: up on the right-hand side turned it *down*.
- * Right is more in both layout directions, because the dial does not mirror —
- * at the top of it, where the notch starts, more is to the right.
+ * **Turned or dragged, whichever the finger does.** Go round the knob and it turns
+ * with the finger's angle, so a finger that grabbed the notch keeps it; drag it in
+ * a line and up or right is more, down or left less, from anywhere on it. The two
+ * agree over the top-left half of the knob and disagree over the bottom-right, so
+ * which one a gesture is gets read from its shape — a circle curves as it sweeps
+ * round the middle and a line does not — within the first few dp, holding still
+ * rather than guessing where the two disagree. A drag that turns into a circle
+ * becomes a turn. See `KnobTurnReader`. Right is more in both layout directions,
+ * because the dial does not mirror: at the top, where the notch starts, clockwise
+ * is to the right.
  *
- * **Thrown, it spins.** Let go while dragging quickly and it carries on, slowing,
+ * **Thrown, it spins.** Let go while moving quickly and it carries on, slowing,
  * through the steps — the spinning-wheel feel — and stops at an end if it reaches
  * one. Not under reduced motion, where it stops where it was let go.
  *
@@ -163,6 +165,9 @@ fun Knob(
     var raw by remember { mutableStateOf(Float.NaN) }
     var spin by remember { mutableStateOf<Job?>(null) }
     val travelPx = with(density) { KnobDragTravel.toPx() }
+    val decidePx = with(density) { KnobDecideAfter.toPx() }
+    val flickPx = with(density) { KnobFlick.toPx() }
+    val reader = remember { KnobTurnReader() }
 
     fun emit(fraction: Float, fromHand: Boolean) {
         val landed = snapped(fraction.coerceIn(0f, 1f))
@@ -268,8 +273,9 @@ fun Knob(
                     claimsOn = DragClaim.Movement,
                     // The round face and track, not the square's corners.
                     accepts = { at -> (at - centre).getDistance() <= radius + thicknessPx },
-                    onStart = {
+                    onStart = { at ->
                         spin?.cancel()
+                        reader.start(at, centre, radius, sweep, travelPx, decidePx)
                         raw = fractionOf(value)
                         ticker.reset()
                         ticker.at((snapped(raw) * intervals).roundToInt())
@@ -277,15 +283,15 @@ fun Knob(
                     },
                     onDelta = { delta ->
                         val base = if (raw.isNaN()) fractionOf(value) else raw
-                        raw = base + knobDragTurn(delta, travelPx)
+                        raw = base + reader.move(delta)
                         endStop.at(if (raw > 1f) 1 else if (raw < 0f) -1 else 0)
                         emit(raw, fromHand = true)
                     },
                     onRelease = { velocity ->
                         if (motion.reduceMotion || raw.isNaN()) return@freeDragOwning
-                        // The range a second, read along the drag's own axes.
-                        val turning = knobDragTurn(velocity, travelPx)
-                        if (abs(turning) * travelPx < with(density) { KnobFlick.toPx() }) return@freeDragOwning
+                        // The range a second, read the way the gesture was: round the
+                        // middle for a turn, along the axes for a drag.
+                        val turning = reader.release(velocity, flickPx) ?: return@freeDragOwning
                         val startAt = raw.coerceIn(0f, 1f)
                         spin = scope.launch {
                             try {
@@ -404,8 +410,11 @@ private val KnobTickWidth: Dp = 1.5.dp
  */
 private val KnobDragTravel: Dp = 200.dp
 
-/** How fast, along the drag, a release has to be moving to spin on. */
+/** How fast, along the drag or round the knob, a release has to be moving to spin on. */
 private val KnobFlick: Dp = 400.dp
+
+/** How far a gesture travels before the knob decides whether it is a turn or a drag. */
+private val KnobDecideAfter: Dp = 12.dp
 
 /** How quickly a spin slows: `exponentialDecay`'s friction. */
 private const val SpinFriction: Float = 2f

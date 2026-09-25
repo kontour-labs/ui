@@ -56,6 +56,62 @@ class KnobGestureTest {
         }
     }
 
+    /**
+     * Round the knob, it turns with the finger — a quarter turn is a third of a 270°
+     * scale — including from where the two readings disagree, down the right-hand
+     * side, without going the wrong way first.
+     *
+     * "Can we somehow combine the circular spinning motion of the knob with the
+     * left/right and up/down motion? It just doesn't feel 100% natural."
+     */
+    @Test
+    fun goingRoundItTurnsWithTheFinger() {
+        for (from in listOf(-90.0, 0.0)) {
+            val (end, lowest) = circle(fromDegrees = from, byDegrees = 90.0)
+            assertTrue(
+                abs(end - (0.5f + 1f / 3f)) < 0.03f,
+                "a quarter turn clockwise from ${from}° should take 0.5 to 0.83, and took it to $end",
+            )
+            assertTrue(lowest >= 0.5f - 0.001f, "going round from ${from}° it dipped to $lowest before rising")
+        }
+    }
+
+    /** The value after going round the knob at 70% of its radius, and the lowest it went on the way. */
+    private fun circle(fromDegrees: Double, byDegrees: Double): Pair<Float, Float> {
+        var value by mutableStateOf(0.5f)
+        var lowest = 0.5f
+        var bounds = Rect.Zero
+        Scene(width = 600, height = 600, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
+                Knob(
+                    value = value,
+                    onValueChange = { value = it; lowest = minOf(lowest, it) },
+                    size = 200.dp,
+                    modifier = Modifier.reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val centre = bounds.center
+            val radius = bounds.width * 0.35f
+            fun at(degrees: Double) = Offset(
+                centre.x + (kotlin.math.cos(degrees * Math.PI / 180) * radius).toFloat(),
+                centre.y + (kotlin.math.sin(degrees * Math.PI / 180) * radius).toFloat(),
+            )
+            scene.press(at(fromDegrees))
+            scene.frame()
+            val steps = 45
+            repeat(steps) { i ->
+                scene.move(at(fromDegrees + byDegrees * (i + 1) / steps))
+                scene.frame()
+            }
+            scene.frames(4)
+            scene.release(at(fromDegrees + byDegrees))
+            scene.frames(10)
+        }
+        return value to lowest
+    }
+
     @Test
     fun thrownItSpinsOnPastWhereItWasLetGo() {
         val (thrown, atRelease) = drag(from = Offset.Zero, by = Offset(0f, -120f), moves = 6, settle = false, reduceMotion = false)

@@ -21,22 +21,33 @@ on it. The input half of [`Gauge`](gauge.md), drawing the same scale. Where a
 settings sit in a grid — an equaliser, a mixer, a synth's panel — or where the
 thing being set is itself a turn.
 
-**Dragged in a line, from anywhere on it.** Up or right is more; down or left is
-less — wherever the finger lands, the way knobs on a screen work in audio apps. A
-drag of 200dp covers the whole range, whatever the knob's size, and the two axes
-add, so up-and-right is quicker than either. It used to follow the finger's angle
-around the middle, which a finger on a small dial does badly and which made a
-straight drag go either way depending on where it started: up on the right-hand
-side turned it *down* — *"can we make it so dragging up/down and side-to-side will
-make it change, in the right direction?"*.
+**Turned or dragged, whichever the finger does.** Go round the knob and it turns
+with the finger's angle — a finger that grabbed the notch keeps it under the finger.
+Drag it in a line instead and up or right is more, down or left is less, from
+anywhere on it, 200dp for the whole range whatever the knob's size.
+
+The two readings agree over the top-left half of the knob — along the top, right is
+clockwise; up the left side, up is clockwise — and disagree over the bottom-right,
+where down the right-hand side is less as a drag and more as a turn. So the knob
+tells them apart by **the shape of the path**, not its direction: a finger going
+round curves, its heading turning as fast as it sweeps round the middle, and a
+finger going in a line does not curve at all. Each gesture starts undecided,
+following the drag where the two agree and holding still where they disagree, and
+within the first 12dp or so it decides — then applies what it held the way it
+decided, so neither reading goes the wrong way first and nothing is lost. A drag
+that carries on into a circle becomes a turn; a turn stays one until the finger
+lifts. Near the middle, where an angle is noise, it is always a drag. Asked for as
+*"can we somehow combine the circular spinning motion of the knob with the
+left/right and up/down motion?"*, after a round of dragging only.
 
 Right is more in both layout directions. The dial does not mirror — it fills
 clockwise everywhere, like a gauge — and at the top of it, where the notch starts,
 clockwise is to the right.
 
-**Thrown, it spins.** Let go while dragging quickly — 400dp a second or more — and
-it carries on, slowing, through its steps, and stops at an end if it reaches one.
-The spinning-wheel feel. Under reduced motion it stops where it was let go.
+**Thrown, it spins.** Let go while moving quickly — 400dp a second or more, round
+the knob or along the drag, whichever the gesture was — and it carries on, slowing,
+through its steps, and stops at an end if it reaches one. The spinning-wheel feel.
+Under reduced motion it stops where it was let go.
 
 `steps` works as it does on a slider: how many stops between the ends, each with a
 tick mark outside the track. Zero turns smoothly.
