@@ -2,6 +2,7 @@ package io.kontour.ui.components.display
 
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -9,8 +10,14 @@ import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.HorizontalAlignmentLine
+import androidx.compose.ui.layout.LastBaseline
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
@@ -198,6 +205,46 @@ internal fun DrawScope.drawTimelineNode(
  * [HorizontalTimeline].
  */
 internal val LocalTimelineOrientation = staticCompositionLocalOf { Orientation.Vertical }
+
+/**
+ * The centre of a row's first line of label, where the node on a list row's rail
+ * lines up — published by [timelineNodeLine] and read by the row that draws the
+ * rail, through whatever the label is nested in.
+ */
+internal val TimelineNodeLine = HorizontalAlignmentLine(::min)
+
+/**
+ * Publishes [TimelineNodeLine] at the middle of this layout's first line, for text
+ * whose lines are [lineHeight] px apart.
+ *
+ * The library's text trims the leading above its first line and below its last,
+ * equally, so a label's first line is not simply its top half-line. The trim is
+ * worked back out from the label's height and its first and last baselines,
+ * which say how many lines it has: one line is its own middle, and a second line
+ * does not move the node off the first. A label clipped by its constraints is
+ * measured again for the height it wanted, since its own height no longer says. Anything without baselines — a label that
+ * is not text — gets its middle, or its first line's worth of it.
+ */
+internal fun Modifier.timelineNodeLine(lineHeight: Float): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val height = placeable.height.toFloat()
+    val first = placeable[FirstBaseline]
+    val last = placeable[LastBaseline]
+    val centre = if (first != AlignmentLine.Unspecified && last != AlignmentLine.Unspecified && lineHeight > 0f) {
+        val lines = ((last - first) / lineHeight).roundToInt() + 1
+        // A label cut short by its constraints — the last row of a list pressed
+        // against the bottom of a fixed-height box — has baselines past its own
+        // height; its trim has to come from the height it wanted.
+        val natural = if (last > height) measurable.minIntrinsicHeight(placeable.width).toFloat() else height
+        val trim = (lines * lineHeight - natural) / 2f
+        lineHeight / 2f - trim
+    } else {
+        minOf(height, lineHeight) / 2f
+    }
+    layout(placeable.width, placeable.height, mapOf(TimelineNodeLine to centre.roundToInt())) {
+        placeable.place(0, 0)
+    }
+}
 
 /** A dash is a stroke and a half long, and the gap after it two. */
 private const val DashLength = 1.5f

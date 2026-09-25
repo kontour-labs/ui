@@ -7,6 +7,8 @@ import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.display.TimelineList
+import io.kontour.ui.components.display.TimelineListStyle
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.Gauge
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -869,6 +871,26 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 TimelineItem { Text("Perth Station") }
                 TimelineItem(connector = ConnectorStyle.Dotted, filled = false) { Text("Walk 4 min") }
                 TimelineItem(connector = ConnectorStyle.None) { Text("Elizabeth Quay") }
+            }
+        }
+    )
+
+    add(
+        // Rows on a rail. The rows are `ListItem`s and are held to the contract
+        // there; this specimen is for the render — the rail through a grouped
+        // list, with progress — and for the width sweep.
+        ComponentSpec(
+            "TimelineList",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 200,
+        ) { modifier, _, _ ->
+            TimelineList(modifier, style = TimelineListStyle.Grouped, progress = 0.5f) {
+                item("Perth Station", trailing = "08:12")
+                item("Walk 4 min", connector = ConnectorStyle.Dashed, filled = false)
+                item("Elizabeth Quay", trailing = "08:21")
             }
         }
     )

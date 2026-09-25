@@ -220,12 +220,61 @@ fun ListItem(
     interactionSource: MutableInteractionSource? = null,
     content: ListItemScope.() -> Unit,
 ) {
-    val slots = listItemSlots(content)
+    ListItemImpl(
+        modifier = modifier,
+        enabled = enabled,
+        onClick = onClick,
+        selected = selected,
+        role = role,
+        shape = shape,
+        containerColour = containerColour,
+        selectedContainerColour = selectedContainerColour,
+        contentColour = contentColour,
+        minHeight = minHeight,
+        interactionSource = interactionSource,
+        slots = listItemSlots(content),
+    )
+}
+
+/**
+ * [ListItem], with the few things a row drawn *by another component* needs and a
+ * caller does not: room at its start for something drawn beside the content
+ * (a timeline's rail), a hook on the label (where that rail's node lines up), and
+ * a ground that can be clear even when the row is disabled.
+ *
+ * Every default is what [ListItem] draws, so a `ListItem` is exactly this.
+ *
+ * @param startPadding The space before the first region, where the row would
+ *   otherwise have [io.kontour.ui.theme.Spacing.md].
+ * @param labelModifier Wraps the label's region, when there is one.
+ * @param edged Whether the row outlines itself at the contrast tier that asks
+ *   for edges. Off for a row with no ground of its own to outline.
+ * @param disabledContainerColour The ground while disabled.
+ */
+@Composable
+internal fun ListItemImpl(
+    modifier: Modifier,
+    enabled: Boolean,
+    onClick: (() -> Unit)?,
+    selected: Boolean,
+    role: Role,
+    shape: Shape,
+    containerColour: Color,
+    selectedContainerColour: Color,
+    contentColour: Color,
+    minHeight: Dp,
+    interactionSource: MutableInteractionSource?,
+    slots: ListItemScope,
+    startPadding: Dp = Theme.spacing.md,
+    labelModifier: Modifier = Modifier,
+    edged: Boolean = true,
+    disabledContainerColour: Color = Theme.colours.surfaceSunken.copy(alpha = 0.5f),
+) {
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
     val container = when {
-        !enabled -> colours.surfaceSunken.copy(alpha = 0.5f)
+        !enabled -> disabledContainerColour
         selected -> selectedContainerColour
         else -> containerColour
     }
@@ -295,14 +344,15 @@ fun ListItem(
                 // the exact thing the sunken ground exists to prevent. A well is
                 // deliberately quiet, so at the tier that asks for more it is the
                 // edge rather than the fill that has to say where a row ends.
-                .then(contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier)
+                .then(if (edged) contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier else Modifier)
                 .then(clickModifier)
                 // `xs`, not `sm`. The 12dp version put 24dp of air around a
                 // single line of text inside a row whose minimum is already 56dp,
                 // so the padding was never what set the height — it only pushed a
                 // two-line row taller than it needed to be. `MinHeight` holds the
                 // floor for the one-line case, which is what it is for.
-                .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.xs),
+                .padding(start = startPadding, end = Theme.spacing.md)
+                .padding(vertical = Theme.spacing.xs),
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -330,7 +380,11 @@ fun ListItem(
                 slots.label?.let { label ->
                     ProvideContentColour(content) {
                         ProvideTextStyle(Theme.typography.bodyMedium) {
-                            ContentSlot(maxLines = 2, content = label)
+                            if (labelModifier == Modifier) {
+                                ContentSlot(maxLines = 2, content = label)
+                            } else {
+                                Box(labelModifier) { ContentSlot(maxLines = 2, content = label) }
+                            }
                         }
                     }
                 }

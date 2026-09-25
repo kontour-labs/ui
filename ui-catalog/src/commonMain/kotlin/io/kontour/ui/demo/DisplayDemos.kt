@@ -69,6 +69,8 @@ import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.display.TimelineList
+import io.kontour.ui.components.display.TimelineListStyle
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.foundation.Icon
@@ -324,6 +326,63 @@ internal val TimelineDemo = ComponentDemo(
         HorizontalTimeline(Modifier.fillMaxWidth(), equalWidths = this[timelineEqualWidths]) { stops() }
     } else {
         Timeline(Modifier.fillMaxWidth()) { stops() }
+    }
+}
+
+private val timelineListStyle = Knob.Choice("Style", TimelineListStyle.entries.toList())
+
+/** How far along the trip is, in stops. Halfway between two is on the leg. */
+private val timelineListProgress =
+    Knob.Choice("Progress", listOf<Float?>(null, 0f, 1.5f, 3f), name = { it?.toString() ?: "None" })
+
+/** The stop being waited on: a spinner where its node was, and the words say so. */
+private val timelineListLoading = Knob.Flag("Loading", initial = false)
+
+internal val TimelineListDemo = ComponentDemo(
+    slug = "timeline-list",
+    knobs = listOf(timelineListStyle, timelineListProgress, timelineListLoading),
+) {
+    val waiting = this[timelineListLoading]
+    var picked by remember { mutableStateOf(0) }
+    TimelineList(
+        Modifier.fillMaxWidth(),
+        style = this[timelineListStyle],
+        progress = this[timelineListProgress],
+        leadIn = ConnectorStyle.Dotted,
+    ) {
+        item(
+            nodeColour = Color(0xFF1B5E20),
+            selected = picked == 0,
+            onClick = { picked = 0; echo("Opened Perth Station") },
+        ) {
+            +"Perth Station"
+            supporting { +"Platform 3 · Joondalup line" }
+            trailing { Text("08:12", colour = Theme.colours.contentMuted) }
+        }
+        item(
+            connector = ConnectorStyle.Dashed,
+            filled = false,
+            loading = waiting,
+            selected = picked == 1,
+            onClick = { picked = 1; echo("Opened the walk") },
+        ) {
+            +if (waiting) "Finding your platform" else "Walk to Elizabeth Quay"
+            supporting { +"4 min · 350 m" }
+        }
+        item(
+            nodeColour = Color(0xFF0D47A1),
+            selected = picked == 2,
+            onClick = { picked = 2; echo("Opened Elizabeth Quay") },
+        ) {
+            overline { +"Route 950" }
+            +"Elizabeth Quay"
+            supporting { +"Stand C" }
+            trailing { Text("08:21", colour = Theme.colours.contentMuted) }
+        }
+        item("Perth Busport", supporting = "Stand 24", trailing = "08:29") {
+            picked = 3
+            echo("Opened Perth Busport")
+        }
     }
 }
 
@@ -880,6 +939,7 @@ internal val displayDemos = listOf(
     BannerDemo,
     CalloutDemo,
     TimelineDemo,
+    TimelineListDemo,
     RedactionDemo,
     SkeletonDemo,
     EmptyStateDemo,

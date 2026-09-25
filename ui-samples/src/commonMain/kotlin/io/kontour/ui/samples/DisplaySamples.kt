@@ -63,6 +63,7 @@ import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.display.TimelineList
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.foundation.Redacted
@@ -409,6 +410,24 @@ fun TimelineBasics() {
         TimelineItem(filled = false, connector = ConnectorStyle.None) {
             Text("Perth Busport", style = Theme.typography.titleSmall)
             Text("08:29 · Stand 24", style = Theme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+fun TimelineListBasics() {
+    // One and a half stops along: the first leg is travelled, the walk is half
+    // done, and the rows are list rows — each one opens its stop.
+    TimelineList(progress = 1.5f) {
+        item(onClick = { openStop("Perth Station") }) {
+            +"Perth Station"
+            supporting { +"Platform 3" }
+            trailing { +"08:12" }
+        }
+        // The connector is the leg after the stop: this one is the walk.
+        item("Walk 4 min", connector = ConnectorStyle.Dashed, filled = false)
+        item("Elizabeth Quay", supporting = "Stand C", trailing = "08:21") {
+            openStop("Elizabeth Quay")
         }
     }
 }
