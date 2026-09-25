@@ -5,7 +5,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -40,10 +42,14 @@ internal val TimelineGutterWidth: Dp = 28.dp
 internal val TimelineNodeGap: Dp = 2.dp
 
 /**
- * How a connector's run ends, which decides how its dots or dashes are spaced.
+ * How one end of a connector's run finishes, which decides how its dots or
+ * dashes are spaced.
  *
- * Both runs start with a mark: a dot or a dash sits on the node end of every
- * connector, so a connector leaves its node the same way whatever else is true.
+ * A run that touches a node has a mark on that end — a dot or a dash sits on
+ * the node end of every connector, so a connector leaves its node the same way
+ * whatever else is true. A run's other end is a [Mark] too, or a [Seam] where a
+ * row hands the rest of the connector to the next one; a lane passing straight
+ * through a row has a seam at both ends.
  */
 internal enum class RunEnd {
     /**
@@ -78,9 +84,24 @@ internal enum class RunEnd {
  * endpoint is not drawn at all, so a run that *did* divide by the pitch still
  * came up one dot short: "stops just a bit short of the actual timeline point".
  */
-internal fun dotOffsets(run: Float, stroke: Float, end: RunEnd): FloatArray {
+internal fun dotOffsets(run: Float, stroke: Float, end: RunEnd, start: RunEnd = RunEnd.Mark): FloatArray {
     if (run <= 0f || stroke <= 0f) return floatArrayOf(0f)
     val nominal = stroke * 2f
+    if (start == RunEnd.Seam) {
+        return when (end) {
+            // A lane through a row: n dots, a half pitch in from each seam.
+            RunEnd.Seam -> {
+                val dots = (run / nominal).roundToInt().coerceAtLeast(1)
+                val pitch = run / dots
+                FloatArray(dots) { (it + 0.5f) * pitch }
+            }
+            // From a seam to a node: the node-to-seam spacing, walked backwards.
+            RunEnd.Mark -> {
+                val forward = dotOffsets(run, stroke, RunEnd.Seam)
+                FloatArray(forward.size) { run - forward[forward.lastIndex - it] }
+            }
+        }
+    }
     return when (end) {
         RunEnd.Mark -> {
             val steps = (run / nominal).roundToInt().coerceAtLeast(1)
@@ -106,9 +127,23 @@ internal fun dotOffsets(run: Float, stroke: Float, end: RunEnd): FloatArray {
  * drawn as one unbroken line, because the alternative is a single mark that does
  * not reach either end of a gutter it barely fits in.
  */
-internal fun dashIntervals(run: Float, stroke: Float, end: RunEnd): FloatArray? {
+internal fun dashIntervals(run: Float, stroke: Float, end: RunEnd, start: RunEnd = RunEnd.Mark): FloatArray? {
     val on = stroke * DashLength
     val nominal = stroke * DashGap
+    if (start == RunEnd.Seam) {
+        return when (end) {
+            // n dashes and n gaps, half of one at each seam.
+            RunEnd.Seam -> {
+                val dashes = (run / (on + nominal)).roundToInt()
+                if (dashes < 1) return null
+                val gap = run / dashes - on
+                if (gap <= 0f) return null
+                floatArrayOf(on, gap)
+            }
+            // The node-to-seam spacing; [dashPhase] starts it half a gap in.
+            RunEnd.Mark -> dashIntervals(run, stroke, RunEnd.Seam)
+        }
+    }
     return when (end) {
         RunEnd.Mark -> {
             // n dashes and n - 1 gaps.
@@ -129,7 +164,16 @@ internal fun dashIntervals(run: Float, stroke: Float, end: RunEnd): FloatArray? 
 }
 
 /**
- * One connector run, from its node end [from] to [to], in [style].
+ * Where a dash pattern from [dashIntervals] starts: on a dash when the run starts
+ * at a node, and half a gap in when it starts at a seam — the other half of that
+ * gap is the end of the run in the row before.
+ */
+internal fun dashPhase(intervals: FloatArray, start: RunEnd): Float =
+    if (start == RunEnd.Seam) intervals[0] + intervals[1] / 2f else 0f
+
+/**
+ * One straight connector run, from [from] to [to], in [style]; [start] and
+ * [end] say how each end of it finishes.
  *
  * **A connector ends where its run ends, whatever it is made of.** The dots and
  * dashes were once a dash pattern over the solid line, and a dash pattern is
@@ -144,6 +188,7 @@ internal fun DrawScope.drawConnectorRun(
     stroke: Float,
     colour: Color,
     end: RunEnd = RunEnd.Mark,
+    start: RunEnd = RunEnd.Mark,
 ) {
     val dx = to.x - from.x
     val dy = to.y - from.y
@@ -151,7 +196,7 @@ internal fun DrawScope.drawConnectorRun(
     if (run <= 0f || style == ConnectorStyle.None) return
     when (style) {
         ConnectorStyle.Dotted -> {
-            val offsets = dotOffsets(run, stroke, end)
+            val offsets = dotOffsets(run, stroke, end, start)
             drawPoints(
                 points = List(offsets.size) { Offset(from.x + dx * offsets[it] / run, from.y + dy * offsets[it] / run) },
                 pointMode = PointMode.Points,
@@ -166,16 +211,68 @@ internal fun DrawScope.drawConnectorRun(
             end = to,
             strokeWidth = stroke,
             cap = StrokeCap.Round,
-            pathEffect = dashIntervals(run, stroke, end)?.let { PathEffect.dashPathEffect(it) },
+            pathEffect = dashIntervals(run, stroke, end, start)?.let {
+                PathEffect.dashPathEffect(it, dashPhase(it, start))
+            },
         )
-        ConnectorStyle.Solid -> if (end == RunEnd.Mark) {
+        ConnectorStyle.Solid -> if (end == RunEnd.Mark && start == RunEnd.Mark) {
             drawLine(colour, from, to, strokeWidth = stroke, cap = StrokeCap.Round)
         } else {
-            // Square at the seam, so the half drawn by the next row butts
-            // against it rather than overlapping a round cap — which would show
-            // wherever the two halves are different colours. Round at the node.
+            // Square at a seam, so the part drawn by the next row butts against
+            // it rather than overlapping a round cap — which would show wherever
+            // the two are different colours. Round at a node.
             drawLine(colour, from, to, strokeWidth = stroke, cap = StrokeCap.Butt)
-            drawCircle(colour, radius = stroke / 2f, center = from)
+            if (start == RunEnd.Mark) drawCircle(colour, radius = stroke / 2f, center = from)
+            if (end == RunEnd.Mark) drawCircle(colour, radius = stroke / 2f, center = to)
+        }
+        ConnectorStyle.None -> Unit
+    }
+}
+
+/**
+ * A connector along [path] — a lane bending across to another — spaced the way
+ * [drawConnectorRun] spaces a straight one, over the curve's own length, so a
+ * dotted branch keeps its dots as it swings across and meets the straight part
+ * of its lane at the seam without a jump.
+ */
+internal fun DrawScope.drawConnectorCurve(
+    style: ConnectorStyle,
+    path: Path,
+    stroke: Float,
+    colour: Color,
+    start: RunEnd,
+    end: RunEnd,
+) {
+    if (style == ConnectorStyle.None) return
+    val measure = PathMeasure().apply { setPath(path, forceClosed = false) }
+    val length = measure.length
+    if (length <= 0f) return
+    when (style) {
+        ConnectorStyle.Dotted -> {
+            val offsets = dotOffsets(length, stroke, end, start)
+            drawPoints(
+                points = List(offsets.size) { measure.getPosition(offsets[it]) },
+                pointMode = PointMode.Points,
+                color = colour,
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
+            )
+        }
+        ConnectorStyle.Dashed -> drawPath(
+            path,
+            colour,
+            style = Stroke(
+                width = stroke,
+                cap = StrokeCap.Round,
+                pathEffect = dashIntervals(length, stroke, end, start)?.let {
+                    PathEffect.dashPathEffect(it, dashPhase(it, start))
+                },
+            ),
+        )
+        ConnectorStyle.Solid -> {
+            drawPath(path, colour, style = Stroke(width = stroke, cap = StrokeCap.Butt))
+            if (start == RunEnd.Mark) drawCircle(colour, radius = stroke / 2f, center = measure.getPosition(0f))
+            if (end == RunEnd.Mark) drawCircle(colour, radius = stroke / 2f, center = measure.getPosition(length))
         }
         ConnectorStyle.None -> Unit
     }

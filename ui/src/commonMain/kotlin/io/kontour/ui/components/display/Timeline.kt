@@ -20,15 +20,14 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
 
@@ -146,8 +145,24 @@ fun TimelineItem(
     connectorWidth: Dp = Theme.sizing.borderWidthStrong,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    // One leg, from the node to the end of the item, where the next one's node
+    // begins: the same rail a list row draws, with one lane and one leg.
+    val rail = remember(connector, nodeColour, connectorColour, filled, loading, connectorWidth) {
+        RailRow(
+            node = RailNode(lane = 0, colour = nodeColour, filled = filled, loading = loading, ringWidth = connectorWidth),
+            legs = listOf(
+                RailLeg(
+                    start = LegEnd(0, LegAt.Node, RunEnd.Mark),
+                    end = LegEnd(0, LegAt.End, RunEnd.Mark),
+                    style = connector,
+                    colour = connectorColour,
+                    width = connectorWidth,
+                ),
+            ),
+        )
+    }
     if (LocalTimelineOrientation.current == Orientation.Horizontal) {
-        AcrossItem(modifier, connector, nodeColour, connectorColour, filled, loading, nodeSize, connectorWidth, content)
+        AcrossItem(modifier, rail, nodeColour, loading, nodeSize, connectorWidth, content)
         return
     }
     Row(
@@ -186,32 +201,20 @@ fun TimelineItem(
                 )
             }
             Canvas(Modifier.fillMaxHeight().width(gutterWidth)) {
-                val centreX = size.width / 2f
                 val nodeRadius = nodeSize.toPx() / 2f
-                val stroke = connectorWidth.toPx()
-                // The gap above and below the node is its own measure, not the
-                // stroke's — a thick segment should not shove its dot down the
-                // gutter and out of line with the ones above it.
-                val nodeGap = TimelineNodeGap.toPx()
-                val nodeCentreY = nodeRadius + nodeGap
-
-                val top = nodeCentreY + nodeRadius + nodeGap
-                if (top < size.height) {
-                    drawConnectorRun(
-                        connector,
-                        from = Offset(centreX, top),
-                        to = Offset(centreX, size.height),
-                        stroke = stroke,
-                        colour = connectorColour,
-                    )
-                }
-
-                // The spinner above is the node while this is loading, so the
-                // dot is not drawn at all rather than drawn under it. The
-                // connector is: a step in flight still leads somewhere.
-                if (!loading) {
-                    drawTimelineNode(Offset(centreX, nodeCentreY), nodeRadius, stroke, nodeColour, filled)
-                }
+                // The gap above the node is its own measure, not the stroke's —
+                // a thick segment should not shove its dot down the gutter and
+                // out of line with the ones above it. The spinner above is the
+                // node while this is loading, so the rail leaves the dot out;
+                // the connector stays: a step in flight still leads somewhere.
+                drawRail(
+                    rail,
+                    Orientation.Vertical,
+                    firstLane = size.width / 2f,
+                    laneWidth = 0f,
+                    nodeAlong = nodeRadius + TimelineNodeGap.toPx(),
+                    nodeRadius = nodeRadius,
+                )
             }
         }
 
@@ -232,10 +235,8 @@ fun TimelineItem(
 @Composable
 private fun AcrossItem(
     modifier: Modifier,
-    connector: ConnectorStyle,
+    rail: RailRow,
     nodeColour: Color,
-    connectorColour: Color,
-    filled: Boolean,
     loading: Boolean,
     nodeSize: Dp,
     connectorWidth: Dp,
@@ -247,25 +248,18 @@ private fun AcrossItem(
             // Never so narrow that the connector has nowhere to run.
             .widthIn(min = band + AcrossMinimumRun)
             .drawBehind {
+                // The same rail, turned across: the node a gap in from the start
+                // edge, whichever side that is, and the leg to the end edge.
                 val nodeRadius = nodeSize.toPx() / 2f
-                val stroke = connectorWidth.toPx()
-                val nodeGap = TimelineNodeGap.toPx()
-                val y = nodeGap + nodeRadius
-                // Laid out from the start edge, whichever side that is.
-                val rtl = layoutDirection == LayoutDirection.Rtl
-                fun x(fromStart: Float) = if (rtl) size.width - fromStart else fromStart
-                val nodeX = nodeGap + nodeRadius
-                val runStart = nodeX + nodeRadius + nodeGap
-                if (runStart < size.width) {
-                    drawConnectorRun(
-                        connector,
-                        from = Offset(x(runStart), y),
-                        to = Offset(x(size.width), y),
-                        stroke = stroke,
-                        colour = connectorColour,
-                    )
-                }
-                if (!loading) drawTimelineNode(Offset(x(nodeX), y), nodeRadius, stroke, nodeColour, filled)
+                val centre = TimelineNodeGap.toPx() + nodeRadius
+                drawRail(
+                    rail,
+                    Orientation.Horizontal,
+                    firstLane = centre,
+                    laneWidth = 0f,
+                    nodeAlong = centre,
+                    nodeRadius = nodeRadius,
+                )
             }
             // The content stops short of the next node, as a row's content stops
             // short of the next row down the page.

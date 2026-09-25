@@ -469,14 +469,15 @@ fun StepProgress(
  * How wide the travelling indeterminate band is, as a fraction of what it runs
  * inside.
  *
- * Shared by [LinearProgress], which runs it across the whole track, and by
- * [StepProgress]'s `working`, which confines it to one segment. One number
- * because they are meant to read as the same animation at two scales.
+ * Shared by [LinearProgress], which runs it across the whole track, by
+ * [StepProgress]'s `working`, which confines it to one segment, and by the
+ * timelines' rail, which runs it along the leg ahead of the traveller. One
+ * number because they are meant to read as the same animation at three scales.
  */
-private const val BandFraction = 0.35f
+internal const val BandFraction = 0.35f
 
 /** How long that band takes to cross, whatever it is crossing. */
-private const val BandTravel = 1400
+internal const val BandTravel = 1400
 
 /** How long the indeterminate walk rests on each step. */
 private const val StepWalkPerSegment = 320

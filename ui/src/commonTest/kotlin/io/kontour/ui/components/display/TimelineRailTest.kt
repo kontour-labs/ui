@@ -65,6 +65,58 @@ class TimelineRailTest {
         assertNull(dashIntervals(stroke, stroke, RunEnd.Seam))
     }
 
+    /**
+     * A lane passing straight through a row meets a seam at both ends, so its dots
+     * sit half a pitch in from each: the rows above and below put the other halves
+     * of those pitches against them.
+     */
+    @Test
+    fun dotsBetweenTwoSeamsSitHalfAPitchFromEachEnd() {
+        for (run in listOf(96f, 98f, 100f, 102f, 131f)) {
+            val dots = dotOffsets(run, stroke, RunEnd.Seam, start = RunEnd.Seam)
+            val pitch = if (dots.size > 1) dots[1] - dots[0] else run
+            assertNear(pitch / 2f, dots.first(), "the first dot of a $run px lane")
+            assertNear(run - pitch / 2f, dots.last(), "the last dot of a $run px lane")
+            assertEvenlySpaced(dots, nominal = stroke * 2f)
+        }
+    }
+
+    /** From a seam into a node is the node-to-seam run walked the other way. */
+    @Test
+    fun dotsFromASeamToANodeEndOnTheNode() {
+        for (run in listOf(96f, 100f, 131f)) {
+            val there = dotOffsets(run, stroke, RunEnd.Seam)
+            val back = dotOffsets(run, stroke, RunEnd.Mark, start = RunEnd.Seam)
+            assertNear(run, back.last(), "the dot on the node")
+            for (i in there.indices) assertNear(run - there[i], back[back.lastIndex - i], "dot $i")
+        }
+    }
+
+    /** Between two seams: as many gaps as dashes, and the pattern starts half a gap in. */
+    @Test
+    fun dashesBetweenTwoSeamsStartAndEndHalfAGapIn() {
+        for (run in listOf(60f, 61f, 63f, 100f)) {
+            val intervals = dashIntervals(run, stroke, RunEnd.Seam, start = RunEnd.Seam)!!
+            val (on, off) = intervals[0] to intervals[1]
+            val dashes = kotlin.math.round(run / (on + off)).toInt()
+            assertNear(run, dashes * (on + off), "$run px of dashes between seams")
+            assertNear(on + off / 2f, dashPhase(intervals, RunEnd.Seam), "the pattern's start")
+        }
+    }
+
+    /** A run from a node is the spacing it always had, and starts on its dash. */
+    @Test
+    fun aMarkStartIsTheOldSpacing() {
+        for (run in listOf(60f, 96f, 131f)) {
+            for (end in RunEnd.entries) {
+                assertTrue(dotOffsets(run, stroke, end).contentEquals(dotOffsets(run, stroke, end, start = RunEnd.Mark)))
+                val intervals = dashIntervals(run, stroke, end, start = RunEnd.Mark)
+                assertTrue(dashIntervals(run, stroke, end).contentEquals(intervals))
+                if (intervals != null) assertEquals(0f, dashPhase(intervals, RunEnd.Mark))
+            }
+        }
+    }
+
     private fun assertEvenlySpaced(offsets: FloatArray, nominal: Float) {
         if (offsets.size < 2) return
         val pitch = offsets[1] - offsets[0]

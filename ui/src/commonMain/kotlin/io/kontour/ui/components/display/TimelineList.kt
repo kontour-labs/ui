@@ -7,35 +7,19 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.takeOrElse
-import androidx.compose.ui.layout.AlignmentLine
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.takeOrElse
 import io.kontour.ui.components.list.ListItemDefaults
-import io.kontour.ui.components.list.ListItemImpl
 import io.kontour.ui.components.list.ListItemPosition
 import io.kontour.ui.components.list.ListItemScope
-import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.components.list.shape
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
-import kotlin.math.abs
 
 /** How a [TimelineList]'s rows are drawn. */
 enum class TimelineListStyle {
@@ -311,21 +295,6 @@ fun <T> LazyListScope.timelineList(
     }
 }
 
-/** One stop as declared. */
-internal class TimelineStop(
-    val nodeColour: Color,
-    val filled: Boolean,
-    val loading: Boolean,
-    val connector: ConnectorStyle,
-    val connectorColour: Color,
-    val connectorWidth: Dp,
-    val enabled: Boolean,
-    val selected: Boolean,
-    val role: Role,
-    val onClick: (() -> Unit)?,
-    val content: ListItemScope.() -> Unit,
-)
-
 /** One leg of the rail, or half of one: its style, and its colour and width if given. */
 internal class RailSegment(val style: ConnectorStyle, val colour: Color, val width: Dp)
 
@@ -361,6 +330,46 @@ internal fun timelineRows(
     }
 }
 
+/**
+ * The rail this row draws: half of the leg above its node and half of the one
+ * below, each a piece of its whole leg for the progress along it — the leg
+ * above arrives here at 1 and is handed over from the row before at ½, the leg
+ * below leaves at 0 and is handed on at ½.
+ */
+internal fun TimelineRow.rail(
+    progress: Float?,
+    node: Color,
+    rail: Color,
+    progressColour: Color,
+    defaultWidth: Dp,
+): RailRow {
+    val here = stopProgress(progress, index)
+    fun RailSegment.leg(towards: LegAt, leg: Int, from: Float) = RailLeg(
+        start = LegEnd(0, LegAt.Node, RunEnd.Mark),
+        end = LegEnd(0, towards, RunEnd.Seam),
+        style = style,
+        colour = colour.takeOrElse { rail },
+        width = width.takeOrElse { defaultWidth },
+        travel = stopProgress(progress, leg)?.let {
+            LegTravel(from = from, to = 0.5f, passed = it.legPassed, band = it.legBand, colour = progressColour)
+        },
+    )
+    return RailRow(
+        node = RailNode(
+            lane = 0,
+            colour = nodeColourFor(stop.nodeColour, here, node, progressColour, rail),
+            filled = stop.filled,
+            loading = stop.loading,
+            ringWidth = stop.connectorWidth.takeOrElse { defaultWidth },
+            here = here?.here == true,
+        ),
+        legs = listOfNotNull(
+            above?.leg(LegAt.Start, index - 1, from = 1f),
+            below?.leg(LegAt.End, index, from = 0f),
+        ),
+    )
+}
+
 @Composable
 private fun TimelineListRow(
     row: TimelineRow,
@@ -371,144 +380,31 @@ private fun TimelineListRow(
     nodeSize: Dp,
     gutterWidth: Dp,
 ) {
-    val stop = row.stop
-    val index = row.index
     val grouped = style == TimelineListStyle.Grouped
     val defaultWidth = Theme.sizing.borderWidthStrong
-    val ringWidth = stop.connectorWidth.takeOrElse { defaultWidth }
-    val passed = progress != null && index <= progress + ProgressSlack
-    val nodeColour = when {
-        stop.nodeColour.isSpecified -> stop.nodeColour
-        progress == null -> colours.node
-        passed -> colours.progress
-        else -> colours.rail
-    }
-    val here = progress != null && abs(progress - index) <= ProgressSlack
-    // Where each half-leg changes to the progress colour, as a share of it.
-    val aboveProgress = progress?.let { ((it - (index - 0.5f)) / 0.5f).coerceIn(0f, 1f) } ?: 0f
-    val belowProgress = progress?.let { ((it - index) / 0.5f).coerceIn(0f, 1f) } ?: 0f
-
-    val start = Theme.spacing.xs
-    val gap = if (grouped && index < row.count - 1) ListItemDefaults.Spacing else 0.dp
-    val label = Theme.typography.bodyMedium
-    val lineHeight = with(LocalDensity.current) {
-        if (label.lineHeight.isSpecified) label.lineHeight.toPx() else label.fontSize.toPx() * FallbackLeading
-    }
-    // Written by the measure pass below, read by the draw: where the label's
-    // first line landed, which is where the node goes.
-    val nodeY = remember { mutableFloatStateOf(0f) }
-
-    Layout(
-        content = {
-            ListItemImpl(
-                modifier = Modifier,
-                enabled = listEnabled && stop.enabled,
-                onClick = stop.onClick,
-                selected = stop.selected,
-                role = stop.role,
-                shape = if (grouped) {
-                    ListItemPosition.of(index, row.count).shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner)
-                } else {
-                    ListItemDefaults.Shape
-                },
-                containerColour = if (grouped) colours.container else Color.Transparent,
-                selectedContainerColour = Theme.colours.accent.container,
-                contentColour = Theme.colours.content,
-                minHeight = Dp.Unspecified,
-                interactionSource = null,
-                slots = listItemSlots(stop.content),
-                startPadding = start + gutterWidth,
-                labelModifier = Modifier.timelineNodeLine(lineHeight),
-                edged = grouped,
-                disabledContainerColour = if (grouped) {
-                    Theme.colours.surfaceSunken.copy(alpha = DisabledGroundAlpha)
-                } else {
-                    Color.Transparent
-                },
-            )
-            if (stop.loading) Spinner(size = nodeSize, colour = nodeColour, strokeWidth = ringWidth)
+    RailListRow(
+        stop = row.stop,
+        rail = row.rail(progress, colours.node, colours.rail, colours.progress, defaultWidth),
+        listEnabled = listEnabled,
+        lanes = 1,
+        laneWidth = gutterWidth,
+        gutterWidth = gutterWidth,
+        nodeSize = nodeSize,
+        shape = if (grouped) {
+            ListItemPosition.of(row.index, row.count).shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner)
+        } else {
+            ListItemDefaults.Shape
         },
-        modifier = Modifier
-            .fillMaxWidth()
-            .drawWithContent {
-                drawContent()
-                val fromStart = (start + gutterWidth / 2).toPx()
-                val x = if (layoutDirection == LayoutDirection.Rtl) size.width - fromStart else fromStart
-                val radius = nodeSize.toPx() / 2f
-                val clear = radius + TimelineNodeGap.toPx()
-                val y = nodeY.floatValue
-                fun RailSegment.draw(from: Offset, to: Offset, passedShare: Float, passedFromNode: Boolean) {
-                    val stroke = width.takeOrElse { defaultWidth }.toPx()
-                    val leg = this@draw.style
-                    drawConnectorRun(leg, from, to, stroke, colour.takeOrElse { colours.rail }, RunEnd.Seam)
-                    if (progress != null && passedShare > 0f) {
-                        drawPassed(leg, from, to, stroke, colours.progress, passedShare, passedFromNode)
-                    }
-                }
-                if (y - clear > 0f) {
-                    row.above?.draw(Offset(x, y - clear), Offset(x, 0f), aboveProgress, passedFromNode = false)
-                }
-                if (y + clear < size.height) {
-                    row.below?.draw(Offset(x, y + clear), Offset(x, size.height), belowProgress, passedFromNode = true)
-                }
-                if (!stop.loading) {
-                    if (here) drawCircle(nodeColour.copy(alpha = HaloAlpha), radius = clear, center = Offset(x, y))
-                    drawTimelineNode(Offset(x, y), radius, ringWidth.toPx(), nodeColour, stop.filled)
-                }
-            },
-    ) { measurables, constraints ->
-        val card = measurables[0].measure(constraints.copy(minHeight = 0))
-        val line = card[TimelineNodeLine]
-        val y = if (line == AlignmentLine.Unspecified) card.height / 2 else line
-        nodeY.floatValue = y.toFloat()
-        val spinner = measurables.getOrNull(1)?.measure(Constraints())
-        val railFromStart = (start + gutterWidth / 2).roundToPx()
-        layout(card.width, card.height + gap.roundToPx()) {
-            card.placeRelative(0, 0)
-            spinner?.placeRelative(railFromStart - spinner.width / 2, y - spinner.height / 2)
-        }
-    }
+        containerColour = if (grouped) colours.container else Color.Transparent,
+        disabledContainerColour = if (grouped) {
+            Theme.colours.surfaceSunken.copy(alpha = DisabledGroundAlpha)
+        } else {
+            Color.Transparent
+        },
+        edged = grouped,
+        gapBelow = if (grouped && row.index < row.count - 1) ListItemDefaults.Spacing else 0.dp,
+    )
 }
-
-/**
- * The part of a half-leg already travelled, over the rest in the progress colour.
- *
- * The same run drawn again and clipped, rather than a shorter run, so its dots
- * and dashes land exactly on the ones under it. A half-leg is drawn from its
- * node outwards; the part passed is at the node end below a node and at the far
- * end above one.
- */
-private fun DrawScope.drawPassed(
-    style: ConnectorStyle,
-    from: Offset,
-    to: Offset,
-    stroke: Float,
-    colour: Color,
-    share: Float,
-    fromNode: Boolean,
-) {
-    val top = minOf(from.y, to.y)
-    val bottom = maxOf(from.y, to.y)
-    val length = bottom - top
-    val (clipTop, clipBottom) = if (fromNode == (from.y < to.y)) {
-        // Passed from the top of the run down.
-        top - stroke to top + length * share + if (share >= 1f) stroke else 0f
-    } else {
-        bottom - length * share - (if (share >= 1f) stroke else 0f) to bottom + stroke
-    }
-    clipRect(top = clipTop, bottom = clipBottom) {
-        drawConnectorRun(style, from, to, stroke, colour, RunEnd.Seam)
-    }
-}
-
-/** How close to a stop `progress` has to be to count as at it. */
-private const val ProgressSlack: Float = 0.001f
-
-/** The ring round the stop the journey is at. */
-private const val HaloAlpha: Float = 0.3f
 
 /** A disabled grouped row's ground, as `ListItem` draws it. */
 private const val DisabledGroundAlpha: Float = 0.5f
-
-/** A line's height against its type size, for a style that does not set one. */
-private const val FallbackLeading: Float = 1.4f
