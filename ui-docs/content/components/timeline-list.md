@@ -61,11 +61,13 @@ colour. The nodes not reached yet take the rail's colour. A node given its own
 
 - **At a stop**, its node gets a halo that pulses: it swells and fades, and
   swells again, while the journey is there.
-- **Between two**, a band travels along the rest of the leg towards the next
-  stop, the same band a `StepProgress` step shows while it is working. It
-  crosses from one row to the next without a jump, in a `LazyColumn` too.
+- **Between two**, the leg turns faint and a band sweeps its whole length, from
+  one stop to the next and again, the same band a `StepProgress` step shows
+  while it is working. It shows whatever colour the leg is, and crosses from
+  one row to the next without a jump, in a `LazyColumn` too.
 
-Under reduced motion the halo holds still and the band is not drawn. The
+Under reduced motion the halo holds still and there is no band: the leg is
+coloured as far as the journey has got instead. The
 colours are a `TimelineColours`, the same as a `Timeline`'s, and
 `containerColour` is the grouped rows' ground.
 

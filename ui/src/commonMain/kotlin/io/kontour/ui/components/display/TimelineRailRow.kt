@@ -59,8 +59,9 @@ internal class LegEnd(val lane: Int, val at: LegAt, val run: RunEnd)
  * A connector runs from one node to the next, 0 to 1. A row draws a piece of it:
  * [from] is where the piece's drawn-from end sits on that scale and [to] its
  * other end — a `TimelineList` row draws 0 to ½ below its node and 1 to ½ above
- * it. The connector is travelled up to [passed]; while [band] is set, the band
- * runs through the part not yet travelled. Both are drawn in [colour].
+ * it. The connector is travelled up to [passed]; while [band] is set and the
+ * rail is moving, the leg is drawn faint instead and the band sweeps all of it.
+ * Both are drawn in [colour].
  */
 @Immutable
 internal class LegTravel(
@@ -128,18 +129,16 @@ internal fun stopProgress(progress: Float?, index: Int): StopProgress? {
 }
 
 /**
- * Where the band is along a connector travelled up to [passed], at [phase] of
- * its loop: a stretch [BandFraction] of the part not travelled, entering at the
- * traveller and leaving at the next stop — the `working` band of a
- * [StepProgress] segment, laid along the leg ahead. Null while it is out of sight.
+ * Where the band is along a connector at [phase] of its loop: a stretch
+ * [BandFraction] of it long, entering at the node behind and leaving at the
+ * node ahead — the `working` band of a [StepProgress] segment, laid along the
+ * leg. The whole leg, however far along it the journey is: the fraction is the
+ * still picture's, under reduced motion. Null while it is out of sight.
  */
-internal fun bandRange(passed: Float, phase: Float): ClosedFloatingPointRange<Float>? {
-    val window = 1f - passed
-    if (window <= 0f) return null
-    val length = window * BandFraction
-    val start = passed - length + (window + length) * phase
-    val from = max(start, passed)
-    val to = min(start + length, 1f)
+internal fun bandRange(phase: Float): ClosedFloatingPointRange<Float>? {
+    val start = -BandFraction + (1f + BandFraction) * phase
+    val from = max(start, 0f)
+    val to = min(start + BandFraction, 1f)
     return if (to > from) from..to else null
 }
 
@@ -217,7 +216,11 @@ internal fun DrawScope.drawRail(
                 drawConnectorCurve(leg.style, space.curve(a0, c0, a1, c1), stroke, colour, leg.start.run, leg.end.run)
             }
         }
-        draw(leg.colour)
+        // The leg the journey is on, while its band runs, is drawn faint and
+        // the band sweeps it at full strength — so the band shows whatever
+        // colour the leg is, its own or the rail's.
+        val sweeping = leg.travel?.band == true && !phase.isNaN()
+        draw(if (sweeping) leg.colour.copy(alpha = leg.colour.alpha * FaintAlpha) else leg.colour)
 
         val travel = leg.travel ?: continue
         // The same run again, clipped to the stretch of it in [lo, hi] of the
@@ -238,8 +241,11 @@ internal fun DrawScope.drawRail(
             val p1 = a0 + (a1 - a0) * s1 + if (s1 >= 1f) out else 0f
             space.clipAlong(this, min(p0, p1), max(p0, p1)) { draw(travel.colour) }
         }
-        if (travel.passed > 0f) overlay(0f, travel.passed)
-        if (travel.band && !phase.isNaN()) bandRange(travel.passed, phase)?.let { overlay(it.start, it.endInclusive) }
+        if (sweeping) {
+            bandRange(phase)?.let { overlay(it.start, it.endInclusive) }
+        } else if (travel.passed > 0f) {
+            overlay(0f, travel.passed)
+        }
     }
 
     val node = row.node ?: return
@@ -416,6 +422,9 @@ private const val ProgressSlack: Float = 0.001f
 
 /** The ring round the stop the journey is at. */
 private const val HaloAlpha: Float = 0.3f
+
+/** The leg under a running band, against its own colour. */
+private const val FaintAlpha: Float = 0.35f
 
 /** How far the pulse off that ring spreads, against the ring's own radius. */
 internal const val PulseReach: Float = 1.75f

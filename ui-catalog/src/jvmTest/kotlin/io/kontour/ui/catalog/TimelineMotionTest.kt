@@ -9,6 +9,9 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import io.kontour.ui.components.display.BranchProgress
+import io.kontour.ui.components.display.BranchTimeline
+import io.kontour.ui.components.display.BranchTimelineColours
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.TimelineColours
@@ -83,6 +86,93 @@ class TimelineMotionTest {
         }
     }
 
+    /**
+     * The band covers the whole leg whatever the fraction: nine tenths of the
+     * way along, it still enters at the stop behind and leaves at the one ahead.
+     */
+    @Test
+    fun theBandSweepsTheWholeLegWhateverTheFraction() {
+        val labels = arrayOfNulls<Rect>(3)
+        Scene(width = 360, height = 400) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                TimelineList(progress = 0.9f, colours = colours) {
+                    repeat(3) { i -> item { label { Text("Stop $i", Modifier.reportBounds { labels[i] = it }) } } }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val nodes = labels.map { it!!.center.y.toInt() }
+            val (top, bottom) = nodes[0] + ClearPx to nodes[1] - ClearPx
+            val quarter = (bottom - top) / 4
+            var nearStart = false
+            var nearEnd = false
+            repeat(LoopFrames) {
+                val image = scene.frame()
+                val red = (top..bottom).filter { isRed(image.getRGB(RailX, it)) }
+                if (red.any { it < top + quarter }) nearStart = true
+                if (red.any { it > bottom - quarter }) nearEnd = true
+            }
+            assertTrue(nearStart, "the band never came in at the stop behind")
+            assertTrue(nearEnd, "the band never reached the stop ahead")
+        }
+    }
+
+    /**
+     * A leg drawn in the progress colour of its own still shows its band: while
+     * the band runs the leg is faint, and the band is not.
+     */
+    @Test
+    fun theBandShowsOnALegOfItsOwnColour() {
+        val labels = arrayOfNulls<Rect>(2)
+        Scene(width = 360, height = 400) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                TimelineList(progress = 0.5f, colours = colours) {
+                    item(connectorColour = red) { label { Text("Stop 0", Modifier.reportBounds { labels[0] = it }) } }
+                    item { label { Text("Stop 1", Modifier.reportBounds { labels[1] = it }) } }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val nodes = labels.map { it!!.center.y.toInt() }
+            assertBandAndFaint(scene, RailX, nodes[0] + ClearPx..nodes[1] - ClearPx, "a leg of the progress colour")
+        }
+    }
+
+    /** A branch's explicitly coloured line shows the band running up it, too. */
+    @Test
+    fun aBranchBandShowsOnAnExplicitLine() {
+        val labels = arrayOfNulls<Rect>(2)
+        Scene(width = 360, height = 400) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                BranchTimeline(
+                    items = listOf("b" to listOf("a"), "a" to emptyList()),
+                    id = { it.first },
+                    parents = { it.second },
+                    progress = BranchProgress(reached = "a", towards = "b"),
+                    colours = BranchTimelineColours(lanes = listOf(Color.Black), muted = grey),
+                ) { commit ->
+                    val i = if (commit.first == "b") 0 else 1
+                    item(connectorColour = red) { label { Text(commit.first, Modifier.reportBounds { labels[i] = it }) } }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val nodes = labels.map { it!!.center.y.toInt() }
+            assertBandAndFaint(scene, RailX, nodes[0] + ClearPx..nodes[1] - ClearPx, "an explicitly coloured branch line")
+        }
+    }
+
+    /** Over a loop, some frame shows the band at full strength with the faint leg beside it. */
+    private fun assertBandAndFaint(scene: Scene, x: Int, along: IntRange, what: String) {
+        var both = false
+        repeat(LoopFrames) {
+            val image = scene.frame()
+            val pixels = along.map { image.getRGB(x, it) }
+            if (pixels.any { isRed(it) } && pixels.any { isFaintRed(it) }) both = true
+        }
+        assertTrue(both, "$what: the band should run full strength along a faint leg")
+    }
+
     /** Across the page the band runs towards the next stage: to the right, or to the left right to left. */
     @Test
     fun aHorizontalBandTravelsTowardsTheEnd() {
@@ -143,6 +233,9 @@ class TimelineMotionTest {
     }
 
     private fun isRed(p: Int) = (p shr 16 and 0xFF) > 160 && (p shr 8 and 0xFF) < 90 && (p and 0xFF) < 90
+
+    /** Red at about a third on white: a faint leg. */
+    private fun isFaintRed(p: Int) = (p shr 16 and 0xFF) > 200 && (p shr 8 and 0xFF) in 120..230 && (p and 0xFF) in 120..230
 
     private companion object {
         /** At density two: the rail 22dp in, a 12dp node, and 8dp clear round it. */

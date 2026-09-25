@@ -47,26 +47,31 @@ class TimelineProgressTest {
         assertFalse(stopProgress(1.5f, 2)!!.legBand, "nor one not started")
     }
 
-    /** The band is a third of the way-to-go long, and never outside it. */
+    /**
+     * The band sweeps the whole leg, node to node, a third of it long and never
+     * outside it — however far along the leg the journey is.
+     */
     @Test
-    fun theBandStaysInItsWindowAndIsAThirdOfIt() {
-        for (passed in listOf(0f, 0.25f, 0.6f)) {
-            var longest = 0f
-            for (step in 0..100) {
-                val band = bandRange(passed, step / 100f) ?: continue
-                assertTrue(band.start >= passed && band.endInclusive <= 1f, "$band outside [$passed, 1]")
-                longest = maxOf(longest, band.endInclusive - band.start)
-            }
-            assertNear((1f - passed) * BandFraction, longest, "the band at $passed")
+    fun theBandSweepsTheWholeLeg() {
+        var longest = 0f
+        var first = 1f
+        var last = 0f
+        for (step in 0..200) {
+            val band = bandRange(step / 200f) ?: continue
+            assertTrue(band.start >= 0f && band.endInclusive <= 1f, "$band outside the leg")
+            longest = maxOf(longest, band.endInclusive - band.start)
+            first = minOf(first, band.start)
+            last = maxOf(last, band.endInclusive)
         }
+        assertNear(BandFraction, longest, "the band's length")
+        assertTrue(first < 0.01f && last > 0.99f, "the band should reach both ends, went $first to $last")
     }
 
     @Test
     fun theBandEntersAndLeaves() {
-        assertNull(bandRange(0.4f, 0f), "at the start of its loop it has not come in yet")
-        assertNull(bandRange(0.4f, 1f), "and at the end it has gone")
-        assertNotNull(bandRange(0.4f, 0.5f))
-        assertNull(bandRange(1f, 0.5f), "a leg travelled to the end has nothing ahead")
+        assertNull(bandRange(0f), "at the start of its loop it has not come in yet")
+        assertNull(bandRange(1f), "and at the end it has gone")
+        assertNotNull(bandRange(0.5f))
     }
 
     /**

@@ -66,12 +66,15 @@ to come.
 
 - **At an item**, its node gets a halo that pulses: it swells and fades, and
   swells again, while the journey is there.
-- **Between two**, the leg it is on is coloured as far as the journey has got,
-  and a band travels along the rest of it towards the next item, the same band
-  a `StepProgress` step shows while it is working.
+- **Between two**, the leg it is on turns faint and a band sweeps its whole
+  length, from one item to the next and again, the same band a `StepProgress`
+  step shows while it is working. It runs the whole leg however far along it the
+  journey is, and in full colour over a faint leg, so it shows whatever colour
+  the leg is — the rail's or its own.
 
-Under reduced motion the halo holds still and the band is not drawn, and the
-coloured part of the leg still says how far along it is. An item's own
+Under reduced motion the halo holds still and there is no band. The leg the
+journey is on is coloured as far as it has got instead, which is where the
+fraction shows. An item's own
 `nodeColour` or `connectorColour` keeps its colour whatever the progress; leave
 them unspecified to take `colours`, which are the same `TimelineColours` a
 `TimelineList` takes. Items count in the order they are laid out, so one

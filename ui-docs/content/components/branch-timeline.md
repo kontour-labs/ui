@@ -87,10 +87,11 @@ branches opened before it.
 the commit a deploy has reached, the last one reviewed. **The commit reached
 pulses, and everything it descends from keeps its colours. The commits it has
 not reached, and their lines, are muted.** Name `towards`, one of its children,
-and the line from one to the other carries a band travelling up it, for the
-deploy that is on its way. An explicit `nodeColour` or `connectorColour` keeps
-its colour whatever the progress. Under reduced motion the pulse and the band
-stand still.
+and the line from one to the other turns faint while a band sweeps up it, for
+the deploy that is on its way. An explicit `nodeColour` or `connectorColour`
+keeps its colour whatever the progress, and the band shows on it too, since the
+line under the band is faint. Under reduced motion the pulse stands still and
+there is no band.
 
 ## In a `LazyColumn`
 
