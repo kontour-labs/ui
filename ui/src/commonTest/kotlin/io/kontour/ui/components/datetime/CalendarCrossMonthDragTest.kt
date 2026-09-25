@@ -119,6 +119,33 @@ class CalendarCrossMonthDragTest {
     }
 
     /**
+     * August 2026 starts on a Saturday. Pushed past the 1st into the blank before
+     * it, and then on along the row to where Monday would be, the dwell carries on
+     * and pages — going further past the edge day is still going past it.
+     */
+    @Test
+    fun pushingFarPastTheFirstKeepsTheDwellGoing() = runComposeUiTest {
+        val picked = Picked()
+        val navigation = picker(LocalDate(2026, 8, 1), picked)
+        val from = centreOf(12)
+        val first = centreOf(1)
+        val width = cellWidth()
+        mainClock.autoAdvance = false
+        onRoot().performTouchInput {
+            down(0, from)
+            steps(from, first) { moveTo(0, it) }
+            moveTo(0, first - Offset(width, 0f))
+        }
+        mainClock.advanceTimeBy(DwellMillis / 2L)
+        // On to Monday's column, five cells before the Saturday the month starts on.
+        onRoot().performTouchInput { moveTo(0, first - Offset(width * 5f, 0f)) }
+        mainClock.advanceTimeBy(DwellMillis / 2L + 200L)
+        onRoot().performTouchInput { up(0) }
+        mainClock.advanceTimeBy(300L)
+        assertEquals(LocalDate(2026, 7, 1), navigation.visibleMonth, "pushing further past the 1st cut the dwell short")
+    }
+
+    /**
      * June 2026 starts on a Monday, so there is no blank before the 1st: the arrow
      * hangs past the grid's start edge, and pushing the handle past the edge in that
      * row reaches it.

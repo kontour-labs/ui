@@ -40,7 +40,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -65,6 +70,60 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+
+object DatePickerDefaults {
+    /**
+     * The glyph on the way back to today's month: a small calendar page with the
+     * day marked. Drawn by the library, so a picker has the button without an
+     * icon set; see `todayIcon`.
+     */
+    val TodayIcon: ImageVector get() = TodayGlyph
+}
+
+/** A calendar page, its two rings and header rule, and a marked day. 24 by 24, stroked. */
+private val TodayGlyph: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "Today",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 2f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            // The page.
+            moveTo(6f, 5f)
+            horizontalLineTo(18f)
+            arcToRelative(2f, 2f, 0f, false, true, 2f, 2f)
+            verticalLineTo(19f)
+            arcToRelative(2f, 2f, 0f, false, true, -2f, 2f)
+            horizontalLineTo(6f)
+            arcToRelative(2f, 2f, 0f, false, true, -2f, -2f)
+            verticalLineTo(7f)
+            arcToRelative(2f, 2f, 0f, false, true, 2f, -2f)
+            close()
+            // The rings, and the rule under the month.
+            moveTo(16f, 3f)
+            verticalLineTo(7f)
+            moveTo(8f, 3f)
+            verticalLineTo(7f)
+            moveTo(4f, 11f)
+            horizontalLineTo(20f)
+        }
+        // Today, marked.
+        path(fill = SolidColor(Color.Black)) {
+            moveTo(8f, 14.5f)
+            horizontalLineTo(11f)
+            verticalLineTo(17.5f)
+            horizontalLineTo(8f)
+            close()
+        }
+    }.build()
+}
 
 /**
  * Remembers which month a picker is showing, surviving configuration change.
@@ -138,14 +197,18 @@ fun DatePicker(
     previousIcon: ImageVector? = null,
     nextIcon: ImageVector? = null,
     /**
-     * A glyph for the button that brings the calendar back to [today]'s month.
+     * The glyph on the button that brings the calendar back to [today]'s month.
+     *
+     * **There by default**, as a small calendar the library draws itself — reported
+     * as wanted in every calendar, and asked for as an icon rather than the word.
+     * The paging arrows are the caller's because the library ships no icon set;
+     * this is one glyph, drawn here, so that the way back needs nothing supplied.
+     * Pass an app's own to match its set, or null to leave the button out.
      *
      * Shown only while the calendar is somewhere else, and only when [today] is
-     * known — which is the whole of when it has anything to do. Null leaves it
-     * out entirely, like the paging icons: the library does not ship an icon
-     * set, so a component that draws one has picked for you.
+     * known — which is the whole of when it has anything to do.
      */
-    todayIcon: ImageVector? = null,
+    todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
     /**
      * Turns the month and year into a button that opens two wheels, drawn with
      * this glyph beside it.
@@ -215,8 +278,8 @@ fun DatePicker(
  *
  * A range can also be dragged out in one gesture, and the drag crosses months:
  * page with the header's arrows using another finger, or push the handle past
- * the month's first or last day and hold it there until the ring round that day
- * fills. Either way the drag carries on in the new month from where the finger is.
+ * the month's first or last day and hold it there until the ring round the small
+ * arrow in that day fills. Either way the drag carries on in the new month from where the finger is.
  *
  * @param onRangeSelected Receives the range so far. The end is null while only a start
  *   has been chosen, so a caller can keep its confirm button disabled.
@@ -232,7 +295,7 @@ fun DateRangePicker(
     previousIcon: ImageVector? = null,
     nextIcon: ImageVector? = null,
     /** See [DatePicker]. */
-    todayIcon: ImageVector? = null,
+    todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
     /**
      * Turns the month and year into a button that opens two wheels, drawn with
      * this glyph beside it.

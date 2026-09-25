@@ -59,6 +59,15 @@ A jump is navigation, not selection. Landing on a month whose days are all
 outside `isDateSelectable` shows a grid of disabled days, which says more than
 refusing to go there would.
 
+**A small calendar is the way back to today.** Whenever `today` is known and the
+calendar is on another month, the header offers a button with a calendar glyph
+that brings it back to today's month. The library draws that one glyph itself, so
+the button is there with nothing supplied; `todayIcon` swaps in an app's own to
+match its icon set, and `todayIcon = null` leaves it out. It is not there on
+today's own month, where it would do nothing. The same goes for
+[`DateRangePicker`](date-range-picker.md). A [`CalendarMonth`](calendar-month.md)
+on its own has no header: the month it shows is the caller's to change.
+
 ### It needs its whole month
 
 A month grid is up to six rows of dates plus a header, and it has nowhere to put

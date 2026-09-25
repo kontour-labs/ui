@@ -342,7 +342,7 @@ fun CalendarMonth(
                     if (rings <= 0f) return@drawWithContent
                     val cell = size.width / Columns
                     val rowHeight = size.height / rows
-                    val radius = minOf(cell, rowHeight) / 2f + RingOutset.toPx()
+                    val halfCell = minOf(cell, rowHeight) / 2f
                     val first = leadingBlanks
                     val last = leadingBlanks + daysInMonth - 1
                     for (edgeDay in listOf(DwellEdge.Previous, DwellEdge.Next)) {
@@ -352,18 +352,18 @@ fun CalendarMonth(
                         val presence = ringPresence(distance(state.finger, Offset(column, row))) * rings
                         if (presence <= 0f) continue
                         val date = LocalDate(month.year, month.month, index - leadingBlanks + 1)
-                        // On the chevron's own day's fill: the cap's ink when the
-                        // day is an end of the range, the page's otherwise.
+                        // On its own day's fill: the cap's ink when the day is an
+                        // end of the range, the page's otherwise.
                         val onCap = date == state.head || date == state.anchor
-                        drawEdgeRing(
-                            centre = Offset((if (rtl) Columns - column else column) * cell, row * rowHeight),
-                            radius = radius,
+                        drawEdgeArrow(
+                            day = Offset((if (rtl) Columns - column else column) * cell, row * rowHeight),
+                            halfCell = halfCell,
                             pointsLeft = (edgeDay == DwellEdge.Previous) != rtl,
                             progress = if (state.edge == edgeDay) state.dwell.value else 0f,
                             alpha = presence,
-                            ring = colours.outlineStrong,
-                            fill = colours.primary,
-                            chevron = if (onCap) colours.onPrimary else colours.contentMuted,
+                            ring = if (onCap) colours.onPrimary.copy(alpha = CapRingAlpha) else colours.outlineStrong,
+                            fill = if (onCap) colours.onPrimary else colours.primary,
+                            chevron = if (onCap) colours.onPrimary else colours.content,
                         )
                     }
                 },
@@ -433,6 +433,9 @@ internal fun rememberCalendarDrag(): CalendarDragState {
 }
 
 private fun LocalDate.sameMonth(first: LocalDate): Boolean = year == first.year && month == first.month
+
+/** The arrow's ring on a cap, faint against the cap's ink until the dwell fills it. */
+private const val CapRingAlpha: Float = 0.4f
 
 @Composable
 private fun DayCell(

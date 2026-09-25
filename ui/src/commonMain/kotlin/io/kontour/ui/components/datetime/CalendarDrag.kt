@@ -107,20 +107,26 @@ internal class GridGeometry(
     /**
      * Which month [cells] is pushing past, if either.
      *
-     * **Past the edge day, and near it.** Before the 1st — the blanks beside it,
-     * off the grid's start edge in its row, or above the grid over it — or after
-     * the last day the same way, and within reach of that day. Only a handle
-     * already pushed against the month's first or last day is asking for the
-     * month beyond it; dragging near one is not. A month starting on the first
-     * weekday has no blank before the 1st, which is why off the edge counts: the
-     * pointer keeps arriving after it leaves the grid, however little margin the
-     * page left.
+     * **Anywhere past the edge day in its row**, or above or below the grid there:
+     * before the 1st — the blanks beside it, off the grid's start edge, over the
+     * weekday initials — or after the last day the same way. Only a handle pushed
+     * past the month's first or last day is asking for the month beyond it; being
+     * near one is not. And however far past: a month starting on a Saturday
+     * dragged back to where Monday would be is still pushing past its 1st, and a
+     * dwell under way carries on rather than being cut off for going too far —
+     * reported as wanting exactly that. A month starting on the first weekday
+     * has no blank before the 1st, which is why off the edge counts: the pointer
+     * keeps arriving after it leaves the grid, however little margin the page
+     * left.
      */
     fun edgeAt(cells: Offset): DwellEdge? {
-        val beforeFirst = cells.y < 0f || (cells.y < 1f && cells.x < first % Columns)
-        if (beforeFirst && distance(cells, centreOf(first)) <= EdgeReach) return DwellEdge.Previous
-        val afterLast = cells.y >= rows || (cells.y >= rows - 1f && cells.x >= last % Columns + 1f)
-        if (afterLast && distance(cells, centreOf(last)) <= EdgeReach) return DwellEdge.Next
+        if (cells.y >= -EdgeReach && (cells.y < 0f || (cells.y < 1f && cells.x < first % Columns))) {
+            return DwellEdge.Previous
+        }
+        val end = last % Columns + 1f
+        if (cells.y < rows + EdgeReach && (cells.y >= rows || (cells.y >= rows - 1f && cells.x >= end))) {
+            return DwellEdge.Next
+        }
         return null
     }
 
@@ -551,25 +557,29 @@ internal fun DrawScope.drawLiveBand(
 }
 
 /**
- * The ring round the month's first or last day, fading in as the finger nears it.
+ * The way to the next month from its first or last day: a small chevron in the
+ * day's own box, on the side the other month is, in a little ring that fills as
+ * the handle is held past the day.
  *
- * Round the day itself rather than in a cell of its own — reported: *"make it part
- * of the first/last day's box, so we don't get issues with months that start/end
- * on a monday/sunday"*, where there is no blank beside the day to put anything in.
- * A faint ring just outside the day, a small chevron inside it on the side the
- * other month is, and — once the handle is pushed past the day — an arc filling
- * round the ring until the month pages.
+ * In the day's box rather than a cell of its own — reported: *"make it part of
+ * the first/last day's box, so we don't get issues with months that start/end
+ * on a monday/sunday"*, where there is no blank beside the day to put anything
+ * in. And round the chevron alone rather than the whole day — *"rather than
+ * circling the whole number … just circle the arrow"* — so the day keeps its own
+ * look, cap and all, and the ring is plainly the arrow's.
  *
  * Drawn rather than an icon, because the library ships no icon set and this is
  * not a control anyone taps: the header's arrows are the way to page for
  * everything but a finger already busy with a drag.
  *
- * @param pointsLeft Which way the chevron points and which side of the number it
+ * @param day The middle of the edge day's cell.
+ * @param halfCell Half the cell, in pixels: the chevron sits against its inner edge.
+ * @param pointsLeft Which way the chevron points, and which side of the number it
  *   sits: toward the other month.
  */
-internal fun DrawScope.drawEdgeRing(
-    centre: Offset,
-    radius: Float,
+internal fun DrawScope.drawEdgeArrow(
+    day: Offset,
+    halfCell: Float,
     pointsLeft: Boolean,
     progress: Float,
     alpha: Float,
@@ -578,9 +588,10 @@ internal fun DrawScope.drawEdgeRing(
     chevron: Color,
 ) {
     if (alpha <= 0f) return
+    val radius = ArrowRingRadius.toPx()
     val stroke = RingStroke.toPx()
-    val topLeft = Offset(centre.x - radius, centre.y - radius)
-    val size = Size(radius * 2f, radius * 2f)
+    val side = if (pointsLeft) -1f else 1f
+    val centre = Offset(day.x + side * (halfCell - radius - ArrowRingInset.toPx()), day.y)
     drawCircle(ring, radius = radius, center = centre, alpha = alpha, style = Stroke(stroke))
     if (progress > 0f) {
         drawArc(
@@ -588,26 +599,25 @@ internal fun DrawScope.drawEdgeRing(
             startAngle = -90f,
             sweepAngle = 360f * progress.coerceIn(0f, 1f),
             useCenter = false,
-            topLeft = topLeft,
-            size = size,
+            topLeft = Offset(centre.x - radius, centre.y - radius),
+            size = Size(radius * 2f, radius * 2f),
             alpha = alpha,
             style = Stroke(stroke * ProgressStrokeShare, cap = StrokeCap.Round),
         )
     }
-    // Inside the ring, between the number and its edge, on the other month's side.
-    val side = if (pointsLeft) -1f else 1f
-    val at = Offset(centre.x + side * radius * ChevronInset, centre.y)
     val arm = radius * ChevronShare
+    // A hair toward the tip, so the chevron looks centred in its ring.
+    val tip = centre.x + side * arm * 0.25f
     val path = Path().apply {
-        moveTo(at.x - side * arm / 2f, at.y - arm)
-        lineTo(at.x + side * arm / 2f, at.y)
-        lineTo(at.x - side * arm / 2f, at.y + arm)
+        moveTo(tip - side * arm / 2f, centre.y - arm)
+        lineTo(tip + side * arm / 2f, centre.y)
+        lineTo(tip - side * arm / 2f, centre.y + arm)
     }
     drawPath(path, chevron, alpha = alpha, style = Stroke(stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
 }
 
 /**
- * How much of the ring shows for a finger [distance] cells from its day: none
+ * How much of the arrow shows for a finger [distance] cells from its day: none
  * from two and a half cells out, all of it within three quarters of one. The
  * distance is straight-line, so coming at the day from above counts as much as
  * coming at it along the row.
@@ -626,21 +636,19 @@ internal const val DwellMillis: Int = 700
 /** The most a cap leans toward the finger, in cells, before the pull. */
 private const val MaxLean: Float = 0.5f
 
-/** How far from the edge day, in cells, a finger past it still counts as pushing on it. */
+/** How far above or below the grid, in rows, a finger still counts as pushing past an edge day. */
 private const val EdgeReach: Float = 1.5f
 
 private const val RingFadeFrom: Float = 2.5f
 private const val RingFadeFull: Float = 0.75f
 
-/** How far outside its day the ring sits, so it rings the handle rather than cutting it. */
-internal val RingOutset = 2.dp
+/** The ring round the arrow, and how far it sits in from the day's box. */
+internal val ArrowRingRadius = 6.5.dp
+private val ArrowRingInset = 1.5.dp
 private val RingStroke = 1.5.dp
 
 /** The progress arc, a little bolder than the ring it fills. */
-private const val ProgressStrokeShare: Float = 1.6f
+private const val ProgressStrokeShare: Float = 1.4f
 
-/** The chevron's middle, as a share of the ring's radius out from the centre. */
-private const val ChevronInset: Float = 0.64f
-
-/** The chevron's half-height against the ring's radius. */
-private const val ChevronShare: Float = 0.14f
+/** The chevron's half-height against its ring's radius. */
+private const val ChevronShare: Float = 0.42f

@@ -59,22 +59,22 @@ month from wherever the finger is — the range still anchored where it started,
 the month now out of sight.
 
 **Or page without a second finger.** As the finger nears the month's first or
-last day, a faint ring fades in round that day, with a small chevron inside it
-pointing at the month before or after — more of it the nearer the finger, from any
+last day, a small arrow fades in inside that day, on the side the other month is,
+in a little ring of its own — more of it the nearer the finger, from any
 direction, so coming at the 1st from the row below shows it as much as coming
 along the row. Push the handle *past* the day — before the 1st, or after the last —
-and hold it there: an arc fills round the ring, and when it is full the month pages,
+and hold it there: the arrow's ring fills, and when it is full the month pages,
 with a tick in the hand, and the drag carries on. Being near the day is not enough;
-only pushing past it pages. The ring is round the day itself, so a month that
+only pushing past it pages. The arrow is inside the day's own box, so a month that
 starts on the first day of the week, or ends on the last, has it the same as any
 other: off the edge of the grid counts as past the day.
 
 **One dwell, one page.** Two months can start on the same weekday — February and
 March often do — and then the day is in the same place in both. Having paged, the
-ring is spent until the handle leaves it: move off and back again to page again.
-Let go of it before the arc fills and nothing happens.
+arrow is spent until the handle leaves it: move off and back again to page again.
+Let go of it before the ring fills and nothing happens.
 
-The ring is for a finger already busy. It is not a button, carries no semantics
+The arrow is for a finger already busy. It is not a button, carries no semantics
 and cannot be focused; the header's arrows are the way to page for everything
 else.
 
