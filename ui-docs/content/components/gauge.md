@@ -68,6 +68,11 @@ personality shows in a number:
   sit between each pair; `tickLabel` writes the major ones; `tickPlacement` puts
   them inside the arc or outside it. Outside leaves the middle to the content.
 - **The middle** — a slot. Centred, or under the hub when there is a needle.
+  `contentBackground = true` sits it on a translucent capsule, so a needle sweeping
+  past the reading goes under it rather than through it — the theme's surface at
+  85% by default, or `GaugeDefaults.colours(contentBackground = …)`. The capsule
+  reaches out round the reading rather than taking room from it, and the tick
+  labels are drawn above it, so in a narrow middle it never hides the scale.
 
 ## Colour bands
 

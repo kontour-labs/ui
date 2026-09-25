@@ -717,6 +717,13 @@ private val gaugeNeedleColour =
  */
 private val gaugeNeedleMatchesFill = Knob.Flag("Needle matches fill")
 
+/**
+ * A translucent capsule behind the reading, so the needle passes under it. Turn the
+ * reading down past 1,000 or so, where the needle sweeps across the label, to see
+ * what it is for.
+ */
+private val gaugeLabelBackground = Knob.Flag("Label background")
+
 /** Off, a new reading is drawn where it lands rather than travelling there. */
 private val gaugeAnimated = Knob.Flag("Animated", initial = true)
 
@@ -741,6 +748,7 @@ internal val GaugeDemo = ComponentDemo(
         gaugeNeedleLength,
         gaugeNeedleColour,
         gaugeNeedleMatchesFill,
+        gaugeLabelBackground,
         gaugeAnimated,
     ),
 ) {
@@ -773,6 +781,7 @@ internal val GaugeDemo = ComponentDemo(
             indicator = indicator,
             needleLength = this@ComponentDemo[gaugeNeedleLength],
             needleMatchesFill = this@ComponentDemo[gaugeNeedleMatchesFill],
+            contentBackground = this@ComponentDemo[gaugeLabelBackground],
             majorTicks = 6,
             minorTicks = 1,
             tickLabel = { "${(it / 1000).roundToInt()}K" },

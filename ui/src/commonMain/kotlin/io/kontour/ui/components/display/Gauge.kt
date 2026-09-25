@@ -12,11 +12,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
@@ -95,6 +100,10 @@ import kotlin.math.max
  *   without labels.
  * @param tickPlacement Whether the ticks and their labels sit inside the arc or
  *   outside it. Outside leaves the middle to [content] and takes room from the arc.
+ * @param contentBackground Whether [content] sits on a translucent capsule of
+ *   `colours.contentBackground`, so a needle passing behind the reading does not run
+ *   through it. Off by default, where nothing crosses the middle; worth turning on
+ *   with a needle that sweeps past the label.
  * @param animated Whether a new [value] travels there or is simply drawn there.
  *   Reduced motion does not travel either way.
  * @param stateDescription What a screen reader says for the value, from it — "8,500
@@ -119,6 +128,7 @@ fun Gauge(
     minorTicks: Int = 0,
     tickLabel: ((Float) -> String)? = null,
     tickPlacement: GaugeTickPlacement = GaugeTickPlacement.Inside,
+    contentBackground: Boolean = false,
     animated: Boolean = true,
     contentDescription: String? = null,
     stateDescription: ((Float) -> String)? = null,
@@ -134,6 +144,7 @@ fun Gauge(
     val sweep = sweepAngle.coerceIn(MinSweep, FullTurn)
     // A band's gaps, and an unbanded scale, are the dial's own colour.
     val scaleDefault = Theme.colours.primary
+    val defaultContentBackground = Theme.colours.surface.copy(alpha = ContentBackgroundAlpha)
 
     // Read in draw and nowhere else, so a gauge at rest does no work and a moving
     // one only redraws.
@@ -225,7 +236,7 @@ fun Gauge(
                     val needleReach = (inner * needleLength)
                         .coerceAtMost(radius + thicknessPx / 2f)
                         .coerceAtLeast(thicknessPx)
-                    onDrawBehind {
+                    onDrawWithContent {
                         val at = fractionOf(shown.value)
                         dialArcs(
                             geometry, thicknessPx, cap, colours.track, fill,
@@ -235,7 +246,10 @@ fun Gauge(
                             geometry, majorTicks, minorTicks, tickEdge, majorPx, minorPx,
                             tickWidth, colours.tick, inward = !outside,
                         )
-                        dialTickLabels(geometry, labels, labelAt)
+                        // Under the needle, as on a speedometer — unless the reading has
+                        // a background, which reaches out over the scale in a narrow
+                        // middle; then the labels go on top of it, below.
+                        if (!contentBackground) dialTickLabels(geometry, labels, labelAt)
                         // The needle first, so with both the thumb sits on top of
                         // the arc and the needle points at it from underneath.
                         if (hasNeedle) {
@@ -253,6 +267,8 @@ fun Gauge(
                                 fill = colours.thumb, ringColour = colours.thumbRing,
                             )
                         }
+                        drawContent()
+                        if (contentBackground) dialTickLabels(geometry, labels, labelAt)
                     }
                 }
         ) {
@@ -265,8 +281,36 @@ fun Gauge(
                     bottom = if (hasNeedle) 0.dp else contentInset,
                 ),
                 contentAlignment = if (hasNeedle) Alignment.TopCenter else Alignment.Center,
-                content = content,
-            )
+            ) {
+                if (contentBackground) {
+                    // Drawn after the needle, like the content it is behind, so the
+                    // needle passes under the reading rather than through it. **Out
+                    // round the content, not into it**: the middle of a dial with
+                    // labelled ticks inside is narrow, and padding taken out of it
+                    // wrapped a reading of "0.9k" one character to a line.
+                    val shape = Theme.shapes.capsule
+                    val colour = colours.contentBackground.takeOrElse { defaultContentBackground }
+                    val across = Theme.spacing.sm
+                    val down = Theme.spacing.xxs
+                    Box(
+                        modifier = Modifier.drawBehind {
+                            val x = across.toPx()
+                            val y = down.toPx()
+                            val outline = shape.createOutline(
+                                // `this.size`: the content's, not the gauge's parameter.
+                                Size(this.size.width + x * 2f, this.size.height + y * 2f),
+                                layoutDirection,
+                                this,
+                            )
+                            translate(left = -x, top = -y) { drawOutline(outline, colour) }
+                        },
+                        contentAlignment = Alignment.Center,
+                        content = content,
+                    )
+                } else {
+                    content()
+                }
+            }
         }
     }
 }
@@ -310,6 +354,9 @@ enum class GaugeTickPlacement {
  * @param needle A gauge's needle, or the notch on a knob.
  * @param thumb The disc of a gauge's thumb, or a knob's face.
  * @param thumbRing The ring round the thumb, or round a knob's face.
+ * @param contentBackground Behind a gauge's content, when it asks for one — a
+ *   translucent surface by default, so the dial shows through it. Unspecified takes
+ *   that default.
  */
 @Immutable
 data class DialColours(
@@ -320,6 +367,7 @@ data class DialColours(
     val needle: Color,
     val thumb: Color,
     val thumbRing: Color,
+    val contentBackground: Color = Color.Unspecified,
 )
 
 object GaugeDefaults {
@@ -348,7 +396,8 @@ object GaugeDefaults {
         needle: Color = Theme.colours.content,
         thumb: Color = Theme.colours.surfaceRaised,
         thumbRing: Color = Theme.colours.outline,
-    ): DialColours = DialColours(indicator, track, tick, tickLabel, needle, thumb, thumbRing)
+        contentBackground: Color = Theme.colours.surface.copy(alpha = ContentBackgroundAlpha),
+    ): DialColours = DialColours(indicator, track, tick, tickLabel, needle, thumb, thumbRing, contentBackground)
 }
 
 private val GaugeSize: Dp = 160.dp
@@ -365,6 +414,9 @@ private const val ThumbShare: Float = 0.85f
 
 /** A needle's length against the room inside the ticks. */
 private const val NeedleShare: Float = 0.8f
+
+/** How opaque the capsule behind a gauge's content is, by default: enough to read over a needle. */
+private const val ContentBackgroundAlpha: Float = 0.85f
 
 /** A needle's width against the arc's. */
 private const val NeedleWidthShare: Float = 0.5f

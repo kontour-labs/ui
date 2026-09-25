@@ -3,6 +3,7 @@ package io.kontour.ui.catalog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -197,6 +198,39 @@ class GaugeDrawingTest {
         assertTrue(b9 > 200 && r9 < 60 && g9 < 60, "at 9 it should be the blue band's, was ($r9, $g9, $b9)")
         val (r, g, b) = needleColour(7f, matches = false)
         assertTrue(r < 40 && g < 40 && b < 40, "without the option it should be the needle colour, was ($r, $g, $b)")
+    }
+
+    /**
+     * With `contentBackground`, the reading sits on a capsule the needle passes under.
+     *
+     * "An option so the label inside the gauge has an optional background, just so it
+     * shows above the needle." The needle points low on the left, through a 120 by
+     * 40dp label under the hub; 60px out along it is inside the label. Without the
+     * background that pixel is the needle's; with one, it is the background's.
+     */
+    @Test
+    fun aContentBackgroundCoversTheNeedleBehindTheReading() {
+        fun at(background: Boolean): Triple<Int, Int, Int> {
+            val frame = Scene(width = 400, height = 400, reduceMotion = true) {
+                Box(Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
+                    Gauge(
+                        value = 0.02f,
+                        size = 200.dp,
+                        indicator = GaugeIndicator.Needle,
+                        contentBackground = background,
+                        colours = GaugeDefaults.colours(needle = Color.Green, contentBackground = Color.Magenta),
+                    ) {
+                        Box(Modifier.size(width = 120.dp, height = 40.dp))
+                    }
+                }
+            }.use { it.frames(4) }
+            val angle = (StartAngle + Sweep * 0.02) * PI / 180.0
+            return frame.rgb(200 + cos(angle) * 60, 200 + sin(angle) * 60)
+        }
+        val (r, g, b) = at(background = false)
+        assertTrue(g > 200 && r < 60 && b < 60, "without a background the needle should show through the label, was ($r, $g, $b)")
+        val (br, bg, bb) = at(background = true)
+        assertTrue(br > 200 && bb > 200 && bg < 60, "with one, the label's background should cover it, was ($br, $bg, $bb)")
     }
 
     private fun renderBands(smoothing: Float): BufferedImage =
