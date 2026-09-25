@@ -403,23 +403,23 @@ object GaugeDefaults {
 private val GaugeSize: Dp = 160.dp
 private val GaugeThickness: Dp = 12.dp
 private const val GaugeSweep: Float = 270f
-private val GaugeTickGap: Dp = 4.dp
-private val GaugeMajorTick: Dp = 6.dp
-private val GaugeMinorTick: Dp = 3.dp
-private val GaugeTickWidth: Dp = 1.5.dp
-private val GaugeThumbRing: Dp = 2.dp
+internal val GaugeTickGap: Dp = 4.dp
+internal val GaugeMajorTick: Dp = 6.dp
+internal val GaugeMinorTick: Dp = 3.dp
+internal val GaugeTickWidth: Dp = 1.5.dp
+internal val GaugeThumbRing: Dp = 2.dp
 
 /** How far past the arc's half-width a thumb reaches. */
-private const val ThumbShare: Float = 0.85f
+internal const val ThumbShare: Float = 0.85f
 
 /** A needle's length against the room inside the ticks. */
 private const val NeedleShare: Float = 0.8f
 
 /** How opaque the capsule behind a gauge's content is, by default: enough to read over a needle. */
-private const val ContentBackgroundAlpha: Float = 0.85f
+internal const val ContentBackgroundAlpha: Float = 0.85f
 
 /** A needle's width against the arc's. */
-private const val NeedleWidthShare: Float = 0.5f
+internal const val NeedleWidthShare: Float = 0.5f
 
 /** The half-side of the square inside a circle, against its radius: 1/√2. */
 private const val InscribedShare: Float = 0.707f

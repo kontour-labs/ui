@@ -30,5 +30,6 @@ Things that show rather than take input.
 | [`Modifier.marquee`](modifier-marquee.md) | A label that is occasionally too long | Truncation, when the tail does not matter |
 | [`Kbd`](kbd.md) | A keyboard shortcut, rendered as a key | — |
 | [`Gauge`](gauge.md) | A reading on a dial | `CircularProgress`, for a fraction of work done |
+| [`Meter`](meter.md) | A reading on a straight scale | `LinearProgress`, for a fraction of work done |
 | [`ChatBubble`](chat-bubble.md) | One message in a conversation | A `Card`, for anything that is not a message |
 | [`RelativeTimeText`](relative-time-text.md) | A self-updating "in 4 min" | — |

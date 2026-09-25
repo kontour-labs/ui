@@ -11,6 +11,10 @@ import io.kontour.ui.components.display.GaugeTickPlacement
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.GaugeDefaults
 import io.kontour.ui.components.display.Gauge
+import io.kontour.ui.components.display.Meter
+import io.kontour.ui.components.display.MeterContentPlacement
+import io.kontour.ui.components.display.MeterDefaults
+import io.kontour.ui.components.display.MeterOrientation
 import io.kontour.ui.components.display.ScaleColours
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -168,6 +172,79 @@ fun GaugeColourBands() {
         ),
         contentDescription = "Room temperature",
     )
+}
+
+@Composable
+fun MeterBasics() {
+    // A battery across the page: bands along the scale, a thumb at the reading,
+    // and the label above it.
+    Meter(
+        value = 62f,
+        valueRange = 0f..100f,
+        modifier = Modifier.fillMaxWidth(),
+        indicator = GaugeIndicator.Thumb,
+        majorTicks = 5,
+        tickLabel = { "${it.roundToInt()}%" },
+        colours = MeterDefaults.colours(
+            indicator = ScaleColours.bands {
+                band(from = 0f, colour = Theme.colours.danger.solid)
+                band(from = 20f, colour = Theme.colours.warning.solid)
+                band(from = 40f, colour = Theme.colours.success.solid)
+            },
+        ),
+        contentDescription = "Battery",
+        stateDescription = { "${it.roundToInt()} percent charged" },
+    ) {
+        Row(Modifier.fillMaxWidth()) {
+            Text("Battery", modifier = Modifier.weight(1f))
+            Text("62%")
+        }
+    }
+
+    // A tank up the page, with a needle across it and the reading beside it.
+    Meter(
+        value = 340f,
+        valueRange = 0f..500f,
+        orientation = MeterOrientation.Vertical,
+        thickness = 16.dp,
+        indicator = GaugeIndicator.Needle,
+        majorTicks = 6,
+        minorTicks = 1,
+        tickLabel = { "${it.roundToInt()}" },
+        contentDescription = "Water tank",
+        stateDescription = { "${it.roundToInt()} litres" },
+    ) {
+        Text("340 L", style = Theme.typography.titleLarge)
+    }
+}
+
+@Composable
+fun MeterAtTheReading() {
+    // The label rides along with the reading, on a capsule of its own.
+    Meter(
+        value = 0.35f,
+        modifier = Modifier.fillMaxWidth(),
+        contentPlacement = MeterContentPlacement.AtValue,
+        contentBackground = true,
+        contentDescription = "Download",
+    ) {
+        Text("35%", style = Theme.typography.labelMedium)
+    }
+
+    // A balance either side of zero: the fill runs from the middle out.
+    Meter(
+        value = -12f,
+        valueRange = -50f..50f,
+        origin = 0f,
+        modifier = Modifier.fillMaxWidth(),
+        indicator = GaugeIndicator.Needle,
+        majorTicks = 3,
+        tickLabel = { if (it == 0f) "0" else "${it.roundToInt()}" },
+        contentPlacement = MeterContentPlacement.AtValue,
+        contentDescription = "Balance",
+    ) {
+        Text("−12", style = Theme.typography.labelMedium)
+    }
 }
 
 @Composable

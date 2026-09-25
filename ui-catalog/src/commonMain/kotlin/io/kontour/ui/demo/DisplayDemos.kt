@@ -56,6 +56,10 @@ import io.kontour.ui.components.display.KbdDefaults
 import io.kontour.ui.components.display.KbdIcons
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.LinearProgress
+import io.kontour.ui.components.display.Meter
+import io.kontour.ui.components.display.MeterContentPlacement
+import io.kontour.ui.components.display.MeterDefaults
+import io.kontour.ui.components.display.MeterOrientation
 import io.kontour.ui.components.display.PageIndicator
 import io.kontour.ui.components.display.PageIndicatorStyle
 import io.kontour.ui.components.display.Skeleton
@@ -996,6 +1000,126 @@ private fun rpmBands(smoothing: Float): ScaleColours =
         band(from = 8_000f, colour = Theme.colours.danger.solid)
     }
 
+// --- Meter -----------------------------------------------------------------
+
+private val meterOrientation =
+    Knob.Choice("Orientation", MeterOrientation.entries.toList(), MeterOrientation.Horizontal)
+
+/** The label in one place, or riding along with the reading as a tag. */
+private val meterContent = Knob.Choice("Content", MeterContentPlacement.entries.toList(), MeterContentPlacement.Fixed) {
+    if (it == MeterContentPlacement.AtValue) "At value" else it.name
+}
+private val meterIndicator = Knob.Choice("Indicator", GaugeIndicator.entries.toList(), GaugeIndicator.None)
+private val meterTicks = Knob.Choice("Ticks", GaugeTickPlacement.entries.toList(), GaugeTickPlacement.Outside)
+private val meterThickness =
+    Knob.Choice("Thickness", listOf(4.dp, 8.dp, 16.dp), 8.dp, name = { "${it.value.roundToInt()}dp" })
+
+/** Square ends on the track and the fill. */
+private val meterFlatEnds = Knob.Flag("Flat ends")
+
+/** Bands here are a battery's: red to 20%, amber to 40%, then green. */
+private val meterFill = Knob.Choice(
+    "Fill",
+    DialFillDemo.entries.toList(),
+    DialFillDemo.Bands,
+    name = { if (it == DialFillDemo.SmoothBands) "Smooth bands" else it.name },
+)
+
+/** The needle in the band the reading is in, rather than the text colour. */
+private val meterNeedleMatchesFill = Knob.Flag("Needle matches fill")
+
+/** A translucent capsule behind the label: a tag, with the label at the reading. */
+private val meterLabelBackground = Knob.Flag("Label background")
+
+/** Filled from the middle out: a balance either side of zero rather than a charge. */
+private val meterFromTheMiddle = Knob.Flag("From the middle")
+
+/** Off, a new reading is drawn where it lands rather than travelling there. */
+private val meterAnimated = Knob.Flag("Animated", initial = true)
+
+internal val MeterDemo = ComponentDemo(
+    slug = "meter",
+    knobs = listOf(
+        meterOrientation,
+        meterContent,
+        meterIndicator,
+        meterTicks,
+        meterThickness,
+        meterFlatEnds,
+        meterFill,
+        meterNeedleMatchesFill,
+        meterLabelBackground,
+        meterFromTheMiddle,
+        meterAnimated,
+    ),
+) {
+    var charge by remember { mutableStateOf(62f) }
+    val vertical = this[meterOrientation] == MeterOrientation.Vertical
+    val atValue = this[meterContent] == MeterContentPlacement.AtValue
+    val fill = when (this[meterFill]) {
+        DialFillDemo.Solid -> ScaleColours.solid(Theme.colours.primary)
+        DialFillDemo.Gradient -> ScaleColours.gradient(listOf(GaugePink, GaugePurple))
+        DialFillDemo.Bands -> chargeBands(smoothing = 0f)
+        DialFillDemo.SmoothBands -> chargeBands(smoothing = 0.6f)
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+    ) {
+        Meter(
+            value = charge,
+            valueRange = 0f..100f,
+            origin = if (this@ComponentDemo[meterFromTheMiddle]) 50f else 0f,
+            orientation = this@ComponentDemo[meterOrientation],
+            modifier = if (vertical) Modifier.height(220.dp) else Modifier.fillMaxWidth(),
+            thickness = this@ComponentDemo[meterThickness],
+            cap = if (this@ComponentDemo[meterFlatEnds]) StrokeCap.Butt else StrokeCap.Round,
+            colours = MeterDefaults.colours(indicator = fill),
+            indicator = this@ComponentDemo[meterIndicator],
+            needleMatchesFill = this@ComponentDemo[meterNeedleMatchesFill],
+            majorTicks = 5,
+            minorTicks = 1,
+            tickLabel = { "${it.roundToInt()}%" },
+            tickPlacement = this@ComponentDemo[meterTicks],
+            contentPlacement = this@ComponentDemo[meterContent],
+            contentBackground = this@ComponentDemo[meterLabelBackground],
+            animated = this@ComponentDemo[meterAnimated],
+            contentDescription = "Battery",
+            stateDescription = { "${it.roundToInt()} percent charged" },
+        ) {
+            if (atValue) {
+                Text("${charge.roundToInt()}%", style = Theme.typography.labelMedium)
+            } else if (vertical) {
+                Column {
+                    Text("${charge.roundToInt()}%", style = Theme.typography.titleLarge)
+                    Text("Battery", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
+                }
+            } else {
+                Row(Modifier.fillMaxWidth()) {
+                    Text("Battery", style = Theme.typography.labelMedium, modifier = Modifier.weight(1f))
+                    Text("${charge.roundToInt()}%", style = Theme.typography.labelMedium)
+                }
+            }
+        }
+        Slider(
+            value = charge,
+            onValueChange = { charge = it },
+            valueRange = 0f..100f,
+            contentDescription = "Charge",
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** A battery's zones, in percent: red to 20, amber to 40, then green. */
+@Composable
+private fun chargeBands(smoothing: Float): ScaleColours =
+    ScaleColours.bands(smoothing = smoothing) {
+        band(from = 0f, colour = Theme.colours.danger.solid)
+        band(from = 20f, colour = Theme.colours.warning.solid)
+        band(from = 40f, colour = Theme.colours.success.solid)
+    }
+
 // --- ChatBubble ------------------------------------------------------------
 
 private val bubbleSide = Knob.Choice("Side", BubbleSide.entries.toList(), BubbleSide.Outgoing)
@@ -1054,5 +1178,6 @@ internal val displayDemos = listOf(
     KeyValueListDemo,
     KbdDemo,
     GaugeDemo,
+    MeterDemo,
     ChatBubbleDemo,
 )

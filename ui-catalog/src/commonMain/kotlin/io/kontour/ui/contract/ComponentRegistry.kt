@@ -16,6 +16,7 @@ import io.kontour.ui.components.display.TimelineList
 import io.kontour.ui.components.display.TimelineListStyle
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.Gauge
+import io.kontour.ui.components.display.Meter
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -859,6 +860,31 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 tickLabel = { "${(it * 100).toInt()}" },
                 contentDescription = "Battery",
             )
+        }
+    )
+
+    add(
+        // The gauge laid flat, and read the same way: a progress reading with no
+        // role and nothing to press. `MeterTest` covers the reading.
+        ComponentSpec(
+            "Meter",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 90,
+        ) { modifier, _, _ ->
+            Meter(
+                value = 65f,
+                valueRange = 0f..100f,
+                modifier = modifier,
+                indicator = GaugeIndicator.Thumb,
+                majorTicks = 5,
+                tickLabel = { "${it.toInt()}%" },
+                contentDescription = "Battery",
+            ) {
+                Text("Battery")
+            }
         }
     )
 

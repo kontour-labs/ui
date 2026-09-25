@@ -276,7 +276,7 @@ class PhoneWidthTest {
         /**
          * The same 360dp, at the density the rest of the goldens use.
          *
-         * [GoldenHeight] is 10,000dp of page, which is a great deal more than a
+         * [GoldenHeight] is 12,000dp of page, which is a great deal more than a
          * phone and is the point: at the 3000px this file shipped with, nine of
          * the thirteen were cut off mid-specimen. The blank tail costs almost
          * nothing — it is one run-length in the PNG — and `bottomIsEmpty` fails
@@ -287,10 +287,11 @@ class PhoneWidthTest {
          * naming: a page is now a whole *family* of demos rather than a
          * hand-arranged panel, and `Display` holds eighteen of them. At phone
          * width that is a genuinely long page, and it is long in the app too —
-         * this is measuring the thing, not the harness.
+         * this is measuring the thing, not the harness. It rose again, from
+         * 10,000dp, when `Display` gained `Meter` and went past it.
          */
         const val GoldenWidth = 720
-        const val GoldenHeight = 20000
+        const val GoldenHeight = 24000
         const val GoldenDensity = 2f
 
         /**

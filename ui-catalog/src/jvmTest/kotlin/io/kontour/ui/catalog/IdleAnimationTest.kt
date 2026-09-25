@@ -5,6 +5,8 @@ import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.Gauge
+import io.kontour.ui.components.display.Meter
+import io.kontour.ui.components.display.MeterContentPlacement
 import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.TimelineItem
@@ -68,6 +70,18 @@ class IdleAnimationTest {
     @Test
     fun aGaugeAtItsReadingIsNotAnAnimation() = assertSettles("Gauge(value = 0.65f)") {
         Gauge(value = 0.65f, indicator = GaugeIndicator.Needle, majorTicks = 5)
+    }
+
+    /** The same for the gauge laid flat: its reading and its tag are drawn and placed from one `Animatable`. */
+    @Test
+    fun aMeterAtItsReadingIsNotAnAnimation() = assertSettles("Meter(value = 0.65f)") {
+        Meter(
+            value = 0.65f,
+            modifier = Modifier.width(200.dp),
+            indicator = GaugeIndicator.NeedleAndThumb,
+            majorTicks = 5,
+            contentPlacement = MeterContentPlacement.AtValue,
+        ) { Text("65%") }
     }
 
     @Test
