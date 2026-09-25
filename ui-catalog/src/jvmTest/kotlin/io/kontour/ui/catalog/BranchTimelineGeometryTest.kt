@@ -13,7 +13,7 @@ import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.components.display.BranchTimelineColours
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.TimelineList
-import io.kontour.ui.components.display.TimelineListDefaults
+import io.kontour.ui.components.display.TimelineDefaults
 import io.kontour.ui.foundation.Text
 import java.awt.image.BufferedImage
 import kotlin.math.abs
@@ -44,7 +44,7 @@ class BranchTimelineGeometryTest {
         lateinit var branch: BufferedImage
         Scene(width = 360, height = 400) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
-                TimelineList(colours = TimelineListDefaults.colours(node = Color.Black, rail = Color.Black)) {
+                TimelineList(colours = TimelineDefaults.colours(node = Color.Black, rail = Color.Black)) {
                     styles.forEachIndexed { i, style ->
                         item(connector = style) { label { Text("Stop $i", Modifier.reportBounds { listLabels[i] = it }) } }
                     }

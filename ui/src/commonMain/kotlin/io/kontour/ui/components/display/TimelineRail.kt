@@ -1,7 +1,5 @@
 package io.kontour.ui.components.display
 
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -296,12 +294,6 @@ internal fun DrawScope.drawTimelineNode(
         drawCircle(color = colour, radius = radius - stroke / 2f, center = centre, style = Stroke(width = stroke))
     }
 }
-
-/**
- * Which way a [TimelineItem] lays itself out: down a [Timeline], or across a
- * [HorizontalTimeline].
- */
-internal val LocalTimelineOrientation = staticCompositionLocalOf { Orientation.Vertical }
 
 /**
  * The centre of a row's first line of label, where the node on a list row's rail

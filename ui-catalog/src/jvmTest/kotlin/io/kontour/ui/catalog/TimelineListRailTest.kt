@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.TimelineList
+import io.kontour.ui.components.display.TimelineDefaults
 import io.kontour.ui.components.display.TimelineListDefaults
 import io.kontour.ui.components.display.TimelineListScope
 import io.kontour.ui.components.display.TimelineListStyle
@@ -83,7 +84,7 @@ class TimelineListRailTest {
                 RecordRail()
                 TimelineList(
                     progress = 1.5f,
-                    colours = TimelineListDefaults.colours(node = Color.Black, rail = Color.Black, progress = Red),
+                    colours = TimelineDefaults.colours(node = Color.Black, rail = Color.Black, progress = Red),
                 ) {
                     listOf("Perth", "Walk", "Quay").forEachIndexed { i, name ->
                         item { label { Text(name, Modifier.reportBounds { labels[i] = it }) } }
@@ -121,7 +122,7 @@ class TimelineListRailTest {
         Scene(width = 300, height = 500) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 RecordRail()
-                TimelineList(colours = TimelineListDefaults.colours(node = Color.Black, rail = Color.White)) {
+                TimelineList(colours = TimelineDefaults.colours(node = Color.Black, rail = Color.White)) {
                     item { label { Text("Perth", Modifier.reportBounds { labels[0] = it }) } }
                     item {
                         overline { +"Route 950" }
@@ -179,7 +180,7 @@ class TimelineListRailTest {
                 RecordRail()
                     TimelineList(
                         style = style,
-                        colours = TimelineListDefaults.colours(node = Color.Black, rail = Color.Black),
+                        colours = TimelineDefaults.colours(node = Color.Black, rail = Color.Black),
                         content = content,
                     )
                 }

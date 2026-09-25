@@ -1,6 +1,6 @@
 # `Timeline`
 
-*Also on this page: `TimelineItem`, `HorizontalTimeline`.*
+*Also on this page: `TimelineItem`, `HorizontalTimeline`, `TimelineColours`.*
 
 <!--sample:TimelineBasics-->
 ```kotlin
@@ -56,6 +56,27 @@ hollow dot it replaces. `Spinner` otherwise derives its stroke from its size,
 which at a 12dp node is 1.5dp against the ring's 2dp: a step going into progress
 got visibly thinner and the rail around it did not.
 
+## Progress
+
+`progress` says how far along a timeline the journey is, counted in items:
+`0f` at the first, `1f` at the second, `1.5f` halfway along the leg between the
+second and the third. **Everything up to there takes the progress colour, and
+everything after it the rail's**, so a glance says what is behind and what is
+to come.
+
+- **At an item**, its node gets a halo that pulses: it swells and fades, and
+  swells again, while the journey is there.
+- **Between two**, the leg it is on is coloured as far as the journey has got,
+  and a band travels along the rest of it towards the next item, the same band
+  a `StepProgress` step shows while it is working.
+
+Under reduced motion the halo holds still and the band is not drawn, and the
+coloured part of the leg still says how far along it is. An item's own
+`nodeColour` or `connectorColour` keeps its colour whatever the progress; leave
+them unspecified to take `colours`, which are the same `TimelineColours` a
+`TimelineList` takes. Items count in the order they are laid out, so one
+wrapped in a `Box` or added between two others takes its place in the count.
+
 ## Across the page
 
 <!--sample:HorizontalTimelineBasics-->
@@ -96,7 +117,12 @@ the current stage into view. Right to left, the first stage is at the right.
 
 It is not a `Row`, and its items get no `RowScope`: they are measured inside a
 scroller, where a `weight` would be asked to share an unbounded width.
-`equalWidths` is the way to ask for even spacing.
+`equalWidths` is the way to ask for even spacing. An item across is two parts,
+its node on the rail and its content under it, and **an item's `modifier` is its
+content's**: a click or a width applies to the words, not the rail.
+
+`progress` works across as it does down, with the first stage moved in far
+enough that its pulse is not cut off at the edge.
 
 ---
 
@@ -116,3 +142,5 @@ than in `filled` — the node's fill is colour and shape, and neither is announc
 The same goes for `loading`. A spinner is a picture of waiting and says nothing
 to a screen reader, so a row that is only a spinner is a row with no state at
 all: write "Walking — 4 min" or "Finding a platform" in the item's own text.
+`progress` is drawn too, so say where the journey is in words as well: "Arrived",
+"Next stop: Elizabeth Quay".

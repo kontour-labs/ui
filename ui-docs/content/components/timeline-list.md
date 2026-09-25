@@ -56,9 +56,18 @@ line below it.
 `progress` is how far along the journey is, counted in stops. `0f` is at the
 first stop, `1f` at the second, and `1.5f` halfway along the leg between the
 second and the third. The rail and the nodes up to that point take the progress
-colour. The nodes not reached yet take the rail's colour. The stop the journey
-is at, if it is at one, gets a soft ring. A node given its own `nodeColour`
-keeps it either way.
+colour. The nodes not reached yet take the rail's colour. A node given its own
+`nodeColour` keeps it either way.
+
+- **At a stop**, its node gets a halo that pulses: it swells and fades, and
+  swells again, while the journey is there.
+- **Between two**, a band travels along the rest of the leg towards the next
+  stop, the same band a `StepProgress` step shows while it is working. It
+  crosses from one row to the next without a jump, in a `LazyColumn` too.
+
+Under reduced motion the halo holds still and the band is not drawn. The
+colours are a `TimelineColours`, the same as a `Timeline`'s, and
+`containerColour` is the grouped rows' ground.
 
 Each leg changes colour where one row hands it to the next. That is the middle
 of the leg when the rows are the same height, and near the middle when they are

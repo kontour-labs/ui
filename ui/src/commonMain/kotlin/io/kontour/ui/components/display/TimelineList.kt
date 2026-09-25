@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,33 +35,7 @@ enum class TimelineListStyle {
     Grouped,
 }
 
-/**
- * The colours of a [TimelineList].
- *
- * @param node A stop's node, unless the stop names its own.
- * @param rail The connectors, unless a stop names its own — and, while there is
- *   a `progress`, the nodes not reached yet.
- * @param progress The rail and nodes already passed.
- * @param container The rows' ground, in [TimelineListStyle.Grouped].
- */
-@Immutable
-data class TimelineListColours(
-    val node: Color,
-    val rail: Color,
-    val progress: Color,
-    val container: Color,
-)
-
 object TimelineListDefaults {
-    /** The theme's accent for nodes and progress, a strong outline for the rail. */
-    @Composable
-    fun colours(
-        node: Color = Theme.colours.primary,
-        rail: Color = Theme.colours.outlineStrong,
-        progress: Color = Theme.colours.primary,
-        container: Color = Theme.colours.surfaceSunken,
-    ): TimelineListColours = TimelineListColours(node, rail, progress, container)
-
     /** A node's diameter: the same as a [TimelineItem]'s. */
     val NodeSize: Dp get() = TimelineNodeSize
 
@@ -222,12 +195,15 @@ class TimelineListScope internal constructor() : TimelineRowScope(filledByDefaul
  * @param style Clear rows beside the rail, or grouped rows it runs through.
  * @param progress How far along the journey is, in stops: `0f` at the first,
  *   `1.5f` halfway between the second and the third. The rail and nodes up to
- *   there take the progress colour, and the stop it is at, if it is at one, gets
- *   a ring. Null for a list that is not being travelled. Each leg changes colour
- *   halfway, where one row hands it to the next, which is the middle of the leg
- *   when the rows are the same height.
+ *   there take the progress colour; the stop it is at, if it is at one, pulses,
+ *   and the leg it is on carries a band travelling towards the next stop. Null
+ *   for a list that is not being travelled. Each leg is split between two rows,
+ *   halfway, which is the middle of the leg when the rows are the same height.
  * @param leadIn A leg arriving at the first stop from above.
  * @param leadOut A leg leaving the last stop downwards.
+ * @param colours The nodes', rail's and progress's colours, for stops that do
+ *   not name their own — the same as a [Timeline]'s.
+ * @param containerColour The rows' ground, in [TimelineListStyle.Grouped].
  * @param nodeSize The nodes' diameter.
  * @param gutterWidth The column the rail runs down, at the start of each row.
  * @param content The stops, in order.
@@ -240,14 +216,15 @@ fun TimelineList(
     progress: Float? = null,
     leadIn: ConnectorStyle = ConnectorStyle.None,
     leadOut: ConnectorStyle = ConnectorStyle.None,
-    colours: TimelineListColours = TimelineListDefaults.colours(),
+    colours: TimelineColours = TimelineDefaults.colours(),
+    containerColour: Color = Theme.colours.surfaceSunken,
     nodeSize: Dp = TimelineListDefaults.NodeSize,
     gutterWidth: Dp = TimelineListDefaults.GutterWidth,
     content: TimelineListScope.() -> Unit,
 ) {
     val rows = timelineRows(TimelineListScope().apply(content).stops, leadIn, leadOut)
     Column(modifier.fillMaxWidth()) {
-        rows.forEach { TimelineListRow(it, enabled, style, progress, colours, nodeSize, gutterWidth) }
+        rows.forEach { TimelineListRow(it, enabled, style, progress, colours, containerColour, nodeSize, gutterWidth) }
     }
 }
 
@@ -271,8 +248,10 @@ fun TimelineList(
  * draw the top half of a leg until it knows the stop before it — and the rows
  * themselves stay lazy.
  *
- * @param colours Null takes [TimelineListDefaults.colours], which needs the
+ * @param colours Null takes [TimelineDefaults.colours], which needs the
  *   theme and so is read inside each item.
+ * @param containerColour Unspecified takes the theme's sunken surface, read
+ *   inside each item for the same reason.
  */
 fun <T> LazyListScope.timelineList(
     items: List<T>,
@@ -282,7 +261,8 @@ fun <T> LazyListScope.timelineList(
     progress: Float? = null,
     leadIn: ConnectorStyle = ConnectorStyle.None,
     leadOut: ConnectorStyle = ConnectorStyle.None,
-    colours: TimelineListColours? = null,
+    colours: TimelineColours? = null,
+    containerColour: Color = Color.Unspecified,
     nodeSize: Dp = TimelineListDefaults.NodeSize,
     gutterWidth: Dp = TimelineListDefaults.GutterWidth,
     content: TimelineListScope.(item: T) -> Unit,
@@ -295,12 +275,13 @@ fun <T> LazyListScope.timelineList(
         val mine = rows.subList(at, at + perElement[index].size)
         at += perElement[index].size
         item(key = key?.invoke(element), contentType = "timelineListRow") {
-            val resolved = colours ?: TimelineListDefaults.colours()
+            val resolved = colours ?: TimelineDefaults.colours()
+            val ground = containerColour.takeOrElse { Theme.colours.surfaceSunken }
             if (mine.size == 1) {
-                TimelineListRow(mine[0], enabled, style, progress, resolved, nodeSize, gutterWidth)
+                TimelineListRow(mine[0], enabled, style, progress, resolved, ground, nodeSize, gutterWidth)
             } else {
                 Column {
-                    mine.forEach { TimelineListRow(it, enabled, style, progress, resolved, nodeSize, gutterWidth) }
+                    mine.forEach { TimelineListRow(it, enabled, style, progress, resolved, ground, nodeSize, gutterWidth) }
                 }
             }
         }
@@ -388,7 +369,8 @@ private fun TimelineListRow(
     listEnabled: Boolean,
     style: TimelineListStyle,
     progress: Float?,
-    colours: TimelineListColours,
+    colours: TimelineColours,
+    containerColour: Color,
     nodeSize: Dp,
     gutterWidth: Dp,
 ) {
@@ -407,7 +389,7 @@ private fun TimelineListRow(
         } else {
             ListItemDefaults.Shape
         },
-        containerColour = if (grouped) colours.container else Color.Transparent,
+        containerColour = if (grouped) containerColour else Color.Transparent,
         disabledContainerColour = if (grouped) {
             Theme.colours.surfaceSunken.copy(alpha = DisabledGroundAlpha)
         } else {

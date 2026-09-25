@@ -418,7 +418,7 @@ private const val ProgressSlack: Float = 0.001f
 private const val HaloAlpha: Float = 0.3f
 
 /** How far the pulse off that ring spreads, against the ring's own radius. */
-private const val PulseReach: Float = 1.75f
+internal const val PulseReach: Float = 1.75f
 
 /** A line's height against its type size, for a style that does not set one. */
 private const val FallbackLeading: Float = 1.4f

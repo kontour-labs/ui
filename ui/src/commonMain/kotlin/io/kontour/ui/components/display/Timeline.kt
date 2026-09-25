@@ -20,13 +20,24 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.FloatState
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.ParentDataModifierNode
 import androidx.compose.ui.unit.Constraints
@@ -63,9 +74,39 @@ enum class ConnectorStyle {
     None,
 }
 
+/**
+ * The colours of a [Timeline], a [HorizontalTimeline] or a [TimelineList].
+ *
+ * @param node A stop's node, unless the stop names its own.
+ * @param rail The connectors, unless a stop names its own — and, while there is
+ *   a `progress`, the nodes not reached yet.
+ * @param progress The rail and nodes already passed, the halo round the stop
+ *   the journey is at, and the band on the leg it is travelling.
+ */
+@Immutable
+data class TimelineColours(
+    val node: Color,
+    val rail: Color,
+    val progress: Color,
+)
+
 object TimelineDefaults {
+    /** The theme's accent for nodes and progress, a strong outline for the rail. */
+    @Composable
+    fun colours(
+        node: Color = Theme.colours.primary,
+        rail: Color = Theme.colours.outlineStrong,
+        progress: Color = Theme.colours.primary,
+    ): TimelineColours = TimelineColours(node, rail, progress)
+
     /** Space above the node, and between it and the line leaving it. */
     val NodeGap: Dp get() = TimelineNodeGap
+
+    /** A node's diameter. */
+    val NodeSize: Dp get() = TimelineNodeSize
+
+    /** The column the rail runs down, beside the content. */
+    val GutterWidth: Dp get() = TimelineGutterWidth
 }
 
 /**
@@ -94,13 +135,27 @@ object TimelineDefaults {
  * see [HorizontalTimeline], which takes the same [TimelineItem]s. For an
  * itinerary whose stops are list rows, with trailing content and a tap each,
  * see [TimelineList].
+ *
+ * @param progress How far along the journey is, in items: `0f` at the first,
+ *   `1.5f` halfway between the second and the third. The rail and nodes up to
+ *   there take the progress colour and the rest the rail's; the item it is at
+ *   pulses, and the leg it is on carries a band travelling towards the next.
+ *   Null for a timeline that is not being travelled. Counted in the order the
+ *   items are laid out, so an item wrapped in something else still counts.
+ * @param colours The nodes', rail's and progress's colours, for items that do
+ *   not name their own.
  */
 @Composable
 fun Timeline(
     modifier: Modifier = Modifier,
+    progress: Float? = null,
+    colours: TimelineColours = TimelineDefaults.colours(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    CompositionLocalProvider(LocalTimelineOrientation provides Orientation.Vertical) {
+    val registry = remember { TimelineRegistry() }
+    CompositionLocalProvider(
+        LocalTimelineContext provides TimelineContext(Orientation.Vertical, progress, colours, registry),
+    ) {
         Column(modifier.fillMaxWidth(), content = content)
     }
 }
@@ -117,7 +172,10 @@ fun Timeline(
  * @param connector How to join this item to the next. The last item should pass
  *   [ConnectorStyle.None].
  * @param nodeColour The dot's colour. Takes a route colour straight from a feed.
- * @param connectorColour The line's colour, to the next item.
+ *   Unspecified takes the timeline's — or, while the timeline is being
+ *   travelled, its progress colour once reached and its rail's before.
+ * @param connectorColour The line's colour, to the next item. Unspecified takes
+ *   the timeline's rail.
  * @param filled A solid dot for a place the traveller actually stops; a hollow
  *   one for a point they pass through.
  * @param loading Whether this step is happening now, drawn as a spinner in place
@@ -140,38 +198,67 @@ fun Timeline(
 fun TimelineItem(
     modifier: Modifier = Modifier,
     connector: ConnectorStyle = ConnectorStyle.Solid,
-    nodeColour: Color = Theme.colours.primary,
-    connectorColour: Color = Theme.colours.outlineStrong,
+    nodeColour: Color = Color.Unspecified,
+    connectorColour: Color = Color.Unspecified,
     filled: Boolean = true,
     loading: Boolean = false,
-    nodeSize: Dp = 12.dp,
-    gutterWidth: Dp = 28.dp,
+    nodeSize: Dp = TimelineDefaults.NodeSize,
+    gutterWidth: Dp = TimelineDefaults.GutterWidth,
     connectorWidth: Dp = Theme.sizing.borderWidthStrong,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val context = LocalTimelineContext.current
+    val colours = context?.colours ?: TimelineDefaults.colours()
+    val progress = context?.progress
+    val slot = remember { TimelineSlot() }
+    // Where the journey stands against this item. Read in composition only to
+    // start and stop the motion and to colour a spinner; the rail itself reads
+    // the index as it draws, after the timeline has laid its items out.
+    val here = slot.index.let { if (it >= 0) stopProgress(progress, it) else null }
+    val phase = rememberRailPhase(running = here != null && ((here.here && !loading) || here.legBand))
+    val spinnerColour = nodeColourFor(nodeColour, here, colours.node, colours.progress, colours.rail)
     // One leg, from the node to the end of the item, where the next one's node
     // begins: the same rail a list row draws, with one lane and one leg.
-    val rail = remember(connector, nodeColour, connectorColour, filled, loading, connectorWidth) {
-        RailRow(
-            node = RailNode(lane = 0, colour = nodeColour, filled = filled, loading = loading, ringWidth = connectorWidth),
+    fun rail(): RailRow {
+        val at = slot.index.let { if (it >= 0) stopProgress(progress, it) else null }
+        return RailRow(
+            node = RailNode(
+                lane = 0,
+                colour = nodeColourFor(nodeColour, at, colours.node, colours.progress, colours.rail),
+                filled = filled,
+                loading = loading,
+                ringWidth = connectorWidth,
+                here = at?.here == true,
+            ),
             legs = listOf(
                 RailLeg(
                     start = LegEnd(0, LegAt.Node, RunEnd.Mark),
                     end = LegEnd(0, LegAt.End, RunEnd.Mark),
                     style = connector,
-                    colour = connectorColour,
+                    colour = connectorColour.takeOrElse { colours.rail },
                     width = connectorWidth,
+                    travel = at?.let { LegTravel(0f, 1f, it.legPassed, it.legBand, colours.progress) },
                 ),
             ),
         )
     }
-    if (LocalTimelineOrientation.current == Orientation.Horizontal) {
-        AcrossItem(modifier, rail, nodeColour, loading, nodeSize, connectorWidth, content)
+    if (context?.axis == Orientation.Horizontal) {
+        AcrossItem(modifier, slot, ::rail, phase, spinnerColour, loading, nodeSize, connectorWidth, content)
         return
+    }
+    if (context != null) {
+        DisposableEffect(context.registry, slot) {
+            context.registry.slots += slot
+            onDispose { context.registry.slots -= slot }
+        }
     }
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .onPlaced {
+                slot.coordinates = it
+                context?.registry?.reindex()
+            }
             // Intrinsic height is what lets the connector match the row's real
             // height instead of a guess.
             .height(IntrinsicSize.Min),
@@ -190,7 +277,7 @@ fun TimelineItem(
                         .align(Alignment.TopCenter)
                         .padding(top = TimelineNodeGap),
                     size = nodeSize,
-                    colour = nodeColour,
+                    colour = spinnerColour,
                     // The same weight as the ring it stands in for.
                     //
                     // `Spinner` derives a stroke from its size — `size / 9`,
@@ -212,12 +299,13 @@ fun TimelineItem(
                 // node while this is loading, so the rail leaves the dot out;
                 // the connector stays: a step in flight still leads somewhere.
                 drawRail(
-                    rail,
+                    rail(),
                     Orientation.Vertical,
                     firstLane = size.width / 2f,
                     laneWidth = 0f,
                     nodeAlong = nodeRadius + TimelineNodeGap.toPx(),
                     nodeRadius = nodeRadius,
+                    phase = phase.floatValue,
                 )
             }
         }
@@ -244,14 +332,15 @@ fun TimelineItem(
 @Composable
 private fun AcrossItem(
     modifier: Modifier,
-    rail: RailRow,
+    slot: TimelineSlot,
+    rail: () -> RailRow,
+    phase: FloatState,
     nodeColour: Color,
     loading: Boolean,
     nodeSize: Dp,
     connectorWidth: Dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val slot = remember { TimelineSlot() }
     val band = nodeSize + TimelineNodeGap * 2
     Box(
         Modifier
@@ -263,12 +352,13 @@ private fun AcrossItem(
                 val nodeRadius = nodeSize.toPx() / 2f
                 val centre = TimelineNodeGap.toPx() + nodeRadius
                 drawRail(
-                    rail,
+                    rail(),
                     Orientation.Horizontal,
                     firstLane = centre,
                     laneWidth = 0f,
                     nodeAlong = centre,
                     nodeRadius = nodeRadius,
+                    phase = phase.floatValue,
                 )
             },
     ) {
@@ -295,8 +385,45 @@ private fun AcrossItem(
     )
 }
 
-/** One item's place in a [HorizontalTimeline], shared by its two parts. */
-internal class TimelineSlot
+/**
+ * One [TimelineItem]'s place in its timeline: which item it is, counted in the
+ * order the timeline lays them out. Shared, across, by an item's two parts.
+ */
+internal class TimelineSlot {
+    /** The item's index, or -1 until its timeline has laid it out. */
+    var index by mutableIntStateOf(-1)
+
+    /** Where the item was last placed, for a [Timeline] to put its items in order. */
+    var coordinates: LayoutCoordinates? = null
+}
+
+/**
+ * The [TimelineItem]s of one [Timeline], numbered in the order they sit down the
+ * page. A `Column`'s children cannot be counted as they are laid out, so each
+ * item says where it was placed and the timeline ranks them — which also counts
+ * an item wrapped in something else, or one inserted between two others.
+ */
+internal class TimelineRegistry {
+    val slots = mutableListOf<TimelineSlot>()
+
+    fun reindex() {
+        slots
+            .mapNotNull { slot -> slot.coordinates?.takeIf { it.isAttached }?.let { slot to it.positionInRoot().y } }
+            .sortedBy { it.second }
+            .forEachIndexed { index, (slot, _) -> if (slot.index != index) slot.index = index }
+    }
+}
+
+/** What a [TimelineItem] needs from the timeline it is in: which way it runs, and how it is being travelled. */
+internal class TimelineContext(
+    val axis: Orientation,
+    val progress: Float?,
+    val colours: TimelineColours,
+    val registry: TimelineRegistry,
+)
+
+/** The timeline a [TimelineItem] is in, or null for one standing on its own. */
+internal val LocalTimelineContext = compositionLocalOf<TimelineContext?> { null }
 
 /** Which part of which item a layout node is, for the [HorizontalTimeline] laying it out. */
 internal class TimelinePart(val slot: TimelineSlot, val kind: Kind, val band: Dp) {
@@ -346,9 +473,13 @@ private class TimelinePartNode(var part: TimelinePart) : Modifier.Node(), Parent
  * a `weight` would be asked to share an unbounded width; [equalWidths] is how to
  * ask for even spacing instead.
  *
+ * @param progress How far along the stages are, counted in items, as a
+ *   [Timeline]'s is.
  * @param equalWidths Every item as wide as the widest — or, if they would not
  *   fill the width available, as wide as an even share of it. Evenly spaced
  *   nodes, for stages whose spacing should not say anything about their names.
+ * @param colours The nodes', rail's and progress's colours, for items that do
+ *   not name their own.
  * @param scrollState Where the timeline is scrolled to, for a caller that wants
  *   to bring the current stage into view.
  * @param content The [TimelineItem]s, in order.
@@ -356,16 +487,28 @@ private class TimelinePartNode(var part: TimelinePart) : Modifier.Node(), Parent
 @Composable
 fun HorizontalTimeline(
     modifier: Modifier = Modifier,
+    progress: Float? = null,
     equalWidths: Boolean = false,
+    colours: TimelineColours = TimelineDefaults.colours(),
     scrollState: ScrollState = rememberScrollState(),
     content: @Composable () -> Unit,
 ) {
     val labelGap = Theme.spacing.xs
-    CompositionLocalProvider(LocalTimelineOrientation provides Orientation.Horizontal) {
+    val registry = remember { TimelineRegistry() }
+    CompositionLocalProvider(
+        LocalTimelineContext provides TimelineContext(Orientation.Horizontal, progress, colours, registry),
+    ) {
         BoxWithConstraints(modifier.fillMaxWidth()) {
             val viewport = if (constraints.hasBoundedWidth) constraints.maxWidth else 0
             Layout(content = content, modifier = Modifier.horizontalScroll(scrollState)) { measurables, outer ->
                 val items = acrossItems(measurables)
+                items.forEachIndexed { index, item -> item.slot?.let { if (it.index != index) it.index = index } }
+                // Room before the first node for its pulse, while there is one to show.
+                val inset = if (progress != null && items.isNotEmpty()) {
+                    (items[0].bandHeight / 2 * (PulseReach - 1f)).roundToPx()
+                } else {
+                    0
+                }
                 val widest = AcrossMaximumWidth.roundToPx()
                 val gap = labelGap.roundToPx()
                 val height = outer.maxHeight
@@ -397,8 +540,8 @@ fun HorizontalTimeline(
                     item.band?.measure(Constraints.fixed(pitches[i], item.bandHeight.roundToPx()))
                 }
                 val tallest = labels.maxOfOrNull { it?.height ?: 0 } ?: 0
-                layout(pitches.sum(), maxBand + gap + tallest) {
-                    var x = 0
+                layout(inset + pitches.sum(), maxBand + gap + tallest) {
+                    var x = inset
                     items.indices.forEach { i ->
                         // Every node on one line, whatever size each one is.
                         bands[i]?.let { it.placeRelative(x, (maxBand - it.height) / 2) }
@@ -412,7 +555,12 @@ fun HorizontalTimeline(
 }
 
 /** One item across a [HorizontalTimeline]: its band and its label, as the timeline measures them. */
-private class AcrossParts(var band: Measurable? = null, var label: Measurable? = null, var bandHeight: Dp = 0.dp)
+private class AcrossParts(
+    var band: Measurable? = null,
+    var label: Measurable? = null,
+    var bandHeight: Dp = 0.dp,
+    var slot: TimelineSlot? = null,
+)
 
 /**
  * The timeline's children paired up by item. A child that is not part of a
@@ -427,7 +575,7 @@ private fun acrossItems(measurables: List<Measurable>): List<AcrossParts> {
             items += AcrossParts(label = measurable)
             return@forEach
         }
-        val item = bySlot.getOrPut(part.slot) { AcrossParts().also { items += it } }
+        val item = bySlot.getOrPut(part.slot) { AcrossParts(slot = part.slot).also { items += it } }
         when (part.kind) {
             TimelinePart.Kind.Band -> {
                 item.band = measurable
