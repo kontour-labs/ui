@@ -60,7 +60,6 @@ import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
-import kotlin.math.floor
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -216,24 +215,28 @@ fun CalendarMonth(
      * draw, not the days' — see `drawLiveBand`.
      */
     val live = drag != null && drag.live && drag.month == firstOfMonth
-    val head = if (live) drag.head else null
     val paging = live && drag.onStep != null
-    val edge = if (paging) drag.edge else null
     val motion = Theme.motion
 
     /**
-     * The month arrows, shown as the handle nears the month's first or last days.
+     * The rings round the month's first and last days, while a finger is down.
      *
      * The other half of dragging across a border, beside the header's arrows
      * pressed with a second finger: *"as you drag it towards the start or end of a
      * month, a small arrow next to the first/last day pointing to the
      * previous/next month appears. When you drag over that arrow for enough
      * time … it switches to the corresponding month, and the drag continues."*
+     * Then, having used it: *"make it part of the first/last day's box … it
+     * should fade in as you get closer … when the user is close vertically as
+     * well"* — so it is a ring round the day, and how near the finger is sets how
+     * much of each shows, in the draw pass. This only fades the pair out when the
+     * finger lifts.
      */
-    val nearStart = paging && (edge == DwellEdge.Previous || (head != null && head.sameMonth(firstOfMonth) && head.day <= EdgeDays))
-    val nearEnd = paging && (edge == DwellEdge.Next || (head != null && head.sameMonth(firstOfMonth) && head.day > daysInMonth - EdgeDays))
-    val startArrow by animateFloatAsState(if (nearStart) 1f else 0f, motion.tweenFast(), label = "previousMonthArrow")
-    val endArrow by animateFloatAsState(if (nearEnd) 1f else 0f, motion.tweenFast(), label = "nextMonthArrow")
+    val rings by animateFloatAsState(
+        if (paging && drag.pressed) 1f else 0f,
+        motion.tweenFast(),
+        label = "edgeRings",
+    )
 
     // One measurement for the whole month, not forty-two.
     //
@@ -315,12 +318,11 @@ fun CalendarMonth(
                     val anchor = state.anchor ?: return@drawBehind
                     if (!live) return@drawBehind
                     val anchorAt = if (anchor.sameMonth(firstOfMonth)) leadingBlanks + anchor.day - 1 else null
-                    val point = state.point.value
                     val moving = state.head
                     val forward = when {
                         anchorAt == null -> anchor < firstOfMonth
                         moving != null && moving != anchor -> moving > anchor
-                        else -> floor(point.y.coerceIn(0f, rows - 0.01f)) * Columns + point.x >= anchorAt + 0.5f
+                        else -> state.bandRow * Columns + state.bandX >= anchorAt + 0.5f
                     }
                     drawLiveBand(
                         leadingBlanks = leadingBlanks,
@@ -328,7 +330,7 @@ fun CalendarMonth(
                         rows = rows,
                         anchorAt = anchorAt,
                         forward = forward,
-                        point = point,
+                        boundary = state::boundary,
                         colour = colours.accent.container,
                         inset = insetPx,
                         rtl = rtl,
@@ -337,37 +339,33 @@ fun CalendarMonth(
                 .drawWithContent {
                     drawContent()
                     val state = drag ?: return@drawWithContent
-                    if (startArrow <= 0f && endArrow <= 0f) return@drawWithContent
+                    if (rings <= 0f) return@drawWithContent
                     val cell = size.width / Columns
                     val rowHeight = size.height / rows
-                    val outside = (ArrowRadius + ArrowGap).toPx() / cell
-                    val lastColumn = (leadingBlanks + daysInMonth - 1) % Columns
-                    // In the blank beside the edge day when there is one; hung just
-                    // past the grid's edge, level with it, when the month starts on
-                    // the first weekday or ends on the last.
-                    val previousAt = if (leadingBlanks > 0) leadingBlanks - 0.5f else -outside
-                    val nextAt = if (lastColumn < Columns - 1) lastColumn + 1.5f else Columns + outside
-                    fun across(column: Float) = (if (rtl) Columns - column else column) * cell
-                    drawMonthArrow(
-                        centre = Offset(across(previousAt), rowHeight / 2f),
-                        pointsLeft = !rtl,
-                        progress = if (state.edge == DwellEdge.Previous) state.dwell.value else 0f,
-                        alpha = startArrow,
-                        face = colours.surfaceRaised,
-                        ring = colours.outline,
-                        fill = colours.primary,
-                        chevron = colours.content,
-                    )
-                    drawMonthArrow(
-                        centre = Offset(across(nextAt), (rows - 0.5f) * rowHeight),
-                        pointsLeft = rtl,
-                        progress = if (state.edge == DwellEdge.Next) state.dwell.value else 0f,
-                        alpha = endArrow,
-                        face = colours.surfaceRaised,
-                        ring = colours.outline,
-                        fill = colours.primary,
-                        chevron = colours.content,
-                    )
+                    val radius = minOf(cell, rowHeight) / 2f + RingOutset.toPx()
+                    val first = leadingBlanks
+                    val last = leadingBlanks + daysInMonth - 1
+                    for (edgeDay in listOf(DwellEdge.Previous, DwellEdge.Next)) {
+                        val index = if (edgeDay == DwellEdge.Previous) first else last
+                        val column = index % Columns + 0.5f
+                        val row = index / Columns + 0.5f
+                        val presence = ringPresence(distance(state.finger, Offset(column, row))) * rings
+                        if (presence <= 0f) continue
+                        val date = LocalDate(month.year, month.month, index - leadingBlanks + 1)
+                        // On the chevron's own day's fill: the cap's ink when the
+                        // day is an end of the range, the page's otherwise.
+                        val onCap = date == state.head || date == state.anchor
+                        drawEdgeRing(
+                            centre = Offset((if (rtl) Columns - column else column) * cell, row * rowHeight),
+                            radius = radius,
+                            pointsLeft = (edgeDay == DwellEdge.Previous) != rtl,
+                            progress = if (state.edge == edgeDay) state.dwell.value else 0f,
+                            alpha = presence,
+                            ring = colours.outlineStrong,
+                            fill = colours.primary,
+                            chevron = if (onCap) colours.onPrimary else colours.contentMuted,
+                        )
+                    }
                 },
         ) {
         for (row in 0 until rows) {

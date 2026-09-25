@@ -26,16 +26,15 @@ dragging from the 20th back to the 16th selects the 16th to the 20th. The band
 extends as one strip behind the finger and only its moving end animates; it is
 drawn the whole way rather than appearing when the finger lifts.
 
-**The band flows ahead of the finger, and always touches the handle.** Between
-two days it is part way to the next one: leaning across, it fills the day the
-handle is leaving, right up under it; leaning down toward the next week, it
-starts to fill the rest of this week and the start of the next, up to the day
-the finger is heading for — both at once, and more of each the nearer the finger
-gets. Backing up empties them out the same way. So the accent is always against
-the start or the top of the handle being dragged, and it never jumps a week at a
-time. Let go between two days and it settles on the range that was chosen.
-
-**The drag has detents.** Days are places the selection rests, so each one crossed
+**The band follows the handle, and always touches it.** Across a row it runs to
+the finger, which is always under the leaning handle, so the day being left fills
+right up behind it. Down the page it does not follow the finger at all: a thumb
+sagging a few pixels below a day's middle is not a decision, and flooding the rest
+of the week with colour for it made small, unintentional movements look like big
+ones. When the handle snaps to another week, the band *flows* there — the rest of
+this week and the start of the next filling together, up to the new day — and
+backing up a week empties them out the same way. Let go between two days and it
+settles on the range that was chosen.**The drag has detents.** Days are places the selection rests, so each one crossed
 is a tick in the hand, and the moving end of the band *leans* toward the finger
 between days rather than sitting exactly on a boundary — the same fraction of the
 overshoot a range slider's thumb follows a finger by, which is near enough to read
@@ -59,23 +58,25 @@ another finger while the first is still dragging, and the drag goes on in the ne
 month from wherever the finger is — the range still anchored where it started, in
 the month now out of sight.
 
-**Or page without a second finger.** As the handle nears the first or last days of
-the month, a small arrow appears beside the edge day, pointing at the month before
-or after. Hold the handle on it and a ring fills round it; when the ring is full
-the month pages, with a tick in the hand, and the drag carries on. The arrow sits
-in the blank beside the 1st or the last day. A month that starts on the first day
-of the week, or ends on the last, has no blank there, so its arrow hangs just past
-the edge of the grid, level with that day — push the handle past the edge in that
-row to reach it.
+**Or page without a second finger.** As the finger nears the month's first or
+last day, a faint ring fades in round that day, with a small chevron inside it
+pointing at the month before or after — more of it the nearer the finger, from any
+direction, so coming at the 1st from the row below shows it as much as coming
+along the row. Push the handle *past* the day — before the 1st, or after the last —
+and hold it there: an arc fills round the ring, and when it is full the month pages,
+with a tick in the hand, and the drag carries on. Being near the day is not enough;
+only pushing past it pages. The ring is round the day itself, so a month that
+starts on the first day of the week, or ends on the last, has it the same as any
+other: off the edge of the grid counts as past the day.
 
 **One dwell, one page.** Two months can start on the same weekday — February and
-March often do — and then the arrow is in the same place in both. Having paged,
-the arrow is spent until the handle leaves it: move off and back on to page again.
-Leave before the ring fills and nothing happens.
+March often do — and then the day is in the same place in both. Having paged, the
+ring is spent until the handle leaves it: move off and back again to page again.
+Let go of it before the arc fills and nothing happens.
 
-The arrows are for a finger already busy. They are not buttons, carry no
-semantics and cannot be focused; the header's arrows are the way to page for
-everything else.
+The ring is for a finger already busy. It is not a button, carries no semantics
+and cannot be focused; the header's arrows are the way to page for everything
+else.
 
 A multi-month scrolling calendar, showing several months at once, is
 [not yet built](../components.md#not-yet-built).

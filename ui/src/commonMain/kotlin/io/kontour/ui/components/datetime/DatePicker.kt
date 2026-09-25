@@ -214,9 +214,9 @@ fun DatePicker(
  * one — which is what people actually mean when they do it.
  *
  * A range can also be dragged out in one gesture, and the drag crosses months:
- * page with the header's arrows using another finger, or hold the handle on the
- * arrow that appears beside the month's first or last day until its ring fills.
- * Either way the drag carries on in the new month from where the finger is.
+ * page with the header's arrows using another finger, or push the handle past
+ * the month's first or last day and hold it there until the ring round that day
+ * fills. Either way the drag carries on in the new month from where the finger is.
  *
  * @param onRangeSelected Receives the range so far. The end is null while only a start
  *   has been chosen, so a caller can keep its confirm button disabled.

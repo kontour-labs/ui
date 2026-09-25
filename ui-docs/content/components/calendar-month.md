@@ -32,9 +32,9 @@ get and more width only buys a larger empty circle around the same number.
 
 **Dragging a range extends one band.** Only the end the finger is moving
 travels, leaning toward the finger between days; everything behind it is drawn.
-While the finger is down the grid draws the band itself, so it flows into the days
-ahead of the finger and out of the ones it is leaving rather than changing a day
-at a time — see [`DateRangePicker`](date-range-picker.md). Right to left, the
+While the finger is down the grid draws the band itself, so it runs right up to
+the leaning end and flows to another week when the end snaps there, rather than
+changing a day at a time — see [`DateRangePicker`](date-range-picker.md). Right to left, the
 columns and the band mirror with the layout.
 
 A month drawn on its own drags within itself. Inside a `DateRangePicker` the drag

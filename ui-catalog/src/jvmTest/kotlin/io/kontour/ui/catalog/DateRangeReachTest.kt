@@ -47,16 +47,46 @@ class DateRangeReachTest {
     }
 
     /**
-     * Leaning down from the 12th toward the 19th, the rest of the week and the start
-     * of the next both start to fill — and nothing past the day being aimed at.
+     * Leaning down from the 12th toward the 19th, the band stays where it is: the
+     * rest of the week and the start of the next fill only once the handle has
+     * snapped there.
+     *
+     * The first version flowed them in as the finger drifted below the day's
+     * middle, and was reported as small, unintentional movements having big
+     * consequences.
      */
     @Test
-    fun leaningDownFillsTheRestOfTheWeekAndTheStartOfTheNext() {
+    fun leaningDownLeavesTheBandWhereItIs() {
         held(anchor = 10, head = 12, lean = Offset(0f, 0.45f)) { image, grid ->
-            assertTrue(image.isRangeTint(grid.below(13)), "the 13th, the rest of the week, was not filling")
-            assertTrue(image.isRangeTint(grid.below(17)), "the 17th, the start of the next week, was not filling")
-            assertTrue(!image.isRangeTint(grid.below(16)), "the end of the week filled already, half a row from it")
-            assertTrue(!image.isRangeTint(grid.below(20)), "the 20th, past the day being aimed at, filled")
+            assertTrue(!image.isRangeTint(grid.below(13)), "the 13th filled with the finger still on the 12th")
+            assertTrue(!image.isRangeTint(grid.below(17)), "the 17th filled with the finger still on the 12th")
+        }
+    }
+
+    /**
+     * Snapped down a week, the band flows there rather than jumping: the frame after
+     * the handle lands on the 19th, the end of the week above is not yet filled;
+     * a moment later it and the start of the 19th's week are.
+     */
+    @Test
+    fun snappingToTheNextWeekFlowsTheBandThere() {
+        var start by mutableStateOf<LocalDate?>(null)
+        var end by mutableStateOf<LocalDate?>(null)
+        lateinit var grid: Grid
+        lateinit var landing: BufferedImage
+        lateinit var landed: BufferedImage
+        picker(onRange = { s, e -> start = s; end = e }, start = { start }, end = { end }) { scene, g ->
+            grid = g
+            scene.drag(from = g.cell(10), to = g.cell(12), steps = 24, release = false)
+            scene.frames(20)
+            scene.move(g.cell(19))
+            landing = scene.frame()
+            landed = scene.frames(30)
+            scene.release(g.cell(19))
+        }
+        assertTrue(!landing.isRangeTint(grid.below(16)), "the end of the week filled in the frame the handle landed — a jump")
+        for (day in listOf(15, 16, 17, 18)) {
+            assertTrue(landed.isRangeTint(grid.below(day)), "the $day had not filled once the band had flowed")
         }
     }
 
@@ -86,17 +116,28 @@ class DateRangeReachTest {
     }
 
     /**
-     * Backing up from the 19th toward the 12th, the end of the week above and the
-     * start of the 19th's own week empty out of the band; the days nearer the anchor
-     * stay.
+     * Snapped back up a week, the band flows out the same way: the end of the week
+     * above empties a moment after the handle lands, not the frame it does.
      */
     @Test
-    fun backingUpEmptiesTheDaysBeingLeft() {
-        held(anchor = 3, head = 19, lean = Offset(0f, -0.45f)) { image, grid ->
-            assertTrue(!image.isRangeTint(grid.below(16)), "the 16th, the end of the week above, was still band")
-            assertTrue(image.isRangeTint(grid.below(13)), "the 13th, nearer the anchor, emptied")
-            assertTrue(image.isRangeTint(grid.below(17)), "the 17th, the start of the head's week, emptied first")
+    fun snappingBackAWeekEmptiesItOnTheWay() {
+        var start by mutableStateOf<LocalDate?>(null)
+        var end by mutableStateOf<LocalDate?>(null)
+        lateinit var grid: Grid
+        lateinit var landing: BufferedImage
+        lateinit var landed: BufferedImage
+        picker(onRange = { s, e -> start = s; end = e }, start = { start }, end = { end }) { scene, g ->
+            grid = g
+            scene.drag(from = g.cell(3), to = g.cell(19), steps = 24, release = false)
+            scene.frames(20)
+            scene.move(g.cell(12))
+            landing = scene.frame()
+            landed = scene.frames(30)
+            scene.release(g.cell(12))
         }
+        assertTrue(landing.isRangeTint(grid.below(16)), "the end of the week above emptied the frame the handle landed — a jump")
+        assertTrue(!landed.isRangeTint(grid.below(16)), "the 16th was still band once the band had flowed back")
+        assertTrue(landed.isRangeTint(grid.below(11)), "the 11th, inside the range, emptied")
     }
 
     /** Let go between days, and the band settles on the range that was chosen. */
