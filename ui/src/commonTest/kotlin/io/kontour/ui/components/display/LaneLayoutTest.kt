@@ -1,8 +1,8 @@
 package io.kontour.ui.components.display
 
-import androidx.compose.ui.graphics.Color
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -14,8 +14,8 @@ import kotlin.test.assertTrue
  */
 class LaneLayoutTest {
 
-    private fun graph(vararg commits: Pair<String, List<String>>, explicit: List<Color> = emptyList()) =
-        layOutLanes(commits.map { it.first }, commits.map { it.second }, explicit)
+    private fun graph(vararg commits: Pair<String, List<String>>) =
+        layOutLanes(commits.map { it.first }, commits.map { it.second })
 
     private fun LaneRow.lines(edges: List<LaneEdge>) = edges.map { it.from to it.to }
 
@@ -66,22 +66,6 @@ class LaneLayoutTest {
         assertEquals(listOf(0, 1, 0), g.rows.map { it.node })
         assertTrue(g.rows[0].ink != g.rows[1].ink, "two tips, two colours")
         assertEquals(listOf(0 to 0, 1 to 0), g.rows[2].let { it.lines(it.incoming) })
-    }
-
-    @Test
-    fun aNamedColourRecoloursItsLaneFromThereDown() {
-        val release = Color(0xFFAA00AA)
-        val g = graph(
-            "c" to listOf("b"),
-            "b" to listOf("a"),
-            "a" to emptyList(),
-            explicit = listOf(Color.Unspecified, release, Color.Unspecified),
-        )
-        assertTrue(g.rows[0].ink.resolve(Palette) != release)
-        assertEquals(release, g.rows[1].ink.resolve(Palette))
-        assertEquals(release, g.rows[1].outgoing.single().ink.resolve(Palette))
-        assertEquals(release, g.rows[2].ink.resolve(Palette), "and the lane stays that colour below")
-        assertEquals(g.rows[0].ink.resolve(Palette), g.rows[1].incoming.single().ink.resolve(Palette), "the line in is still the one above's")
     }
 
     /** A history cut short: the parent is not in the list, so its lane runs on to the bottom. */
@@ -197,7 +181,65 @@ class LaneLayoutTest {
         }
     }
 
-    private companion object {
-        val Palette = listOf(Color.Red, Color.Green, Color.Blue)
+    /** Every line knows whose it is: the commit whose way down to a parent it is, and that parent's row. */
+    @Test
+    fun everyLineNamesTheCommitItBelongsTo() {
+        val g = graph(
+            "m" to listOf("b", "f"),
+            "b" to listOf("a"),
+            "f" to listOf("a"),
+            "a" to emptyList(),
+        ).bentEarly()
+        val (merge, main, feature, fork) = g.rows
+        assertEquals(listOf(listOf(0), listOf(0)), merge.outgoing.map { it.owners }, "both of the merge's lines are its own")
+        assertEquals(listOf(1, 2), merge.outgoing.map { it.parent }, "one to b, one to f")
+        assertEquals(listOf(0), main.passing.single().owners, "the feature lane passing b is still the merge's line to f")
+        assertEquals(listOf(2), feature.outgoing.single().owners, "f's line down to the fork")
+        assertEquals(3, feature.outgoing.single().parent)
+        assertEquals(setOf(listOf(1), listOf(2)), fork.incoming.map { it.owners }.toSet(), "the fork's two children arrive")
+        assertEquals(setOf(listOf(1)), main.outgoing.map { it.owners }.toSet())
+    }
+
+    /**
+     * A merge joining a lane already waiting for its parent owns only the bend
+     * across to it; from the row below, the lane is both children's line.
+     */
+    @Test
+    fun aMergeJoiningAWaitingLaneSharesItBelowTheJoin() {
+        val g = graph(
+            "x" to listOf("f"),
+            "m" to listOf("b", "f"),
+            "f" to listOf("a"),
+            "b" to listOf("a"),
+            "a" to emptyList(),
+        )
+        val join = g.rows[1]
+        assertEquals(listOf(0), join.passing.single().owners, "in the merge's own row the lane is still x's")
+        assertEquals(listOf(1), join.outgoing.single { it.from != it.to }.owners, "the bend across is the merge's")
+        assertEquals(listOf(0, 1), g.rows[2].incoming.single { it.from == 0 }.owners, "and below, the lane is both")
+    }
+
+    /** Moving the bends up a row keeps every line's owner and parent. */
+    @Test
+    fun ownersAndParentsSurviveBentEarly() {
+        val raw = graph("m" to listOf("b", "f"), "b" to listOf("a"), "f" to listOf("a"), "a" to emptyList())
+        val bent = raw.bentEarly()
+        raw.rows.zip(bent.rows).forEach { (before, after) ->
+            val edges = { row: LaneRow -> (row.incoming + row.passing + row.outgoing).map { it.owners to it.parent }.toSet() }
+            assertEquals(edges(before), edges(after))
+        }
+    }
+
+    @Test
+    fun theReachedSetIsTheCommitAndItsAncestors() {
+        val ids = listOf("r2", "m2", "f2", "c4", "r1", "f1", "c3", "c2")
+        val parents = listOf(
+            listOf("r1"), listOf("c4", "f2"), listOf("f1"), listOf("c3"),
+            listOf("c3"), listOf("c3"), listOf("c2"), emptyList(),
+        )
+        val reached = reachedRows(ids, parents, "m2")!!
+        assertEquals(listOf("m2", "f2", "c4", "f1", "c3", "c2"), ids.filterIndexed { i, _ -> reached[i] })
+        assertEquals(listOf("r1", "c3", "c2"), reachedRows(ids, parents, "r1")!!.let { r -> ids.filterIndexed { i, _ -> r[i] } })
+        assertNull(reachedRows(ids, parents, "nope"), "a commit not in the list reaches nothing")
     }
 }

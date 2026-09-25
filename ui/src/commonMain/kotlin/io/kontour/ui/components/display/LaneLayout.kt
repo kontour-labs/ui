@@ -1,8 +1,5 @@
 package io.kontour.ui.components.display
 
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.isSpecified
-
 /*
  * Where a history's branches run: the lanes of a `BranchTimeline`, laid out the
  * way `git log --graph` lays them out, one row at a time from the newest commit
@@ -11,21 +8,23 @@ import androidx.compose.ui.graphics.isSpecified
  */
 
 /**
- * A lane's colour: its turn in the palette, unless the caller named one. Kept
- * as a turn rather than a colour so the layout can be worked out outside
- * composition, where the theme's palette cannot be read.
+ * A line through one row, from lane [from] at one end to lane [to] at the other.
+ *
+ * @param ink The line's colour, as a turn in the palette — a turn rather than a
+ *   colour so the layout can be worked out outside composition.
+ * @param owners The commits, by row, whose line down to a parent this is: the
+ *   one that opened the lane first. A lane two children are both waiting on the
+ *   same parent through has both, from the row where the second joined it.
+ * @param parent The row of the parent it is heading for, or -1 for a parent
+ *   the list does not reach.
  */
-internal class LaneInk(val turn: Int, val explicit: Color = Color.Unspecified) {
-    fun resolve(palette: List<Color>): Color =
-        if (explicit.isSpecified || palette.isEmpty()) explicit else palette[turn % palette.size]
-
-    override fun equals(other: Any?): Boolean = other is LaneInk && other.turn == turn && other.explicit == explicit
-    override fun hashCode(): Int = 31 * turn + explicit.hashCode()
-    override fun toString(): String = if (explicit.isSpecified) "LaneInk($explicit)" else "LaneInk(#$turn)"
-}
-
-/** A line through one row, from lane [from] at one end to lane [to] at the other, in [ink]. */
-internal data class LaneEdge(val from: Int, val to: Int, val ink: LaneInk)
+internal data class LaneEdge(
+    val from: Int,
+    val to: Int,
+    val ink: Int,
+    val owners: List<Int> = emptyList(),
+    val parent: Int = -1,
+)
 
 /**
  * One row of the graph.
@@ -40,7 +39,7 @@ internal data class LaneEdge(val from: Int, val to: Int, val ink: LaneInk)
  */
 internal class LaneRow(
     val node: Int,
-    val ink: LaneInk,
+    val ink: Int,
     val incoming: List<LaneEdge>,
     val passing: List<LaneEdge>,
     val outgoing: List<LaneEdge>,
@@ -63,62 +62,55 @@ internal class LaneGraph(val rows: List<LaneRow>, val width: Int)
  *   lane to the right of the commit, in the next colour.
  * - A commit with no parents ends its lane, and a parent that never appears
  *   keeps its lane running to the bottom.
- *
- * [explicit] recolours a commit's lane from that commit down, where it is not
- * [Color.Unspecified].
  */
-internal fun layOutLanes(
-    ids: List<Any>,
-    parents: List<List<Any>>,
-    explicit: List<Color> = emptyList(),
-): LaneGraph {
-    class Lane(val expects: Any, val ink: LaneInk)
+internal fun layOutLanes(ids: List<Any>, parents: List<List<Any>>): LaneGraph {
+    class Lane(val expects: Any, val ink: Int, val owners: List<Int>, val parent: Int)
 
+    val rowOf = HashMap<Any, Int>(ids.size).apply { ids.forEachIndexed { row, id -> getOrPut(id) { row } } }
     val lanes = ArrayList<Lane?>()
     var turns = 0
-    fun nextInk() = LaneInk(turns++)
     fun freeSlot(from: Int = 0): Int {
         for (j in from until lanes.size) if (lanes[j] == null) return j
         while (lanes.size < from) lanes += null
         lanes += null
         return lanes.lastIndex
     }
+    fun Lane.edge(from: Int, to: Int) = LaneEdge(from, to, ink, owners, parent)
 
     val rows = ArrayList<LaneRow>(ids.size)
     var width = 0
     ids.forEachIndexed { index, id ->
         val waiting = lanes.indices.filter { lanes[it]?.expects == id }
-        val given = explicit.getOrNull(index)?.takeIf { it.isSpecified }
-        val node: Int
-        val ink: LaneInk
-        if (waiting.isEmpty()) {
-            node = freeSlot()
-            ink = if (given != null) LaneInk(-1, given) else nextInk()
-        } else {
-            node = waiting.first()
-            ink = if (given != null) LaneInk(-1, given) else lanes[node]!!.ink
-        }
-        val incoming = waiting.map { LaneEdge(it, node, lanes[it]!!.ink) }
+        val node = if (waiting.isEmpty()) freeSlot() else waiting.first()
+        val ink = if (waiting.isEmpty()) turns++ else lanes[node]!!.ink
+        val incoming = waiting.map { lanes[it]!!.edge(it, node) }
         val passing = lanes.indices
             .filter { lanes[it] != null && it !in waiting }
-            .map { LaneEdge(it, it, lanes[it]!!.ink) }
+            .map { lanes[it]!!.edge(it, it) }
         waiting.forEach { lanes[it] = null }
 
         val outgoing = ArrayList<LaneEdge>()
         parents.getOrElse(index) { emptyList() }.distinct().forEachIndexed { turn, parent ->
+            val parentRow = rowOf[parent]?.takeIf { it > index } ?: -1
             if (turn == 0) {
                 while (lanes.size <= node) lanes += null
-                lanes[node] = Lane(parent, ink)
-                outgoing += LaneEdge(node, node, ink)
+                val lane = Lane(parent, ink, listOf(index), parentRow)
+                lanes[node] = lane
+                outgoing += lane.edge(node, node)
             } else {
                 val existing = lanes.indices.firstOrNull { it != node && lanes[it]?.expects == parent }
                 if (existing != null) {
-                    outgoing += LaneEdge(node, existing, lanes[existing]!!.ink)
+                    // Joining a lane already on its way to this parent: the bend
+                    // across is this commit's alone, and from here down the lane
+                    // is both commits' line to it.
+                    val joined = lanes[existing]!!
+                    outgoing += LaneEdge(node, existing, joined.ink, listOf(index), parentRow)
+                    lanes[existing] = Lane(parent, joined.ink, joined.owners + index, joined.parent)
                 } else {
                     val slot = freeSlot(from = node + 1)
-                    val branch = nextInk()
-                    lanes[slot] = Lane(parent, branch)
-                    outgoing += LaneEdge(node, slot, branch)
+                    val lane = Lane(parent, turns++, listOf(index), parentRow)
+                    lanes[slot] = lane
+                    outgoing += lane.edge(node, slot)
                 }
             }
         }
@@ -134,6 +126,29 @@ internal fun layOutLanes(
         rows += LaneRow(node, ink, incoming, passing, outgoing)
     }
     return LaneGraph(rows, width)
+}
+
+/**
+ * The rows [reached] descends from, itself included — the part of a history a
+ * `BranchProgress` has got to — or null when [reached] is not in the list.
+ */
+internal fun reachedRows(ids: List<Any>, parents: List<List<Any>>, reached: Any): BooleanArray? {
+    val rowOf = HashMap<Any, Int>(ids.size).apply { ids.forEachIndexed { row, id -> getOrPut(id) { row } } }
+    val start = rowOf[reached] ?: return null
+    val seen = BooleanArray(ids.size)
+    val queue = ArrayDeque<Int>().apply { add(start) }
+    seen[start] = true
+    while (queue.isNotEmpty()) {
+        val row = queue.removeFirst()
+        parents.getOrElse(row) { emptyList() }.forEach { parent ->
+            val next = rowOf[parent] ?: return@forEach
+            if (!seen[next]) {
+                seen[next] = true
+                queue.add(next)
+            }
+        }
+    }
+    return seen
 }
 
 /**

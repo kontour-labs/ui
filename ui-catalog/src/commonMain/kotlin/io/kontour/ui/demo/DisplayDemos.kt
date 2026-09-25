@@ -40,6 +40,7 @@ import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Banner
 import io.kontour.ui.components.display.BannerTone
+import io.kontour.ui.components.display.BranchProgress
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
@@ -430,12 +431,24 @@ private val branchHistory = Knob.Choice(
     initial = "Two branches",
 )
 
-/** The release commits' lane in one colour of its own, from the tip down. */
-private val branchReleaseColour = Knob.Flag("Colour release lane", initial = false)
+/** The line style of the feature branch's commits, down to their parents. */
+private val branchFeatureLine = Knob.Choice("Feature line", ConnectorStyle.entries.toList(), ConnectorStyle.Dashed)
+
+/** The release commits' lines in one colour of their own. */
+private val branchReleaseColour = Knob.Flag("Colour release line", initial = false)
+
+/** The newest commit still being built: a spinner in place of its node. */
+private val branchTipLoading = Knob.Flag("Tip loading", initial = false)
+
+/** Merges drawn as rings, the default, or as solid commits like any other. */
+private val branchRingMerges = Knob.Flag("Ring merges", initial = true)
+
+/** How far a deploy has got: to the tip's parent, and on to the tip. */
+private val branchProgress = Knob.Choice("Progress", listOf("None", "Deployed", "Deploying the tip"))
 
 internal val BranchTimelineDemo = ComponentDemo(
     slug = "branch-timeline",
-    knobs = listOf(branchHistory, branchReleaseColour),
+    knobs = listOf(branchHistory, branchFeatureLine, branchReleaseColour, branchTipLoading, branchRingMerges, branchProgress),
 ) {
     val commits = when (this[branchHistory]) {
         "Linear" -> linearHistory
@@ -443,25 +456,33 @@ internal val BranchTimelineDemo = ComponentDemo(
         else -> branchingHistory
     }
     val release = Theme.colours.success.solid
-    var picked by remember { mutableStateOf<String?>(null) }
+    val tip = commits.first()
+    val deployed = tip.parents.first()
+    val ringMerges = this[branchRingMerges]
+    val building = this[branchTipLoading]
+    val featureLine = this[branchFeatureLine]
+    val colourRelease = this[branchReleaseColour]
     BranchTimeline(
         items = commits,
         id = { it.sha },
         parents = { it.parents },
         modifier = Modifier.fillMaxWidth(),
-        isSelected = { it.sha == picked },
-        onItemClick = {
-            picked = it.sha
-            echo("Opened ${it.message}")
-        },
-        laneColour = if (this[branchReleaseColour]) {
-            { commit -> release.takeIf { commit.sha.startsWith("r") } }
-        } else {
-            null
+        progress = when (this[branchProgress]) {
+            "Deployed" -> BranchProgress(reached = deployed)
+            "Deploying the tip" -> BranchProgress(reached = deployed, towards = tip.sha)
+            else -> null
         },
     ) { commit ->
-        +commit.message
-        supporting { +"${commit.author} · ${commit.sha}" }
+        item(
+            filled = if (ringMerges) filledByDefault else true,
+            loading = building && commit === tip,
+            connector = if (commit.sha.startsWith("f")) featureLine else ConnectorStyle.Solid,
+            connectorColour = if (colourRelease && commit.sha.startsWith("r")) release else Color.Unspecified,
+            onClick = { echo("Opened ${commit.message}") },
+        ) {
+            +if (building && commit === tip) "${commit.message} — building" else commit.message
+            supporting { +"${commit.author} · ${commit.sha}" }
+        }
     }
 }
 

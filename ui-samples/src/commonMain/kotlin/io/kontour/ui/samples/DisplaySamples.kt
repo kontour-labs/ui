@@ -442,10 +442,12 @@ fun BranchTimelineBasics() {
         items = commits,
         id = { it.sha },
         parents = { it.parents },
-        onItemClick = { openCommit(it) },
     ) { commit ->
-        +commit.message
-        supporting { +"${commit.author} · ${commit.sha}" }
+        // Each commit is a row declared like a TimelineList stop.
+        item(onClick = { openCommit(commit) }) {
+            +commit.message
+            supporting { +"${commit.author} · ${commit.sha}" }
+        }
     }
 }
 

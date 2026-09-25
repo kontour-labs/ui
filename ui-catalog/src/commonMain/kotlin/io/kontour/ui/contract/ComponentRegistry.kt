@@ -923,11 +923,13 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 parents = { it.second },
                 modifier = modifier,
             ) { commit ->
-                +when (commit.first) {
-                    "m" -> "Merge feature/maps"
-                    "f" -> "Map tiles"
-                    "b" -> "Fix stop search"
-                    else -> "Add journey planner"
+                item {
+                    +when (commit.first) {
+                        "m" -> "Merge feature/maps"
+                        "f" -> "Map tiles"
+                        "b" -> "Fix stop search"
+                        else -> "Add journey planner"
+                    }
                 }
             }
         }

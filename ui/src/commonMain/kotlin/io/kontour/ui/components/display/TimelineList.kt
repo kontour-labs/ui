@@ -71,54 +71,47 @@ object TimelineListDefaults {
 }
 
 /**
- * The stops of a [TimelineList], each one a list row on the rail.
- *
- * ```kotlin
- * TimelineList {
- *     item(onClick = { open(perth) }) {
- *         +"Perth Station"
- *         supporting { +"Platform 3" }
- *         trailing { +"08:12" }
- *     }
- *     item("Walk 4 min", connector = ConnectorStyle.Dashed, filled = false)
- *     item("Elizabeth Quay", trailing = "08:31")
- * }
- * ```
+ * Where a [TimelineList]'s stops and a [BranchTimeline]'s commits are declared:
+ * each one a list row on the rail, declared the same way in both.
  *
  * **Collects rather than emits**, like `ListGroupScope`: a stop's connector is
- * drawn half in its own row and half in the next, and in `Grouped` a row's
- * corners depend on where it sits, so nothing can be drawn until every stop has
- * been declared. The builder is plain Kotlin that runs in composition — `if`
- * works, and reading state in it recomposes the list.
+ * drawn half in its own row and half in the next, and a row's corners can
+ * depend on where it sits, so nothing is drawn until every row is declared. The
+ * builder is plain Kotlin that runs in composition — `if` works, and reading
+ * state in it recomposes the list.
+ *
+ * @property filledByDefault Whether a node is solid unless [item] says: true,
+ *   except for a merge in a [BranchTimeline], which is a ring so it reads as a
+ *   join rather than as work.
  */
 @Stable
 @LayoutScopeMarker
-class TimelineListScope internal constructor() {
+abstract class TimelineRowScope internal constructor(val filledByDefault: Boolean) {
 
     internal val stops = mutableListOf<TimelineStop>()
 
     /**
-     * One stop: a list row, filled like a `ListItem` — a bare `+` for the label,
-     * then `supporting`, `overline`, `leading` and `trailing` by name.
+     * One row, filled like a `ListItem` — a bare `+` for the label, then
+     * `supporting`, `overline`, `leading` and `trailing` by name.
      *
-     * @param nodeColour The node's colour. Unspecified takes the list's.
+     * @param nodeColour The node's colour. Unspecified takes the timeline's.
      * @param filled A solid node for a stop; a ring for a point passed through.
-     * @param loading A spinner in place of the node, for the stop being waited
+     * @param loading A spinner in place of the node, for the one being waited
      *   on. Drawn, not announced: say "in progress" in the row's words too.
-     * @param connector How this stop joins the next — the leg after it. The last
-     *   stop's leads nowhere; the list's `leadOut` says what leaves it.
-     * @param connectorColour The leg's colour. Unspecified takes the list's rail.
+     * @param connector How this row joins the next — the leg after it, or in a
+     *   history, the lines down to its parents.
+     * @param connectorColour The leg's colour. Unspecified takes the timeline's.
      * @param connectorWidth The leg's weight, and the ring's. Unspecified is
      *   the strong border width, as a [TimelineItem]'s is.
-     * @param enabled Whether this row can be used. A disabled list disables
+     * @param enabled Whether this row can be used. A disabled timeline disables
      *   every row whatever this says.
-     * @param selected Marks the stop that is current in a list that picks one.
+     * @param selected Marks the row that is current in a list that picks one.
      * @param role What a screen reader calls the row, when it has [onClick].
      * @param onClick The row's action. Without one the row is not a control.
      */
     fun item(
         nodeColour: Color = Color.Unspecified,
-        filled: Boolean = true,
+        filled: Boolean = filledByDefault,
         loading: Boolean = false,
         connector: ConnectorStyle = ConnectorStyle.Solid,
         connectorColour: Color = Color.Unspecified,
@@ -136,7 +129,7 @@ class TimelineListScope internal constructor() {
     }
 
     /**
-     * One stop, as text: a label, a second line under it and a value at the end
+     * One row, as text: a label, a second line under it and a value at the end
      * — a time, a platform.
      */
     fun item(
@@ -144,7 +137,7 @@ class TimelineListScope internal constructor() {
         supporting: String? = null,
         trailing: String? = null,
         nodeColour: Color = Color.Unspecified,
-        filled: Boolean = true,
+        filled: Boolean = filledByDefault,
         loading: Boolean = false,
         connector: ConnectorStyle = ConnectorStyle.Solid,
         onClick: (() -> Unit)? = null,
@@ -171,6 +164,25 @@ class TimelineListScope internal constructor() {
         }
     }
 }
+
+/**
+ * The stops of a [TimelineList], each one a list row on the rail.
+ *
+ * ```kotlin
+ * TimelineList {
+ *     item(onClick = { open(perth) }) {
+ *         +"Perth Station"
+ *         supporting { +"Platform 3" }
+ *         trailing { +"08:12" }
+ *     }
+ *     item("Walk 4 min", connector = ConnectorStyle.Dashed, filled = false)
+ *     item("Elizabeth Quay", trailing = "08:31")
+ * }
+ * ```
+ */
+@Stable
+@LayoutScopeMarker
+class TimelineListScope internal constructor() : TimelineRowScope(filledByDefault = true)
 
 /**
  * A stop list: [Timeline]'s rail beside list rows, with a row's slots and its
