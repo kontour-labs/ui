@@ -59,8 +59,19 @@ internal class GridGeometry(
     val rows: Int,
     /** The grid's top-left in the pointer node's own coordinates. */
     val origin: Offset,
-    /** One column's width, and one row's height, in pixels. */
+    /** One column's width, in pixels. */
     val cell: Float,
+    /**
+     * One row's height, in pixels, **as laid out** — not assumed to be a column's.
+     *
+     * A day reserves the platform's minimum touch target, so where a column is
+     * narrower than 48dp the rows are taller than the columns are wide. Read as
+     * square, the hit test drifted down the month a few pixels a row, until a
+     * finger on the bottom of the last day read as below the grid — past the
+     * month's last day — and paged. Reported as the last day starting the timer
+     * where the first needed pushing past.
+     */
+    val rowHeight: Float,
     val rtl: Boolean,
 ) {
     /** The cell index of the 1st, and of the last day. */
@@ -82,7 +93,7 @@ internal class GridGeometry(
      */
     fun cellsAt(position: Offset): Offset {
         val x = (position.x - origin.x) / cell
-        return Offset(if (rtl) Columns - x else x, (position.y - origin.y) / cell)
+        return Offset(if (rtl) Columns - x else x, (position.y - origin.y) / rowHeight)
     }
 
     /** Whether [cells] is over a day, rather than a blank or off the grid. */
@@ -133,12 +144,41 @@ internal class GridGeometry(
     /** The cell [edge] belongs to: the 1st, or the last day. */
     fun indexOf(edge: DwellEdge): Int = if (edge == DwellEdge.Previous) first else last
 
+    /**
+     * Whether a finger moving from [from] to [to] went over [edge]'s arrow: the
+     * half of the edge day's cell on the other month's side, where the arrow is
+     * drawn. Sampled along the move, so a quick one that jumps across the arrow
+     * between two pointer events still counts.
+     */
+    fun crossesArrow(from: Offset, to: Offset, edge: DwellEdge): Boolean {
+        val index = indexOf(edge)
+        val row = (index / Columns).toFloat()
+        val left = if (edge == DwellEdge.Previous) (index % Columns).toFloat() else index % Columns + 1f - ArrowShare
+        for (step in 0..ArrowSamples) {
+            val t = step / ArrowSamples.toFloat()
+            val x = from.x + (to.x - from.x) * t
+            val y = from.y + (to.y - from.y) * t
+            if (x >= left && x <= left + ArrowShare && y >= row && y <= row + 1f) return true
+        }
+        return false
+    }
+
     internal companion object {
-        fun of(month: LocalDate, formats: DateTimeFormats, origin: Offset, cell: Float, rtl: Boolean): GridGeometry {
+        fun of(
+            month: LocalDate,
+            formats: DateTimeFormats,
+            origin: Offset,
+            cell: Float,
+            rowHeight: Float,
+            rtl: Boolean,
+        ): GridGeometry {
             val first = LocalDate(month.year, month.month, 1)
             val days = first.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).day
             val blanks = formats.columnOf(first.dayOfWeek)
-            return GridGeometry(first, blanks, days, (blanks + days + 6) / 7, origin, cell, rtl)
+            // Not laid out yet: square is the best guess, and nothing is under a
+            // finger before the first layout anyway.
+            val row = if (rowHeight > 0f) rowHeight else cell
+            return GridGeometry(first, blanks, days, (blanks + days + 6) / 7, origin, cell, row, rtl)
         }
     }
 }
@@ -167,6 +207,7 @@ internal class CalendarDragState internal constructor(
     private val scope: CoroutineScope,
     private val dayTicker: DetentTicker,
     private val pageTicker: DetentTicker,
+    private val holdTicker: DetentTicker,
 ) {
     // Wiring, refreshed from composition.
     internal var motion: Motion = kontourMotion(reduceMotion = false)
@@ -182,6 +223,7 @@ internal class CalendarDragState internal constructor(
     /** The pointer node's width, and where the grid starts down it. Measured. */
     internal var width: Float = 0f
     internal var gridTop: Float = 0f
+    internal var rowHeight: Float = 0f
 
     /** Where the finger went down. */
     var anchor: LocalDate? by mutableStateOf(null)
@@ -263,7 +305,12 @@ internal class CalendarDragState internal constructor(
     var leaning: LocalDate? by mutableStateOf(null)
         private set
 
-    /** The month edge the finger is pushing past, if either. */
+    /**
+     * The month edge a dwell is under way on, if either: the finger went over its
+     * arrow and is past its day. Its arrow shows in full while it lasts, however
+     * far past the finger has gone — it faded with distance, and so disappeared
+     * under a finger pushed well past the day with its ring still filling.
+     */
     var edge: DwellEdge? by mutableStateOf(null)
         private set
 
@@ -274,6 +321,12 @@ internal class CalendarDragState internal constructor(
     private var position = Offset.Zero
     private var headCell: Int? = null
     private var armed = true
+
+    /** Where the finger was at the last move in this month, for [GridGeometry.crossesArrow]. */
+    private var lastCells: Offset? = null
+
+    /** The arrow the finger has gone over and not yet left behind. */
+    private var through: DwellEdge? = null
     private var pages = 0
     private var dwelling: Job? = null
     private var releasing: Job? = null
@@ -292,7 +345,9 @@ internal class CalendarDragState internal constructor(
         headCell = index
         month = grid.month
         live = true
-        armed = grid.edgeAt(cells) == null
+        armed = true
+        through = null
+        lastCells = cells
         dayTicker.at(date.toEpochDays().toInt())
         pageTicker.reset()
         pageTicker.at(pages)
@@ -381,7 +436,15 @@ internal class CalendarDragState internal constructor(
         val leaningOn = head?.takeIf { headIndex != null }
         if (leaningOn != null && headIndex != null) lean(grid, leaningOn, headIndex, cells, crossing)
 
-        dwellOn(if (onStep == null) null else grid.edgeAt(cells))
+        // A move across a month change is not a path through anything.
+        val previous = if (paged) cells else lastCells ?: cells
+        lastCells = cells
+        if (onStep == null) {
+            dwellOn(null, null)
+        } else {
+            val crossed = DwellEdge.entries.firstOrNull { grid.crossesArrow(previous, cells, it) }
+            dwellOn(grid.edgeAt(cells), crossed)
+        }
     }
 
     fun end() {
@@ -389,7 +452,7 @@ internal class CalendarDragState internal constructor(
         down = false
         pressed = false
         dayTicker.reset()
-        dwellOn(null)
+        dwellOn(null, null)
         val grid = geometry()
         val target = head?.let { h -> grid?.indexOf(h) }?.let { grid?.centreOf(it) }
         releasing = scope.launch {
@@ -439,29 +502,55 @@ internal class CalendarDragState internal constructor(
     }
 
     /**
-     * The finger is pushing past [zone]'s day, or past neither.
+     * The finger is past [zone]'s day, or neither; this move went over [crossed]'s
+     * arrow, or neither.
+     *
+     * **A dwell starts only for a finger that went over the arrow on its way past
+     * the day** — reported: *"the animation should only start if you drag over or
+     * through the arrow, not just dragging up/down onto the first/last row from
+     * anywhere."* Past the day but arrived from above or below, a finger is on
+     * the blanks, not asking for another month. And a finger resting on the
+     * arrow without going past the day is choosing the 1st, not paging.
      *
      * **A dwell pages once, and then the edge is spent until the handle leaves
      * it.** Two months that start on the same weekday put the 1st in the same
      * place, so a finger held past it would otherwise page and page again.
-     * Leaving both edges re-arms.
+     * Leaving both edges, and both arrows, re-arms.
      */
-    private fun dwellOn(zone: DwellEdge?) {
+    private fun dwellOn(zone: DwellEdge?, crossed: DwellEdge?) {
+        // Back off the edge re-arms, even by way of the arrow; the arrow is
+        // forgotten only once the finger is off it too.
         if (zone == null) armed = true
-        if (zone == edge) return
+        if (crossed != null) {
+            through = crossed
+        } else if (zone == null) {
+            through = null
+        }
+        val wanted = zone?.takeIf { armed && it == through }
+        if (wanted == edge) return
         dwelling?.cancel()
         dwelling = null
-        edge = zone
+        edge = wanted
         scope.launch { dwell.snapTo(0f) }
-        if (zone == null || !armed) return
+        if (wanted == null) return
         dwelling = scope.launch {
             dwell.snapTo(0f)
-            dwell.animateTo(1f, tween(DwellMillis, easing = LinearEasing))
+            // A faint rumble while the ring fills: a pulse of the lightest feel
+            // every so often through the dwell, off the ring's own clock, so the
+            // hand knows the wait is counting. The page itself is the threshold
+            // tick below.
+            holdTicker.reset()
+            holdTicker.at(0)
+            dwell.animateTo(1f, tween(DwellMillis, easing = LinearEasing)) {
+                holdTicker.at((value * DwellMillis / RumbleMillis).toInt())
+            }
             armed = false
+            through = null
+            edge = null
             dwell.snapTo(0f)
             pages++
             pageTicker.at(pages)
-            onStep?.invoke(zone.step)
+            onStep?.invoke(wanted.step)
         }
     }
 
@@ -635,6 +724,15 @@ internal const val DwellMillis: Int = 700
 
 /** The most a cap leans toward the finger, in cells, before the pull. */
 private const val MaxLean: Float = 0.5f
+
+/** How often the hold rumbles while a dwell runs. The shared rate floor may space it further. */
+private const val RumbleMillis: Int = 70
+
+/** The share of the edge day's cell, on the other month's side, that is its arrow. */
+private const val ArrowShare: Float = 0.5f
+
+/** Points along a move tested against an arrow. */
+private const val ArrowSamples: Int = 12
 
 /** How far above or below the grid, in rows, a finger still counts as pushing past an edge day. */
 private const val EdgeReach: Float = 1.5f

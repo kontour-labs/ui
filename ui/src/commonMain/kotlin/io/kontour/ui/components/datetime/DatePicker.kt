@@ -356,6 +356,7 @@ fun DateRangePicker(
                 formats = weekFormats,
                 origin = Offset(0f, drag.gridTop),
                 cell = drag.width / Columns,
+                rowHeight = drag.rowHeight,
                 rtl = rtl,
             )
         }

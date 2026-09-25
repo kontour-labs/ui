@@ -61,6 +61,7 @@ class HapticsLevelTest {
             FeedbackIntent.Tick,
             FeedbackIntent.Selection,
             FeedbackIntent.KeyPress,
+            FeedbackIntent.Hold,
         )
         for (intent in progress) {
             assertTrue(

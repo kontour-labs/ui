@@ -228,7 +228,7 @@ Four levels, and **`Standard` is the default**:
 | | Allows |
 |---|---|
 | `Off` | Nothing. A kiosk, a test, or a reader who has asked for silence. |
-| `Reduced` | Outcomes only. Drops the ones that report progress — `Tap`, `Tick`, `Selection`, `KeyPress` — so a drag still reports arriving somewhere without buzzing the whole way there. |
+| `Reduced` | Outcomes only. Drops the ones that report progress — `Tap`, `Tick`, `Selection`, `KeyPress`, `Hold` — so a drag still reports arriving somewhere without buzzing the whole way there. |
 | `Standard` | Everything a control does under a finger: taps, detents, thresholds, outcomes. |
 | `Full` | Every intent, `KeyPress` included. |
 
@@ -256,7 +256,7 @@ than `Heavy` has no answer.
 
 | Feel | Which intents | What it is |
 |---|---|---|
-| `Light` | `Tick`, `GestureEnd`, `KeyPress` | A texture going past. Arrives in streams — a flung wheel crosses a row every 8ms — so it is also the tier the shared rate floor thins. |
+| `Light` | `Tick`, `Hold`, `GestureEnd`, `KeyPress` | A texture going past. Arrives in streams — a flung wheel crosses a row every 8ms — so it is also the tier the shared rate floor thins. |
 | `Medium` | `Tap`, `Selection`, `DragThreshold` | A control answering, or what letting go will do changing. One event. |
 | `Heavy` | `LongPress` | A threshold held long enough to mean something. |
 | `Success` | `Confirm` | It worked. |
@@ -345,6 +345,7 @@ whatever the level:
 | A **detent crossed under a finger** | `Slider`, `RangeSlider`, `Knob`, `WheelPicker`, `SegmentedControl`, `TabBar` swipe, `ReorderableItem`, `BottomSheet`, `Carousel`, `ColourPicker`'s palette, `CalendarMonth` dragged, `ActivityCalendar` scrubbed | The finger is between two values and the eye is on something else. This is the case haptics exist for. All of them go through `DetentTicker` now, which is where the once-per-crossing guard and the rate limit both live. |
 | A **threshold passed** | `PullToRefresh`, `SwipeActions`, `Switch` dragged, `Toast` swiped, `CalendarMonth` paged mid-drag | What letting go will do has just changed, and nothing on screen said so first. |
 | A **slider run into its end** | `Slider`, `RangeSlider`, `Knob`, `ColourPicker`'s hue and opacity tracks | `DragThreshold`, once per wall a drag runs into — holding against the stop is one report, and backing off and pushing again is another. On the finger's position rather than the drawn squash, so it reports under reduced motion too. |
+| A **hold under way** | `CalendarMonth` held past its edge day mid-drag | `Hold`, a faint rumble — the lightest pulse, again and again — for as long as holding on will do something, so the wait is felt counting rather than stuck. The outcome is its own threshold tick. Dropped under `Reduced`, with the other haptics that report progress. |
 | A **long press becoming a gesture** | `Menu`, `Tooltip`, `ReorderableItem` | The press has been held long enough to mean something. Nothing has visibly happened yet, which is exactly why it needs reporting. |
 | A **destructive question arriving** | `AlertDialog(destructive = true)` | The only one that fires *before* the thing it is about. Optional — see `hapticWarning`. |
 | A **control answering a press** | `Checkbox`, `RadioButton`, `Chip`, `Switch` tapped, `SegmentedControl`, `Stepper`, `Rating`, `ColourSwatchPicker`, `CalendarMonth`, `Accordion`, `ExpandingListItem`, `AnimatedCounter` counting **down** | `Medium` — a step above the texture of a detent going past, on the controls whose whole job is to answer a press. Every one of them goes through `rememberTapFeedback`, which is one call site and one shared rate limit rather than a dozen of each. |

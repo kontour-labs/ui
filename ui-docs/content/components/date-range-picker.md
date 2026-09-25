@@ -63,9 +63,13 @@ last day, a small arrow fades in inside that day, on the side the other month is
 in a little ring of its own — more of it the nearer the finger, from any
 direction, so coming at the 1st from the row below shows it as much as coming
 along the row. Push the handle *past* the day — before the 1st, or after the last —
-and hold it there: the arrow's ring fills, and when it is full the month pages,
-with a tick in the hand, and the drag carries on. Being near the day is not enough;
-only pushing past it pages. The arrow is inside the day's own box, so a month that
+and hold it there: the arrow's ring fills, with a faint rumble in the hand while
+it does, and when it is full the month pages with a tick and the drag carries on.
+Only a handle that went over the arrow on its way past the day counts — arriving
+in the blanks from above or below is not asking for another month, and resting on
+the arrow without going past is choosing that day. Once the ring is filling it
+keeps going however much further past the finger goes, and the arrow stays shown
+while it does. The arrow is inside the day's own box, so a month that
 starts on the first day of the week, or ends on the last, has it the same as any
 other: off the edge of the grid counts as past the day.
 

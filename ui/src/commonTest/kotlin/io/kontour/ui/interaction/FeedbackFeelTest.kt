@@ -39,6 +39,7 @@ class FeedbackFeelTest {
             mapOf(
                 FeedbackFeel.Light to listOf(
                     FeedbackIntent.Tick,
+                    FeedbackIntent.Hold,
                     FeedbackIntent.GestureEnd,
                     FeedbackIntent.KeyPress,
                 ),

@@ -101,6 +101,18 @@ enum class FeedbackIntent {
      */
     DragThreshold,
 
+    /**
+     * A hold is under way: keep holding and something will happen.
+     *
+     * Performed as a stream — a steady, faint rumble for as long as the hold runs
+     * — rather than once, so the hand knows the wait is counting and not stuck.
+     * The first use is a date range's handle held past the month's first or last
+     * day, where the month pages when the ring fills, with a [DragThreshold] as it
+     * does. The lightest feel there is, and dropped under [HapticsLevel.Reduced]
+     * with the other intents that report progress rather than an outcome.
+     */
+    Hold,
+
     /** A gesture completed and the element settled. */
     GestureEnd,
 
@@ -184,6 +196,8 @@ val FeedbackIntent.feel: FeedbackFeel
         // place — and because the `when` is exhaustive, which is what stops the
         // next intent being added without this decision being made.
         FeedbackIntent.GestureEnd -> FeedbackFeel.Light
+        // A rumble is a stream of the faintest pulse the platform has.
+        FeedbackIntent.Hold -> FeedbackFeel.Light
         FeedbackIntent.KeyPress -> FeedbackFeel.Light
 
         FeedbackIntent.Tap -> FeedbackFeel.Medium
@@ -219,7 +233,7 @@ enum class HapticsLevel {
      * Outcomes only — a confirmation, a refusal, a threshold crossed, a long
      * press. The ones that report *progress* ([FeedbackIntent.Tap],
      * [FeedbackIntent.Tick], [FeedbackIntent.Selection],
-     * [FeedbackIntent.KeyPress]) are dropped, so a drag still reports arriving
+     * [FeedbackIntent.KeyPress], [FeedbackIntent.Hold]) are dropped, so a drag still reports arriving
      * somewhere without buzzing the whole way there.
      *
      * This was called `Essential` and is the same set, less the new
@@ -250,6 +264,7 @@ enum class HapticsLevel {
             FeedbackIntent.Tick,
             FeedbackIntent.Selection,
             FeedbackIntent.KeyPress,
+            FeedbackIntent.Hold,
             -> false
 
             else -> true

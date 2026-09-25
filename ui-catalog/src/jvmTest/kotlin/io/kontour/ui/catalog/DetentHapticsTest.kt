@@ -1165,7 +1165,8 @@ class DetentHapticsTest {
      */
     /**
      * A month paged by dwelling on its arrow mid-drag is a threshold passed, once:
-     * what the drag is choosing from has just changed under the finger.
+     * what the drag is choosing from has just changed under the finger. The hold
+     * before it rumbles faintly, so the hand knows the wait is counting.
      */
     @Test
     fun aMonthPagedMidDragIsOneThreshold() {
@@ -1210,6 +1211,11 @@ class DetentHapticsTest {
             1,
             felt.count { it == FeedbackIntent.DragThreshold },
             "paging by a dwell mid-drag fired ${felt.summary()} — one threshold for the month changing",
+        )
+        // And a faint rumble while it was held: several of the lightest pulses.
+        assertTrue(
+            felt.count { it == FeedbackIntent.Hold } >= 3,
+            "holding past the last day fired ${felt.summary()} — a rumble of Hold pulses while the ring filled",
         )
     }
 

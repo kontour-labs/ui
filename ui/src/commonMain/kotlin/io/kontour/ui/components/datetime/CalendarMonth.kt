@@ -197,7 +197,9 @@ fun CalendarMonth(
         SideEffect {
             own.onSelect = onDragSelect
             own.isSelectable = isDateSelectable
-            own.geometry = { GridGeometry.of(firstOfMonth, weekFormats, Offset.Zero, own.width / Columns, rtl) }
+            own.geometry = {
+                GridGeometry.of(firstOfMonth, weekFormats, Offset.Zero, own.width / Columns, own.rowHeight, rtl)
+            }
         }
         // A caller paging a month on its own while a finger is down: the drag
         // carries on in the new month from where the finger is.
@@ -306,9 +308,13 @@ fun CalendarMonth(
                 // Where the weeks start under the weekday initials, for a drag
                 // held above the pager. Relative to this month's own box, which
                 // the pager's slide does not move.
+                // And how tall its rows really are: see `GridGeometry.rowHeight`.
                 .then(
-                    if (host != null) {
-                        Modifier.onGloballyPositioned { host.gridTop = it.positionInParent().y }
+                    if (drag != null) {
+                        Modifier.onGloballyPositioned {
+                            if (host != null) host.gridTop = it.positionInParent().y
+                            drag.rowHeight = it.size.height.toFloat() / rows
+                        }
                     } else {
                         Modifier
                     }
@@ -349,7 +355,9 @@ fun CalendarMonth(
                         val index = if (edgeDay == DwellEdge.Previous) first else last
                         val column = index % Columns + 0.5f
                         val row = index / Columns + 0.5f
-                        val presence = ringPresence(distance(state.finger, Offset(column, row))) * rings
+                        // In full while its dwell runs, however far past the finger is.
+                        val near = if (state.edge == edgeDay) 1f else ringPresence(distance(state.finger, Offset(column, row)))
+                        val presence = near * rings
                         if (presence <= 0f) continue
                         val date = LocalDate(month.year, month.month, index - leadingBlanks + 1)
                         // On its own day's fill: the cap's ink when the day is an
@@ -413,8 +421,9 @@ fun CalendarMonth(
 }
 
 /**
- * The drag a month or a picker holds: the state, and the two things it reports to
- * the hand — a day crossed, and a month paged.
+ * The drag a month or a picker holds: the state, and the three things it reports
+ * to the hand — a day crossed, a faint rumble while a month is being held for,
+ * and the month paged.
  *
  * A day is a detent in the strictest sense — the selection snaps to one and rests
  * there — so it goes through the same guard and shared rate floor as `Slider`,
@@ -426,7 +435,8 @@ internal fun rememberCalendarDrag(): CalendarDragState {
     val scope = rememberCoroutineScope()
     val days = rememberDetentTicker()
     val pages = rememberDetentTicker(FeedbackIntent.DragThreshold)
-    val drag = remember(scope, days, pages) { CalendarDragState(scope, days, pages) }
+    val hold = rememberDetentTicker(FeedbackIntent.Hold)
+    val drag = remember(scope, days, pages, hold) { CalendarDragState(scope, days, pages, hold) }
     val motion = Theme.motion
     SideEffect { drag.motion = motion }
     return drag

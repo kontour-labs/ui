@@ -146,6 +146,27 @@ class CalendarCrossMonthDragTest {
     }
 
     /**
+     * Onto the blanks before the 1st from below, not by way of the arrow, and
+     * nothing pages: that finger is past the day without having asked to be.
+     */
+    @Test
+    fun arrivingPastTheFirstFromBelowDoesNotPage() = runComposeUiTest {
+        val picked = Picked()
+        val navigation = picker(LocalDate(2026, 8, 1), picked)
+        // The 12th is below the blanks, two columns in; straight up from it is
+        // past the 1st, a Saturday, without crossing it.
+        val from = centreOf(19)
+        val above = centreOf(5) - Offset(0f, centreOf(12).y - centreOf(5).y)
+        onRoot().performTouchInput {
+            down(0, from)
+            steps(from, above) { moveTo(0, it) }
+        }
+        mainClock.advanceTimeBy(DwellMillis * 2L)
+        onRoot().performTouchInput { up(0) }
+        assertEquals(LocalDate(2026, 8, 1), navigation.visibleMonth, "arriving past the 1st from below paged")
+    }
+
+    /**
      * June 2026 starts on a Monday, so there is no blank before the 1st: the arrow
      * hangs past the grid's start edge, and pushing the handle past the edge in that
      * row reaches it.
