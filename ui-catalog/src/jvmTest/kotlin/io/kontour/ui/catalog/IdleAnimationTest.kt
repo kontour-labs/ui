@@ -1,7 +1,16 @@
 package io.kontour.ui.catalog
 
+import io.kontour.ui.components.display.BranchProgress
+import io.kontour.ui.components.display.BranchTimeline
+import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.Gauge
+import io.kontour.ui.components.display.HorizontalTimeline
+import io.kontour.ui.components.display.Timeline
+import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.display.TimelineList
+import io.kontour.ui.components.display.TimelineListScope
+import io.kontour.ui.foundation.Text
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -115,6 +124,83 @@ class IdleAnimationTest {
         }.use { scene ->
             scene.advance(SettleFrames)
             assertTrue(scene.stillAnimating(), "a spinner stopped turning under reduced motion")
+        }
+    }
+
+    /**
+     * A timeline nobody is travelling draws nothing that moves, in any of its
+     * four forms: its rail's clock only runs while there is a pulse or a band.
+     */
+    @Test
+    fun timelinesWithoutProgressAreNotAnimations() {
+        assertSettles("Timeline without progress") { Timeline { stops() } }
+        assertSettles("HorizontalTimeline without progress") { HorizontalTimeline { stops() } }
+        assertSettles("TimelineList without progress") { TimelineList { listStops() } }
+        assertSettles("BranchTimeline without progress") { history(progress = null) }
+    }
+
+    @Test
+    fun reducedMotionStillsEveryTimelinesProgress() {
+        assertSettles("Timeline at a stop, reduced motion", reduceMotion = true) { Timeline(progress = 1f) { stops() } }
+        assertSettles("Timeline between stops, reduced motion", reduceMotion = true) { Timeline(progress = 0.5f) { stops() } }
+        assertSettles("TimelineList at a stop, reduced motion", reduceMotion = true) { TimelineList(progress = 1f) { listStops() } }
+        assertSettles("TimelineList between stops, reduced motion", reduceMotion = true) {
+            TimelineList(progress = 0.5f) { listStops() }
+        }
+        assertSettles("BranchTimeline in progress, reduced motion", reduceMotion = true) {
+            history(BranchProgress(reached = "a", towards = "b"))
+        }
+    }
+
+    /** The other way round: a stop the journey is at pulses, for as long as it is there. */
+    @Test
+    fun aTimelineListAtAStopStillPulses() = assertAnimates("TimelineList at a stop") {
+        TimelineList(progress = 1f) { listStops() }
+    }
+
+    /**
+     * A plain Timeline finds out where its items are only once it has laid them
+     * out, so this is the one that proves the band is started from there.
+     */
+    @Test
+    fun aTimelineBetweenStopsStillCarriesItsBand() = assertAnimates("Timeline between stops") {
+        Timeline(progress = 0.5f) { stops() }
+    }
+
+    @Test
+    fun aBranchTimelineMovingOnStillAnimates() = assertAnimates("BranchTimeline moving on") {
+        history(BranchProgress(reached = "a", towards = "b"))
+    }
+
+    @Composable
+    private fun stops() {
+        TimelineItem { Text("Perth") }
+        TimelineItem { Text("Elizabeth Quay") }
+        TimelineItem(connector = ConnectorStyle.None) { Text("Busport") }
+    }
+
+    private fun TimelineListScope.listStops() {
+        item("Perth")
+        item("Elizabeth Quay")
+        item("Busport")
+    }
+
+    @Composable
+    private fun history(progress: BranchProgress?) {
+        BranchTimeline(
+            items = listOf("b" to listOf("a"), "a" to emptyList()),
+            id = { it.first },
+            parents = { it.second },
+            progress = progress,
+        ) { commit -> item { +commit.first } }
+    }
+
+    private fun assertAnimates(what: String, content: @Composable () -> Unit) {
+        Scene(width = 400, height = 300, density = 2f) {
+            Box(Modifier.fillMaxSize()) { content() }
+        }.use { scene ->
+            scene.advance(SettleFrames)
+            assertTrue(scene.stillAnimating(), "$what stopped asking for frames, so its progress is not moving")
         }
     }
 

@@ -74,12 +74,15 @@ class TimelineListRailTest {
         }
     }
 
-    /** At 1.5 stops the leg from the second stop to the third is half travelled. */
+    /**
+     * At 1.5 stops the leg from the second stop to the third is half travelled.
+     * Still, so the band running along the rest of the leg is not in the picture.
+     */
     @Test
     fun progressChangesColourWhereOneRowHandsTheLegToTheNext() {
         val labels = arrayOfNulls<Rect>(3)
         lateinit var image: BufferedImage
-        Scene(width = 400, height = 400) {
+        Scene(width = 400, height = 400, reduceMotion = true) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 RecordRail()
                 TimelineList(
