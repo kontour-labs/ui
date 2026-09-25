@@ -251,6 +251,70 @@ class SwipeCommitTest {
         )
     }
 
+    /**
+     * The icon starts turning into the tick as the row goes, not after it has
+     * settled.
+     *
+     * "Please reduce the time between when the swipe/flick finishes, and when the
+     * tick animation starts. It feels too long." It waited for the spring to settle
+     * to within a hair of the edge — a third of a second after letting go, about
+     * twenty frames, when the row had looked home for half of that. Read off the
+     * icon's own ink: the dark on the action's red, which holds steady while the
+     * row is held and changes the moment the icon starts to leave. The label is
+     * in the same ink and does not change, so the count moves by the icon alone.
+     */
+    @Test
+    fun theTickStartsAsTheRowGoes() {
+        var bounds = Rect.Zero
+        val ink = ArrayList<Int>()
+        var held = 0
+        Scene(width = Width, height = Height) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly),
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            val to = Offset(from.x - Travel, from.y)
+            scene.drag(from = from, to = to, steps = SlowSteps, release = false)
+            held = scene.frames(8).inkIn(bounds)
+            scene.release(to)
+            repeat(TickWithinFrames * 3) { ink += scene.frame().inkIn(bounds) }
+        }
+        val turning = ink.indexOfFirst { kotlin.math.abs(it - held) > held * 0.15f }
+        assertTrue(held > 0, "no icon ink on the action while the row was held open")
+        assertTrue(
+            turning in 0..TickWithinFrames,
+            "the icon began turning into the tick $turning frames after letting go (ink ${ink.take(24)} " +
+                "against $held held) — it should set off with the row, within $TickWithinFrames",
+        )
+    }
+
+    /**
+     * Dark pixels inside the action's red strip on the row's band: the icon, the
+     * tick and the label, and not the row sliding away beside it.
+     */
+    private fun BufferedImage.inkIn(row: Rect): Int {
+        var n = 0
+        for (y in row.top.toInt() + 4 until row.bottom.toInt() - 4) {
+            val red = (0 until width).filter {
+                val rgb = getRGB(it, y)
+                (rgb shr 16 and 0xFF) > 150 && (rgb shr 8 and 0xFF) < 100 && (rgb and 0xFF) < 100
+            }
+            if (red.isEmpty()) continue
+            for (x in red.first()..red.last()) {
+                val rgb = getRGB(x, y)
+                if ((rgb shr 16 and 0xFF) < 120) n++
+            }
+        }
+        return n
+    }
+
     private fun framesToRun(confirmation: Boolean): Int {
         var bounds = Rect.Zero
         var ran: String? = null
@@ -519,6 +583,9 @@ class SwipeCommitTest {
          * — about 45 frames of that is the tick — and for the row to come home.
          */
         const val SettleFrames = 90
+
+        /** From letting go to the icon starting to turn: a hundred-odd milliseconds. */
+        const val TickWithinFrames = 8
 
         /** Pure, so a pixel can be classified without knowing the theme. */
         val Outer = Color.Red

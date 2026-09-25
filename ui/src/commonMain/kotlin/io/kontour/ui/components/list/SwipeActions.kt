@@ -84,10 +84,13 @@ import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** One action revealed by swiping a row. */
 @Immutable
@@ -407,15 +410,44 @@ fun SwipeActions(
     val confirm by rememberUpdatedState(fullSwipeConfirmation)
     val reduceMotion by rememberUpdatedState(motion.reduceMotion)
 
+    /**
+     * The icon turning into a tick, from wherever it has got to.
+     *
+     * Cut back to the icon if it is interrupted — a finger taking the row again
+     * on its way to the edge has undone the swipe, and a half-drawn tick on a row
+     * that is not going anywhere is a promise nothing keeps.
+     */
+    suspend fun drawConfirmation() {
+        if (reduceMotion) {
+            confirmation.snapTo(1f)
+            return
+        }
+        try {
+            confirmation.animateTo(1f, tween(SwipeConfirmDrawMillis))
+        } catch (e: CancellationException) {
+            withContext(NonCancellable) { confirmation.snapTo(0f) }
+            throw e
+        }
+    }
+
+    /** The drawing a committed release set off, for the settle to wait on. */
+    val confirmDraw = remember { ConfirmDraw() }
+
     // Fires on *settling*, not mid-drag, so nothing runs while the finger is still
     // down and could still take it back.
     //
     // **The tick is drawn before the action runs**, not after: an action that
     // removes the row — the usual one on a full swipe — would take the row and its
     // tick with it. So the moment the row arrives at the far edge is spent showing
-    // what is about to happen, and then it happens. That moment was always there,
-    // as the row sitting at the edge "for just that little bit too long"; now it
-    // says something, and is a little longer for it.
+    // what is about to happen, and then it happens.
+    //
+    // **But it is not started here.** It used to be, and the tick then waited on
+    // the spring's last fraction of a pixel: `settledValue` changes only once the
+    // row is within a hair of the edge, a third of a second after letting go,
+    // when the eye had seen it arrive at about half that. Reported as too long
+    // between the swipe finishing and the tick starting. So the release starts
+    // the drawing — see `settle` — and the icon leaves while the row is still
+    // travelling; what waits for the settle is only the *action*.
     LaunchedEffect(state) {
         snapshotFlow { state.anchoredState.settledValue }.collect { settledAt ->
             val action = when (settledAt) {
@@ -429,11 +461,10 @@ fun SwipeActions(
             }
             fullSwipe = true
             if (confirm) {
-                if (reduceMotion) {
-                    confirmation.snapTo(1f)
-                } else {
-                    confirmation.animateTo(1f, tween(SwipeConfirmDrawMillis))
-                }
+                // The drawing the release set off, finished; a row sent to the
+                // edge in code had no release, so its drawing starts here.
+                confirmDraw.job?.join()
+                if (confirmation.value < 1f) drawConfirmation()
                 // Held on the frame clock, like the drawing before it, so the
                 // pause is part of the animation rather than a timer beside it.
                 Animatable(0f).animateTo(1f, tween(SwipeConfirmHoldMillis))
@@ -509,6 +540,10 @@ fun SwipeActions(
             // Out to the edge on the quicker spring: a committed row has somewhere
             // to be, and the soft one spent its last few pixels arriving.
             val spec = if (committed) commitSpec else settleSpec
+            // The tick sets off with the row rather than after it: the icon
+            // leaves while the row travels and the stroke starts as it arrives.
+            // A child of the settle, so a finger taking the row back cancels it.
+            if (committed && confirm) confirmDraw.job = launch { drawConfirmation() }
             state.anchoredState.anchoredDrag(target) { _, _ ->
                 animate(from, to, velocity, spec) { value, speed -> dragTo(value, speed) }
             }
@@ -1015,8 +1050,14 @@ private const val SwipeFullShare: Float = 0.55f
 /** The size a button's icon and label grow from. */
 private const val SwipeContentFrom: Float = 0.6f
 
-/** How long the tick takes to turn up and be drawn. */
-private const val SwipeConfirmDrawMillis: Int = 380
+/**
+ * How long the tick takes to turn up and be drawn, from the moment of letting go.
+ *
+ * It runs alongside the row's travel to the edge, so its first part — the icon
+ * leaving — is spent while the row is still moving, and the stroke begins about
+ * as the row arrives.
+ */
+private const val SwipeConfirmDrawMillis: Int = 300
 
 /** How long the finished tick is held before the action runs and the row returns. */
 private const val SwipeConfirmHoldMillis: Int = 320
@@ -1091,4 +1132,9 @@ fun SwipeToDismiss(
         fullSwipeConfirmation = fullSwipeConfirmation,
         content = content,
     )
+}
+
+/** The drawing a committed release started. See `confirmDraw` in [SwipeActions]. */
+private class ConfirmDraw {
+    var job: Job? = null
 }

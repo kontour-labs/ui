@@ -88,7 +88,10 @@ the action's icon gives way to a check mark, drawn in a stroke, and the row hold
 moment to show it before the action runs and the row comes home. The row always
 spent a moment at the edge; it read as a pause, *"it stays at the end for just
 that little bit too long"*, so the tick puts the moment to use and makes it a
-little longer on purpose. It is optional: `fullSwipeConfirmation = false` runs the
+little longer on purpose. The tick sets off when you let go, not when the row has
+finished settling: the icon leaves while the row is still travelling and the
+stroke begins about as it arrives, a tenth of a second after release rather than a
+third. Only the action waits for the row to settle. It is optional: `fullSwipeConfirmation = false` runs the
 action the moment the row arrives, for a list where the row disappearing is
 confirmation enough. Under reduced motion the tick appears rather than draws.
 
