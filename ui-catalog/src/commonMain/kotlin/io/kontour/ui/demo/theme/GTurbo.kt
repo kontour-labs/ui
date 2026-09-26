@@ -64,6 +64,12 @@ import io.kontour.ui.theme.outfitFontFamily
  * `brand`/`accent` split was arrived at independently by a designer who had
  * never seen this library, which is the strongest evidence available that the
  * split is real rather than a taxonomy.
+ *
+ * The accent itself is a third red, the fill red lightened at the same hue and
+ * chroma until it can be read: a link and a `TextButton` draw `accent.solid` as
+ * words, and the fill red's words were 3.49:1 on the page and 2.5:1 on a raised
+ * card. It carries the near-black ground as its label, as the other three tones
+ * do; see [RedReadable].
  */
 val gTurboDemoTheme = DemoTheme(
     name = "GTurbo",
@@ -204,6 +210,20 @@ private val LineHc = Color(0xFF847D8C)
 /** The fill red. Fails as text by design; carries white at 5.67:1. */
 private val Red = Color(0xFFC6252B)
 
+/**
+ * The fill red lightened — OKLCH lightness 0.54 to 0.69, the same hue and
+ * chroma — until it can be read wherever the accent lands: 4.68:1 on [Raised],
+ * the worst of the four grounds, and 6.52:1 on the page. The ground is its
+ * label, at the same 6.52.
+ *
+ * The accent was [Red] until `contrastFailures` began asking whether the
+ * accent can be read, which it has to be: a link, a `TextButton` and a focused
+ * field's label are all drawn in `accent.solid`. The red could not be, and a
+ * red that carries white cannot be lightened far enough to be (see the
+ * enhanced tier), so the label flips instead, to the ground.
+ */
+private val RedReadable = Color(0xFFFD5E59)
+
 /** The logo red, brighter than the fill. Decoration only — see `brand`. */
 private val LogoRed = Color(0xFFE11F26)
 
@@ -230,11 +250,12 @@ private val AmberEdge = Color(0xFF54401D)
  * Built on [darkColourScheme] so anything not named here keeps a value that has
  * already been through the contrast suite, rather than starting from raw hex.
  *
- * **`danger` and `accent` are the same red, and that is a real tension rather
+ * **`danger` and `accent` are both red, and that is a real tension rather
  * than a shortcut.** The brand *is* a warning colour; a destructive action in
- * this product cannot distinguish itself by hue and distinguishes itself by
- * outline instead. Worth knowing before copying this palette into a product
- * whose brand is not already red.
+ * this product cannot distinguish itself by hue — only by the accent's lighter
+ * red and dark label against danger's deeper red and white one, and by outline.
+ * Worth knowing before copying this palette into a product whose brand is not
+ * already red.
  */
 private fun gTurboStandardColours(): ColourScheme = darkColourScheme(
     background = Ground,
@@ -273,8 +294,8 @@ private fun gTurboStandardColours(): ColourScheme = darkColourScheme(
     onPrimary = Ground,
 
     accent = StatusColours(
-        solid = Red,
-        onSolid = Color.White,
+        solid = RedReadable,
+        onSolid = Ground,
         container = RedTint,
         onContainer = Salmon,
         border = RedEdge,
@@ -359,9 +380,10 @@ private fun gTurboStandardColours(): ColourScheme = darkColourScheme(
  * The answer is in the standard palette already. `success`, `warning` and `info`
  * are each a **light solid with the near-black ground as their label**, and each
  * clears both thresholds with room (15.10, 10.49, 11.64 — the same figure twice,
- * because `onSolid = Ground` makes the two ratios the same measurement). The red
- * is the only tone drawn the other way round, and the salmon the design already
- * uses "wherever red has to be read" is 11.59:1 on the ground.
+ * because `onSolid = Ground` makes the two ratios the same measurement). The
+ * standard tier's accent is drawn that way too now, as [RedReadable], but at
+ * 4.68:1 on a raised card it is still well short of 7; the salmon the design
+ * already uses "wherever red has to be read" is 11.59:1 on the ground.
  *
  * So the enhanced tier **promotes the salmon from text colour to accent**, and
  * the red becomes what `brand` is for. The accent stops being the outlier and
