@@ -11,6 +11,7 @@ import io.kontour.ui.nav3.detailPane
 import io.kontour.ui.nav3.listPane
 import io.kontour.ui.nav3.mainPane
 import io.kontour.ui.nav3.rememberListDetailSceneStrategy
+import io.kontour.ui.nav3.rememberPageTransitionStrategy
 import io.kontour.ui.nav3.rememberSupportingPaneSceneStrategy
 import io.kontour.ui.nav3.supportingPane
 
@@ -61,6 +62,28 @@ fun SupportingPaneSceneStrategyBasics() {
                 }
             }
             entry<Conditions>(metadata = supportingPane()) { Text("24 °C, dry") }
+        },
+    )
+}
+
+@Composable
+fun PageTransitionStrategyBasics() {
+    val backStack = remember { mutableStateListOf<Any>(StopList) }
+
+    NavDisplay(
+        backStack = backStack,
+        onBack = { backStack.removeLastOrNull() },
+        sceneStrategies = listOf(rememberListDetailSceneStrategy()),
+        // Every page pushes, pops and follows a back gesture the way its
+        // platform's do: predictive back on Android, swipe back on iOS.
+        sceneDecoratorStrategies = listOf(rememberPageTransitionStrategy()),
+        entryProvider = entryProvider {
+            entry<StopList>(metadata = listPane()) {
+                ListGroup {
+                    item(label = "Perth Underground", onClick = { backStack += StopDetail("Perth Underground") })
+                }
+            }
+            entry<StopDetail>(metadata = detailPane()) { stop -> Text(stop.name) }
         },
     )
 }

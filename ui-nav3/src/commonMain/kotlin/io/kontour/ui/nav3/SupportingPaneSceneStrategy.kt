@@ -1,5 +1,7 @@
 package io.kontour.ui.nav3
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -8,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.scene.OverlayScene
 import androidx.navigation3.scene.Scene
@@ -168,7 +171,14 @@ internal class SupportingPaneScene<T : Any>(
         // swaps its body, so a held one runs the new scene's.
         val leaving = remember { mutableStateOf<NavEntry<T>?>(null) }
         if (supporting != null) leaving.value = supporting
-        val pane: @Composable () -> Unit = { leaving.value?.Content() }
+        // The pane follows a back gesture towards its edge, then closes the way
+        // it always has, from the pose the hand left it in; opening again
+        // starts from rest.
+        val back = rememberSceneBack(enabled = supporting != null, runOut = false, onBack = onBack)
+        LaunchedEffect(supporting != null) { if (supporting != null) back.reset() }
+        val pane: @Composable () -> Unit = {
+            Box(Modifier.fillMaxSize().paneBackMotion(back)) { leaving.value?.Content() }
+        }
 
         SupportingPaneScaffold(
             main = { main.Content() },

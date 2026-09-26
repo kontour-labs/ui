@@ -1,7 +1,10 @@
 package io.kontour.ui.nav3
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.scene.SceneStrategy
@@ -161,13 +164,21 @@ internal class ListDetailScene<T : Any>(
     override val entries: List<NavEntry<T>> = listOfNotNull(list, detail)
 
     override val content: @Composable () -> Unit = {
+        // Back from a detail stays inside the detail pane: the list does not
+        // move, and the key of this scene does not change, so `NavDisplay`
+        // would not animate it. The scene answers first while it has a detail.
+        val back = rememberSceneBack(enabled = detail != null, onBack = onBack)
         ListDetailPaneScaffold(
             // Irrelevant on two panes, which is the only way this scene exists;
             // stated so the reader does not have to know that.
             focus = if (detail == null) PaneFocus.List else PaneFocus.Detail,
             onBack = onBack,
             list = { list.Content() },
-            detail = { detail?.Content() ?: placeholder?.invoke() },
+            detail = {
+                Box(Modifier.fillMaxSize().paneBackMotion(back)) {
+                    detail?.Content() ?: placeholder?.invoke()
+                }
+            },
             twoPane = true,
             listWeight = layout.weight,
             resizable = layout.resizable,

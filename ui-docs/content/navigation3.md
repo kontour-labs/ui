@@ -105,10 +105,11 @@ push the helper to open it. On a wide window it arrives beside the main content,
 in the same scene — the main pane does not move. On a narrow one it rises in a
 sheet over the page, and the page underneath stays exactly as it was.
 
-**Both ways out pop exactly one entry.** Dragging the sheet down, or tapping the
-scrim, asks the back stack to pop; a system back pops it directly. Either way the
-sheet then finishes leaving before its content is taken away, so it slides out
-rather than vanishing.
+**Every way out pops exactly one entry.** Dragging the sheet down, tapping the
+scrim, and back — which reaches the sheet before the page, through the overlay
+host — all close the sheet, and the sheet asks the back stack to pop once it has.
+Popping the entry yourself closes it too. Either way the sheet finishes leaving
+before its content is taken away, so it slides out rather than vanishing.
 
 ---
 
@@ -129,8 +130,76 @@ to the next, and finally to Navigation 3's single pane.
 
 ---
 
+## Back, and how pages move
+
+<!--sample:PageTransitionStrategyBasics-->
+```kotlin
+val backStack = remember { mutableStateListOf<Any>(StopList) }
+
+NavDisplay(
+    backStack = backStack,
+    onBack = { backStack.removeLastOrNull() },
+    sceneStrategies = listOf(rememberListDetailSceneStrategy()),
+    // Every page pushes, pops and follows a back gesture the way its
+    // platform's do: predictive back on Android, swipe back on iOS.
+    sceneDecoratorStrategies = listOf(rememberPageTransitionStrategy()),
+    entryProvider = entryProvider {
+        entry<StopList>(metadata = listPane()) {
+            ListGroup {
+                item(label = "Perth Underground", onClick = { backStack += StopDetail("Perth Underground") })
+            }
+        }
+        entry<StopDetail>(metadata = detailPane()) { stop -> Text(stop.name) }
+    },
+)
+```
+
+`rememberPageTransitionStrategy()` goes in `sceneDecoratorStrategies`, and every
+page then moves the way its platform's pages do — `LocalBackStyle` says which:
+
+| | Push and pop | A back gesture |
+|---|---|---|
+| Android: predictive back | the shared axis, a third of the width and a fade | the page shrinks and drifts with the finger, with the display's corners, and the one beneath fades in |
+| iOS: swipe back | the new page slides over the old, which moves a third of the way and dims | the page follows the finger one to one, casting a shadow onto the one sliding in beneath it |
+
+On iOS a sideways pan from **anywhere on the page** goes back too, as it does
+from iOS 26 — not only one from the leading edge. It yields: anything on the
+page that pans sideways first, a carousel, a row's swipe actions, a slider, a
+horizontal list, keeps its pan, and only a pan that goes mostly sideways towards
+the trailing edge becomes back. `rememberPageTransitionStrategy(contentSwipe =
+false)` leaves only the edge.
+
+A page's own `NavDisplay.transitionSpec { … }` in its entry's metadata still
+wins. A `transitionSpec` passed to `NavDisplay` itself does not, for decorated
+pages, so pass one or the other.
+
+**Back goes to the innermost thing that can take it**, and it is the same order
+on every platform — the Android back gesture, iOS's edge swipe, Escape on the
+desktop and the web:
+
+1. the topmost overlay that takes back — a dialog, a sheet;
+2. a handler inside it — a stack in a sheet;
+3. a pane: the detail beside its list, or the supporting pane beside its main
+   one, which the scene closes itself, following the hand, because the scene
+   does not change and `NavDisplay` would not animate it;
+4. `NavDisplay`, which pops the page;
+5. the platform.
+
+**On Android**, the predictive animation needs
+`android:enableOnBackInvokedCallback="true"` on the application in the manifest
+on Android 13 to 15; an app targeting Android 16 has it already.
+
+---
+
 ## What is not here
 
 A third pane — Material's list-detail has an "extra" one — because the library
-has no three-pane scaffold to lay it out. Predictive back and shared-element
-transitions between panes, which are `NavDisplay`'s to add and not a layout's.
+has no three-pane scaffold to lay it out. Shared-element transitions between
+panes, which are `NavDisplay`'s to add and not a layout's.
+
+A back gesture let go finishes on the transition's own remaining curve, so the
+speed of a flick does not carry into it, and a predictive page does not follow
+the finger up and down as Material's fullest version does. Both would need
+`NavDisplay` itself to change. In two panes, a detail being dragged away
+uncovers the pane's ground rather than the detail before it, which comes up
+once the gesture is let go.

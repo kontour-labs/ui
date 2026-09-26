@@ -5,6 +5,10 @@ public final class io/kontour/ui/nav3/ListDetailSceneStrategyKt {
 	public static final fun rememberListDetailSceneStrategy (ZFZZLandroidx/compose/runtime/Composer;II)Landroidx/navigation3/scene/SceneStrategy;
 }
 
+public final class io/kontour/ui/nav3/PageTransitionStrategyKt {
+	public static final fun rememberPageTransitionStrategy (ZLandroidx/compose/runtime/Composer;II)Landroidx/navigation3/scene/SceneDecoratorStrategy;
+}
+
 public final class io/kontour/ui/nav3/SupportingPaneSceneStrategyKt {
 	public static final fun mainPane ()Ljava/util/Map;
 	public static final fun rememberSupportingPaneSceneStrategy (ZFZZLandroidx/compose/runtime/Composer;II)Landroidx/navigation3/scene/SceneStrategy;
