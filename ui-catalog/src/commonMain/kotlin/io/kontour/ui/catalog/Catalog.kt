@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AdjustmentsHorizontal
 import com.composables.icons.tabler.outline.Calendar
+import com.composables.icons.tabler.outline.DeviceMobileVibration
 import com.composables.icons.tabler.outline.Click
 import com.composables.icons.tabler.outline.Forms
 import com.composables.icons.tabler.outline.Activity
@@ -78,7 +79,7 @@ internal class Page(
 )
 
 /**
- * Every page, in order: two written by hand and eleven generated.
+ * Every page, in order: four written by hand and eleven generated.
  *
  * **The generated eleven are the point.** They used to be hand-written too — a
  * fixed list of thirteen, last changed structurally in August, while the library
@@ -90,11 +91,11 @@ internal class Page(
  * The fix is not a check that notices the drift. It is the removal of the second
  * list: a demo can only be added to `demoFamilies`, and these pages are that.
  *
- * Three survive by hand because they are not component demos and never could be:
+ * Four survive by hand because they are not component demos and never could be:
  * `About` is what the gallery is, `Tokens` is the palette, the type scale and
  * the shape ladder — the one page where a *theme* can be judged rather than a
- * component — and `Frames` is an instrument. The last of those is the newest and
- * has the sharpest reason: a full-screen generic-path clip sat under every sheet
+ * component — and `Frames` and `Haptics` are instruments. `Frames` has the
+ * sharpest reason: a full-screen generic-path clip sat under every sheet
  * in the library for three rounds of profiling because the JVM suite prices a
  * mask as pixel work and a GPU prices it as an architectural penalty. The
  * measurement had to move to the device. See [FramesPage].
@@ -114,6 +115,9 @@ internal val pages: List<Page> = listOf(
     // Not `Scrolling`: it scrolls itself, because the workload inside it is a
     // lazy list that has to be flickable on its own.
     Page("Frames", Tabler.Outline.Activity) { FramesPage(it) },
+    // Also scrolls itself, and also an instrument: the one place a haptic can be
+    // judged is a hand holding the phone. See [HapticsLab].
+    Page("Haptics", Tabler.Outline.DeviceMobileVibration) { HapticsLab(it) },
 ) + demoFamilies.map { family ->
     Page(family.name, family.icon) { modifier -> DemoFamilyPage(family, modifier) }
 }

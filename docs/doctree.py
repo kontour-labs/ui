@@ -67,7 +67,7 @@ FAMILY = {
 #
 # "The detent model" is gone from here entirely: it was a guide about one
 # family, and it now opens that family's own index at `components/sheets.md`.
-GUIDES = ("installing", "tokens", "theming", "dsls", "accessibility", "overlays", "navigation3", "components")
+GUIDES = ("installing", "tokens", "theming", "dsls", "accessibility", "overlays", "navigation3", "haptics", "components")
 
 
 # A link to a page, as these files write them: `(button.md)`, `(chip.md#tone)`.

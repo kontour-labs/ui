@@ -35,8 +35,8 @@ a `Dp` radius, or a duration. It reads `Theme.colours.surface`,
 `Theme.shapes.medium`, `Theme.motion.default`. That indirection is what makes a
 theme swappable, a contrast tier possible, and reduced motion automatic.
 
-**2. Components describe intent, not mechanism.** A button asks for
-`FeedbackIntent.Confirm`, not a haptic constant. A sheet asks for
+**2. Components describe intent, not mechanism.** A switch asks for
+`FeedbackIntent.ToggleOn`, not a haptic constant. A sheet asks for
 `Theme.motion.springGentle`, not a stiffness of 300. The platform-specific and
 preference-specific translation happens once, in one place.
 

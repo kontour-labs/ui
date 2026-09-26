@@ -260,11 +260,17 @@ reduced motion and whether the pointer can hover. Pass `pressScale = 1f` for
 anything large — a list row or a sheet should not flinch when touched; a button
 should.
 
-For haptics, ask for an *intent*, not a constant:
+For haptics, ask for an *intent*, not a constant — through the helper for its
+kind, which carries the rate limit and the guard a stream needs:
 
 ```kotlin
-Feedback.perform(FeedbackIntent.Selection)
+val tap = rememberTapFeedback()          // a press answered
+val toggled = rememberToggleFeedback()   // on, or off
+val ticker = rememberDetentTicker()      // anything continuous: ticker.at(index)
 ```
+
+A one-shot that is none of those is `feedback.perform(intent)` on
+`LocalFeedback.current`, and the build counts those calls.
 
 ---
 

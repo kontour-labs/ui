@@ -28,6 +28,12 @@ compose.desktop {
     application {
         mainClass = "io.kontour.ui.catalog.desktop.MainKt"
 
+        // A Mac's trackpad haptics are one call into AppKit through Java's
+        // foreign-function API, which warns on first use unless the app says
+        // native access is intended. Skiko's own native library is the other
+        // caller the flag quiets.
+        jvmArgs += "--enable-native-access=ALL-UNNAMED"
+
         nativeDistributions {
             targetFormats(TargetFormat.Deb)
             packageName = "Kontour UI Catalog"

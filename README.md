@@ -53,6 +53,10 @@ implementation("io.kontour:ui:0.1.0")
 implementation("io.kontour:ui-nav3:0.1.0")
 ```
 
+`io.kontour:haptics` comes with `:ui` — it plays the library's haptics — and can
+be used on its own, with no Compose in it: see
+[`haptics.md`](ui-docs/content/haptics.md).
+
 [`installing.md`](ui-docs/content/installing.md) has the whole of it: why
 `content { includeGroup }` is not tidiness but the difference between a working
 build and every dependency failing first, why a workflow in another repository
@@ -114,16 +118,18 @@ images in the docs.
           :ui:checkKdocSamples :ui-catalog:jvmTest :ui-docs:jvmTest \
           :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples \
           :ui-nav3:jvmTest :ui-nav3:checkNoMaterial \
+          :haptics:jvmTest :haptics:checkNoCompose \
           :ui:compileIosMainKotlinMetadata \
           :ui-catalog:compileIosMainKotlinMetadata \
           :ui-nav3:compileIosMainKotlinMetadata \
-          :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml
+          :haptics:compileIosMainKotlinMetadata \
+          :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml :haptics:dokkaGenerateHtml
 python3 docs/check-links.py
 python3 docs/check-components.py
 ```
 
-Fourteen gates, no emulator and no simulator. Twelve run on the JVM; the two
-`compileIosMainKotlinMetadata` tasks type-check the iOS source sets — UIKit
+No emulator and no simulator. Everything runs on the JVM except the
+`compileIosMainKotlinMetadata` tasks, which type-check the iOS source sets — UIKit
 cinterop included — from a Linux host, which is as far as this repository can
 follow a platform actual. They are here because an iOS-only defect shipped:
 `platformReportAppearance` fed its own reader, and nothing compiled the file it

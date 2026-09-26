@@ -431,7 +431,7 @@ val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
  * }
  * ```
  *
- * silently reverts the strings, resets `HapticsLevel.Off` to `Full`, and throws
+ * silently reverts the strings, resets `HapticsLevel.Off` to `Standard`, and throws
  * away a custom `spacing`, `sizing` or `motion` with them. Nothing errors and
  * nothing looks wrong until somebody reads the German build. `ProvideTokens`
  * defaults every parameter to *the value already in scope*, so an argument you

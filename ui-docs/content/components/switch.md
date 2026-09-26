@@ -125,9 +125,10 @@ travelling 45% of the way reads as strain. This track is **20dp**: the same
 ratio moves the thumb 9dp while your finger moves 20 and then jumps it at the
 midpoint, which reads as a control that is not keeping up, and then a glitch.
 
-It is also the one place in the library a switch buzzes. Crossing the midpoint
-fires `FeedbackIntent.DragThreshold` — what letting go will do has just changed,
-and nothing on screen said so first. **Tapping** a switch is still silent, and
+Crossing the midpoint fires `FeedbackIntent.DragThreshold` — what letting go
+will do has just changed, and nothing on screen said so first — and crossing
+back fires the softer `DragThresholdBack`. **Tapping** a switch reports which
+way it went, `ToggleOn` or `ToggleOff`, and the two feel different;
 [the haptics policy](../theming.md#what-the-library-buzzes-for) has the split.
 
 ---

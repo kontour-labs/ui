@@ -80,7 +80,7 @@ ProvideTokens(colours = kontourColourScheme(dark = true)) { MapScreen() }
 > re-runs its *default*, and those defaults read the platform rather than the
 > theme around them — so `KontourTheme(strings = german) { KontourTheme(darkTheme
 > = true) { … } }` puts all 47 strings back into English, resets
-> `HapticsLevel.Off` to `Full`, and discards a custom `spacing`, `sizing` or
+> `HapticsLevel.Off` to `Standard`, and discards a custom `spacing`, `sizing` or
 > `motion` on the way. Nothing errors. Nothing looks wrong until somebody reads
 > the German build.
 >
@@ -237,22 +237,51 @@ intent **nothing in the library performs**: it is the only decorative one, which
 is what a level above the default is for. Everything else a reader can feel is on
 at `Standard`.
 
-No call site needs a platform check — where a platform cannot vibrate, its
-handler is already a no-op. Nor does one need a rate limit: every intent that
-arrives in a stream shares one, so a slider's ticks and a chip's tap forty
-milliseconds later are one rattle rather than two.
+No call site needs a platform check — a device that cannot vibrate plays
+nothing. Nor does one need a rate limit: every intent that arrives in a stream
+shares one, so a slider's ticks and a chip's tap forty milliseconds later are one
+rattle rather than two.
 
-### How hard, and what each weight actually does per platform
+### What plays them
 
-An intent says what *happened*. A **feel** says how much of the hand that is
-worth, and it is the second half of the vocabulary — added because it was missing
-and the absence was reported from a phone: *"all the haptics feel heavy, there
-doesn't seem to be the concept of a soft interaction for anything"*.
+**The [`:haptics`](haptics.md) module.** The theme's dispatcher looks each intent
+up in one table, `FeedbackIntent.defaultEffect`, and plays that effect on a
+player the module makes for the platform: Android's composition primitives on a
+phone that has them — tuned by the phone's maker for its own actuator, at any
+strength — and its feedback constants on one that does not; UIKit's feedback
+generators on an iPhone, with Core Haptics for the rumble; the Vibration API in
+a browser; a Mac's Force Touch trackpad on the desktop. What an interaction gets
+is decided here, and how a platform plays it is decided there.
 
-Five feels. Three of them are one pulse of increasing weight and are declared
-lightest first; two are rhythms and are not on that scale, which is why the type
-is `FeedbackFeel` and not `FeedbackWeight` — asking whether `Danger` is heavier
-than `Heavy` has no answer.
+| Intent | Effect | What it is |
+|---|---|---|
+| `Tick` | `Selection(fine = true)` | The lightest selection tick — a texture going past. |
+| `Snap` | `Selection()` | A notch firmer: a resting place. |
+| `Tap` | `Impact(Light)` | A light impact — a control answering a press. |
+| `ToggleOn` / `ToggleOff` | `Toggle(on = true)` / `Toggle(on = false)` | A crisp tick on, a low one off. |
+| `DragThreshold` / `DragThresholdBack` | `Threshold(activate = true)` / `Threshold(activate = false)` | In, and the softer way back out. |
+| `Limit` | `Thud(0.6)` | A dull knock against a wall. |
+| `LongPress` | `LongPress()` | The platform's own long press. |
+| `Hold` | a rumble, from 15% to 45%, at 20% sharpness | Faint and building; see `FeedbackDispatcher.sustain`. |
+| `GestureEnd` | `Impact(Soft, 0.6)` | A soft landing. |
+| `Confirm` / `Warn` / `Reject` | `Notification(Success / Warning / Error)` | The platform's own three — iOS has a warning of its own, which `Warn` and `Reject` sharing one constant could not reach. |
+| `Selection`, `KeyPress` | `Selection()`, `KeyPress()` | Performed by nothing in the library. |
+
+Every strength is a starting point set by feel, and the catalog's **Haptics**
+page is where to feel them: it plays each intent the way the components do, each
+effect at any strength, a rumble with live controls, and a tuner that rewrites
+this table in place and prints the result as Kotlin.
+
+**`LocalHaptics` replaces the player** for a subtree — a `RecordingHaptics` in a
+test, to read back what a gesture played, or `Haptics.None` for screenshots.
+Replacing `LocalFeedback` still replaces the whole mapping.
+
+Five feels remain as the policy in words. Three of them are one pulse of
+increasing weight and are declared lightest first; two are rhythms and are not on
+that scale, which is why the type is `FeedbackFeel` and not `FeedbackWeight` —
+asking whether `Danger` is heavier than `Heavy` has no answer. The theme's own
+dispatcher plays effects rather than feels; a dispatcher of your own that wants
+only a weight can still ask `FeedbackIntent.feel` for one.
 
 | Feel | Which intents | What it is |
 |---|---|---|
@@ -262,75 +291,36 @@ than `Heavy` has no answer.
 | `Success` | `Confirm` | It worked. |
 | `Danger` | `Reject`, `Warn` | It was refused, or it is about to be irreversible. |
 
-`FeedbackIntent.feel` is public, and it is the whole of the policy: one `when`, in
-common, the same on every platform. What differs per platform is only **how light
-that platform can go**, and that is a capability table:
+**Why not Compose's own `HapticFeedback`**, which this used to go through: it is
+the platform's fixed constants and nothing else. No strength — the lightest tick
+on a phone was the lightest constant, and a stream of detents on `VirtualKey`
+was a key click per row of a drum, reported as *"all the haptics feel heavy"*.
+No rumble — a hold was a tick every 70ms. The module keeps the constants for the
+phones that have nothing better, and reaches past them where a phone has.
 
-| Feel | Web | iOS | Android |
-|---|---|---|---|
-| `Light` | 0, 20ms | `selectionChanged()` — the picker tick | `SegmentTick` (**34**), else `TextHandleMove` (27) |
-| `Medium` | 0, 20ms | light impact | `VirtualKey` (5) |
-| `Heavy` | 0, 30ms | medium impact | `LongPress` (3) |
-| `Success` | 18, 32, 36ms | notification, success | `Confirm` (30), else `VirtualKey` |
-| `Danger` | 18, 28, 18, 28, 18ms | notification, error | `Reject` (30), else `LongPress` |
+**The rate** is a separate question from weight and always was: `DetentTicker`
+will not fire twice inside 80ms, which is a quarter duty cycle rather than the
+continuous buzz a flung wheel used to make. `Tap` and the toggles are thinned
+too, because three chips answering inside eighty milliseconds are one rattle to
+the hand however each press feels.
 
-**A vibration motor needs roughly 10–20ms to spin up far enough to be felt.** That
-number is why `Tick` is not on a 6ms pattern. It used to be `SegmentFrequentTick`,
-and measured on the built site with `docs/measure-web.mjs --vibration` a stepped
-slider dragged across its whole range produced `3 x [6]` — eighteen milliseconds
-of motor time for an entire gesture. The same drag now produces `3 x [0,20]`.
-
-**What that measurement did not settle is where 20ms sits.** It was a web
-measurement, and it was applied to Android wholesale. On Android `VirtualKey` is
-`EFFECT_CLICK` — a full key click, the weight a button press wants — so putting a
-stream of detents on it meant a key click per row of a drum. Two intents had
-already earned a platform seam each to work around the consequence, and below
-Android 14 both of them resolved to `VirtualKey` anyway: a two-tier vocabulary
-with a one-tier result, which is the report.
-
-The lighter constant was there the whole time and unmentioned. `TEXT_HANDLE_MOVE`
-has existed since **API 27**, one release below this library's own `minSdk`, so no
-device it runs on lacks a light tier; it resolves to a tick rather than to a
-click; and Compose exposes it as `HapticFeedbackType.TextHandleMove`. Nothing
-needed `Vibrator`, `VibrationEffect` or the `VIBRATE` manifest permission — which
-would also have bypassed the reader's own touch-feedback setting, and a UI library
-must not do that for a tick.
-
-**iOS had the same defect from the other direction.** `SegmentTick` and
-`SegmentFrequentTick` are the *same* `selectionChanged()` generator there, and a
-press claimed to be "the lightest thing the device can do", so a checkbox and a
-row of a drum felt identical. A press is `Medium` now and routes to a light
-impact, with `LongPress`'s medium impact above it: three rungs, on the platform
-that has the most to say.
-
-**On the web there are two felt weights, not three.** Below 20ms the single
-pulses are 12ms and 6ms; 6ms is the silence the measurement was about and **12ms
-has never been measured either way**, so `Light` and `Medium` are both the 20ms
-pulse and this table says so rather than implying a scale the platform has not
-been shown to have. `docs/measure-web.mjs --vibration` is what would settle it.
-
-The **rate** limit is a separate question from weight and always was. A component
-that wants a *finer* tick — the wheel picker, spinning past a row every few
-milliseconds — now does get a lighter feel, and it still gets the same rate floor
-on top: `DetentTicker` will not fire twice inside 80ms, which is a quarter duty
-cycle rather than the continuous buzz that was reported. Note that `Tap` is
-`Medium` and is thinned all the same, because three chips answering inside eighty
-milliseconds are one rattle to the hand whatever each press weighs — the floor
-asks about rate, and this section asks about weight.
+**`android.permission.VIBRATE`** is now declared by the module and merged into
+an app. It is a normal permission — granted at install, never prompted for —
+and it is what the primitives and the rumble need. They are played as touch
+feedback, so the system's touch-vibration setting and intensity reach them. An
+app that removes the permission (`tools:node="remove"`) gets the system's
+feedback constants instead, which need none.
 
 **Where haptics do not happen at all**, written down so it is not re-reported as
 a bug:
 
-- **iOS Safari** has no Vibration API. On an iPhone in mobile web there are no
-  haptics whatever the mapping says. Native iOS is unaffected.
-- **Desktop**, all of it. There is no motor, and the handler returns immediately.
-- **Android 13 and below** for a destructive alert's `Warn` was the last gap of
-  this kind, and the fallbacks in the table above close it: `Confirm` and `Reject`
-  are API-30 constants against a `minSdk` of 29, so on that one release they fall
-  back to the nearest weight rather than to silence. `DragThreshold` used to be
-  the named gap here — it was on an API-34 constant, so a pull-to-refresh
-  threshold was silent on Android 13 and below. It is `Medium` now and answers on
-  every supported release.
+- **Safari**, on any device, has no Vibration API. An iPhone in mobile web plays
+  nothing; native iOS is unaffected.
+- **An iPad** has no Taptic Engine.
+- **Windows and Linux desktops.** A Mac answers through a Force Touch trackpad,
+  on Java 22 or later, and only while a finger is on it.
+- **A browser before the first touch.** Chrome ignores vibration until the
+  reader has interacted with the page.
 
 ### What the library buzzes for
 
@@ -392,9 +382,9 @@ confirmation when the action ran, and a settle when the row came back. A
 `WheelPicker` fired the moment it was composed, before anything touched it, so
 opening a `TimePicker` was three buzzes for arriving at a screen.
 
-**Nine sites are left, and the light tier that has just been added took none of
-them.** That is the part worth understanding, because the obvious reading of
-"twelve components now acknowledge a press" is that the audit has been undone.
+**Ten sites are left, for thirty components.** That is the part worth
+understanding, because the obvious reading of "every control now acknowledges a
+press, and on and off feel different" is that the audit has been undone.
 
 Two shared seams do the work. `DetentTicker` is one call site for every snapping
 component in the library — the sheet's detents, the carousel's pages, the
@@ -406,9 +396,12 @@ construction rather than by each caller remembering it.
 
 The switch's own site went with the move: it performed `DragThreshold` directly
 and now goes through the ticker, which is what left room for the tap helper
-without the ceiling rising. Net zero at the time; the count the build checks has
-since gone to nine, when `SwipeActions`' point of no return moved onto the ticker
-as well — a threshold is a detent with two sides.
+without the ceiling rising. The count went to nine when `SwipeActions`' point of
+no return moved onto the ticker as well — a threshold is a detent with two sides
+— and to ten when a hold became a rumble, because a *sustained* haptic is a call
+site too. The effects audit after it added a toggle helper and a swipe's
+confirmation, and paid for both by moving `PullToRefresh` and a reorder's
+crossings onto the ticker: ten, still.
 
 The rule that removed the original forty-seven is the two-tier one above, and what
 holds the line is a count rather than a review: the build fails if the number goes
@@ -425,32 +418,32 @@ removal is the row it is on.
 
 | Component | Fired | Now | Why |
 |---|---|---|---|
-| `Slider` | `Tick` on press, `Tick` per step dragged, `GestureEnd` on release | `Tick` per step **dragged**, `DragThreshold` on running into either end | A tap sets a value without travelling, so it crosses no detent. The release crosses nothing either. The end stop was added, removed and added back — see above. |
-| `RangeSlider` | The same three | `Tick` per step dragged, `DragThreshold` at either end of the track | Same rule, same component, two handles. Running into the *other* thumb is not reported: the shove is already visible in the reach the thumbs deform by, and the other thumb is not the end of anything. |
-| `Knob` | — | `Tick` per step turned **or spun past**, `DragThreshold` on running into either end | New, and built to the slider's rule from the start. A spin after a flick is still the user's gesture carrying on, so its steps tick; keys and assistive actions set a value without travelling and are silent. |
+| `Slider` | `Tick` on press, `Tick` per step dragged, `GestureEnd` on release | `Tick` per step **dragged**, `Limit` on running into either end | A tap sets a value without travelling, so it crosses no detent. The release crosses nothing either. The end stop was added, removed and added back — see above — and is a dull knock rather than a click now: a wall is not a choice. |
+| `RangeSlider` | The same three | `Tick` per step dragged, `Limit` at either end of the track | Same rule, same component, two handles. Running into the *other* thumb is not reported: the shove is already visible in the reach the thumbs deform by, and the other thumb is not the end of anything. |
+| `Knob` | — | `Tick` per step turned **or spun past**, `Limit` on running into either end | Built to the slider's rule from the start. A spin after a flick is still the user's gesture carrying on, so its steps tick; keys and assistive actions set a value without travelling and are silent. |
 | `WheelPicker` | `Tick` on composition, `Tick` per row, `Tick` through a caller's spring | `Tick` per row | `snapshotFlow` emits its current value first, so every wheel buzzed on arrival — three for a `TimePicker`, before the screen had finished appearing. A `Reject` at the first or last value came and went: it was the best argued of the end stops, because a drum really is turned without being looked at, and it was still one report at the end of a sequence that had been reporting every row on the way. |
-| `SegmentedControl` | `Selection` on tap, `GestureEnd` on release | `Tick` per segment **crossed**, `Tap` on a change | A thumb sliding past a segment is a detent, and both tiers are honestly present here: the drag reports crossings and a press reports that the control took it. What went is the `GestureEnd` — the thumb arriving is a thing the eye is on. |
-| `TabBar` | `Selection` on tap ×2 | `Tick` per tab crossed by a **swipe** | Same distinction. Tapping a tab is watched; swiping past one is not. |
-| `ReorderableItem` | `LongPress`, `GestureEnd` on drop | `LongPress` (touch only), `Selection` per position change, `Tick` on drop | The position changes are the news, once per gap crossed. The drop is lighter than they are, and the long press no longer fires on the mouse-and-handle path, where there is no threshold to announce. |
-| `PullToRefresh` | `DragThreshold` | `DragThreshold` | Kept whole: it is the one moment that says letting go will do something. |
-| `SwipeActions` | `Tick` per action width, `DragThreshold`, `Confirm` on run, `GestureEnd` on settle | `DragThreshold` at the point of no return, and again backing off it | Four intents across one swipe. `actionWidth` is arithmetic, not an anchor. What is left is the line past which letting go runs the action, reported through `DetentTicker` as a two-sided threshold, so a row moved in code with `animateTo` is silent. |
-| `Switch` | `Selection` on tap, and on the crossing, and on release | `Tap` on a tap, `DragThreshold` on the **crossing** of a drag | Two gestures, two different reports, and the switch is the only component that gives both. The drag's is the interesting one: it commits as the thumb goes over the midpoint, so what letting go will do changes under the finger with nothing on screen having said so. The tap's came back after the silence was reported as the control reading dead next to a checkbox that answers — and it goes through the ticker now rather than performing directly, which is a midpoint being a two-sided threshold and is what paid for the tap helper's site. |
-| `BottomSheet` | — | `Tick` per detent **dragged** across | The one the audit left open on purpose. `targetDetent` is the right signal and changes the instant a drag passes the threshold, but nothing told that apart from the same field changing because code called `animateTo` — and a sheet that buzzes when it is opened programmatically is worse than one that is silent. `SheetState.draggedByHand` is that distinction, taken from the drag's own interaction source. Costs nothing against the ceiling: it goes through `DetentTicker` like every other detent. |
-| `Carousel` | — | `Tick` per page crossed **under a finger** | A carousel's pages are detents in the strictest sense: the card snaps to one and rests there, and the eye is on the card rather than on a counter. What it must not report is a page reached any other way — the accessibility actions, the indicator's dots and an autoplay all call `scrollToPage`, and a carousel that buzzes when a dot is clicked is buzzing for something the reader is already watching. The drag signal comes from the list's own interaction source, plus the pointer drag's, which does not go through the list at all. |
-| `Toast` | — | `DragThreshold` as the swipe passes its dismiss point | One report, at the one moment in the gesture that has a consequence. The threshold is *derived from the release's own condition* rather than set beside it — one expression decides the buzz and the dismissal — which is the mistake `SwipeActions` shipped and then fixed. Also free against the ceiling: a threshold is a detent with two sides, so it goes through the same ticker with an index of 0 or 1. |
+| `SegmentedControl` | `Selection` on tap, `GestureEnd` on release | `Snap` per segment **crossed**, `Tap` on a change | A thumb sliding past a segment is a resting place passed — a few large steps, so a `Snap` rather than a detent's `Tick` — and a press reports that the control took it. What went is the `GestureEnd`: the thumb arriving is a thing the eye is on. |
+| `TabBar` | `Selection` on tap ×2 | `Snap` per tab crossed by a **swipe** | Same distinction. Tapping a tab is watched; swiping past one is not. |
+| `ReorderableItem` | `LongPress`, `GestureEnd` on drop | `LongPress` (touch only), `Snap` per position change, a soft `GestureEnd` on drop | The position changes are the news, once per gap crossed, through the ticker with an index that only goes up. The drop is a soft landing after them, and the long press does not fire on the mouse-and-handle path, where there is no threshold to announce. |
+| `PullToRefresh` | `DragThreshold` | `DragThreshold`, and `DragThresholdBack` backing off | The one moment that says letting go will do something, and the softer one that says it no longer will. Letting go past it is neither: the indicator going home is the refresh starting. |
+| `SwipeActions` | `Tick` per action width, `DragThreshold`, `Confirm` on run, `GestureEnd` on settle | `DragThreshold` at the point of no return, `DragThresholdBack` backing off it, `Confirm` as the drawn tick completes | Four intents across one swipe became the line past which letting go runs the action, reported through `DetentTicker` as a two-sided threshold. The confirmation came back as the one thing the eye and the hand should both get: a full swipe let go of, done — and only for a release, so a row moved in code is silent. |
+| `Switch` | `Selection` on tap, and on the crossing, and on release | `ToggleOn` / `ToggleOff` on a tap, `DragThreshold` / `DragThresholdBack` on the **crossing** of a drag | Two gestures, two different reports. The drag's commits as the thumb goes over the midpoint, so what letting go will do changes under the finger with nothing on screen having said so; the tap's came back after the silence was reported as the control reading dead next to a checkbox that answers. On and off feel different, both ways. |
+| `BottomSheet` | — | `Snap` per detent **dragged** across | `targetDetent` is the right signal and changes the instant a drag passes the threshold, but nothing told that apart from the same field changing because code called `animateTo` — and a sheet that buzzes when it is opened programmatically is worse than one that is silent. `SheetState.draggedByHand` is that distinction, taken from the drag's own interaction source. |
+| `Carousel` | — | `Snap` per page crossed **under a finger** | A carousel's pages are resting places in the strictest sense: the card snaps to one and rests there, and the eye is on the card rather than on a counter. What it must not report is a page reached any other way — the accessibility actions, the indicator's dots and an autoplay all call `scrollToPage`. |
+| `Toast` | — | `DragThreshold` as the swipe passes its dismiss point, `DragThresholdBack` coming back | One report at the one moment in the gesture that has a consequence, and the softer one undoing it. The threshold is *derived from the release's own condition* rather than set beside it — one expression decides the buzz and the dismissal. |
 | `AlertDialog` | — | `Warn`, for a destructive alert | The one addition, and the only haptic that fires for something that has **not** happened yet. Opt-out; inert on a non-destructive alert however it is set. |
 | `Menu`, `Tooltip` | `LongPress` | `LongPress` | The press has been held long enough to mean something and nothing visible has happened yet. |
 | `Menu` item | `Selection` | — | A menu item is a button. |
 | `Rating` | `Selection` per star, `GestureEnd`, one more on tap | `Tap` per mark **taken** | Five marks on one continuous track. Nothing rests between them, so this is not a detent and never was — the report's words were "there's no real detents here". What the silence missed is that a drag is how the value gets *chosen*: every mark the thumb passes is a value taken, and a control you set without looking is one whose mark is small enough to miss. Once per value, not once per frame, which is the guard the drag already had for the callback. |
 | `Stepper` | `Tick` ×2 | `Tap` on each button | Not `Tick`: nothing snaps, and `FeedbackIntent.Tick`'s own doc naming a stepper as its case was the doc being wrong rather than the component. A `Tap` is the right tier — it acknowledges the press and drops at `Reduced` — and it is what a stepper held down to run a number up wants, since the shared floor thins a held repeat to a rate a hand can tell apart. |
-| `Checkbox`, `RadioButton`, `Chip`, `ColourSwatchPicker` | `Selection`, part of 11 sites | `Tap` | The controls the tap tier is *for*: a value that changes in a mark a few millimetres across, which is exactly the thing a reader can look away from and miss. Eleven direct `Selection` calls became four `tap()` calls behind one site. |
-| `SelectionRow`, `Select` | `Selection`, the rest of those 11 | — | A row and a field. Both answer with a layout change big enough to see without being told. |
+| `Checkbox`, `RadioButton`, `Chip`, `ColourSwatchPicker` | `Selection`, part of 11 sites | `ToggleOn` / `ToggleOff` for a checkbox and a filter chip, `Tap` for a radio (on a change) and a swatch | The controls the press tier is *for*: a value that changes in a mark a few millimetres across. A toggle reports which way it went; a radio pressed on the choice already made says nothing, because nothing happened. |
+| `SelectionRow`, `Select` | `Selection`, the rest of those 11 | `SelectionRow`: what its control would; `Select`: — | A row answers for the control in it, which — handed a null callback — stays silent. It used to be silent too, so a checkbox in a settings row said nothing that the same checkbox alone said. A select is a field, and answers with a layout change big enough to see. |
 | `IconButton`, `FloatingActionButton` | `Selection` ×2, `Confirm` ×3 | — | A button press is the least surprising thing a screen does. |
 | `Accordion`, `CalendarMonth` | `Selection`, part of 5 sites | `Tap` | Disclosure and a date cell. A cell in a month grid is the smallest target the library has, and a panel opening beneath the fold is a press whose answer is off screen. |
 | `ListItem`, `TimePicker` | `Selection`, the rest of those 5 | — | A row navigates, and a `TimePicker` is three `WheelPicker`s that report their own detents and their own ends. A fourth report over the top would be the same news twice. |
 | `Breadcrumbs`, `NavDrawer`, `NavExpansion`, `NavItemContent`, `Pagination` | `Selection`, 6 sites | — | Navigation. The screen changing is the feedback. |
 | `ExpandingListItem` | `Selection` | `Tap` | Same case as the accordion, in a list. |
-| `ColourPicker` | — | `Tick` per palette cell, one at a spectrum edge or a track end | Three surfaces and two kinds of report. The palette's cells are detents in the strictest sense — the colour visibly steps — and the spectrum and the hue and opacity tracks have edges a finger can lean on with nothing to show it has. The spectrum's two axes give four walls, packed into one index so that a corner reached from an edge reports the second wall as well as the first. |
+| `ColourPicker` | — | `Tick` per palette cell, `Limit` at a hue or opacity track's end | The palette's cells are detents in the strictest sense — the colour visibly steps — and the tracks have ends a finger can lean on with nothing to show it has. The spectrum square reports nothing: it has no detents, and its edges are where the eye already is. |
 | `AnimatedCounter` | — | `Tap` on a value going **down** | One direction only. A number that rises is news a reader can take at their leisure; one that falls is a seat count or a time remaining they may be about to act on, and it is the case `warnBefore` exists for. Fires whether or not there is a warning to hold it and whether or not motion is reduced — a reader who asked for less movement is the one the drop is quietest for. |
 | `PaneScaffold` | `DragThreshold`, `GestureEnd` | — | A pane divider dragged with a mouse on a wide screen, which is the one input that cannot feel a haptic at all. |
 
@@ -469,10 +462,9 @@ likely to be argued with:
   value without travelling, so the tick is gated on the drag. The step index is
   still recorded, or the first pixel of a drag would tick for the step the thumb
   is already on.
-- **A drop is lighter than the reorders it follows.** `ReorderableItem` reports
-  each position change with `Selection` and the drop with `Tick` —
-  `SegmentTick` against `SegmentFrequentTick`. The news already happened, once
-  per gap the row crossed.
+- **A drop is softer than the reorders it follows.** `ReorderableItem` reports
+  each position change with a `Snap` and the drop with a soft `GestureEnd`. The
+  news already happened, once per gap the row crossed.
 
 ### Adding your own
 
@@ -513,12 +505,13 @@ It fires on the index *changing*, not on where it is, and it holds a floor of
 80ms between reports — the number of an infinite wheel picker flung fast enough
 to cross a row every 8ms, which is where "less punchy" was reported from.
 
-**A threshold is a detent with two sides.** Pass `FeedbackIntent.DragThreshold`
-and an index of 0 or 1, and you get one report as the drag passes the point
-where letting go would do something, and one more if it comes back:
+**A threshold is a detent with two sides.** Pass `FeedbackIntent.DragThreshold`,
+its softer way back, and an index of 0 or 1, and you get one report as the drag
+passes the point where letting go would do something, and a softer one if it
+comes back:
 
 ```kotlin
-val latch = rememberDetentTicker(FeedbackIntent.DragThreshold)
+val latch = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
 
 latch.at(if (past) 1 else 0)
 ```
@@ -526,6 +519,34 @@ latch.at(if (past) 1 else 0)
 That is the same mechanism rather than an analogy for it, and it is what `Toast`
 uses. Deriving `past` from the *same expression* the release acts on is the part
 worth copying: written twice, the buzz and the commit drift apart.
+
+**A toggle** reports which way it went, rate-limited like a tap:
+
+```kotlin
+val toggled = rememberToggleFeedback()
+
+Switch(checked = on, onCheckedChange = { toggled(it); on = it })
+```
+
+**A hold** — keep holding and something will happen — is *sustained* rather than
+performed: a faint rumble that follows the hold's progress and is stopped when
+it ends, or when the component leaves the composition.
+
+```kotlin
+val hold = rememberHoldFeedback()
+
+hold.start()
+try {
+    progress.animateTo(1f) { hold.progress(value) }
+} finally {
+    hold.stop()
+}
+```
+
+**An effect of your own**, outside the intents, is the `:haptics` module's:
+`rememberHaptics()` is the player the theme plays through, and
+`HapticEffect`s play on it directly — no level applies, so this is for a screen
+about haptics rather than for a component.
 
 **Replacing the dispatcher entirely** is the other direction, and
 `FeedbackDispatcher` is a `fun interface` — provide your own through
