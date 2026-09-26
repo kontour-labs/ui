@@ -1,5 +1,6 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import io.kontour.ui.components.text.TextField
@@ -77,8 +78,7 @@ fun TextAreaBasics() {
         state = note,
         label = "What went wrong?",
         placeholder = "The 950 didn't turn up",
-        minLines = 3,
-        maxLines = 8,
+        lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 8),
     )
 }
 

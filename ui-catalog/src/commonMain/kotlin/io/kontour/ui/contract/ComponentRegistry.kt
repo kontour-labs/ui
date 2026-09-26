@@ -806,7 +806,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         contentDescription = "Adults",
                         animateValue = true,
                         modifier = modifier,
-                        range = 1..9,
+                        valueRange = 1..9,
                     )
                 },
             ),
@@ -817,7 +817,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 contentDescription = "Adults",
                 modifier = modifier,
                 enabled = enabled,
-                range = 1..9,
+                valueRange = 1..9,
             )
         }
     )
@@ -947,7 +947,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     "b" to listOf("a"),
                     "a" to emptyList(),
                 ),
-                id = { it.first },
+                key = { it.first },
                 parents = { it.second },
                 modifier = modifier,
             ) { commit ->

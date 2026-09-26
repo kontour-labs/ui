@@ -203,7 +203,7 @@ class IdleAnimationTest {
     private fun history(progress: BranchProgress?) {
         BranchTimeline(
             items = listOf("b" to listOf("a"), "a" to emptyList()),
-            id = { it.first },
+            key = { it.first },
             parents = { it.second },
             progress = progress,
         ) { commit -> item { +commit.first } }

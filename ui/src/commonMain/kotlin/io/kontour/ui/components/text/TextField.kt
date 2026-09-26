@@ -272,12 +272,19 @@ fun TextField(
  * A multi-line text field that grows with its content.
  *
  * ```kotlin
- * TextArea(state = feedback, label = "What went wrong?", minLines = 3, maxLines = 8)
+ * TextArea(
+ *     state = feedback,
+ *     label = "What went wrong?",
+ *     lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 8),
+ * )
  * ```
  *
- * Growing between [minLines] and [maxLines] and then scrolling internally beats
- * a fixed height in both directions: a short answer does not sit in a mostly
- * empty box, and a long one does not push the submit button off screen.
+ * Growing between the [lineLimits] and then scrolling internally beats a fixed
+ * height in both directions: a short answer does not sit in a mostly empty box,
+ * and a long one does not push the submit button off screen.
+ *
+ * @param lineLimits The same `TextFieldLineLimits` a [TextField] takes, held to
+ *   the multi-line kind: three lines to start with, growing to eight.
  */
 @Composable
 fun TextArea(
@@ -289,8 +296,7 @@ fun TextArea(
     placeholder: String? = null,
     supporting: String? = null,
     errorMessage: String? = null,
-    minLines: Int = 3,
-    maxLines: Int = 8,
+    lineLimits: TextFieldLineLimits.MultiLine = TextAreaDefaults.LineLimits,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
     inputTransformation: InputTransformation? = null,
     interactionSource: MutableInteractionSource? = null,
@@ -307,10 +313,14 @@ fun TextArea(
         variant = variant,
         imeAction = ImeAction.Default,
         inputTransformation = inputTransformation,
-        lineLimits = TextFieldLineLimits.MultiLine(
-            minHeightInLines = minLines,
-            maxHeightInLines = maxLines,
-        ),
+        lineLimits = lineLimits,
         interactionSource = interactionSource,
     )
+}
+
+/** What a [TextArea] takes by default. */
+object TextAreaDefaults {
+    /** Three lines to start with, growing to eight before it scrolls. */
+    val LineLimits: TextFieldLineLimits.MultiLine =
+        TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 8)
 }

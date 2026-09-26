@@ -9,6 +9,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,7 +57,7 @@ class TextToolbarAction(
  *
  * Defaulted from [io.kontour.ui.theme.Strings] rather than from literals, so an
  * app that has already told the theme its words does not have to tell this as
- * well. Construct it inside composition — [textToolbarLabels] — or pass every
+ * well. Construct it inside composition — [TextToolbarDefaults.labels] — or pass every
  * field.
  */
 @Immutable
@@ -68,17 +69,17 @@ data class TextToolbarLabels(
     val more: String,
 )
 
-/** [TextToolbarLabels] taking the theme's words. */
-@Composable
-fun textToolbarLabels(
-    copy: String = Theme.strings.copy,
-    cut: String = Theme.strings.cut,
-    paste: String = Theme.strings.paste,
-    selectAll: String = Theme.strings.selectAll,
-    more: String = Theme.strings.more,
-): TextToolbarLabels = TextToolbarLabels(copy, cut, paste, selectAll, more)
-
 object TextToolbarDefaults {
+    /** [TextToolbarLabels] taking the theme's words, any of which can be replaced. */
+    @Composable
+    @ReadOnlyComposable
+    fun labels(
+        copy: String = Theme.strings.copy,
+        cut: String = Theme.strings.cut,
+        paste: String = Theme.strings.paste,
+        selectAll: String = Theme.strings.selectAll,
+        more: String = Theme.strings.more,
+    ): TextToolbarLabels = TextToolbarLabels(copy, cut, paste, selectAll, more)
     /**
      * How many items go in the bar before the rest go behind "More".
      *
@@ -171,7 +172,7 @@ object TextToolbarDefaults {
 @Composable
 fun TextSelectionToolbar(
     actions: List<TextToolbarAction> = emptyList(),
-    labels: TextToolbarLabels = textToolbarLabels(),
+    labels: TextToolbarLabels = TextToolbarDefaults.labels(),
     content: @Composable () -> Unit,
 ) {
     if (actions.isEmpty() && platformHasSystemTextToolbar) {
@@ -225,7 +226,7 @@ internal fun DefaultTextSelectionToolbar(content: @Composable () -> Unit) {
         content()
         return
     }
-    InstalledTextToolbar(actions = emptyList(), labels = textToolbarLabels(), content = content)
+    InstalledTextToolbar(actions = emptyList(), labels = TextToolbarDefaults.labels(), content = content)
 }
 
 /**

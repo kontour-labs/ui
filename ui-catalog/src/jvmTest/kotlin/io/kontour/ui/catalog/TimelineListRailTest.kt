@@ -13,7 +13,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.TimelineList
 import io.kontour.ui.components.display.TimelineDefaults
-import io.kontour.ui.components.display.TimelineListDefaults
 import io.kontour.ui.components.display.TimelineListScope
 import io.kontour.ui.components.display.TimelineListStyle
 import io.kontour.ui.foundation.Text
@@ -200,7 +199,7 @@ class TimelineListRailTest {
 
     @Composable
     private fun RecordRail() {
-        railPx = ((Theme.spacing.xs + TimelineListDefaults.GutterWidth / 2).value * 2).toInt()
+        railPx = ((Theme.spacing.xs + TimelineDefaults.GutterWidth / 2).value * 2).toInt()
     }
 
     private fun railX(image: BufferedImage, direction: LayoutDirection): Int =

@@ -395,24 +395,30 @@ object KnobDefaults {
     /** Three quarters of a turn, open at the bottom, as on a gauge. */
     val SweepAngle: Float get() = KnobSweep
 
-    /** The theme's colours for a knob: a raised face with a notch, over a track. */
+    /**
+     * The theme's colours for a knob: a raised face with a notch, over a track.
+     *
+     * Named for the [DialColours] fields they fill, as `GaugeDefaults.colours`'
+     * are: the [thumb] is the knob's face, [thumbRing] its rim, and the [needle]
+     * the notch cut into it.
+     */
     @Composable
     @ReadOnlyComposable
     fun colours(
         indicator: ScaleColours = ScaleColours.solid(Theme.colours.primary),
         track: Color = Theme.colours.surfaceSunken,
         tick: Color = Theme.colours.outline,
-        face: Color = Theme.colours.surfaceRaised,
-        faceRing: Color = Theme.colours.outline,
-        notch: Color = Theme.colours.content,
+        thumb: Color = Theme.colours.surfaceRaised,
+        thumbRing: Color = Theme.colours.outline,
+        needle: Color = Theme.colours.content,
     ): DialColours = DialColours(
         indicator = indicator,
         track = track,
         tick = tick,
         tickLabel = Theme.colours.contentMuted,
-        needle = notch,
-        thumb = face,
-        thumbRing = faceRing,
+        needle = needle,
+        thumb = thumb,
+        thumbRing = thumbRing,
     )
 }
 

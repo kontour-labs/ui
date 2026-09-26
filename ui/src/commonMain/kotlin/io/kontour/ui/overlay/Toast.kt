@@ -576,7 +576,7 @@ object ToastDefaults {
  *   still waiting for room simply never appears — there is nothing to animate
  *   away, and a confirmation of something the user did ten seconds ago is not
  *   worth showing late.
- * @param showClose Puts a close control on every toast. Off by default, because
+ * @param showDismiss Puts a close control on every toast. Off by default, because
  *   a toast that dismisses itself in four seconds does not need one — turn it on
  *   where toasts are pinned, or where they carry an action worth reading twice.
  */
@@ -598,8 +598,8 @@ fun ToastHost(
      */
     alignment: OverlayAlignment = OverlayAlignment.Centre,
     maxVisible: Int = ToastDefaults.MaxVisible,
-    showClose: Boolean = false,
-    closeLabel: String = Theme.strings.dismiss,
+    showDismiss: Boolean = false,
+    dismissLabel: String = Theme.strings.dismiss,
     /**
      * What a toast keeps clear of. The gesture bar, the cutout and the keyboard —
      * a confirmation of what the user just typed, hidden behind the keyboard they
@@ -632,8 +632,8 @@ fun ToastHost(
             position = position,
             alignment = alignment,
             maxVisible = maxVisible,
-            showClose = showClose,
-            closeLabel = closeLabel,
+            showClose = showDismiss,
+            closeLabel = dismissLabel,
             windowInsets = windowInsets,
         )
     )

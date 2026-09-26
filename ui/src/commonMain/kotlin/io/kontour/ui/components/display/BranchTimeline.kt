@@ -73,12 +73,6 @@ object BranchTimelineDefaults {
 
     /** The width of one lane beyond the first, which fits a node with a little room either side. */
     val LaneWidth: Dp get() = BranchLaneWidth
-
-    /** A commit's diameter: the same as a [TimelineItem]'s node. */
-    val NodeSize: Dp get() = TimelineNodeSize
-
-    /** The column the first lane runs down, as a [TimelineList]'s rail does. */
-    val GutterWidth: Dp get() = TimelineGutterWidth
 }
 
 /**
@@ -96,7 +90,7 @@ class BranchTimelineScope internal constructor(merge: Boolean) : TimelineRowScop
  * ```kotlin
  * BranchTimeline(
  *     items = commits,              // newest first
- *     id = { it.sha },
+ *     key = { it.sha },
  *     parents = { it.parents },     // the first parent continues the lane
  * ) { commit ->
  *     item(onClick = { open(commit) }) {
@@ -126,7 +120,7 @@ class BranchTimelineScope internal constructor(merge: Boolean) : TimelineRowScop
  * right for a history cut off at a page boundary and wrong for one out of order.
  *
  * @param items The commits, newest first, each above its parents.
- * @param id Each commit's identity, as its children name it in [parents].
+ * @param key Each commit's identity, as its children name it in [parents].
  * @param parents The commits each one comes from, first parent first.
  * @param enabled Whether the rows can be used.
  * @param progress How far the history has got, if it is being tracked through.
@@ -139,22 +133,22 @@ class BranchTimelineScope internal constructor(merge: Boolean) : TimelineRowScop
 @Composable
 fun <T> BranchTimeline(
     items: List<T>,
-    id: (item: T) -> Any,
+    key: (item: T) -> Any,
     parents: (item: T) -> List<Any>,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     progress: BranchProgress? = null,
     colours: BranchTimelineColours = BranchTimelineDefaults.colours(),
-    nodeSize: Dp = BranchTimelineDefaults.NodeSize,
+    nodeSize: Dp = TimelineDefaults.NodeSize,
     laneWidth: Dp = BranchTimelineDefaults.LaneWidth,
-    gutterWidth: Dp = BranchTimelineDefaults.GutterWidth,
+    gutterWidth: Dp = TimelineDefaults.GutterWidth,
     content: BranchTimelineScope.(item: T) -> Unit,
 ) {
-    val shape = remember(items, id, parents, progress) { BranchShape.of(items, id, parents, progress) }
+    val shape = remember(items, key, parents, progress) { BranchShape.of(items, key, parents, progress) }
     val stops = branchStops(items, parents, content)
     Column(modifier.fillMaxWidth()) {
         items.forEachIndexed { index, item ->
-            key(id(item)) {
+            androidx.compose.runtime.key(key(item)) {
                 BranchRow(shape, stops, index, enabled, colours, nodeSize, laneWidth, gutterWidth)
             }
         }
@@ -162,11 +156,11 @@ fun <T> BranchTimeline(
 }
 
 /**
- * The same history, inside a `LazyColumn`, with [id] as each row's key.
+ * The same history, inside a `LazyColumn`, with [key] as each row's key.
  *
  * ```kotlin
  * LazyColumn {
- *     branchTimeline(commits, id = { it.sha }, parents = { it.parents }) { commit ->
+ *     branchTimeline(commits, key = { it.sha }, parents = { it.parents }) { commit ->
  *         item { +commit.message }
  *     }
  * }
@@ -183,20 +177,20 @@ fun <T> BranchTimeline(
  */
 fun <T> LazyListScope.branchTimeline(
     items: List<T>,
-    id: (item: T) -> Any,
+    key: (item: T) -> Any,
     parents: (item: T) -> List<Any>,
     enabled: Boolean = true,
     progress: BranchProgress? = null,
     colours: BranchTimelineColours? = null,
-    nodeSize: Dp = BranchTimelineDefaults.NodeSize,
+    nodeSize: Dp = TimelineDefaults.NodeSize,
     laneWidth: Dp = BranchTimelineDefaults.LaneWidth,
-    gutterWidth: Dp = BranchTimelineDefaults.GutterWidth,
+    gutterWidth: Dp = TimelineDefaults.GutterWidth,
     content: BranchTimelineScope.(item: T) -> Unit,
 ) {
-    val shape = BranchShape.of(items, id, parents, progress)
+    val shape = BranchShape.of(items, key, parents, progress)
     val stops = branchStops(items, parents, content)
     items.forEachIndexed { index, item ->
-        item(key = id(item), contentType = "branchTimelineRow") {
+        item(key = key(item), contentType = "branchTimelineRow") {
             BranchRow(
                 shape, stops, index, enabled, colours ?: BranchTimelineDefaults.colours(),
                 nodeSize, laneWidth, gutterWidth,

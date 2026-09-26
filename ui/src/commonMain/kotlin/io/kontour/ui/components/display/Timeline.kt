@@ -124,11 +124,21 @@ object TimelineDefaults {
     /** Space above the node, and between it and the line leaving it. */
     val NodeGap: Dp get() = TimelineNodeGap
 
-    /** A node's diameter. */
+    /** A node's diameter: a [TimelineItem]'s, a [TimelineList] stop's and a [BranchTimeline] commit's. */
     val NodeSize: Dp get() = TimelineNodeSize
 
-    /** The column the rail runs down, beside the content. */
+    /**
+     * The column the rail runs down, beside the content — a [TimelineList]'s
+     * rail, and a [BranchTimeline]'s first lane.
+     */
     val GutterWidth: Dp get() = TimelineGutterWidth
+
+    /**
+     * A leg's weight, and a ring node's: the strong border width. What a row
+     * in a [TimelineList] or a [BranchTimeline] means by `Dp.Unspecified`.
+     */
+    val ConnectorWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.sizing.borderWidthStrong
 }
 
 /**
@@ -226,7 +236,7 @@ fun TimelineItem(
     loading: Boolean = false,
     nodeSize: Dp = TimelineDefaults.NodeSize,
     gutterWidth: Dp = TimelineDefaults.GutterWidth,
-    connectorWidth: Dp = Theme.sizing.borderWidthStrong,
+    connectorWidth: Dp = TimelineDefaults.ConnectorWidth,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val context = LocalTimelineContext.current

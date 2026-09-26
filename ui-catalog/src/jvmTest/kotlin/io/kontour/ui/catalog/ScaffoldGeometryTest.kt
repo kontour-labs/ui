@@ -73,7 +73,7 @@ class ScaffoldGeometryTest {
                         null
                     },
                     fabPosition = FabPosition.End,
-                    contentWindowInsets = insets,
+                    windowInsets = insets,
                 ) { padding ->
                     measured.padding = padding
                     Box(Modifier.fillMaxSize()) { Text("content") }

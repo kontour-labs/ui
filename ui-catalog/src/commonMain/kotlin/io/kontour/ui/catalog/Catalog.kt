@@ -316,7 +316,7 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                                     Box(
                                         Modifier
                                             .fillMaxSize()
-                                            .padding(bottom = contentPadding)
+                                            .padding(contentPadding)
                                     ) {
                                         CatalogDestination(
                                             selected = selected,

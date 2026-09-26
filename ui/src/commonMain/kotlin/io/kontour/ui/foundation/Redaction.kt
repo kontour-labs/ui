@@ -95,8 +95,8 @@ fun Redacted(enabled: Boolean = true, content: @Composable () -> Unit) {
  */
 @Composable
 fun Modifier.redacted(
-    enabled: Boolean = LocalRedacted.current,
     shape: Shape = Theme.shapes.extraSmall,
+    enabled: Boolean = LocalRedacted.current,
 ): Modifier {
     if (!enabled) return this
     return this

@@ -263,7 +263,7 @@ internal val NavigationSuiteScaffoldDemo = ComponentDemo(
                 type = type,
             ) { contentPadding ->
                 Box(
-                    Modifier.fillMaxSize().padding(bottom = contentPadding),
+                    Modifier.fillMaxSize().padding(contentPadding),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(

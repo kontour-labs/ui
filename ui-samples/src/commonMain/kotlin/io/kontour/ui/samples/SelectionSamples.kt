@@ -192,7 +192,7 @@ fun StepperBasics() {
         value = adults,
         onValueChange = { adults = it },
         contentDescription = "Adults",
-        range = 1..9,
+        valueRange = 1..9,
     )
 }
 

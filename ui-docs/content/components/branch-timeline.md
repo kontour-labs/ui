@@ -9,7 +9,7 @@
 // commit it forked from.
 BranchTimeline(
     items = commits,
-    id = { it.sha },
+    key = { it.sha },
     parents = { it.parents },
 ) { commit ->
     // Each commit is a row declared like a TimelineList stop.

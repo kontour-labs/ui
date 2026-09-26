@@ -55,7 +55,7 @@ class BranchTimelineGeometryTest {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 BranchTimeline(
                     items = commits,
-                    id = { it },
+                    key = { it },
                     // Newest first: each commit's parent is the one below it.
                     parents = { listOfNotNull(commits.getOrNull(commits.indexOf(it) + 1)) },
                     colours = black,
@@ -81,7 +81,7 @@ class BranchTimelineGeometryTest {
                     Box(Modifier.fillMaxSize().background(Color.White)) {
                         BranchTimeline(
                             items = listOf("m" to listOf("b", "f"), "f" to listOf("a"), "b" to listOf("a"), "a" to emptyList()),
-                            id = { it.first },
+                            key = { it.first },
                             parents = { it.second },
                             colours = black,
                         ) { commit ->
@@ -117,7 +117,7 @@ class BranchTimelineGeometryTest {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 BranchTimeline(
                     items = listOf("m" to listOf("b", "f"), "f" to listOf("a"), "b" to listOf("a"), "a" to emptyList()),
-                    id = { it.first },
+                    key = { it.first },
                     parents = { it.second },
                     colours = black,
                 ) { commit ->

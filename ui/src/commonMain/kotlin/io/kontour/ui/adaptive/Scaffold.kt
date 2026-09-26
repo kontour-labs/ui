@@ -46,7 +46,7 @@ object ScaffoldDefaults {
  * `LazyColumn` wants it as `contentPadding`, a `Column` wants it as `padding`,
  * and applying it to the wrong one clips the scroll.
  *
- * [contentWindowInsets] defaults to `safeDrawing`. The padding handed to the
+ * [windowInsets] defaults to `safeDrawing`. The padding handed to the
  * content is the **larger** of the bar and the inset on each edge, not their
  * sum — a top bar already sits under the status bar and has padded itself for
  * it, so adding both insets the content twice. `ScaffoldGeometryTest` measures
@@ -65,7 +65,7 @@ fun Scaffold(
     fabPosition: FabPosition = FabPosition.End,
     containerColour: Color = Theme.colours.background,
     contentColour: Color = Theme.colours.content,
-    contentWindowInsets: WindowInsets = WindowInsets.safeDrawing,
+    windowInsets: WindowInsets = WindowInsets.safeDrawing,
     /**
      * Whether pressing the screen somewhere nothing wanted takes focus off the
      * field that has it.
@@ -83,7 +83,7 @@ fun Scaffold(
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val direction = LocalLayoutDirection.current
-    val insets = contentWindowInsets.asPaddingValues()
+    val insets = windowInsets.asPaddingValues()
     val insetTop = insets.calculateTopPadding()
     val insetBottom = insets.calculateBottomPadding()
     val insetStart = insets.calculateStartPadding(direction)

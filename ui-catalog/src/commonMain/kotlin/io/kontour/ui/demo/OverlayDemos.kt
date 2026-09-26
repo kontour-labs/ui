@@ -388,7 +388,7 @@ internal val ToastDemo = ComponentDemo(
             toasts,
             position = this@ComponentDemo[toastPosition],
             alignment = this@ComponentDemo[toastAlignment],
-            showClose = true,
+            showDismiss = true,
         )
         Column(
             modifier = Modifier.align(Alignment.Center),

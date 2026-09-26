@@ -118,7 +118,7 @@ internal fun TextContextMenuHost(content: @Composable () -> Unit) {
 
     CompositionLocalProvider(LocalTextContextMenu provides opener) { content() }
 
-    val labels = textToolbarLabels()
+    val labels = TextToolbarDefaults.labels()
     TextContextMenu(
         request = request,
         open = open,

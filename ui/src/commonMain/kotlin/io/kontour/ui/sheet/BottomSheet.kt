@@ -407,19 +407,6 @@ fun BottomSheet(
     expandedShape: Shape = BottomSheetDefaults.shapeFor(SheetPresentation.Edge),
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
-    paneTitle: String? = null,
-    /**
-     * Whether the sheet answers a drag.
-     *
-     * `false` removes the gesture **and** the drag handle, because a handle that
-     * does nothing is a lie about what the sheet will do — and a handle is the
-     * only thing on a sheet that says "pull me". A sheet that cannot be dragged
-     * is moved by [SheetState.animateTo] and by whatever the content offers.
-     *
-     * The scrim follows the sheet's visible height, so a sheet that cannot be
-     * dragged also cannot fade its scrim halfway: there is no halfway to be at.
-     */
-    draggable: Boolean = true,
     /**
      * Whether the user may put this sheet away by dragging it down.
      *
@@ -439,6 +426,19 @@ fun BottomSheet(
      * plain sheet, so here it is the drag and nothing else.
      */
     dismissible: Boolean = true,
+    paneTitle: String? = null,
+    /**
+     * Whether the sheet answers a drag.
+     *
+     * `false` removes the gesture **and** the drag handle, because a handle that
+     * does nothing is a lie about what the sheet will do — and a handle is the
+     * only thing on a sheet that says "pull me". A sheet that cannot be dragged
+     * is moved by [SheetState.animateTo] and by whatever the content offers.
+     *
+     * The scrim follows the sheet's visible height, so a sheet that cannot be
+     * dragged also cannot fade its scrim halfway: there is no halfway to be at.
+     */
+    draggable: Boolean = true,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /**
      * What the sheet's *chrome* keeps clear of, and what its content is **told
@@ -930,6 +930,13 @@ fun ModalBottomSheet(
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
     /**
+     * What sits between the sheet and the screen behind it, as a
+     * [ModalSideSheet]'s does. [ScrimStyle.None] lets the screen behind stay
+     * usable and stops the sheet holding focus; anything else keeps both. Read
+     * when the sheet opens.
+     */
+    scrim: ScrimStyle = ScrimStyle.Dimmed,
+    /**
      * Whether the user can close this sheet without the app's help.
      *
      * `false` closes **every** route out: the tap outside, the back gesture, and
@@ -1022,9 +1029,10 @@ fun ModalBottomSheet(
                 OverlayEntry(
                     key = key,
                     layer = OverlayLayer.Sheet,
-                    scrim = ScrimStyle.Dimmed,
-                    // Always dimmed, so always modal, so always trapping.
-                    trapFocus = true,
+                    scrim = scrim,
+                    // Trapping unless the screen behind can still be used, for
+                    // the reason `ModalSideSheet` gives.
+                    trapFocus = scrim != ScrimStyle.None,
                     // A sheet covers part of the screen rather than floating in
                     // the middle of it, so the presenting content recedes. That
                     // is what says "on top of this screen" rather than "a new
@@ -1039,7 +1047,7 @@ fun ModalBottomSheet(
                     // ridiculously laggy" was reported from exactly that. A
                     // dialog still blurs; it is on screen for one decision and
                     // has nothing to recede.
-                    backdrop = BackdropStyle.Scale,
+                    backdrop = if (scrim == ScrimStyle.Dimmed) BackdropStyle.Scale else BackdropStyle.None,
                     dismissOnOutside = dismissible,
                     dismissLabel = dismissLabel,
                     // The sheet slides itself down and hides the entry when it

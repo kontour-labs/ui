@@ -99,7 +99,7 @@ class DegenerateInputTest {
      */
     @Test
     fun aStepperOverAnEmptyRangeSaysSo() = refuses("Stepper(range = 0 until 0)", "Stepper", "range") {
-        Stepper(value = 0, onValueChange = {}, contentDescription = "Bags", range = 0 until 0)
+        Stepper(value = 0, onValueChange = {}, contentDescription = "Bags", valueRange = 0 until 0)
     }
 
     /**
@@ -116,7 +116,7 @@ class DegenerateInputTest {
             value = 1,
             onValueChange = {},
             contentDescription = "Anything",
-            range = 0..Int.MAX_VALUE,
+            valueRange = 0..Int.MAX_VALUE,
         )
     }
 

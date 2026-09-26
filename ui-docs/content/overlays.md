@@ -612,7 +612,7 @@ older ones scaled and offset behind, each carrying its own timer.
 `dismissCurrent()` still exists and now means the one in *front* — the newest,
 which is the only reading of "current" that means anything in a stack.
 
-`showClose = true` puts a close control on the front toast. Off by default: one
+`showDismiss = true` puts a close control on the front toast. Off by default: one
 that dismisses itself in two and a half seconds does not need it. Turn it on
 where toasts are pinned. Either way a toast can be swiped away toward whichever
 edge the stack is anchored to — and the swipe target is the whole card *plus*

@@ -31,7 +31,7 @@ class BranchTimelineTest {
         val opened = mutableListOf<String>()
         setContent {
             KontourTheme {
-                BranchTimeline(history, id = { it.first }, parents = { it.second }) { commit ->
+                BranchTimeline(history, key = { it.first }, parents = { it.second }) { commit ->
                     item(onClick = { opened += commit.first }) { +"Commit ${commit.first}" }
                 }
             }
@@ -45,7 +45,7 @@ class BranchTimelineTest {
     fun aDisabledHistoryDisablesItsRows() = runComposeUiTest {
         setContent {
             KontourTheme {
-                BranchTimeline(history, id = { it.first }, parents = { it.second }, enabled = false) { commit ->
+                BranchTimeline(history, key = { it.first }, parents = { it.second }, enabled = false) { commit ->
                     item(onClick = {}) { +"Commit ${commit.first}" }
                 }
             }

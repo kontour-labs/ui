@@ -469,7 +469,7 @@ internal val BranchTimelineDemo = ComponentDemo(
     val colourRelease = this[branchReleaseColour]
     BranchTimeline(
         items = commits,
-        id = { it.sha },
+        key = { it.sha },
         parents = { it.parents },
         modifier = Modifier.fillMaxWidth(),
         progress = when (this[branchProgress]) {

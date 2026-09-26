@@ -1,5 +1,6 @@
 package io.kontour.ui.demo
 
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -106,8 +107,7 @@ internal val TextAreaDemo = ComponentDemo(slug = "text-area") {
     TextArea(
         state = state,
         label = "What went wrong?",
-        minLines = 3,
-        maxLines = 6,
+        lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 6),
         modifier = Modifier.fillMaxWidth(),
     )
 }

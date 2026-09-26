@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.adaptive.LocalWindowSizeClass
@@ -60,8 +61,9 @@ enum class NavigationSuiteType {
  * navigation page: `ui-docs/content/components/navigation.md`.
  *
  * The surface **overlays** the content rather than sitting below it, so read
- * the padding handed to [content] and inset your own scrolling content by it — the same way a
- * map insets its controls by a sheet's `visibleHeight`.
+ * the padding handed to [content] and inset your own scrolling content by it,
+ * as a `Scaffold`'s content does — the same way a map insets its controls by a
+ * sheet's `visibleHeight`.
  *
  * @param type Override the automatic choice. For a screen that genuinely needs a
  *   different surface than its window size implies — rare, and worth a comment
@@ -106,7 +108,7 @@ fun NavigationSuiteScaffold(
      * a rail or drawer takes the leading side and the top and bottom.
      */
     windowInsets: WindowInsets? = null,
-    content: @Composable (contentPadding: Dp) -> Unit,
+    content: @Composable (contentPadding: PaddingValues) -> Unit,
 ) {
     Surface(modifier = modifier.fillMaxSize(), containerColour = containerColour) {
         when (type) {
@@ -119,7 +121,7 @@ fun NavigationSuiteScaffold(
                 var barHeight by remember { mutableStateOf(estimate) }
                 val density = LocalDensity.current
 
-                content(barHeight)
+                content(PaddingValues(bottom = barHeight))
 
                 // Anchored to the bottom, over the content. The one placement
                 // decision this component exists to make.
@@ -149,7 +151,7 @@ fun NavigationSuiteScaffold(
                     action = action?.let { { it() } },
                     windowInsets = windowInsets ?: WindowInsets.leadingEdges,
                 )
-                Box(Modifier.weight(1f)) { content(0.dp) }
+                Box(Modifier.weight(1f)) { content(PaddingValues(0.dp)) }
             }
 
             NavigationSuiteType.Drawer -> Row(Modifier.fillMaxSize()) {
@@ -172,7 +174,7 @@ fun NavigationSuiteScaffold(
                         }
                     }
                 }
-                Box(Modifier.weight(1f)) { content(0.dp) }
+                Box(Modifier.weight(1f)) { content(PaddingValues(0.dp)) }
             }
         }
     }

@@ -135,5 +135,5 @@ worked. The consequence is the rule that governs the component — **an action i
 a toast must not be the only way to do it.** Four seconds is not a decision
 window for someone reading at their own pace.
 
-`showClose` adds a close button with `closeLabel` on it, which is worth turning
+`showDismiss` adds a close button with `dismissLabel` on it, which is worth turning
 on wherever a toast can carry an action.

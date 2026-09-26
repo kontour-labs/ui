@@ -146,7 +146,7 @@ class TimelineMotionTest {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 BranchTimeline(
                     items = listOf("b" to listOf("a"), "a" to emptyList()),
-                    id = { it.first },
+                    key = { it.first },
                     parents = { it.second },
                     progress = BranchProgress(reached = "a", towards = "b"),
                     colours = BranchTimelineColours(lanes = listOf(Color.Black), muted = grey),

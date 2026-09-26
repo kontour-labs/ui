@@ -45,7 +45,7 @@ class StepperTest {
                     value = value,
                     onValueChange = { value = it },
                     contentDescription = "Adults",
-                    range = 1..9,
+                    valueRange = 1..9,
                 )
             }
         }
@@ -66,7 +66,7 @@ class StepperTest {
                     value = value,
                     onValueChange = { value = it },
                     contentDescription = "Adults",
-                    range = 1..9,
+                    valueRange = 1..9,
                 )
             }
         }
@@ -93,7 +93,7 @@ class StepperTest {
                     value = value,
                     onValueChange = { value = it },
                     contentDescription = "Bags",
-                    range = 0..10,
+                    valueRange = 0..10,
                     step = 4,
                 )
             }

@@ -63,7 +63,7 @@ import kotlin.math.max
  *   reported. Nothing about it is visible on a desktop, where the minimum is
  *   24dp and a row already clears it.
  */
-fun Modifier.minimumTouchTarget(enabled: Boolean = true, fill: Boolean = false): Modifier =
+fun Modifier.minimumTouchTarget(fill: Boolean = false, enabled: Boolean = true): Modifier =
     if (enabled) this then MinimumTouchTargetElement(fill) else this
 
 /** The sizes [minimumTouchTarget] works to. */

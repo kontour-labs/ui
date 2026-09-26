@@ -317,7 +317,7 @@ class ToastStackTest {
             val toasts = remember { ToastHostState() }
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Color.White))
-                ToastHost(toasts, showClose = showClose)
+                ToastHost(toasts, showDismiss = showClose)
                 LaunchedEffect(Unit) { shown(toasts) }
             }
         }.use { scene ->
@@ -1288,7 +1288,7 @@ class ToastStackTest {
             val toasts = remember { ToastHostState() }
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Color.White))
-                ToastHost(toasts, showClose = showClose)
+                ToastHost(toasts, showDismiss = showClose)
                 LaunchedEffect(Unit) { shown(toasts) }
             }
         }.use { scene ->

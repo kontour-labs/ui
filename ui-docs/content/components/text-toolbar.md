@@ -1,6 +1,6 @@
 # `TextSelectionToolbar`
 
-*Also on this page: `TextToolbarAction`, `textToolbarLabels`, `TextToolbarDefaults`.*
+*Also on this page: `TextToolbarAction`, `TextToolbarDefaults`.*
 
 The toolbar shown when the user selects text.
 
@@ -88,7 +88,7 @@ menu resource, and iOS a `UIMenuController` we have no handle on.
 An app that genuinely needs "Plan a trip" on its selection menu therefore has to
 trade the system surface for one it controls. This makes that trade explicit
 rather than making it for you: pass actions and you get a drawn toolbar carrying
-the built-in verbs the framework offered *plus* yours, with `textToolbarLabels`
+the built-in verbs the framework offered *plus* yours, with `TextToolbarDefaults.labels`
 supplying the words so an app that has localised the rest of `Theme.strings`
 localises these too.
 

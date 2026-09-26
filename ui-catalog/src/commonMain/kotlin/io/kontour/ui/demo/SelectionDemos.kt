@@ -390,7 +390,7 @@ internal val StepperDemo = ComponentDemo(
             value = adults,
             onValueChange = { adults = it },
             contentDescription = "Adults",
-            range = 1..9,
+            valueRange = 1..9,
             animateValue = animate,
             enabled = enabled,
         )
@@ -398,7 +398,7 @@ internal val StepperDemo = ComponentDemo(
             value = bags,
             onValueChange = { bags = it },
             contentDescription = "Bags",
-            range = 0..4,
+            valueRange = 0..4,
             format = { if (it == 1) "1 bag" else "$it bags" },
             animateValue = animate,
             enabled = enabled,

@@ -150,8 +150,8 @@ class KnobDetentTest {
                     size = 200.dp,
                     colours = KnobDefaults.colours(
                         indicator = ScaleColours.solid(Color.Blue),
-                        face = Color.White,
-                        notch = Color.Red,
+                        thumb = Color.White,
+                        needle = Color.Red,
                     ),
                     modifier = Modifier.reportBounds { bounds = it },
                 )

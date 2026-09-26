@@ -36,14 +36,6 @@ enum class TimelineListStyle {
     Grouped,
 }
 
-object TimelineListDefaults {
-    /** A node's diameter: the same as a [TimelineItem]'s. */
-    val NodeSize: Dp get() = TimelineNodeSize
-
-    /** The column the rail runs down: the same as a [TimelineItem]'s. */
-    val GutterWidth: Dp get() = TimelineGutterWidth
-}
-
 /**
  * Where a [TimelineList]'s stops and a [BranchTimeline]'s commits are declared:
  * each one a list row on the rail, declared the same way in both.
@@ -78,7 +70,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
      *   history, the lines down to its parents.
      * @param connectorColour The leg's colour. Unspecified takes the timeline's.
      * @param connectorWidth The leg's weight, and the ring's. Unspecified is
-     *   the strong border width, as a [TimelineItem]'s is.
+     *   [TimelineDefaults.ConnectorWidth], as a [TimelineItem]'s is.
      * @param selected Marks the row that is current in a list that picks one.
      * @param role What a screen reader calls the row, when it has [onClick].
      * @param onClick The row's action. Without one the row is not a control.
@@ -219,8 +211,8 @@ fun TimelineList(
     leadOut: ConnectorStyle = ConnectorStyle.None,
     colours: TimelineColours = TimelineDefaults.colours(),
     containerColour: Color = Theme.colours.surfaceSunken,
-    nodeSize: Dp = TimelineListDefaults.NodeSize,
-    gutterWidth: Dp = TimelineListDefaults.GutterWidth,
+    nodeSize: Dp = TimelineDefaults.NodeSize,
+    gutterWidth: Dp = TimelineDefaults.GutterWidth,
     content: TimelineListScope.() -> Unit,
 ) {
     val rows = timelineRows(TimelineListScope().apply(content).stops, leadIn, leadOut)
@@ -264,8 +256,8 @@ fun <T> LazyListScope.timelineList(
     leadOut: ConnectorStyle = ConnectorStyle.None,
     colours: TimelineColours? = null,
     containerColour: Color = Color.Unspecified,
-    nodeSize: Dp = TimelineListDefaults.NodeSize,
-    gutterWidth: Dp = TimelineListDefaults.GutterWidth,
+    nodeSize: Dp = TimelineDefaults.NodeSize,
+    gutterWidth: Dp = TimelineDefaults.GutterWidth,
     content: TimelineListScope.(item: T) -> Unit,
 ) {
     val perElement = items.map { element -> TimelineListScope().apply { content(element) }.stops.toList() }
