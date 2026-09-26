@@ -124,7 +124,8 @@ fun Rating(
     val empty = icon ?: SystemIcons.Star
     val full = filledIcon ?: SystemIcons.StarFilled
     val clamped = value.coerceIn(0f, count.toFloat())
-    val spoken = stateDescription?.invoke(clamped) ?: defaultRatingDescription(clamped, count)
+    val outOf = Theme.strings.outOf
+    val spoken = stateDescription?.invoke(clamped) ?: defaultRatingDescription(clamped, count, outOf)
 
     if (onValueChange == null) {
         // One node, and nothing to press. `clearAndSetSemantics` rather than a
@@ -294,7 +295,7 @@ fun Rating(
                         indication = null,
                     )
                     .semantics {
-                        this.contentDescription = ratingMarkDescription(markValue, count)
+                        this.contentDescription = outOf(markValue.toString(), count)
                     },
                 contentAlignment = Alignment.Center,
             ) {
@@ -382,16 +383,16 @@ private fun Mark(
     }
 }
 
-/** "4.3 out of 5", or "4 out of 5" when the score is whole. */
-private fun defaultRatingDescription(value: Float, count: Int): String {
+/**
+ * "4.3 out of 5", or "4 out of 5" when the score is whole — through
+ * [io.kontour.ui.theme.Strings.outOf], which one mark announces as well: "3 out
+ * of 5", not "star 3".
+ */
+private fun defaultRatingDescription(value: Float, count: Int, outOf: (String, Int) -> String): String {
     val whole = value.toInt()
     val shown = if (value == whole.toFloat()) whole.toString() else value.toString()
-    return "$shown out of $count"
+    return outOf(shown, count)
 }
-
-/** What one mark announces: "3 stars", not "star 3". */
-private fun ratingMarkDescription(markValue: Int, count: Int): String =
-    if (markValue == 1) "1 out of $count" else "$markValue out of $count"
 
 object RatingDefaults {
     /** Five, which is what a rating means to almost everybody. */

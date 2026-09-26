@@ -88,13 +88,6 @@ object SegmentedControlDefaults {
 }
 
 /**
- * The furthest the thumb elongates while straining toward the next segment.
- *
- * A fifth again its own width. The thumb is a whole segment wide rather than a
- * 22dp circle, so it needs far less proportional stretch than a slider's does
- * before it reads as give.
- */
-/**
  * The range a segmented control's thumb centre can occupy, which is where refusal
  * begins.
  *
@@ -138,6 +131,13 @@ internal fun segmentedThumbTravel(
     return half..(track - half)
 }
 
+/**
+ * The furthest the thumb elongates while straining toward the next segment.
+ *
+ * A fifth again its own width. The thumb is a whole segment wide rather than a
+ * 22dp circle, so it needs far less proportional stretch than a slider's does
+ * before it reads as give.
+ */
 private const val MaxSegmentStretch = 0.2f
 
 /**

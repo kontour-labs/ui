@@ -635,21 +635,6 @@ private fun <T> InfiniteWheel(
     val ticker = rememberDetentTicker()
 
     /**
-     * A detent crossed by a finger, and by nothing else.
-     *
-     * Three things move this drum and only one of them is a gesture. It appears
-     * — and `snapshotFlow` emits its current value first, so the wheel buzzed on
-     * arrival. A caller sets the value — and the spring below crosses every row
-     * between here and there, so `selected = 23` was twenty-three haptics for a
-     * line of code. It settles after a fling — half a row, after the finger has
-     * gone. Only the middle of a real drag is a detent anyone felt.
-     *
-     * `isScrollInProgress` is exactly that distinction on this drum: it is the
-     * `scrollable` below, which is the finger and the fling it threw, and it is
-     * false for both animations. Re-arming rather than ignoring is what keeps
-     * the next real drag from firing for the row it starts on.
-     */
-    /**
      * The same tap-to-turn as the finite drum, by the short way round.
      *
      * No `driving` flag is needed here: this wheel's ticker is already gated on
@@ -692,6 +677,19 @@ private fun <T> InfiniteWheel(
         delta
     }
 
+    // A detent crossed by a finger, and by nothing else.
+    //
+    // Three things move this drum and only one of them is a gesture. It appears
+    // — and `snapshotFlow` emits its current value first, so the wheel buzzed on
+    // arrival. A caller sets the value — and the spring below crosses every row
+    // between here and there, so `selected = 23` was twenty-three haptics for a
+    // line of code. It settles after a fling — half a row, after the finger has
+    // gone. Only the middle of a real drag is a detent anyone felt.
+    //
+    // `isScrollInProgress` is exactly that distinction on this drum: it is the
+    // `scrollable` below, which is the finger and the fling it threw, and it is
+    // false for both animations. Re-arming rather than ignoring is what keeps
+    // the next real drag from firing for the row it starts on.
     LaunchedEffect(items.size) {
         snapshotFlow { centredIndex }.collect { index ->
             if (scrollState.isScrollInProgress) ticker.at(index) else ticker.reset()

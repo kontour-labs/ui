@@ -395,8 +395,9 @@ class ConfirmationController {
         val result: CompletableDeferred<Boolean>,
     )
 
-    /** Shows a confirmation and suspends until the user answers. */
     /**
+     * Shows a confirmation and suspends until the user answers.
+     *
      * @param confirmLabel `null` — the default — takes the theme's word for it.
      *   Resolved where the dialog is drawn rather than here, because this is a
      *   plain state holder: a `suspend fun` on a controller has no composition

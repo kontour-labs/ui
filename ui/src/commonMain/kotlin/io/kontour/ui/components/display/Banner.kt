@@ -62,7 +62,7 @@ enum class BannerTone { Info, Success, Warning, Danger, Accent }
  * Banner(tone = BannerTone.Warning, onDismissRequest = viewModel::dismissAlert) {
  *     leading { +Tabler.Outline.AlertTriangle }
  *     title { +"Delays on the Armadale line" }
- *     supporting { +"Services are running up to 12 minutes late." }
+ *     message { +"Services are running up to 12 minutes late." }
  *     action { Button(onClick = ::showDetail) { +"View details" } }
  * }
  * ```
@@ -80,13 +80,17 @@ enum class BannerTone { Info, Success, Warning, Danger, Accent }
  * read purely as hue fails WCAG 1.4.1 and is invisible to the most common form
  * of colour blindness. `action` renders below the message — "Retry", "View
  * details".
+ *
+ * @param dismissIcon The dismiss button's glyph, drawn whenever there is an
+ *   [onDismissRequest]. A close cross by default. It defaulted to `null`, which
+ *   left a banner that could be dismissed with nothing on it to dismiss it by.
  */
 @Composable
 fun Banner(
     modifier: Modifier = Modifier,
     tone: BannerTone = BannerTone.Info,
     onDismissRequest: (() -> Unit)? = null,
-    dismissIcon: ImageVector? = null,
+    dismissIcon: ImageVector? = SystemIcons.Close,
     dismissLabel: String = Theme.strings.dismiss,
     content: BannerScope.() -> Unit,
 ) {
@@ -203,7 +207,8 @@ fun AnimatedBanner(
     modifier: Modifier = Modifier,
     tone: BannerTone = BannerTone.Info,
     onDismissRequest: (() -> Unit)? = null,
-    dismissIcon: ImageVector? = null,
+    dismissIcon: ImageVector? = SystemIcons.Close,
+    dismissLabel: String = Theme.strings.dismiss,
     content: BannerScope.() -> Unit,
 ) {
     val motion = Theme.motion
@@ -217,6 +222,7 @@ fun AnimatedBanner(
             tone = tone,
             onDismissRequest = onDismissRequest,
             dismissIcon = dismissIcon,
+            dismissLabel = dismissLabel,
             content = content,
         )
     }

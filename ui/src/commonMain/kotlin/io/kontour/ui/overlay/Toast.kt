@@ -651,21 +651,6 @@ fun ToastHost(
 }
 
 /**
- * Where a card actually sits, given how far it has been pulled.
- *
- * One pixel per pixel toward the edge it dismisses to. The other way it is a
- * rubber band: `limit * (1 - 1 / (pull / limit + 1))`, which is half the limit
- * at one limit of pull, three quarters at three, and never quite arrives. That
- * "never quite" is the whole difference between a band and a wall — a card that
- * stops dead still reads as broken, however short the distance was.
- *
- * The first two attempts damped each delta as it arrived, which cannot work: the
- * damping is a function of where the card already is, so it converges within two
- * or three events and is flat from there. Measured over a 240px pull in 20px
- * steps, a flat third of every delta gave `[10, 10, 10, …]` and a linear ramp
- * gave `[2, 19, 19, 19, …]`. This gives a curve that is still moving at the end.
- */
-/**
  * Whether a drag is aimed back into the screen, which is the one that returns.
  *
  * Decided with the reporter: a toast goes away when swiped toward the edge it is
@@ -687,13 +672,6 @@ private fun refusesToLeave(travel: Offset, towardEdge: Boolean): Boolean {
 }
 
 /**
- * Where a card sits, given how far it has been pulled, on both axes.
- *
- * Sideways is one pixel per pixel — it is a way out, so it must not feel
- * refused. The vertical half is [rubberBand], which is already 1:1 toward the
- * edge and a band away from it.
- */
-/**
  * How much of the front card's pull a pill behind it takes.
  *
  * *"Pulled slightly in the direction that the user is dragging, but still anchored
@@ -711,9 +689,31 @@ private fun refusesToLeave(travel: Offset, towardEdge: Boolean): Boolean {
  */
 private const val PillLean: Float = 1f / 7f
 
+/**
+ * Where a card sits, given how far it has been pulled, on both axes.
+ *
+ * Sideways is one pixel per pixel — it is a way out, so it must not feel
+ * refused. The vertical half is [rubberBand], which is already 1:1 toward the
+ * edge and a band away from it.
+ */
 private fun toastTravel(pull: Offset, limit: Float, towardEdge: Boolean): Offset =
     Offset(pull.x, rubberBand(pull.y, limit, towardEdge))
 
+/**
+ * Where a card actually sits, given how far it has been pulled.
+ *
+ * One pixel per pixel toward the edge it dismisses to. The other way it is a
+ * rubber band: `limit * (1 - 1 / (pull / limit + 1))`, which is half the limit
+ * at one limit of pull, three quarters at three, and never quite arrives. That
+ * "never quite" is the whole difference between a band and a wall — a card that
+ * stops dead still reads as broken, however short the distance was.
+ *
+ * The first two attempts damped each delta as it arrived, which cannot work: the
+ * damping is a function of where the card already is, so it converges within two
+ * or three events and is flat from there. Measured over a 240px pull in 20px
+ * steps, a flat third of every delta gave `[10, 10, 10, …]` and a linear ramp
+ * gave `[2, 19, 19, 19, …]`. This gives a curve that is still moving at the end.
+ */
 private fun rubberBand(pull: Float, limit: Float, towardEdge: Boolean): Float {
     if (limit <= 0f) return pull
     val wrongWay = if (towardEdge) -pull else pull

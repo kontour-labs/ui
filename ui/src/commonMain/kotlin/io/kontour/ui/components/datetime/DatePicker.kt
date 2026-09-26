@@ -4,27 +4,18 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.unit.Constraints
-import kotlin.math.abs
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,33 +25,39 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
@@ -71,12 +68,18 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
+import kotlin.time.Clock
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import kotlinx.datetime.todayIn
 
 object DatePickerDefaults {
     /**
@@ -255,6 +258,13 @@ private const val TodayFlashOutMillis: Int = 170
 /** How many times today pulses: a single one was easy to miss. */
 private const val TodayFlashPulses: Int = 2
 
+/**
+ * Today where the device is — the month a calendar opens on when it was given
+ * neither a selection nor a `today`. It was a fixed 1 January 2026, which was
+ * this month once and then quietly became a calendar opening on the past.
+ */
+internal fun systemToday(): LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
+
 /** A scroll quiet for this long has ended, and the next one is a new swipe. */
 private const val ScrollQuietMillis: Long = 250L
 
@@ -363,7 +373,7 @@ fun DatePicker(
      */
     chooserIcon: ImageVector? = null,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(
-        selected ?: today ?: LocalDate(2026, 1, 1)
+        selected ?: today ?: remember { systemToday() }
     ),
     formats: DateTimeFormats = LocalDateTimeFormats.current,
     /**
@@ -450,7 +460,7 @@ fun DateRangePicker(
      */
     chooserIcon: ImageVector? = null,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(
-        start ?: today ?: LocalDate(2026, 1, 1)
+        start ?: today ?: remember { systemToday() }
     ),
     formats: DateTimeFormats = LocalDateTimeFormats.current,
     /**
@@ -596,7 +606,7 @@ private fun MonthAndYearButton(
                 interactionSource = interactions,
                 indication = kontourIndication(shape),
                 role = Role.Button,
-                onClickLabel = "Choose month and year",
+                onClickLabel = Theme.strings.chooseMonthAndYear,
                 onClick = onOpen,
             )
             .padding(horizontal = Theme.spacing.xs),
@@ -658,7 +668,7 @@ private fun MonthAndYearWheels(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Drum(
-            description = "Month",
+            description = Theme.strings.month,
             items = months,
             row = { monthRow },
             onRowChange = { monthRow = it; onPick(LocalDate(years[yearRow], months[it], 1)) },
@@ -666,7 +676,7 @@ private fun MonthAndYearWheels(
             modifier = Modifier.weight(1f),
         )
         Drum(
-            description = "Year",
+            description = Theme.strings.year,
             items = years,
             row = { yearRow },
             onRowChange = { yearRow = it; onPick(LocalDate(years[it], months[monthRow], 1)) },
@@ -797,7 +807,7 @@ private fun CalendarFrame(
                     if (previousIcon != null) {
                         IconButton(
                             icon = previousIcon,
-                            contentDescription = "Previous month",
+                            contentDescription = Theme.strings.previousMonth,
                             onClick = {
                                 navigation.step(-1)
                             },
@@ -821,7 +831,7 @@ private fun CalendarFrame(
                     if (todayIcon != null && today != null) {
                         IconButton(
                             icon = todayIcon,
-                            contentDescription = "Return to today",
+                            contentDescription = Theme.strings.returnToToday,
                             onClick = {
                                 val paging = navigation.visibleMonth.let {
                                     it.year != today.year || it.month != today.month
@@ -845,7 +855,7 @@ private fun CalendarFrame(
                     if (nextIcon != null) {
                         IconButton(
                             icon = nextIcon,
-                            contentDescription = "Next month",
+                            contentDescription = Theme.strings.nextMonth,
                             onClick = {
                                 navigation.step(1)
                             },

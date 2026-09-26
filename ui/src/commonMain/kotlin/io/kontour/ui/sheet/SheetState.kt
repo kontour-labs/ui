@@ -781,15 +781,6 @@ class SheetState internal constructor(
     }
 
     /**
-     * Recomputes anchor positions.
-     *
-     * Called from layout whenever the container, the content or the detent list
-     * changes. Detents that resolve to the same position as one already placed
-     * are dropped: two anchors at the same offset make `settledValue`
-     * ambiguous, and the sheet ends up flickering between two names for one
-     * position.
-     */
-    /**
      * How many times [updateAnchors] has done the work.
      *
      * An increment and a field, so the test suite can ask how often a sheet
@@ -882,6 +873,15 @@ class SheetState internal constructor(
             return (container - lowest + maxOvershoot).coerceIn(0f, container)
         }
 
+    /**
+     * Recomputes anchor positions.
+     *
+     * Called from layout whenever the container, the content or the detent list
+     * changes. Detents that resolve to the same position as one already placed
+     * are dropped: two anchors at the same offset make `settledValue`
+     * ambiguous, and the sheet ends up flickering between two names for one
+     * position.
+     */
     internal fun updateAnchors(density: Density) {
         anchorDensity = density
         val inputs = AnchorInputs(
@@ -954,6 +954,28 @@ class SheetState internal constructor(
     }
 
     /**
+     * Whether the scrollable inside the sheet moved during the current gesture.
+     *
+     * Held on the state rather than on the connection, because `BottomSheet`
+     * builds a new connection whenever its settle spec or the flick velocity
+     * changes — a theme change, a density change — and a field on it would be
+     * forgotten if that happened mid-drag.
+     *
+     * Set in `onPostScroll`, read and cleared in `onPostFling`. What it is for is
+     * in `onPostFling`'s KDoc.
+     */
+    private var listScrolled: Boolean = false
+
+    /**
+     * How much of the last dispatch's delta the child was offered.
+     *
+     * Scratch for the pair above: `onPreScroll` writes it, `onPostScroll` reads it
+     * one call later in the same dispatch. Not snapshot state — nothing composes
+     * from it and it changes every frame of every drag.
+     */
+    private var offeredToChild: Float = 0f
+
+    /**
      * Settles at the detent a flick was **aimed at**, not the one it was nearest
      * when the finger left.
      *
@@ -991,27 +1013,6 @@ class SheetState internal constructor(
      * intuitive one, so the ceiling stays there and is documented on
      * `SheetDefaults`.
      */
-    /**
-     * Whether the scrollable inside the sheet moved during the current gesture.
-     *
-     * Held on the state rather than on the connection because the connection is
-     * rebuilt on every recomposition of `BottomSheet` — it is not `remember`ed,
-     * unlike the wheel picker's — so a field on it would be forgotten mid-drag.
-     *
-     * Set in `onPostScroll`, read and cleared in `onPostFling`. What it is for is
-     * in `onPostFling`'s KDoc.
-     */
-    private var listScrolled: Boolean = false
-
-    /**
-     * How much of the last dispatch's delta the child was offered.
-     *
-     * Scratch for the pair above: `onPreScroll` writes it, `onPostScroll` reads it
-     * one call later in the same dispatch. Not snapshot state — nothing composes
-     * from it and it changes every frame of every drag.
-     */
-    private var offeredToChild: Float = 0f
-
     internal suspend fun settleWhereAimed(
         velocity: Float,
         spec: AnimationSpec<Float>,

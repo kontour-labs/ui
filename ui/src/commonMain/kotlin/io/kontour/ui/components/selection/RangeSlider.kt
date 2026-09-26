@@ -181,8 +181,7 @@ fun RangeSlider(
      * below `valueRange.start`, and `coerceIn` **throws** on an inverted range —
      * the same trap that took a frame down from inside `Switch`'s draw. A caller
      * that asks for more separation than exists gets the whole track instead.
-     */
-    /**
+     *
      * And **rounded up onto the step grid**, because a stepped slider has no
      * values between its notches.
      *
@@ -1143,7 +1142,6 @@ private fun ThumbSemantics(
     )
 }
 
-/** Which thumb a gesture is moving. */
 /**
  * One thumb's drawing, so the loop below reads as two thumbs rather than as a
  * list of quintuples. Each carries its own scale and aspect: a range slider has
@@ -1171,6 +1169,7 @@ private class RangeDrawn(
     val squashEnd: Float,
 )
 
+/** Which thumb a gesture is moving. */
 private enum class Thumb { Start, End, None }
 
 /** Which thumb the value label is over. Not state: only the draw reads it. */

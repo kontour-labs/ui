@@ -71,36 +71,7 @@ import kotlinx.datetime.plus
 /** How a day sits within a selected range. Drives the cell's shape and fill. */
 enum class RangePosition { None, Start, Middle, End, StartAndEnd }
 
-/**
- * One month's grid of days.
- *
- * The reusable part of every date picker — a calendar surface with no opinion
- * about how selection works, so single-date, range and multi-select pickers all
- * build on the same grid rather than each drawing their own.
- *
- * ```
- * CalendarMonth(
- *     month = visibleMonth,
- *     isSelected = { it == chosen },
- *     onSelectedChange = { chosen = it },
- *     isDateSelectable = { it >= today },
- * )
- * ```
- *
- * Selection is expressed as predicates rather than as a value, because that is
- * the only shape that serves all three selection modes without the grid needing
- * to know which one it is in.
- *
- * @param month Any date within the month to show; only its year and month matter.
- * @param isDateSelectable Days for which this returns false are shown but not
- *   selectable — greyed rather than hidden, so the calendar keeps its shape and
- *   the user can see *why* a date is unavailable.
- * @param markerFor Draws a dot under a day. For "this day has departures", or a
- *   trip already booked.
- * @param rangePositionOf Where a day sits in a selected range. Days in the
- *   middle get a square fill so the run reads as continuous; the ends get the
- *   rounded cap.
- */
+/** What [CalendarMonth] uses when it is not told otherwise. */
 object CalendarMonthDefaults {
     /** Breathing room around a day cell, outside a range only. */
     val CellInset: Dp = 1.dp
@@ -131,6 +102,36 @@ object CalendarMonthDefaults {
     val MaxWidth: Dp = ReferenceCell * 7 * MaxDayGrowth
 }
 
+/**
+ * One month's grid of days.
+ *
+ * The reusable part of every date picker — a calendar surface with no opinion
+ * about how selection works, so single-date, range and multi-select pickers all
+ * build on the same grid rather than each drawing their own.
+ *
+ * ```
+ * CalendarMonth(
+ *     month = visibleMonth,
+ *     isSelected = { it == chosen },
+ *     onSelectedChange = { chosen = it },
+ *     isDateSelectable = { it >= today },
+ * )
+ * ```
+ *
+ * Selection is expressed as predicates rather than as a value, because that is
+ * the only shape that serves all three selection modes without the grid needing
+ * to know which one it is in.
+ *
+ * @param month Any date within the month to show; only its year and month matter.
+ * @param isDateSelectable Days for which this returns false are shown but not
+ *   selectable — greyed rather than hidden, so the calendar keeps its shape and
+ *   the user can see *why* a date is unavailable.
+ * @param markerFor Draws a dot under a day. For "this day has departures", or a
+ *   trip already booked.
+ * @param rangePositionOf Where a day sits in a selected range. Days in the
+ *   middle get a square fill so the run reads as continuous; the ends get the
+ *   rounded cap.
+ */
 @Composable
 fun CalendarMonth(
     month: LocalDate,

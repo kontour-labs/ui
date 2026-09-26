@@ -324,6 +324,7 @@ private fun RailToggle(
     collapseLabel: String,
 ) {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val strings = Theme.strings
 
     // One chevron, turned round — not two swapped for each other.
     //
@@ -340,7 +341,7 @@ private fun RailToggle(
         // on.
         rotation = if (expanded) ChevronTurn else 0f,
         modifier = Modifier.semantics {
-            stateDescription = if (expanded) "Expanded" else "Collapsed"
+            stateDescription = if (expanded) strings.expanded else strings.collapsed
         },
     )
 }

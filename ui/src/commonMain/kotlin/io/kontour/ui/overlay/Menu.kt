@@ -197,6 +197,8 @@ fun AnchoredDropdownMenu(
     val modality = LocalInputModality.current
     val dismiss by rememberUpdatedState(onDismissRequest)
     val body by rememberUpdatedState(content)
+    // Read here: the entry below is built in an effect, which has no theme.
+    val closeLabel = Theme.strings.closeMenu
 
     val shape = Theme.shapes.container
     val anchorWidth = anchor?.let { with(density) { it.width.toDp() } } ?: Dp.Unspecified
@@ -218,7 +220,7 @@ fun AnchoredDropdownMenu(
                 key = key,
                 layer = OverlayLayer.Menu,
                 scrim = scrim,
-                dismissLabel = "Close menu",
+                dismissLabel = closeLabel,
                 onDismiss = { dismiss() },
                 // A menu should not steal focus from a mouse user mid-gesture,
                 // but it must contain focus for a keyboard user. Trapping does

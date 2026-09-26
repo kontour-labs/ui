@@ -101,6 +101,8 @@ fun Popover(
     // As with the anchor: read live rather than captured when the entry was
     // published, so a modifier change reaches a popover that is already open.
     val latestModifier by rememberUpdatedState(modifier)
+    // Read here: the entry below is built in an effect, which has no theme.
+    val closeLabel = Theme.strings.close
 
     Box(Modifier.parentBounds { anchor = it })
 
@@ -135,7 +137,7 @@ fun Popover(
                 // anything with a scrim traps, deliberately.
                 trapFocus = scrim != ScrimStyle.None,
                 dismissOnScroll = dismissOnScroll,
-                dismissLabel = "Close",
+                dismissLabel = closeLabel,
                 onDismiss = { dismiss() },
                 content = {
                     AnchoredOverlayLayout(

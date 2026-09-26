@@ -78,13 +78,16 @@ fun TimePicker(
         onValueChange(LocalTime(hour24.coerceIn(0, 23), minute.coerceIn(0, 59)))
     }
 
+    val strings = Theme.strings
+    val periods = remember(strings.am, strings.pm) { listOf(strings.am, strings.pm) }
+
     Column(modifier) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(72.dp).semantics { contentDescription = "Hour" }) {
+            Box(Modifier.width(72.dp).semantics { contentDescription = strings.hour }) {
                 WheelPicker(
                     items = hours,
                     selected = hourIndex,
@@ -95,7 +98,7 @@ fun TimePicker(
 
             Text(":", style = Theme.typography.headlineSmall, colour = Theme.colours.contentMuted)
 
-            Box(Modifier.width(72.dp).semantics { contentDescription = "Minute" }) {
+            Box(Modifier.width(72.dp).semantics { contentDescription = strings.minute }) {
                 WheelPicker(
                     items = minutes,
                     selected = minuteIndex,
@@ -119,10 +122,10 @@ fun TimePicker(
                     Modifier
                         .padding(start = Theme.spacing.sm)
                         .width(64.dp)
-                        .semantics { contentDescription = "AM or PM" }
+                        .semantics { contentDescription = strings.dayPeriod }
                 ) {
                     WheelPicker(
-                        items = MERIDIEMS,
+                        items = periods,
                         selected = if (isPm) 1 else 0,
                         onSelectedChange = { emit(pm = it == 1) },
                         label = { it },
@@ -133,8 +136,6 @@ fun TimePicker(
         }
     }
 }
-
-private val MERIDIEMS = listOf("AM", "PM")
 
 /**
  * The chosen time, shown as a tappable field.

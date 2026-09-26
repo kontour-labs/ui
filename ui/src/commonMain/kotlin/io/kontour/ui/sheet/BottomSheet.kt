@@ -1557,26 +1557,6 @@ private fun sheetTop(
 }
 
 /**
- * How much of its bottom margin a floating sheet is still keeping under it.
- *
- * The full margin everywhere the sheet is somewhere to *be*, and paid back to
- * nothing between its lowest detent and gone.
- *
- * **Both halves of the geometry have to read this**, which is what the first
- * attempt got wrong. A floating sheet's bottom edge is *seen*, so it is pinned:
- * the surface's height is measured as `window - margin - top` and shrinks as the
- * sheet slides down, rather than the surface translating with a constant height
- * the way an edge sheet's does. Changing [sheetTop] alone therefore moved the top
- * and left the bottom where it was — the sheet closed *faster* and still went out
- * while floating, which is a different answer to the same report rather than an
- * answer to it. Measured on a 900px window with a 24px margin: the bottom edge
- * sat at 875 on every frame of the close, before and after.
- *
- * Taken from the raw offset rather than from [sheetTop], because [sheetTop]
- * subtracts this — and a lift derived from a position that already has the lift
- * in it is a loop, not a fraction.
- */
-/**
  * How tall a floating sheet's surface is — and why it stops shrinking.
  *
  * Above the lowest detent that is somewhere to *be*, the bottom edge is pinned a
@@ -1624,6 +1604,26 @@ private fun floatingSurfaceHeight(
     return (window - margin - settledTop).coerceIn(0, window)
 }
 
+/**
+ * How much of its bottom margin a floating sheet is still keeping under it.
+ *
+ * The full margin everywhere the sheet is somewhere to *be*, and paid back to
+ * nothing between its lowest detent and gone.
+ *
+ * **Both halves of the geometry have to read this**, which is what the first
+ * attempt got wrong. A floating sheet's bottom edge is *seen*, so it is pinned:
+ * the surface's height is measured as `window - margin - top` and shrinks as the
+ * sheet slides down, rather than the surface translating with a constant height
+ * the way an edge sheet's does. Changing [sheetTop] alone therefore moved the top
+ * and left the bottom where it was — the sheet closed *faster* and still went out
+ * while floating, which is a different answer to the same report rather than an
+ * answer to it. Measured on a 900px window with a 24px margin: the bottom edge
+ * sat at 875 on every frame of the close, before and after.
+ *
+ * Taken from the raw offset rather than from [sheetTop], because [sheetTop]
+ * subtracts this — and a lift derived from a position that already has the lift
+ * in it is a loop, not a fraction.
+ */
 private fun floatingLift(
     state: SheetState,
     floatInsets: WindowInsets,

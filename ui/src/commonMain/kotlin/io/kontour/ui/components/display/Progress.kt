@@ -247,6 +247,7 @@ fun StepProgress(
 ) {
     if (total <= 0) return
     val motion = Theme.motion
+    val strings = Theme.strings
     val indeterminate = current == null
 
     val animated by animateFloatAsState(
@@ -322,9 +323,8 @@ fun StepProgress(
             .height(height)
             .semantics {
                 this.contentDescription = contentDescription ?: when {
-                    indeterminate -> "In progress"
-                    working -> "Step $current of $total, in progress"
-                    else -> "Step $current of $total"
+                    indeterminate -> strings.inProgress
+                    else -> strings.stepOfCount(current, total, working)
                 }
                 // `Indeterminate` rather than a made-up position: a screen reader
                 // saying "step 0 of 4" would be stating something the caller

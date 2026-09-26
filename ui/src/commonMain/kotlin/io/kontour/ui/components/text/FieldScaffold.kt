@@ -51,6 +51,9 @@ import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.flow.collectLatest
 
+/** The gap between a field's label, its frame and its message. */
+private val FieldStackGap = 6.dp
+
 /**
  * The frame every form control shares: label above, bordered box, helper or
  * error below.
@@ -66,9 +69,6 @@ import kotlinx.coroutines.flow.collectLatest
  * @param content Fills the box between the leading slots and the trailing slot.
  *   Give it `Modifier.weight(1f)` unless the control is meant to hug its value.
  */
-/** The gap between a field's label, its frame and its message. */
-private val FieldStackGap = 6.dp
-
 @Composable
 internal fun FieldScaffold(
     modifier: Modifier,

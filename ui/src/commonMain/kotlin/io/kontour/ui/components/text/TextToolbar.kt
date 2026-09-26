@@ -293,6 +293,8 @@ private fun SelectionToolbarOverlay(
     val latest by rememberUpdatedState(request)
     val latestActions by rememberUpdatedState(actions)
     val latestLabels by rememberUpdatedState(labels)
+    // Read here: the entry below is built in an effect, which has no theme.
+    val closeLabel = Theme.strings.close
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
@@ -322,7 +324,7 @@ private fun SelectionToolbarOverlay(
                 // `Menu` is also `ScrimStyle.Transparent` and *does* trap, so
                 // this cannot be derived from the scrim. It has to be stated.
                 trapFocus = false,
-                dismissLabel = "Close",
+                dismissLabel = closeLabel,
                 onDismiss = { dismiss() },
                 content = {
                     AnchoredOverlayLayout(

@@ -146,6 +146,8 @@ fun CommandPalette(
     val latestDismiss by rememberUpdatedState(onDismissRequest)
     val latestTopInset by rememberUpdatedState(topInset)
     val latestDismissible by rememberUpdatedState(dismissible)
+    // Read here: the entry below is built in an effect, which has no theme.
+    val dismissLabel = Theme.strings.dismiss
 
     LaunchedEffect(visible, key) {
         if (visible) {
@@ -155,7 +157,7 @@ fun CommandPalette(
                     layer = OverlayLayer.Dialog,
                     scrim = ScrimStyle.Dimmed,
                     dismissOnOutside = latestDismissible,
-                    dismissLabel = "Dismiss",
+                    dismissLabel = dismissLabel,
                     trapFocus = true,
                     onDismiss = { latestDismiss() },
                     content = {

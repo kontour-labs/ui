@@ -275,6 +275,7 @@ fun Carousel(
     val scope = rememberCoroutineScope()
     val count = state.count
     val current = state.currentPage
+    val position = Theme.strings.itemOfCount(current, count)
     val direction = LocalLayoutDirection.current
     val hero = style == CarouselStyle.Hero
     val density = LocalDensity.current
@@ -416,7 +417,7 @@ fun Carousel(
             .semantics {
                 isTraversalGroup = true
                 this.contentDescription = contentDescription
-                stateDescription = "${current + 1} of $count"
+                stateDescription = position
                 customActions = listOf(
                     CustomAccessibilityAction(previousLabel) {
                         if (current > 0) {

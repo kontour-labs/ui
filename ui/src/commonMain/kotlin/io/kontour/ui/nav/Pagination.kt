@@ -316,13 +316,14 @@ private fun widestWindowThatFits(
 @Composable
 private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
     val colours = Theme.colours
+    val label = Theme.strings.pageNumber(number)
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.control
 
     Box(
         modifier = Modifier
             .semantics(mergeDescendants = true) {
-                contentDescription = "Page ${number + 1}"
+                contentDescription = label
             }
             .minimumTouchTarget()
             .focusRing(interactions, shape)

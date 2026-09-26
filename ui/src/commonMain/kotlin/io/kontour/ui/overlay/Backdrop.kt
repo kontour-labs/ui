@@ -251,21 +251,6 @@ private fun resolvedInset(): Dp =
     if (Theme.motion.reduceMotion) 0.dp else BackdropDefaults.Inset
 
 /**
- * Whatever the system has parked along the bottom of the window, in pixels.
- *
- * **`edges` rather than `safeDrawing`, and the difference is the keyboard.**
- * `WindowInsets.edges` is deliberately the system bars and the display cutout
- * and *not* the IME — see its own note — so a keyboard opening does not make the
- * screen recede further. `safeDrawing` includes the IME, and a screen that steps
- * back another 300dp when a field is focused inside the sheet in front of it is
- * a worse fault than the one this parameter exists to fix.
- *
- * Zero on a JVM scene, which is why the existing backdrop tests are unaffected:
- * an `ImageComposeScene` has no bars, so the new constraint never binds and the
- * width-derived scale is still the answer. That is the check that this only
- * changes the case it was written for.
- */
-/**
  * Thirteen clip shapes, one per step of the recede.
  *
  * ### The corner is the snap

@@ -52,6 +52,8 @@ data class Strings(
     val gotIt: String = "Got it",
     val expandSheet: String = "Expand sheet",
     val collapseSheet: String = "Collapse sheet",
+    /** A menu's dismiss affordance, for assistive technology. */
+    val closeMenu: String = "Close menu",
 
     // Loading, failure and retry
     val loading: String = "Loading",
@@ -77,6 +79,14 @@ data class Strings(
 
     /** Confirms the page typed into that box. */
     val goToPageConfirm: String = "Go",
+    /** One page's button in a pagination row. [page] counts from zero. */
+    val pageNumber: (page: Int) -> String = { page -> "Page ${page + 1}" },
+    /**
+     * Where a carousel is, said as its position rather than as a page — the
+     * carousel's own state, beside [pageOfCount] for its indicator. [index]
+     * counts from zero.
+     */
+    val itemOfCount: (index: Int, count: Int) -> String = { index, count -> "${index + 1} of $count" },
     /**
      * A page indicator's position, which needs the numbers rather than a
      * constant — the one place here that is a format instead of a word.
@@ -93,6 +103,18 @@ data class Strings(
     val increase: String = "Increase",
     val rangeStart: String = "Range start",
     val rangeEnd: String = "Range end",
+    /** A score against its scale: "4.5 out of 5". [value] is already written out. */
+    val outOf: (value: String, count: Int) -> String = { value, count -> "$value out of $count" },
+    /** A progress bar that knows neither how far it is nor how far it has to go. */
+    val inProgress: String = "In progress",
+    /** A step progress bar's position; [working] while the step is still under way. */
+    val stepOfCount: (step: Int, count: Int, working: Boolean) -> String = { step, count, working ->
+        if (working) "Step $step of $count, in progress" else "Step $step of $count"
+    },
+    /** A badge with no count, marking something as new. */
+    val new: String = "New",
+    /** A badge's count past its cap, as it is read out: the cap shows as "99+". */
+    val moreThan: (count: Int) -> String = { count -> "More than $count" },
 
     // Fields and pickers
     val search: String = "Search",
@@ -119,6 +141,30 @@ data class Strings(
     val colourOpacity: String = "Opacity",
     /** The notation the colour is written in — hex, RGB, HSV, HSL. */
     val colourFormat: String = "Colour format",
+    /** The colour picker's two modes: the continuous square and the swatches. */
+    val colourSpectrum: String = "Spectrum",
+    val colourPalette: String = "Palette",
+
+    // Dates and times
+    val hour: String = "Hour",
+    val minute: String = "Minute",
+    /** The morning-or-afternoon wheel of a 12-hour time picker. */
+    val dayPeriod: String = "AM or PM",
+    /** What that wheel shows. The written-out form is [io.kontour.ui.components.datetime.DateTimeFormats]'. */
+    val am: String = "AM",
+    val pm: String = "PM",
+    val month: String = "Month",
+    val year: String = "Year",
+    val previousMonth: String = "Previous month",
+    val nextMonth: String = "Next month",
+    /** Moves a calendar back to the month with today in it. */
+    val returnToToday: String = "Return to today",
+    /** The click label on a calendar's title, which opens the month-and-year wheels. */
+    val chooseMonthAndYear: String = "Choose month and year",
+
+    // Layout
+    /** The divider between two panes a person can drag. */
+    val resizePanes: String = "Resize panes",
 
     // Navigation
     val navigation: String = "Navigation",

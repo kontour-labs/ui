@@ -38,6 +38,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
@@ -50,6 +51,14 @@ import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 
 private val ChipHeight = 34.dp
+
+/**
+ * The gap between a chip's tick and its label.
+ *
+ * Named because [AnimatedSlot] needs it as a value rather than as an
+ * arrangement, and because three chip variants were each restating `6.dp`.
+ */
+private val ChipIconGap = 6.dp
 
 /**
  * A compact, pill-shaped control.
@@ -73,14 +82,6 @@ private val ChipHeight = 34.dp
  * Chips are for things that come in *sets*. A single chip on a screen is
  * usually a small button wearing the wrong clothes.
  */
-/**
- * The gap between a chip's tick and its label.
- *
- * Named because [AnimatedSlot] needs it as a value rather than as an
- * arrangement, and because three chip variants were each restating `6.dp`.
- */
-private val ChipIconGap = 6.dp
-
 @Composable
 fun Chip(
     onClick: () -> Unit,
@@ -328,7 +329,13 @@ fun InputChip(
     removeLabel: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    removeIcon: ImageVector? = null,
+    /**
+     * The remove button's glyph. A close cross by default: [onRemove] is
+     * required, so a chip that could be removed and drew nothing to remove it
+     * with — which is what a `null` default did — was a removal nobody could
+     * find. Pass `null` only for a chip removed some other way.
+     */
+    removeIcon: ImageVector? = SystemIcons.Close,
     onClick: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit

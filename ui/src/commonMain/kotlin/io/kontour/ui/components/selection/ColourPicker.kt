@@ -184,8 +184,15 @@ fun ColourPicker(
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
         if (onModeChange != null) {
+            // Remembered on the words, not built each time: a new list is a new
+            // parameter, and the switch recomposed on every drag event of the
+            // picker around it.
+            val strings = Theme.strings
+            val modeLabels = remember(strings.colourSpectrum, strings.colourPalette) {
+                listOf(strings.colourSpectrum, strings.colourPalette)
+            }
             SegmentedControl(
-                options = ModeLabels,
+                options = modeLabels,
                 selected = ColourPickerMode.entries.indexOf(mode),
                 onSelectedChange = { onModeChange(ColourPickerMode.entries[it]) },
                 enabled = enabled,
@@ -264,19 +271,6 @@ object ColourPickerDefaults {
     )
 }
 
-/** What a mode is called on its switch. Enum names are not user-facing words. */
-private val ColourPickerMode.label: String
-    get() = when (this) {
-        ColourPickerMode.Spectrum -> "Spectrum"
-        ColourPickerMode.Palette -> "Palette"
-    }
-
-/**
- * The switch's labels, built once. A list made in composition is a new list
- * every time, and a new list is a changed parameter — so the switch recomposed
- * on every drag event of the picker around it.
- */
-private val ModeLabels: List<String> = ColourPickerMode.entries.map { it.label }
 
 /**
  * Saturation across, value down, at one hue.

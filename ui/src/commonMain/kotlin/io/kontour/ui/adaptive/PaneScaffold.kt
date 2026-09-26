@@ -384,6 +384,7 @@ private fun TwoPane(
 @Composable
 private fun ResizeHandle(onDelta: (Float) -> Boolean, fraction: Float) {
     val colours = Theme.colours
+    val label = Theme.strings.resizePanes
     val motion = Theme.motion
     // 12dp is plenty for a mouse and a miss for a thumb, and this is the control
     // `isPrecise` names as its first example. Under touch the handle reserves
@@ -414,7 +415,7 @@ private fun ResizeHandle(onDelta: (Float) -> Boolean, fraction: Float) {
             .pointerCursor(Cursor.ResizeColumn)
             .hoverable(interactions)
             .semantics {
-                contentDescription = "Resize panes"
+                contentDescription = label
                 progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0.2f..0.8f)
                 setProgress { target ->
                     onDelta((target - fraction) * 1000f)

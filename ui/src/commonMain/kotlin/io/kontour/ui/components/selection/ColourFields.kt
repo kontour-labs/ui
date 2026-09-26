@@ -71,7 +71,7 @@ internal val ColourFormat.label: String
         ColourFormat.Hsl -> "HSL"
     }
 
-/** The switch's labels, built once — see `ModeLabels` in `ColourPicker`. */
+/** The switch's labels, built once: a list made in composition is a new parameter every time. */
 private val FormatLabels: List<String> = ColourFormat.entries.map { it.label }
 
 /**

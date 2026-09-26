@@ -160,9 +160,10 @@ fun Badge(
         else -> count.toString()
     }
 
+    val strings = Theme.strings
     val announcement = contentDescription ?: when {
-        count == null -> "New"
-        count > max -> "More than $max"
+        count == null -> strings.new
+        count > max -> strings.moreThan(max)
         else -> "$count"
     }
 
