@@ -6,12 +6,20 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.composed
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.abs
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -61,8 +69,6 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.overlay.Popover
-import io.kontour.ui.motion.AnimatedSlot
-import io.kontour.ui.motion.SlotGap
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
@@ -124,6 +130,71 @@ private val TodayGlyph: ImageVector by lazy {
         }
     }.build()
 }
+
+/**
+ * A sideways scroll pages the month: a trackpad's two-finger swipe, a mouse's
+ * tilt wheel, shift and the wheel.
+ *
+ * Reported as wanted on the desktop, where that is how everything else pages.
+ * **One page per swipe**: a trackpad sends a stream of small deltas and then its
+ * momentum sends more, so a swipe is counted until the scroll goes quiet, and it
+ * pages once when enough of it has arrived. A mouse's notch is a whole unit and
+ * pages on its own. Mostly-vertical scrolls are left alone — they are the page's
+ * to scroll — and the sideways ones are consumed, so a scrolling container round
+ * the calendar does not move as well. Right to left, the months run the other way
+ * and so does the scroll.
+ */
+private fun Modifier.sidewaysScrollPages(navigation: CalendarNavigationState): Modifier =
+    composed {
+        val current by rememberUpdatedState(navigation)
+        val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+        pointerInput(rtl) {
+            var gathered = 0f
+            var last = 0L
+            var spent = false
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent()
+                    if (event.type != PointerEventType.Scroll) continue
+                    val delta = event.changes.fold(Offset.Zero) { sum, change -> sum + change.scrollDelta }
+                    if (abs(delta.x) <= abs(delta.y)) continue
+                    val now = event.changes.first().uptimeMillis
+                    if (now - last > ScrollQuietMillis) {
+                        gathered = 0f
+                        spent = false
+                    }
+                    last = now
+                    event.changes.forEach { it.consume() }
+                    if (spent) continue
+                    gathered += delta.x
+                    if (abs(gathered) >= ScrollPage) {
+                        // Scrolling right shows what is to the right: the next
+                        // month, or right to left the one before.
+                        val later = gathered > 0f
+                        current.step(if (later != rtl) 1 else -1)
+                        spent = true
+                    }
+                }
+            }
+        }
+    }
+
+/**
+ * How far today's cell is flashed, 0 to 1, from the picker it is in; null in a
+ * month with no today button over it. Read in the cell's draw pass, so a flash is
+ * a redraw of one cell and nothing else.
+ */
+internal val LocalTodayFlash = staticCompositionLocalOf<(() -> Float)?> { null }
+
+/** The flash coming in, and going out: in quickly, out slowly, so the eye finds it and then lets it go. */
+private const val TodayFlashInMillis: Int = 180
+private const val TodayFlashOutMillis: Int = 700
+
+/** A scroll quiet for this long has ended, and the next one is a new swipe. */
+private const val ScrollQuietMillis: Long = 250L
+
+/** How much sideways scroll a swipe needs to page: one mouse notch. */
+private const val ScrollPage: Float = 1f
 
 /**
  * Remembers which month a picker is showing, surviving configuration change.
@@ -603,11 +674,19 @@ private fun CalendarFrame(
         }
     }
 
-    // Only worth offering from somewhere else. Paging three months forward and
-    // wanting to come back is the whole case; a button that is always there and
-    // does nothing eleven times out of twelve is a button people stop reading.
-    val todayMonth = today?.let { LocalDate(it.year, it.month, 1) }
-    val awayFromToday = todayMonth != null && todayMonth != navigation.visibleMonth
+    /**
+     * Today, flashed: 0 to 1 and back when the today button is pressed.
+     *
+     * The button used to show only while the calendar was on another month, on
+     * the grounds that on today's own month it did nothing. It is always there
+     * now — reported as wanted — and so it always does something: it brings the
+     * calendar to today's month if it is not there, and then it points at the day,
+     * fading a colour from the theme in and out of it. Which is also the answer to
+     * "where is today" on a month where the day is easy to miss. Read by the
+     * today cell in its draw pass; see `LocalTodayFlash`.
+     */
+    val todayFlash = remember { Animatable(0f) }
+    val flashScope = rememberCoroutineScope()
     var chooserOpen by remember { mutableStateOf(false) }
 
     /**
@@ -664,31 +743,29 @@ private fun CalendarFrame(
                     onOpen = { chooserOpen = true },
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // The gap belongs to the animated child, not to an arrangement
-                    // around it — see `AnimatedSlot`. With `spacedBy` the row loses
-                    // the whole gap in one frame at the end of the animation, after
-                    // the button has finished shrinking, and the next-month button
-                    // jumps sideways.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+                ) {
                     if (todayIcon != null && today != null) {
-                        AnimatedSlot(
-                            visible = awayFromToday,
-                            gap = Theme.spacing.xxs,
-                            side = SlotGap.Trailing,
-                            enter = fadeIn(motion.tweenFast()) +
-                                scaleIn(motion.tweenFast(), initialScale = 0.8f),
-                            exit = fadeOut(motion.tweenFast()) +
-                                scaleOut(motion.tweenFast(), targetScale = 0.8f),
-                        ) {
-                            IconButton(
-                                icon = todayIcon,
-                                contentDescription = "Return to today",
-                                onClick = {
-                                    navigation.jumpTo(today)
-                                },
-                                size = ButtonSize.Small,
-                            )
-                        }
+                        IconButton(
+                            icon = todayIcon,
+                            contentDescription = "Return to today",
+                            onClick = {
+                                val paging = navigation.visibleMonth.let {
+                                    it.year != today.year || it.month != today.month
+                                }
+                                navigation.jumpTo(today)
+                                flashScope.launch {
+                                    // Once the month has slid in, if it had to.
+                                    if (paging) delay(motion.default.toLong())
+                                    todayFlash.snapTo(0f)
+                                    todayFlash.animateTo(1f, tween(TodayFlashInMillis))
+                                    todayFlash.animateTo(0f, tween(TodayFlashOutMillis))
+                                }
+                            },
+                            size = ButtonSize.Small,
+                        )
                     }
 
                     if (nextIcon != null) {
@@ -730,13 +807,18 @@ private fun CalendarFrame(
         }
 
         // The drag's pointer input sits on this box, outside the pager, so the
-        // gesture does not leave with the month it started in.
+        // gesture does not leave with the month it started in. So does a
+        // sideways scroll, which pages.
         Box(
             Modifier
                 .fillMaxWidth()
+                .sidewaysScrollPages(navigation)
                 .then(if (drag != null) Modifier.calendarDragInput(drag) else Modifier)
         ) {
-        CompositionLocalProvider(LocalCalendarDrag provides drag) {
+        CompositionLocalProvider(
+            LocalCalendarDrag provides drag,
+            LocalTodayFlash provides { todayFlash.value },
+        ) {
         AnimatedContent(
             targetState = navigation.visibleMonth,
             transitionSpec = {

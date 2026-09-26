@@ -42,6 +42,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -217,6 +218,7 @@ fun CalendarMonth(
      * draw, not the days' — see `drawLiveBand`.
      */
     val live = drag != null && drag.live && drag.month == firstOfMonth
+    val todayFlash = LocalTodayFlash.current
     val paging = live && drag.onStep != null
     val motion = Theme.motion
 
@@ -398,6 +400,7 @@ fun CalendarMonth(
                             cellSize = cellSize,
                             dragging = live,
                             travelling = live && drag.leaning == date,
+                            flash = if (date == today) todayFlash else null,
                             // Where the cap is, in cells, measured from this cell's
                             // own place in the grid. Read in the layer: it changes on
                             // every pointer move and moves exactly one cell in
@@ -444,6 +447,9 @@ internal fun rememberCalendarDrag(): CalendarDragState {
 
 private fun LocalDate.sameMonth(first: LocalDate): Boolean = year == first.year && month == first.month
 
+/** How strong today's flash is at its brightest: enough to find the day, not to read as a selection. */
+private const val TodayFlashAlpha: Float = 0.45f
+
 /** The arrow's ring on a cap, faint against the cap's ink until the dwell fills it. */
 private const val CapRingAlpha: Float = 0.4f
 
@@ -462,6 +468,8 @@ private fun DayCell(
     dragging: Boolean,
     /** This day is the moving end of that drag. */
     travelling: Boolean,
+    /** How far this day is flashed, 0 to 1: today's, when the today button is pressed. */
+    flash: (() -> Float)?,
     /**
      * How far past this cell's centre the finger is, in cell widths, or zero for
      * every cell that is not the moving end of the range. Read in the layer.
@@ -708,6 +716,26 @@ private fun DayCell(
                     }
                 )
         )
+
+        if (flash != null) {
+            // Over the day's fill and under its number: a colour from the theme
+            // fading in and out, drawn from the flash in the draw pass alone.
+            val flashColour = colours.accent.solid
+            Box(
+                Modifier
+                    .matchCellSize()
+                    .drawBehind {
+                        val amount = flash()
+                        if (amount > 0f) {
+                            drawOutline(
+                                shape.createOutline(size, layoutDirection, this),
+                                flashColour,
+                                alpha = amount * TodayFlashAlpha,
+                            )
+                        }
+                    }
+            )
+        }
 
         Box(
             Modifier

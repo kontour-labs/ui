@@ -16,6 +16,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.takeOrElse
@@ -84,10 +87,12 @@ import kotlin.math.roundToInt
  * @param cap How the track's ends and the fill's ends are cut.
  * @param colours The fill is `indicator`, a [ScaleColours] laid along the scale;
  *   the rest are the gauge's — see [DialColours].
- * @param indicator What marks the value besides the fill: nothing, a needle across
- *   the track, a thumb on it, or both.
- * @param needleLength How long the needle is, in track thicknesses, centred on the
- *   track. Never shorter than the track is thick.
+ * @param indicator What marks the value besides the fill: nothing, a needle — a
+ *   small triangle beside the track pointing at the reading, from the side away
+ *   from the ticks — a thumb on the track, or both, the needle pointing at the
+ *   thumb.
+ * @param needleLength How tall the needle's triangle is, in track thicknesses: how
+ *   far it stands off the track.
  * @param needleMatchesFill Whether the needle takes the fill's colour at the
  *   reading — the band it is in — rather than `colours.needle`.
  * @param majorTicks How many labelled marks, counting both ends. Zero for none.
@@ -190,9 +195,15 @@ fun Meter(
     val tickWidthPx = with(density) { GaugeTickWidth.toPx() }
     val ringPx = with(density) { GaugeThumbRing.toPx() }
     val thumbPx = if (hasThumb) thicknessPx * ThumbShare else 0f
-    val needleWidthPx = thicknessPx * NeedleWidthShare
-    val needlePx = if (hasNeedle) max(needleLength * thicknessPx, thicknessPx) else 0f
-    val reach = maxOf(thicknessPx / 2f, thumbPx, needlePx / 2f)
+    // The needle is a small triangle beside the track, pointing at the reading
+    // from the side the ticks are not on: a caret on a ruler. It was a stripe
+    // across the track, and read as part of the fill rather than as something
+    // marking it.
+    val needleHeightPx = if (hasNeedle) max(needleLength * thicknessPx, with(density) { NeedleMinimum.toPx() }) else 0f
+    val needleHalfBasePx = needleHeightPx * NeedleBaseShare / 2f
+    val needleGapPx = with(density) { NeedleGap.toPx() }
+    val reach = maxOf(thicknessPx / 2f, thumbPx)
+    val pointerSide = if (hasNeedle) reach + needleGapPx + needleHeightPx else reach
     val tickEdge = thicknessPx / 2f + tickGapPx
     val labelCross = labels.maxOfOrNull { if (horizontal) it.size.height else it.size.width }?.toFloat() ?: 0f
     val tickSide = if (majorTicks >= 2) {
@@ -200,7 +211,7 @@ fun Meter(
     } else {
         reach
     }
-    val scaleCross = tickSide + reach
+    val scaleCross = tickSide + pointerSide
 
     // **Along it**: room at each end for what overhangs the track's ends — a round
     // cap, a thumb or needle at the very end, and half the end labels, which are
@@ -208,7 +219,7 @@ fun Meter(
     val capOver = if (cap == StrokeCap.Butt) 0f else thicknessPx / 2f
     fun labelHalf(index: Int): Float =
         labels.getOrNull(index)?.let { (if (horizontal) it.size.width else it.size.height) / 2f } ?: 0f
-    val endsOver = maxOf(capOver, thumbPx, if (hasNeedle) needleWidthPx / 2f else 0f)
+    val endsOver = maxOf(capOver, thumbPx, needleHalfBasePx)
     val startInset = max(endsOver, labelHalf(0))
     val endInset = max(endsOver, labelHalf(labels.lastIndex))
 
@@ -231,9 +242,9 @@ fun Meter(
                     val h = size.height
                     val length = if (horizontal) w else h
                     val span = (length - startInset - endInset).coerceAtLeast(0f)
-                    val centre = if (tickSign > 0f) reach else tickSide
-                    fun point(fraction: Float, across: Float = 0f): Offset {
-                        val along = startInset + span * fraction
+                    val centre = if (tickSign > 0f) pointerSide else tickSide
+                    fun point(fraction: Float, across: Float = 0f, alongBy: Float = 0f): Offset {
+                        val along = startInset + span * fraction + alongBy
                         return if (horizontal) {
                             Offset(if (rtl) w - along else along, centre + across)
                         } else {
@@ -251,6 +262,8 @@ fun Meter(
                         Brush.linearGradient(*stops.toTypedArray(), start = point(0f), end = point(1f))
                     }
                     val divisions = if (majorTicks >= 2) (majorTicks - 1) * (minorTicks.coerceAtLeast(0) + 1) else 0
+                    val needle = Path()
+                    val needleRoundPx = NeedleRounding.toPx()
                     onDrawBehind {
                         val at = fractionOf(shown.value)
                         drawLine(colours.track, point(0f), point(1f), thicknessPx, cap)
@@ -288,17 +301,20 @@ fun Meter(
                             }
                             drawText(label, topLeft = topLeft)
                         }
-                        // The needle first, so with both the thumb sits on top and the
-                        // needle runs out from under it.
+                        // The needle: its tip just clear of the track (or the thumb), its
+                        // base further out, on the side away from the ticks. Filled and
+                        // traced with a round join, which softens its corners.
                         if (hasNeedle) {
-                            val half = (needlePx - needleWidthPx) / 2f
-                            drawLine(
-                                if (needleMatchesFill) colourAlong(stops, at) else colours.needle,
-                                point(at, -half),
-                                point(at, half),
-                                needleWidthPx,
-                                StrokeCap.Round,
-                            )
+                            val side = -tickSign
+                            val tip = reach + needleGapPx
+                            needle.rewind()
+                            needle.moveTo(point(at, side * tip))
+                            needle.lineTo(point(at, side * (tip + needleHeightPx), -needleHalfBasePx))
+                            needle.lineTo(point(at, side * (tip + needleHeightPx), needleHalfBasePx))
+                            needle.close()
+                            val colour = if (needleMatchesFill) colourAlong(stops, at) else colours.needle
+                            drawPath(needle, colour)
+                            drawPath(needle, colour, style = Stroke(needleRoundPx, join = StrokeJoin.Round))
                         }
                         if (hasThumb) {
                             val c = point(at)
@@ -399,6 +415,10 @@ fun Meter(
     }
 }
 
+private fun Path.moveTo(to: Offset) = moveTo(to.x, to.y)
+
+private fun Path.lineTo(to: Offset) = lineTo(to.x, to.y)
+
 /** Which way a [Meter] runs. */
 enum class MeterOrientation {
     /** Across the page, filling from the start of the line — so from the right, right to left. */
@@ -427,7 +447,7 @@ object MeterDefaults {
      */
     val Length: Dp get() = MeterLength
 
-    /** A needle a little over twice the track's thickness, reaching past it either side. */
+    /** A needle a little taller than the track is thick. */
     val NeedleLength: Float get() = MeterNeedleShare
 
     /**
@@ -458,4 +478,16 @@ object MeterDefaults {
 
 private val MeterThickness: Dp = 8.dp
 private val MeterLength: Dp = 160.dp
-private const val MeterNeedleShare: Float = 2.5f
+private const val MeterNeedleShare: Float = 1.25f
+
+/** The needle's base against its height: a little wider than tall. */
+private const val NeedleBaseShare: Float = 1.2f
+
+/** Between the needle's tip and the track or thumb it points at. */
+private val NeedleGap: Dp = 2.dp
+
+/** However thin the track, a needle you can see. */
+private val NeedleMinimum: Dp = 6.dp
+
+/** How much the needle's corners are softened. */
+private val NeedleRounding: Dp = 1.5.dp

@@ -201,7 +201,7 @@ fun MeterBasics() {
         }
     }
 
-    // A tank up the page, with a needle across it and the reading beside it.
+    // A tank up the page, a needle pointing at the level and the reading beside it.
     Meter(
         value = 340f,
         valueRange = 0f..500f,

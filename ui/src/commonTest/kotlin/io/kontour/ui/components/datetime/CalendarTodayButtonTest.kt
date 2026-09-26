@@ -7,17 +7,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kontour.ui.theme.KontourTheme
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 /**
  * Every date picker has a way back to today's month, with a glyph of its own and
- * nothing to supply — shown while it is somewhere else, and gone when asked.
+ * nothing to supply. Always there, unless asked not to be; pressing it brings the
+ * calendar to today's month and flashes the day.
  */
 @OptIn(ExperimentalTestApi::class)
 class CalendarTodayButtonTest {
@@ -58,10 +66,23 @@ class CalendarTodayButtonTest {
         onNodeWithContentDescription("Return to today").assertDoesNotExist()
     }
 
+    /** On today's own month it is still there, and pressing it flashes the day. */
     @Test
-    fun onTodaysOwnMonthThereIsNone() = runComposeUiTest {
+    fun onTodaysOwnMonthItFlashesTheDay() = runComposeUiTest {
         datePicker(showing = LocalDate(2026, 6, 1))
-        onNodeWithContentDescription("Return to today").assertDoesNotExist()
+        val day = onNodeWithText("12").fetchSemanticsNode().boundsInRoot
+        // Inside the day's circle, below its number.
+        val probe = Offset(day.center.x, day.center.y + day.height * 0.3f)
+        fun shade(): Color = onRoot().captureToImage().toPixelMap()[probe.x.toInt(), probe.y.toInt()]
+        val before = shade()
+        mainClock.autoAdvance = false
+        onNodeWithContentDescription("Return to today").performClick()
+        mainClock.advanceTimeBy(200L)
+        val flashing = shade()
+        mainClock.advanceTimeBy(1_500L)
+        val after = shade()
+        assertNotEquals(before, flashing, "pressing the today button on today's month did not flash the day")
+        assertEquals(before, after, "the flash did not fade back out")
     }
 
     private fun ComposeUiTest.datePicker(

@@ -27,7 +27,7 @@ Meter(
     }
 }
 
-// A tank up the page, with a needle across it and the reading beside it.
+// A tank up the page, a needle pointing at the level and the reading beside it.
 Meter(
     value = 340f,
     valueRange = 0f..500f,
@@ -54,11 +54,13 @@ wherever they can:
 - **The fill runs from `origin` to the reading**, coloured along the *scale* by a
   `ScaleColours` — `solid`, `gradient` or `bands` — so the part of the track at 80%
   is the same colour whether the fill stops there or carries on.
-- **What marks the value** — `GaugeIndicator.None`, `Needle` (a line across the
-  track at the reading), `Thumb` (a ringed disc on it), or `NeedleAndThumb`.
-  `needleLength` is in track thicknesses, centred on the track: 2.5, the default,
-  reaches a little past it on each side. `needleMatchesFill` paints the needle in
-  the colour of the band the reading is in.
+- **What marks the value** — `GaugeIndicator.None`, `Needle`, `Thumb` (a ringed
+  disc on the track), or `NeedleAndThumb`. The needle is a small triangle beside
+  the track pointing at the reading, like a caret on a ruler — from the side the
+  ticks are not on, so it never sits among their labels; with a thumb, it points
+  at the thumb. `needleLength` is how tall the triangle stands off the track, in
+  track thicknesses: 1.25 by default. `needleMatchesFill` paints it in the colour
+  of the band the reading is in.
 - **Ticks** — `majorTicks` counts both ends, `minorTicks` sit between each pair,
   `tickLabel` writes the major ones. `tickPlacement` says which side of the track
   they go on: `Inside` is the content's side, between it and the track;
