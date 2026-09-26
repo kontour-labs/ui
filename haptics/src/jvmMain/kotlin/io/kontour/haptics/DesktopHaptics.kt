@@ -76,7 +76,7 @@ internal class DesktopHaptics(private val actuator: TrackpadActuator?, private v
     override val capability: HapticCapability
         get() = if (actuator != null) {
             HapticCapability(
-                level = HapticCapability.Level.Basic,
+                richness = HapticCapability.Richness.Basic,
                 honoursStrength = false,
                 rumble = HapticCapability.RumbleSupport.Pulsed,
                 details = listOf(reason, "Plays only while a finger is on the trackpad"),

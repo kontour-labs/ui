@@ -636,8 +636,8 @@ class DetentHapticsTest {
                 CompositionLocalProvider(
                     LocalFeedback provides object : FeedbackDispatcher {
                         override fun perform(intent: FeedbackIntent) = Unit
-                        override fun perform(intent: FeedbackIntent, strength: Float) {
-                            if (intent == FeedbackIntent.Scrub) grains += strength
+                        override fun perform(intent: FeedbackIntent, scale: Float) {
+                            if (intent == FeedbackIntent.Scrub) grains += scale
                         }
                     },
                 ) {

@@ -16,7 +16,7 @@ import kotlin.time.Duration
  */
 class RecordingHaptics(
     override val capability: HapticCapability = HapticCapability(
-        level = HapticCapability.Level.Rich,
+        richness = HapticCapability.Richness.Rich,
         honoursStrength = true,
         rumble = HapticCapability.RumbleSupport.Continuous,
         details = listOf("recording"),

@@ -142,7 +142,7 @@ ships the ProGuard rule for it.
 
 ## What a device can do
 
-`haptics.capability` says how rich its haptics are (`None`, `Basic`, `Rich`),
+`haptics.capability.richness` says how rich its haptics are (`None`, `Basic`, `Rich`),
 whether strength is felt finely, what a rumble is (`None`, `Pulsed`,
 `Continuous`), and — in `details` — which route was taken and why, for a person
 reading it.

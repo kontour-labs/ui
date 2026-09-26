@@ -375,14 +375,15 @@ fun interface FeedbackDispatcher {
     fun perform(intent: FeedbackIntent)
 
     /**
-     * Plays [intent] once at [strength] times its usual strength, 0 to 1 — a
-     * [FeedbackIntent.Scrub] grain, firmer the faster the drag.
+     * Plays [intent] once at [scale] times its usual strength, 0 to 1 — a
+     * [FeedbackIntent.Scrub] grain, firmer the faster the drag. The same factor
+     * `HapticEffect.scaled` takes.
      *
-     * The default ignores the strength and performs it as usual, so a dispatcher
+     * The default ignores the scale and performs it as usual, so a dispatcher
      * written before this existed, and every one-line test lambda, still hears
      * each grain.
      */
-    fun perform(intent: FeedbackIntent, strength: Float) = perform(intent)
+    fun perform(intent: FeedbackIntent, scale: Float) = perform(intent)
 
     /**
      * Starts [intent] as feedback that lasts — a hold's rumble — and returns the
@@ -396,6 +397,17 @@ fun interface FeedbackDispatcher {
     fun sustain(intent: FeedbackIntent): SustainedFeedback {
         perform(intent)
         return SustainedFeedback.None
+    }
+
+    companion object {
+        /**
+         * A dispatcher that does nothing, as `Haptics.None` is a player that
+         * plays nothing.
+         *
+         * For tests, for screenshot rendering, and for honouring an in-app
+         * "haptics off" setting.
+         */
+        val None: FeedbackDispatcher = FeedbackDispatcher { }
     }
 }
 
@@ -468,8 +480,8 @@ private class DefaultFeedbackDispatcher(
         if (level.allows(intent)) player.play(intent.defaultEffect)
     }
 
-    override fun perform(intent: FeedbackIntent, strength: Float) {
-        if (level.allows(intent)) player.play(intent.defaultEffect.scaled(strength.coerceIn(0f, 1f)))
+    override fun perform(intent: FeedbackIntent, scale: Float) {
+        if (level.allows(intent)) player.play(intent.defaultEffect.scaled(scale.coerceIn(0f, 1f)))
     }
 
     override fun sustain(intent: FeedbackIntent): SustainedFeedback {
@@ -502,11 +514,21 @@ private class DefaultFeedbackDispatcher(
  * Silent at [HapticsLevel.Reduced] and below, which is the level's whole point.
  */
 @Composable
-fun rememberTapFeedback(): () -> Unit {
+fun rememberTapFeedback(): TapFeedback {
     val feedback = LocalFeedback.current
     val floor = LocalFeedbackFloor.current
-    return remember(feedback, floor) {
-        { if (floor.claim(FeedbackIntent.Tap)) feedback.perform(FeedbackIntent.Tap) }
+    return remember(feedback, floor) { TapFeedback(feedback, floor) }
+}
+
+/** What [rememberTapFeedback] hands back: call it to acknowledge a press. */
+@Stable
+class TapFeedback internal constructor(
+    private val feedback: FeedbackDispatcher,
+    private val floor: FeedbackFloor,
+) {
+    /** Reports a press, unless another light report has just been felt. */
+    operator fun invoke() {
+        if (floor.claim(FeedbackIntent.Tap)) feedback.perform(FeedbackIntent.Tap)
     }
 }
 
@@ -525,14 +547,22 @@ fun rememberTapFeedback(): () -> Unit {
  * [HapticsLevel.Reduced] and below.
  */
 @Composable
-fun rememberToggleFeedback(): (Boolean) -> Unit {
+fun rememberToggleFeedback(): ToggleFeedback {
     val feedback = LocalFeedback.current
     val floor = LocalFeedbackFloor.current
-    return remember(feedback, floor) {
-        { on ->
-            val intent = if (on) FeedbackIntent.ToggleOn else FeedbackIntent.ToggleOff
-            if (floor.claim(intent)) feedback.perform(intent)
-        }
+    return remember(feedback, floor) { ToggleFeedback(feedback, floor) }
+}
+
+/** What [rememberToggleFeedback] hands back: call it with the value being changed to. */
+@Stable
+class ToggleFeedback internal constructor(
+    private val feedback: FeedbackDispatcher,
+    private val floor: FeedbackFloor,
+) {
+    /** Reports a toggle turning [on] or off, rate-limited like a tap. */
+    operator fun invoke(on: Boolean) {
+        val intent = if (on) FeedbackIntent.ToggleOn else FeedbackIntent.ToggleOff
+        if (floor.claim(intent)) feedback.perform(intent)
     }
 }
 
@@ -550,10 +580,3 @@ internal fun rememberLongPressFeedback(): () -> Unit {
     return remember(feedback) { { feedback.perform(FeedbackIntent.LongPress) } }
 }
 
-/**
- * A dispatcher that does nothing.
- *
- * For tests, for screenshot rendering, and for honouring an in-app "haptics off"
- * setting.
- */
-val NoFeedback: FeedbackDispatcher = FeedbackDispatcher { }

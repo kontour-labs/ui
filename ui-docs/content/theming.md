@@ -217,7 +217,7 @@ view — and a single `FeedbackDispatcher` decides what that feels like. So the
 whole app's haptics retune, or mute, in one place:
 
 ```kotlin
-KontourTheme(haptics = HapticsLevel.Reduced) { AppRoot() }
+KontourTheme(hapticsLevel = HapticsLevel.Reduced) { AppRoot() }
 
 // or replace the mapping outright
 KontourTheme(feedback = FeedbackDispatcher { intent -> myEngine.play(intent) }) { AppRoot() }
@@ -545,7 +545,7 @@ val hold = rememberHoldFeedback()
 
 hold.start()
 try {
-    progress.animateTo(1f) { hold.progress(value) }
+    progress.animateTo(1f) { hold.update(value) }
 } finally {
     hold.stop()
 }

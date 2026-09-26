@@ -118,7 +118,7 @@ class FeedbackWiringTest {
         val player = RecordingHaptics()
         val scene = ImageComposeScene(width = 100, height = 100, density = Density(1f)) {
             CompositionLocalProvider(LocalHaptics provides player) {
-                KontourTheme(haptics = level) {
+                KontourTheme(hapticsLevel = level) {
                     val feedback = LocalFeedback.current
                     LaunchedEffect(Unit) { body(feedback) }
                     Box(Modifier.fillMaxSize())

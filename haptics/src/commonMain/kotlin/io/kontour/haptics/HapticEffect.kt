@@ -83,7 +83,7 @@ sealed interface HapticEffect {
      * A drag crossed a threshold: going [activate]s the thing letting go will
      * do, coming back out of it does not, and feels softer.
      */
-    data class Threshold(val activate: Boolean = true, override val strength: Float = 1f) : HapticEffect
+    data class Threshold(val activate: Boolean, override val strength: Float = 1f) : HapticEffect
 
     /** A press held long enough to become something else. */
     data class LongPress(override val strength: Float = 1f) : HapticEffect

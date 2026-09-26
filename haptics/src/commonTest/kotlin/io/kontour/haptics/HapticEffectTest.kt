@@ -91,7 +91,7 @@ class HapticEffectTest {
         none.play(HapticEffect.Click())
         val rumble = none.startRumble()
         assertFalse(rumble.isActive)
-        assertEquals(HapticCapability.Level.None, none.capability.level)
+        assertEquals(HapticCapability.Richness.None, none.capability.richness)
         none.close()
         none.close()
     }

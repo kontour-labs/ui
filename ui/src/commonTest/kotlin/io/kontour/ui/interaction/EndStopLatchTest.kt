@@ -111,9 +111,9 @@ class DragTextureTest {
     private class Recorder : FeedbackDispatcher {
         val grains = mutableListOf<Float>()
         override fun perform(intent: FeedbackIntent) = error("a grain is performed with a strength")
-        override fun perform(intent: FeedbackIntent, strength: Float) {
+        override fun perform(intent: FeedbackIntent, scale: Float) {
             assertEquals(FeedbackIntent.Scrub, intent)
-            grains += strength
+            grains += scale
         }
     }
 

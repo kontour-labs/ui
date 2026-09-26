@@ -240,8 +240,8 @@ fun KontourTheme(
      * This decides how many of them fire at all, and is the one an app is likely
      * to want to put behind a user-facing setting.
      */
-    haptics: HapticsLevel = HapticsLevel.Standard,
-    feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(haptics),
+    hapticsLevel: HapticsLevel = HapticsLevel.Standard,
+    feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(hapticsLevel),
     content: @Composable () -> Unit,
 ) {
     val feedbackFloor = remember { FeedbackFloor() }

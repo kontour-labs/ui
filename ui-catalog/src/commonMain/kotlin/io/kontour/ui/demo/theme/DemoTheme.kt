@@ -174,7 +174,7 @@ fun DemoThemeProvider(
         darkTheme = dark,
         contrast = tier,
         reduceMotion = reduceMotion,
-        haptics = settings.haptics,
+        hapticsLevel = settings.haptics,
         colours = theme.colours(dark, tier),
         typography = theme.typography(),
         shapes = theme.shapes,

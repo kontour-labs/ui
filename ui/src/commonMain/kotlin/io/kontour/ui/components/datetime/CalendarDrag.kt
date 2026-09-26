@@ -543,7 +543,7 @@ internal class CalendarDragState internal constructor(
             hold.start()
             try {
                 dwell.animateTo(1f, tween(DwellMillis, easing = LinearEasing)) {
-                    hold.progress(value)
+                    hold.update(value)
                 }
             } finally {
                 hold.stop()

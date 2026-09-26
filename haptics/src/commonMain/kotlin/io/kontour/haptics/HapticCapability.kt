@@ -3,7 +3,8 @@ package io.kontour.haptics
 /**
  * What a [Haptics] can play on this device, and how it is playing it.
  *
- * @property level How rich its haptics are.
+ * @property richness How rich its haptics are. Not to be confused with a
+ *   `HapticsLevel`, which is how much of that richness the user asked for.
  * @property honoursStrength Whether [HapticEffect.strength] changes what is felt
  *   finely. Android's composition primitives, iOS's impacts and Core Haptics do;
  *   Android's feedback constants step between three weights at most, and the
@@ -13,14 +14,14 @@ package io.kontour.haptics
  *   route taken and why. Not for parsing.
  */
 data class HapticCapability(
-    val level: Level,
+    val richness: Richness,
     val honoursStrength: Boolean,
     val rumble: RumbleSupport,
     val details: List<String> = emptyList(),
 ) {
 
     /** How rich a device's haptics are. */
-    enum class Level {
+    enum class Richness {
         /** Nothing plays: no actuator, no API, or no permission. */
         None,
 
@@ -45,6 +46,6 @@ data class HapticCapability(
 
     companion object {
         /** Nothing plays. */
-        val None: HapticCapability = HapticCapability(Level.None, honoursStrength = false, rumble = RumbleSupport.None)
+        val None: HapticCapability = HapticCapability(Richness.None, honoursStrength = false, rumble = RumbleSupport.None)
     }
 }

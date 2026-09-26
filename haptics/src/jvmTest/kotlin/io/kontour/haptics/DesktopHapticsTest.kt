@@ -31,7 +31,7 @@ class DesktopHapticsTest {
     @Test
     fun hereItIsSilentAndSaysWhy() {
         val haptics = Haptics()
-        assertEquals(HapticCapability.Level.None, haptics.capability.level)
+        assertEquals(HapticCapability.Richness.None, haptics.capability.richness)
         assertEquals(1, haptics.capability.details.size)
         haptics.play(HapticEffect.Click())
         assertFalse(haptics.startRumble().isActive)
@@ -45,7 +45,7 @@ class DesktopHapticsTest {
         val played = mutableListOf<MacPattern>()
         val haptics = DesktopHaptics({ played += it }, "test")
         haptics.play(HapticEffect.Selection())
-        haptics.play(HapticEffect.Threshold())
+        haptics.play(HapticEffect.Threshold(activate = true))
         assertEquals(listOf(MacPattern.Alignment, MacPattern.LevelChange), played)
         haptics.close()
     }

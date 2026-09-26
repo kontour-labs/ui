@@ -22,7 +22,7 @@ private class WebHaptics : Haptics {
     override val capability: HapticCapability
         get() = if (available) {
             HapticCapability(
-                level = HapticCapability.Level.Basic,
+                richness = HapticCapability.Richness.Basic,
                 honoursStrength = false,
                 rumble = HapticCapability.RumbleSupport.Pulsed,
                 details = listOf("Vibration API: yes", "Strength becomes length; a rumble is a run of short pulses"),

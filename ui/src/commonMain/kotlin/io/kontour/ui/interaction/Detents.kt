@@ -219,7 +219,7 @@ class HoldFeedback internal constructor(
     }
 
     /** How far through the hold is, 0 to 1. Every frame is fine. */
-    fun progress(fraction: Float) {
+    fun update(fraction: Float) {
         held?.update(fraction.coerceIn(0f, 1f))
     }
 

@@ -128,13 +128,13 @@ private fun ThisDevice(
     val capability = player.capability
     LabSection("This device") {
         Text(
-            when (capability.level) {
-                HapticCapability.Level.None -> "Nothing plays here."
-                HapticCapability.Level.Basic -> "The system's own feedback, in a few fixed kinds."
-                HapticCapability.Level.Rich -> "Tuned effects at any strength."
+            when (capability.richness) {
+                HapticCapability.Richness.None -> "Nothing plays here."
+                HapticCapability.Richness.Basic -> "The system's own feedback, in a few fixed kinds."
+                HapticCapability.Richness.Rich -> "Tuned effects at any strength."
             },
         )
-        if (capability.level != HapticCapability.Level.None) {
+        if (capability.richness != HapticCapability.Richness.None) {
             Text(
                 "Strength: " + (if (capability.honoursStrength) "felt finely" else "coarse, or not at all") +
                     ". Rumble: " + when (capability.rumble) {
@@ -175,7 +175,7 @@ private fun Intents() {
                     val progress = Animatable(0f)
                     hold.start()
                     try {
-                        progress.animateTo(1f, tween(700, easing = LinearEasing)) { hold.progress(value) }
+                        progress.animateTo(1f, tween(700, easing = LinearEasing)) { hold.update(value) }
                     } finally {
                         hold.stop()
                     }
@@ -312,8 +312,8 @@ private fun Tuner(player: Haptics) {
             override fun perform(intent: FeedbackIntent) = player.play(effectFor(intent))
 
             // A texture's grain, at the strength its speed gave it.
-            override fun perform(intent: FeedbackIntent, strength: Float) =
-                player.play(effectFor(intent).scaled(strength.coerceIn(0f, 1f)))
+            override fun perform(intent: FeedbackIntent, scale: Float) =
+                player.play(effectFor(intent).scaled(scale.coerceIn(0f, 1f)))
         }
     }
 

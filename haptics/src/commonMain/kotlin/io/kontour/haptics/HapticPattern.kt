@@ -55,14 +55,22 @@ class HapticPattern internal constructor(val events: List<Event>) {
  *   [HapticPattern.MaxEvents] events, or one starting after
  *   [HapticPattern.MaxDuration].
  */
-fun hapticPattern(block: HapticPatternBuilder.() -> Unit): HapticPattern {
-    val builder = HapticPatternBuilder()
-    builder.block()
-    return builder.build()
+fun hapticPattern(block: HapticPatternScope.() -> Unit): HapticPattern {
+    val scope = HapticPatternScope()
+    scope.block()
+    return scope.build()
 }
 
+/**
+ * Keeps a pattern's block to its own scope, so an `at` written inside one does
+ * not reach a pattern being built around it.
+ */
+@DslMarker
+annotation class HapticPatternDsl
+
 /** What [hapticPattern]'s block is called on. */
-class HapticPatternBuilder internal constructor() {
+@HapticPatternDsl
+class HapticPatternScope internal constructor() {
     private val events = mutableListOf<HapticPattern.Event>()
 
     /** Starts [primitive] [time] after the start of the pattern. */

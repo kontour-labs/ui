@@ -144,10 +144,10 @@ private class AndroidHaptics(
 
     override val capability: HapticCapability
         get() = HapticCapability(
-            level = when (tier) {
-                AndroidTier.Primitives -> HapticCapability.Level.Rich
-                AndroidTier.ViewConstants, AndroidTier.Predefined -> HapticCapability.Level.Basic
-                AndroidTier.None -> HapticCapability.Level.None
+            richness = when (tier) {
+                AndroidTier.Primitives -> HapticCapability.Richness.Rich
+                AndroidTier.ViewConstants, AndroidTier.Predefined -> HapticCapability.Richness.Basic
+                AndroidTier.None -> HapticCapability.Richness.None
             },
             honoursStrength = tier == AndroidTier.Primitives,
             rumble = when (rumbleKind) {

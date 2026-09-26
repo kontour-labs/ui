@@ -97,7 +97,7 @@ private object AppleHaptics {
 
     val capability: HapticCapability by lazy {
         HapticCapability(
-            level = if (supportsHaptics) HapticCapability.Level.Rich else HapticCapability.Level.None,
+            richness = if (supportsHaptics) HapticCapability.Richness.Rich else HapticCapability.Richness.None,
             honoursStrength = supportsHaptics,
             rumble = if (supportsHaptics) HapticCapability.RumbleSupport.Continuous else HapticCapability.RumbleSupport.None,
             details = listOf(
