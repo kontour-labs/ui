@@ -69,16 +69,16 @@ object CoachmarkDefaults {
  * val tour = rememberCoachmarkTour("plan", "save", "alerts")
  *
  * IconButton(
- *     icon = Tabler.Outline.Bookmark,
- *     contentDescription = "Save this trip",
- *     onClick = ::save,
- *     modifier = Modifier.coachmarkStep(
+ icon = *     icon = Tabler.Outline.Bookmark,
+ contentDescription = *     contentDescription = "Save this trip",
+ onClick = *     onClick = ::save,
+ modifier = *     modifier = Modifier.coachmarkStep(
  *         tour = tour,
  *         id = "save",
  *         title = "Save this trip",
  *         text = "Saved trips show up on the home screen.",
  *     ),
- * )
+ enabled = * )
  * ```
  *
  * The tour holds only the **order**; each step's words live at the control they
@@ -366,7 +366,7 @@ private fun CoachmarkBubble(
                 contentDescription = "$title. $text"
             },
         shape = Theme.shapes.container,
-        colour = colours.accent.solid,
+        containerColour = colours.accent.solid,
         contentColour = colours.accent.onSolid,
         shadow = Theme.elevation.overlay,
     ) {

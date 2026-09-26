@@ -169,7 +169,7 @@ fun TabBar(
     // container colour. The difference is `LocalContentColour`: a bar given a
     // solid ground has to recolour the tabs sitting on it, and a background
     // modifier paints the colour and tells the content nothing.
-    Surface(modifier = modifier, colour = containerColour) {
+    Surface(modifier = modifier, containerColour = containerColour) {
         Column {
             // The indicator box sits *inside* the scroll container, so the anchor
             // and the tabs scroll together and the scroll offset never enters the

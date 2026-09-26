@@ -4,11 +4,11 @@
 ```kotlin
 var rating by remember { mutableStateOf(0f) }
 
-Rating(value = rating, contentDescription = "Your rating", onValueChange = { rating = it })
+Rating(value = rating, onValueChange = { rating = it }, contentDescription = "Your rating")
 
-// No callback means read-only, which means not a control at all: no role,
+// A null callback means read-only, which means not a control at all: no role,
 // no touch target, one node saying "Average rating, 4.3 out of 5".
-Rating(value = 4.3f, contentDescription = "Average rating")
+Rating(value = 4.3f, onValueChange = null, contentDescription = "Average rating")
 ```
 
 **`onValueChange = null` makes it read-only, and read-only means it is not a

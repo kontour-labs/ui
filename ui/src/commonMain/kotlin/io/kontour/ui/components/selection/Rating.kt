@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -51,8 +52,8 @@ import kotlin.math.ceil
  * A score out of [count], as a row of marks.
  *
  * ```kotlin
- * Rating(value = 4f, contentDescription = "Your rating", onValueChange = { rating = it })
- * Rating(value = 4.3f, contentDescription = "Average rating")   // read-only
+ * Rating(value = 4f, onValueChange = { rating = it }, contentDescription = "Your rating")
+ * Rating(value = 4.3f, onValueChange = null, contentDescription = "Average rating")   // read-only
  * ```
  *
  * **`onValueChange = null` makes it read-only, and read-only means it is not a
@@ -106,17 +107,16 @@ import kotlin.math.ceil
 @Composable
 fun Rating(
     value: Float,
+    onValueChange: ((Float) -> Unit)?,
     contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    onValueChange: ((Float) -> Unit)? = null,
     count: Int = RatingDefaults.Count,
     allowHalf: Boolean = false,
     icon: ImageVector? = null,
     filledIcon: ImageVector? = null,
     markSize: Dp = Theme.sizing.iconLarge,
-    filledColour: Color = Theme.colours.warning.solid,
-    emptyColour: Color = Theme.colours.outlineStrong,
+    colours: RatingColours = RatingDefaults.colours(),
     stateDescription: ((Float) -> String)? = null,
     onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
@@ -151,8 +151,8 @@ fun Rating(
                     empty = empty,
                     full = full,
                     size = markSize,
-                    filledColour = filledColour,
-                    emptyColour = emptyColour,
+                    filledColour = colours.filled,
+                    emptyColour = colours.empty,
                 )
             }
         }
@@ -316,8 +316,8 @@ fun Rating(
                     empty = empty,
                     full = full,
                     size = markSize,
-                    filledColour = if (enabled) filledColour else Theme.colours.contentDisabled,
-                    emptyColour = if (enabled) emptyColour else Theme.colours.contentDisabled,
+                    filledColour = if (enabled) colours.filled else colours.filledDisabled,
+                    emptyColour = if (enabled) colours.empty else colours.emptyDisabled,
                     springOnFill = true,
                 )
             }
@@ -402,9 +402,30 @@ private fun defaultRatingDescription(value: Float, count: Int, outOf: (String, I
     return outOf(shown, count)
 }
 
+/** The colours a [Rating] draws its marks in. */
+@Immutable
+data class RatingColours(
+    /** The filled part of a mark. */
+    val filled: Color,
+    /** The outline of a mark, and the part a partial score leaves empty. */
+    val empty: Color,
+    val filledDisabled: Color,
+    val emptyDisabled: Color,
+)
+
 object RatingDefaults {
     /** Five, which is what a rating means to almost everybody. */
     const val Count: Int = 5
+
+    /** The theme's colours for a rating: warning-yellow marks on a strong outline. */
+    @Composable
+    @ReadOnlyComposable
+    fun colours(
+        filled: Color = Theme.colours.warning.solid,
+        empty: Color = Theme.colours.outlineStrong,
+        filledDisabled: Color = Theme.colours.contentDisabled,
+        emptyDisabled: Color = Theme.colours.contentDisabled,
+    ): RatingColours = RatingColours(filled, empty, filledDisabled, emptyDisabled)
 
     /**
      * The gap between marks.

@@ -14,7 +14,7 @@ Toolbar {
         item(onClick = { zoomIn() }, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
     }
     ToolbarDivider()
-    IconButton(Tabler.Outline.Stack, "Map layers", onClick = { openLayers() })
+    IconButton(icon = Tabler.Outline.Stack, contentDescription = "Map layers", onClick = { openLayers() })
 }
 ```
 
@@ -63,10 +63,10 @@ portable backdrop blur.
 <!--sample:VerticalToolbarBasics-->
 ```kotlin
 VerticalToolbar {
-    IconButton(Tabler.Outline.Plus, "Zoom in", onClick = { zoomIn() })
-    IconButton(Tabler.Outline.Minus, "Zoom out", onClick = { zoomOut() })
+    IconButton(icon = Tabler.Outline.Plus, contentDescription = "Zoom in", onClick = { zoomIn() })
+    IconButton(icon = Tabler.Outline.Minus, contentDescription = "Zoom out", onClick = { zoomOut() })
     ToolbarDivider()
-    IconButton(Tabler.Outline.Stack, "Map layers", onClick = { openLayers() })
+    IconButton(icon = Tabler.Outline.Stack, contentDescription = "Map layers", onClick = { openLayers() })
 }
 ```
 

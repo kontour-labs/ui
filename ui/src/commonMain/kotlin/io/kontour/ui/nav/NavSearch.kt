@@ -226,7 +226,7 @@ private fun ColumnScope.ResultsPanel(results: (@Composable ColumnScope.() -> Uni
     Surface(
         modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
         shape = Theme.shapes.panel,
-        colour = Theme.colours.surface,
+        containerColour = Theme.colours.surface,
     ) {
         Column(
             modifier = Modifier.padding(Theme.spacing.md),

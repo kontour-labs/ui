@@ -63,11 +63,11 @@ object TooltipDefaults {
  *
  * ```
  * IconButton(
- *     icon = Tabler.Outline.Filter,
- *     contentDescription = "Filter routes",
- *     onClick = ::openFilters,
- *     modifier = Modifier.tooltip("Filter routes"),
- * )
+ icon = *     icon = Tabler.Outline.Filter,
+ contentDescription = *     contentDescription = "Filter routes",
+ onClick = *     onClick = ::openFilters,
+ modifier = *     modifier = Modifier.tooltip("Filter routes"),
+ enabled = * )
  * ```
  *
  * "Asks" means something different for each input, and the difference is the
@@ -171,7 +171,7 @@ fun Modifier.tooltip(
  *
  * ```
  * Box {
- *     IconButton(Tabler.Outline.Route, "Show route", onClick = ::show)
+ *     IconButton(icon = Tabler.Outline.Route, contentDescription = "Show route", onClick = ::show)
  *     Tooltip(visible = firstRun) { +"Tap to see the whole route" }
  * }
  * ```
@@ -306,7 +306,7 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
         modifier = modifier
             .widthIn(max = TooltipDefaults.MaxWidth),
         shape = Theme.shapes.container,
-        colour = Theme.colours.surfaceInverse,
+        containerColour = Theme.colours.surfaceInverse,
         contentColour = Theme.colours.onSurfaceInverse,
     ) {
         // Scrolls for the same reason `PopoverPanel` does: an anchored overlay is
@@ -333,17 +333,17 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
  *
  * ```
  * IconButton(
- *     icon = Tabler.Outline.Bookmark,
- *     contentDescription = "Save this trip",
- *     onClick = ::save,
- *     modifier = Modifier.coachmark(
+ icon = *     icon = Tabler.Outline.Bookmark,
+ contentDescription = *     contentDescription = "Save this trip",
+ onClick = *     onClick = ::save,
+ modifier = *     modifier = Modifier.coachmark(
  *         id = "save-trip",
  *         title = "Save this trip",
  *         text = "Trips you save show up on the home screen.",
  *         priority = 40,
  *         minSessions = 3,
  *     ),
- * )
+ enabled = * )
  * ```
  *
  * Unlike [tooltip], nothing the user does triggers it — the app decides, which
@@ -492,7 +492,7 @@ private fun CoachMarkBubble(
             .widthIn(max = 320.dp)
             .semantics(mergeDescendants = true) { contentDescription = "$title. $text" },
         shape = Theme.shapes.container,
-        colour = colours.accent.solid,
+        containerColour = colours.accent.solid,
         contentColour = colours.accent.onSolid,
         shadow = Theme.elevation.overlay,
     ) {

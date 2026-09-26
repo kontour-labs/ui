@@ -522,7 +522,7 @@ fun SegmentedControl(
                 // ground exactly and the thumb would vanish rather than grey
                 // out. WCAG exempts a disabled control from the ratio, but it
                 // does not excuse a control you cannot see the state of.
-                colour = if (enabled) colours.surfaceIndicator else colours.surface,
+                containerColour = if (enabled) colours.surfaceIndicator else colours.surface,
                 shadow = if (enabled) Theme.elevation.medium else Shadow.None,
                 // No border, in any scheme, and light pays for that.
                 //

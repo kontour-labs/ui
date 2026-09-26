@@ -378,14 +378,14 @@ internal val ToolbarDemo = ComponentDemo(slug = "toolbar") {
                 item(onClick = into, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
             }
             ToolbarDivider()
-            IconButton(Tabler.Outline.Stack, "Map layers", { echo("Map layers") })
-            IconButton(Tabler.Outline.CurrentLocation, "My location", { echo("My location") })
+            IconButton(icon = Tabler.Outline.Stack, contentDescription = "Map layers", onClick = { echo("Map layers") })
+            IconButton(icon = Tabler.Outline.CurrentLocation, contentDescription = "My location", onClick = { echo("My location") })
         }
         VerticalToolbar {
-            IconButton(Tabler.Outline.Plus, "Zoom in", into)
-            IconButton(Tabler.Outline.Minus, "Zoom out", out)
+            IconButton(icon = Tabler.Outline.Plus, contentDescription = "Zoom in", onClick = into)
+            IconButton(icon = Tabler.Outline.Minus, contentDescription = "Zoom out", onClick = out)
             ToolbarDivider()
-            IconButton(Tabler.Outline.Stack, "Map layers", { echo("Map layers") })
+            IconButton(icon = Tabler.Outline.Stack, contentDescription = "Map layers", onClick = { echo("Map layers") })
         }
     }
 }

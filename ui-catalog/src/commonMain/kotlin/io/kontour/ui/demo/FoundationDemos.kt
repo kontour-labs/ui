@@ -70,7 +70,7 @@ internal val IconDemo = ComponentDemo(slug = "icon") {
         Icon(Tabler.Outline.Star, contentDescription = null, size = Theme.sizing.iconLarge)
         // Inside a coloured surface, to show the tint following content colour
         // rather than being passed in.
-        Surface(colour = Theme.colours.primary, shape = Theme.shapes.small) {
+        Surface(containerColour = Theme.colours.primary, shape = Theme.shapes.small) {
             Box(Modifier.padding(Theme.spacing.sm)) {
                 Icon(Tabler.Outline.Star, contentDescription = null)
             }
@@ -86,7 +86,7 @@ internal val SurfaceDemo = ComponentDemo(slug = "surface") {
             "primary" to Theme.colours.primary,
         ).forEach { (name, colour) ->
             Surface(
-                colour = colour,
+                containerColour = colour,
                 shape = Theme.shapes.medium,
                 shadow = Theme.elevation.low,
             ) {

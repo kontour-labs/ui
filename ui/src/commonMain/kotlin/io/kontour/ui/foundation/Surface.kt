@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -32,7 +33,7 @@ import io.kontour.ui.theme.Theme
  * ```
  * Surface(
  *     shape = Theme.shapes.medium,
- *     colour = Theme.colours.surface,
+ *     containerColour = Theme.colours.surface,
  *     shadow = Theme.elevation.low,
  * ) {
  *     Column(Modifier.padding(Theme.spacing.md)) {
@@ -42,7 +43,7 @@ import io.kontour.ui.theme.Theme
  * ```
  *
  * @param contentColour Defaults to whichever of the scheme's light or dark
- *   content colours reads better on [colour] — so a surface painted an arbitrary
+ *   content colours reads better on [containerColour] — so a surface painted an arbitrary
  *   colour (a route colour out of a transit feed, say) still gets legible
  *   content without the caller working it out.
  * @param contentAlignment Where the content sits when the surface is larger
@@ -57,8 +58,8 @@ import io.kontour.ui.theme.Theme
 fun Surface(
     modifier: Modifier = Modifier,
     shape: Shape = RectangleShape,
-    colour: Color = Theme.colours.surface,
-    contentColour: Color = defaultContentColourFor(colour),
+    containerColour: Color = Theme.colours.surface,
+    contentColour: Color = SurfaceDefaults.contentColour(containerColour),
     border: BorderStroke? = null,
     shadow: Shadow = Shadow.None,
     contentAlignment: Alignment = Alignment.TopStart,
@@ -97,7 +98,7 @@ fun Surface(
             modifier = modifier
                 .then(raised)
                 .clip(shape)
-                .background(color = colour, shape = shape)
+                .background(color = containerColour, shape = shape)
                 .then(if (border != null) Modifier.border(border, shape) else Modifier),
             contentAlignment = contentAlignment,
             propagateMinConstraints = propagateMinConstraints,
@@ -129,48 +130,53 @@ fun Modifier.elevation(shadow: Shadow, shape: Shape): Modifier {
     }
 }
 
-/**
- * The content colour to use on [background].
- *
- * Recognises the scheme's own grounds and returns their designed partner; for
- * anything else, picks whichever of the scheme's content colours has better
- * contrast.
- *
- * A **transparent** background is not a ground at all — whatever is behind the
- * surface is still the thing the content sits on — so it inherits rather than
- * deciding. Measuring it would treat it as black, since `contrastRatio` reads
- * the colour channels and a transparent colour's are `(0, 0, 0)`, and every
- * `Surface(colour = Color.Transparent)` would get near-white content on a light
- * page. That is the case a bar with no ground of its own is in, and it is why
- * `TabBar` could not go through `Surface` until now.
- */
-@Composable
-private fun defaultContentColourFor(background: Color): Color {
-    val colours = Theme.colours
-    if (background.alpha == 0f) return LocalContentColour.current
-    return when (background) {
-        colours.background,
-        colours.surface,
-        colours.surfaceSunken,
-        colours.surfaceIndicator,
-        colours.surfaceRaised,
-        -> colours.content
-        colours.surfaceInverse -> colours.onSurfaceInverse
-        colours.primary -> colours.onPrimary
-        colours.accent.solid -> colours.accent.onSolid
-        colours.accent.container -> colours.accent.onContainer
-        colours.success.solid -> colours.success.onSolid
-        colours.success.container -> colours.success.onContainer
-        colours.warning.solid -> colours.warning.onSolid
-        colours.warning.container -> colours.warning.onContainer
-        colours.danger.solid -> colours.danger.onSolid
-        colours.danger.container -> colours.danger.onContainer
-        colours.info.solid -> colours.info.onSolid
-        colours.info.container -> colours.info.onContainer
-        else -> contentColourFor(
-            background = background,
-            light = if (colours.isDark) colours.content else colours.onPrimary,
-            dark = if (colours.isDark) colours.onPrimary else colours.content,
-        )
+/** What a [Surface] takes by default. */
+object SurfaceDefaults {
+    /**
+     * The content colour to use on [containerColour].
+     *
+     * Recognises the scheme's own grounds and returns their designed partner; for
+     * anything else, picks whichever of the scheme's content colours has better
+     * contrast.
+     *
+     * A **transparent** background is not a ground at all — whatever is behind the
+     * surface is still the thing the content sits on — so it inherits rather than
+     * deciding. Measuring it would treat it as black, since `contrastRatio` reads
+     * the colour channels and a transparent colour's are `(0, 0, 0)`, and every
+     * `Surface(containerColour = Color.Transparent)` would get near-white
+     * content on a light page. That is the case a bar with no ground of its own
+     * is in, and it is why `TabBar` could not go through `Surface` until now.
+     */
+    @Composable
+    @ReadOnlyComposable
+    fun contentColour(containerColour: Color): Color {
+        val colours = Theme.colours
+        if (containerColour.alpha == 0f) return LocalContentColour.current
+        return when (containerColour) {
+            colours.background,
+            colours.surface,
+            colours.surfaceSunken,
+            colours.surfaceIndicator,
+            colours.surfaceRaised,
+            -> colours.content
+            colours.surfaceInverse -> colours.onSurfaceInverse
+            colours.primary -> colours.onPrimary
+            colours.accent.solid -> colours.accent.onSolid
+            colours.accent.container -> colours.accent.onContainer
+            colours.success.solid -> colours.success.onSolid
+            colours.success.container -> colours.success.onContainer
+            colours.warning.solid -> colours.warning.onSolid
+            colours.warning.container -> colours.warning.onContainer
+            colours.danger.solid -> colours.danger.onSolid
+            colours.danger.container -> colours.danger.onContainer
+            colours.info.solid -> colours.info.onSolid
+            colours.info.container -> colours.info.onContainer
+            else -> contentColourFor(
+                background = containerColour,
+                light = if (colours.isDark) colours.content else colours.onPrimary,
+                dark = if (colours.isDark) colours.onPrimary else colours.content,
+            )
+        }
     }
 }
+

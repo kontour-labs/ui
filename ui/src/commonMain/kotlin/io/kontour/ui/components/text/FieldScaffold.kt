@@ -355,7 +355,7 @@ internal fun FieldScaffold(
                 Text(
                     text = message,
                     style = Theme.typography.bodySmall,
-                    colour = if (isError) colours.error else colours.helper,
+                    colour = if (isError) colours.error else colours.supporting,
                 )
             }
         }

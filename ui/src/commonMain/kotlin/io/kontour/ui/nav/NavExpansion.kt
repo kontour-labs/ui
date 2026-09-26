@@ -298,7 +298,7 @@ private fun CollapsedControl(
                 onClick = onClick,
             ),
         shape = shape,
-        colour = containerColour,
+        containerColour = containerColour,
         contentColour = if (enabled) contentColour else Theme.colours.contentDisabled,
         shadow = shadow,
     ) {

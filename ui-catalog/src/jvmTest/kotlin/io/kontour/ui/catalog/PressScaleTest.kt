@@ -82,7 +82,7 @@ class PressScaleTest {
     @Test
     fun aSmallButtonMovesFurtherThanALargeOne() {
         val (smallRest, smallPress) = inkWidths {
-            IconButton(Tabler.Outline.Star, "Save", {}, size = ButtonSize.XSmall)
+            IconButton(icon = Tabler.Outline.Star, contentDescription = "Save", onClick = {}, size = ButtonSize.XSmall)
         }
         val (largeRest, largePress) = inkWidths {
             Button(onClick = {}, size = ButtonSize.XLarge) { +"Save the whole itinerary" }
@@ -225,10 +225,10 @@ class PressScaleTest {
 
     private val Buttons = listOf(
         Case("IconButton (default, Ghost)") {
-            IconButton(Tabler.Outline.Star, "Save", {})
+            IconButton(icon = Tabler.Outline.Star, contentDescription = "Save", onClick = {})
         },
         Case("IconButton (Primary)") {
-            IconButton(Tabler.Outline.Star, "Save", {}, variant = ButtonVariant.Primary)
+            IconButton(icon = Tabler.Outline.Star, contentDescription = "Save", onClick = {}, variant = ButtonVariant.Primary)
         },
         Case("IconToggleButton") {
             var on by mutableStateOf(false)
@@ -244,7 +244,7 @@ class PressScaleTest {
             Button(onClick = {}, variant = ButtonVariant.Tertiary) { +"Save" }
         },
         Case("FloatingActionButton") {
-            FloatingActionButton(Tabler.Outline.Star, "Save", {}, size = FabSize.Medium)
+            FloatingActionButton(icon = Tabler.Outline.Star, contentDescription = "Save", onClick = {}, size = FabSize.Medium)
         },
     )
 

@@ -150,7 +150,7 @@ fun NavDrawer(
         modifier = modifier
             .width(width)
             .fillMaxHeight(),
-        colour = containerColour,
+        containerColour = containerColour,
         contentColour = contentColour,
     ) {
         Column(

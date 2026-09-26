@@ -96,7 +96,7 @@ class SelectionAnimationTest {
 
         Scene(width = 600, height = 200) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
-                Rating(value = score, contentDescription = "Average rating")
+                Rating(value = score, onValueChange = null, contentDescription = "Average rating")
             }
         }.use { scene ->
             scene.frames(4)

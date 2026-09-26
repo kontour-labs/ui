@@ -560,7 +560,7 @@ fun NavBar(
         // stopping short of it.
         NavBarStyle.Docked -> Surface(
             modifier = modifier.fillMaxWidth(),
-            colour = containerColour,
+            containerColour = containerColour,
             contentColour = contentColour,
             shadow = Theme.elevation.low,
         ) {
@@ -612,7 +612,7 @@ fun NavBar(
                 // `ProvideConcentric` has nothing to publish here — it declines
                 // uneven padding on purpose.
                 shape = Theme.shapes.pill,
-                colour = containerColour,
+                containerColour = containerColour,
                 contentColour = contentColour,
                 shadow = Theme.elevation.high,
             ) {

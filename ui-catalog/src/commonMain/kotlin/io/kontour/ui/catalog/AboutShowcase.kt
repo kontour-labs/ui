@@ -37,7 +37,7 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun AboutShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, colour = Theme.colours.background) {
+    Surface(modifier = modifier, containerColour = Theme.colours.background) {
         Column(
             modifier = Modifier.padding(Theme.spacing.lg).widthIn(max = 720.dp),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),

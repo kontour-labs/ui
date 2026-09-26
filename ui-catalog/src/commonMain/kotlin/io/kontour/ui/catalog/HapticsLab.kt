@@ -321,13 +321,13 @@ private fun Tuner(player: Haptics) {
         Text("Intent", style = Theme.typography.labelMedium)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs), verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
             FeedbackIntent.entries.forEach { each ->
-                FilterChip(selected = each == intent, onClick = { intent = each }) { Text(each.name) }
+                FilterChip(selected = each == intent, onSelectedChange = { intent = each }) { Text(each.name) }
             }
         }
         Text("Effect", style = Theme.typography.labelMedium)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs), verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
             EffectKinds.forEachIndexed { i, each ->
-                FilterChip(selected = i == kind, onClick = { kind = i }) { Text(each.label) }
+                FilterChip(selected = i == kind, onSelectedChange = { kind = i }) { Text(each.label) }
             }
         }
         StrengthSlider("Strength", strength) { strength = it }

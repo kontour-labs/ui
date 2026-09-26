@@ -140,9 +140,9 @@ internal val TagDemo = ComponentDemo(slug = "tag", knobs = listOf(tagTone)) {
             colour = Theme.colours.contentMuted,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-            Tag(colour = Color(0xFF1B5E20)) { +"960" }
-            Tag(colour = Color(0xFFFFD54F)) { +"SPT" }
-            Tag(colour = Color(0xFFB3261E)) { +"RED" }
+            Tag(containerColour = Color(0xFF1B5E20)) { +"960" }
+            Tag(containerColour = Color(0xFFFFD54F)) { +"SPT" }
+            Tag(containerColour = Color(0xFFB3261E)) { +"RED" }
         }
     }
 }

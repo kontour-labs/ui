@@ -493,7 +493,7 @@ private fun CompactCatalog(
 
     ModalNavDrawer(visible = drawerOpen, onDismissRequest = { drawerOpen = false }) {
         pages.forEachIndexed { index, page ->
-            item(page.title, page.icon, selected = index == selected) {
+            item(page.title, icon = page.icon, selected = index == selected) {
                 // The page first, the close second. See `closing`.
                 onSelectedChange(index)
                 closing = true

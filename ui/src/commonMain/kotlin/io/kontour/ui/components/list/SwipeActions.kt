@@ -1100,7 +1100,7 @@ private fun SwipeActionButton(
     Surface(
         modifier = Modifier.fillMaxSize(),
         shape = shape,
-        colour = action.background,
+        containerColour = action.background,
         contentColour = content,
         contentAlignment = Alignment.Center,
     ) {

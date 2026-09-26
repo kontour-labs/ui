@@ -45,7 +45,7 @@ enum class NavigationSuiteType {
  * NavigationSuiteScaffold(
  *     items = destinations,
  *     selectedIndex = current,
- *     action = { FloatingActionButton(Tabler.Outline.Search, "Search", ::search) },
+ *     action = { FloatingActionButton(icon = Tabler.Outline.Search, contentDescription = "Search", onClick = ::search) },
  * ) {
  *     CurrentScreen()
  * }
@@ -108,7 +108,7 @@ fun NavigationSuiteScaffold(
     windowInsets: WindowInsets? = null,
     content: @Composable (contentPadding: Dp) -> Unit,
 ) {
-    Surface(modifier = modifier.fillMaxSize(), colour = containerColour) {
+    Surface(modifier = modifier.fillMaxSize(), containerColour = containerColour) {
         when (type) {
             NavigationSuiteType.Bar -> Box(Modifier.fillMaxSize()) {
                 // Measured, not calculated. A constant was wrong twice over: it

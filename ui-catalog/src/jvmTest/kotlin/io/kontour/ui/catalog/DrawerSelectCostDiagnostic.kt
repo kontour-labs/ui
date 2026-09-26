@@ -217,7 +217,7 @@ class DrawerSelectCostDiagnostic {
                             onDismissRequest = { drawerOpen = false },
                         ) {
                             pages.forEachIndexed { index, page ->
-                                item(page.title, page.icon, selected = index == selected) {}
+                                item(page.title, icon = page.icon, selected = index == selected) {}
                             }
                         }
                     }

@@ -452,7 +452,7 @@ class BackdropBlurTest {
                     Surface(
                         modifier = Modifier.size(160.dp, 60.dp),
                         shape = Theme.shapes.medium,
-                        colour = Color.White,
+                        containerColour = Color.White,
                         shadow = Theme.elevation.high,
                         content = {},
                     )

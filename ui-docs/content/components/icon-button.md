@@ -2,7 +2,7 @@
 
 <!--sample:IconButtonBasics-->
 ```kotlin
-IconButton(Tabler.Outline.X, contentDescription = "Close", onClick = { dismiss() })
+IconButton(icon = Tabler.Outline.X, contentDescription = "Close", onClick = { dismiss() })
 ```
 
 `contentDescription` is **required and non-null**. There is no visible text to

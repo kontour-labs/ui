@@ -8,7 +8,7 @@ small button wearing the wrong clothes.
 | | |
 |---|---|
 | `Chip` | Presses like a button. `onClick` |
-| `FilterChip` | On or off, and shows which. `selected` + `onClick` |
+| `FilterChip` | On or off, and shows which. `selected` + `onSelectedChange` |
 | `InputChip` | Something the user entered, with a remove button. `onRemove` + `removeLabel` |
 
 <!--sample:FilterChipGroup-->
@@ -19,8 +19,8 @@ ChipGroup {
     Mode.entries.forEach { mode ->
         FilterChip(
             selected = mode in active,
-            onClick = {
-                active = if (mode in active) active - mode else active + mode
+            onSelectedChange = { on ->
+                active = if (on) active + mode else active - mode
             },
             selectedIcon = Tabler.Outline.Check,
         ) {

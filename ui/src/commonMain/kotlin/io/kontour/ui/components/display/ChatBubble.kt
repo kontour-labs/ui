@@ -89,7 +89,7 @@ fun ChatBubble(
     modifier: Modifier = Modifier,
     position: GroupPosition = GroupPosition.Only,
     tail: Boolean = true,
-    colour: Color = ChatBubbleDefaults.colour(side),
+    containerColour: Color = ChatBubbleDefaults.containerColour(side),
     contentColour: Color = ChatBubbleDefaults.contentColour(side),
     shape: CornerBasedShape = Theme.shapes.capsule,
     joinedCorner: Dp = ChatBubbleDefaults.JoinedCorner,
@@ -135,7 +135,7 @@ fun ChatBubble(
                 }
                 .semantics(mergeDescendants = true) {},
             shape = bubble,
-            colour = colour,
+            containerColour = containerColour,
             contentColour = contentColour,
         ) {
             Column(
@@ -172,12 +172,12 @@ object ChatBubbleDefaults {
     /** The accent for the user's own messages, a quiet ground for everyone else's. */
     @Composable
     @ReadOnlyComposable
-    fun colour(side: BubbleSide): Color = when (side) {
+    fun containerColour(side: BubbleSide): Color = when (side) {
         BubbleSide.Outgoing -> Theme.colours.primary
         BubbleSide.Incoming -> Theme.colours.surfaceSunken
     }
 
-    /** The text colour that goes with [colour]. */
+    /** The text colour that goes with [containerColour]. */
     @Composable
     @ReadOnlyComposable
     fun contentColour(side: BubbleSide): Color = when (side) {

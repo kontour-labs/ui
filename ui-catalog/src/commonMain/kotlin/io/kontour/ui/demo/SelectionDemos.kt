@@ -208,12 +208,12 @@ internal val ChipDemo = ComponentDemo(slug = "chip", knobs = listOf(chipMorph)) 
     ChipGroup {
         FilterChip(
             selected = buses,
-            onClick = { buses = !buses },
+            onSelectedChange = { buses = it },
             selectedIcon = Tabler.Outline.Check,
         ) { +"Buses" }
         FilterChip(
             selected = trains,
-            onClick = { trains = !trains },
+            onSelectedChange = { trains = it },
             selectedIcon = Tabler.Outline.Check,
         ) {
             +Tabler.Outline.Bus

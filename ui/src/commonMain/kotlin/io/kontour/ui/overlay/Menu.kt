@@ -111,7 +111,7 @@ object MenuDefaults {
  *
  * ```
  * Box {
- *     IconButton(Tabler.Outline.Dots, "More", onClick = { visible = true })
+ *     IconButton(icon = Tabler.Outline.Dots, contentDescription = "More", onClick = { visible = true })
  *     DropdownMenu(visible, onDismissRequest = { visible = false }) {
  *         item("Share", icon = Tabler.Outline.Share, onClick = ::share)
  *         divider()

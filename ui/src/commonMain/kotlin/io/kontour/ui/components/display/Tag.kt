@@ -41,7 +41,7 @@ import kotlin.math.roundToInt
  *
  * ```
  * Tag(tone = Tone.Success) { +"Live" }
- * Tag(colour = routeColor) { +"960" }          // colour straight out of a GTFS feed
+ * Tag(containerColour = routeColour) { +"960" } // colour straight out of a GTFS feed
  * ```
  *
  * Not a [io.kontour.ui.components.selection.Chip]. A chip is something the user
@@ -51,20 +51,20 @@ import kotlin.math.roundToInt
  * ### Arbitrary colours
  *
  * Transit feeds supply their own route colours, and they are not drawn from any
- * palette — a route can be pale yellow or near-black. Passing [colour] resolves
+ * palette — a route can be pale yellow or near-black. Passing [containerColour] resolves
  * the label with [contentColourFor], which picks whichever of light or dark reads
  * better on it. That is the whole reason this component exists rather than
  * callers styling a `Surface` themselves: the one thing they would get wrong is
  * the case where the feed hands them a colour nobody designed for.
  *
- * @param colour An explicit background. Overrides [tone]. The label colour is
+ * @param containerColour An explicit background. Overrides [tone]. The label colour is
  *   derived, not guessed.
  */
 @Composable
 fun Tag(
     modifier: Modifier = Modifier,
     tone: Tone = Tone.Neutral,
-    colour: Color = Color.Unspecified,
+    containerColour: Color = Color.Unspecified,
     shape: Shape = Theme.shapes.control,
     /**
      * Overrides what the tag announces.
@@ -76,10 +76,10 @@ fun Tag(
     contentDescription: String? = null,
     content: @Composable RowContentScope.() -> Unit
 ) {
-    val container = if (colour != Color.Unspecified) colour else tagContainerFor(tone)
-    val contentColour = if (colour != Color.Unspecified) {
+    val container = if (containerColour != Color.Unspecified) containerColour else tagContainerFor(tone)
+    val contentColour = if (containerColour != Color.Unspecified) {
         contentColourFor(
-            background = colour,
+            background = containerColour,
             light = Theme.colours.onPrimary.takeIf { !Theme.colours.isDark } ?: Theme.colours.content,
             dark = Theme.colours.content.takeIf { !Theme.colours.isDark } ?: Theme.colours.onPrimary,
         )
@@ -149,7 +149,7 @@ fun Badge(
     modifier: Modifier = Modifier,
     count: Int? = null,
     max: Int = 9,
-    colour: Color = Theme.colours.danger.solid,
+    containerColour: Color = Theme.colours.danger.solid,
     contentColour: Color = Theme.colours.danger.onSolid,
     contentDescription: String? = null,
 ) {
@@ -172,7 +172,7 @@ fun Badge(
                 .semantics { this.contentDescription = announcement }
                 .defaultMinSize(minWidth = 8.dp, minHeight = 8.dp)
                 .clip(Theme.shapes.pill)
-                .background(colour)
+                .background(containerColour)
         )
     } else {
         Box(
@@ -180,7 +180,7 @@ fun Badge(
                 .semantics { this.contentDescription = announcement }
                 .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
                 .clip(Theme.shapes.capsule)
-                .background(colour)
+                .background(containerColour)
                 .padding(horizontal = 5.dp),
             contentAlignment = Alignment.Center,
         ) {

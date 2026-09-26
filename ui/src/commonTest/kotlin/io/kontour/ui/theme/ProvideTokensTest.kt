@@ -114,7 +114,7 @@ class ProvideTokensTest {
     @Test
     fun aSurfacesOwnContentColourIsNotOverwritten() {
         val seen = readInside { inner ->
-            Surface(colour = Kontour.primary, contentColour = Kontour.onPrimary) {
+            Surface(containerColour = Kontour.primary, contentColour = Kontour.onPrimary) {
                 ProvideTokens(colours = Other, content = inner)
             }
         }

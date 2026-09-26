@@ -29,6 +29,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
@@ -189,11 +192,16 @@ private fun RowContentScope.KeyedChipContent(
  * When selected it fills with the accent container and takes the accent for its
  * label, dropping the outline it wears unselected.
  *
+ * [onSelectedChange] is handed the new state, the way `SelectionRow`'s is, so
+ * a set of filters toggles with `{ on -> active = if (on) active + it else
+ * active - it }` rather than by reading the old state back. Null leaves the
+ * chip showing its state without answering a press.
+ *
  * **The tick is opt-in.** Pass [selectedIcon] and it *expands in* rather than
  * appearing, pushing the label across — the small shove is what makes a filter
  * bar feel responsive when you rattle through several of them. It is a parameter
- * rather than a default because the library ships no glyphs at all: the icon set
- * is the application's choice, so there is no tick here to reach for.
+ * rather than a default because the tick is the application's own glyph: a
+ * filter bar's tick should match the rest of its icon set.
  *
  * Without one, selection is carried by colour alone. That is legible, and it is
  * the only channel — so a filter bar where the distinction matters should pass
@@ -202,7 +210,7 @@ private fun RowContentScope.KeyedChipContent(
 @Composable
 fun FilterChip(
     selected: Boolean,
-    onClick: () -> Unit,
+    onSelectedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     selectedIcon: ImageVector? = null,
@@ -251,14 +259,29 @@ fun FilterChip(
             .clip(shape)
             .background(container, shape)
             .border(BorderStroke(Theme.sizing.borderWidth, borderColour), shape)
-            .pointerCursor(enabled = enabled)
-            .selectable(
-                selected = selected,
-                onClick = { toggled(!selected); onClick() },
-                enabled = enabled,
-                role = Role.Checkbox,
-                interactionSource = interactions,
-                indication = kontourIndication(shape),
+            .then(
+                if (onSelectedChange == null) {
+                    // Inert, but still a chip that reads as on or off, the way
+                    // an inert `SelectionRow` does.
+                    Modifier.semantics {
+                        role = Role.Checkbox
+                        this.selected = selected
+                    }
+                } else {
+                    Modifier
+                        .pointerCursor(enabled = enabled)
+                        .selectable(
+                            selected = selected,
+                            onClick = {
+                                toggled(!selected)
+                                onSelectedChange(!selected)
+                            },
+                            enabled = enabled,
+                            role = Role.Checkbox,
+                            interactionSource = interactions,
+                            indication = kontourIndication(shape),
+                        )
+                },
             )
             .padding(horizontal = Theme.spacing.sm),
         // No `spacedBy`: the tick carries its own gap, so the row does not lose

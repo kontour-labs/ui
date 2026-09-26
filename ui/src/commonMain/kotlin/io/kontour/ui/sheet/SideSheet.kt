@@ -348,7 +348,7 @@ private fun SideSheetPanel(
                 // Mirrored for a start-side sheet, so the rounded edge is always
                 // the one facing the content rather than the window edge.
                 shape = if (fromRight) shape else shape.mirrorHorizontally(),
-                colour = containerColour,
+                containerColour = containerColour,
                 contentColour = contentColour,
                 border = contrastEdge(),
                 shadow = Theme.elevation.overlay,

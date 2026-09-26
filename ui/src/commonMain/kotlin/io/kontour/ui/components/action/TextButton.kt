@@ -128,7 +128,7 @@ fun TextButton(
  * ```kotlin
  * Row {
  *     Text("Perth Underground")
- *     TextIconButton(Tabler.Outline.InfoCircle, "About this stop", onClick = ::explain)
+ *     TextIconButton(icon = Tabler.Outline.InfoCircle, contentDescription = "About this stop", onClick = ::explain)
  * }
  * ```
  *
@@ -145,9 +145,9 @@ fun TextButton(
  */
 @Composable
 fun TextIconButton(
+    onClick: () -> Unit,
     icon: ImageVector,
     contentDescription: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     colour: Color = Theme.colours.accent.solid,

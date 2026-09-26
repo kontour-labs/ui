@@ -855,7 +855,7 @@ internal fun OverlaySurface(
         modifier = modifier,
         shape = shape,
         propagateMinConstraints = propagateMinConstraints,
-        colour = colour,
+        containerColour = colour,
         contentColour = contentColour,
         border = if (border) {
             BorderStroke(Theme.sizing.borderWidth, Theme.colours.outlineSubtle)

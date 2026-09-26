@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -24,6 +25,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -162,6 +164,11 @@ fun Slider(
      */
     valueLabel: ((Float) -> String)? = null,
     onValueChangeFinished: (() -> Unit)? = null,
+    /**
+     * The track, the thumb, the tick marks and the value label, enabled and
+     * disabled. See [SliderDefaults.colours].
+     */
+    colours: SliderColours = SliderDefaults.colours(),
     interactionSource: MutableInteractionSource? = null,
 ) {
     // An inverted range has no reading, and the failure it used to cause was
@@ -178,7 +185,6 @@ fun Slider(
 
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val scope = rememberCoroutineScope()
-    val colours = Theme.colours
     val motion = Theme.motion
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -248,7 +254,7 @@ fun Slider(
     // The label above the head, measured in composition and drawn in the draw
     // pass. See `sliderValueLabel`.
     val labelMeasurer = rememberTextMeasurer()
-    val labelStyle = Theme.typography.labelMedium.copy(color = colours.onSurfaceInverse)
+    val labelStyle = Theme.typography.labelMedium.copy(color = colours.valueLabelContent)
     val labelProgress = animateFloatAsState(
         targetValue = if (valueLabel != null && active) 1f else 0f,
         animationSpec = motion.springOrTween(motion.springSnappy),
@@ -634,9 +640,9 @@ fun Slider(
                     val thumbReachPx = SliderThumbReach.toPx()
                     val centreY = size.height / 2f
                     val trackTop = centreY - trackHeightPx / 2f
-                    val activeColour = if (enabled) colours.primary else colours.contentDisabled
-                    val inactiveColour = if (enabled) colours.outline else colours.surfaceSunken
-                    val thumbColour = if (enabled) colours.primary else colours.contentDisabled
+                    val activeColour = colours.indicator(enabled)
+                    val inactiveColour = colours.track(enabled)
+                    val thumbColour = colours.thumb(enabled)
 
                     onDrawBehind {
                         // The track is inset by the thumb's *reach* at each
@@ -683,8 +689,8 @@ fun Slider(
                                 minorTicks = minorTicks,
                                 widthPx = tickPx,
                                 heightPx = tickHeightPx,
-                                coveredColour = colours.onPrimary,
-                                uncoveredColour = colours.contentSubtle,
+                                coveredColour = colours.tickOnIndicator,
+                                uncoveredColour = colours.tick,
                                 covered = { x -> if (rtl) x >= thumbX else x <= thumbX },
                             )
                         }
@@ -703,7 +709,7 @@ fun Slider(
                             squashPx = band.offset * sense,
                             // A ring of the page colour keeps the thumb legible
                             // where it overlaps the filled track.
-                            ringColour = colours.surface,
+                            ringColour = colours.thumbRing,
                             fillColour = thumbColour,
                             ringPx = SliderThumbRing.toPx(),
                             capsule = pill,
@@ -717,7 +723,7 @@ fun Slider(
                                 thumbTop = centreY - thumbRadiusPx * thumbScale.value,
                                 progress = labelShown,
                                 scaleIn = !motion.reduceMotion,
-                                container = colours.surfaceInverse,
+                                container = colours.valueLabel,
                                 paddingHorizontal = labelPaddingH,
                                 paddingVertical = labelPaddingV,
                                 gap = labelGap,
@@ -730,7 +736,65 @@ fun Slider(
     }
 }
 
+/**
+ * The colours a [Slider] or a [RangeSlider] draws with.
+ *
+ * Named as a [io.kontour.ui.components.display.DialColours] is where the two mean the same thing: the
+ * [indicator] is the filled part of the track, and the [thumb] rides on it.
+ */
+@Immutable
+data class SliderColours(
+    val indicator: Color,
+    val track: Color,
+    val thumb: Color,
+    /** The ring of page colour that keeps the thumb legible over the filled track. */
+    val thumbRing: Color,
+    /** The tick marks on the unfilled track. */
+    val tick: Color,
+    /** The tick marks the filled track has reached. */
+    val tickOnIndicator: Color,
+    val indicatorDisabled: Color,
+    val trackDisabled: Color,
+    val thumbDisabled: Color,
+    /** The pill above the thumb while it is held, when the slider has a `valueLabel`. */
+    val valueLabel: Color,
+    val valueLabelContent: Color,
+) {
+    internal fun indicator(enabled: Boolean): Color = if (enabled) indicator else indicatorDisabled
+    internal fun track(enabled: Boolean): Color = if (enabled) track else trackDisabled
+    internal fun thumb(enabled: Boolean): Color = if (enabled) thumb else thumbDisabled
+}
+
 object SliderDefaults {
+    /** The theme's colours for a slider: the primary colour on an outline track. */
+    @Composable
+    @ReadOnlyComposable
+    fun colours(
+        indicator: Color = Theme.colours.primary,
+        track: Color = Theme.colours.outline,
+        thumb: Color = indicator,
+        thumbRing: Color = Theme.colours.surface,
+        tick: Color = Theme.colours.contentSubtle,
+        tickOnIndicator: Color = Theme.colours.onPrimary,
+        indicatorDisabled: Color = Theme.colours.contentDisabled,
+        trackDisabled: Color = Theme.colours.surfaceSunken,
+        thumbDisabled: Color = indicatorDisabled,
+        valueLabel: Color = Theme.colours.surfaceInverse,
+        valueLabelContent: Color = Theme.colours.onSurfaceInverse,
+    ): SliderColours = SliderColours(
+        indicator = indicator,
+        track = track,
+        thumb = thumb,
+        thumbRing = thumbRing,
+        tick = tick,
+        tickOnIndicator = tickOnIndicator,
+        indicatorDisabled = indicatorDisabled,
+        trackDisabled = trackDisabled,
+        thumbDisabled = thumbDisabled,
+        valueLabel = valueLabel,
+        valueLabelContent = valueLabelContent,
+    )
+
     /** The drawn height, so callers can reserve the same when laying out around a slider. */
     val VisualHeight: Dp = SliderHeight
 

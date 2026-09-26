@@ -193,7 +193,7 @@ fun TimeField(
                     onClick = onClick,
                 ),
             shape = shape,
-            colour = Theme.colours.surfaceSunken,
+            containerColour = Theme.colours.surfaceSunken,
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(

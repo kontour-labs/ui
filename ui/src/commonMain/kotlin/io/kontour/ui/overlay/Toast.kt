@@ -1372,7 +1372,7 @@ private fun ToastSurface(
                 }
             },
         shape = Theme.shapes.capsule,
-        colour = container,
+        containerColour = container,
         contentColour = content,
         // A rim on the ones behind, and this is the "shadows for separation" in
         // the report done the only way that works.
@@ -1502,9 +1502,9 @@ private fun ToastSurface(
                         container = content.copy(alpha = ToastDefaults.ActionGround),
                         content = content,
                         border = null,
-                        disabledContainer = Color.Transparent,
-                        disabledContent = content.copy(alpha = ToastDefaults.DisabledContent),
-                        disabledBorder = null,
+                        containerDisabled = Color.Transparent,
+                        contentDisabled = content.copy(alpha = ToastDefaults.DisabledContent),
+                        borderDisabled = null,
                     ),
                 ) { +toast.actionLabel }
             }

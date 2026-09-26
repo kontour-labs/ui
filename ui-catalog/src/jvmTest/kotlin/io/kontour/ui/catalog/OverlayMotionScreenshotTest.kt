@@ -163,7 +163,7 @@ private fun LeavingSheets(dismissAfterFrames: Int) {
         showing.value = false
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), colour = Theme.colours.background) {
+    Surface(modifier = Modifier.fillMaxSize(), containerColour = Theme.colours.background) {
         Row(
             modifier = Modifier.padding(Theme.spacing.lg),
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -217,7 +217,7 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
         }
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), colour = Theme.colours.background) {
+    Surface(modifier = Modifier.fillMaxSize(), containerColour = Theme.colours.background) {
         Row(
             modifier = Modifier.padding(Theme.spacing.lg),
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -326,7 +326,7 @@ private fun MotionPanel(label: String, content: @Composable BoxScope.() -> Unit)
         Surface(
             modifier = Modifier.width(400.dp).height(380.dp),
             shape = Theme.shapes.large,
-            colour = Theme.colours.surface,
+            containerColour = Theme.colours.surface,
         ) {
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize(), content = content)

@@ -1208,7 +1208,7 @@ private fun BoxScope.SheetSurface(
                 state.updateAnchors(density)
             },
         shape = drawnShape,
-        colour = containerColour,
+        containerColour = containerColour,
         contentColour = contentColour,
         border = contrastEdge(),
         shadow = Theme.elevation.overlay,

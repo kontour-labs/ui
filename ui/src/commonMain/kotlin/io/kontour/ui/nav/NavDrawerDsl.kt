@@ -50,9 +50,9 @@ interface NavDrawerScope : ColumnScope {
     @Composable
     fun item(
         label: String,
+        enabled: Boolean = true,
         icon: ImageVector? = null,
         selected: Boolean = false,
-        enabled: Boolean = true,
         badge: Int? = null,
         contentDescription: String? = null,
         onClick: () -> Unit,
@@ -91,9 +91,9 @@ internal class NavDrawerScopeImpl(
     @Composable
     override fun item(
         label: String,
+        enabled: Boolean,
         icon: ImageVector?,
         selected: Boolean,
-        enabled: Boolean,
         badge: Int?,
         contentDescription: String?,
         onClick: () -> Unit,

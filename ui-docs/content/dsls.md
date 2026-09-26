@@ -290,10 +290,10 @@ down every branch.
 
 ```kotlin
 NavDrawer(header = { AppMark() }) {
-    item("Home", Tabler.Outline.Home, selected = tab == Tab.Home) { go(Tab.Home) }
+    item("Home", icon = Tabler.Outline.Home, selected = tab == Tab.Home) { go(Tab.Home) }
 
     section("Saved") {
-        item("Favourites", Tabler.Outline.Star, badge = 3) { go(Tab.Favourites) }
+        item("Favourites", icon = Tabler.Outline.Star, badge = 3) { go(Tab.Favourites) }
         group("Routes", expanded = open, onExpandedChange = { open = it }) {
             item("950", selected = route == "950") { go("950") }
         }

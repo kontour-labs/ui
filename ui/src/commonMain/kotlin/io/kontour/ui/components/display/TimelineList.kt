@@ -68,6 +68,8 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
      * One row, filled like a `ListItem` — a bare `+` for the label, then
      * `supporting`, `overline`, `leading` and `trailing` by name.
      *
+     * @param enabled Whether this row can be used. A disabled timeline disables
+     *   every row whatever this says.
      * @param nodeColour The node's colour. Unspecified takes the timeline's.
      * @param filled A solid node for a stop; a ring for a point passed through.
      * @param loading A spinner in place of the node, for the one being waited
@@ -77,20 +79,18 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
      * @param connectorColour The leg's colour. Unspecified takes the timeline's.
      * @param connectorWidth The leg's weight, and the ring's. Unspecified is
      *   the strong border width, as a [TimelineItem]'s is.
-     * @param enabled Whether this row can be used. A disabled timeline disables
-     *   every row whatever this says.
      * @param selected Marks the row that is current in a list that picks one.
      * @param role What a screen reader calls the row, when it has [onClick].
      * @param onClick The row's action. Without one the row is not a control.
      */
     fun item(
+        enabled: Boolean = true,
         nodeColour: Color = Color.Unspecified,
         filled: Boolean = filledByDefault,
         loading: Boolean = false,
         connector: ConnectorStyle = ConnectorStyle.Solid,
         connectorColour: Color = Color.Unspecified,
         connectorWidth: Dp = Dp.Unspecified,
-        enabled: Boolean = true,
         selected: Boolean = false,
         role: Role = Role.Button,
         onClick: (() -> Unit)? = null,

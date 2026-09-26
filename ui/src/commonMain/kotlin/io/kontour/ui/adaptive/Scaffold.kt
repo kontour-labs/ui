@@ -33,7 +33,7 @@ object ScaffoldDefaults {
  * ```kotlin
  * Scaffold(
  *     topBar = { TopBar { +"Favourites" } },
- *     floatingActionButton = { FloatingActionButton(Tabler.Outline.Plus, "Add", ::add) },
+ *     floatingActionButton = { FloatingActionButton(icon = Tabler.Outline.Plus, contentDescription = "Add", onClick = ::add) },
  * ) { padding ->
  *     LazyColumn(contentPadding = padding) { … }
  * }
@@ -92,7 +92,7 @@ fun Scaffold(
 
     Surface(
         modifier = modifier.fillMaxSize().clearFocusOnTap(clearFocusOnTap),
-        colour = containerColour,
+        containerColour = containerColour,
         contentColour = contentColour,
     ) {
         SubcomposeLayout(Modifier.fillMaxSize()) { constraints ->

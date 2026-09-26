@@ -103,8 +103,8 @@ fun FilterChipGroup() {
         Mode.entries.forEach { mode ->
             FilterChip(
                 selected = mode in active,
-                onClick = {
-                    active = if (mode in active) active - mode else active + mode
+                onSelectedChange = { on ->
+                    active = if (on) active + mode else active - mode
                 },
                 selectedIcon = Tabler.Outline.Check,
             ) {
@@ -200,11 +200,11 @@ fun StepperBasics() {
 fun RatingBasics() {
     var rating by remember { mutableStateOf(0f) }
 
-    Rating(value = rating, contentDescription = "Your rating", onValueChange = { rating = it })
+    Rating(value = rating, onValueChange = { rating = it }, contentDescription = "Your rating")
 
-    // No callback means read-only, which means not a control at all: no role,
+    // A null callback means read-only, which means not a control at all: no role,
     // no touch target, one node saying "Average rating, 4.3 out of 5".
-    Rating(value = 4.3f, contentDescription = "Average rating")
+    Rating(value = 4.3f, onValueChange = null, contentDescription = "Average rating")
 }
 
 // --- The caller's own types -------------------------------------------------

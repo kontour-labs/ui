@@ -72,7 +72,7 @@ fun ButtonLoading() {
 
 @Composable
 fun IconButtonBasics() {
-    IconButton(Tabler.Outline.X, contentDescription = "Close", onClick = { dismiss() })
+    IconButton(icon = Tabler.Outline.X, contentDescription = "Close", onClick = { dismiss() })
 }
 
 @Composable
@@ -101,7 +101,7 @@ fun IconToggleButtonBasics() {
 
 @Composable
 fun FloatingActionButtonBasics() {
-    FloatingActionButton(Tabler.Outline.Plus, "Add favourite", onClick = { add() })
+    FloatingActionButton(icon = Tabler.Outline.Plus, contentDescription = "Add favourite", onClick = { add() })
 }
 
 @Composable
@@ -149,17 +149,17 @@ fun ToolbarBasics() {
             item(onClick = { zoomIn() }, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
         }
         ToolbarDivider()
-        IconButton(Tabler.Outline.Stack, "Map layers", onClick = { openLayers() })
+        IconButton(icon = Tabler.Outline.Stack, contentDescription = "Map layers", onClick = { openLayers() })
     }
 }
 
 @Composable
 fun VerticalToolbarBasics() {
     VerticalToolbar {
-        IconButton(Tabler.Outline.Plus, "Zoom in", onClick = { zoomIn() })
-        IconButton(Tabler.Outline.Minus, "Zoom out", onClick = { zoomOut() })
+        IconButton(icon = Tabler.Outline.Plus, contentDescription = "Zoom in", onClick = { zoomIn() })
+        IconButton(icon = Tabler.Outline.Minus, contentDescription = "Zoom out", onClick = { zoomOut() })
         ToolbarDivider()
-        IconButton(Tabler.Outline.Stack, "Map layers", onClick = { openLayers() })
+        IconButton(icon = Tabler.Outline.Stack, contentDescription = "Map layers", onClick = { openLayers() })
     }
 }
 

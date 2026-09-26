@@ -43,7 +43,7 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun ThemeShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, colour = Theme.colours.background) {
+    Surface(modifier = modifier, containerColour = Theme.colours.background) {
         Column(
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -104,7 +104,7 @@ private fun Swatch(name: String, colour: Color, onColor: Color, width: Int = 132
     Surface(
         modifier = Modifier.width(width.dp).height(56.dp),
         shape = Theme.shapes.small,
-        colour = colour,
+        containerColour = colour,
         contentColour = onColor,
         // A hairline on every swatch, so the ones that match the page ground —
         // `surface` and `surfaceRaised` in light mode are both white — are still
@@ -173,7 +173,7 @@ private fun StatusRow(name: String, tone: StatusColours) {
         Surface(
             modifier = Modifier.width(260.dp).height(56.dp),
             shape = Theme.shapes.small,
-            colour = tone.container,
+            containerColour = tone.container,
             contentColour = tone.onContainer,
         ) {
             Box(Modifier.padding(Theme.spacing.sm), contentAlignment = Alignment.CenterStart) {
@@ -212,7 +212,7 @@ private fun SurfacesAndElevation() {
                     Surface(
                         modifier = Modifier.size(width = 120.dp, height = 72.dp),
                         shape = Theme.shapes.medium,
-                        colour = Theme.colours.surface,
+                        containerColour = Theme.colours.surface,
                         shadow = shadow,
                     ) {
                         Box(Modifier.padding(Theme.spacing.sm), contentAlignment = Alignment.Center) {
@@ -245,7 +245,7 @@ private fun ShapeScale() {
                 Surface(
                     modifier = Modifier.size(width = 96.dp, height = 56.dp),
                     shape = shape,
-                    colour = Theme.colours.surfaceSunken,
+                    containerColour = Theme.colours.surfaceSunken,
                     border = BorderStroke(Theme.sizing.borderWidth, Theme.colours.outline),
                 ) {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {

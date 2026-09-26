@@ -45,7 +45,7 @@ import io.kontour.ui.theme.outset
  *         item(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
  *     }
  *     ToolbarDivider()
- *     IconButton(Tabler.Outline.Layers, "Map layers", onClick = ::openLayers)
+ *     IconButton(icon = Tabler.Outline.Layers, contentDescription = "Map layers", onClick = ::openLayers)
  * }
  * ```
  *
@@ -99,10 +99,10 @@ fun Toolbar(
  *
  * ```kotlin
  * VerticalToolbar(Modifier.align(Alignment.CenterEnd)) {
- *     IconButton(Tabler.Outline.Plus, "Zoom in", onClick = ::zoomIn)
- *     IconButton(Tabler.Outline.Minus, "Zoom out", onClick = ::zoomOut)
+ *     IconButton(icon = Tabler.Outline.Plus, contentDescription = "Zoom in", onClick = ::zoomIn)
+ *     IconButton(icon = Tabler.Outline.Minus, contentDescription = "Zoom out", onClick = ::zoomOut)
  *     ToolbarDivider()
- *     IconButton(Tabler.Outline.Layers, "Map layers", onClick = ::openLayers)
+ *     IconButton(icon = Tabler.Outline.Layers, contentDescription = "Map layers", onClick = ::openLayers)
  * }
  * ```
  *
@@ -175,7 +175,7 @@ private fun ToolbarSurface(
     Surface(
         modifier = modifier.semantics { isTraversalGroup = true },
         shape = shape,
-        colour = containerColour,
+        containerColour = containerColour,
         shadow = shadow,
         // An elevated surface over content is white on whatever is behind it
         // with a shadow for an edge, and a shadow does not change between

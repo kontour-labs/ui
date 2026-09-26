@@ -39,7 +39,7 @@ class RatingTest {
     fun aReadOnlyRatingOffersNothingToPress() = runComposeUiTest {
         setContent {
             KontourTheme {
-                Rating(value = 4.3f, contentDescription = "Average rating")
+                Rating(value = 4.3f, onValueChange = null, contentDescription = "Average rating")
             }
         }
 
@@ -53,6 +53,7 @@ class RatingTest {
             KontourTheme {
                 Rating(
                     value = 4.3f,
+                    onValueChange = null,
                     contentDescription = "Average rating",
                     modifier = Modifier.testTag("rating"),
                 )

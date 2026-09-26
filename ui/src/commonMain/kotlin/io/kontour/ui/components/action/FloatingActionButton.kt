@@ -53,10 +53,10 @@ enum class FabSize(internal val container: Dp, internal val icon: Dp) {
  *
  * ```
  * FloatingActionButton(
- *     icon = Icons.Plus,
- *     contentDescription = "Add favourite",
- *     onClick = ::addFavourite,
- * )
+ icon = *     icon = Icons.Plus,
+ contentDescription = *     contentDescription = "Add favourite",
+ onClick = *     onClick = ::addFavourite,
+ modifier = * )
  * ```
  *
  * Floats above content, so it takes [io.kontour.ui.theme.Elevation.medium] and
@@ -75,9 +75,9 @@ enum class FabSize(internal val container: Dp, internal val icon: Dp) {
  */
 @Composable
 fun FloatingActionButton(
+    onClick: () -> Unit,
     icon: ImageVector,
     contentDescription: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     /** Swaps the icon for a spinner and blocks input. See [LoadingSwap]. */
@@ -110,7 +110,7 @@ fun FloatingActionButton(
                 onClick = onClick,
             ),
         shape = shape,
-        colour = fabColor,
+        containerColour = fabColor,
         contentColour = fabContent,
         border = border,
         shadow = fabShadow,
@@ -185,7 +185,7 @@ fun FloatingActionButton(
                 onClick = onClick,
             ),
         shape = shape,
-        colour = fabColor,
+        containerColour = fabColor,
         contentColour = fabContent,
         border = border,
         shadow = fabShadow,
@@ -200,11 +200,11 @@ fun FloatingActionButton(
  *
  * ```
  * ExtendedFloatingActionButton(
- *     icon = Icons.Navigation,
- *     contentDescription = "Start trip",
- *     expanded = !listState.isScrollingDown,
- *     onClick = ::startTrip,
- * ) { +"Start trip" }
+ icon = *     icon = Icons.Navigation,
+ contentDescription = *     contentDescription = "Start trip",
+ onClick = *     expanded = !listState.isScrollingDown,
+ modifier = *     onClick = ::startTrip,
+ enabled = * ) { +"Start trip" }
  * ```
  *
  * The collapse animates the *width* rather than cross-fading between two
@@ -219,9 +219,9 @@ fun FloatingActionButton(
  */
 @Composable
 fun ExtendedFloatingActionButton(
+    onClick: () -> Unit,
     icon: ImageVector,
     contentDescription: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     /** Swaps the icon for a spinner and blocks input. See [LoadingSwap]. */
@@ -291,7 +291,7 @@ fun ExtendedFloatingActionButton(
                 onClick = onClick,
             ),
         shape = shape,
-        colour = fabColor,
+        containerColour = fabColor,
         contentColour = fabContent,
         border = border,
         shadow = fabShadow,

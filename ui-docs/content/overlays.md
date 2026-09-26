@@ -504,7 +504,7 @@ a tooltip pointing at a list item that has scrolled away.
 
 ```kotlin
 Box {
-    IconButton(Tabler.Outline.Dots, "More", onClick = { expanded = true })
+    IconButton(icon = Tabler.Outline.Dots, contentDescription = "More", onClick = { expanded = true })
     DropdownMenu(visible, onDismissRequest = { visible = false }) { … }
 }
 ```

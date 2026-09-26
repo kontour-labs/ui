@@ -1009,7 +1009,7 @@ private fun PageDots(
                     shape = Theme.shapes.capsule,
                     // Under a travelling style every dot is a track, and the pill
                     // drawn over them is what says which page this is.
-                    colour = if (wide) activeColour else inactiveColour,
+                    containerColour = if (wide) activeColour else inactiveColour,
                     content = {},
                 )
             }

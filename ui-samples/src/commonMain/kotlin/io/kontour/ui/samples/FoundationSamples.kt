@@ -94,7 +94,7 @@ fun IconBasics() {
 fun SurfaceBasics() {
     // No colour argument on either child: the surface set `LocalContentColour`
     // from its own background, and both resolve against it.
-    Surface(colour = Theme.colours.primary, shape = Theme.shapes.medium, shadow = Theme.elevation.low) {
+    Surface(containerColour = Theme.colours.primary, shape = Theme.shapes.medium, shadow = Theme.elevation.low) {
         Column(Modifier.padding(Theme.spacing.md)) {
             Text("Perth Underground")
             Icon(Tabler.Outline.Star, contentDescription = null)

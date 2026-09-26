@@ -535,7 +535,7 @@ private fun RefreshIndicator(
     Surface(
         modifier = Modifier.size(IndicatorSize),
         shape = Theme.shapes.pill,
-        colour = Theme.colours.surfaceRaised,
+        containerColour = Theme.colours.surfaceRaised,
         shadow = Theme.elevation.high,
         contentAlignment = Alignment.Center,
     ) {

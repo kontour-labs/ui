@@ -92,7 +92,7 @@ private fun Stage(height: Dp = 400.dp, content: @Composable BoxScope.() -> Unit)
                 shape = Theme.shapes.medium,
             )
             .clip(Theme.shapes.medium),
-        colour = Theme.colours.surface,
+        containerColour = Theme.colours.surface,
     ) {
         OverlayHost(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize()) {
@@ -317,7 +317,7 @@ internal val ContextMenuAreaDemo = ComponentDemo(slug = "context-menu-area") {
         ) {
             Surface(
                 modifier = Modifier.padding(Theme.spacing.md),
-                colour = Theme.colours.surfaceSunken,
+                containerColour = Theme.colours.surfaceSunken,
                 shape = Theme.shapes.medium,
             ) {
                 Text(
@@ -564,7 +564,7 @@ private fun HostEntry(
                     Surface(
                         modifier = Modifier.padding(Theme.spacing.lg).widthIn(max = 400.dp),
                         shape = Theme.shapes.panel,
-                        colour = Theme.colours.surfaceRaised,
+                        containerColour = Theme.colours.surfaceRaised,
                         shadow = Theme.elevation.overlay,
                     ) {
                         Column(

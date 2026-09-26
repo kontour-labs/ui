@@ -233,13 +233,18 @@ internal class ButtonGroupAction(
 class ButtonGroupScope internal constructor() {
     internal val actions = mutableListOf<ButtonGroupAction>()
 
-    /** An icon-only action. `contentDescription` is required, as ever. */
+    /**
+     * An icon-only action. `contentDescription` is required, as ever.
+     *
+     * The action comes last, as it does on every other scope's shorthand, so
+     * it can trail: `item("Zoom in", Tabler.Outline.Plus) { zoomIn() }`.
+     */
     fun item(
-        onClick: () -> Unit,
         contentDescription: String,
         icon: ImageVector,
         enabled: Boolean = true,
         interactionSource: MutableInteractionSource? = null,
+        onClick: () -> Unit,
     ) {
         actions += ButtonGroupAction(
             onClick = onClick,

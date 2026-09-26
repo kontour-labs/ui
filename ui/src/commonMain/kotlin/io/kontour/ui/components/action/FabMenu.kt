@@ -503,7 +503,7 @@ private fun FabMenuItems(
                             // fault the contract suite exists to catch.
                             .clearAndSetSemantics { },
                         shape = Theme.shapes.control,
-                        colour = Theme.colours.surfaceRaised,
+                        containerColour = Theme.colours.surfaceRaised,
                         contentColour = Theme.colours.content,
                         // A label is a light chip on a light page too, and it
                         // has no icon inside it to give away where its edges are.

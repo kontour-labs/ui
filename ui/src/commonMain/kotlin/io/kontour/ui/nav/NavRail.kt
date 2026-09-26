@@ -178,7 +178,7 @@ fun NavRail(
     CompositionLocalProvider(LocalNavExpansion provides room) {
     Surface(
         modifier = modifier.width(width).fillMaxHeight(),
-        colour = containerColour,
+        containerColour = containerColour,
         contentColour = contentColour,
     ) {
         Column(

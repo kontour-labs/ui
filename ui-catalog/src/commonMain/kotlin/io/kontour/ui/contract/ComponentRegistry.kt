@@ -622,13 +622,13 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // `selectedIcon` defaults to null, and this render flips
                 // `selected` and nothing else.
                 RenderState("selected") { modifier ->
-                    FilterChip(selected = true, onClick = {}, modifier = modifier) { +"Bus" }
+                    FilterChip(selected = true, onSelectedChange = {}, modifier = modifier) { +"Bus" }
                 },
             ),
         ) { modifier, enabled, onClick ->
             FilterChip(
                 selected = false,
-                onClick = onClick,
+                onSelectedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
             ) {
@@ -1269,7 +1269,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     Surface(
                         modifier = Modifier.fillMaxWidth().height(80.dp),
                         shape = Theme.shapes.small,
-                        colour = Theme.colours.surfaceSunken,
+                        containerColour = Theme.colours.surfaceSunken,
                     ) {
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                             Text("Photo ${page + 1}")

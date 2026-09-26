@@ -140,7 +140,7 @@ object TimelineDefaults {
  *
  * ```
  * Timeline {
- *     TimelineItem(nodeColour = routeColor, connector = ConnectorStyle.Solid) {
+ *     TimelineItem(nodeColour = routeColour, connector = ConnectorStyle.Solid) {
  *         Text("Perth Station"); Text("Platform 3", …)
  *     }
  *     TimelineItem(connector = ConnectorStyle.Dashed) { Text("Walk 4 min") }

@@ -67,7 +67,7 @@ private fun Screen(content: @Composable BoxScope.() -> Unit) {
                 shape = Theme.shapes.medium,
             )
             .clip(Theme.shapes.medium),
-        colour = Theme.colours.surface,
+        containerColour = Theme.colours.surface,
     ) {
         OverlayHost(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().background(Theme.colours.surfaceSunken)) {

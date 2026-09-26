@@ -145,7 +145,7 @@ fun GlassSurface(
         Surface(
             modifier = Modifier.matchParentSize(),
             shape = shape,
-            colour = tint.copy(alpha = alpha),
+            containerColour = tint.copy(alpha = alpha),
             // A hairline of the content colour along the edge. On real frosted
             // glass this is the refraction at the bevel; here it is the thing
             // that stops a translucent rectangle reading as a bug.

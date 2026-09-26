@@ -143,7 +143,7 @@ fun Dialog(
                                         .widthIn(max = 400.dp)
                                         .semantics { dialog() },
                                     shape = Theme.shapes.panel,
-                                    colour = Theme.colours.surfaceRaised,
+                                    containerColour = Theme.colours.surfaceRaised,
                                     border = contrastEdge(),
                                     shadow = Theme.elevation.overlay,
                                 ) {

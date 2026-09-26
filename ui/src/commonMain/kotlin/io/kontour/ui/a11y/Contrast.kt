@@ -103,7 +103,7 @@ fun brandIsSafeForText(scheme: ColourScheme): Boolean =
  * label has to stay legible whatever arrives.
  *
  * ```
- * val labelColour = contentColourFor(routeColor)   // white on a dark route, ink on a yellow one
+ * val labelColour = contentColourFor(routeColour) // white on a dark route, ink on a yellow one
  * ```
  */
 fun contentColourFor(

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -66,10 +67,10 @@ fun Card(
     variant: CardVariant = CardVariant.Elevated,
     onClick: (() -> Unit)? = null,
     shape: Shape = Theme.shapes.container,
-    colour: Color = cardColourFor(variant),
-    border: BorderStroke? = cardBorderFor(variant),
-    shadow: Shadow = cardShadowFor(variant),
-    contentPadding: PaddingValues = PaddingValues(Theme.spacing.md),
+    containerColour: Color = CardDefaults.containerColour(variant),
+    border: BorderStroke? = CardDefaults.border(variant),
+    shadow: Shadow = CardDefaults.shadow(variant),
+    contentPadding: PaddingValues = CardDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -91,7 +92,7 @@ fun Card(
             }
         ),
         shape = shape,
-        colour = colour,
+        containerColour = containerColour,
         border = border,
         shadow = shadow,
     ) {
@@ -107,26 +108,42 @@ fun Card(
     }
 }
 
-@Composable
-private fun cardColourFor(variant: CardVariant): Color = when (variant) {
-    CardVariant.Elevated, CardVariant.Outlined -> Theme.colours.surface
-    CardVariant.Filled -> Theme.colours.surfaceSunken
-}
+/** What a [Card] takes by default, so a caller can start from it. */
+object CardDefaults {
+    /** The ring of space inside a card. */
+    val ContentPadding: PaddingValues
+        @Composable @ReadOnlyComposable get() = PaddingValues(Theme.spacing.md)
 
-@Composable
-private fun cardBorderFor(variant: CardVariant): BorderStroke? = when (variant) {
-    CardVariant.Outlined -> BorderStroke(Theme.sizing.borderWidth, Theme.colours.outline)
-    // Elevated is `surfaceRaised` on the page with a shadow for an edge — 1.00:1
-    // at the high-contrast light tier, where both are pure white and the shadow
-    // does not change between tiers. Filled is `surfaceSunken` on `background`,
-    // which is **1.08:1** in light and **1.06:1** at the dark enhanced tier —
-    // a well is a hint that content is inset, not an edge. Both become outlined
-    // cards rather than gaining a second, different edge treatment.
-    else -> contrastEdge()
-}
+    /** The fill for [variant]: the surface, or a well for [CardVariant.Filled]. */
+    @Composable
+    @ReadOnlyComposable
+    fun containerColour(variant: CardVariant): Color = when (variant) {
+        CardVariant.Elevated, CardVariant.Outlined -> Theme.colours.surface
+        CardVariant.Filled -> Theme.colours.surfaceSunken
+    }
 
-@Composable
-private fun cardShadowFor(variant: CardVariant): Shadow = when (variant) {
-    CardVariant.Elevated -> Theme.elevation.low
-    else -> Shadow.None
+    /**
+     * The edge for [variant]: a hairline for [CardVariant.Outlined], and for the
+     * others only the high-contrast tier's edge.
+     */
+    @Composable
+    @ReadOnlyComposable
+    fun border(variant: CardVariant): BorderStroke? = when (variant) {
+        CardVariant.Outlined -> BorderStroke(Theme.sizing.borderWidth, Theme.colours.outline)
+        // Elevated is `surfaceRaised` on the page with a shadow for an edge — 1.00:1
+        // at the high-contrast light tier, where both are pure white and the shadow
+        // does not change between tiers. Filled is `surfaceSunken` on `background`,
+        // which is **1.08:1** in light and **1.06:1** at the dark enhanced tier —
+        // a well is a hint that content is inset, not an edge. Both become outlined
+        // cards rather than gaining a second, different edge treatment.
+        else -> contrastEdge()
+    }
+
+    /** The lift for [variant]: `elevation.low` for [CardVariant.Elevated], none otherwise. */
+    @Composable
+    @ReadOnlyComposable
+    fun shadow(variant: CardVariant): Shadow = when (variant) {
+        CardVariant.Elevated -> Theme.elevation.low
+        else -> Shadow.None
+    }
 }

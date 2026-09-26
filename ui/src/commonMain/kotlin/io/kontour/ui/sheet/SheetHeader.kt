@@ -249,7 +249,7 @@ enum class SheetHeaderStyle {
  * SheetHeader(
  *     modifier = Modifier.sheetPeekAnchor(),
  *     onClose = { showing = false },
- *     actions = { IconButton(Tabler.Outline.Star, "Favourite", onClick = ::favourite) },
+ *     actions = { IconButton(icon = Tabler.Outline.Star, contentDescription = "Favourite", onClick = ::favourite) },
  * ) {
  *     +"Perth Underground"
  *     supporting { +"Platform 2 · Joondalup line" }

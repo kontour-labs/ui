@@ -2,7 +2,7 @@
 
 <!--sample:FloatingActionButtonBasics-->
 ```kotlin
-FloatingActionButton(Tabler.Outline.Plus, "Add favourite", onClick = { add() })
+FloatingActionButton(icon = Tabler.Outline.Plus, contentDescription = "Add favourite", onClick = { add() })
 ```
 
 One per screen. A second FAB is two competing "the" actions.

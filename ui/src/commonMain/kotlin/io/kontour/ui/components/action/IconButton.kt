@@ -50,10 +50,10 @@ import io.kontour.ui.interaction.rememberToggleFeedback
  *
  * ```
  * IconButton(
- *     icon = Icons.Close,
- *     contentDescription = "Close",
- *     onClick = ::dismiss,
- * )
+ icon = *     icon = Icons.Close,
+ contentDescription = *     contentDescription = "Close",
+ onClick = *     onClick = ::dismiss,
+ modifier = * )
  * ```
  *
  * The visual bounds stay small — the icon plus a little padding — while the
@@ -81,9 +81,9 @@ import io.kontour.ui.interaction.rememberToggleFeedback
  */
 @Composable
 fun IconButton(
+    onClick: () -> Unit,
     icon: ImageVector,
     contentDescription: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     /**
@@ -137,11 +137,11 @@ fun IconButton(
  *
  * ```
  * IconToggleButton(
- *     icon = if (favourite) Icons.StarFilled else Icons.StarOutline,
- *     contentDescription = "Favourite",
- *     checked = favourite,
- *     onCheckedChange = viewModel::setFavourite,
- * )
+ icon = *     icon = if (favourite) Icons.StarFilled else Icons.StarOutline,
+ contentDescription = *     contentDescription = "Favourite",
+ checked = *     checked = favourite,
+ onCheckedChange = *     onCheckedChange = viewModel::setFavourite,
+ modifier = * )
  * ```
  *
  * Announces itself as a toggle with its current state, so a screen reader says
@@ -160,10 +160,10 @@ fun IconButton(
  */
 @Composable
 fun IconToggleButton(
-    icon: ImageVector,
-    contentDescription: String,
     checked: Boolean,
     onCheckedChange: ((Boolean) -> Unit)?,
+    icon: ImageVector,
+    contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     /**

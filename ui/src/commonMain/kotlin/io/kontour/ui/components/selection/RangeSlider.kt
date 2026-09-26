@@ -147,6 +147,11 @@ fun RangeSlider(
      */
     valueLabel: ((Float) -> String)? = null,
     onValueChangeFinished: (() -> Unit)? = null,
+    /**
+     * The track, the thumb, the tick marks and the value label, enabled and
+     * disabled. See [SliderDefaults.colours].
+     */
+    colours: SliderColours = SliderDefaults.colours(),
     interactionSource: MutableInteractionSource? = null,
 ) {
     // An inverted range has no reading, and the failure it used to cause was
@@ -162,7 +167,6 @@ fun RangeSlider(
     }
 
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val colours = Theme.colours
     val motion = Theme.motion
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -375,7 +379,7 @@ fun RangeSlider(
 
     // The label over the held thumb. See `Slider`'s.
     val labelMeasurer = rememberTextMeasurer()
-    val labelStyle = Theme.typography.labelMedium.copy(color = colours.onSurfaceInverse)
+    val labelStyle = Theme.typography.labelMedium.copy(color = colours.valueLabelContent)
     val labelPaddingH = with(density) { Theme.spacing.xs.toPx() }
     val labelPaddingV = with(density) { Theme.spacing.xxs.toPx() }
     val labelGap = with(density) { SliderLabelGap.toPx() }
@@ -927,8 +931,8 @@ fun RangeSlider(
                         val thumbReachPx = SliderThumbReach.toPx()
                         val centreY = size.height / 2f
                         val trackTop = centreY - trackHeightPx / 2f
-                        val activeColour = if (enabled) colours.primary else colours.contentDisabled
-                        val inactiveColour = if (enabled) colours.outline else colours.surfaceSunken
+                        val activeColour = colours.indicator(enabled)
+                        val inactiveColour = colours.track(enabled)
 
                         onDrawBehind {
                             // The thumb's reach, not its radius — see the
@@ -969,8 +973,8 @@ fun RangeSlider(
                                     minorTicks = minorTicks,
                                     widthPx = tickPx,
                                     heightPx = tickHeightPx,
-                                    coveredColour = colours.onPrimary,
-                                    uncoveredColour = colours.contentSubtle,
+                                    coveredColour = colours.tickOnIndicator,
+                                    uncoveredColour = colours.tick,
                                     // The band between the thumbs, not the run
                                     // up to one, which is why the shared drawing
                                     // takes a predicate. Not the *only*
@@ -1025,8 +1029,8 @@ fun RangeSlider(
                                     aspect = drawn.aspect,
                                     reachPx = drawn.reach,
                                     squashPx = drawn.squash,
-                                    ringColour = colours.surface,
-                                    fillColour = activeColour,
+                                    ringColour = colours.thumbRing,
+                                    fillColour = colours.thumb(enabled),
                                     ringPx = SliderThumbRing.toPx(),
                                     capsule = pill,
                                 )
@@ -1055,7 +1059,7 @@ fun RangeSlider(
                                     thumbTop = centreY - thumbRadiusPx * held.scale,
                                     progress = labelShown,
                                     scaleIn = !motion.reduceMotion,
-                                    container = colours.surfaceInverse,
+                                    container = colours.valueLabel,
                                     paddingHorizontal = labelPaddingH,
                                     paddingVertical = labelPaddingV,
                                     gap = labelGap,

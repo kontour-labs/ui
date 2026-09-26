@@ -41,7 +41,7 @@ import io.kontour.ui.theme.Theme
  *
  * ```
  * Box {
- *     IconButton(Tabler.Outline.InfoCircle, "About this route", onClick = { open = true })
+ *     IconButton(icon = Tabler.Outline.InfoCircle, contentDescription = "About this route", onClick = { open = true })
  *     Popover(open, onDismissRequest = { open = false }) {
  *         Text("Route 950", style = Theme.typography.titleSmall)
  *         Text("Runs every 15 minutes until 11pm.")
@@ -274,7 +274,7 @@ fun LoadingOverlay(
                                     contentDescription = label
                                 },
                             shape = Theme.shapes.container,
-                            colour = Theme.colours.surfaceRaised,
+                            containerColour = Theme.colours.surfaceRaised,
                             shadow = Theme.elevation.overlay,
                         ) {
                             Column(

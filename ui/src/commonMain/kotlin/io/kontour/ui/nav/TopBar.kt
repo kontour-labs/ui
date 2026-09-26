@@ -75,7 +75,7 @@ object TopBarDefaults {
  * ```kotlin
  * TopBar(
  *     onBack = navController::popBackStack,
- *     actions = { IconButton(Tabler.Outline.Star, "Favourite", onClick = ::favourite) },
+ *     actions = { IconButton(icon = Tabler.Outline.Star, contentDescription = "Favourite", onClick = ::favourite) },
  * ) { +"Perth Underground" }
  * ```
  *
@@ -126,7 +126,7 @@ fun TopBar(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
-    Surface(modifier = modifier.fillMaxWidth(), colour = containerColour, contentColour = contentColour) {
+    Surface(modifier = modifier.fillMaxWidth(), containerColour = containerColour, contentColour = contentColour) {
         // Inside the surface, so the container colour still reaches the top of the
         // window and the status bar sits on the bar rather than on a strip of
         // whatever is behind it.

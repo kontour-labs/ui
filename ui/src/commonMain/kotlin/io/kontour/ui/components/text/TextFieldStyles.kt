@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.theme.Theme
@@ -33,7 +34,7 @@ data class TextFieldColours(
     val borderFocused: Color,
     val borderError: Color,
     val borderDisabled: Color,
-    val helper: Color,
+    val supporting: Color,
     val error: Color,
     val cursor: Color,
     val selectionBackground: Color,
@@ -85,9 +86,58 @@ data class TextFieldMetrics(
 /** Defaults for the text field family. */
 object TextFieldDefaults {
 
+    /**
+     * The colours for [variant], with any of them replaced.
+     *
+     * A colour left [Color.Unspecified] is the variant's own, so an override
+     * changes one thing and keeps the rest of the variant — its focus tint, its
+     * disabled state and its high-contrast edge.
+     */
     @Composable
     @ReadOnlyComposable
-    fun colours(variant: TextFieldVariant = TextFieldVariant.Outlined): TextFieldColours {
+    fun colours(
+        variant: TextFieldVariant = TextFieldVariant.Outlined,
+        container: Color = Color.Unspecified,
+        containerFocused: Color = Color.Unspecified,
+        containerDisabled: Color = Color.Unspecified,
+        content: Color = Color.Unspecified,
+        contentDisabled: Color = Color.Unspecified,
+        placeholder: Color = Color.Unspecified,
+        label: Color = Color.Unspecified,
+        labelFocused: Color = Color.Unspecified,
+        border: Color = Color.Unspecified,
+        borderFocused: Color = Color.Unspecified,
+        borderError: Color = Color.Unspecified,
+        borderDisabled: Color = Color.Unspecified,
+        supporting: Color = Color.Unspecified,
+        error: Color = Color.Unspecified,
+        cursor: Color = Color.Unspecified,
+        selectionBackground: Color = Color.Unspecified,
+    ): TextFieldColours {
+        val base = variantColours(variant)
+        return TextFieldColours(
+            container = container.takeOrElse { base.container },
+            containerFocused = containerFocused.takeOrElse { base.containerFocused },
+            containerDisabled = containerDisabled.takeOrElse { base.containerDisabled },
+            content = content.takeOrElse { base.content },
+            contentDisabled = contentDisabled.takeOrElse { base.contentDisabled },
+            placeholder = placeholder.takeOrElse { base.placeholder },
+            label = label.takeOrElse { base.label },
+            labelFocused = labelFocused.takeOrElse { base.labelFocused },
+            border = border.takeOrElse { base.border },
+            borderFocused = borderFocused.takeOrElse { base.borderFocused },
+            borderError = borderError.takeOrElse { base.borderError },
+            borderDisabled = borderDisabled.takeOrElse { base.borderDisabled },
+            supporting = supporting.takeOrElse { base.supporting },
+            error = error.takeOrElse { base.error },
+            cursor = cursor.takeOrElse { base.cursor },
+            selectionBackground = selectionBackground.takeOrElse { base.selectionBackground },
+        )
+    }
+
+    @Composable
+    @ReadOnlyComposable
+    private fun variantColours(variant: TextFieldVariant): TextFieldColours {
         val c = Theme.colours
         return TextFieldColours(
             // `invisible()`, not `Color.Transparent`. `FieldScaffold` animates
@@ -133,7 +183,7 @@ object TextFieldDefaults {
             borderFocused = c.accent.solid,
             borderError = c.danger.solid,
             borderDisabled = c.outline,
-            helper = c.contentMuted,
+            supporting = c.contentMuted,
             error = c.danger.onContainer,
             cursor = c.accent.solid,
             // The *solid* accent at a third, not the container tint.

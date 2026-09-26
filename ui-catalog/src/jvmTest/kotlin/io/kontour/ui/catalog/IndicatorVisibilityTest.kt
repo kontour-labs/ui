@@ -132,7 +132,7 @@ class IndicatorVisibilityTest {
         }
         val scene = ImageComposeScene(width = Width, height = Height, density = Density(2f)) {
             DemoThemeProvider(settings, dark, tier == ContrastLevel.High, true) {
-                Surface(Modifier.fillMaxSize(), colour = Theme.colours.background) {
+                Surface(Modifier.fillMaxSize(), containerColour = Theme.colours.background) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         SegmentedControl(
                             options = listOf("One", "Two", "Three", "Four"),

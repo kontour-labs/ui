@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -73,13 +74,13 @@ data class ButtonColours(
     val container: Color,
     val content: Color,
     val border: Color?,
-    val disabledContainer: Color,
-    val disabledContent: Color,
-    val disabledBorder: Color?,
+    val containerDisabled: Color,
+    val contentDisabled: Color,
+    val borderDisabled: Color?,
 ) {
-    fun container(enabled: Boolean): Color = if (enabled) container else disabledContainer
-    fun content(enabled: Boolean): Color = if (enabled) content else disabledContent
-    fun border(enabled: Boolean): Color? = if (enabled) border else disabledBorder
+    fun container(enabled: Boolean): Color = if (enabled) container else containerDisabled
+    fun content(enabled: Boolean): Color = if (enabled) content else contentDisabled
+    fun border(enabled: Boolean): Color? = if (enabled) border else borderDisabled
 }
 
 /** Resolved metrics for one button size. */
@@ -130,15 +131,44 @@ object ButtonDefaults {
     /** Matches the ratio between `content` and `contentDisabled` in the schemes. */
     private const val DisabledContentAlpha = 0.45f
 
+    /**
+     * The colours for [variant], with any of them replaced.
+     *
+     * A colour left [Color.Unspecified] is the variant's own, so an override
+     * changes one thing and keeps the variant's disabled state and its
+     * high-contrast edge. A border passed as null draws none.
+     */
     @Composable
     @ReadOnlyComposable
-    fun colours(variant: ButtonVariant): ButtonColours {
+    fun colours(
+        variant: ButtonVariant,
+        container: Color = Color.Unspecified,
+        content: Color = Color.Unspecified,
+        border: Color? = Color.Unspecified,
+        containerDisabled: Color = Color.Unspecified,
+        contentDisabled: Color = Color.Unspecified,
+        borderDisabled: Color? = Color.Unspecified,
+    ): ButtonColours {
+        val base = variantColours(variant)
+        return ButtonColours(
+            container = container.takeOrElse { base.container },
+            content = content.takeOrElse { base.content },
+            border = if (border == Color.Unspecified) base.border else border,
+            containerDisabled = containerDisabled.takeOrElse { base.containerDisabled },
+            contentDisabled = contentDisabled.takeOrElse { base.contentDisabled },
+            borderDisabled = if (borderDisabled == Color.Unspecified) base.borderDisabled else borderDisabled,
+        )
+    }
+
+    @Composable
+    @ReadOnlyComposable
+    private fun variantColours(variant: ButtonVariant): ButtonColours {
         val c = Theme.colours
         // Disabled styling is shared: a flat sunken ground and muted content,
         // rather than each variant fading its own colours. A disabled outlined
         // button and a disabled solid one should not look like different
         // controls — they are both "not available right now".
-        val disabledContainer = when (variant) {
+        val containerDisabled = when (variant) {
             ButtonVariant.Ghost, ButtonVariant.DestructiveGhost, ButtonVariant.Secondary ->
                 Color.Transparent
             else -> c.surfaceSunken
@@ -148,7 +178,7 @@ object ButtonDefaults {
         // the reason `Tertiary` does. Disabled controls are exempt from the
         // *text* minimum, not from having a discernible boundary.
         val edge = contrastEdge()
-        val disabledBorder = when {
+        val borderDisabled = when {
             variant == ButtonVariant.Secondary -> c.outline
             // Every variant, ghosts included. An enabled ghost gains an edge at
             // this tier, so a disabled one without it is not a fainter button —
@@ -163,18 +193,18 @@ object ButtonDefaults {
                 container = c.primary,
                 content = c.onPrimary,
                 border = null,
-                disabledContainer = disabledContainer,
-                disabledContent = c.contentDisabled,
-                disabledBorder = disabledBorder,
+                containerDisabled = containerDisabled,
+                contentDisabled = c.contentDisabled,
+                borderDisabled = borderDisabled,
             )
 
             ButtonVariant.Secondary -> ButtonColours(
                 container = Color.Transparent,
                 content = c.content,
                 border = c.outlineStrong,
-                disabledContainer = disabledContainer,
-                disabledContent = c.contentDisabled,
-                disabledBorder = disabledBorder,
+                containerDisabled = containerDisabled,
+                contentDisabled = c.contentDisabled,
+                borderDisabled = borderDisabled,
             )
 
             // `surfaceSunken` on `background` measures 1.14:1 at the
@@ -185,9 +215,9 @@ object ButtonDefaults {
                 container = c.surfaceSunken,
                 content = c.content,
                 border = edge?.let { c.outline },
-                disabledContainer = disabledContainer,
-                disabledContent = c.contentDisabled,
-                disabledBorder = disabledBorder,
+                containerDisabled = containerDisabled,
+                contentDisabled = c.contentDisabled,
+                borderDisabled = borderDisabled,
             )
 
             // The only variant that reads its label from the ground it is on
@@ -205,27 +235,27 @@ object ButtonDefaults {
                 container = Color.Transparent,
                 content = LocalContentColour.current,
                 border = edge?.let { LocalContentColour.current },
-                disabledContainer = disabledContainer,
-                disabledContent = disabledGhostContent(),
-                disabledBorder = disabledBorder,
+                containerDisabled = containerDisabled,
+                contentDisabled = disabledGhostContent(),
+                borderDisabled = borderDisabled,
             )
 
             ButtonVariant.Accent -> ButtonColours(
                 container = c.accent.solid,
                 content = c.accent.onSolid,
                 border = null,
-                disabledContainer = disabledContainer,
-                disabledContent = c.contentDisabled,
-                disabledBorder = disabledBorder,
+                containerDisabled = containerDisabled,
+                contentDisabled = c.contentDisabled,
+                borderDisabled = borderDisabled,
             )
 
             ButtonVariant.Destructive -> ButtonColours(
                 container = c.danger.solid,
                 content = c.danger.onSolid,
                 border = null,
-                disabledContainer = disabledContainer,
-                disabledContent = c.contentDisabled,
-                disabledBorder = disabledBorder,
+                containerDisabled = containerDisabled,
+                contentDisabled = c.contentDisabled,
+                borderDisabled = borderDisabled,
             )
 
             ButtonVariant.DestructiveGhost -> ButtonColours(
@@ -234,9 +264,9 @@ object ButtonDefaults {
                 // The tone's own border, so the edge stays part of the button
                 // rather than a grey rectangle drawn around a red label.
                 border = edge?.let { c.danger.border },
-                disabledContainer = disabledContainer,
-                disabledContent = c.contentDisabled,
-                disabledBorder = disabledBorder,
+                containerDisabled = containerDisabled,
+                contentDisabled = c.contentDisabled,
+                borderDisabled = borderDisabled,
             )
         }
     }

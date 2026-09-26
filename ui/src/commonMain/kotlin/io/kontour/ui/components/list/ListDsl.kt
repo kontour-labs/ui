@@ -79,10 +79,10 @@ class ListGroupScope internal constructor() {
      */
     fun item(
         label: String,
+        enabled: Boolean = true,
         supporting: String? = null,
         overline: String? = null,
         icon: ImageVector? = null,
-        enabled: Boolean = true,
         selected: Boolean = false,
         role: Role = Role.Button,
         trailing: (@Composable () -> Unit)? = null,
