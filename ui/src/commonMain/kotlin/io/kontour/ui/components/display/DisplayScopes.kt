@@ -5,12 +5,13 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.AnnotatedString
 import io.kontour.ui.foundation.ContentScope
+import io.kontour.ui.theme.Tone
 
 /**
  * The regions of a [Banner].
  *
  * ```kotlin
- * Banner(tone = BannerTone.Warning) {
+ * Banner(tone = Tone.Warning) {
  *     +"Services are running up to 12 minutes late."
  *     title { +"Delays on the Armadale line" }
  *     leading { +Tabler.Outline.AlertTriangle }

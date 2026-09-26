@@ -97,7 +97,7 @@ object TooltipDefaults {
 fun Modifier.tooltip(
     text: String,
     side: OverlaySide = OverlaySide.Top,
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
 ): Modifier {
@@ -182,7 +182,7 @@ fun Modifier.tooltip(
  * a validation hint that appears while a field is wrong.
  *
  * For teaching a feature the user has not found at all, use
- * [Modifier.coachMark] instead — it goes through the [OverlayQueue] and so
+ * [Modifier.coachmark] instead — it goes through the [OverlayQueue] and so
  * cannot collide with five other features having the same idea.
  */
 @Composable
@@ -199,7 +199,7 @@ fun Tooltip(
      */
     modifier: Modifier = Modifier,
     side: OverlaySide = OverlaySide.Top,
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     onDismissRequest: () -> Unit = {},
     content: @Composable ContentScope.() -> Unit,
 ) {
@@ -336,7 +336,7 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
  *     icon = Tabler.Outline.Bookmark,
  *     contentDescription = "Save this trip",
  *     onClick = ::save,
- *     modifier = Modifier.coachMark(
+ *     modifier = Modifier.coachmark(
  *         id = "save-trip",
  *         title = "Save this trip",
  *         text = "Trips you save show up on the home screen.",
@@ -364,13 +364,13 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
  *   teaching a sequence in order.
  */
 @Composable
-fun Modifier.coachMark(
+fun Modifier.coachmark(
     id: String,
     title: String,
     text: String,
     icon: ImageVector? = null,
     side: OverlaySide = OverlaySide.Bottom,
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     priority: Int = 0,
     minSessions: Int = 0,
     prerequisites: Set<String> = emptySet(),

@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.constrain
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
@@ -42,7 +43,7 @@ import io.kontour.ui.theme.cornerReaches
  *     messages.forEachIndexed { index, message ->
  *         ChatBubble(
  *             side = if (message.mine) BubbleSide.Outgoing else BubbleSide.Incoming,
- *             position = BubblePosition.of(messages, index) { it.sender },
+ *             position = GroupPosition.of(messages, index) { it.sender },
  *             meta = { Text(message.time) },
  *         ) {
  *             Text(message.text)
@@ -60,7 +61,7 @@ import io.kontour.ui.theme.cornerReaches
  * Consecutive messages from one sender are a run, and [position] is where this
  * one sits in it. The corners on the sender's side tighten where two bubbles of a
  * run meet, and **only the last of a run has a tail** — so a run reads as one
- * turn in the conversation and the tail marks where it ends. [BubblePosition.of]
+ * turn in the conversation and the tail marks where it ends. [GroupPosition.of]
  * works the positions out from a list and who sent each item. Put a couple of dp
  * between the bubbles of a run and more between runs.
  *
@@ -86,7 +87,7 @@ import io.kontour.ui.theme.cornerReaches
 fun ChatBubble(
     side: BubbleSide,
     modifier: Modifier = Modifier,
-    position: BubblePosition = BubblePosition.Only,
+    position: GroupPosition = GroupPosition.Only,
     tail: Boolean = true,
     colour: Color = ChatBubbleDefaults.colour(side),
     contentColour: Color = ChatBubbleDefaults.contentColour(side),
@@ -101,7 +102,7 @@ fun ChatBubble(
         ChatBubbleShape(
             body = bodyShape(shape, side, position, CornerSize(joinedCorner)),
             onEnd = side == BubbleSide.Outgoing,
-            tail = tail && (position == BubblePosition.Last || position == BubblePosition.Only),
+            tail = tail && (position == GroupPosition.Last || position == GroupPosition.Only),
             tailWidth = tailWidth,
         )
     }
@@ -167,49 +168,6 @@ enum class BubbleSide {
     Outgoing,
 }
 
-/** Where a [ChatBubble] sits in a run of messages from one sender. */
-enum class BubblePosition {
-    /** A run of one. */
-    Only,
-
-    /** The first of a longer run. */
-    First,
-
-    /** Neither end. */
-    Middle,
-
-    /** The last of a run, which carries the tail. */
-    Last,
-
-    ;
-
-    companion object {
-        /** The position of item [index] in a run of [count]. */
-        fun of(index: Int, count: Int): BubblePosition = when {
-            count <= 1 -> Only
-            index == 0 -> First
-            index == count - 1 -> Last
-            else -> Middle
-        }
-
-        /**
-         * The position of item [index] of [items], where a run is consecutive items
-         * that [sender] says came from the same person.
-         */
-        fun <T> of(items: List<T>, index: Int, sender: (T) -> Any?): BubblePosition {
-            val who = sender(items[index])
-            val before = index > 0 && sender(items[index - 1]) == who
-            val after = index < items.lastIndex && sender(items[index + 1]) == who
-            return when {
-                before && after -> Middle
-                before -> Last
-                after -> First
-                else -> Only
-            }
-        }
-    }
-}
-
 object ChatBubbleDefaults {
     /** The accent for the user's own messages, a quiet ground for everyone else's. */
     @Composable
@@ -241,11 +199,11 @@ object ChatBubbleDefaults {
 internal fun bodyShape(
     shape: CornerBasedShape,
     side: BubbleSide,
-    position: BubblePosition,
+    position: GroupPosition,
     joined: CornerSize,
 ): CornerBasedShape {
-    val above = position == BubblePosition.Middle || position == BubblePosition.Last
-    val below = position == BubblePosition.First || position == BubblePosition.Middle
+    val above = position == GroupPosition.Middle || position == GroupPosition.Last
+    val below = position == GroupPosition.First || position == GroupPosition.Middle
     return when (side) {
         BubbleSide.Outgoing -> shape.copy(
             topEnd = if (above) joined else shape.topEnd,

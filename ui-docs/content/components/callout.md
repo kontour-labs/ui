@@ -12,7 +12,7 @@ Callout {
 }
 ```
 
-**It is a [`Banner`](banner.md) that cannot go away.** Same `BannerTone`, decided
+**It is a [`Banner`](banner.md) that cannot go away.** Same `Tone`, decided
 by the same table, so a warning callout and a warning banner are the same ground,
 the same border and the same ink. Two things that both mean "pay attention to
 this" should not look like they came from two different libraries.

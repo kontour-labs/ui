@@ -82,7 +82,7 @@ import io.kontour.ui.components.display.Accordion
 import io.kontour.ui.components.display.AnimatedBanner
 import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.Banner
-import io.kontour.ui.components.display.BannerTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.CircularProgress
@@ -98,7 +98,7 @@ import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListItem
-import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
@@ -1623,8 +1623,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 RenderState("squeezed", height = 260) { modifier ->
                     SegmentedControl(
                         options = listOf("Auto", "Touch", "Mouse", "Keyboard"),
-                        selected = 0,
-                        onSelectedChange = {},
+                        selectedIndex = 0,
+                        onSelectedIndexChange = {},
                         modifier = modifier.width(244.dp),
                     )
                 },
@@ -1632,8 +1632,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ) { modifier, enabled, onClick ->
             SegmentedControl(
                 options = listOf("Bus", "Train"),
-                selected = 0,
-                onSelectedChange = { onClick() },
+                selectedIndex = 0,
+                onSelectedIndexChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
             )
@@ -1789,7 +1789,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 SettingRow(
                     onClick = onClick,
                     enabled = enabled,
-                    position = ListItemPosition.First,
+                    position = GroupPosition.First,
                 ) {
                     +"Theme"
                     trailing { settingValue("Always dark") }
@@ -1797,7 +1797,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 SettingRow(
                     onClick = onClick,
                     enabled = enabled,
-                    position = ListItemPosition.Last,
+                    position = GroupPosition.Last,
                 ) {
                     +"Text size"
                     trailing { settingValue("Default") }
@@ -1818,8 +1818,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ) { modifier, enabled, onClick ->
             RadioGroup(
                 options = listOf("Bus", "Train"),
-                selected = "Bus",
-                onSelectedChange = { onClick() },
+                value = "Bus",
+                onValueChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
             ) { option -> +option }
@@ -2035,8 +2035,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
             minWidth = 200,
         ) { modifier, _, _ ->
             DatePicker(
-                selected = SpecimenDate,
-                onSelectedChange = {},
+                value = SpecimenDate,
+                onValueChange = {},
                 today = SpecimenToday,
                 previousIcon = SystemIcons.ChevronLeft,
                 nextIcon = SystemIcons.ChevronRight,
@@ -2063,7 +2063,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             DateRangePicker(
                 start = SpecimenDate,
                 end = LocalDate(2026, 6, 24),
-                onRangeSelected = { _, _ -> },
+                onRangeChange = { _, _ -> },
                 today = SpecimenToday,
                 previousIcon = SystemIcons.ChevronLeft,
                 nextIcon = SystemIcons.ChevronRight,
@@ -2092,8 +2092,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ) { modifier, _, _ ->
             WheelPicker(
                 items = (0..9).map { "Platform $it" },
-                selected = 3,
-                onSelectedChange = {},
+                selectedIndex = 3,
+                onSelectedIndexChange = {},
                 label = { it },
                 modifier = modifier,
             )
@@ -2164,7 +2164,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 RenderState("dismissible", height = 96) { modifier ->
                     Banner(
                         modifier = modifier.widthIn(max = SpecimenProseWidth),
-                        tone = BannerTone.Danger,
+                        tone = Tone.Danger,
                         onDismissRequest = {},
                         dismissIcon = Tabler.Outline.X,
                     ) {
@@ -2180,7 +2180,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // the other side is what it is centred against.
             Banner(
                 modifier = modifier.widthIn(max = SpecimenProseWidth),
-                tone = BannerTone.Warning,
+                tone = Tone.Warning,
                 onDismissRequest = {},
                 dismissIcon = Tabler.Outline.X,
             ) {
@@ -2207,7 +2207,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 RenderState("warning") { modifier ->
                     Callout(
                         modifier.widthIn(max = SpecimenProseWidth),
-                        tone = BannerTone.Warning,
+                        tone = Tone.Warning,
                     ) {
                         Text("Journey planning is unavailable while the timetable reloads.")
                     }
@@ -2237,7 +2237,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     add(
         ComponentSpec("AnimatedBanner", role = null, underContract = false) { modifier, _, _ ->
-            AnimatedBanner(visible = true, modifier = modifier, tone = BannerTone.Warning) {
+            AnimatedBanner(visible = true, modifier = modifier, tone = Tone.Warning) {
                 +"Services are running late."
             }
         }
@@ -2260,9 +2260,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // honestly does when it wraps something short — and is not what
                 // it does in the full-height scrollable it is actually for.
                 Column(Modifier.fillMaxWidth()) {
-                    ListItem(position = ListItemPosition.First) { +"Perth Underground" }
-                    ListItem(position = ListItemPosition.Middle) { +"Elizabeth Quay" }
-                    ListItem(position = ListItemPosition.Last) { +"McIver" }
+                    ListItem(position = GroupPosition.First) { +"Perth Underground" }
+                    ListItem(position = GroupPosition.Middle) { +"Elizabeth Quay" }
+                    ListItem(position = GroupPosition.Last) { +"McIver" }
                 }
             }
         }
@@ -2358,7 +2358,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                                 itemCount = 3,
                                 handleIcon = Tabler.Outline.GripVertical,
                             ) {
-                                ListItem(position = ListItemPosition.of(0, 3)) {
+                                ListItem(position = GroupPosition.of(0, 3)) {
                                     +"Perth Underground"
                                 }
                             }
@@ -2372,7 +2372,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             LazyColumn(state = listState, modifier = modifier) {
                 item {
                     ReorderableItem(state = reorder, index = 0, itemCount = 3) {
-                        ListItem(position = ListItemPosition.of(0, 3)) {
+                        ListItem(position = GroupPosition.of(0, 3)) {
                             +"Perth Underground"
                         }
                     }

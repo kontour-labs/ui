@@ -97,8 +97,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun <T> WheelPicker(
     items: List<T>,
-    selected: Int,
-    onSelectedChange: (Int) -> Unit,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
     label: (T) -> String,
     modifier: Modifier = Modifier,
     visibleItems: Int = 5,
@@ -123,8 +123,8 @@ fun <T> WheelPicker(
     if (infinite) {
         InfiniteWheel(
             items = items,
-            selected = selected,
-            onSelectedChange = onSelectedChange,
+            selected = selectedIndex,
+            onSelectedChange = onSelectedIndexChange,
             label = label,
             modifier = modifier,
             visibleItems = visibleItems,
@@ -151,7 +151,7 @@ fun <T> WheelPicker(
     val band = rememberRubberBand()
     val bandLimit = with(LocalDensity.current) { (itemHeight * WheelOverscrollRows).toPx() }
     val itemPx = with(LocalDensity.current) { itemHeight.toPx() }
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selected)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
     val flingBehavior = rememberSnapFlingBehavior(listState)
     val ticker = rememberDetentTicker()
 
@@ -166,7 +166,7 @@ fun <T> WheelPicker(
     // a colour track's, where the value stops changing and nothing else says so.
     // A drum is told about every row it crosses already, so the row it stops on
     // is not news, and the drum still stretches and springs back at its ends.
-    val currentOnSelect by rememberUpdatedState(onSelectedChange)
+    val currentOnSelect by rememberUpdatedState(onSelectedIndexChange)
 
     /**
      * Whether the drum is being turned by this component rather than by a finger.
@@ -200,7 +200,7 @@ fun <T> WheelPicker(
      * is the worst case for a reason. A list of `n` rows has exactly `(n - 1)`
      * rows of travel, so two items give **one** row of it — and `> 0` is true
      * across essentially the whole range. The wheel said `PM` everywhere except
-     * pixel-exact zero, `TimePicker` committed it, and then `selected` and
+     * pixel-exact zero, `TimePicker` committed it, and then `selectedIndex` and
      * `centredIndex` agreed with each other so the corrective effect below
      * declined to fix anything. Sharper still on the mouse path: `onDragStopped`
      * animates to this value, so letting go near `AM` travelled back to `PM`.
@@ -253,14 +253,14 @@ fun <T> WheelPicker(
         }
     }
 
-    LaunchedEffect(selected) {
-        if (selected != centredIndex && !listState.isScrollInProgress) {
+    LaunchedEffect(selectedIndex) {
+        if (selectedIndex != centredIndex && !listState.isScrollInProgress) {
             // Re-armed rather than left ticking: the drum is being turned by the
             // caller, and a value set from code is not a detent a finger crossed.
             // `scrollToItem` jumps, so exactly one emission follows and the
             // re-arm swallows exactly it.
             ticker.reset()
-            listState.scrollToItem(selected)
+            listState.scrollToItem(selectedIndex)
         }
     }
 
@@ -400,7 +400,7 @@ fun <T> WheelPicker(
      *
      * `LazyColumn` compares its content lambda by identity — a fresh one is a
      * fresh interval list, and every row on screen recomposes. A drum's
-     * `selected` is set by the caller from the drum's own `onSelectedChange`, so
+     * `selectedIndex` is set by the caller from the drum's own `onSelectedIndexChange`, so
      * a turn arrives back here as a changed argument once per row crossed, and
      * a lambda written inline at the call site below would be rebuilt each time:
      * the composition this whole block exists to avoid, re-entered through the

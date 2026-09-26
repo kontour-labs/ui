@@ -46,7 +46,7 @@ import kotlin.math.roundToInt
 
 /** How much of the track the thumb covers, and where it sits. 0 to 1. */
 @Immutable
-data class ScrollbarGeometry(
+internal data class ScrollbarGeometry(
     val fraction: Float,
     val position: Float,
     /**

@@ -39,7 +39,7 @@ import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Banner
-import io.kontour.ui.components.display.BannerTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.BranchProgress
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Card
@@ -53,6 +53,7 @@ import io.kontour.ui.components.display.EmptyState
 import io.kontour.ui.components.display.ErrorState
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdDefaults
+import io.kontour.ui.components.display.KbdGlyphs
 import io.kontour.ui.components.display.KbdIcons
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.LinearProgress
@@ -70,7 +71,6 @@ import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StatTrend
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.Tag
-import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.BranchTimeline
@@ -86,7 +86,7 @@ import io.kontour.ui.foundation.Text
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Spacer
 import io.kontour.ui.components.selection.Slider
-import io.kontour.ui.components.display.BubblePosition
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.display.BubbleSide
 import io.kontour.ui.components.display.ChatBubble
 import io.kontour.ui.components.display.GaugeTickPlacement
@@ -122,7 +122,7 @@ internal val CardDemo = ComponentDemo(
     }
 }
 
-private val tagTone = Knob.Choice("Tone", TagTone.entries.toList())
+private val tagTone = Knob.Choice("Tone", Tone.entries.toList())
 
 internal val TagDemo = ComponentDemo(slug = "tag", knobs = listOf(tagTone)) {
     val tone = this[tagTone]
@@ -237,7 +237,7 @@ internal val ProgressDemo = ComponentDemo(
     }
 }
 
-private val bannerTone = Knob.Choice("Tone", BannerTone.entries.toList(), BannerTone.Warning)
+private val bannerTone = Knob.Choice("Tone", Tone.entries.toList(), Tone.Warning)
 
 internal val BannerDemo = ComponentDemo(slug = "banner", knobs = listOf(bannerTone)) {
     var shown by remember { mutableStateOf(true) }
@@ -262,7 +262,7 @@ internal val BannerDemo = ComponentDemo(slug = "banner", knobs = listOf(bannerTo
     }
 }
 
-private val calloutTone = Knob.Choice("Tone", BannerTone.entries.toList())
+private val calloutTone = Knob.Choice("Tone", Tone.entries.toList(), Tone.Info)
 
 internal val CalloutDemo = ComponentDemo(slug = "callout", knobs = listOf(calloutTone)) {
     Callout(Modifier.fillMaxWidth(), tone = this[calloutTone]) {
@@ -793,15 +793,15 @@ internal val KeyValueListDemo = ComponentDemo(
  * cannot drift apart.
  */
 private val KbdKeys = listOf(
-    KbdIcons.Command to KbdDefaults.Command,
-    KbdIcons.Shift to KbdDefaults.Shift,
-    KbdIcons.Return to KbdDefaults.Return,
-    KbdIcons.Backspace to KbdDefaults.Backspace,
-    KbdIcons.Tab to KbdDefaults.Tab,
-    KbdIcons.CapsLock to KbdDefaults.CapsLock,
-    KbdIcons.PageUp to KbdDefaults.PageUp,
-    KbdIcons.PageDown to KbdDefaults.PageDown,
-    KbdIcons.Space to KbdDefaults.Space,
+    KbdIcons.Command to KbdGlyphs.Command,
+    KbdIcons.Shift to KbdGlyphs.Shift,
+    KbdIcons.Return to KbdGlyphs.Return,
+    KbdIcons.Backspace to KbdGlyphs.Backspace,
+    KbdIcons.Tab to KbdGlyphs.Tab,
+    KbdIcons.CapsLock to KbdGlyphs.CapsLock,
+    KbdIcons.PageUp to KbdGlyphs.PageUp,
+    KbdIcons.PageDown to KbdGlyphs.PageDown,
+    KbdIcons.Space to KbdGlyphs.Space,
 )
 
 /**
@@ -824,7 +824,7 @@ internal val KbdDemo = ComponentDemo(slug = "kbd", knobs = listOf(kbdIcons)) {
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Kbd { if (icons) +KbdIcons.Command else +KbdDefaults.Command }
+            Kbd { if (icons) +KbdIcons.Command else +KbdGlyphs.Command }
             Kbd { +"K" }
             Text(
                 "opens the command palette",
@@ -1123,7 +1123,7 @@ private fun chargeBands(smoothing: Float): ScaleColours =
 // --- ChatBubble ------------------------------------------------------------
 
 private val bubbleSide = Knob.Choice("Side", BubbleSide.entries.toList(), BubbleSide.Outgoing)
-private val bubblePosition = Knob.Choice("Position", BubblePosition.entries.toList(), BubblePosition.Only)
+private val bubblePosition = Knob.Choice("Position", GroupPosition.entries.toList(), GroupPosition.Only)
 
 /** Off leaves every bubble of a run without one, for a quieter thread. */
 private val bubbleTail = Knob.Flag("Tail", initial = true)
@@ -1136,12 +1136,12 @@ internal val ChatBubbleDemo = ComponentDemo(
     val position = this[bubblePosition]
     val tail = this[bubbleTail]
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        ChatBubble(side = BubbleSide.Incoming, position = BubblePosition.First, tail = tail) {
+        ChatBubble(side = BubbleSide.Incoming, position = GroupPosition.First, tail = tail) {
             Text("Is the 950 running tonight?")
         }
         ChatBubble(
             side = BubbleSide.Incoming,
-            position = BubblePosition.Last,
+            position = GroupPosition.Last,
             tail = tail,
             meta = { Text("9:41") },
         ) {

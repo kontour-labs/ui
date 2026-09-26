@@ -86,8 +86,8 @@ class InfiniteWheelTest {
             Box(Modifier.fillMaxSize().background(Color.White).padding(30.dp)) {
                 WheelPicker(
                     items = (0..23).toList(),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     label = { it.toString().padStart(2, '0') },
                     infinite = true,
                     modifier = Modifier.reportBounds { bounds = it },
@@ -129,8 +129,8 @@ class InfiniteWheelTest {
             Box(Modifier.fillMaxSize().background(Color.White).padding(30.dp)) {
                 WheelPicker(
                     items = (0..23).toList(),
-                    selected = 5,
-                    onSelectedChange = {},
+                    selectedIndex = 5,
+                    onSelectedIndexChange = {},
                     label = { it.toString().padStart(2, '0') },
                     infinite = true,
                     modifier = Modifier.reportBounds { bounds = it },

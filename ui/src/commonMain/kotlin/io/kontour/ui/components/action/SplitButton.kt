@@ -1,5 +1,6 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -18,8 +19,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.SystemIcons
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.overlay.AnchoredDropdownMenu
 import io.kontour.ui.overlay.MenuScope
 import io.kontour.ui.overlay.OverlayAlignment
@@ -66,7 +69,7 @@ import io.kontour.ui.theme.Theme
  *
  * The two halves sit flush with a hairline between them and only the outside
  * corners round — the same treatment [ButtonGroup] gives its items, from the
- * same `ButtonGroupPosition.shape`, because it is the same idea: separate
+ * same `GroupPosition.shape`, because it is the same idea: separate
  * targets that read as one control.
  *
  * The pair also owns the touch target between them, for the reason
@@ -123,7 +126,7 @@ fun SplitButton(
                 enabled = enabled,
                 variant = variant,
                 size = size,
-                shape = ButtonGroupPosition.First.shape(shape),
+                shape = GroupPosition.First.shape(shape, ButtonGroupDefaults.InnerCorner, Orientation.Horizontal),
                 interactionSource = interactionSource,
                 content = content,
             )
@@ -134,7 +137,7 @@ fun SplitButton(
                 enabled = enabled,
                 variant = variant,
                 size = size,
-                shape = ButtonGroupPosition.Last.shape(shape),
+                shape = GroupPosition.Last.shape(shape, ButtonGroupDefaults.InnerCorner, Orientation.Horizontal),
                 // The button's own parameter, not a `graphicsLayer` on the
                 // outside: this half is the *end* of the pair, so its container
                 // has two rounded corners and two square ones. Turning the

@@ -127,7 +127,7 @@ private val sheetPresentation =
  * shown the rule that a phone is untouched.
  */
 private val sheetAlignment =
-    Knob.Choice("Align", OverlayAlignment.entries.toList(), OverlayAlignment.Center)
+    Knob.Choice("Align", OverlayAlignment.entries.toList(), OverlayAlignment.Centre)
 
 /**
  * Whether a floating sheet becomes an edge sheet as it is pulled up to its top

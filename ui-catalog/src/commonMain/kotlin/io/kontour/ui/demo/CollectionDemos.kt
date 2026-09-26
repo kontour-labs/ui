@@ -29,11 +29,11 @@ import com.composables.icons.tabler.outline.Pin
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.display.Tag
-import io.kontour.ui.components.display.TagTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
-import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.LoadMore
 import io.kontour.ui.components.list.LoadMoreState
@@ -69,7 +69,7 @@ private val stops = listOf(
 // this and hides the parameter completely. The single row underneath is where
 // a reader can see what one `position` does on its own — `Only` is fully
 // rounded, `Middle` is nearly square, and the two ends round one way each.
-private val listItemPosition = Knob.Choice("Position", ListItemPosition.entries.toList())
+private val listItemPosition = Knob.Choice("Position", GroupPosition.entries.toList())
 
 internal val ListItemDemo = ComponentDemo(
     slug = "list-item",
@@ -87,7 +87,7 @@ internal val ListItemDemo = ComponentDemo(
                     supporting = detail,
                     icon = Tabler.Outline.Bus,
                     selected = index == current,
-                    trailing = { Tag(tone = TagTone.Neutral) { +"${4 + index * 6} min" } },
+                    trailing = { Tag(tone = Tone.Neutral) { +"${4 + index * 6} min" } },
                     onClick = { current = index },
                 )
             }
@@ -146,14 +146,14 @@ internal val ListSectionDemo = ComponentDemo(
         },
     ) {
         SettingRow(
-            position = ListItemPosition.First,
+            position = GroupPosition.First,
             onClick = { theme = (theme + 1) % themes.size },
         ) {
             +"Theme"
             leading { +Tabler.Outline.Moon }
             trailing { settingValue(themes[theme]) }
         }
-        SettingRow(position = ListItemPosition.Last, onClick = { echo("Delay alerts") }) {
+        SettingRow(position = GroupPosition.Last, onClick = { echo("Delay alerts") }) {
             +"Delay alerts"
             supporting { +"Only for favourited routes" }
             leading { +Tabler.Outline.Bell }
@@ -167,14 +167,14 @@ internal val SettingRowDemo = ComponentDemo(slug = "setting-row") {
     val themes = listOf("Match system", "Always light", "Always dark")
     Column(Modifier.fillMaxWidth()) {
         SettingRow(
-            position = ListItemPosition.First,
+            position = GroupPosition.First,
             onClick = { theme = (theme + 1) % themes.size },
         ) {
             +"Theme"
             leading { +Tabler.Outline.Moon }
             trailing { settingValue(themes[theme]) }
         }
-        SettingRow(position = ListItemPosition.Last, onClick = { notify = !notify }) {
+        SettingRow(position = GroupPosition.Last, onClick = { notify = !notify }) {
             +"Delay alerts"
             supporting { +"Only for favourited routes" }
             leading { +Tabler.Outline.Bell }
@@ -331,7 +331,7 @@ internal val ReorderableItemDemo = ComponentDemo(
                     handleIcon = handle,
                     handleSide = handleAt,
                 ) {
-                    ListItem(position = ListItemPosition.of(index, order.size)) {
+                    ListItem(position = GroupPosition.of(index, order.size)) {
                         +name
                         leading { +Tabler.Outline.Bus }
                     }
@@ -356,7 +356,7 @@ internal val PullToRefreshDemo = ComponentDemo(slug = "pull-to-refresh") {
     ) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
             stops.forEachIndexed { index, (name, detail) ->
-                ListItem(position = ListItemPosition.of(index, stops.size)) {
+                ListItem(position = GroupPosition.of(index, stops.size)) {
                     +name
                     supporting { +detail }
                 }
@@ -419,7 +419,7 @@ internal val FadingEdgesDemo = ComponentDemo(slug = "modifier-fading-edges") {
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             repeat(10) { index ->
-                ListItem(position = ListItemPosition.of(index, 10)) {
+                ListItem(position = GroupPosition.of(index, 10)) {
                     +"Departure ${index + 1}"
                     supporting { +"Elizabeth Quay" }
                 }

@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
  * place. See [ProvideConcentric] for why both conditions matter.
  */
 @Immutable
-class ConcentricContainer internal constructor(
+internal class ConcentricContainer(
     internal val shape: CornerBasedShape,
     internal val padding: Dp,
 )

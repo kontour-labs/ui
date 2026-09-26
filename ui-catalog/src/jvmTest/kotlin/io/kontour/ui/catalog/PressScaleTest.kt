@@ -112,7 +112,7 @@ class PressScaleTest {
      * shrink turned round a third of the way down; what is left of an animation
      * that reverses before it arrives is a flicker.
      *
-     * Held now for `PressFloor` after the release, so the shrink gets there.
+     * Held now for `IndicationDefaults.PressFloor` after the release, so the shrink gets there.
      *
      * Measured as the smallest the control's ink ever gets after a press and a
      * release in the same breath — no frame between them, which is the shortest
@@ -286,7 +286,7 @@ class PressScaleTest {
  * glyph; nothing that faint is either.
  */
 /**
- * Longer than `PressFloor`, with room to spare on a slow machine: the whole floor
+ * Longer than `IndicationDefaults.PressFloor`, with room to spare on a slow machine: the whole floor
  * passes before the first frame after the tap is drawn.
  */
 private const val Stall = 250L

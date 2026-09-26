@@ -95,8 +95,8 @@ class ColourSchemeContrastTest {
 
         for ((name, c, tier) in schemes) {
             val required = when (tier) {
-                ContrastLevel.Standard -> ContrastThreshold.NON_TEXT
-                ContrastLevel.High -> ContrastThreshold.LARGE_TEXT_ENHANCED
+                ContrastLevel.Standard -> ContrastThreshold.NonText
+                ContrastLevel.High -> ContrastThreshold.LargeTextEnhanced
             }
 
             for ((groundName, ground) in c.grounds()) {
@@ -164,7 +164,7 @@ class BrandIsDecorativeOnlyTest {
     fun accentCarriesTextEverywhereBrandCannot() {
         for ((name, colours) in listOf("light" to lightColourScheme(), "dark" to darkColourScheme())) {
             val ratio = contrastRatio(colours.accent.solid, colours.background)
-            if (ratio < ContrastThreshold.NON_TEXT) {
+            if (ratio < ContrastThreshold.NonText) {
                 fail("accent fails non-text contrast in $name: $ratio:1")
             }
         }

@@ -105,7 +105,7 @@ class StateLifecycleTest {
     fun aWheelPickerSurvivesItsListShortening() {
         var items by mutableStateOf(listOf("one", "two", "three", "four", "five"))
         survives("wheel picker list shortening") { control ->
-            WheelPicker(items = items, selected = 4, onSelectedChange = {}, label = { it })
+            WheelPicker(items = items, selectedIndex = 4, onSelectedIndexChange = {}, label = { it })
             control.onSettled = { items = listOf("one") }
         }
     }
@@ -123,8 +123,8 @@ class StateLifecycleTest {
         survives("infinite wheel picker list shortening") { control ->
             WheelPicker(
                 items = items,
-                selected = 4,
-                onSelectedChange = {},
+                selectedIndex = 4,
+                onSelectedIndexChange = {},
                 label = { it },
                 infinite = true,
             )
@@ -137,7 +137,7 @@ class StateLifecycleTest {
     fun aSegmentedControlSurvivesLosingTheSelectedOption() {
         var options by mutableStateOf(listOf("Bus", "Train", "Ferry", "Tram"))
         survives("segments shortening") { control ->
-            SegmentedControl(options = options, selected = 3, onSelectedChange = {})
+            SegmentedControl(options = options, selectedIndex = 3, onSelectedIndexChange = {})
             control.onSettled = { options = listOf("Bus") }
         }
     }

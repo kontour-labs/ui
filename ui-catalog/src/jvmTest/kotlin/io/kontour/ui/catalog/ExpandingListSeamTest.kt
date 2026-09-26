@@ -13,7 +13,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListItemDefaults
-import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
@@ -98,7 +98,7 @@ class ExpandingListSeamTest {
                                 // On its own, so shut it is `Only` and every
                                 // corner is rounded — which is the state the
                                 // open one has to differ from.
-                                position = ListItemPosition.Only,
+                                position = GroupPosition.Only,
                                 modifier = Modifier.reportBounds { header = it },
                                 header = { +"Perth Underground" },
                             ) {

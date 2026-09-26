@@ -104,8 +104,8 @@ internal fun ColourFields(
         if (onFormatChange != null) {
             SegmentedControl(
                 options = FormatLabels,
-                selected = ColourFormat.entries.indexOf(format),
-                onSelectedChange = { onFormatChange(ColourFormat.entries[it]) },
+                selectedIndex = ColourFormat.entries.indexOf(format),
+                onSelectedIndexChange = { onFormatChange(ColourFormat.entries[it]) },
                 enabled = enabled,
             )
         }

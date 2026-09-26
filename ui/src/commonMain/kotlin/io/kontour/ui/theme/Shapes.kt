@@ -12,30 +12,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlin.math.min
 
-/**
- * Where a height-derived corner stops growing: 18dp.
- *
- * Not a tuned number. It is half [Sizing.controlHeightSmall], and that is what
- * makes the rule one rule instead of two competing ones:
- *
- * * at `small` and below, half the height is *under* this, so the corner is
- *   exactly half the height and the control is a pill;
- * * at 36dp precisely the two readings give the same 18, so there is no step at
- *   the join;
- * * above it the corner stops and the control gets progressively squarer — a
- *   52dp field goes from 26dp to 18, a 60dp XL button from 30 to 18.
- *
- * A capsule at every height was the previous rule, and it was right about the
- * bottom of the scale and wrong about the top: at 14dp an `XSmall` button was
- * nearly a pill already and an `XLarge` was nearly square, which is what the
- * proportional corner fixed — but a 60dp button at 30dp is not a considered
- * radius, it is a stadium. The cap keeps the first half and drops the second.
- *
- * [Shapes.pill] is deliberately *not* capped, because it is for the things that
- * are round from what they are rather than from how tall they are: an avatar, a
- * day cell, an icon button. See [Shapes].
- */
-val CapsuleCap: Dp = 18.dp
 
 /**
  * The corner-radius scale.
@@ -53,8 +29,8 @@ val CapsuleCap: Dp = 18.dp
  * | [medium] | 22dp | Cards, list groups, menus |
  * | [large] | 28dp | Dialogs, large cards |
  * | [extraLarge] | 34dp | Sheets, hero panels |
- * | [control] | half its height, up to [CapsuleCap] | Buttons, chips, switches |
- * | [field] | half its height, up to [CapsuleCap] | Text fields, selects, time fields |
+ * | [control] | half its height, up to [Shapes.CapsuleCap] | Buttons, chips, switches |
+ * | [field] | half its height, up to [Shapes.CapsuleCap] | Text fields, selects, time fields |
  * | [pill] | half its shorter side, uncapped | Avatars, scrollbars, swatches, day cells, FABs |
  * | [sheet] | 34dp top only | Bottom sheets |
  * | [sideSheet] | 34dp leading only | Side sheets |
@@ -63,7 +39,7 @@ val CapsuleCap: Dp = 18.dp
  *
  * `22` used to be justified as half the medium control height, so that a medium
  * button came out exactly a capsule. That reading is gone: a 44dp button stops at
- * [CapsuleCap] and lands on 18. The rung is still 22, and the relationship it now
+ * [Shapes.CapsuleCap] and lands on 18. The rung is still 22, and the relationship it now
  * carries is the more useful one — **22 minus 18 is 4**, which is `spacing.xxs`.
  * A standard control sitting in a standard container with one unit of padding
  * round it is concentric by construction, without either of them naming a radius.
@@ -73,7 +49,7 @@ val CapsuleCap: Dp = 18.dp
  * 28 with the same. The even 6dp step is the mechanism [inset] walks.
  *
  * [control] and [field] do not take a rung at all — they take
- * [CapsuleCornerSize], half the shorter side up to [CapsuleCap]. That is the only
+ * [CapsuleCornerSize], half the shorter side up to [Shapes.CapsuleCap]. That is the only
  * way a family stays consistent across its *own* size scale, and it is why a 44dp
  * switch and a 44dp button agree without either of them naming a number.
  *
@@ -113,7 +89,7 @@ val CapsuleCap: Dp = 18.dp
  * ### The two capsules differ by the cap, and by nothing else
  *
  * [pill] and [capsule] are both [CapsuleCornerSize] — half the shorter side.
- * [capsule] stops at [CapsuleCap]; [pill] does not stop. That was always the real
+ * [capsule] stops at [Shapes.CapsuleCap]; [pill] does not stop. That was always the real
  * distinction and it used to be buried under a difference in curvature that had
  * no business being there.
  *
@@ -195,19 +171,19 @@ data class Shapes(
      * shape, because a skeleton's line, a toast and a sheet's grab bar are
      * capsules that nobody presses.
      */
-    val capsule: CornerBasedShape = SquircleShape(CapsuleCornerSize(cap = CapsuleCap)),
+    val capsule: CornerBasedShape = SquircleShape(CapsuleCornerSize(cap = Shapes.CapsuleCap)),
 
     /**
      * Anything you press, and anything that labels a thing you could press.
      *
      * Buttons, icon buttons, split buttons, button groups, chips, tags, floating
      * actions, and the toolbar that holds them. Half its own height up to
-     * [CapsuleCap], so a row of mixed actions has one corner regardless of what
+     * [Shapes.CapsuleCap], so a row of mixed actions has one corner regardless of what
      * each one's height happens to be — which is the thing a fixed radius cannot
      * do: at 14dp an `XSmall` button was nearly a capsule already and an `XLarge`
      * was nearly square, so one component disagreed with itself across its own
      * size scale. The cap stops the same disagreement happening at the other end;
-     * see [CapsuleCap] for why 18dp is the join rather than a tuned value.
+     * see [Shapes.CapsuleCap] for why 18dp is the join rather than a tuned value.
      *
      * A container that wraps controls can no longer share this rule and be
      * concentric for free — two 18dp corners with 6dp between them pinch at the
@@ -235,14 +211,14 @@ data class Shapes(
      *
      * The cap used to be 26dp — half [Sizing.controlHeightLarge], the height a
      * text field's `minHeight` resolves to — chosen as the narrowest line that
-     * still left a single-line field on a capsule. It is [CapsuleCap] now, the
+     * still left a single-line field on a capsule. It is [Shapes.CapsuleCap] now, the
      * same 18dp every other height-derived corner stops at, so a field and the
      * button beside it agree at every height rather than only below 52dp.
      *
      * The multi-line case the old cap was protecting is protected harder, not
      * less: a text area was a 26dp lozenge and is now an 18dp box.
      */
-    val field: CornerBasedShape = SquircleShape(CapsuleCornerSize(cap = CapsuleCap)),
+    val field: CornerBasedShape = SquircleShape(CapsuleCornerSize(cap = Shapes.CapsuleCap)),
 
     /**
      * Anything that holds other components.
@@ -274,7 +250,34 @@ data class Shapes(
      * with [mirrorHorizontally] for a leading-edge sheet.
      */
     val sideSheet: CornerBasedShape = extraLarge.leadingCornersOnly(),
-)
+) {
+    companion object {
+        /**
+         * Where a height-derived corner stops growing: 18dp.
+         *
+         * Not a tuned number. It is half [Sizing.controlHeightSmall], and that is what
+         * makes the rule one rule instead of two competing ones:
+         *
+         * * at `small` and below, half the height is *under* this, so the corner is
+         *   exactly half the height and the control is a pill;
+         * * at 36dp precisely the two readings give the same 18, so there is no step at
+         *   the join;
+         * * above it the corner stops and the control gets progressively squarer — a
+         *   52dp field goes from 26dp to 18, a 60dp XL button from 30 to 18.
+         *
+         * A capsule at every height was the previous rule, and it was right about the
+         * bottom of the scale and wrong about the top: at 14dp an `XSmall` button was
+         * nearly a pill already and an `XLarge` was nearly square, which is what the
+         * proportional corner fixed — but a 60dp button at 30dp is not a considered
+         * radius, it is a stadium. The cap keeps the first half and drops the second.
+         *
+         * [Shapes.pill] is deliberately *not* capped, because it is for the things that
+         * are round from what they are rather than from how tall they are: an avatar, a
+         * day cell, an icon button. See [Shapes].
+         */
+        val CapsuleCap: Dp = 18.dp
+    }
+}
 
 /**
  * The same scale, from a different starting rung, in a different step.
@@ -321,7 +324,7 @@ data class Shapes(
  *   changes it without being able to mix them. `0f` is a plain rounded rectangle
  *   throughout, which is the one-line answer to "turn the continuous corners off".
  * @param capsuleCap The ceiling on [Shapes.capsule], [Shapes.control] and
- *   [Shapes.field] — see [CapsuleCap] for why the default is 18dp. A brand
+ *   [Shapes.field] — see [Shapes.CapsuleCap] for why the default is 18dp. A brand
  *   compressing the ladder almost always wants this smaller too, and forgetting
  *   it is what leaves a small-cornered design with capsule buttons.
  */
@@ -329,7 +332,7 @@ fun kontourShapes(
     extraSmall: Dp = 10.dp,
     step: Dp = 6.dp,
     smoothing: Float = SquircleShape.DefaultSmoothing,
-    capsuleCap: Dp = CapsuleCap,
+    capsuleCap: Dp = Shapes.CapsuleCap,
 ): Shapes {
     val xs = SquircleShape(extraSmall, smoothing)
     val sm = SquircleShape(extraSmall + step, smoothing)
@@ -374,7 +377,7 @@ fun kontourShapes(
  *
  * @param cap The radius to stop growing at. Uncapped by default, which is now the
  *   *unusual* choice rather than the normal one: [Shapes.capsule],
- *   [Shapes.control] and [Shapes.field] all pass [CapsuleCap]. Leave it uncapped
+ *   [Shapes.control] and [Shapes.field] all pass [Shapes.CapsuleCap]. Leave it uncapped
  *   for something round from what it is rather than from how tall it is — and
  *   where that is the whole reason, prefer [Shapes.pill], which says so.
  */

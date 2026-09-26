@@ -148,9 +148,9 @@ private fun ThisDevice(
         capability.details.forEach { Text(it, style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted) }
         if (HapticsRoutes.isNotEmpty()) {
             Text("Route, for comparing", style = Theme.typography.labelMedium)
-            SegmentedControl(options = HapticsRoutes, selected = route, onSelectedChange = onRoute)
+            SegmentedControl(options = HapticsRoutes, selectedIndex = route, onSelectedIndexChange = onRoute)
             Text("Rumble route", style = Theme.typography.labelMedium)
-            SegmentedControl(options = RumbleRoutes, selected = rumbleRoute, onSelectedChange = onRumbleRoute)
+            SegmentedControl(options = RumbleRoutes, selectedIndex = rumbleRoute, onSelectedIndexChange = onRumbleRoute)
         }
     }
 }
@@ -269,7 +269,7 @@ private fun Timing(player: Haptics) {
         "Timing",
         "Ten ticks at a spacing, to feel where separate taps become a buzz — the detents are held to 80 ms apart.",
     ) {
-        SegmentedControl(options = gaps.map { "$it ms" }, selected = gap, onSelectedChange = { gap = it })
+        SegmentedControl(options = gaps.map { "$it ms" }, selectedIndex = gap, onSelectedIndexChange = { gap = it })
         LabButtons {
             LabPlay("Ten ticks") {
                 scope.launch {
@@ -355,7 +355,7 @@ private fun Tuner(player: Haptics) {
                 Switch(checked = on, onCheckedChange = { on = it })
                 Checkbox(checked = ticked, onCheckedChange = { ticked = it })
             }
-            SegmentedControl(options = listOf("Day", "Week", "Month"), selected = segment, onSelectedChange = { segment = it })
+            SegmentedControl(options = listOf("Day", "Week", "Month"), selectedIndex = segment, onSelectedIndexChange = { segment = it })
         }
 
         if (overrides.isNotEmpty()) {

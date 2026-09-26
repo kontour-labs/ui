@@ -59,7 +59,7 @@ import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.overlay.SubMenu
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastPosition
-import io.kontour.ui.overlay.ToastTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.overlay.tooltip
@@ -200,7 +200,7 @@ internal val AlertDialogDemo = ComponentDemo(
  */
 private val popoverSide = Knob.Choice("Side", OverlaySide.entries.toList(), OverlaySide.Bottom)
 private val popoverAlignment =
-    Knob.Choice("Align", OverlayAlignment.entries.toList(), OverlayAlignment.Center)
+    Knob.Choice("Align", OverlayAlignment.entries.toList(), OverlayAlignment.Centre)
 
 internal val PopoverDemo = ComponentDemo(
     slug = "popover",
@@ -375,7 +375,7 @@ private val toastPosition =
  * `ToastDefaults.MaxWidth` and only has somewhere to go on a wider window.
  */
 private val toastAlignment =
-    Knob.Choice("Align", OverlayAlignment.entries.toList(), initial = OverlayAlignment.Center)
+    Knob.Choice("Align", OverlayAlignment.entries.toList(), initial = OverlayAlignment.Centre)
 
 internal val ToastDemo = ComponentDemo(
     slug = "toast",
@@ -404,7 +404,7 @@ internal val ToastDemo = ComponentDemo(
                     scope.launch {
                         toasts.show(
                             "Couldn't reach the timetable service",
-                            tone = ToastTone.Danger,
+                            tone = Tone.Danger,
                             actionLabel = "Retry",
                             onAction = { },
                         )

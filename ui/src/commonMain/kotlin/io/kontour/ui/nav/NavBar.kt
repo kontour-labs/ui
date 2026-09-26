@@ -601,7 +601,7 @@ fun NavBar(
                 // what `pill` gives it for nothing.
                 //
                 // It was `pill` until it moved to `control`, and round 26 then
-                // capped `control` at `CapsuleCap` underneath it — an 18dp box
+                // capped `control` at `Shapes.CapsuleCap` underneath it — an 18dp box
                 // around uncapped circles, which is what was reported.
                 // `nav-surfaces.md` has said "a capsule inset from every edge"
                 // throughout; the code drifted out from under the documentation.

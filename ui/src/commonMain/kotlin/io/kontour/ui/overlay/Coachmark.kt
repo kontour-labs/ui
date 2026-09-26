@@ -86,7 +86,7 @@ object CoachmarkDefaults {
  * changes. Start it with [start] — from a "show me around" button, or once on
  * first run — and it walks itself.
  *
- * ### Not the same thing as [Modifier.coachMark]
+ * ### Not the same thing as [Modifier.coachmark]
  *
  * That one is a single tip, fired by an [OverlayQueue] when the app judges the
  * moment right, and it deliberately leaves the interface undimmed: the user is
@@ -95,7 +95,7 @@ object CoachmarkDefaults {
  * over for a few seconds, and dimming everything but the current control is what
  * makes "this one, here" unmistakable.
  *
- * | | `Modifier.coachMark` | `CoachmarkTour` |
+ * | | `Modifier.coachmark` | `CoachmarkTour` |
  * |---|---|---|
  * | Who starts it | the app, through a queue | the user |
  * | How many | one | several, in order |
@@ -194,7 +194,7 @@ fun Modifier.coachmarkStep(
     text: String,
     icon: ImageVector? = null,
     side: OverlaySide = OverlaySide.Bottom,
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     padding: Dp = CoachmarkDefaults.SpotlightPadding,
     shape: CornerBasedShape = CoachmarkDefaults.SpotlightShape,
     enabled: Boolean = true,

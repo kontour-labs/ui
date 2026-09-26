@@ -1,6 +1,7 @@
 package io.kontour.ui.overlay
 
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,8 +43,8 @@ import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
-import io.kontour.ui.components.list.ListItemPosition
-import io.kontour.ui.components.list.shape
+import io.kontour.ui.foundation.GroupPosition
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
@@ -354,7 +355,7 @@ private fun PaletteBody(
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {
                     itemsIndexed(matches, key = { _, command -> command.id }) { index, command ->
-                        val position = ListItemPosition.of(index, matches.size)
+                        val position = GroupPosition.of(index, matches.size)
                         ListItem(
                             onClick = { run(index) },
                             enabled = command.enabled,
@@ -363,7 +364,7 @@ private fun PaletteBody(
                             // The group's own corner rather than the default,
                             // so the rows are concentric with the panel too and
                             // not only with each other.
-                            shape = position.shape(inner, ListItemDefaults.InnerCorner),
+                            shape = position.shape(inner, ListItemDefaults.InnerCorner, Orientation.Vertical),
                         ) {
                             command.icon?.let { icon -> leading { +icon } }
                             +command.label

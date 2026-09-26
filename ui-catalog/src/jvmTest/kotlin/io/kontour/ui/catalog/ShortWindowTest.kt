@@ -148,8 +148,8 @@ class ShortWindowTest {
             var day by mutableStateOf<LocalDate?>(LocalDate(2026, 3, 14))
             Dialog(visible = true, onDismissRequest = {}, modifier = probe) {
                 DatePicker(
-                    selected = day,
-                    onSelectedChange = { day = it },
+                    value = day,
+                    onValueChange = { day = it },
                     today = LocalDate(2026, 3, 10),
                     modifier = Modifier.fillMaxWidth(),
                 )

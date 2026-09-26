@@ -14,11 +14,11 @@ ListSection(
     // Above the rows is what the group *is*; below them is what it *does*.
     footer = { +"Always dark keeps the screen dark even when the system is light." },
 ) {
-    SettingRow(position = ListItemPosition.First, onClick = { save() }) {
+    SettingRow(position = GroupPosition.First, onClick = { save() }) {
         +"Theme"
         supporting { +"Match system" }
     }
-    SettingRow(position = ListItemPosition.Last, onClick = { save() }) {
+    SettingRow(position = GroupPosition.Last, onClick = { save() }) {
         +"Text size"
         supporting { +"Default" }
     }

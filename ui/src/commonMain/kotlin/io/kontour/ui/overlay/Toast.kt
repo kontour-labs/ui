@@ -80,6 +80,7 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.freeDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 import kotlin.math.abs
 import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
@@ -87,15 +88,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-/** What a toast is reporting. */
-enum class ToastTone { Neutral, Success, Warning, Danger, Accent }
 
 /** One live toast. */
 @Stable
-class Toast internal constructor(
+internal class Toast(
     val id: Long,
     val message: String,
-    val tone: ToastTone,
+    val tone: Tone,
     val icon: ImageVector?,
     val actionLabel: String?,
     val onAction: (() -> Unit)?,
@@ -123,7 +122,7 @@ class Toast internal constructor(
  * ToastHost(toasts)
  *
  * toasts.show("Added to favourites")
- * toasts.show("Couldn't save", tone = ToastTone.Danger, actionLabel = "Retry", onAction = ::retry)
+ * toasts.show("Couldn't save", tone = Tone.Danger, actionLabel = "Retry", onAction = ::retry)
  * ```
  *
  * A toast is for feedback on an *action*. For something about the state of the
@@ -166,7 +165,7 @@ class ToastHostState {
      */
     fun show(
         message: String,
-        tone: ToastTone = ToastTone.Neutral,
+        tone: Tone = Tone.Neutral,
         icon: ImageVector? = null,
         actionLabel: String? = null,
         onAction: (() -> Unit)? = null,
@@ -288,12 +287,12 @@ enum class ToastPosition {
     internal fun alignmentFor(alignment: OverlayAlignment): Alignment = when (this) {
         Top -> when (alignment) {
             OverlayAlignment.Start -> Alignment.TopStart
-            OverlayAlignment.Center -> Alignment.TopCenter
+            OverlayAlignment.Centre -> Alignment.TopCenter
             OverlayAlignment.End -> Alignment.TopEnd
         }
         Bottom -> when (alignment) {
             OverlayAlignment.Start -> Alignment.BottomStart
-            OverlayAlignment.Center -> Alignment.BottomCenter
+            OverlayAlignment.Centre -> Alignment.BottomCenter
             OverlayAlignment.End -> Alignment.BottomEnd
         }
     }
@@ -588,7 +587,7 @@ fun ToastHost(
      * for a notification — which is a corner. Start and end follow the layout
      * direction.
      */
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     maxVisible: Int = ToastDefaults.MaxVisible,
     showClose: Boolean = false,
     closeLabel: String = Theme.strings.dismiss,
@@ -1344,18 +1343,20 @@ private fun ToastSurface(
     val motion = Theme.motion
     val colours = Theme.colours
     val container = when (toast.tone) {
-        ToastTone.Neutral -> colours.surfaceInverse
-        ToastTone.Success -> colours.success.solid
-        ToastTone.Warning -> colours.warning.solid
-        ToastTone.Danger -> colours.danger.solid
-        ToastTone.Accent -> colours.accent.solid
+        Tone.Neutral -> colours.surfaceInverse
+        Tone.Info -> colours.info.solid
+        Tone.Success -> colours.success.solid
+        Tone.Warning -> colours.warning.solid
+        Tone.Danger -> colours.danger.solid
+        Tone.Accent -> colours.accent.solid
     }
     val content = when (toast.tone) {
-        ToastTone.Neutral -> colours.onSurfaceInverse
-        ToastTone.Success -> colours.success.onSolid
-        ToastTone.Warning -> colours.warning.onSolid
-        ToastTone.Danger -> colours.danger.onSolid
-        ToastTone.Accent -> colours.accent.onSolid
+        Tone.Neutral -> colours.onSurfaceInverse
+        Tone.Info -> colours.info.onSolid
+        Tone.Success -> colours.success.onSolid
+        Tone.Warning -> colours.warning.onSolid
+        Tone.Danger -> colours.danger.onSolid
+        Tone.Accent -> colours.accent.onSolid
     }
 
     Surface(
@@ -1364,7 +1365,7 @@ private fun ToastSurface(
             .semantics {
                 // Assertive for failures the user needs to know about now;
                 // polite for confirmations they can hear when convenient.
-                liveRegion = if (toast.tone == ToastTone.Danger) {
+                liveRegion = if (toast.tone == Tone.Danger) {
                     LiveRegionMode.Assertive
                 } else {
                     LiveRegionMode.Polite

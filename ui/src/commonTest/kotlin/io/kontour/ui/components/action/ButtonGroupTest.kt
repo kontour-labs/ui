@@ -19,7 +19,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.LayoutDirection
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.SystemIcons
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -147,19 +149,19 @@ class ButtonGroupTest {
         val square = CornerSize(ButtonGroupDefaults.InnerCorner)
         val rounded = CornerSize(12.dp)
 
-        val first = ButtonGroupPosition.First.shape(round, orientation = Orientation.Vertical) as CornerBasedShape
+        val first = GroupPosition.First.shape(round, ButtonGroupDefaults.InnerCorner, Orientation.Vertical)
         assertEquals(
             listOf(rounded, rounded, square, square),
             listOf(first.topStart, first.topEnd, first.bottomEnd, first.bottomStart),
             "the top button of a vertical group rounds its top and squares its bottom",
         )
-        val last = ButtonGroupPosition.Last.shape(round, orientation = Orientation.Vertical) as CornerBasedShape
+        val last = GroupPosition.Last.shape(round, ButtonGroupDefaults.InnerCorner, Orientation.Vertical)
         assertEquals(
             listOf(square, square, rounded, rounded),
             listOf(last.topStart, last.topEnd, last.bottomEnd, last.bottomStart),
             "the bottom button of a vertical group squares its top and rounds its bottom",
         )
-        val across = ButtonGroupPosition.First.shape(round) as CornerBasedShape
+        val across = GroupPosition.First.shape(round, ButtonGroupDefaults.InnerCorner, Orientation.Horizontal)
         assertEquals(
             listOf(rounded, square, square, rounded),
             listOf(across.topStart, across.topEnd, across.bottomEnd, across.bottomStart),

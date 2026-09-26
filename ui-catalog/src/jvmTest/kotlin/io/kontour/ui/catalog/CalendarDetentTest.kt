@@ -73,7 +73,7 @@ class CalendarDetentTest {
                 DateRangePicker(
                     start = start,
                     end = end,
-                    onRangeSelected = { s, e -> start = s; end = e },
+                    onRangeChange = { s, e -> start = s; end = e },
                     today = LocalDate(2026, 8, 1),
                     modifier = Modifier.reportBounds { bounds = it },
                 )

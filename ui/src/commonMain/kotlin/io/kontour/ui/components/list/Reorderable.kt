@@ -5,6 +5,7 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitVerticalPointerSlopOrCancellation
@@ -47,6 +48,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import io.kontour.ui.foundation.GroupPosition
+import io.kontour.ui.foundation.shape
 import kotlinx.coroutines.withTimeoutOrNull
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
@@ -302,7 +305,7 @@ fun LazyItemScope.ReorderableItem(
     // as one movement.
     val base = ListItemDefaults.Shape
     val inner = ListItemDefaults.InnerCorner
-    val position = ListItemPosition.of(index, itemCount)
+    val position = GroupPosition.of(index, itemCount)
     var settled by remember { mutableStateOf(position) }
     val morph = remember { Animatable(1f) }
     LaunchedEffect(position) {
@@ -317,8 +320,8 @@ fun LazyItemScope.ReorderableItem(
     // `graphicsLayer`'s `shape` below, so a rebuild takes the shadow's blur with
     // it. See `rememberMorphedShape`.
     val morphed = rememberMorphedShape(
-        from = settled.shape(base, inner),
-        to = position.shape(base, inner),
+        from = settled.shape(base, inner, Orientation.Vertical),
+        to = position.shape(base, inner, Orientation.Vertical),
         fraction = morph.value,
     )
     val shadowShape = shape ?: morphed

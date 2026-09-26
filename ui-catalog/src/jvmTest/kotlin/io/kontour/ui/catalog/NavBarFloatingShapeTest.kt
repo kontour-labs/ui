@@ -25,7 +25,7 @@ import kotlin.test.assertTrue
  * Reported as "can we make the floating nav bar rounded, since that's holding
  * rounded items", and it is a regression rather than a thing never done: the
  * container was `Theme.shapes.pill` until it moved to `control`, and round 26
- * then capped `control` at `CapsuleCap` underneath it. `nav-surfaces.md` still
+ * then capped `control` at `Shapes.CapsuleCap` underneath it. `nav-surfaces.md` still
  * describes the style as "a capsule inset from every edge" — the documentation
  * was never wrong, the code drifted out from under it.
  *
@@ -63,7 +63,7 @@ class NavBarFloatingShapeTest {
             "the floating nav bar's corner measured $fraction of half its height. " +
                 "It holds 40dp circles with 8dp above and below them, so a " +
                 "concentric container is 28dp and that is exactly the 1.0 a " +
-                "capsule gives — 0.64 is `control` stopping at CapsuleCap, which " +
+                "capsule gives — 0.64 is `control` stopping at Shapes.CapsuleCap, which " +
                 "is an 18dp box around uncapped circles.",
         )
     }

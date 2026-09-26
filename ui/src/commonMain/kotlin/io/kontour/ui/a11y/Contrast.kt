@@ -21,19 +21,19 @@ import kotlin.math.min
  */
 object ContrastThreshold {
     /** AA body text, and any text below 18pt / 14pt-bold. */
-    const val BODY_TEXT = 4.5f
+    const val BodyText = 4.5f
 
     /** AA large text — 18pt and up, or 14pt bold and up. */
-    const val LARGE_TEXT = 3.0f
+    const val LargeText = 3.0f
 
     /** AA non-text: the boundary of an interactive control, focus indicators, icons. */
-    const val NON_TEXT = 3.0f
+    const val NonText = 3.0f
 
     /** AAA body text. What [io.kontour.ui.theme.ContrastLevel.High] targets. */
-    const val BODY_TEXT_ENHANCED = 7.0f
+    const val BodyTextEnhanced = 7.0f
 
     /** AAA large text. */
-    const val LARGE_TEXT_ENHANCED = 4.5f
+    const val LargeTextEnhanced = 4.5f
 }
 
 /**
@@ -61,7 +61,7 @@ fun contrastRatio(foreground: Color, background: Color): Float {
 fun meetsContrast(
     foreground: Color,
     background: Color,
-    threshold: Float = ContrastThreshold.BODY_TEXT,
+    threshold: Float = ContrastThreshold.BodyText,
 ): Boolean = contrastRatio(foreground, background) >= threshold
 
 /**
@@ -93,7 +93,7 @@ fun meetsContrast(
  * words on it", which is what the token split exists to make possible.
  */
 fun brandIsSafeForText(scheme: ColourScheme): Boolean =
-    meetsContrast(scheme.brand, scheme.background, ContrastThreshold.BODY_TEXT)
+    meetsContrast(scheme.brand, scheme.background, ContrastThreshold.BodyText)
 
 /**
  * Picks whichever of [light] or [dark] reads better on [background].

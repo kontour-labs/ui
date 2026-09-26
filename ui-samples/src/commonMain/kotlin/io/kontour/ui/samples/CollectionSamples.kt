@@ -19,7 +19,7 @@ import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
-import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.SwipeToDismiss
@@ -52,7 +52,7 @@ fun ListItemBasics(stops: List<Stop>) {
                 onClick = { openStop(stop.name) },
                 // Rounds the outside corners of the group and leaves the seams
                 // square, so a run of rows reads as one block.
-                position = ListItemPosition.of(index, stops.size),
+                position = GroupPosition.of(index, stops.size),
             ) {
                 leading { +Tabler.Outline.Bus }
                 +stop.name
@@ -141,11 +141,11 @@ fun ListSectionBasics() {
         // Above the rows is what the group *is*; below them is what it *does*.
         footer = { +"Always dark keeps the screen dark even when the system is light." },
     ) {
-        SettingRow(position = ListItemPosition.First, onClick = { save() }) {
+        SettingRow(position = GroupPosition.First, onClick = { save() }) {
             +"Theme"
             supporting { +"Match system" }
         }
-        SettingRow(position = ListItemPosition.Last, onClick = { save() }) {
+        SettingRow(position = GroupPosition.Last, onClick = { save() }) {
             +"Text size"
             supporting { +"Default" }
         }

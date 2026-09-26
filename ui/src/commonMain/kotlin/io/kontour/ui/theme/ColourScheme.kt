@@ -208,8 +208,8 @@ data class ColourScheme(
      * It used to be four loose fields — `accent`, `onAccent`, `accentContainer`,
      * `onAccentContainer` — beside four grouped [StatusColours]. One tone type and
      * six tones means a component that takes a tone can take *this* one, which is
-     * what `ButtonVariant.Accent` and `BannerTone.Accent` are made of, and it is
-     * why `TagTone.Accent` had to reach past the group to build itself.
+     * what `ButtonVariant.Accent` and `Tone.Accent` are made of, and it is
+     * why `Tone.Accent` had to reach past the group to build itself.
      */
     val accent: StatusColours,
 

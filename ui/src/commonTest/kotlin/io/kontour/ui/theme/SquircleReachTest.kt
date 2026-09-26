@@ -28,7 +28,7 @@ class SquircleReachTest {
 
     @Test
     fun aCapsulesReachIsWhereItsPathLeavesTheEdge() {
-        assertReachesMatch(SquircleShape(CapsuleCornerSize(cap = CapsuleCap)))
+        assertReachesMatch(SquircleShape(CapsuleCornerSize(cap = Shapes.CapsuleCap)))
     }
 
     @Test

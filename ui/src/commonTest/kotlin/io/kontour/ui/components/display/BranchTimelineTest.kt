@@ -129,7 +129,7 @@ class BranchTimelineTest {
             palette.forEachIndexed { turn, colour ->
                 val ratio = contrastRatio(colour, page)
                 assertTrue(
-                    ratio >= ContrastThreshold.NON_TEXT,
+                    ratio >= ContrastThreshold.NonText,
                     "lane colour $turn is $ratio:1 against the ${if (dark) "dark" else "light"} page",
                 )
             }

@@ -58,7 +58,7 @@ class DateRangeDragTest {
                 DateRangePicker(
                     start = start,
                     end = end,
-                    onRangeSelected = { s, e -> start = s; end = e },
+                    onRangeChange = { s, e -> start = s; end = e },
                     // Which month is shown follows `start ?: today`, and there
                     // is no start yet. Without this the picker opens on its own
                     // fallback month and the arithmetic below is about the

@@ -60,8 +60,8 @@ class MonthJumpTest {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
                     navigation = rememberCalendarNavigationState(Start)
                     DatePicker(
-                        selected = Start,
-                        onSelectedChange = {},
+                        value = Start,
+                        onValueChange = {},
                         today = Start,
                         navigation = navigation,
                         // The paging icons are what put the title in the middle:
@@ -147,8 +147,8 @@ class MonthJumpTest {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
                     navigation = rememberCalendarNavigationState(Start)
                     DatePicker(
-                        selected = Start,
-                        onSelectedChange = {},
+                        value = Start,
+                        onValueChange = {},
                         today = Start,
                         navigation = navigation,
                         previousIcon = Tabler.Outline.ChevronLeft,

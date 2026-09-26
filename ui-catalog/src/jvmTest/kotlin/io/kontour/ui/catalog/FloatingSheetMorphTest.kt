@@ -472,7 +472,7 @@ class FloatingSheetMorphTest {
         width: Int = 600,
         detents: List<SheetDetent> = listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Expanded),
         morph: SheetEdgeMorph? = SheetEdgeMorph(),
-        alignment: OverlayAlignment = OverlayAlignment.Center,
+        alignment: OverlayAlignment = OverlayAlignment.Centre,
     ): BufferedImage = Scene(width = width, height = 900) {
         Harness(initial = at, detents = detents, morph = morph, alignment = alignment)
     }.use { scene -> scene.frames(40) }
@@ -482,7 +482,7 @@ class FloatingSheetMorphTest {
         initial: SheetDetent,
         detents: List<SheetDetent> = listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Expanded),
         morph: SheetEdgeMorph? = SheetEdgeMorph(),
-        alignment: OverlayAlignment = OverlayAlignment.Center,
+        alignment: OverlayAlignment = OverlayAlignment.Centre,
         windowInsets: WindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
         content: @androidx.compose.runtime.Composable (PaddingValues) -> Unit = {
             // Taller than the window, so `Expanded` is the top of it.

@@ -59,8 +59,8 @@ class WheelTurnCostTest {
             Box(Modifier.fillMaxSize()) {
                 WheelPicker(
                     items = years,
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     label = label,
                     modifier = Modifier.reportBounds { bounds = it },
                 )
@@ -97,8 +97,8 @@ class WheelTurnCostTest {
             Box(Modifier.fillMaxSize()) {
                 WheelPicker(
                     items = hours,
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     label = label,
                     infinite = true,
                     modifier = Modifier.reportBounds { bounds = it },

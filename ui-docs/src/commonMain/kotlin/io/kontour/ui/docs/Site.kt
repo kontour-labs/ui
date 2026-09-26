@@ -45,7 +45,7 @@ import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.EmptyState
 import io.kontour.ui.components.display.Tag
-import io.kontour.ui.components.display.TagTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
@@ -487,7 +487,7 @@ internal val DocPage.shortSummary: String
  */
 @Composable
 private fun LiveTag() {
-    Tag(tone = TagTone.Accent) { +"LIVE" }
+    Tag(tone = Tone.Accent) { +"LIVE" }
 }
 
 /** Two lines of supporting text at the narrowest width the index is drawn at. */

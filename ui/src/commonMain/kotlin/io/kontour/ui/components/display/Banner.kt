@@ -50,16 +50,15 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.StatusColours
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 import kotlin.math.roundToInt
 
-/** How serious a [Banner] is. Ports the four severities from `home`'s `StatusBanner`. */
-enum class BannerTone { Info, Success, Warning, Danger, Accent }
 
 /**
  * An inline message about the state of something.
  *
  * ```
- * Banner(tone = BannerTone.Warning, onDismissRequest = viewModel::dismissAlert) {
+ * Banner(tone = Tone.Warning, onDismissRequest = viewModel::dismissAlert) {
  *     leading { +Tabler.Outline.AlertTriangle }
  *     title { +"Delays on the Armadale line" }
  *     message { +"Services are running up to 12 minutes late." }
@@ -73,7 +72,7 @@ enum class BannerTone { Info, Success, Warning, Danger, Accent }
  * response to a tap is easy to miss, because the user is looking at their finger.
  *
  * A banner is a live region, so it is read out when it appears.
- * [BannerTone.Danger] announces assertively and everything else politely —
+ * [Tone.Danger] announces assertively and everything else politely —
  * interrupting for a routine notice trains people to ignore the interruption.
  *
  * A `leading` icon is strongly recommended, and a distinct one per tone: a tone
@@ -88,7 +87,7 @@ enum class BannerTone { Info, Success, Warning, Danger, Accent }
 @Composable
 fun Banner(
     modifier: Modifier = Modifier,
-    tone: BannerTone = BannerTone.Info,
+    tone: Tone = Tone.Info,
     onDismissRequest: (() -> Unit)? = null,
     dismissIcon: ImageVector? = SystemIcons.Close,
     dismissLabel: String = Theme.strings.dismiss,
@@ -102,7 +101,7 @@ fun Banner(
         modifier = modifier
             .fillMaxWidth()
             .semantics {
-                liveRegion = if (tone == BannerTone.Danger) {
+                liveRegion = if (tone == Tone.Danger) {
                     LiveRegionMode.Assertive
                 } else {
                     LiveRegionMode.Polite
@@ -205,7 +204,7 @@ fun Banner(
 fun AnimatedBanner(
     visible: Boolean,
     modifier: Modifier = Modifier,
-    tone: BannerTone = BannerTone.Info,
+    tone: Tone = Tone.Info,
     onDismissRequest: (() -> Unit)? = null,
     dismissIcon: ImageVector? = SystemIcons.Close,
     dismissLabel: String = Theme.strings.dismiss,
@@ -250,7 +249,7 @@ fun AnimatedBanner(
  * glyph.
  *
  * @param tone Which of the five, and it decides the ground, the border, the text
- *   colour and the icon together. [BannerTone.Accent] by default, which is the
+ *   colour and the icon together. [Tone.Accent] by default, which is the
  *   neutral aside a blockquote becomes.
  * @param icon The mark. Defaults to the tone's own — unlike [Banner], which makes
  *   the caller choose, because a callout often has no caller: a documentation
@@ -260,7 +259,7 @@ fun AnimatedBanner(
 @Composable
 fun Callout(
     modifier: Modifier = Modifier,
-    tone: BannerTone = BannerTone.Accent,
+    tone: Tone = Tone.Accent,
     icon: ImageVector? = calloutIcon(tone),
     content: @Composable () -> Unit,
 ) {
@@ -305,31 +304,44 @@ fun Callout(
  * [bannerColoursFor].
  */
 @Composable
-private fun calloutIcon(tone: BannerTone): ImageVector = when (tone) {
-    BannerTone.Info -> SystemIcons.Info
-    BannerTone.Success -> SystemIcons.Success
-    BannerTone.Warning -> SystemIcons.Warning
-    BannerTone.Danger -> SystemIcons.Danger
+private fun calloutIcon(tone: Tone): ImageVector = when (tone) {
+    Tone.Neutral -> SystemIcons.Info
+    Tone.Info -> SystemIcons.Info
+    Tone.Success -> SystemIcons.Success
+    Tone.Warning -> SystemIcons.Warning
+    Tone.Danger -> SystemIcons.Danger
     // The same glyph as `Info`, deliberately. The two differ in emphasis rather
     // than in kind — an accent aside is a note in the brand's colour and an info
     // one is a note in the informational colour — and inventing a second mark to
     // keep them apart would be signalling a difference the component does not
     // have. This is the tone a markdown blockquote becomes, and "here is a note"
     // is what it means.
-    BannerTone.Accent -> SystemIcons.Info
+    Tone.Accent -> SystemIcons.Info
 }
 
 
 @Composable
-private fun bannerColoursFor(tone: BannerTone): StatusColours = when (tone) {
-    BannerTone.Info -> Theme.colours.info
-    BannerTone.Success -> Theme.colours.success
-    BannerTone.Warning -> Theme.colours.warning
-    BannerTone.Danger -> Theme.colours.danger
+private fun bannerColoursFor(tone: Tone): StatusColours = when (tone) {
+    // A banner that is only information about the screen, in the surface's own
+    // tones: the ground a sunken panel has, the hairline every card has, and the
+    // ordinary text colour on it.
+    Tone.Neutral -> Theme.colours.let {
+        StatusColours(
+            solid = it.surfaceInverse,
+            onSolid = it.onSurfaceInverse,
+            container = it.surfaceSunken,
+            onContainer = it.content,
+            border = it.outline,
+        )
+    }
+    Tone.Info -> Theme.colours.info
+    Tone.Success -> Theme.colours.success
+    Tone.Warning -> Theme.colours.warning
+    Tone.Danger -> Theme.colours.danger
     // Reachable at all only because `accent` is a `StatusColours` now. As four
     // loose fields it had no `border`, so a banner could not have been built
     // out of it without inventing one here.
-    BannerTone.Accent -> Theme.colours.accent
+    Tone.Accent -> Theme.colours.accent
 }
 
 /**

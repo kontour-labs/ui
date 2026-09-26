@@ -17,7 +17,7 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastHostState
 import io.kontour.ui.overlay.ToastPosition
-import io.kontour.ui.overlay.ToastTone
+import io.kontour.ui.theme.Tone
 import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.test.Test
@@ -67,11 +67,11 @@ class ToastStackTest {
         // head of the queue for ever, and nothing queued behind it was ever
         // drawn — its timer had not even started.
         val both = heightAfter { toasts ->
-            toasts.show("Couldn't reach the timetable", tone = ToastTone.Danger, durationMillis = 0)
+            toasts.show("Couldn't reach the timetable", tone = Tone.Danger, durationMillis = 0)
             toasts.show("Saved for offline")
         }
         val pinnedOnly = heightAfter { toasts ->
-            toasts.show("Couldn't reach the timetable", tone = ToastTone.Danger, durationMillis = 0)
+            toasts.show("Couldn't reach the timetable", tone = Tone.Danger, durationMillis = 0)
         }
 
         assertTrue(
@@ -236,7 +236,7 @@ class ToastStackTest {
      */
     @Test
     fun aStackAlignedToTheEndSitsInTheCorner() {
-        val centred = assertNotNull(surfaceColumns(OverlayAlignment.Center), "a centred stack drew nothing")
+        val centred = assertNotNull(surfaceColumns(OverlayAlignment.Centre), "a centred stack drew nothing")
         val end = assertNotNull(surfaceColumns(OverlayAlignment.End), "an end-aligned stack drew nothing")
         val start = assertNotNull(surfaceColumns(OverlayAlignment.Start), "a start-aligned stack drew nothing")
 

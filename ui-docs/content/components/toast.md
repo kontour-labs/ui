@@ -23,7 +23,7 @@ Button(
         scope.launch {
             toasts.show(
                 "Couldn't reach the timetable service",
-                tone = ToastTone.Danger,
+                tone = Tone.Danger,
                 actionLabel = "Retry",
                 onAction = { refresh() },
             )
@@ -126,7 +126,7 @@ answer to that is arbitrary; the edge and the corner along it are two questions.
 ## Accessibility
 
 A toast announces itself. The live region is **`Assertive` for
-`ToastTone.Danger`** and `Polite` for everything else — a failure interrupts,
+`Tone.Danger`** and `Polite` for everything else — a failure interrupts,
 a confirmation waits for a gap.
 
 It never takes focus, which is deliberate: a toast that stole focus would move

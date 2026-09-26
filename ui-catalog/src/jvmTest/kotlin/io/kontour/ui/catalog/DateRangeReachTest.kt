@@ -209,7 +209,7 @@ class DateRangeReachTest {
                     DateRangePicker(
                         start = start(),
                         end = end(),
-                        onRangeSelected = onRange,
+                        onRangeChange = onRange,
                         today = LocalDate(2026, 8, 1),
                         modifier = Modifier.reportBounds { bounds = it },
                     )

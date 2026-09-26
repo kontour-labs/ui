@@ -127,8 +127,8 @@ internal val RadioGroupDemo = ComponentDemo(
     var mode by remember { mutableStateOf("Bus") }
     RadioGroup(
         options = listOf("Bus", "Train", "Ferry"),
-        selected = mode,
-        onSelectedChange = { mode = it },
+        value = mode,
+        onValueChange = { mode = it },
         enabled = this[radioGroupEnabled],
     ) { option ->
         +option
@@ -251,8 +251,8 @@ internal val SegmentedControlDemo = ComponentDemo(slug = "segmented-control") {
     var span by remember { mutableStateOf(1) }
     SegmentedControl(
         options = listOf("Day", "Week", "Month"),
-        selected = span,
-        onSelectedChange = { span = it },
+        selectedIndex = span,
+        onSelectedIndexChange = { span = it },
         modifier = Modifier.fillMaxWidth(),
     )
 }

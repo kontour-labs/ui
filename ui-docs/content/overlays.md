@@ -400,14 +400,14 @@ golden.
 ### Coach marks
 
 `TooltipManager` in the Android app is this class with different field names, so
-`Modifier.coachMark` uses the queue rather than carrying its own scheduler:
+`Modifier.coachmark` uses the queue rather than carrying its own scheduler:
 
 ```kotlin
 IconButton(
     icon = Tabler.Outline.Bookmark,
     contentDescription = "Save this trip",
     onClick = ::save,
-    modifier = Modifier.coachMark(
+    modifier = Modifier.coachmark(
         id = "save-trip",
         title = "Save this trip",
         text = "Trips you save show up on the home screen.",
@@ -530,7 +530,7 @@ a panel with a torn corner. Arrow-bearing panels lean on the shadow instead.
 | A decision that must be made before anything else | `Dialog` / `AlertDialog` |
 | A decision, awaited from a coroutine | `ConfirmationController.confirm()` |
 | The name of a control the user is pointing at | `Modifier.tooltip` |
-| A feature the user has not discovered | `Modifier.coachMark` |
+| A feature the user has not discovered | `Modifier.coachmark` |
 | Confirmation of something the user just did | `Toast` |
 | Something about the screen the user is on | `Banner` — not a toast |
 | Whole-screen, must-not-interrupt work | `LoadingOverlay` |
@@ -595,7 +595,7 @@ val toasts = rememberToastHostState()
 ToastHost(toasts)
 
 toasts.show("Added to favourites")
-toasts.show("Couldn't save", tone = ToastTone.Danger, actionLabel = "Retry", onAction = ::retry)
+toasts.show("Couldn't save", tone = Tone.Danger, actionLabel = "Retry", onAction = ::retry)
 ```
 
 ### They stack, and each one runs its own clock
@@ -715,7 +715,7 @@ a point is a lot of movement for something the user opens dozens of times a day.
 
 Two things with similar names and opposite bargains.
 
-[`Modifier.coachMark`](#the-queue) is a single tip the *app* decides to show,
+[`Modifier.coachmark`](#the-queue) is a single tip the *app* decides to show,
 through the queue, and it deliberately leaves the interface undimmed: the user is
 being shown a thing **in** the screen, so the screen has to stay legible around
 it.
@@ -742,7 +742,7 @@ IconButton(
 Button(onClick = tour::start) { +"Show me around" }
 ```
 
-| | `Modifier.coachMark` | `CoachmarkTour` |
+| | `Modifier.coachmark` | `CoachmarkTour` |
 |---|---|---|
 | Who starts it | the app, through a queue | the user |
 | How many | one | several, in order |

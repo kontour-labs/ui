@@ -48,8 +48,8 @@ internal val DatePickerDemo = ComponentDemo(slug = "date-picker") {
     var depart by remember { mutableStateOf(LocalDate(2026, 6, 18)) }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
         DatePicker(
-            selected = depart,
-            onSelectedChange = { depart = it },
+            value = depart,
+            onValueChange = { depart = it },
             today = Today,
             // Past dates are unselectable, which is what a departure date is —
             // and it is the parameter people reach for first.
@@ -74,7 +74,7 @@ internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker") {
     DateRangePicker(
         start = range.first,
         end = range.second,
-        onRangeSelected = { start, end -> range = start to end },
+        onRangeChange = { start, end -> range = start to end },
         today = Today,
         previousIcon = Tabler.Outline.ChevronLeft,
         nextIcon = Tabler.Outline.ChevronRight,
@@ -140,8 +140,8 @@ internal val WheelPickerDemo = ComponentDemo(
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
         WheelPicker(
             items = values,
-            selected = index,
-            onSelectedChange = { index = it },
+            selectedIndex = index,
+            onSelectedIndexChange = { index = it },
             infinite = this@ComponentDemo[wheelInfinite],
             label = { it },
         )

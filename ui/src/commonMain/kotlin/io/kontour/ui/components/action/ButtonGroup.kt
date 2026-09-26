@@ -24,7 +24,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.RowContentScope
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.theme.Theme
 
 /**
@@ -39,7 +41,7 @@ import io.kontour.ui.theme.Theme
  * ```
  *
  * The buttons sit flush and only the outside corners round, the same treatment
- * [io.kontour.ui.components.list.ListItemPosition] gives a group of rows. That is
+ * [io.kontour.ui.components.list.GroupPosition] gives a group of rows. That is
  * the whole visual idea: three separate buttons say "three things", one joined
  * group says "one thing, three ways".
  *
@@ -170,7 +172,7 @@ private fun GroupedButtons(
     // its own width.
     val each = if (orientation == Orientation.Vertical) Modifier.fillMaxWidth() else Modifier
     actions.forEachIndexed { index, action ->
-        val position = ButtonGroupPosition.of(index, actions.size)
+        val position = GroupPosition.of(index, actions.size)
         val enabledHere = enabled && action.enabled
 
         if (action.icon != null && action.content == null) {
@@ -182,7 +184,7 @@ private fun GroupedButtons(
                 enabled = enabledHere,
                 variant = variant,
                 size = size,
-                shape = position.shape(shape, orientation = orientation),
+                shape = position.shape(shape, ButtonGroupDefaults.InnerCorner, orientation),
                 interactionSource = action.interactionSource,
             )
         } else {
@@ -192,7 +194,7 @@ private fun GroupedButtons(
                 enabled = enabledHere,
                 variant = variant,
                 size = size,
-                shape = position.shape(shape, orientation = orientation),
+                shape = position.shape(shape, ButtonGroupDefaults.InnerCorner, orientation),
                 interactionSource = action.interactionSource,
                 content = action.content ?: {},
             )
@@ -200,53 +202,6 @@ private fun GroupedButtons(
     }
 }
 
-/** Where a button sits in its group, and therefore which corners round. */
-enum class ButtonGroupPosition {
-    Only, First, Middle, Last;
-
-    companion object {
-        fun of(index: Int, count: Int): ButtonGroupPosition = when {
-            count <= 1 -> Only
-            index == 0 -> First
-            index == count - 1 -> Last
-            else -> Middle
-        }
-    }
-}
-
-/**
- * The group's outside corners round; the ones facing a neighbour go square.
- *
- * `start`/`end` rather than left/right, so the first button rounds the corners
- * the reader starts from in either direction. A group built with left and right
- * is a group whose seams are on the wrong side in Arabic.
- *
- * @param orientation Which way the group runs. [Orientation.Vertical] squares the
- *   bottom of the first button and the top of the last, for
- *   [VerticalButtonGroup].
- */
-fun ButtonGroupPosition.shape(
-    shape: CornerBasedShape,
-    square: Dp = ButtonGroupDefaults.InnerCorner,
-    orientation: Orientation = Orientation.Horizontal,
-): Shape {
-    val flat = CornerSize(square)
-    return when (this) {
-        ButtonGroupPosition.Only -> shape
-        ButtonGroupPosition.Middle ->
-            shape.copy(topStart = flat, topEnd = flat, bottomStart = flat, bottomEnd = flat)
-
-        ButtonGroupPosition.First -> when (orientation) {
-            Orientation.Horizontal -> shape.copy(topEnd = flat, bottomEnd = flat)
-            Orientation.Vertical -> shape.copy(bottomStart = flat, bottomEnd = flat)
-        }
-
-        ButtonGroupPosition.Last -> when (orientation) {
-            Orientation.Horizontal -> shape.copy(topStart = flat, bottomStart = flat)
-            Orientation.Vertical -> shape.copy(topStart = flat, topEnd = flat)
-        }
-    }
-}
 
 /** One collected action. */
 internal class ButtonGroupAction(
@@ -264,7 +219,7 @@ internal class ButtonGroupAction(
  * A builder rather than a plain row of `Button`s, because the shape of each one
  * depends on how many there are — which is not known until they have all been
  * declared. Passing `position` by hand at each call site is the arithmetic
- * `ListItemPosition.of` exists to remove, and it goes wrong the same way: a
+ * `GroupPosition.of` exists to remove, and it goes wrong the same way: a
  * group with two rounded buttons in the middle reads as a rendering fault.
  *
  * The lambda is plain Kotlin, so a `@Composable` helper has to be hoisted above

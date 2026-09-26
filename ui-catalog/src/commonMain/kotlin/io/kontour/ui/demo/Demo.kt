@@ -282,8 +282,8 @@ private fun <T> ChoiceKnob(knob: Knob.Choice<T>, values: Knobs) {
         if (labels.size <= SegmentedLimit && !compact) {
             SegmentedControl(
                 options = labels,
-                selected = knob.options.indexOf(selected).coerceAtLeast(0),
-                onSelectedChange = { values.set(knob, knob.options[it]) },
+                selectedIndex = knob.options.indexOf(selected).coerceAtLeast(0),
+                onSelectedIndexChange = { values.set(knob, knob.options[it]) },
             )
         } else {
             Select(

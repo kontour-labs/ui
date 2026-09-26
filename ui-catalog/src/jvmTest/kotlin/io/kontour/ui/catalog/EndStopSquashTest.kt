@@ -228,8 +228,8 @@ class EndStopSquashTest {
             Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                 SegmentedControl(
                     options = listOf("One", "Two", "Three"),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     modifier = Modifier.width(240.dp).reportBounds { bounds = it },
                 )
             }
@@ -370,8 +370,8 @@ class EndStopSquashTest {
                     // full depth rather than half of it — 9px of signal against
                     // 3, on a reading whose noise is a pixel.
                     options = listOf("Keyboard", "Touchscreen"),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     modifier = Modifier.width(130.dp).reportBounds { bounds = it },
                 )
             }
@@ -439,8 +439,8 @@ class EndStopSquashTest {
             Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                 SegmentedControl(
                     options = listOf("One", "Two", "Three"),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     modifier = Modifier.width(240.dp).reportBounds { bounds = it },
                 )
             }

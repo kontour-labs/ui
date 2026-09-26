@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
@@ -730,6 +731,9 @@ fun Slider(
 }
 
 object SliderDefaults {
+    /** The drawn height, so callers can reserve the same when laying out around a slider. */
+    val VisualHeight: Dp = SliderHeight
+
     /**
      * How far the thumb follows the finger past a detent, as a fraction of the
      * overshoot.
@@ -769,8 +773,6 @@ internal val SliderLabelGap = 6.dp
 /** The page-coloured ring around a thumb. Constant, not scaled — see `sliderThumb`. */
 internal val SliderThumbRing = 2.dp
 
-/** Kept so callers can reserve the same height when laying out around a slider. */
-val SliderVisualHeight = SliderHeight
 
 private fun Float.coerceIn(range: ClosedFloatingPointRange<Float>): Float =
     coerceIn(range.start, range.endInclusive)

@@ -107,7 +107,7 @@ data class ComponentDefaults(
     val buttonGapXLarge: Dp = 10.dp,
     /** How far a small control shrinks on press. 28 and 36dp can take 7%. */
     val pressScaleSmall: Float = 0.93f,
-    /** The same for 44dp. Large and XLarge use `DefaultPressScale`. */
+    /** The same for 44dp. Large and XLarge use `IndicationDefaults.PressScale`. */
     val pressScaleMedium: Float = 0.95f,
 
     // --- Controls ---

@@ -331,7 +331,7 @@ private fun SelectionToolbarOverlay(
                     AnchoredOverlayLayout(
                         anchorInRoot = { latest?.rect },
                         side = OverlaySide.Top,
-                        alignment = OverlayAlignment.Center,
+                        alignment = OverlayAlignment.Centre,
                         gap = Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
                     ) {

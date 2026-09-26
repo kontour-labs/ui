@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 
 /** How opaque each edge's fade is, 0 to 1. */
 @Immutable
-data class ScrollFade(val start: Float, val end: Float) {
+internal data class ScrollFade(val start: Float, val end: Float) {
     val isVisible: Boolean get() = start > 0f || end > 0f
 }
 

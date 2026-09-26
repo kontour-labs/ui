@@ -122,8 +122,8 @@ like `success` and the rest, so there is one tone type and six tones:
 | `accent.border` | `#C7DCFD` | `#2C3E5C` | *new* |
 
 The point is not tidiness. A component that takes a tone can now take *this*
-one, which is what `ButtonVariant.Accent`, `BannerTone.Accent` and
-`ToastTone.Accent` are made of — and `TagTone.Accent`, which already existed,
+one, which is what `ButtonVariant.Accent`, `Tone.Accent` and
+`Tone.Accent` are made of — and `Tone.Accent`, which already existed,
 had to reach past the group and assemble itself from three separate fields.
 
 It also means a custom scheme has to supply the whole tone rather than one

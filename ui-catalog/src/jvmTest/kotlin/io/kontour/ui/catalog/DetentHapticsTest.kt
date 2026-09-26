@@ -317,8 +317,8 @@ class DetentHapticsTest {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
                     WheelPicker(
                         items = (0..23).toList(),
-                        selected = hour,
-                        onSelectedChange = { hour = it },
+                        selectedIndex = hour,
+                        onSelectedIndexChange = { hour = it },
                         label = { it.toString().padStart(2, '0') },
                     )
                 }
@@ -961,8 +961,8 @@ class DetentHapticsTest {
                 Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                     SegmentedControl(
                         options = listOf("Depart", "Arrive", "Both", "Neither"),
-                        selected = selected,
-                        onSelectedChange = { selected = it },
+                        selectedIndex = selected,
+                        onSelectedIndexChange = { selected = it },
                         modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
                     )
                 }
@@ -1005,7 +1005,7 @@ class DetentHapticsTest {
                     Modifier
                         .fillMaxSize()
                         .background(Color.White)
-                        .tabSwipe(selected = tab, count = 4, onSelectedChange = { tab = it })
+                        .tabSwipe(selectedIndex = tab, count = 4, onSelectedIndexChange = { tab = it })
                         .reportBounds { bounds = it }
                 )
             }
@@ -1481,7 +1481,7 @@ class DetentHapticsTest {
                     DateRangePicker(
                         start = start,
                         end = end,
-                        onRangeSelected = { s, e -> start = s; end = e },
+                        onRangeChange = { s, e -> start = s; end = e },
                         today = LocalDate(2026, 8, 1),
                         modifier = Modifier.reportBounds { bounds = it },
                     )
@@ -1534,7 +1534,7 @@ class DetentHapticsTest {
                     DateRangePicker(
                         start = start,
                         end = end,
-                        onRangeSelected = { s, e -> start = s; end = e },
+                        onRangeChange = { s, e -> start = s; end = e },
                         today = LocalDate(2026, 8, 1),
                         modifier = Modifier.reportBounds { bounds = it },
                     )
@@ -1568,8 +1568,8 @@ class DetentHapticsTest {
             Recording(tapped) {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
                     DatePicker(
-                        selected = chosen,
-                        onSelectedChange = { chosen = it },
+                        value = chosen,
+                        onValueChange = { chosen = it },
                         today = LocalDate(2026, 8, 1),
                         modifier = Modifier.reportBounds { tapBounds = it },
                     )
@@ -1728,8 +1728,8 @@ class DetentHapticsTest {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
                     RadioGroup(
                         options = listOf("Tea", "Coffee"),
-                        selected = choice,
-                        onSelectedChange = { choice = it },
+                        value = choice,
+                        onValueChange = { choice = it },
                         modifier = Modifier.reportBounds { bounds = it },
                     ) { label { Text(it) } }
                 }
@@ -1924,8 +1924,8 @@ class DetentHapticsTest {
                 Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                     SegmentedControl(
                         options = listOf("Day", "Week", "Month"),
-                        selected = selected,
-                        onSelectedChange = { selected = it },
+                        selectedIndex = selected,
+                        onSelectedIndexChange = { selected = it },
                         modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
                     )
                 }

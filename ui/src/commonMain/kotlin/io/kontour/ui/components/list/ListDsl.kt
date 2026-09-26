@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.components.list.ListItemDefaults
+import io.kontour.ui.foundation.GroupPosition
 
 /**
  * The shorthand for a group of rows.
@@ -24,7 +25,7 @@ import io.kontour.ui.components.list.ListItemDefaults
  * ```
  *
  * **What it is actually for is the corners.** Written by hand, each row's
- * [ListItemPosition] is index arithmetic at the call site, and getting it wrong
+ * [GroupPosition] is index arithmetic at the call site, and getting it wrong
  * gives a group with two rounded rows in the middle of it — which reads as a
  * rendering fault rather than as a mistake. The builder counted the rows, so
  * there is nothing to pass and nothing to get wrong.
@@ -68,7 +69,7 @@ import io.kontour.ui.components.list.ListItemDefaults
 @LayoutScopeMarker
 class ListGroupScope internal constructor() {
 
-    internal val rows = mutableListOf<@Composable (ListItemPosition) -> Unit>()
+    internal val rows = mutableListOf<@Composable (GroupPosition) -> Unit>()
 
     /**
      * One row.
@@ -146,7 +147,7 @@ class ListGroupScope internal constructor() {
      * }
      * ```
      */
-    fun item(content: @Composable (ListItemPosition) -> Unit) {
+    fun item(content: @Composable (GroupPosition) -> Unit) {
         rows += content
     }
 }
@@ -179,7 +180,7 @@ fun ListGroup(
     val rows = scope.rows
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(spacing)) {
-        rows.forEachIndexed { index, row -> row(ListItemPosition.of(index, rows.size)) }
+        rows.forEachIndexed { index, row -> row(GroupPosition.of(index, rows.size)) }
     }
 }
 
@@ -229,7 +230,7 @@ fun <T> LazyListScope.listGroup(
 
         item(key = key?.invoke(element), contentType = "listGroupRow") {
             rows.forEachIndexed { offset, row ->
-                row(ListItemPosition.of(start + offset, total))
+                row(GroupPosition.of(start + offset, total))
             }
         }
     }

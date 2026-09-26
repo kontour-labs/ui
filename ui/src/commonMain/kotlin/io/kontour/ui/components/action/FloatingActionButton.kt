@@ -104,7 +104,7 @@ fun FloatingActionButton(
             .pointerCursor(enabled = interactive)
             .clickable(
                 interactionSource = interactions,
-                indication = kontourIndication(shape, FabDefaults.pressScale(size)),
+                indication = kontourIndication(shape, FloatingActionButtonDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
                 onClick = onClick,
@@ -179,7 +179,7 @@ fun FloatingActionButton(
             .pointerCursor(enabled = interactive)
             .clickable(
                 interactionSource = interactions,
-                indication = kontourIndication(shape, FabDefaults.pressScale(size)),
+                indication = kontourIndication(shape, FloatingActionButtonDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
                 onClick = onClick,
@@ -235,7 +235,7 @@ fun ExtendedFloatingActionButton(
      *
      * The same value the plain [FloatingActionButton] takes, and for the same
      * reason: a FAB is round because of what it is. `control` caps at
-     * `CapsuleCap`, so it drew an 18dp corner on a 56dp box — a rounded square
+     * `Shapes.CapsuleCap`, so it drew an 18dp corner on a 56dp box — a rounded square
      * collapsed and a rounded rectangle open, on a button sitting next to a plain
      * FAB that is a circle. Round 26 moved the library's circles onto `pill`
      * precisely so the cap could not reach them and this one was missed.
@@ -285,7 +285,7 @@ fun ExtendedFloatingActionButton(
             .pointerCursor(enabled = interactive)
             .clickable(
                 interactionSource = interactions,
-                indication = kontourIndication(shape, FabDefaults.pressScale(size)),
+                indication = kontourIndication(shape, FloatingActionButtonDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
                 onClick = onClick,
@@ -358,7 +358,7 @@ private fun fabColours(
 }
 
 /** Metrics for a [FloatingActionButton] that are not on [FabSize] itself. */
-object FabDefaults {
+object FloatingActionButtonDefaults {
     /**
      * How far a FAB shrinks on press.
      *

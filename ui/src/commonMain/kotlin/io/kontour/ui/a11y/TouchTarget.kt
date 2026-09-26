@@ -28,7 +28,7 @@ import kotlin.math.max
  * the hit rectangle — is what stops two adjacent small controls from having
  * overlapping, ambiguous touch areas.
  *
- * The target shrinks to [pointerMinTouchTarget] when the active input is a
+ * The target shrinks to [TouchTargetDefaults.PointerMinimum] when the active input is a
  * mouse, because 48dp of padding around a 16dp icon looks absurd on a desktop
  * toolbar and a mouse does not need the slack. It grows straight back the
  * moment a finger touches the screen. See [io.kontour.ui.input.InputModality].
@@ -66,8 +66,15 @@ import kotlin.math.max
 fun Modifier.minimumTouchTarget(enabled: Boolean = true, fill: Boolean = false): Modifier =
     if (enabled) this then MinimumTouchTargetElement(fill) else this
 
-/** WCAG 2.2 SC 2.5.8 "Target Size (Minimum)": 24×24 CSS pixels. */
-val pointerMinTouchTarget: Dp = 24.dp
+/** The sizes [minimumTouchTarget] works to. */
+object TouchTargetDefaults {
+    /**
+     * The target for a precise pointer — WCAG 2.2 SC 2.5.8 "Target Size
+     * (Minimum)": 24×24 CSS pixels. A finger gets the theme's
+     * `Sizing.minTouchTarget` instead.
+     */
+    val PointerMinimum: Dp = 24.dp
+}
 
 /**
  * Set by a parent that guarantees the touch target on its children's behalf.
@@ -127,7 +134,7 @@ private class MinimumTouchTargetNode(var fill: Boolean) :
         val minimum = if (modality.needsLargeTargets) {
             currentValueOf(LocalSizing).minTouchTarget
         } else {
-            pointerMinTouchTarget
+            TouchTargetDefaults.PointerMinimum
         }
         val minimumPx = minimum.roundToPx()
 

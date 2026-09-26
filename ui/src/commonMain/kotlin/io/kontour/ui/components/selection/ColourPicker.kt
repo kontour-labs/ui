@@ -204,8 +204,8 @@ fun ColourPicker(
                 }
                 SegmentedControl(
                     options = modeLabels,
-                    selected = ColourPickerMode.entries.indexOf(mode),
-                    onSelectedChange = { onModeChange(ColourPickerMode.entries[it]) },
+                    selectedIndex = ColourPickerMode.entries.indexOf(mode),
+                    onSelectedIndexChange = { onModeChange(ColourPickerMode.entries[it]) },
                     enabled = enabled,
                 )
             }

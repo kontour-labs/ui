@@ -64,8 +64,8 @@ class WheelCentreTest {
             Box(Modifier.fillMaxSize()) {
                 WheelPicker(
                     items = Meridiems,
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     label = { it },
                     visibleItems = 3,
                     itemHeight = 40.dp,
@@ -124,8 +124,8 @@ class WheelCentreTest {
             Box(Modifier.fillMaxSize()) {
                 WheelPicker(
                     items = Meridiems,
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     label = { it },
                     visibleItems = 3,
                     itemHeight = 40.dp,
@@ -168,8 +168,8 @@ class WheelCentreTest {
             Box(Modifier.fillMaxSize()) {
                 WheelPicker(
                     items = (0..23).toList(),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     label = { it.toString().padStart(2, '0') },
                     itemHeight = 40.dp,
                     modifier = Modifier.reportBounds { bounds = it },

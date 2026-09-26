@@ -16,7 +16,7 @@ ButtonGroup {
 ```
 
 The buttons sit flush and only the outside corners round — the same treatment
-[`ListItemPosition`](list-item.md) gives a group of rows. That is the
+[`GroupPosition`](list-item.md) gives a group of rows. That is the
 whole visual idea: three separate buttons say "three things", one joined group
 says "one thing, three ways".
 
@@ -67,7 +67,7 @@ Only the top of the first button and the bottom of the last round, and the seams
 run across. Every button takes the width of the widest, so a column of labelled
 buttons is one straight-sided shape rather than a ragged stack. The first action
 is on top in either layout direction: reading order down a column does not
-mirror. `ButtonGroupPosition.shape` takes the `orientation` for anyone building
+mirror. `GroupPosition.shape` takes the `orientation` for anyone building
 the same shape by hand.
 
 ---

@@ -81,8 +81,8 @@ class CalendarHeaderTest {
                 OverlayHost {
                     Box(Modifier.width(across)) {
                         DatePicker(
-                            selected = null,
-                            onSelectedChange = {},
+                            value = null,
+                            onValueChange = {},
                             today = LocalDate(2026, 9, 26),
                             previousIcon = Arrow,
                             nextIcon = Arrow,

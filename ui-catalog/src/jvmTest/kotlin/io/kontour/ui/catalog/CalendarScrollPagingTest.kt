@@ -84,7 +84,7 @@ class CalendarScrollPagingTest {
                 DateRangePicker(
                     start = null,
                     end = null,
-                    onRangeSelected = { _, _ -> },
+                    onRangeChange = { _, _ -> },
                     navigation = navigation,
                     modifier = Modifier.reportBounds { bounds = it },
                 )
@@ -108,8 +108,8 @@ class CalendarScrollPagingTest {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
                     navigation = rememberCalendarNavigationState(LocalDate(2026, 8, 1))
                     DatePicker(
-                        selected = null,
-                        onSelectedChange = {},
+                        value = null,
+                        onValueChange = {},
                         navigation = navigation,
                         modifier = Modifier.reportBounds { bounds = it },
                     )

@@ -82,7 +82,7 @@ fun Popover(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     side: OverlaySide = OverlaySide.Bottom,
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     scrim: ScrimStyle = ScrimStyle.Transparent,
     showArrow: Boolean = true,
     maxWidth: Dp = 320.dp,

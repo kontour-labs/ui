@@ -120,8 +120,8 @@ val generateApiTables = tasks.register("generateApiTables") {
         // A *set* per name, because a simple name is not unique across packages
         // and picking one arbitrarily would send a reader to the wrong page
         // while looking exactly like a working link. There is one such name
-        // today — `shape`, an extension of `ButtonGroupPosition` in one package
-        // and of `ListItemPosition` in another — and it is dropped rather than
+        // today — `shape`, an extension of `GroupPosition` in one package
+        // and of `GroupPosition` in another — and it is dropped rather than
         // guessed at. Ambiguity falls back to the reference's index, which has
         // a search box.
         val referencePaths = sortedMapOf<String, MutableSet<String>>()

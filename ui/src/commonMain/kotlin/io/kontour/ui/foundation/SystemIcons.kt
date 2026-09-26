@@ -23,6 +23,7 @@ import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.X
 import com.composables.icons.tabler.filled.Star as FilledStar
+import io.kontour.ui.theme.Tone
 
 /**
  * The few glyphs the design system draws on its own behalf.
@@ -81,7 +82,7 @@ object SystemIcons {
     val Close: ImageVector get() = Tabler.Outline.X
 
     /**
-     * One per `BannerTone`, for a `Callout` that has no caller to ask.
+     * One per `Tone`, for a `Callout` that has no caller to ask.
      *
      * A `Banner` takes its icon from the call site, because the thing it is a
      * message *about* is the caller's to name. A callout is an aside inside

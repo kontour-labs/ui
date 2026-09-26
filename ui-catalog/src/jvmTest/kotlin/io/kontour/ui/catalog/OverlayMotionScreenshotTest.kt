@@ -31,7 +31,7 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.overlay.Tooltip
-import io.kontour.ui.overlay.coachMark
+import io.kontour.ui.overlay.coachmark
 import io.kontour.ui.overlay.rememberOverlayQueue
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.ModalSideSheet
@@ -232,7 +232,7 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
                     DropdownMenu(
                         visible = showing.value,
                         onDismissRequest = {},
-                        alignment = OverlayAlignment.Center,
+                        alignment = OverlayAlignment.Centre,
                     ) {
                         item("Share") {}
                         item("Copy stop ID") {}
@@ -260,7 +260,7 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
                             icon = Tabler.Outline.Bookmark,
                             contentDescription = "Save this trip",
                             onClick = {},
-                            modifier = Modifier.coachMark(
+                            modifier = Modifier.coachmark(
                                 enabled = showing.value,
                                 id = "save-trip",
                                 title = "Save this trip",

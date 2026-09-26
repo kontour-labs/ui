@@ -552,7 +552,7 @@ private fun Modifier.cellPadding(): Modifier =
 private val TableAlign.alignment: Alignment
     get() = when (this) {
         TableAlign.Start -> Alignment.CenterStart
-        TableAlign.Center -> Alignment.Center
+        TableAlign.Centre -> Alignment.Center
         TableAlign.End -> Alignment.CenterEnd
     }
 

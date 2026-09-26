@@ -10,7 +10,8 @@ import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.theme.CapsuleCap
+import io.kontour.ui.foundation.GroupPosition
+import io.kontour.ui.theme.Shapes
 import io.kontour.ui.theme.CapsuleCornerSize
 import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.cornerReaches
@@ -105,7 +106,7 @@ class ChatBubbleTest {
      */
     @Test
     fun theTailsUndersideRunsFlatIntoTheBubblesBottom() {
-        for (position in listOf(BubblePosition.Only, BubblePosition.Last)) {
+        for (position in listOf(GroupPosition.Only, GroupPosition.Last)) {
             for (size in listOf(Size(300f, 72f), Size(300f, 112f), Size(120f, 72f))) {
                 for (direction in LayoutDirection.entries) {
                     val (outline, body) = squircleBubble(position, size, direction)
@@ -147,7 +148,7 @@ class ChatBubbleTest {
     fun aLastBubblesSideRunsStraightIntoTheTail() {
         for (size in listOf(Size(300f, 72f), Size(300f, 112f))) {
             for (direction in LayoutDirection.entries) {
-                val (outline, body) = squircleBubble(BubblePosition.Last, size, direction)
+                val (outline, body) = squircleBubble(GroupPosition.Last, size, direction)
                 val right = direction == LayoutDirection.Ltr
                 val reaches = body.cornerReaches(Size(size.width - reach, size.height), density, direction)
                 val top = if (right) reaches.topRight.y else reaches.topLeft.y
@@ -178,27 +179,27 @@ class ChatBubbleTest {
     @Test
     fun aRunIsWorkedOutFromWhoSentWhat() {
         val senders = listOf("sam", "sam", "sam", "me", "sam", "me", "me")
-        val positions = senders.indices.map { BubblePosition.of(senders, it) { who -> who } }
+        val positions = senders.indices.map { GroupPosition.of(senders, it) { who -> who } }
         assertEquals(
             listOf(
-                BubblePosition.First, BubblePosition.Middle, BubblePosition.Last,
-                BubblePosition.Only, BubblePosition.Only,
-                BubblePosition.First, BubblePosition.Last,
+                GroupPosition.First, GroupPosition.Middle, GroupPosition.Last,
+                GroupPosition.Only, GroupPosition.Only,
+                GroupPosition.First, GroupPosition.Last,
             ),
             positions,
         )
-        assertEquals(BubblePosition.Only, BubblePosition.of(0, 1))
-        assertEquals(BubblePosition.Middle, BubblePosition.of(1, 3))
+        assertEquals(GroupPosition.Only, GroupPosition.of(0, 1))
+        assertEquals(GroupPosition.Middle, GroupPosition.of(1, 3))
     }
 
     /** An outgoing bubble on the library's own capsule, as [ChatBubble] builds it. */
     private fun squircleBubble(
-        position: BubblePosition,
+        position: GroupPosition,
         size: Size,
         direction: LayoutDirection,
     ): Pair<Path, SquircleShape> {
         val body = bodyShape(
-            SquircleShape(CapsuleCornerSize(cap = CapsuleCap)), BubbleSide.Outgoing, position, CornerSize(4.dp),
+            SquircleShape(CapsuleCornerSize(cap = Shapes.CapsuleCap)), BubbleSide.Outgoing, position, CornerSize(4.dp),
         ) as SquircleShape
         val outline = ChatBubbleShape(body, onEnd = true, tail = true, 6.dp)
             .createOutline(size, direction, density) as Outline.Generic

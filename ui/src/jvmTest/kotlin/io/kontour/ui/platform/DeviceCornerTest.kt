@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.sheet.SheetDefaults
+import io.kontour.ui.sheet.BottomSheetDefaults
 import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
@@ -91,7 +91,7 @@ class DeviceCornerTest {
         deviceCornersOverride = device
         val scene = ImageComposeScene(width = 200, height = 200, density = Density(1f)) {
             KontourTheme {
-                shape = SheetDefaults.shapeFor(SheetPresentation.Edge)
+                shape = BottomSheetDefaults.shapeFor(SheetPresentation.Edge)
                 Box(Modifier.fillMaxSize())
             }
         }

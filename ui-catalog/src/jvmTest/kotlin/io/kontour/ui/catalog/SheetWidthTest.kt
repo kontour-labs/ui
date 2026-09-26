@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
+import io.kontour.ui.sheet.BottomSheetDefaults
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetState
@@ -37,7 +38,7 @@ import kotlin.test.assertTrue
 /**
  * How wide a sheet is, and where it sits, in a window wider than it should be.
  *
- * `SheetDefaults.MaxWidth` is 640dp and its KDoc has always said *"A sheet wider
+ * `BottomSheetDefaults.MaxWidth` is 640dp and its KDoc has always said *"A sheet wider
  * than this is a panel; centre it rather than stretching it."* It did not work.
  * The sheet's box was `fillMaxWidth().widthIn(max = MaxWidth)`, and `fillMaxWidth`
  * hands its child *fixed* constraints — minimum and maximum both the window's
@@ -150,7 +151,7 @@ class SheetWidthTest {
             Cap,
             placed.sheetWidth,
             "a sheet in a ${Wide}dp window came out ${placed.sheetWidth / Density}dp " +
-                "wide. `SheetDefaults.MaxWidth` is ${Cap / Density}dp and says a sheet " +
+                "wide. `BottomSheetDefaults.MaxWidth` is ${Cap / Density}dp and says a sheet " +
                 "wider than that is a panel — the cap is being coerced back up to the " +
                 "window by the `fillMaxWidth` that runs before it",
         )
@@ -266,7 +267,7 @@ class SheetWidthTest {
      */
     @Test
     fun aModalSheetFollowsItsAlignmentWhileOpen() {
-        var alignment by mutableStateOf(OverlayAlignment.Center)
+        var alignment by mutableStateOf(OverlayAlignment.Centre)
         var sheetX = Float.NaN
         val scene = ImageComposeScene(
             width = Wide * Density,
@@ -312,7 +313,7 @@ class SheetWidthTest {
         /** A phone: comfortably under it. */
         const val Phone = 390
 
-        /** `SheetDefaults.MaxWidth`, in this scene's pixels. */
+        /** `BottomSheetDefaults.MaxWidth`, in this scene's pixels. */
         const val Cap = 640f * Density
 
         /** Long enough for a reduced-motion open to come to rest. */

@@ -109,9 +109,4 @@ class SheetDetent(
  */
 internal const val PeekDetentId: String = "peek"
 
-/** The default set: closed, peeking, half, or all of it. */
-val DefaultSheetDetents: List<SheetDetent> = listOf(
-    SheetDetent.Hidden,
-    SheetDetent.Half,
-    SheetDetent.Expanded,
-)
+

@@ -195,8 +195,8 @@ fun RadioButton(
 @Composable
 fun <T> RadioGroup(
     options: List<T>,
-    selected: T?,
-    onSelectedChange: (T) -> Unit,
+    value: T?,
+    onValueChange: (T) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     option: ListItemScope.(T) -> Unit,
@@ -207,10 +207,10 @@ fun <T> RadioGroup(
     CompositionLocalProvider(LocalSelectionGroupPress provides groupPress) {
         Column(modifier.selectableGroup()) {
             options.forEach { value ->
-                val isSelected = value == selected
+                val isSelected = value == value
                 SelectionRow(
                     selected = isSelected,
-                    onSelectedChange = { onSelectedChange(value) },
+                    onSelectedChange = { onValueChange(value) },
                     enabled = enabled,
                     role = Role.RadioButton,
                 ) {

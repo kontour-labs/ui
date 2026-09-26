@@ -6,7 +6,6 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kontour.ui.components.display.Banner
-import io.kontour.ui.components.display.BannerTone
 import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.text.PasswordField
 import io.kontour.ui.foundation.SystemIcons
@@ -46,7 +45,7 @@ class StringsReachComponentsTest {
         setContent {
             KontourTheme(strings = german) {
                 Banner(
-                    tone = BannerTone.Info,
+                    tone = Tone.Info,
                     onDismissRequest = {},
                     dismissIcon = SystemIcons.Close,
                 ) { +"Delayed" }
@@ -94,7 +93,7 @@ class StringsReachComponentsTest {
         setContent {
             KontourTheme {
                 Banner(
-                    tone = BannerTone.Info,
+                    tone = Tone.Info,
                     onDismissRequest = {},
                     dismissIcon = SystemIcons.Close,
                 ) { +"Delayed" }
@@ -116,7 +115,7 @@ class StringsReachComponentsTest {
         setContent {
             KontourTheme(strings = german) {
                 Banner(
-                    tone = BannerTone.Info,
+                    tone = Tone.Info,
                     onDismissRequest = {},
                     dismissIcon = SystemIcons.Close,
                     dismissLabel = "Verwerfen",

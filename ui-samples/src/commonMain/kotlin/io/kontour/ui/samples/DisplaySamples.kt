@@ -4,7 +4,7 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import io.kontour.ui.components.display.BranchTimeline
-import io.kontour.ui.components.display.BubblePosition
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.display.BubbleSide
 import io.kontour.ui.components.display.ChatBubble
 import io.kontour.ui.components.display.GaugeTickPlacement
@@ -48,7 +48,7 @@ import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Banner
-import io.kontour.ui.components.display.BannerTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
@@ -63,7 +63,6 @@ import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StatTrend
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.Tag
-import io.kontour.ui.components.display.TagTone
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
@@ -259,7 +258,7 @@ fun ChatBubbleBasics() {
             ChatBubble(
                 side = if (sender == "me") BubbleSide.Outgoing else BubbleSide.Incoming,
                 // Consecutive messages from one sender are a run; the last has the tail.
-                position = BubblePosition.of(messages, index) { it.first },
+                position = GroupPosition.of(messages, index) { it.first },
             ) {
                 Text(text)
             }
@@ -389,7 +388,7 @@ fun BannerBasics() {
     var showing by remember { mutableStateOf(true) }
 
     if (showing) {
-        Banner(tone = BannerTone.Warning, onDismissRequest = { showing = false }) {
+        Banner(tone = Tone.Warning, onDismissRequest = { showing = false }) {
             title { +"Track work this weekend" }
             message { +"Buses replace trains between Perth and Bayswater until Monday." }
             action {
@@ -464,11 +463,11 @@ fun SkeletonBasics() {
 @Composable
 fun TagBasics() {
     Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-        Tag(tone = TagTone.Success) { +"On time" }
-        Tag(tone = TagTone.Warning) { +"Delayed" }
+        Tag(tone = Tone.Success) { +"On time" }
+        Tag(tone = Tone.Warning) { +"Delayed" }
         // Not a `Chip`: a tag is a label the reader cannot press. A status that
         // filters the list behind it is a `FilterChip`.
-        Tag(tone = TagTone.Neutral) { +"Platform 2" }
+        Tag(tone = Tone.Neutral) { +"Platform 2" }
     }
 }
 

@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,9 +15,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.takeOrElse
 import io.kontour.ui.components.list.ListItemDefaults
-import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.ListItemScope
-import io.kontour.ui.components.list.shape
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 
@@ -385,7 +386,7 @@ private fun TimelineListRow(
         gutterWidth = gutterWidth,
         nodeSize = nodeSize,
         shape = if (grouped) {
-            ListItemPosition.of(row.index, row.count).shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner)
+            GroupPosition.of(row.index, row.count).shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical)
         } else {
             ListItemDefaults.Shape
         },

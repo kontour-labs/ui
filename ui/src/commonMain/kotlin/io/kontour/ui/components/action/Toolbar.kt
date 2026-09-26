@@ -29,7 +29,7 @@ import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.VerticalDivider
-import io.kontour.ui.theme.CapsuleCap
+import io.kontour.ui.theme.Shapes
 import io.kontour.ui.theme.ProvideConcentric
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
@@ -251,7 +251,7 @@ object ToolbarDefaults {
      * twice it, so the two radii differed by exactly [ContentPadding], whatever
      * the numbers were.
      *
-     * [CapsuleCap] ends that, and it is worth being precise about how, because
+     * [Shapes.CapsuleCap] ends that, and it is worth being precise about how, because
      * the failure is invisible in the token and obvious on the screen. A 56dp
      * bar and a 44dp button are both above `small`, so both stop at 18 — two
      * equal radii with 6dp between them. The ring stays 6dp along every straight

@@ -40,8 +40,8 @@ class WheelPickerDragTest {
             Box(Modifier.fillMaxSize()) {
                 WheelPicker(
                     items = (0..23).toList(),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     label = { it.toString().padStart(2, '0') },
                     modifier = Modifier.reportBounds { bounds = it },
                 )
@@ -75,8 +75,8 @@ class WheelPickerDragTest {
             Box(Modifier.fillMaxSize()) {
                 WheelPicker(
                     items = (0..23).toList(),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     label = { it.toString().padStart(2, '0') },
                     itemHeight = androidx.compose.ui.unit.Dp(40f),
                     modifier = Modifier.reportBounds { bounds = it },
@@ -156,8 +156,8 @@ class WheelPickerContainmentTest {
             Column(Modifier.fillMaxSize().verticalScroll(state)) {
                 WheelPicker(
                     items = (0..23).toList(),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     label = { it.toString().padStart(2, '0') },
                     modifier = Modifier.reportBounds { wheel = it },
                 )

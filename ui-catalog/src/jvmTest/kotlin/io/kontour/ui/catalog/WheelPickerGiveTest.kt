@@ -52,8 +52,8 @@ class WheelPickerGiveTest {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 WheelPicker(
                     items = (0..9).map { it.toString() },
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     modifier = Modifier.reportBounds { bounds = it },
                     label = { it },
                 )

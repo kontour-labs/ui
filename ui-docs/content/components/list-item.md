@@ -10,7 +10,7 @@ LazyColumn {
             onClick = { openStop(stop.name) },
             // Rounds the outside corners of the group and leaves the seams
             // square, so a run of rows reads as one block.
-            position = ListItemPosition.of(index, stops.size),
+            position = GroupPosition.of(index, stops.size),
         ) {
             leading { +Tabler.Outline.Bus }
             +stop.name
@@ -26,7 +26,7 @@ The builder is `ListItemScope`, and the bare `+` is the row's headline — see
 `leading` and `trailing` are the other slots.
 
 **A group of rows is one object, not a stack of cards.** Only the outside corners
-of a group round; the ones facing a neighbour get a hairline. `ListItemPosition`
+of a group round; the ones facing a neighbour get a hairline. `GroupPosition`
 carries that, and `of(index, count)` gets the one-item case right — which is the
 case a three-item example in a catalog never exercises and every settings screen
 with a single row hits immediately.

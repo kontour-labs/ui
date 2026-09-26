@@ -314,7 +314,7 @@ object ButtonDefaults {
      *
      * ### And why one number was never going to work
      *
-     * [io.kontour.ui.interaction.DefaultPressScale] is 3%, and 3% is what you
+     * [io.kontour.ui.interaction.IndicationDefaults.PressScale] is 3%, and 3% is what you
      * pick when the same constant has to serve a 28dp icon button and a
      * full-width XLarge one. It is invisible on the small control and it is the
      * most the large one can take: shrink a wide button 7% and it reads as the
@@ -335,7 +335,7 @@ object ButtonDefaults {
         return when (size) {
             ButtonSize.XSmall, ButtonSize.Small -> SmallPressScale
             ButtonSize.Medium -> MediumPressScale
-            ButtonSize.Large, ButtonSize.XLarge -> io.kontour.ui.interaction.DefaultPressScale
+            ButtonSize.Large, ButtonSize.XLarge -> io.kontour.ui.interaction.IndicationDefaults.PressScale
         }
     }
 

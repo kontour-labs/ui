@@ -12,7 +12,7 @@ Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         ChatBubble(
             side = if (sender == "me") BubbleSide.Outgoing else BubbleSide.Incoming,
             // Consecutive messages from one sender are a run; the last has the tail.
-            position = BubblePosition.of(messages, index) { it.first },
+            position = GroupPosition.of(messages, index) { it.first },
         ) {
             Text(text)
         }
@@ -28,7 +28,7 @@ messaging app has taught its users, mirrored right to left.
 `position` is where a bubble sits in it: the corners on the sender's side tighten
 where two bubbles of a run meet, and **only the last of a run has a tail**, so a run
 reads as one turn in the conversation and the tail marks where it ends.
-`BubblePosition.of(items, index) { it.sender }` works the positions out from a list.
+`GroupPosition.of(items, index) { it.sender }` works the positions out from a list.
 Put a couple of dp between the bubbles of a run and more between runs.
 
 Every bubble keeps the tail's width free on its sender's side, tail or not, so a

@@ -63,7 +63,7 @@ class AnchoringTest {
     fun alignmentPositionsAlongTheEdge() {
         assertEquals(450, place(centred, alignment = OverlayAlignment.Start).x)
         // Centre: anchor centre 500, minus half of 200.
-        assertEquals(400, place(centred, alignment = OverlayAlignment.Center).x)
+        assertEquals(400, place(centred, alignment = OverlayAlignment.Centre).x)
         // End: anchor's trailing edge 550, minus the full width.
         assertEquals(350, place(centred, alignment = OverlayAlignment.End).x)
     }

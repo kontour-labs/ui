@@ -235,7 +235,7 @@ class CalendarCrossMonthDragTest {
                     DateRangePicker(
                         start = start,
                         end = end,
-                        onRangeSelected = { s, e ->
+                        onRangeChange = { s, e ->
                             start = s
                             end = e
                             picked.start = s

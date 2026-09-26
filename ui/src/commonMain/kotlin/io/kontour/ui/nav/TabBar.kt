@@ -154,7 +154,7 @@ fun TabBar(
     // The marker's own corner, built once rather than per frame.
     //
     // Concentric with the tab it sits in rather than sharing a token with it:
-    // both are above `small`, so both would stop at `CapsuleCap` and the 4dp
+    // both are above `small`, so both would stop at `Shapes.CapsuleCap` and the 4dp
     // ring would close to nothing at the corners. The inset is read from the
     // same `xxs` the sizing below uses, so the two cannot drift apart.
     //
@@ -523,22 +523,22 @@ private fun Modifier.tabPadding(each: Dp): Modifier = layout { measurable, const
  */
 @Composable
 fun Modifier.tabSwipe(
-    selected: Int,
+    selectedIndex: Int,
     count: Int,
-    onSelectedChange: (Int) -> Unit,
+    onSelectedIndexChange: (Int) -> Unit,
     enabled: Boolean = true,
 ): Modifier {
     if (!enabled || count <= 1) return this
 
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val currentChange by rememberUpdatedState(onSelectedChange)
+    val currentChange by rememberUpdatedState(onSelectedIndexChange)
 
     var width by remember { mutableFloatStateOf(0f) }
     // The tab this gesture believes it is on. Held here rather than read back
-    // from `selected`, because several steps can fall inside one frame and the
+    // from `selectedIndex`, because several steps can fall inside one frame and the
     // parameter does not refresh until the next composition — a fast flick
     // would then commit the same step three times.
-    var index by remember { mutableIntStateOf(selected) }
+    var index by remember { mutableIntStateOf(selectedIndex) }
     var travelled by remember { mutableFloatStateOf(0f) }
     val ticker = rememberDetentTicker(FeedbackIntent.Snap)
 
@@ -579,7 +579,7 @@ fun Modifier.tabSwipe(
             },
             orientation = Orientation.Horizontal,
             onDragStarted = {
-                index = selected
+                index = selectedIndex
                 travelled = 0f
                 ticker.reset()
                 ticker.at(index)

@@ -6,6 +6,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import io.kontour.ui.foundation.GroupPosition
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.foundation.Icon
@@ -55,7 +58,7 @@ import io.kontour.ui.theme.Theme
  * An accordion draws its own frame, so its body is a block *under* a row. This
  * one hands its children to the same [ListGroupScope] a `ListGroup` uses, so
  * they are rows in the same run: the header rounds as
- * [ListItemPosition.First] while it is open and [ListItemPosition.Only] while it
+ * [GroupPosition.First] while it is open and [GroupPosition.Only] while it
  * is shut, the children take `Middle`, and the last of them closes the group.
  * The whole thing reads as one object opening rather than as a card appearing.
  *
@@ -79,7 +82,7 @@ fun ExpandingListItem(
     header: ListItemScope.() -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    position: ListItemPosition = ListItemPosition.Only,
+    position: GroupPosition = GroupPosition.Only,
     chevron: ImageVector? = null,
     spacing: Dp = ListItemDefaults.Spacing,
     expandedLabel: String = Theme.strings.expanded,
@@ -159,19 +162,19 @@ fun ExpandingListItem(
 /**
  * The header's shape, [fraction] of the way from shut to open.
  *
- * Both ends come from the same [ListItemPosition.shape] the rest of the list
+ * Both ends come from the same [GroupPosition.shape] the rest of the list
  * uses, so an animated header and a static row still agree about what a corner
  * is. Where opening does not change the position — a header that was already a
  * `First` or a `Middle` — the two ends are equal and the lerp is a no-op.
  */
 @Composable
-private fun headerShape(position: ListItemPosition, fraction: Float): CornerBasedShape {
+private fun headerShape(position: GroupPosition, fraction: Float): CornerBasedShape {
     val base = ListItemDefaults.Shape
     val inner = ListItemDefaults.InnerCorner
     // Quantised rather than built per frame — see `rememberMorphedShape`.
     return rememberMorphedShape(
-        from = position.shape(base, inner),
-        to = position.opening(true).shape(base, inner),
+        from = position.shape(base, inner, Orientation.Vertical),
+        to = position.opening(true).shape(base, inner, Orientation.Vertical),
         fraction = fraction,
     )
 }
@@ -183,13 +186,13 @@ private fun headerShape(position: ListItemPosition, fraction: Float): CornerBase
  * its run becomes the first of one, and a header that was the last becomes a
  * middle. Shut, it is exactly what the caller said it was.
  */
-private fun ListItemPosition.opening(expanded: Boolean): ListItemPosition =
+private fun GroupPosition.opening(expanded: Boolean): GroupPosition =
     if (!expanded) {
         this
     } else {
         when (this) {
-            ListItemPosition.Only, ListItemPosition.First -> ListItemPosition.First
-            ListItemPosition.Middle, ListItemPosition.Last -> ListItemPosition.Middle
+            GroupPosition.Only, GroupPosition.First -> GroupPosition.First
+            GroupPosition.Middle, GroupPosition.Last -> GroupPosition.Middle
         }
     }
 
@@ -200,12 +203,12 @@ private fun ListItemPosition.opening(expanded: Boolean): ListItemPosition =
  * ending: a group that was the only thing in its list closes it, and one with
  * more rows below carries on.
  */
-private fun ListItemPosition.closing(index: Int, count: Int): ListItemPosition =
+private fun GroupPosition.closing(index: Int, count: Int): GroupPosition =
     if (index < count - 1) {
-        ListItemPosition.Middle
+        GroupPosition.Middle
     } else {
         when (this) {
-            ListItemPosition.Only, ListItemPosition.Last -> ListItemPosition.Last
-            ListItemPosition.First, ListItemPosition.Middle -> ListItemPosition.Middle
+            GroupPosition.Only, GroupPosition.Last -> GroupPosition.Last
+            GroupPosition.First, GroupPosition.Middle -> GroupPosition.Middle
         }
     }

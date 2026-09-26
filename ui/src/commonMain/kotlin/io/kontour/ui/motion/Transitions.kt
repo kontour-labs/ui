@@ -171,7 +171,7 @@ object Transitions {
  * The side away from the content it is spacing away from: a slot at the *start*
  * of a row carries its gap [Trailing], and one at the end carries it [Leading].
  */
-enum class SlotGap { Leading, Trailing }
+internal enum class SlotGap { Leading, Trailing }
 
 /**
  * An appearing or disappearing row item that carries its own gap.

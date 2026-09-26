@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -146,9 +147,32 @@ enum class NavExpandPlacement {
 }
 
 /** Metrics for [NavExpandingSlot]. */
-object NavExpandDefaults {
+object NavExpandingSlotDefaults {
     /** How far the expanded panel sits in from the window's sides. */
     val Margin = 16.dp
+
+    /**
+     * What a control in a navigation slot should stand on to be seen.
+     *
+     * Here rather than private because the choice is not [NavExpandingSlot]'s
+     * alone: anything a caller puts in a `header`, `action` or `footer` faces the
+     * same question, and the answer depends on which surface it landed in rather
+     * than on what it is.
+     */
+    @Composable
+    @ReadOnlyComposable
+    fun containerColour(): Color =
+        if (LocalNavExpansion.current.onSurface) {
+            Theme.colours.surfaceSunken
+        } else {
+            Theme.colours.surface
+        }
+
+    /** The shadow that goes with [containerColour]. A recess casts none. */
+    @Composable
+    @ReadOnlyComposable
+    fun shadow(): Shadow =
+        if (LocalNavExpansion.current.onSurface) Shadow.None else Theme.elevation.low
 }
 
 /**
@@ -202,9 +226,9 @@ fun NavExpandingSlot(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     placement: NavExpandPlacement = NavExpandPlacement.AboveKeyboard,
-    containerColour: Color = navSlotContainerColour(),
+    containerColour: Color = NavExpandingSlotDefaults.containerColour(),
     contentColour: Color = Theme.colours.content,
-    shadow: io.kontour.ui.theme.Shadow = navSlotShadow(),
+    shadow: Shadow = NavExpandingSlotDefaults.shadow(),
     dismissLabel: String = Theme.strings.close,
     expandedContent: @Composable ColumnScope.() -> Unit,
     content: @Composable RowScope.() -> Unit,
@@ -268,7 +292,7 @@ private fun CollapsedControl(
                 // Wide, so it shrinks by the amount a wide button does rather
                 // than the amount a glyph does — but it does shrink: it is a
                 // control that opens something, and nothing else here says so.
-                indication = kontourIndication(shape, io.kontour.ui.interaction.DefaultPressScale),
+                indication = kontourIndication(shape, io.kontour.ui.interaction.IndicationDefaults.PressScale),
                 enabled = enabled,
                 role = Role.Button,
                 onClick = onClick,
@@ -333,7 +357,7 @@ private fun ExpandedPanel(
                                     NavExpandPlacement.Top -> WindowInsets.topEdges
                                 }
                             )
-                            .padding(NavExpandDefaults.Margin),
+                            .padding(NavExpandingSlotDefaults.Margin),
                         contentAlignment = when (latestPlacement) {
                             NavExpandPlacement.AboveKeyboard -> Alignment.BottomCenter
                             NavExpandPlacement.Top -> Alignment.TopCenter
@@ -352,22 +376,3 @@ private fun ExpandedPanel(
     }
 }
 
-/**
- * What a control in a navigation slot should stand on to be seen.
- *
- * Public because the choice is not [NavExpandingSlot]'s alone: anything a caller
- * puts in a `header`, `action` or `footer` faces the same question, and the
- * answer depends on which surface it landed in rather than on what it is.
- */
-@Composable
-fun navSlotContainerColour(): Color =
-    if (LocalNavExpansion.current.onSurface) {
-        Theme.colours.surfaceSunken
-    } else {
-        Theme.colours.surface
-    }
-
-/** The shadow that goes with [navSlotContainerColour]. A recess casts none. */
-@Composable
-fun navSlotShadow(): io.kontour.ui.theme.Shadow =
-    if (LocalNavExpansion.current.onSurface) Shadow.None else Theme.elevation.low

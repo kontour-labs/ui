@@ -145,7 +145,7 @@ enum class SheetPresentation {
  * **The edges it reaches are the ones the edge sheet reaches**, which is what makes
  * it right on every size of device without a rule per size. On a phone that is the
  * bottom and both sides, with top corners concentric with the display's own. On a
- * tablet or a desktop window, where [SheetDefaults.MaxWidth] stops the sheet short
+ * tablet or a desktop window, where [BottomSheetDefaults.MaxWidth] stops the sheet short
  * of the sides, it is the bottom alone, and the sheet stays wherever its
  * `alignment` put it.
  *
@@ -198,7 +198,14 @@ class SheetEdgeMorph(
     }
 }
 
-object SheetDefaults {
+object BottomSheetDefaults {
+    /** The default set of detents: closed, half, or all of it. */
+    val Detents: List<SheetDetent> = listOf(
+        SheetDetent.Hidden,
+        SheetDetent.Half,
+        SheetDetent.Expanded,
+    )
+
     /**
      * The corners for a presentation, floored at the device's own.
      *
@@ -358,7 +365,7 @@ fun BottomSheet(
      * Where along the bottom edge the sheet sits, once the window is wider than
      * the sheet.
      *
-     * A sheet stops at [SheetDefaults.MaxWidth]. Below that it is the window, and
+     * A sheet stops at [BottomSheetDefaults.MaxWidth]. Below that it is the window, and
      * this does nothing at all — a phone never sees it. Above it the sheet is a
      * panel with room either side, and a panel has to sit *somewhere*: centred by
      * default, or against the start or end edge, which is where a sheet belongs on
@@ -374,7 +381,7 @@ fun BottomSheet(
      * on. The fix is the order, `widthIn` then `fillMaxWidth`, and this parameter
      * only exists because the fix left something to decide.
      */
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     /**
      * Where [floatingControls] sit along the sheet's top edge — above its start,
      * its centre or its end.
@@ -390,14 +397,14 @@ fun BottomSheet(
      * owns its arrangement. Weighted spacers were the only way out.
      */
     floatingControlsAlignment: OverlayAlignment = OverlayAlignment.End,
-    shape: Shape = SheetDefaults.shapeFor(presentation),
+    shape: Shape = BottomSheetDefaults.shapeFor(presentation),
     /**
      * The shape a floating sheet's [shape] becomes as [edgeMorph] completes: the
      * edge sheet's, concentric with the display's corners where the platform
      * reports them. Corner by corner, and the curve with them, when both are
      * corner-based shapes; otherwise it changes over at the end of the morph.
      */
-    expandedShape: Shape = SheetDefaults.shapeFor(SheetPresentation.Edge),
+    expandedShape: Shape = BottomSheetDefaults.shapeFor(SheetPresentation.Edge),
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
     paneTitle: String? = null,
@@ -514,7 +521,7 @@ fun BottomSheet(
 ) {
     val density = LocalDensity.current
     val motion = Theme.motion
-    val actionsGap = SheetDefaults.ActionsGap
+    val actionsGap = BottomSheetDefaults.ActionsGap
     val floating = presentation == SheetPresentation.Floating
     // Only a floating sheet has anything to morph out of. An edge sheet is what the
     // morph arrives at, so for one this is null and every floating branch below is
@@ -639,7 +646,7 @@ fun BottomSheet(
 
     val fling = AnchoredDraggableDefaults.flingBehavior(
         state = state.anchoredState,
-        positionalThreshold = SheetDefaults.PositionalThreshold,
+        positionalThreshold = BottomSheetDefaults.PositionalThreshold,
         animationSpec = settleSpec,
     )
 
@@ -709,7 +716,7 @@ fun BottomSheet(
                 // `alignment`'s KDoc records: `fillMaxWidth` fixes the minimum at
                 // the window's width, and `widthIn` cannot lower a minimum it is
                 // handed.
-                .widthIn(max = SheetDefaults.MaxWidth)
+                .widthIn(max = BottomSheetDefaults.MaxWidth)
                 .fillMaxWidth()
                 // The float, horizontally. A padding at the sides is enough
                 // because nothing here is measured from a side edge; the
@@ -800,7 +807,7 @@ fun BottomSheet(
                     // same defeated cap — spanning the window over a sheet that, once
                     // capped, did not.
                     .align(alignment.atBottomEdge)
-                    .widthIn(max = SheetDefaults.MaxWidth)
+                    .widthIn(max = BottomSheetDefaults.MaxWidth)
                     .fillMaxWidth()
                     .onSizeChanged { actionsHeight = it.height }
                     // The sheet's own offset, less this row's height and a gap,
@@ -858,7 +865,7 @@ fun BottomSheet(
 private val OverlayAlignment.atBottomEdge: Alignment
     get() = when (this) {
         OverlayAlignment.Start -> Alignment.TopStart
-        OverlayAlignment.Center -> Alignment.TopCenter
+        OverlayAlignment.Centre -> Alignment.TopCenter
         OverlayAlignment.End -> Alignment.TopEnd
     }
 
@@ -866,7 +873,7 @@ private val OverlayAlignment.atBottomEdge: Alignment
 private val OverlayAlignment.asArrangement: Arrangement.Horizontal
     get() = when (this) {
         OverlayAlignment.Start -> Arrangement.Start
-        OverlayAlignment.Center -> Arrangement.Center
+        OverlayAlignment.Centre -> Arrangement.Center
         OverlayAlignment.End -> Arrangement.End
     }
 
@@ -913,13 +920,13 @@ fun ModalBottomSheet(
     edgeMorph: SheetEdgeMorph? = SheetEdgeMorph(),
     /**
      * See [BottomSheet]: where the sheet sits once the window is wider than
-     * [SheetDefaults.MaxWidth], and nothing at all below it. Read live, so a sheet
+     * [BottomSheetDefaults.MaxWidth], and nothing at all below it. Read live, so a sheet
      * that is already up follows a window resize.
      */
-    alignment: OverlayAlignment = OverlayAlignment.Center,
-    shape: Shape = SheetDefaults.shapeFor(presentation),
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
+    shape: Shape = BottomSheetDefaults.shapeFor(presentation),
     /** See [BottomSheet]: what [shape] becomes once [edgeMorph] completes. */
-    expandedShape: Shape = SheetDefaults.shapeFor(SheetPresentation.Edge),
+    expandedShape: Shape = BottomSheetDefaults.shapeFor(SheetPresentation.Edge),
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
     /**

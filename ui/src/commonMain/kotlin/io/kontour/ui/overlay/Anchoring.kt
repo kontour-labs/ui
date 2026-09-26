@@ -45,7 +45,7 @@ import kotlin.math.roundToInt
 enum class OverlaySide { Top, Bottom, Start, End }
 
 /** How an overlay lines up along the edge it sits on. */
-enum class OverlayAlignment { Start, Center, End }
+enum class OverlayAlignment { Start, Centre, End }
 
 /** [OverlaySide] once the layout direction has been applied. */
 internal enum class ResolvedSide { Above, Below, Left, Right }
@@ -222,13 +222,13 @@ internal fun positionAnchored(
             val leading = if (isRtl) {
                 when (alignment) {
                     OverlayAlignment.Start -> anchor.right - contentSize.width
-                    OverlayAlignment.Center -> anchor.center.x - contentSize.width / 2f
+                    OverlayAlignment.Centre -> anchor.center.x - contentSize.width / 2f
                     OverlayAlignment.End -> anchor.left
                 }
             } else {
                 when (alignment) {
                     OverlayAlignment.Start -> anchor.left
-                    OverlayAlignment.Center -> anchor.center.x - contentSize.width / 2f
+                    OverlayAlignment.Centre -> anchor.center.x - contentSize.width / 2f
                     OverlayAlignment.End -> anchor.right - contentSize.width
                 }
             }
@@ -259,7 +259,7 @@ internal fun positionAnchored(
         ResolvedSide.Left, ResolvedSide.Right -> {
             val top = when (alignment) {
                 OverlayAlignment.Start -> anchor.top
-                OverlayAlignment.Center -> anchor.center.y - contentSize.height / 2f
+                OverlayAlignment.Centre -> anchor.center.y - contentSize.height / 2f
                 OverlayAlignment.End -> anchor.bottom - contentSize.height
             }
             val x = if (resolved == ResolvedSide.Left) {
@@ -465,7 +465,7 @@ internal val LocalOverlaySafeArea = compositionLocalOf<WindowInsets?> { null }
 
 /** A pointer showing which element an overlay belongs to. */
 @Immutable
-data class ArrowSpec(
+internal data class ArrowSpec(
     val colour: Color,
     val width: Dp = 14.dp,
     val height: Dp = 7.dp,

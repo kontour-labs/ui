@@ -184,8 +184,8 @@ class DegenerateInputTest {
     fun aWheelPickerWithNoRowHeightSaysSo() = refuses("WheelPicker(itemHeight = 0.dp)", "WheelPicker", "itemHeight") {
         WheelPicker(
             items = listOf("one", "two", "three"),
-            selected = 0,
-            onSelectedChange = {},
+            selectedIndex = 0,
+            onSelectedIndexChange = {},
             label = { it },
             itemHeight = 0.dp,
         )
@@ -196,8 +196,8 @@ class DegenerateInputTest {
     fun aWheelPickerWithNoItemsDraws() = survives("WheelPicker(items = emptyList())") {
         WheelPicker(
             items = emptyList<String>(),
-            selected = 0,
-            onSelectedChange = {},
+            selectedIndex = 0,
+            onSelectedIndexChange = {},
             label = { it },
         )
     }

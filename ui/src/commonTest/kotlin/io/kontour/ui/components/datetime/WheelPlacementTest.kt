@@ -68,8 +68,8 @@ class WheelPlacementTest {
                     Box(Modifier.width(120.dp).testTag("wheel")) {
                         WheelPicker(
                             items = hours,
-                            selected = selected,
-                            onSelectedChange = {},
+                            selectedIndex = selected,
+                            onSelectedIndexChange = {},
                             label = { it },
                             visibleItems = VisibleItems,
                             itemHeight = ItemHeight,

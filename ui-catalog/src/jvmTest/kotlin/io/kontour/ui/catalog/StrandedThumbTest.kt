@@ -121,8 +121,8 @@ class StrandedThumbTest {
             Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                 SegmentedControl(
                     options = listOf("One", "Two", "Three"),
-                    selected = selected,
-                    onSelectedChange = {},
+                    selectedIndex = selected,
+                    onSelectedIndexChange = {},
                     modifier = Modifier.width(240.dp).reportBounds { bounds = it },
                 )
             }
@@ -159,8 +159,8 @@ class StrandedThumbTest {
             Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                 SegmentedControl(
                     options = listOf("One", "Two", "Three"),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     modifier = Modifier.width(240.dp).reportBounds { bounds = it },
                 )
             }

@@ -9,6 +9,7 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -54,8 +55,8 @@ class ListSectionFooterTest {
                         description = { +Description },
                         footer = { +Footer },
                     ) {
-                        ListItem(position = ListItemPosition.First) { +First }
-                        ListItem(position = ListItemPosition.Last) { +Last }
+                        ListItem(position = GroupPosition.First) { +First }
+                        ListItem(position = GroupPosition.Last) { +Last }
                     }
                 }
             }
@@ -95,7 +96,7 @@ class ListSectionFooterTest {
             KontourTheme {
                 Box(Modifier.fillMaxSize()) {
                     ListSection(modifier = Modifier.width(320.dp), title = { +Title }) {
-                        ListItem(position = ListItemPosition.Only) { +First }
+                        ListItem(position = GroupPosition.Only) { +First }
                     }
                 }
             }

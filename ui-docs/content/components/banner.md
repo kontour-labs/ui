@@ -9,7 +9,7 @@ by state.
 var showing by remember { mutableStateOf(true) }
 
 if (showing) {
-    Banner(tone = BannerTone.Warning, onDismissRequest = { showing = false }) {
+    Banner(tone = Tone.Warning, onDismissRequest = { showing = false }) {
         title { +"Track work this weekend" }
         message { +"Buses replace trains between Perth and Bayswater until Monday." }
         action {
@@ -38,7 +38,7 @@ interrupting for a routine notice trains people to ignore the interruption.
 
 ## Accessibility
 
-A banner is a **live region** — `Assertive` for `BannerTone.Danger`, `Polite`
+A banner is a **live region** — `Assertive` for `Tone.Danger`, `Polite`
 otherwise. It announces itself when it appears, because it is about the state of
 the screen the user is on and they need to know before they act on it.
 

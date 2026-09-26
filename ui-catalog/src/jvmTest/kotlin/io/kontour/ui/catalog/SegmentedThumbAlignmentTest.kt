@@ -97,8 +97,8 @@ class SegmentedThumbAlignmentTest {
                 ) {
                     SegmentedControl(
                         options = options,
-                        selected = selected,
-                        onSelectedChange = { selected = it },
+                        selectedIndex = selected,
+                        onSelectedIndexChange = { selected = it },
                         modifier = Modifier.width(380.dp).reportBounds { track = it },
                     )
                 }

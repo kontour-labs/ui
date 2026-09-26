@@ -128,8 +128,8 @@ class WheelTapTest {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
                     WheelPicker(
                         items = (0..23).toList(),
-                        selected = selected,
-                        onSelectedChange = { selected = it },
+                        selectedIndex = selected,
+                        onSelectedIndexChange = { selected = it },
                         label = { it.toString().padStart(2, '0') },
                         infinite = infinite,
                         modifier = Modifier.reportBounds { bounds = it },

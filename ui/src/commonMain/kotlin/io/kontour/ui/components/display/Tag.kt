@@ -32,16 +32,15 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 import kotlin.math.roundToInt
 
-/** The meaning a [Tag] carries. Maps to the scheme's status tones. */
-enum class TagTone { Neutral, Accent, Success, Warning, Danger, Info }
 
 /**
  * A small, non-interactive label — a status, a category, a route number.
  *
  * ```
- * Tag(tone = TagTone.Success) { +"Live" }
+ * Tag(tone = Tone.Success) { +"Live" }
  * Tag(colour = routeColor) { +"960" }          // colour straight out of a GTFS feed
  * ```
  *
@@ -64,7 +63,7 @@ enum class TagTone { Neutral, Accent, Success, Warning, Danger, Info }
 @Composable
 fun Tag(
     modifier: Modifier = Modifier,
-    tone: TagTone = TagTone.Neutral,
+    tone: Tone = Tone.Neutral,
     colour: Color = Color.Unspecified,
     shape: Shape = Theme.shapes.control,
     /**
@@ -257,33 +256,33 @@ object BadgeDefaults {
 
 @Composable
 @ReadOnlyComposable
-private fun tagContainerFor(tone: TagTone): Color = when (tone) {
-    TagTone.Neutral -> Theme.colours.surfaceSunken
-    TagTone.Accent -> Theme.colours.accent.container
-    TagTone.Success -> Theme.colours.success.container
-    TagTone.Warning -> Theme.colours.warning.container
-    TagTone.Danger -> Theme.colours.danger.container
-    TagTone.Info -> Theme.colours.info.container
+private fun tagContainerFor(tone: Tone): Color = when (tone) {
+    Tone.Neutral -> Theme.colours.surfaceSunken
+    Tone.Accent -> Theme.colours.accent.container
+    Tone.Success -> Theme.colours.success.container
+    Tone.Warning -> Theme.colours.warning.container
+    Tone.Danger -> Theme.colours.danger.container
+    Tone.Info -> Theme.colours.info.container
 }
 
 @Composable
 @ReadOnlyComposable
-private fun tagBorderFor(tone: TagTone): Color = when (tone) {
-    TagTone.Neutral -> Theme.colours.outline
-    TagTone.Accent -> Theme.colours.accent.solid
-    TagTone.Success -> Theme.colours.success.border
-    TagTone.Warning -> Theme.colours.warning.border
-    TagTone.Danger -> Theme.colours.danger.border
-    TagTone.Info -> Theme.colours.info.border
+private fun tagBorderFor(tone: Tone): Color = when (tone) {
+    Tone.Neutral -> Theme.colours.outline
+    Tone.Accent -> Theme.colours.accent.solid
+    Tone.Success -> Theme.colours.success.border
+    Tone.Warning -> Theme.colours.warning.border
+    Tone.Danger -> Theme.colours.danger.border
+    Tone.Info -> Theme.colours.info.border
 }
 
 @Composable
 @ReadOnlyComposable
-private fun tagContentFor(tone: TagTone): Color = when (tone) {
-    TagTone.Neutral -> Theme.colours.contentMuted
-    TagTone.Accent -> Theme.colours.accent.onContainer
-    TagTone.Success -> Theme.colours.success.onContainer
-    TagTone.Warning -> Theme.colours.warning.onContainer
-    TagTone.Danger -> Theme.colours.danger.onContainer
-    TagTone.Info -> Theme.colours.info.onContainer
+private fun tagContentFor(tone: Tone): Color = when (tone) {
+    Tone.Neutral -> Theme.colours.contentMuted
+    Tone.Accent -> Theme.colours.accent.onContainer
+    Tone.Success -> Theme.colours.success.onContainer
+    Tone.Warning -> Theme.colours.warning.onContainer
+    Tone.Danger -> Theme.colours.danger.onContainer
+    Tone.Info -> Theme.colours.info.onContainer
 }

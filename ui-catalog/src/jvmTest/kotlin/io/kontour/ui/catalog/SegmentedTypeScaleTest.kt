@@ -173,8 +173,8 @@ class SegmentedTypeScaleTest {
                 Box(Modifier.fillMaxSize().background(Color.White).padding(Margin.dp)) {
                     SegmentedControl(
                         options = options,
-                        selected = picked,
-                        onSelectedChange = { picked = it },
+                        selectedIndex = picked,
+                        onSelectedIndexChange = { picked = it },
                         modifier = Modifier.width(widthDp.dp).reportBounds(onBounds),
                     )
                 }

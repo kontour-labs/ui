@@ -43,8 +43,8 @@ class SegmentedControlDragTest {
             Box(Modifier.fillMaxSize()) {
                 SegmentedControl(
                     options = listOf("Day", "Week", "Month"),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
                 )
             }
@@ -75,8 +75,8 @@ class SegmentedControlDragTest {
             Box(Modifier.fillMaxSize()) {
                 SegmentedControl(
                     options = listOf("Day", "Week", "Month"),
-                    selected = selected,
-                    onSelectedChange = { selected = it; seen += it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it; seen += it },
                     modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
                 )
             }
@@ -102,8 +102,8 @@ class SegmentedControlDragTest {
             Box(Modifier.fillMaxSize()) {
                 SegmentedControl(
                     options = listOf("Day", "Week", "Month"),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
                 )
             }
@@ -198,8 +198,8 @@ class SegmentedControlDragTest {
             ) {
                 SegmentedControl(
                     options = StackedOptions,
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     modifier = Modifier
                         .width(TrackWidth.dp)
                         .reportBounds { bounds = it },
@@ -242,8 +242,8 @@ class SegmentedControlDragTest {
             Box(Modifier.fillMaxSize().background(Color.White).padding(Margin.dp)) {
                 SegmentedControl(
                     options = StackedOptions,
-                    selected = selected(),
-                    onSelectedChange = onSelected,
+                    selectedIndex = selected(),
+                    onSelectedIndexChange = onSelected,
                     modifier = Modifier.width(TrackWidth.dp).reportBounds(onBounds),
                 )
             }

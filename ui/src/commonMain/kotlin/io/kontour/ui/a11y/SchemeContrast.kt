@@ -65,12 +65,12 @@ data class ContrastFailure(
  */
 fun contrastFailures(scheme: ColourScheme, tier: ContrastLevel): List<ContrastFailure> {
     val bodyText = when (tier) {
-        ContrastLevel.Standard -> ContrastThreshold.BODY_TEXT
-        ContrastLevel.High -> ContrastThreshold.BODY_TEXT_ENHANCED
+        ContrastLevel.Standard -> ContrastThreshold.BodyText
+        ContrastLevel.High -> ContrastThreshold.BodyTextEnhanced
     }
     val nonText = when (tier) {
-        ContrastLevel.Standard -> ContrastThreshold.NON_TEXT
-        ContrastLevel.High -> ContrastThreshold.LARGE_TEXT_ENHANCED
+        ContrastLevel.Standard -> ContrastThreshold.NonText
+        ContrastLevel.High -> ContrastThreshold.LargeTextEnhanced
     }
 
     val failures = mutableListOf<ContrastFailure>()

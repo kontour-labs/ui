@@ -190,8 +190,8 @@ private const val SegmentSquash = 0.16f
 @Composable
 fun SegmentedControl(
     options: List<String>,
-    selected: Int,
-    onSelectedChange: (Int) -> Unit,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
@@ -228,8 +228,8 @@ fun SegmentedControl(
     val indicator = remember { SelectionIndicatorState().apply { publishesDrawn = true } }
 
     var trackLength by remember { mutableFloatStateOf(0f) }
-    val currentSelected by rememberUpdatedState(selected)
-    val currentChange by rememberUpdatedState(onSelectedChange)
+    val currentSelected by rememberUpdatedState(selectedIndex)
+    val currentChange by rememberUpdatedState(onSelectedIndexChange)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val ticker = rememberDetentTicker(FeedbackIntent.Snap)
     val scope = rememberCoroutineScope()
@@ -542,7 +542,7 @@ fun SegmentedControl(
                 // reaches **3.60:1**, clearing WCAG 1.4.11 outright. It was
                 // rejected on sight, and the rendering is the argument: on a
                 // near-white ground that line is a hard dark stroke around the
-                // selected segment, which is the "visible apology for a fill
+                // selectedIndex segment, which is the "visible apology for a fill
                 // that is not doing its job" an earlier round already removed
                 // once. The number was better and the control was worse.
                 //
@@ -753,10 +753,10 @@ fun SegmentedControl(
                         // control's own height already strikes.
                         modifier = Modifier.fillMaxWidth().height(stackedRow),
                         option = option,
-                        selected = index == selected,
+                        selected = index == selectedIndex,
                         enabled = enabled,
                         shape = innerShape,
-                        onClick = { if (index != selected) tap(); onSelectedChange(index) },
+                        onClick = { if (index != selectedIndex) tap(); onSelectedIndexChange(index) },
                     )
                 }
             }
@@ -766,10 +766,10 @@ fun SegmentedControl(
                     SegmentedOption(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         option = option,
-                        selected = index == selected,
+                        selected = index == selectedIndex,
                         enabled = enabled,
                         shape = innerShape,
-                        onClick = { if (index != selected) tap(); onSelectedChange(index) },
+                        onClick = { if (index != selectedIndex) tap(); onSelectedIndexChange(index) },
                     )
                 }
             }

@@ -8,11 +8,11 @@ yellow or near-black. Passing `colour` resolves the label with
 <!--sample:TagBasics-->
 ```kotlin
 Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-    Tag(tone = TagTone.Success) { +"On time" }
-    Tag(tone = TagTone.Warning) { +"Delayed" }
+    Tag(tone = Tone.Success) { +"On time" }
+    Tag(tone = Tone.Warning) { +"Delayed" }
     // Not a `Chip`: a tag is a label the reader cannot press. A status that
     // filters the list behind it is a `FilterChip`.
-    Tag(tone = TagTone.Neutral) { +"Platform 2" }
+    Tag(tone = Tone.Neutral) { +"Platform 2" }
 }
 ```
 

@@ -30,8 +30,8 @@ import io.kontour.ui.theme.Theme
 fun ThemePicker(settings: CatalogSettings, modifier: Modifier = Modifier) {
     SegmentedControl(
         options = demoThemes.map { it.name },
-        selected = demoThemes.indexOf(settings.theme).coerceAtLeast(0),
-        onSelectedChange = { settings.theme = demoThemes[it] },
+        selectedIndex = demoThemes.indexOf(settings.theme).coerceAtLeast(0),
+        onSelectedIndexChange = { settings.theme = demoThemes[it] },
         modifier = modifier.fillMaxWidth(),
     )
 }
@@ -164,9 +164,9 @@ fun DisplaySettingsControls(
     )
     SegmentedControl(
         options = textScales.map { it.first },
-        selected = textScales.indexOfFirst { it.second == settings.textScale }
+        selectedIndex = textScales.indexOfFirst { it.second == settings.textScale }
             .coerceAtLeast(0),
-        onSelectedChange = { settings.textScale = textScales[it].second },
+        onSelectedIndexChange = { settings.textScale = textScales[it].second },
         modifier = Modifier.fillMaxWidth(),
     )
 
@@ -177,8 +177,8 @@ fun DisplaySettingsControls(
     )
     SegmentedControl(
         options = hapticsLevels.map { it.name },
-        selected = hapticsLevels.indexOf(settings.haptics).coerceAtLeast(0),
-        onSelectedChange = { settings.haptics = hapticsLevels[it] },
+        selectedIndex = hapticsLevels.indexOf(settings.haptics).coerceAtLeast(0),
+        onSelectedIndexChange = { settings.haptics = hapticsLevels[it] },
         modifier = Modifier.fillMaxWidth(),
     )
 
@@ -189,9 +189,9 @@ fun DisplaySettingsControls(
     )
     SegmentedControl(
         options = inputModalities.map { it.first },
-        selected = inputModalities.indexOfFirst { it.second == settings.modality }
+        selectedIndex = inputModalities.indexOfFirst { it.second == settings.modality }
             .coerceAtLeast(0),
-        onSelectedChange = { settings.modality = inputModalities[it].second },
+        onSelectedIndexChange = { settings.modality = inputModalities[it].second },
         modifier = Modifier.fillMaxWidth(),
     )
 }

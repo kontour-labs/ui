@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.Tag
-import io.kontour.ui.components.display.TagTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
@@ -74,7 +74,7 @@ private fun EntryBlock(entry: ApiEntry) {
             // `Tag` — a site that draws its own version of a component it is
             // explaining is arguing against itself.
             if (entry.isComposable) {
-                Tag(tone = TagTone.Accent) { +"@Composable" }
+                Tag(tone = Tone.Accent) { +"@Composable" }
             }
             // Beside the entry rather than at the top of the page, which is
             // what it replaces. A page documents up to a dozen declarations and

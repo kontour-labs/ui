@@ -334,8 +334,8 @@ fun rememberCalendarNavigationState(initial: LocalDate): CalendarNavigationState
  */
 @Composable
 fun DatePicker(
-    selected: LocalDate?,
-    onSelectedChange: (LocalDate) -> Unit,
+    value: LocalDate?,
+    onValueChange: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
@@ -373,7 +373,7 @@ fun DatePicker(
      */
     chooserIcon: ImageVector? = null,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(
-        selected ?: today ?: remember { systemToday() }
+        value ?: today ?: remember { systemToday() }
     ),
     formats: DateTimeFormats = LocalDateTimeFormats.current,
     /**
@@ -403,8 +403,8 @@ fun DatePicker(
     ) { month ->
         CalendarMonth(
             month = month,
-            isSelected = { it == selected },
-            onSelectedChange = onSelectedChange,
+            isSelected = { it == value },
+            onSelectedChange = onValueChange,
             isDateSelectable = isDateSelectable,
             today = today,
             markerFor = markerFor,
@@ -427,14 +427,14 @@ fun DatePicker(
  * the month's first or last day and hold it there until the ring round the small
  * arrow in that day fills. Either way the drag carries on in the new month from where the finger is.
  *
- * @param onRangeSelected Receives the range so far. The end is null while only a start
+ * @param onRangeChange Receives the range so far. The end is null while only a start
  *   has been chosen, so a caller can keep its confirm button disabled.
  */
 @Composable
 fun DateRangePicker(
     start: LocalDate?,
     end: LocalDate?,
-    onRangeSelected: (start: LocalDate, end: LocalDate?) -> Unit,
+    onRangeChange: (start: LocalDate, end: LocalDate?) -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
@@ -492,7 +492,7 @@ fun DateRangePicker(
         // Ordering the two ends is this component's business, because only it
         // knows that a range's `start` is the earlier of the two.
         drag.onSelect = { from, to ->
-            if (to < from) onRangeSelected(to, from) else onRangeSelected(from, to)
+            if (to < from) onRangeChange(to, from) else onRangeChange(from, to)
         }
         drag.isSelectable = isDateSelectable
         drag.onStep = { currentNavigation.step(it) }
@@ -523,9 +523,9 @@ fun DateRangePicker(
             isSelected = { false },
             onSelectedChange = { tapped ->
                 when {
-                    start == null || end != null -> onRangeSelected(tapped, null)
-                    tapped < start -> onRangeSelected(tapped, null)
-                    else -> onRangeSelected(start, tapped)
+                    start == null || end != null -> onRangeChange(tapped, null)
+                    tapped < start -> onRangeChange(tapped, null)
+                    else -> onRangeChange(start, tapped)
                 }
             },
             isDateSelectable = isDateSelectable,
@@ -708,8 +708,8 @@ private fun <T> Drum(
     Box(modifier.semantics { contentDescription = description }) {
         WheelPicker(
             items = items,
-            selected = row(),
-            onSelectedChange = onRowChange,
+            selectedIndex = row(),
+            onSelectedIndexChange = onRowChange,
             label = label,
         )
     }

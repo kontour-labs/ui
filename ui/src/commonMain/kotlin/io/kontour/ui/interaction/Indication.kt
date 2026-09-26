@@ -122,7 +122,7 @@ private class KontourIndicationNode(
     /**
      * When the current press went down, on the wall clock.
      *
-     * Null whenever nothing is pressed. Used for [PressFloor] and nothing else:
+     * Null whenever nothing is pressed. Used for [IndicationDefaults.PressFloor] and nothing else:
      * the wall clock is right for *how long a finger was down*, which is a fact
      * about the person rather than about how many frames the renderer managed. It
      * is wrong for *whether the shrink has arrived*, which is a fact about the
@@ -202,7 +202,7 @@ private class KontourIndicationNode(
                  * show it. Measured with a stall past the floor, a tap did not move
                  * the control at all. So a release now waits for the press's own
                  * animation to finish, however many frames that takes, and only
-                 * then for whatever is left of [PressFloor]. The floor can lengthen
+                 * then for whatever is left of [IndicationDefaults.PressFloor]. The floor can lengthen
                  * the hold; it can no longer cut the shrink short.
                  *
                  * Still pressed, or something else taking the control over — a drag
@@ -225,7 +225,7 @@ private class KontourIndicationNode(
                 settle = launch {
                     if (releasing) {
                         previous?.join()
-                        val rest = PressFloor - pressMark.elapsedNow()
+                        val rest = IndicationDefaults.PressFloor - pressMark.elapsedNow()
                         if (rest > Duration.ZERO) delay(rest)
                     }
                     previous?.cancel()
@@ -290,30 +290,33 @@ private class KontourIndicationNode(
     }
 }
 
-/** How far a control shrinks while pressed. Subtle on purpose — 3% reads as response, 10% as a bug. */
-const val DefaultPressScale: Float = 0.97f
+/** What a press looks like, when a control does not say otherwise. */
+object IndicationDefaults {
+    /** How far a control shrinks while pressed. Subtle on purpose — 3% reads as response, 10% as a bug. */
+    const val PressScale: Float = 0.97f
 
-/**
- * The shortest a press is allowed to *look*, however briefly it was one.
- *
- * A tap is over before its own animation has started: the shrink is a snappy
- * spring and the wash a `tweenFast`, and a thumb is on the glass for well under
- * either. Released at once, both turn round part-way and the control flickers
- * rather than answering — reported from a phone, against a press that looks right
- * under a mouse for the simple reason that a click lasts longer.
- *
- * A hundred and twenty milliseconds from the press, and only ever *after* the
- * press's own animation has arrived — the animation is what decides that the
- * shrink got there, on the frames it was drawn on, and this is the minimum on top
- * of it. Short enough that a fast double tap is still two taps rather than one long
- * one. It is a **floor** and not a delay — a press already past it, whose shrink
- * has finished, is answered the instant the finger lifts, which is every mouse
- * click and every deliberate hold. See [KontourIndication] and the note inside its
- * node.
- *
- * A starting point, and the kind of number only a thumb can settle.
- */
-val PressFloor: Duration = 120.milliseconds
+    /**
+     * The shortest a press is allowed to *look*, however briefly it was one.
+     *
+     * A tap is over before its own animation has started: the shrink is a snappy
+     * spring and the wash a `tweenFast`, and a thumb is on the glass for well under
+     * either. Released at once, both turn round part-way and the control flickers
+     * rather than answering — reported from a phone, against a press that looks right
+     * under a mouse for the simple reason that a click lasts longer.
+     *
+     * A hundred and twenty milliseconds from the press, and only ever *after* the
+     * press's own animation has arrived — the animation is what decides that the
+     * shrink got there, on the frames it was drawn on, and this is the minimum on top
+     * of it. Short enough that a fast double tap is still two taps rather than one long
+     * one. It is a **floor** and not a delay — a press already past it, whose shrink
+     * has finished, is answered the instant the finger lifts, which is every mouse
+     * click and every deliberate hold. See [KontourIndication] and the note inside its
+     * node.
+     *
+     * A starting point, and the kind of number only a thumb can settle.
+     */
+    val PressFloor: Duration = 120.milliseconds
+}
 
 /**
  * A [KontourIndication] wired to the current theme and input modality.
@@ -327,7 +330,7 @@ val PressFloor: Duration = 120.milliseconds
 @Composable
 fun kontourIndication(
     shape: Shape = RectangleShape,
-    pressScale: Float = DefaultPressScale,
+    pressScale: Float = IndicationDefaults.PressScale,
 ): IndicationNodeFactory {
     val colours = Theme.colours
     val motion = Theme.motion

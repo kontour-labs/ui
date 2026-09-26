@@ -147,7 +147,7 @@ fun Switch(
     //
     // `pill` is the same `CapsuleCornerSize` with the cap taken off, so the two
     // now track each other by construction at every `capsuleCap` a theme picks.
-    // In the default theme nothing moves: `CapsuleCap` is 18dp and half of 28 is
+    // In the default theme nothing moves: `Shapes.CapsuleCap` is 18dp and half of 28 is
     // 14, so `control` was never reaching the cap here anyway.
     val shape = Theme.shapes.pill
     val scope = rememberCoroutineScope()

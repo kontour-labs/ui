@@ -48,7 +48,7 @@ private val KbdShape = SquircleShape(6.dp)
  * A key cap — one key, or one accelerator.
  *
  * ```kotlin
- * Kbd { +"${KbdDefaults.Command}S" }
+ * Kbd { +"${KbdGlyphs.Command}S" }
  * Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
  *     Kbd { +"Ctrl" }
  *     Kbd { +"K" }
@@ -168,7 +168,7 @@ fun Kbd(
  * the better answer in two cases: a platform whose own font sets the glyph well,
  * and a cap sitting in running text, where a stroke icon at
  * `Theme.sizing.iconSmall` is lighter than the type around it. Pick one and use
- * it throughout — a row that mixes `KbdIcons.Command` with `"${KbdDefaults.Option}"`
+ * it throughout — a row that mixes `KbdIcons.Command` with `"${KbdGlyphs.Option}"`
  * is two weights in one shortcut.
  *
  * Declared the same way as `SystemIcons`, one top-level `get()` each, so the
@@ -204,25 +204,33 @@ object KbdIcons {
     val Space: ImageVector get() = Tabler.Outline.Space
 }
 
+/** A [Kbd]'s size, when the caller does not give one. */
 object KbdDefaults {
     /** Square-ish for a single character, so a row of caps lines up. */
     val MinWidth: Dp = 20.dp
     val Height: Dp = 20.dp
+}
 
-    /**
-     * The glyphs a keyboard prints on its own keys.
-     *
-     * Named rather than pasted. Every one of these is a character most keyboards
-     * cannot type and most people cannot describe — ⌥ is "option" or "alt"
-     * depending on who is asking, and half the internet writes ⌃ as `^`. A
-     * call site with `KbdDefaults.Option` in it says which key it means; one
-     * with a literal says only what somebody's clipboard had at the time.
-     *
-     * They are the *Unicode* glyphs, so they render from the platform's own
-     * fonts and match what is printed on the key. Which key an app should show
-     * is its own business — a Mac writes ⌘S and Windows writes Ctrl+S for the
-     * same command — and that decision belongs above the design system.
-     */
+/**
+ * The glyphs a keyboard prints on its own keys.
+ *
+ * Named rather than pasted. Every one of these is a character most keyboards
+ * cannot type and most people cannot describe — ⌥ is "option" or "alt"
+ * depending on who is asking, and half the internet writes ⌃ as `^`. A call site
+ * with `KbdGlyphs.Option` in it says which key it means; one with a literal says
+ * only what somebody's clipboard had at the time.
+ *
+ * They are the *Unicode* glyphs, so they render from the platform's own fonts
+ * and match what is printed on the key. Which key an app should show is its own
+ * business — a Mac writes ⌘S and Windows writes Ctrl+S for the same command —
+ * and that decision belongs above the design system.
+ *
+ * An object of their own rather than members of [KbdDefaults], which is where a
+ * default goes: these are not defaults of anything, they are the vocabulary a
+ * caller writes a key cap in — [KbdIcons]' counterpart.
+ */
+object KbdGlyphs {
+    /** ⌘ — command. */
     const val Command: String = "\u2318"
 
     /** ⌥ — option on a Mac, alt elsewhere. */

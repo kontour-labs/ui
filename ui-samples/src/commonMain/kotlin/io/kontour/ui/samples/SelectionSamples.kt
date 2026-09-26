@@ -63,8 +63,8 @@ fun RadioGroupBasics() {
 
     RadioGroup(
         options = Mode.entries,
-        selected = mode,
-        onSelectedChange = { mode = it },
+        value = mode,
+        onValueChange = { mode = it },
     ) { option ->
         +option.displayName
         leading { +option.icon }
@@ -120,8 +120,8 @@ fun SegmentedControlBasics() {
 
     SegmentedControl(
         options = listOf("Bus", "Train", "Ferry"),
-        selected = selected,
-        onSelectedChange = { selected = it },
+        selectedIndex = selected,
+        onSelectedIndexChange = { selected = it },
     )
 }
 

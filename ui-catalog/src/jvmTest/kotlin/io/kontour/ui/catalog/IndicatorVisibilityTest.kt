@@ -136,8 +136,8 @@ class IndicatorVisibilityTest {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         SegmentedControl(
                             options = listOf("One", "Two", "Three", "Four"),
-                            selected = 2,
-                            onSelectedChange = {},
+                            selectedIndex = 2,
+                            onSelectedIndexChange = {},
                             modifier = Modifier.width(320.dp),
                         )
                     }

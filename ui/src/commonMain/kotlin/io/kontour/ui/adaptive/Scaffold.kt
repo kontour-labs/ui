@@ -19,7 +19,7 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.Theme
 
 /** Which corner a [Scaffold]'s floating action button sits in. */
-enum class FabPosition { Start, Center, End }
+enum class FabPosition { Start, Centre, End }
 
 object ScaffoldDefaults {
     /** Gap between the FAB and the edges, or the bottom bar. */
@@ -132,7 +132,7 @@ fun Scaffold(
                     val marginPx = fabMargin.roundToPx()
                     val x = when (fabPosition) {
                         FabPosition.Start -> insetStart.roundToPx() + marginPx
-                        FabPosition.Center -> (width - placeable.width) / 2
+                        FabPosition.Centre -> (width - placeable.width) / 2
                         FabPosition.End -> width - placeable.width -
                             insetEnd.roundToPx() - marginPx
                     }

@@ -749,7 +749,7 @@ fun ActivityCalendar(
                     content = { +say(tip, activity[tip] ?: 0) },
                     modifier = Modifier,
                     side = OverlaySide.Top,
-                    alignment = OverlayAlignment.Center,
+                    alignment = OverlayAlignment.Centre,
                     onDismissRequest = { pressDay = null },
                 )
             }

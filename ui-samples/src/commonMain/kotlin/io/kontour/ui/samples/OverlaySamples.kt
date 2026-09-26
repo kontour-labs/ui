@@ -32,7 +32,7 @@ import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.overlay.ToastHost
-import io.kontour.ui.overlay.ToastTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.overlay.tooltip
 import io.kontour.ui.nav.Tab
@@ -181,7 +181,7 @@ fun ToastBasics() {
             scope.launch {
                 toasts.show(
                     "Couldn't reach the timetable service",
-                    tone = ToastTone.Danger,
+                    tone = Tone.Danger,
                     actionLabel = "Retry",
                     onAction = { refresh() },
                 )

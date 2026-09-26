@@ -11,7 +11,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.Banner
-import io.kontour.ui.components.display.BannerTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.KontourTheme
@@ -71,7 +71,7 @@ class CalloutTreatmentTest {
 
     @Test
     fun aCalloutAndABannerShareTheirGround() {
-        val rendered = render(BannerTone.Warning)
+        val rendered = render(Tone.Warning)
         assertEquals(
             rendered.bannerGround, rendered.calloutGround,
             "a warning banner's ground is ${rendered.bannerGround} and a warning " +
@@ -120,8 +120,8 @@ class CalloutTreatmentTest {
      * fill.
      */
     private fun markDifference(withIcons: Boolean): Int {
-        val warning = render(BannerTone.Warning, withIcon = withIcons)
-        val info = render(BannerTone.Info, withIcon = withIcons)
+        val warning = render(Tone.Warning, withIcon = withIcons)
+        val info = render(Tone.Info, withIcon = withIcons)
         var differing = 0
         for (y in 0 until warning.strip.size) {
             for (x in 0 until warning.strip[y].size) {
@@ -138,7 +138,7 @@ class CalloutTreatmentTest {
         val strip: Array<BooleanArray>,
     )
 
-    private fun render(tone: BannerTone, withIcon: Boolean = true): Rendered {
+    private fun render(tone: Tone, withIcon: Boolean = true): Rendered {
         var banner = Rect.Zero
         var callout = Rect.Zero
         val image = Scene(width = 400, height = 400) {
@@ -182,12 +182,12 @@ class CalloutTreatmentTest {
     }
 
     /** The tone's own mark, which is what `Callout` defaults to. */
-    private fun calloutMark(tone: BannerTone) = when (tone) {
-        BannerTone.Warning -> io.kontour.ui.foundation.SystemIcons.Warning
-        BannerTone.Info -> io.kontour.ui.foundation.SystemIcons.Info
-        BannerTone.Success -> io.kontour.ui.foundation.SystemIcons.Success
-        BannerTone.Danger -> io.kontour.ui.foundation.SystemIcons.Danger
-        BannerTone.Accent -> io.kontour.ui.foundation.SystemIcons.Info
+    private fun calloutMark(tone: Tone) = when (tone) {
+        Tone.Warning -> io.kontour.ui.foundation.SystemIcons.Warning
+        Tone.Neutral, Tone.Info -> io.kontour.ui.foundation.SystemIcons.Info
+        Tone.Success -> io.kontour.ui.foundation.SystemIcons.Success
+        Tone.Danger -> io.kontour.ui.foundation.SystemIcons.Danger
+        Tone.Accent -> io.kontour.ui.foundation.SystemIcons.Info
     }
 
     private companion object {

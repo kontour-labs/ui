@@ -40,6 +40,7 @@ import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 
 /**
  * Which page is being drawn, for the links in it.
@@ -89,7 +90,7 @@ private fun Block(block: Block) {
 
         // `Callout`, at its defaults, and this is the call site those defaults
         // were chosen for: markdown gives a blockquote no severity and nobody
-        // to ask about an icon, so `BannerTone.Accent` and the tone's own mark
+        // to ask about an icon, so `Tone.Accent` and the tone's own mark
         // are what it gets.
         //
         // An earlier version of this branch drew its own rule out of a `Box`

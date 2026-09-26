@@ -239,5 +239,8 @@ fun TriStateCheckbox(
     }
 }
 
-/** The drawn size of a [Checkbox], for callers laying out around one. */
-val CheckboxVisualSize: Dp = CheckboxSize
+/** What a [Checkbox] measures, for callers laying out around one. */
+object CheckboxDefaults {
+    /** The box's drawn size. The touch target around it is larger. */
+    val VisualSize: Dp = CheckboxSize
+}

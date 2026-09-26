@@ -114,7 +114,7 @@ fun NavSearch(
      * magnifier glyph, because an icon set is the app's choice.
      */
     searchIcon: ImageVector? = null,
-    containerColour: Color = navSlotContainerColour(),
+    containerColour: Color = NavExpandingSlotDefaults.containerColour(),
     contentColour: Color = Theme.colours.content,
     onQuery: ((String) -> Unit)? = null,
     onSearch: ((String) -> Unit)? = null,

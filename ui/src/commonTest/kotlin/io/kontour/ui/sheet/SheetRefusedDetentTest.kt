@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  *
  * The clause worth testing is the exception to that. Filtering *everything* the
  * predicate refuses is wrong the moment the sheet is standing on one of them:
- * `initialDetent` defaults to `detents.first()`, `DefaultSheetDetents` begins
+ * `initialDetent` defaults to `detents.first()`, `BottomSheetDefaults.Detents` begins
  * with [SheetDetent.Hidden], and refusing hidden is the one thing this parameter
  * is for — so the obvious implementation leaves the commonest configuration with
  * no anchor for its own starting position, and an offset of `NaN`.

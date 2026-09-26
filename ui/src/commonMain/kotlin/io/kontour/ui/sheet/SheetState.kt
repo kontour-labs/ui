@@ -1011,7 +1011,7 @@ class SheetState internal constructor(
      * be found rather than a fix. Dragging the handle is the one gesture where
      * the finger is on the sheet itself and the positional answer is the
      * intuitive one, so the ceiling stays there and is documented on
-     * `SheetDefaults`.
+     * `BottomSheetDefaults`.
      */
     internal suspend fun settleWhereAimed(
         velocity: Float,
@@ -1257,7 +1257,7 @@ class SheetState internal constructor(
  */
 @Composable
 fun rememberSheetState(
-    detents: List<SheetDetent> = DefaultSheetDetents,
+    detents: List<SheetDetent> = BottomSheetDefaults.Detents,
     initialDetent: SheetDetent = detents.firstDetent(),
     confirmDetentChange: (SheetDetent) -> Boolean = { true },
 ): SheetState {
@@ -1444,7 +1444,7 @@ private val SheetFlingDecay: DecayAnimationSpec<Float> = exponentialDecay()
  * How fast a gesture has to be leaving the glass to count as a flick.
  *
  * Per second, so it is a velocity written as the distance one second of it would
- * cover. Below this a release settles by `SheetDefaults.PositionalThreshold`
+ * cover. Below this a release settles by `BottomSheetDefaults.PositionalThreshold`
  * exactly as it always has; above it the velocity is projected and the sheet goes
  * where the throw was aimed, skipping detents on the way if the throw was hard
  * enough. See [SheetState.detentAimedAt].
@@ -1465,7 +1465,7 @@ private val SheetFlingDecay: DecayAnimationSpec<Float> = exponentialDecay()
  * times what the platform calls a fling, which is about the difference between a
  * finger leaving the glass and a finger throwing something.
  *
- * Here rather than on `SheetDefaults`, for the reason [SheetTopGap] is: it is a
+ * Here rather than on `BottomSheetDefaults`, for the reason [SheetTopGap] is: it is a
  * fact about how a hand moves, not a number a brand restyles, and the literals
  * ratchet in `check-components.py` counts the ones that sit in a `Defaults`
  * object as knobs somebody is expected to reach for.

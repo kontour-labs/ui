@@ -24,7 +24,7 @@ rest. That division is the whole component, and it is what separates it from a
 list.
 
 The two halves sit flush with a hairline between them and only the outside
-corners round — the same `ButtonGroupPosition.shape` a
+corners round — the same `GroupPosition.shape` a
 [`ButtonGroup`](button-group.md) uses, because it is the same idea: separate targets
 that read as one control. The pair owns the touch target between them for the
 reason `ButtonGroup` does, so the reserved slack does not land in the seam and

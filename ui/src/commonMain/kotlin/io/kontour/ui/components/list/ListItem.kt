@@ -3,6 +3,7 @@ package io.kontour.ui.components.list
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,85 +36,17 @@ import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
-
-/**
- * Where an item sits within a group, which decides which of its corners round.
- *
- * A list of settings reads as one object with rows in it, not as a stack of
- * separate cards — so only the outside corners of the group are rounded, and the
- * ones facing a neighbour are square.
- */
-@Immutable
-enum class ListItemPosition {
-    /** The only item. All four corners rounded. */
-    Only,
-
-    /** The first of several. Top corners rounded. */
-    First,
-
-    /** Between two others. Square. */
-    Middle,
-
-    /** The last of several. Bottom corners rounded. */
-    Last,
-    ;
-
-    companion object {
-        /**
-         * Where item [index] of [count] sits.
-         *
-         * ```kotlin
-         * itemsIndexed(stops) { index, stop ->
-         *     ListItem(
-         *         onClick = { open(stop) },
-         *         position = ListItemPosition.of(index, stops.size),
-         *     ) { +stop.name }
-         * }
-         * ```
-         */
-        fun of(index: Int, count: Int): ListItemPosition = when {
-            count <= 1 -> Only
-            index == 0 -> First
-            index == count - 1 -> Last
-            else -> Middle
-        }
-    }
-}
-
-/**
- * Resolves this [ListItemPosition] against a corner radius.
- *
- * Pure, and tested, because an off-by-one here is the kind of thing that looks
- * fine on a three-item list in the catalog and wrong on every one-item list in
- * the app.
- */
-fun ListItemPosition.shape(
-    shape: CornerBasedShape,
-    square: Dp = ListItemDefaults.InnerCorner,
-): CornerBasedShape {
-    val flat = androidx.compose.foundation.shape.CornerSize(square)
-    return when (this) {
-        ListItemPosition.Only -> shape
-        ListItemPosition.First -> shape.copy(bottomStart = flat, bottomEnd = flat)
-        ListItemPosition.Middle -> shape.copy(
-            topStart = flat,
-            topEnd = flat,
-            bottomStart = flat,
-            bottomEnd = flat,
-        )
-
-        ListItemPosition.Last -> shape.copy(topStart = flat, topEnd = flat)
-    }
-}
 
 object ListItemDefaults {
     /** Corner radius on a group's outside edges. */
@@ -169,7 +102,7 @@ object ListItemDefaults {
  * ```kotlin
  * ListItem(
  *     onClick = { open(stop) },
- *     position = ListItemPosition.of(index, stops.size),
+ *     position = GroupPosition.of(index, stops.size),
  * ) {
  *     leading { +Tabler.Outline.Train }
  *     +"Perth Underground"
@@ -184,7 +117,7 @@ object ListItemDefaults {
  * [io.kontour.ui.components.selection.SelectionRow], which is the specialisation
  * of this for a row that toggles something.
  *
- * @param position Which corners round. See [ListItemPosition]; a group of rows
+ * @param position Which corners round. See [GroupPosition]; a group of rows
  *   should read as one object, not a stack of separate cards.
  * @param selected Marks the current row in a list that picks one. Requires
  *   [role] to say which kind of choice it is.
@@ -199,8 +132,8 @@ fun ListItem(
     onClick: (() -> Unit)? = null,
     selected: Boolean = false,
     role: Role = Role.Button,
-    position: ListItemPosition = ListItemPosition.Only,
-    shape: Shape = position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner),
+    position: GroupPosition = GroupPosition.Only,
+    shape: Shape = position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical),
     /**
      * The row's own ground. Sunken rather than [io.kontour.ui.theme.ColourScheme.surface]
      * by default, because in this scheme `surface` and `background` are the same
@@ -417,9 +350,9 @@ internal fun ListItemImpl(
  * ```
  *
  * Spaces its children and marks the title as a heading, so a screen reader can
- * jump between sections. It does *not* set each child's [ListItemPosition] —
+ * jump between sections. It does *not* set each child's [GroupPosition] —
  * doing that would mean walking the composed children, which Compose has no way
- * to do. Use [listPositions] or [ListItemPosition.of] at the call site.
+ * to do. Use [listPositions] or [GroupPosition.of] at the call site.
  *
  * @param description Sits under the title, above the rows. For what the group
  *   *is*.
@@ -527,11 +460,11 @@ fun SectionHeader(
  * }
  * ```
  *
- * Equivalent to calling [ListItemPosition.of] per item; useful when the list is
+ * Equivalent to calling [GroupPosition.of] per item; useful when the list is
  * short enough to build eagerly and you would rather not repeat the size.
  */
-fun listPositions(count: Int): List<ListItemPosition> =
-    List(count) { index -> ListItemPosition.of(index, count) }
+fun listPositions(count: Int): List<GroupPosition> =
+    List(count) { index -> GroupPosition.of(index, count) }
 
 /**
  * A row with an icon, a label and a value — the settings-screen shape.
@@ -544,7 +477,7 @@ fun SettingRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
-    position: ListItemPosition = ListItemPosition.Only,
+    position: GroupPosition = GroupPosition.Only,
     interactionSource: MutableInteractionSource? = null,
     content: ListItemScope.() -> Unit,
 ) {

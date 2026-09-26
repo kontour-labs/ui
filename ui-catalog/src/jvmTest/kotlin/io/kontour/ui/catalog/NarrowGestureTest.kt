@@ -275,8 +275,8 @@ class NarrowGestureTest {
                 content = {
                     SegmentedControl(
                         options = listOf("A", "B", "C"),
-                        selected = selected,
-                        onSelectedChange = { selected = it },
+                        selectedIndex = selected,
+                        onSelectedIndexChange = { selected = it },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 },
@@ -305,7 +305,7 @@ class NarrowGestureTest {
                             .fillMaxWidth()
                             .height(120.dp)
                             .background(Color.LightGray)
-                            .tabSwipe(selected = tab, count = 3, onSelectedChange = { tab = it })
+                            .tabSwipe(selectedIndex = tab, count = 3, onSelectedIndexChange = { tab = it })
                     )
                 },
                 changed = { tab != 0 },

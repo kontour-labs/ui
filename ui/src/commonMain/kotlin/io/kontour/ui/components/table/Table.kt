@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
-import io.kontour.ui.components.selection.CheckboxVisualSize
+import io.kontour.ui.components.selection.CheckboxDefaults
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
@@ -46,7 +46,7 @@ enum class TableAlign {
     Start,
 
     /** In the middle. A status icon, a short code. */
-    Center,
+    Centre,
 
     /** Against the end edge. Figures, so their units line up. */
     End,
@@ -167,7 +167,7 @@ object TableDefaults {
 
     /** The checkbox column of a table with [TableSelection.Multiple]: a checkbox with a cell's padding either side. */
     val SelectionColumnWidth: Dp
-        @Composable @ReadOnlyComposable get() = CheckboxVisualSize + Theme.spacing.sm + Theme.spacing.sm
+        @Composable @ReadOnlyComposable get() = CheckboxDefaults.VisualSize + Theme.spacing.sm + Theme.spacing.sm
 
     /** An outlined table's corners: a card's. */
     val Shape: Shape
