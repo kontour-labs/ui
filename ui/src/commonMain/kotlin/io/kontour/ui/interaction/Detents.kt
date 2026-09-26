@@ -1,6 +1,7 @@
 package io.kontour.ui.interaction
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.remember
@@ -173,6 +174,56 @@ fun rememberDetentTicker(intent: FeedbackIntent = FeedbackIntent.Tick): DetentTi
     val feedback = LocalFeedback.current
     val floor = LocalFeedbackFloor.current
     return remember(feedback, intent, floor) { DetentTicker(feedback, intent, floor = floor) }
+}
+
+/**
+ * A hold's feedback: started when the hold begins, told how far through it is,
+ * and stopped when it ends — a rumble, where the platform has one.
+ *
+ * The one way a component sustains feedback, so the stop is guaranteed rather
+ * than remembered: [rememberHoldFeedback] stops it when the component leaves
+ * the composition, and starting again stops the last one first. Call [stop] in a
+ * `finally` around the wait it reports, and a cancelled wait cannot leave a
+ * phone rumbling.
+ */
+@Stable
+class HoldFeedback internal constructor(
+    private val feedback: FeedbackDispatcher,
+    private val intent: FeedbackIntent,
+) {
+    private var held: SustainedFeedback? = null
+
+    /** Begins it — ending one already going first. */
+    fun start() {
+        stop()
+        held = feedback.sustain(intent)
+    }
+
+    /** How far through the hold is, 0 to 1. Every frame is fine. */
+    fun progress(fraction: Float) {
+        held?.update(fraction.coerceIn(0f, 1f))
+    }
+
+    /** Ends it. Ending one that is not going does nothing. */
+    fun stop() {
+        held?.stop()
+        held = null
+    }
+}
+
+/**
+ * Remembers a [HoldFeedback] wired to the current [LocalFeedback], stopped when
+ * the call site leaves the composition.
+ *
+ * @param intent What the hold sustains: [FeedbackIntent.Hold], the one intent
+ *   with a rumble of its own.
+ */
+@Composable
+fun rememberHoldFeedback(intent: FeedbackIntent = FeedbackIntent.Hold): HoldFeedback {
+    val feedback = LocalFeedback.current
+    val hold = remember(feedback, intent) { HoldFeedback(feedback, intent) }
+    DisposableEffect(hold) { onDispose { hold.stop() } }
+    return hold
 }
 
 /**

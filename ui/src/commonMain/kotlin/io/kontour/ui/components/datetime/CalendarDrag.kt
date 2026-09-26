@@ -27,6 +27,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.SliderDefaults
 import io.kontour.ui.interaction.DetentTicker
+import io.kontour.ui.interaction.HoldFeedback
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.kontourMotion
 import kotlin.math.floor
@@ -207,7 +208,7 @@ internal class CalendarDragState internal constructor(
     private val scope: CoroutineScope,
     private val dayTicker: DetentTicker,
     private val pageTicker: DetentTicker,
-    private val holdTicker: DetentTicker,
+    private val hold: HoldFeedback,
 ) {
     // Wiring, refreshed from composition.
     internal var motion: Motion = kontourMotion(reduceMotion = false)
@@ -535,14 +536,17 @@ internal class CalendarDragState internal constructor(
         if (wanted == null) return
         dwelling = scope.launch {
             dwell.snapTo(0f)
-            // A faint rumble while the ring fills: a pulse of the lightest feel
-            // every so often through the dwell, off the ring's own clock, so the
-            // hand knows the wait is counting. The page itself is the threshold
-            // tick below.
-            holdTicker.reset()
-            holdTicker.at(0)
-            dwell.animateTo(1f, tween(DwellMillis, easing = LinearEasing)) {
-                holdTicker.at((value * DwellMillis / RumbleMillis).toInt())
+            // A faint rumble while the ring fills, building as it does, off the
+            // ring's own clock, so the hand knows the wait is counting. It stops
+            // before the page's threshold tick below, and in the `finally` when
+            // the finger leaves early, so no dwell can leave it running.
+            hold.start()
+            try {
+                dwell.animateTo(1f, tween(DwellMillis, easing = LinearEasing)) {
+                    hold.progress(value)
+                }
+            } finally {
+                hold.stop()
             }
             armed = false
             through = null
@@ -724,9 +728,6 @@ internal const val DwellMillis: Int = 700
 
 /** The most a cap leans toward the finger, in cells, before the pull. */
 private const val MaxLean: Float = 0.5f
-
-/** How often the hold rumbles while a dwell runs. The shared rate floor may space it further. */
-private const val RumbleMillis: Int = 70
 
 /** The share of the edge day's cell, on the other month's side, that is its arrow. */
 private const val ArrowShare: Float = 0.5f

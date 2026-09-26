@@ -58,6 +58,7 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.interaction.rememberHoldFeedback
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
@@ -438,7 +439,7 @@ internal fun rememberCalendarDrag(): CalendarDragState {
     val scope = rememberCoroutineScope()
     val days = rememberDetentTicker()
     val pages = rememberDetentTicker(FeedbackIntent.DragThreshold)
-    val hold = rememberDetentTicker(FeedbackIntent.Hold)
+    val hold = rememberHoldFeedback()
     val drag = remember(scope, days, pages, hold) { CalendarDragState(scope, days, pages, hold) }
     val motion = Theme.motion
     SideEffect { drag.motion = motion }

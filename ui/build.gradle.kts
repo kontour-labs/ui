@@ -163,6 +163,12 @@ kotlin {
 
             // Also `api`: the date/time components take LocalDate and LocalTime.
             api(libs.kotlinx.datetime)
+
+            // Also `api`: the haptics every component reports through are this
+            // module's effects, and `LocalHaptics` hands a caller its player.
+            // No Compose in it — see its build — so this adds nothing to a
+            // consumer's graph but the effects themselves.
+            api(project(":haptics"))
             implementation(libs.kotlinx.coroutines.core)
 
             // `implementation`: only the handful of structural glyphs in

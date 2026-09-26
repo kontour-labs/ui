@@ -5,9 +5,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.platform.LocalHapticFeedback
-import io.kontour.ui.platform.platformHapticFor
+import io.kontour.haptics.Haptics
 
 /**
  * What just happened, from the user's point of view.
@@ -104,12 +102,17 @@ enum class FeedbackIntent {
     /**
      * A hold is under way: keep holding and something will happen.
      *
-     * Performed as a stream — a steady, faint rumble for as long as the hold runs
-     * — rather than once, so the hand knows the wait is counting and not stuck.
-     * The first use is a date range's handle held past the month's first or last
-     * day, where the month pages when the ring fills, with a [DragThreshold] as it
-     * does. The lightest feel there is, and dropped under [HapticsLevel.Reduced]
-     * with the other intents that report progress rather than an outcome.
+     * Not performed but *sustained* — [FeedbackDispatcher.sustain], through a
+     * [HoldFeedback] — as a faint, continuous rumble that builds as the hold
+     * nears its end, so the hand knows the wait is counting and not stuck. The
+     * first use is a date range's handle held past the month's first or last
+     * day, where the month pages when the ring fills, with a [DragThreshold] as
+     * it does. Dropped under [HapticsLevel.Reduced] with the other intents that
+     * report progress rather than an outcome.
+     *
+     * It used to be a pulse of the lightest tick every 70ms, which is the
+     * nearest Compose's feedback constants came to a rumble and was felt as a
+     * rattle.
      */
     Hold,
 
@@ -137,10 +140,11 @@ enum class FeedbackIntent {
  * answer, because one is a bigger pulse and the other is several beats that mean
  * something. That is the whole reason this type is not called a weight.
  *
- * Which intent gets which is [FeedbackIntent.feel], and it is the one place the
- * assignment lives. Each platform then answers with the closest thing it actually
- * has — see `io.kontour.ui.platform.platformHapticFor`, which is a capability
- * table per platform and not a second opinion about policy.
+ * Which intent gets which is [FeedbackIntent.feel]. The theme's own dispatcher
+ * no longer plays feels — it plays [FeedbackIntent.defaultEffect], one effect per
+ * intent from the `:haptics` module, which is finer than five tiers can be — but
+ * the tiers are still the policy in words, and a dispatcher of your own that
+ * wants only a weight can still ask for one.
  */
 enum class FeedbackFeel {
     /**
@@ -275,13 +279,44 @@ enum class HapticsLevel {
 /**
  * Performs physical feedback for a [FeedbackIntent].
  *
- * Obtained from [LocalFeedback]; on platforms without haptics — desktop, web —
- * the underlying platform handler is already a no-op, so components do not need
- * to check.
+ * Obtained from [LocalFeedback]; on a device without haptics the player
+ * underneath plays nothing, so components do not need to check.
  */
 @Stable
 fun interface FeedbackDispatcher {
+    /** Plays [intent] once. */
     fun perform(intent: FeedbackIntent)
+
+    /**
+     * Starts [intent] as feedback that lasts — a hold's rumble — and returns the
+     * handle that follows its progress and stops it.
+     *
+     * The default performs it once and returns [SustainedFeedback.None], so a
+     * dispatcher written before this existed, and every one-line test lambda,
+     * still hears a hold begin. Components go through [HoldFeedback] rather than
+     * calling this, which is what guarantees the stop.
+     */
+    fun sustain(intent: FeedbackIntent): SustainedFeedback {
+        perform(intent)
+        return SustainedFeedback.None
+    }
+}
+
+/** Feedback that lasts, started by [FeedbackDispatcher.sustain]. */
+interface SustainedFeedback {
+    /** How far through it is, 0 to 1 — a rumble builds with it. */
+    fun update(progress: Float)
+
+    /** Ends it. Ending twice is fine. */
+    fun stop()
+
+    companion object {
+        /** Feedback that was never going to last: nothing to update, nothing to stop. */
+        val None: SustainedFeedback = object : SustainedFeedback {
+            override fun update(progress: Float) = Unit
+            override fun stop() = Unit
+        }
+    }
 }
 
 /**
@@ -306,91 +341,42 @@ val Feedback: FeedbackDispatcher
     @Composable @ReadOnlyComposable get() = LocalFeedback.current
 
 /**
- * The default mapping from intent to platform haptic.
+ * The theme's dispatcher: each intent's [FeedbackIntent.defaultEffect], played on
+ * [player], if [level] allows it.
  *
- * Two steps, and the split is the point. An intent is turned into a
- * [FeedbackFeel] here, in common, by [FeedbackIntent.feel] — that is the policy,
- * and it is the same on every platform. The feel is then turned into a constant by
- * `platformHapticFor`, per platform — that is a capability table, and it differs
- * because the platforms differ.
+ * **This used to hand Compose a `HapticFeedbackType`**, by way of five weights,
+ * and that was as fine as it could get: Compose's feedback is the platform's
+ * fixed constants, so there was no softer tick than the lightest constant, no
+ * strength at all, and no rumble — the dwell's was a tick every 70ms. The
+ * `:haptics` module plays the platforms' own tuned effects at a strength, and
+ * continuously where they can, so the policy here is one effect per intent
+ * instead of one of five tiers.
  *
- * It used to be one step, and the step carried both. `HapticFeedbackType` is a
- * *common* Compose type and each platform's `LocalHapticFeedback` already resolves
- * it natively — on iOS `CupertinoHapticFeedback` routes these onto
- * `UIImpactFeedbackGenerator`, `UISelectionFeedbackGenerator.selectionChanged` and
- * `UINotificationFeedbackGenerator` — so the mapping was written once, in common,
- * and the names read as Android's `HapticFeedbackConstants` because that is where
- * the vocabulary came from rather than where it goes.
- *
- * That was right about the mechanism and wrong about the consequence. Two intents
- * had already needed a platform seam of their own, each arguing its case at
- * length; and on Android what the two of them resolved to was the *same constant*
- * on anything below API 34. So the library had a two-tier intent vocabulary and a
- * one-tier result, and the report from a phone was that everything felt heavy.
- * Naming the tier is what fixes that, because a platform can then be asked for its
- * lightest rather than for a constant somebody else measured.
- *
- * ### What each feel actually does, per platform
- *
- * Measured rather than assumed. The web column is the `navigator.vibrate` pattern
- * in milliseconds; iOS is the generator `CupertinoHapticFeedback` routes to; the
- * Android column names the constant and the API level it arrived in.
- *
- * | Feel | Web | iOS | Android |
- * |---|---|---|---|
- * | [FeedbackFeel.Light] | 0, 20ms | **selection tick** | `SegmentTick` (**34**), else `TextHandleMove` (27) |
- * | [FeedbackFeel.Medium] | 0, 20ms | light impact | `VirtualKey` (5) |
- * | [FeedbackFeel.Heavy] | 0, 30ms | medium impact | `LongPress` (3) |
- * | [FeedbackFeel.Success] | 18, 32, 36ms | notification, success | `Confirm` (30), else `VirtualKey` |
- * | [FeedbackFeel.Danger] | 18, 28, 18, 28, 18ms | notification, error | `Reject` (30), else `LongPress` |
- *
- * ### Why Android's middle tier is the constant it is
- *
- * Because `VirtualKey` was never the wrong constant — it was in the wrong row.
- * The round-25 measurement that put the detent tick on it was a **web**
- * measurement: `SegmentFrequentTick` is 6ms there, a vibration motor needs roughly
- * 10–20ms to spin up far enough to be felt, and every detent in the library was
- * issuing a pulse that reached nobody. `VirtualKey` is 20ms and is felt, and that
- * finding stands.
- *
- * What it did not settle is where 20ms *sits*. On Android `VirtualKey` is
- * `EFFECT_CLICK` — a full key click, the weight a button press wants — so using it
- * for a stream of detents was asking for a press per row of a drum. The lighter
- * constants were there all along and unmentioned: `TextHandleMove` has existed
- * since API 27, which is below this library's own `minSdk`, so **no device it runs
- * on lacks a light tier**.
- *
- * ### There is no lighter tier that is still felt — on the web, still
- *
- * The web's patterns below 20ms are 12ms and 6ms, and 6ms is the silence the
- * round-25 measurement was about. 12ms has never been measured either way, so the
- * web answers [FeedbackFeel.Light] and [FeedbackFeel.Medium] with the same 20ms
- * pulse and the table above says so rather than implying a scale it does not have.
- * `docs/measure-web.mjs --vibration` is what would settle it.
- *
- * The **rate** limit stays on every platform and is the part that was never
- * platform-specific: a flung wheel crosses a row every 8ms, and no constant soft
- * enough to survive that is a constant at all. See [DetentTicker].
- *
- * ### The gap this closes, and the one it leaves
- *
- * [FeedbackIntent.DragThreshold] was on `GestureThresholdActivate`, an API-34
- * constant, so a pull-to-refresh threshold was **silent on Android 13 and below** —
- * a hole this file used to name and could not fix without moving the intent. It is
- * [FeedbackFeel.Medium] now and answers on every supported release.
- *
- * [FeedbackIntent.KeyPress] still does nothing at all on iOS, which is to say it is
- * decorative — nothing in the library performs it.
+ * The level filter still runs first, so a dropped intent reaches no player at
+ * all; the rate floor still lives in the helpers that stream.
  */
 @Composable
 internal fun rememberDefaultFeedbackDispatcher(
     level: HapticsLevel = HapticsLevel.Standard,
-): FeedbackDispatcher {
-    val haptics: HapticFeedback = LocalHapticFeedback.current
-    return remember(haptics, level) {
-        FeedbackDispatcher { intent ->
-            if (!level.allows(intent)) return@FeedbackDispatcher
-            haptics.performHapticFeedback(platformHapticFor(intent.feel))
+    player: Haptics = rememberHaptics(),
+): FeedbackDispatcher = remember(player, level) { DefaultFeedbackDispatcher(player, level) }
+
+private class DefaultFeedbackDispatcher(
+    private val player: Haptics,
+    private val level: HapticsLevel,
+) : FeedbackDispatcher {
+
+    override fun perform(intent: FeedbackIntent) {
+        if (level.allows(intent)) player.play(intent.defaultEffect)
+    }
+
+    override fun sustain(intent: FeedbackIntent): SustainedFeedback {
+        if (!level.allows(intent)) return SustainedFeedback.None
+        val rumble = intent.defaultRumble ?: return super.sustain(intent)
+        val playing = player.startRumble(rumble.intensityAt(0f), rumble.sharpness)
+        return object : SustainedFeedback {
+            override fun update(progress: Float) = playing.update(rumble.intensityAt(progress), rumble.sharpness)
+            override fun stop() = playing.stop()
         }
     }
 }

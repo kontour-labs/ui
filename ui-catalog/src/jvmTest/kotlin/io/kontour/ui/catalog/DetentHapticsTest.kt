@@ -49,6 +49,7 @@ import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.SustainedFeedback
 import io.kontour.ui.nav.tabSwipe
 import io.kontour.ui.overlay.AlertDialog
 import io.kontour.ui.overlay.OverlayHost
@@ -1171,12 +1172,31 @@ class DetentHapticsTest {
     @Test
     fun aMonthPagedMidDragIsOneThreshold() {
         val felt = mutableListOf<FeedbackIntent>()
+        // What the hold did, in order with the rest: "held", "let go", or an intent.
+        val story = mutableListOf<String>()
         var start by mutableStateOf<LocalDate?>(null)
         var end by mutableStateOf<LocalDate?>(null)
         var bounds = Rect.Zero
 
         Scene(width = 700, height = 800) {
-            Recording(felt) {
+            CompositionLocalProvider(
+                LocalFeedback provides object : FeedbackDispatcher {
+                    override fun perform(intent: FeedbackIntent) {
+                        felt += intent
+                        story += intent.name
+                    }
+
+                    override fun sustain(intent: FeedbackIntent): SustainedFeedback {
+                        story += "held ${intent.name}"
+                        return object : SustainedFeedback {
+                            override fun update(progress: Float) = Unit
+                            override fun stop() {
+                                story += "let go"
+                            }
+                        }
+                    }
+                },
+            ) {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
                     DateRangePicker(
                         start = start,
@@ -1212,11 +1232,13 @@ class DetentHapticsTest {
             felt.count { it == FeedbackIntent.DragThreshold },
             "paging by a dwell mid-drag fired ${felt.summary()} — one threshold for the month changing",
         )
-        // And a faint rumble while it was held: several of the lightest pulses.
-        assertTrue(
-            felt.count { it == FeedbackIntent.Hold } >= 3,
-            "holding past the last day fired ${felt.summary()} — a rumble of Hold pulses while the ring filled",
-        )
+        // And a rumble while it was held: one hold, sustained, let go before the
+        // month's threshold tick rather than rumbling on underneath it.
+        val held = story.indexOf("held Hold")
+        val letGo = story.indexOf("let go")
+        val paged = story.indexOf(FeedbackIntent.DragThreshold.name)
+        assertEquals(1, story.count { it == "held Hold" }, "holding past the last day told this story: $story")
+        assertTrue(held in 0 until letGo && letGo < paged, "the hold was not held, let go, then paged: $story")
     }
 
     @Test

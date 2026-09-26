@@ -56,6 +56,11 @@ Twenty-two rules:
      how many sites there are; this keeps the document explaining them true,
      and it had already drifted — the table went on listing a component whose
      sites the audit itself had removed.
+ 23. Nothing in `:ui` reaches a platform's haptics API itself. The `:haptics`
+     module plays them, and the one seam that makes its player is
+     `rememberPlatformHaptics`; a component calling a vibrator, a feedback
+     generator or Compose's own `HapticFeedback` would be a haptic no level,
+     rate floor or recording test could see.
 
 Rules 4, 6, 7, 14, 16 and 17 are **ratchets**: a ceiling that only goes down, rather
 than a list of exempted names. You cannot exempt *your* page, only make the total
@@ -643,10 +648,12 @@ def uncursored_clicks() -> list[str]:
     return behind
 
 
-MAX_HAPTIC_SITES = 9
+MAX_HAPTIC_SITES = 10
 
 
-HAPTIC_CALL = re.compile(r"feedback\.perform\(")
+# A perform, or a sustain — a hold's rumble is feedback too, and the one place
+# that starts one (`HoldFeedback.start`) is a call site like any other.
+HAPTIC_CALL = re.compile(r"feedback\.(?:perform|sustain)\(")
 
 
 def haptic_sites() -> list[str]:
@@ -664,6 +671,10 @@ def haptic_sites() -> list[str]:
     under the finger, with nothing on screen having said so first — which is the
     definition of the `DragThreshold` row in the table. A *tap* on a switch
     still reports nothing, and `DetentHapticsTest` holds it to both halves.
+
+    It went 9 to 10 when the date range's dwell became a rumble rather than a
+    stream of ticks: `HoldFeedback.start` *sustains* feedback, the one place in
+    the library that does, and a sustain is counted with the performs.
 
     It exists because this drifted once, quietly and in one direction. "Make it
     tactile" was a good instruction; fifty-seven call sites was the result of
@@ -698,7 +709,9 @@ MAX_POLICY_DRIFT = 0
 HAPTIC_POLICY_ROW = re.compile(r"^\|\s*A \*\*[^|]+\|([^|]*)\|", re.M)
 
 # A component that fires, either directly or through the shared ticker.
-PERFORMS = re.compile(r"\bperform\(|\brememberDetentTicker\(|\brememberTapFeedback\(")
+PERFORMS = re.compile(
+    r"\bperform\(|\brememberDetentTicker\(|\brememberTapFeedback\(|\brememberHoldFeedback\("
+)
 
 # Two files whose component is not their filename. Written out rather than
 # guessed: `Reorderable.kt` holds `ReorderableItem`, and the warning lives in
@@ -708,6 +721,40 @@ HAPTIC_FILE_NAMES = {"Reorderable": "ReorderableItem", "Dialog": "AlertDialog"}
 # The mechanism rather than a component: one defines the dispatcher, the other
 # is the shared detent ticker every snapping component calls.
 HAPTIC_MECHANISM = {"Feedback.kt", "Detents.kt"}
+
+
+MAX_PLATFORM_HAPTICS = 0
+
+# A platform's haptics API, named in code rather than in a comment: Compose's
+# own `HapticFeedback`, Android's vibrator and feedback constants, UIKit's
+# generators, Core Haptics, the browser's vibrate. `Haptics(` — the `:haptics`
+# module's own factory — is not one of them, and is what the seam calls.
+PLATFORM_HAPTICS = re.compile(
+    r"LocalHapticFeedback|HapticFeedbackType|performHapticFeedback|HapticFeedbackConstants"
+    r"|\bVibrator\b|VibrationEffect|UI(?:Impact|Selection|Notification)FeedbackGenerator"
+    r"|CHHaptic|navigator\.vibrate"
+)
+
+
+def platform_haptics() -> list[str]:
+    """Files in `:ui` that reach a platform's haptics API themselves.
+
+    Every haptic in the library goes to the `:haptics` module's player, through
+    the dispatcher the theme installs. That is what lets a level drop it, the
+    rate floor space it, and a test provide a `RecordingHaptics` and read back
+    what was played. One call past that — a component vibrating the phone
+    itself — would be a haptic none of those can see, and would look, in review,
+    exactly like the ordinary thing a platform file does.
+
+    Zero, across every source set, tests included.
+    """
+    found: list[str] = []
+    for path in sorted(Path("ui/src").rglob("*.kt")):
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        hits = sorted(set(PLATFORM_HAPTICS.findall(text)))
+        if hits:
+            found.append(f"{path.relative_to('ui/src')} ({', '.join(hits)})")
+    return found
 
 
 def policy_named() -> set[str]:
@@ -1726,6 +1773,18 @@ def main() -> int:
             f"`tweenDefault` and `springOrTween` shorten a movement and cannot "
             f"make one smaller, so a scale or a translation that moves a panel "
             f"or a screen has to ask for itself"
+        )
+
+    # Rule 23 — every haptic goes through the player, which is what can see it.
+    #
+    # See `platform_haptics`.
+    reaching = platform_haptics()
+    if len(reaching) > MAX_PLATFORM_HAPTICS:
+        problems.append(
+            f"{len(reaching)} files in :ui reach a platform's haptics API "
+            f"themselves: {'; '.join(reaching)} — play an effect through the "
+            f"`FeedbackDispatcher` (or `rememberHaptics()`), which the `:haptics` "
+            f"module plays; a direct call is one no level or test can see"
         )
 
     drift = haptics_policy_drift()
