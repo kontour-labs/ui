@@ -5,6 +5,7 @@ import androidx.navigation3.scene.OverlayScene
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.scene.SceneStrategy
 import androidx.navigation3.scene.SceneStrategyScope
+import io.kontour.ui.adaptive.PaneScaffoldDefaults
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -102,7 +103,7 @@ class SceneStrategyTest {
 
     @Test
     fun aNarrowWindowPutsTheSupportingPaneOverTheMainOne() {
-        val strategy = SupportingPaneSceneStrategy<Any>(twoPane = false, null, true)
+        val strategy = SupportingPaneSceneStrategy<Any>(twoPane = false, PaneScaffoldDefaults.SupportingWeight, resizable = false, showDivider = true)
         val scene = assertIs<OverlayScene<Any>>(strategy.sceneFor(listOf(main, supporting)))
         assertEquals(listOf(supporting), scene.entries)
         assertEquals(
@@ -114,13 +115,13 @@ class SceneStrategyTest {
 
     @Test
     fun aNarrowWindowLeavesTheMainPaneAlone() {
-        val strategy = SupportingPaneSceneStrategy<Any>(twoPane = false, null, true)
+        val strategy = SupportingPaneSceneStrategy<Any>(twoPane = false, PaneScaffoldDefaults.SupportingWeight, resizable = false, showDivider = true)
         assertNull(strategy.sceneFor(listOf(main)), "the main pane alone is an ordinary page")
     }
 
     @Test
     fun aWideWindowKeepsOneSceneAsTheSupportingPaneOpensAndCloses() {
-        val strategy = SupportingPaneSceneStrategy<Any>(twoPane = true, null, true)
+        val strategy = SupportingPaneSceneStrategy<Any>(twoPane = true, PaneScaffoldDefaults.SupportingWeight, resizable = false, showDivider = true)
         val closed = assertNotNull(strategy.sceneFor(listOf(main)))
         val open = assertNotNull(strategy.sceneFor(listOf(main, supporting)))
         assertEquals(closed.key, open.key, "opening the supporting pane swapped the whole scene")
@@ -130,8 +131,8 @@ class SceneStrategyTest {
     @Test
     fun aSupportingSceneIsEqualWhenOnlyTheCallbacksChanged() {
         assertEquals(
-            SupportingPaneScene(main, supporting, listOf(main), null, true, onBack = {}),
-            SupportingPaneScene(main, supporting, listOf(main), null, true, onBack = { println("a new lambda") }),
+            SupportingPaneScene(main, supporting, listOf(main), PaneScaffoldDefaults.SupportingWeight, resizable = false, showDivider = true, onBack = {}),
+            SupportingPaneScene(main, supporting, listOf(main), PaneScaffoldDefaults.SupportingWeight, resizable = false, showDivider = true, onBack = { println("a new lambda") }),
         )
         val handle = SheetHandle()
         assertEquals(
@@ -144,7 +145,7 @@ class SceneStrategyTest {
     fun theSameSheetIsReachedFromEveryRecalculation() {
         // `NavDisplay` may ask a different instance to leave than the one it drew,
         // so both have to reach the same sheet.
-        val strategy = SupportingPaneSceneStrategy<Any>(twoPane = false, null, true)
+        val strategy = SupportingPaneSceneStrategy<Any>(twoPane = false, PaneScaffoldDefaults.SupportingWeight, resizable = false, showDivider = true)
         val first = assertIs<SupportingSheetScene<Any>>(strategy.sceneFor(listOf(main, supporting)))
         val again = assertIs<SupportingSheetScene<Any>>(strategy.sceneFor(listOf(main, supporting)))
         assertEquals(first.handleForTest, again.handleForTest)

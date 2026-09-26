@@ -29,7 +29,7 @@ KontourTheme {
 ```sh
 ./gradlew :ui:jvmTest             # contract, behaviour and contrast tests
 ./gradlew :ui:checkNoMaterial     # fails if Material reaches the classpath
-./gradlew :ui:checkApiConventions # the seventeen API-shape rules
+./gradlew :ui:checkApiConventions # the eighteen API-shape rules
 ./gradlew :ui:checkKotlinAbi      # the public API against api/
 ./gradlew :ui-catalog:jvmTest     # compares the screenshot goldens
 ./gradlew :ui-samples:compileKotlinJvm  # the documentation's examples

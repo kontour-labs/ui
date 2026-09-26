@@ -41,7 +41,7 @@ import io.kontour.ui.theme.Theme
  * ```
  *
  * The buttons sit flush and only the outside corners round, the same treatment
- * [io.kontour.ui.components.list.GroupPosition] gives a group of rows. That is
+ * [io.kontour.ui.foundation.GroupPosition] gives a group of rows. That is
  * the whole visual idea: three separate buttons say "three things", one joined
  * group says "one thing, three ways".
  *

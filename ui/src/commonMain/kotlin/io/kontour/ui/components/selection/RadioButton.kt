@@ -206,15 +206,15 @@ fun <T> RadioGroup(
     val groupPress = remember { SelectionGroupPress() }
     CompositionLocalProvider(LocalSelectionGroupPress provides groupPress) {
         Column(modifier.selectableGroup()) {
-            options.forEach { value ->
-                val isSelected = value == value
+            options.forEach { each ->
+                val isSelected = each == value
                 SelectionRow(
                     selected = isSelected,
-                    onSelectedChange = { onValueChange(value) },
+                    onSelectedChange = { onValueChange(each) },
                     enabled = enabled,
                     role = Role.RadioButton,
                 ) {
-                    option(value)
+                    option(each)
                     // After the caller's block, deliberately. `ListItemScope`
                     // records the last writer for each slot, so the button
                     // cannot be displaced by a row that fills `trailing` — and

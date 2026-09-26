@@ -1,5 +1,6 @@
 package io.kontour.ui.nav3
 
+import io.kontour.ui.adaptive.PaneScaffoldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,7 +43,7 @@ class SupportingSheetTest {
                 NavDisplay(
                     backStack = backStack,
                     onBack = onBack,
-                    sceneStrategies = listOf(SupportingPaneSceneStrategy(twoPane = false, null, true)),
+                    sceneStrategies = listOf(SupportingPaneSceneStrategy(twoPane = false, PaneScaffoldDefaults.SupportingWeight, resizable = false, showDivider = true)),
                     entryProvider = entryProvider {
                         entry<Run>(metadata = mainPane()) { Text("the run") }
                         entry<Conditions>(metadata = supportingPane()) { Text("the conditions") }
@@ -113,7 +114,7 @@ class SupportingSheetTest {
                 NavDisplay(
                     backStack = backStack,
                     onBack = { backStack.removeLastOrNull() },
-                    sceneStrategies = listOf(SupportingPaneSceneStrategy(twoPane = true, null, true)),
+                    sceneStrategies = listOf(SupportingPaneSceneStrategy(twoPane = true, PaneScaffoldDefaults.SupportingWeight, resizable = false, showDivider = true)),
                     entryProvider = entryProvider {
                         entry<Run>(metadata = mainPane()) { Text("the run") }
                         entry<Conditions>(metadata = supportingPane()) {

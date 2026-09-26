@@ -396,6 +396,41 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                     }
                 }
 
+            // A lambda parameter never takes its function's parameter's name.
+            //
+            // Renaming `RadioGroup(selected)` to `value` left `options.forEach
+            // { value -> val isSelected = value == value }` behind: it compiled,
+            // warnings-as-errors said nothing, and every option drew selected.
+            // A rename is exactly when a lambda's own name starts to collide,
+            // so this is checked rather than remembered. Same-line `{ name ->`
+            // only, which a `when` branch never is.
+            run {
+                val clean = KotlinSignatures.withoutComments(text)
+                val function = Regex("""(?m)^[ \t]*(?:[\w@]+[ \t]+)*fun[ \t]+(?:<[^>]*>[ \t]*)?(?:[\w.<>]+\.)?\w+[ \t]*\(""")
+                val lambda = Regex("""\{[ \t]*(\w+)(?:[ \t]*,[ \t]*(\w+))?[ \t]*->""")
+                function.findAll(clean).forEach { header ->
+                    val opening = header.range.last
+                    val closing = KotlinSignatures.balanced(clean, opening)
+                    val names = KotlinSignatures.parameters(clean.substring(opening + 1, closing))
+                        .map { it.name }.toSet()
+                    if (names.isEmpty()) return@forEach
+                    val brace = Regex("""^[^{=]*\{""").find(clean.substring(closing + 1))
+                        ?: return@forEach
+                    val start = closing + 1 + brace.range.last
+                    val end = KotlinSignatures.balancedBrace(clean, start)
+                    lambda.findAll(clean.substring(start + 1, end)).forEach { match ->
+                        listOfNotNull(match.groups[1]?.value, match.groups[2]?.value)
+                            .filter { it in names }
+                            .forEach { shadowed ->
+                                val at = start + 1 + match.range.first
+                                val line = clean.substring(0, at).count { it == '\n' } + 1
+                                problems += "$rel:$line :: a lambda parameter `$shadowed` shadows " +
+                                    "the function's own `$shadowed` — name it `each`, or for what it holds"
+                            }
+                    }
+                }
+            }
+
             // Two KDoc blocks in a row. The first documents nothing — KDoc
             // attaches to the declaration that follows it, and the one that
             // follows the first block is the second block — so a component's

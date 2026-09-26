@@ -168,11 +168,11 @@ in even though it carries no `@Composable`.
 
 It also refuses four parameter names outright, each with the reason:
 `supportingText`, `headline`, `isEnabled`, `onDismiss` — and the rest of the
-seventeen rules in [`contributing.md`](contributing.md#the-shape-of-a-component):
+eighteen rules in [`contributing.md`](contributing.md#the-shape-of-a-component):
 no English in a default or an announcement, no default a caller cannot write,
 time as a `Duration`, `show<Part>` for a switch, `initial<What>` for a starting
-value, no two KDoc blocks in a row, and a KDoc on everything a caller holds or
-starts from.
+value, no two KDoc blocks in a row, a KDoc on everything a caller holds or
+starts from, and no lambda parameter shadowing its function's own.
 
 ## `checkKotlinAbi`
 

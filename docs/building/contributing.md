@@ -83,7 +83,7 @@ module's 391 declarations. The 130 indented ones it could not see are every
 method on every builder scope, so the gate reported no problems for as long as
 the drift stayed inside a shorthand.
 
-Seventeen rules, and each one is there because it caught something real:
+Eighteen rules, and each one is there because it caught something real:
 
 | | |
 |---|---|
@@ -104,6 +104,7 @@ Seventeen rules, and each one is there because it caught something real:
 | No two KDoc blocks in a row | the first documents nothing, and a component's own page goes blank |
 | A starting value is `initial<What>` | a bare `initial` says it is a starting value and not of what |
 | Every state holder, `remember*`, `*Defaults` and `*Colours` has a KDoc | 51 of them reached the reference as a bare name |
+| A lambda parameter never takes its function's parameter's name | renaming `selected` to `value` left `value == value` behind, and every radio option drew selected |
 
 `enabled` sits directly after `modifier` with no exceptions. An earlier draft let
 it follow an optional `onClick` instead — which reads better on the three

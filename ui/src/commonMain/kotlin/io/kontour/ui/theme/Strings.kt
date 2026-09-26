@@ -79,11 +79,11 @@ data class Strings(
 
     /** Confirms the page typed into that box. */
     val goToPageConfirm: String = "Go",
-    /** One page's button in a pagination row. [page] counts from zero. */
+    /** One page's button in a pagination row. `page` counts from zero. */
     val pageNumber: (page: Int) -> String = { page -> "Page ${page + 1}" },
     /**
      * Where a carousel is, said as its position rather than as a page — the
-     * carousel's own state, beside [pageOfCount] for its indicator. [index]
+     * carousel's own state, beside [pageOfCount] for its indicator. `index`
      * counts from zero.
      */
     val itemOfCount: (index: Int, count: Int) -> String = { index, count -> "${index + 1} of $count" },
@@ -103,11 +103,11 @@ data class Strings(
     val increase: String = "Increase",
     val rangeStart: String = "Range start",
     val rangeEnd: String = "Range end",
-    /** A score against its scale: "4.5 out of 5". [value] is already written out. */
+    /** A score against its scale: "4.5 out of 5". `value` is already written out. */
     val outOf: (value: String, count: Int) -> String = { value, count -> "$value out of $count" },
     /** A progress bar that knows neither how far it is nor how far it has to go. */
     val inProgress: String = "In progress",
-    /** A step progress bar's position; [working] while the step is still under way. */
+    /** A step progress bar's position; `working` while the step is still under way. */
     val stepOfCount: (step: Int, count: Int, working: Boolean) -> String = { step, count, working ->
         if (working) "Step $step of $count, in progress" else "Step $step of $count"
     },
