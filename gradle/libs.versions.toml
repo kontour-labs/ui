@@ -21,6 +21,11 @@ composables-icons = "2.2.1"
 # build of it; `NavEntry` and the rest of the runtime come from Google's.
 navigation3 = "1.1.1"
 
+# The back pipeline every platform shares — the Android back gesture, iOS's
+# edge pan, Escape on the desktop and the web. Compose UI brings it already, but
+# only at runtime on the desktop, so `:ui` names it to compile against it.
+navigationevent = "1.1.0"
+
 # KotlinX
 kotlinx-coroutines = "1.11.0"
 kotlinx-datetime = "0.8.0"
@@ -50,6 +55,7 @@ androidx-activity-compose = { module = "androidx.activity:activity-compose", ver
 
 navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
 navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
+navigationevent-compose = { module = "org.jetbrains.androidx.navigationevent:navigationevent-compose", version.ref = "navigationevent" }
 
 [bundles]
 icons = [

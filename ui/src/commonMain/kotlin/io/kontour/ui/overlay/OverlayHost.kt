@@ -1,17 +1,21 @@
 package io.kontour.ui.overlay
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.key
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,23 +23,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
-import io.kontour.ui.foundation.Scrim
-import io.kontour.ui.input.clearFocusOnTap
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.kontour.ui.components.text.DefaultTextSelectionToolbar
 import io.kontour.ui.components.text.TextContextMenuHost
+import io.kontour.ui.foundation.Scrim
+import io.kontour.ui.input.clearFocusOnTap
+import io.kontour.ui.motion.LocalBackStyle
 import io.kontour.ui.theme.Theme
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.delay
 
 /**
  * Where an overlay sits in the stack.
@@ -308,6 +313,26 @@ class OverlayHostState {
         return true
     }
 
+    /**
+     * The entry a back gesture goes to, or null when it should go past the
+     * overlays to the page.
+     *
+     * The topmost entry that dismisses on back, *or that dims*: a dimmed entry
+     * says the page is unavailable, and a back gesture reaching past a dialog
+     * that may not close — to pop the screen behind it — would be the worst of
+     * both. Such an entry takes the gesture and refuses it. A toast or a plain
+     * tooltip neither dims nor dismisses on back, so back goes past it.
+     */
+    internal val backTarget: OverlayEntry?
+        get() = visible.lastOrNull { it.dismissOnBack || it.scrim == ScrimStyle.Dimmed }
+
+    /** What a completed back gesture aimed at [entry] does: [dismissTop], for that entry. */
+    internal fun dismissForBack(entry: OverlayEntry) {
+        if (!entry.dismissOnBack || isLeaving(entry.key)) return
+        entry.onDismiss?.invoke()
+        if (!entry.managesOwnExit) hide(entry.key)
+    }
+
     internal fun dismissOutside(entry: OverlayEntry) {
         if (!entry.dismissOnOutside) return
         entry.onDismiss?.invoke()
@@ -333,10 +358,31 @@ private fun EntryHost(
     entry: OverlayEntry,
     index: Int,
     dimmed: Boolean,
+    takesBack: Boolean,
 ) {
     val motion = Theme.motion
     val leaving = state.isLeaving(entry.key)
     val progress = remember { Animatable(0f) }
+
+    // Back, for this entry alone. Its dispatcher is enabled only while it is
+    // the entry back goes to, and its handler is registered before its content
+    // is composed, so a stack inside a sheet answers first while it has
+    // somewhere to go back to. See `OverlayBack.kt`.
+    val backOwner = rememberChildBackDispatcher(enabled = takesBack && !leaving)
+    val (back, backHandler) = rememberOverlayBack(onCommit = { state.dismissForBack(entry) })
+    val backStyle = LocalBackStyle.current
+    SideEffect { back.absorbing = !entry.dismissOnBack }
+    RegisterBackHandler(backOwner, backHandler)
+    // A committed gesture leaves the entry posed where the hand let go, so it
+    // leaves from there. If it has not started leaving shortly afterwards — the
+    // caller declined the dismissal, and a sheet that manages its own exit is
+    // still fully up — it goes back to rest rather than staying half-gone.
+    LaunchedEffect(back.commits) {
+        if (back.commits == 0) return@LaunchedEffect
+        delay(BackDeclinedAfter)
+        val stillUp = !state.isLeaving(entry.key) && (entry.visibility?.invoke() ?: 1f) > 0.98f
+        if (stillUp) backHandler.settleBack()
+    }
 
     LaunchedEffect(leaving) {
         progress.animateTo(
@@ -354,7 +400,11 @@ private fun EntryHost(
 
     // One lambda for the scrim and the backdrop, remembered rather than built
     // inline: a fresh lambda each time would re-key everything downstream of it.
-    val fraction: () -> Float = remember(entry) { entry.visibility ?: { progress.value } }
+    val fraction: () -> Float = remember(entry, back, backStyle) {
+        val base = entry.visibility ?: { progress.value }
+        // The dim goes with what it dims while a back gesture is aimed here.
+        { base() * scrimUnderBack(back, backStyle) }
+    }
 
     // And one for the panel, which is a *different* number: `fraction` may be an
     // entry's own visibility — a sheet's, derived from where it has been dragged
@@ -425,8 +475,15 @@ private fun EntryHost(
         CompositionLocalProvider(
             LocalOverlayProgress provides reader,
             LocalOverlayLeaving provides leavingReader,
+            LocalOverlayBack provides back,
         ) {
-            entry.content()
+            if (backOwner != null) {
+                CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides backOwner) {
+                    entry.content()
+                }
+            } else {
+                entry.content()
+            }
         }
     }
 }
@@ -458,6 +515,9 @@ private fun EntryHost(
  * recomposition cost alone, which is reason enough.
  */
 internal val LocalOverlayProgress = compositionLocalOf<() -> Float> { { 1f } }
+
+/** How long a committed back gesture waits for its entry to start leaving. */
+private val BackDeclinedAfter = 200.milliseconds
 
 /**
  * Whether this overlay is on its way out. A lambda, read where it matters — an
@@ -539,6 +599,13 @@ fun OverlayHost(
     val dimming = topDimmedEntry(stack)
     val backdrop = dimming?.backdrop ?: BackdropStyle.None
 
+    // Back goes to the page only while no overlay takes it. The page's
+    // dispatcher is disabled rather than its handlers outranked, so it does not
+    // matter what the page registers or when: a navigation stack composed after
+    // a dialog opened still cannot pop from behind it.
+    val backTarget = state.backTarget
+    val pageBack = rememberChildBackDispatcher(enabled = backTarget == null)
+
     CompositionLocalProvider(LocalOverlayHost provides state) {
         Box(
             modifier
@@ -613,7 +680,15 @@ fun OverlayHost(
                     // And the right-click menu, for the same reason and in the
                     // same place: it opens into this host, and a field cannot
                     // reach for a host that may not exist.
-                    TextContextMenuHost { content() }
+                    TextContextMenuHost {
+                        if (pageBack != null) {
+                            CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides pageBack) {
+                                content()
+                            }
+                        } else {
+                            content()
+                        }
+                    }
                 }
             }
 
@@ -634,6 +709,7 @@ fun OverlayHost(
                         entry = entry,
                         index = index,
                         dimmed = entry === dimming,
+                        takesBack = entry === backTarget,
                     )
                 }
             }

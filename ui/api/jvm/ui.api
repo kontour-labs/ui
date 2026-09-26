@@ -2259,6 +2259,18 @@ public final class io/kontour/ui/interaction/ToggleFeedback {
 	public final fun invoke (Z)V
 }
 
+public final class io/kontour/ui/motion/BackStyle : java/lang/Enum {
+	public static final field Predictive Lio/kontour/ui/motion/BackStyle;
+	public static final field Swipe Lio/kontour/ui/motion/BackStyle;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/motion/BackStyle;
+	public static fun values ()[Lio/kontour/ui/motion/BackStyle;
+}
+
+public final class io/kontour/ui/motion/BackStyleKt {
+	public static final fun getLocalBackStyle ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+}
+
 public final class io/kontour/ui/motion/GlassSurfaceDefaults {
 	public static final field $stable I
 	public static final field BorderAlpha F
@@ -2287,6 +2299,19 @@ public final class io/kontour/ui/motion/MotionAxis : java/lang/Enum {
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/motion/MotionAxis;
 	public static fun values ()[Lio/kontour/ui/motion/MotionAxis;
+}
+
+public final class io/kontour/ui/motion/PageMotion {
+	public static final field $stable I
+	public final fun getStyle ()Lio/kontour/ui/motion/BackStyle;
+	public final fun pop ()Landroidx/compose/animation/ContentTransform;
+	public final fun predictivePop (I)Landroidx/compose/animation/ContentTransform;
+	public final fun push ()Landroidx/compose/animation/ContentTransform;
+}
+
+public final class io/kontour/ui/motion/PageMotionKt {
+	public static final fun pageEffects (Landroidx/compose/ui/Modifier;Lio/kontour/ui/motion/PageMotion;Landroidx/compose/animation/AnimatedVisibilityScope;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
+	public static final fun rememberPageMotion (Lio/kontour/ui/motion/BackStyle;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/motion/PageMotion;
 }
 
 public final class io/kontour/ui/motion/RevealVariant : java/lang/Enum {

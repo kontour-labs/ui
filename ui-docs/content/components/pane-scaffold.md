@@ -64,9 +64,10 @@ The resize handle is a control, not a decoration. It reports
 from a screen reader without the drag gesture.
 
 On a compact window there is one pane, and `onBack` is what returns from the
-detail to the list. Wire it to the platform back handler as well as to any
-visible button: a phone user who opened a detail and cannot get back to the list
-is stuck, and the back gesture is the thing they will try first.
+detail to the list. The scaffold calls it for back itself — the system gesture,
+iOS's edge swipe, Escape — and the detail follows a gesture while it runs, so
+the list is uncovered under the hand. Call it from any visible back button too:
+a phone user who opened a detail and cannot get back to the list is stuck.
 
 Give each pane a heading at its top. Two panes side by side with no headings are
 one long run of content to anyone navigating by structure.

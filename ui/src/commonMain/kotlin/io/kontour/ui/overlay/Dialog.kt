@@ -113,6 +113,10 @@ fun Dialog(
                     // the form behind it. The default, said out loud.
                     trapFocus = true,
                     dismissOnOutside = dismissible,
+                    // Back takes the same answer as a tap outside. A dialog that
+                    // may not be dismissed still takes the gesture — it dims the
+                    // page — and refuses it; see `OverlayHostState.backTarget`.
+                    dismissOnBack = dismissible,
                     dismissLabel = dismissLabel,
                     onDismiss = onDismissRequest,
                     content = {
@@ -133,6 +137,7 @@ fun Dialog(
                                     LocalOverlayProgress.current,
                                     fromScale = 1.06f,
                                 )
+                                .overlayBackMotion(OverlayBackKind.Dialog)
                                 .windowInsetsPadding(latestInsets),
                             contentAlignment = Alignment.Center,
                         ) {

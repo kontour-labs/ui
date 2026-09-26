@@ -126,7 +126,39 @@ accent button. `primary` is unchanged, so controls stay ink.
 
 In the light scheme `brand` is `#BB86FC` and `accent.solid` is `#7C37BE`, the
 same hue at a lightness that carries white text; the two are no longer the same
-colour there. See [tokens.md](tokens.md#actions).
+colour there. See [tokens.md](tokens.md#actions).`contrastFailures` also asks one more question now: whether `accent.solid` can be
+read as text, at 4.5:1 against every ground, because links, text buttons and a
+focused field's label are drawn in it. A scheme of your own whose accent was a
+fill dark enough to carry white may report a failure it always had — the demo
+GTurbo theme did, and moved its accent to a lighter red with a dark label.
+
+---
+
+## Back is handled for you
+
+Nothing in the library answered back before: an Android back press with a sheet
+open left the screen, and `ListDetailPaneScaffold.onBack` was never called. Now:
+
+- **Overlays take back.** The `OverlayHost` gives it to the topmost entry that
+  takes it, and each overlay follows a back gesture while it runs. A handler of
+  your own that called `overlayHost.dismissTop()` on back still works, but never
+  sees an overlay now — remove it.
+- **A dimmed modal that may not be dismissed swallows back.** `Dialog`,
+  `ModalBottomSheet`, `ModalSideSheet` and `CommandPalette` with
+  `dismissible = false` take back and refuse it, rather than letting it pop the
+  screen behind them. `dismissible = false` used to leave `dismissOnBack` on; an
+  entry of your own with `ScrimStyle.Dimmed` does the same.
+- **`ListDetailPaneScaffold` calls `onBack`** for back on one pane, and follows
+  the gesture.
+- **How back looks is per platform:** `LocalBackStyle` is `Predictive` on Android
+  and `Swipe` on iOS, and can be provided to preview one on the other. Android
+  13 to 15 shows the predictive animation only with
+  `android:enableOnBackInvokedCallback="true"` on the application in the
+  manifest; Android 16 has it on for apps that target it.
+
+With Navigation 3, `rememberPageTransitionStrategy()` in `:ui-nav3` gives every
+page the push, pop and back gesture of its platform in one line; see
+[Navigation 3](navigation3.md).
 
 ---
 
@@ -289,3 +321,6 @@ have been writing by hand:
   specialised text field.
 - `InputChip` and `Banner` draw their remove and dismiss buttons by default now;
   pass `null` to leave one out.
+- **Back:** `BackStyle` and `LocalBackStyle`; `PageMotion`, `rememberPageMotion`
+  and `Modifier.pageEffects`, for an app that runs its own `AnimatedContent`
+  between pages and wants them to move the way the platform's do.

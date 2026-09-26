@@ -165,6 +165,7 @@ fun CommandPalette(
                     layer = OverlayLayer.Dialog,
                     scrim = ScrimStyle.Dimmed,
                     dismissOnOutside = latestDismissible,
+                    dismissOnBack = latestDismissible,
                     dismissLabel = dismissLabel,
                     trapFocus = true,
                     onDismiss = { latestDismiss() },
@@ -176,6 +177,7 @@ fun CommandPalette(
                                     LocalOverlayProgress.current,
                                     fromScale = 1.03f,
                                 )
+                                .overlayBackMotion(OverlayBackKind.Dialog)
                                 .windowInsetsPadding(WindowInsets.allEdges),
                             // Near the top rather than centred: the list grows
                             // downward as the user types, and a centred palette

@@ -1,7 +1,5 @@
 package io.kontour.ui.sheet
 
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.Job
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
@@ -82,10 +80,13 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.overlay.BackdropStyle
 import io.kontour.ui.overlay.LocalOverlayHost
+import io.kontour.ui.overlay.LocalSheetFollowsBack
 import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.overlay.OverlayBackKind
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
+import io.kontour.ui.overlay.overlayBackMotion
 import io.kontour.ui.platform.platformDeviceCorners
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.SquircleShape
@@ -93,8 +94,10 @@ import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.concentricWith
 import io.kontour.ui.theme.lerpCorners
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Whether a bottom sheet meets the window's edges or floats clear of them. */
@@ -523,6 +526,7 @@ fun BottomSheet(
     val density = LocalDensity.current
     val motion = Theme.motion
     val actionsGap = BottomSheetDefaults.ActionsGap
+    val followsBack = LocalSheetFollowsBack.current
     val floating = presentation == SheetPresentation.Floating
     // Only a floating sheet has anything to morph out of. An edge sheet is what the
     // morph arrives at, so for one this is null and every floating branch below is
@@ -731,6 +735,10 @@ fun BottomSheet(
                 // Read in the layout phase, so neither the drag nor the stretch
                 // above the top detent ever recomposes the sheet's content.
                 .offset { IntOffset(0, sheetTop(state, floating, floatInsets, this, morph)) }
+                // A back gesture aimed at the modal this sheet is the body of.
+                // After the offset, so a shrink pivots on the sheet where it
+                // is rather than where it would sit unmoved at the top.
+                .then(if (followsBack) Modifier.overlayBackMotion(OverlayBackKind.BottomSheet) else Modifier)
                 .then(
                     if (draggable) {
                         Modifier
@@ -788,6 +796,8 @@ fun BottomSheet(
                 content = { padding ->
                     CompositionLocalProvider(
                         LocalOverscrollFactory provides childOverscroll,
+                        // A sheet inside this one is its own sheet.
+                        LocalSheetFollowsBack provides false,
                     ) {
                         content(padding)
                     }
@@ -1050,6 +1060,7 @@ fun ModalBottomSheet(
                     // has nothing to recede.
                     backdrop = if (scrim == ScrimStyle.Dimmed) BackdropStyle.Scale else BackdropStyle.None,
                     dismissOnOutside = dismissible,
+                    dismissOnBack = dismissible,
                     dismissLabel = dismissLabel,
                     // The sheet slides itself down and hides the entry when it
                     // has landed — see the `else` branch below.
@@ -1068,26 +1079,28 @@ fun ModalBottomSheet(
                     // flips `visible`, which is what actually closes it.
                     onDismiss = { dismiss() },
                     content = {
-                        BottomSheet(
-                            state = state,
-                            modifier = latestModifier,
-                            presentation = latestPresentation,
-                            edgeMorph = latestEdgeMorph,
-                            alignment = latestAlignment,
-                            shape = latestShape,
-                            expandedShape = latestExpandedShape,
-                            containerColour = latestContainerColour,
-                            contentColour = latestContentColour,
-                            paneTitle = latestPaneTitle,
-                            draggable = latestDraggable,
-                            // The modal's own, handed down rather than written
-                            // into the state from here: the sheet owns the drag,
-                            // so the sheet is what tells the state about it.
-                            dismissible = canDismiss,
-                            dragHandle = latestDragHandle,
-                            windowInsets = latestWindowInsets,
-                            content = body,
-                        )
+                        CompositionLocalProvider(LocalSheetFollowsBack provides true) {
+                            BottomSheet(
+                                state = state,
+                                modifier = latestModifier,
+                                presentation = latestPresentation,
+                                edgeMorph = latestEdgeMorph,
+                                alignment = latestAlignment,
+                                shape = latestShape,
+                                expandedShape = latestExpandedShape,
+                                containerColour = latestContainerColour,
+                                contentColour = latestContentColour,
+                                paneTitle = latestPaneTitle,
+                                draggable = latestDraggable,
+                                // The modal's own, handed down rather than written
+                                // into the state from here: the sheet owns the drag,
+                                // so the sheet is what tells the state about it.
+                                dismissible = canDismiss,
+                                dragHandle = latestDragHandle,
+                                windowInsets = latestWindowInsets,
+                                content = body,
+                            )
+                        }
                     },
                 )
             )

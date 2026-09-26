@@ -194,6 +194,11 @@ kotlin {
             api(project(":haptics"))
             implementation(libs.kotlinx.coroutines.core)
 
+            // `implementation`: the overlay host answers back through it, and
+            // no type of it appears in a public signature — `BackStyle` is
+            // this library's own word for how back looks.
+            implementation(libs.navigationevent.compose)
+
             // `implementation`: only the handful of structural glyphs in
             // `foundation/SystemIcons.kt` are used from here, and none of them
             // appear in a public signature. Everything a *caller* draws is still

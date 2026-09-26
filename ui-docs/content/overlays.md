@@ -289,20 +289,47 @@ scrim still has to carry the separation on its own, and does.
 
 ### Back and dismissal
 
-```kotlin
-if (!overlayHost.dismissTop()) {
-    navController.popBackStack()
-}
-```
+The host answers back itself: the Android back gesture, iOS's edge swipe,
+Escape on the desktop and the web all reach the topmost entry that takes it,
+and nothing beneath it. With nothing open, back goes past the host to whatever
+is behind it — a navigation stack, the platform.
 
-`dismissTop()` takes the topmost entry with `dismissOnBack = true` and reports
-whether it dismissed anything. Returning `false` lets the caller pass the event
-on to navigation rather than swallowing it — a back press that silently does
-nothing is worse than one that leaves the screen.
+An entry takes back when it has `dismissOnBack = true`, or when it dims the page
+with `ScrimStyle.Dimmed`. The second matters: a dialog that may not be dismissed
+still takes back and **refuses it** — it gives a little under the gesture and
+returns, and `onDismissRequest` is not called — because letting back through
+would pop the screen behind a question that is still being asked. `Dialog`,
+`ModalBottomSheet`, `ModalSideSheet` and `CommandPalette` set `dismissOnBack`
+from their `dismissible`.
 
-Toasts and tooltips set `dismissOnBack = false`, so a back press while a toast is
-up leaves the screen rather than dismissing a confirmation the user was not
-interacting with.
+Toasts and plain tooltips neither dismiss on back nor dim, so a back press while
+a toast is up leaves the screen rather than dismissing a confirmation the user
+was not interacting with.
+
+**Inside an entry, the innermost handler wins.** A navigation stack in a sheet
+pops first while it has somewhere to go back to, and the sheet closes once it
+has not. Each entry has its own dispatcher under the host's, enabled only while
+that entry is the one back reaches, so what answers is decided by which entry is
+on top, not by the order things were composed in.
+
+**A gesture is followed, not just obeyed.** While a back gesture is under way
+the panel follows it in the platform's feel — `LocalBackStyle`, predictive back
+on Android and swipe back on iOS:
+
+| | Predictive | Swipe |
+|---|---|---|
+| Dialog, command palette | shrinks to nine tenths where it is | fades; UIKit never drags an alert |
+| Bottom sheet | shrinks towards its bottom edge | moves down with the finger |
+| Side sheet, nav drawer | shrinks towards its edge | follows the finger to its edge |
+
+The scrim thins with it. A gesture let go closes the entry from the pose the
+hand left it in; one abandoned returns it. Under reduced motion nothing moves
+and the panel only dims.
+
+`dismissTop()` is still there, for an app that closes the top entry from
+something other than back — a hardware key, a toolbar button. It takes the
+topmost entry with `dismissOnBack = true` and reports whether it dismissed
+anything.
 
 ### Focus and reading order
 

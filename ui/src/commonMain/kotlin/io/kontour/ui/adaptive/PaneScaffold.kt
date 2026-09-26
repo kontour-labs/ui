@@ -1,14 +1,9 @@
 package io.kontour.ui.adaptive
 
-import kotlin.math.abs
-import io.kontour.ui.interaction.rememberEndStopLatch
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.SeekableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.rememberTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.hoverable
@@ -23,6 +18,7 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
@@ -31,11 +27,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -50,7 +48,11 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.VerticalDivider
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.rememberEndStopLatch
+import io.kontour.ui.motion.pageEffects
+import io.kontour.ui.motion.rememberPageMotion
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
 
 /** Which pane a single-pane window is showing. */
 enum class PaneFocus { List, Detail }
@@ -92,6 +94,13 @@ object PaneScaffoldDefaults {
  * On two panes the detail keeps its **empty state** rather than collapsing, so
  * the layout does not reflow the instant a selection is made or cleared.
  *
+ * @param onBack Called when back reaches the detail on one pane — the system
+ *   back gesture, the edge swipe on iOS, Escape on the desktop — and should
+ *   clear the selection. The pane follows a gesture while it is under way, in
+ *   the feel [io.kontour.ui.motion.LocalBackStyle] gives it, and finishes from
+ *   wherever the hand let go. Not called on two panes, where there is nothing
+ *   to go back from, and not while a handler inside the detail — a stack of its
+ *   own — has somewhere to go back to.
  * @param twoPane Override the automatic choice, which is the window's width
  *   alone — two panes from 840dp. This used to claim it consulted the input
  *   modality as well, and never did; it should not start. The modality is
@@ -129,7 +138,7 @@ fun ListDetailPaneScaffold(
             end = detailPane,
         )
     } else {
-        SinglePane(focus = focus, modifier = modifier, list = listPane, detail = detailPane)
+        SinglePane(focus = focus, onBack = onBack, modifier = modifier, list = listPane, detail = detailPane)
     }
 }
 
@@ -325,33 +334,54 @@ private fun TwoPaneSupporting(
 @Composable
 private fun SinglePane(
     focus: PaneFocus,
+    onBack: () -> Unit,
     modifier: Modifier,
     list: @Composable () -> Unit,
     detail: @Composable () -> Unit,
 ) {
-    val motion = Theme.motion
+    val motion = rememberPageMotion()
+    val back = rememberPaneBack(enabled = focus == PaneFocus.Detail, onBack = onBack)
+    val state = remember { SeekableTransitionState(focus) }
+    if (back.inProgress && focus == PaneFocus.Detail) {
+        // The hand has the list partly uncovered: seek towards it.
+        LaunchedEffect(back) {
+            snapshotFlow { back.progress }.collect { state.seekTo(it, targetState = PaneFocus.List) }
+        }
+    } else {
+        // The caller's focus — which, after a gesture let go, is the rest of
+        // the way from where the hand left it, and after one abandoned or
+        // declined, the way back.
+        LaunchedEffect(focus) { state.animateTo(focus) }
+    }
+    val transition = rememberTransition(state, label = "pane")
+    val ground = Theme.colours.background
 
-    AnimatedContent(
-        targetState = focus,
+    transition.AnimatedContent(
         modifier = modifier.fillMaxSize(),
         transitionSpec = {
-            // The detail arrives from the trailing edge and the list leaves
-            // toward the leading one, which is the direction the user's mental
-            // model already runs in.
-            val forward = targetState == PaneFocus.Detail
-            val enter = slideInHorizontally(motion.tweenDefault()) { full ->
-                if (forward) full / 3 else -full / 3
-            } + fadeIn(motion.tweenFast())
-            val exit = slideOutHorizontally(motion.tweenDefault()) { full ->
-                if (forward) -full / 3 else full / 3
-            } + fadeOut(motion.tweenFast())
-            enter togetherWith exit
+            // The detail arrives from the trailing edge and the list comes back
+            // from the leading one, in whichever feel back has here.
+            when {
+                targetState == PaneFocus.Detail -> motion.push()
+                back.inProgress -> motion.predictivePop(back.swipeEdge)
+                else -> motion.pop()
+            }
         },
-        label = "pane",
     ) { current ->
-        when (current) {
-            PaneFocus.List -> list()
-            PaneFocus.Detail -> detail()
+        Box(
+            Modifier
+                .fillMaxSize()
+                // Opaque only while it moves, so a page sliding over the other
+                // hides it — and at rest the scaffold is whatever it sits on.
+                .drawBehind {
+                    if (transition.currentState != transition.targetState) drawRect(ground)
+                }
+                .pageEffects(motion, this, isPop = { transition.targetState == PaneFocus.List })
+        ) {
+            when (current) {
+                PaneFocus.List -> list()
+                PaneFocus.Detail -> detail()
+            }
         }
     }
 }
