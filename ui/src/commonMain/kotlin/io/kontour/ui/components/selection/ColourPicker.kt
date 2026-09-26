@@ -18,6 +18,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -123,6 +125,10 @@ enum class ColourPickerMode {
  *   which inputs are shown. Null pins [format].
  * @param swatches Offered under the spectrum, and the whole of
  *   [ColourPickerMode.Palette]. Empty removes the row.
+ * @param onColourChangeFinished Called once a colour has been chosen — a drag on
+ *   the square or a track lifting, a swatch or a palette cell pressed, a value
+ *   typed — as a slider's `onValueChangeFinished` is. For saving the colour,
+ *   where [onColourChange] would save every step of a drag.
  */
 @Composable
 fun ColourPicker(
@@ -137,8 +143,10 @@ fun ColourPicker(
     format: ColourFormat = ColourFormat.Hex,
     onFormatChange: ((ColourFormat) -> Unit)? = null,
     swatches: List<Color> = ColourPickerDefaults.Swatches,
+    onColourChangeFinished: (() -> Unit)? = null,
 ) {
     var hsv by remember { mutableStateOf(colour.toHsv()) }
+    val finished by rememberUpdatedState(onColourChangeFinished)
     var alpha by remember { mutableFloatStateOf(colour.alpha) }
 
     LaunchedEffect(colour) {
@@ -179,69 +187,83 @@ fun ColourPicker(
         )
     }
 
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-    ) {
-        if (onModeChange != null) {
-            // Remembered on the words, not built each time: a new list is a new
-            // parameter, and the switch recomposed on every drag event of the
-            // picker around it.
-            val strings = Theme.strings
-            val modeLabels = remember(strings.colourSpectrum, strings.colourPalette) {
-                listOf(strings.colourSpectrum, strings.colourPalette)
+    // The picker's parts each know when their own gesture ends; this is how they
+    // say so without every one of them taking a callback it only passes on.
+    CompositionLocalProvider(LocalColourFinished provides { finished?.invoke() }) {
+        Column(
+            modifier = modifier,
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+        ) {
+            if (onModeChange != null) {
+                // Remembered on the words, not built each time: a new list is a new
+                // parameter, and the switch recomposed on every drag event of the
+                // picker around it.
+                val strings = Theme.strings
+                val modeLabels = remember(strings.colourSpectrum, strings.colourPalette) {
+                    listOf(strings.colourSpectrum, strings.colourPalette)
+                }
+                SegmentedControl(
+                    options = modeLabels,
+                    selected = ColourPickerMode.entries.indexOf(mode),
+                    onSelectedChange = { onModeChange(ColourPickerMode.entries[it]) },
+                    enabled = enabled,
+                )
             }
-            SegmentedControl(
-                options = modeLabels,
-                selected = ColourPickerMode.entries.indexOf(mode),
-                onSelectedChange = { onModeChange(ColourPickerMode.entries[it]) },
-                enabled = enabled,
-            )
-        }
 
-        // The mode chooses the *area*, and nothing else. Both need a hue to
-        // work in — a palette built from one hue is a column of greys — and
-        // both take opacity if the caller asked for it. Palette used to drop
-        // all three, which left `swatches = emptyList()` rendering a lone hex
-        // box and no way at all to choose a colour.
-        when (mode) {
-            ColourPickerMode.Spectrum -> SaturationValueArea(hsv, { emit(next = it) }, enabled)
-            ColourPickerMode.Palette -> PaletteGrid(hsv, { emit(next = it) }, enabled)
-        }
-        HueTrack(hsv.hue, { emit(next = hsv.copy(hue = it)) }, enabled)
-        if (alphaSlider) {
-            AlphaTrack(alpha, hsv.toColour(), { emit(nextAlpha = it) }, enabled)
-        }
+            // The mode chooses the *area*, and nothing else. Both need a hue to
+            // work in — a palette built from one hue is a column of greys — and
+            // both take opacity if the caller asked for it. Palette used to drop
+            // all three, which left `swatches = emptyList()` rendering a lone hex
+            // box and no way at all to choose a colour.
+            when (mode) {
+                ColourPickerMode.Spectrum -> SaturationValueArea(hsv, { emit(next = it) }, enabled)
+                ColourPickerMode.Palette -> PaletteGrid(hsv, { emit(next = it) }, enabled)
+            }
+            HueTrack(hsv.hue, { emit(next = hsv.copy(hue = it)) }, enabled)
+            if (alphaSlider) {
+                AlphaTrack(alpha, hsv.toColour(), { emit(nextAlpha = it) }, enabled)
+            }
 
-        if (swatches.isNotEmpty()) {
-            ColourSwatchPicker(
-                value = swatches.firstOrNull { it.toArgb() == colour.toArgb() },
-                options = swatches,
-                onValueChange = ::pick,
-                swatchColour = { it },
-                swatchLabel = { it.toHex() },
-                enabled = enabled,
-                // Smaller than a swatch picker on its own, which is a control a
-                // finger lands on directly. Here the row is a shortcut beside a
-                // spectrum that can reach the same colours, and ten of them at
-                // 40dp wrap to four rows in a 320dp picker — a suggestion taking
-                // more room than the thing it is suggesting an alternative to.
-                swatchSize = SwatchSize,
-            )
-        }
+            if (swatches.isNotEmpty()) {
+                ColourSwatchPicker(
+                    value = swatches.firstOrNull { it.toArgb() == colour.toArgb() },
+                    options = swatches,
+                    onValueChange = {
+                        pick(it)
+                        finished?.invoke()
+                    },
+                    swatchColour = { it },
+                    swatchLabel = { it.toHex() },
+                    enabled = enabled,
+                    // Smaller than a swatch picker on its own, which is a control a
+                    // finger lands on directly. Here the row is a shortcut beside a
+                    // spectrum that can reach the same colours, and ten of them at
+                    // 40dp wrap to four rows in a 320dp picker — a suggestion taking
+                    // more room than the thing it is suggesting an alternative to.
+                    swatchSize = SwatchSize,
+                )
+            }
 
-        if (valueField) {
-            ColourFields(
-                colour = hsv.toColour(alpha),
-                onColourChange = ::pick,
-                enabled = enabled,
-                format = format,
-                onFormatChange = onFormatChange,
-                withAlpha = alphaSlider,
-            )
+            if (valueField) {
+                ColourFields(
+                    colour = hsv.toColour(alpha),
+                    // A typed value is a finished one: there is no drag to wait for.
+                    onColourChange = {
+                        pick(it)
+                        finished?.invoke()
+                    },
+                    enabled = enabled,
+                    format = format,
+                    onFormatChange = onFormatChange,
+                    withAlpha = alphaSlider,
+                )
+            }
         }
     }
 }
+
+/** How a part of a [ColourPicker] says its gesture has ended. See `onColourChangeFinished`. */
+private val LocalColourFinished = staticCompositionLocalOf<() -> Unit> { {} }
 
 /** What a [ColourPicker] offers when the caller does not say. */
 object ColourPickerDefaults {
@@ -290,6 +312,7 @@ object ColourPickerDefaults {
 @Composable
 private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) {
     val scope = rememberCoroutineScope()
+    val colourFinished = LocalColourFinished.current
     var box by remember { mutableStateOf(Size.Zero) }
     var at by remember { mutableStateOf(Offset.Zero) }
     val strings = Theme.strings
@@ -383,6 +406,7 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
                     texture.reset()
                     sides.reset()
                     ends.reset()
+                    colourFinished()
                 },
             )
             .semantics { contentDescription = strings.colourArea }
@@ -413,6 +437,7 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
 @Composable
 private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) {
     val scope = rememberCoroutineScope()
+    val colourFinished = LocalColourFinished.current
     var box by remember { mutableStateOf(Size.Zero) }
     var at by remember { mutableStateOf(Offset.Zero) }
     val strings = Theme.strings
@@ -465,7 +490,10 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
                 claimsOn = DragClaim.Press,
                 onStart = { report(it, press = true) },
                 onDelta = { report(at + it) },
-                onEnd = { cells.reset() },
+                onEnd = {
+                    cells.reset()
+                    colourFinished()
+                },
             )
             .semantics { contentDescription = strings.colourArea }
     ) {
@@ -586,6 +614,7 @@ private fun Track(
     behind: (DrawScope.() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
+    val colourFinished = LocalColourFinished.current
     var width by remember { mutableFloatStateOf(0f) }
     var at by remember { mutableFloatStateOf(0f) }
     // A track is a slider, and runs into its ends the way one does: once, as
@@ -630,6 +659,7 @@ private fun Track(
                 onEnd = {
                     endStop.reset()
                     texture.reset()
+                    colourFinished()
                 },
             )
             .semantics {
@@ -640,6 +670,7 @@ private fun Track(
                 // a value is exactly what this is.
                 setProgress { value ->
                     onFractionChange(value.coerceIn(0f, 1f))
+                    colourFinished()
                     true
                 }
             }

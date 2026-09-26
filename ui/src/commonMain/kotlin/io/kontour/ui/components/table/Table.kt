@@ -135,6 +135,7 @@ data class TableColours(
 object TableDefaults {
     /** Clear on the page, with the list rows' sunken ground for stripes and their accent for selection. */
     @Composable
+    @ReadOnlyComposable
     fun colours(
         container: Color = Color.Transparent,
         header: Color = Color.Transparent,

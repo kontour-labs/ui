@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.FloatState
@@ -113,6 +114,7 @@ data class TimelineColours(
 object TimelineDefaults {
     /** The theme's accent for nodes and progress, a strong outline for the rail. */
     @Composable
+    @ReadOnlyComposable
     fun colours(
         node: Color = Theme.colours.primary,
         rail: Color = Theme.colours.outlineStrong,

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -192,6 +193,7 @@ object ActivityCalendarDefaults {
      * not blend, build [ActivityCalendarColours] with a list of your own.
      */
     @Composable
+    @ReadOnlyComposable
     fun colours(
         levels: Int = ActivityLevelCount,
         empty: Color = Theme.colours.surfaceSunken,

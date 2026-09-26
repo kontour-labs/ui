@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -392,6 +393,7 @@ object GaugeDefaults {
      * [ScaleColours.gradient] or [ScaleColours.bands] as [indicator] for more.
      */
     @Composable
+    @ReadOnlyComposable
     fun colours(
         indicator: ScaleColours = ScaleColours.solid(Theme.colours.primary),
         track: Color = Theme.colours.surfaceSunken,

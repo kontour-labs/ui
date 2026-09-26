@@ -11,7 +11,6 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -649,7 +648,12 @@ fun SubMenu(
  */
 @Composable
 fun ContextMenuArea(
-    menu: @Composable ColumnScope.() -> Unit,
+    /**
+     * The menu, with the same scope a [DropdownMenu]'s content has — so `item`,
+     * the shorthand that closes the menu as it runs, works here too. It was a
+     * plain `ColumnScope`, and a context menu was the one menu without it.
+     */
+    menu: @Composable MenuScope.() -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     content: @Composable () -> Unit,

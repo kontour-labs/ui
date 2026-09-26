@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -362,6 +363,7 @@ private val PageButtonSize = 36.dp
 private val GapWidth = 24.dp
 
 /** What goes in one position of a [Pagination] row. */
+@Immutable
 sealed interface PaginationSlot {
     data class Page(val index: Int) : PaginationSlot
     data object Gap : PaginationSlot

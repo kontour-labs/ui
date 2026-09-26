@@ -59,7 +59,7 @@ object CoachmarkDefaults {
      * smoothing, which a `CornerRadius` on a `RoundRect` cannot carry.
      */
     val SpotlightShape: CornerBasedShape
-        @Composable get() = Theme.shapes.container
+        @Composable @ReadOnlyComposable get() = Theme.shapes.container
 }
 
 /**

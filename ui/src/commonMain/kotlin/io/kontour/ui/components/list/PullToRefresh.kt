@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -90,7 +91,7 @@ object PullToRefreshDefaults {
      * the container's top, and the list coming away from it.
      */
     val Clearance: Dp
-        @Composable get() = Theme.spacing.xs
+        @Composable @ReadOnlyComposable get() = Theme.spacing.xs
 }
 
 @Stable

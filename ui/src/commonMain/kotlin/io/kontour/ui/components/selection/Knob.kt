@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -396,6 +397,7 @@ object KnobDefaults {
 
     /** The theme's colours for a knob: a raised face with a notch, over a track. */
     @Composable
+    @ReadOnlyComposable
     fun colours(
         indicator: ScaleColours = ScaleColours.solid(Theme.colours.primary),
         track: Color = Theme.colours.surfaceSunken,

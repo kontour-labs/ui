@@ -400,6 +400,7 @@ fun interface FeedbackDispatcher {
 }
 
 /** Feedback that lasts, started by [FeedbackDispatcher.sustain]. */
+@Stable
 interface SustainedFeedback {
     /** How far through it is, 0 to 1 — a rumble builds with it. */
     fun update(progress: Float)

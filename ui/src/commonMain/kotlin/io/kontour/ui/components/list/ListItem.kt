@@ -117,7 +117,7 @@ fun ListItemPosition.shape(
 
 object ListItemDefaults {
     /** Corner radius on a group's outside edges. */
-    val Shape: CornerBasedShape @Composable get() = Theme.shapes.container
+    val Shape: CornerBasedShape @Composable @ReadOnlyComposable get() = Theme.shapes.container
 
     /** Gap between items in a group. */
     val Spacing: Dp

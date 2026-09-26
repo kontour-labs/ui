@@ -62,7 +62,7 @@ object NavBarDefaults {
      * out under a bar of no height at all and then jump.
      */
     val MinHeight: Dp
-        @Composable get() = maxOf(Theme.sizing.minTouchTarget, NavItemDefaults.CircleSize.height)
+        @Composable @ReadOnlyComposable get() = maxOf(Theme.sizing.minTouchTarget, NavItemDefaults.CircleSize.height)
 
     /**
      * The gap between destinations when they are not spread across the window.

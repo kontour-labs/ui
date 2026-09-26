@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -462,6 +463,7 @@ object MeterDefaults {
      * [ScaleColours.gradient] or [ScaleColours.bands] as [indicator] for more.
      */
     @Composable
+    @ReadOnlyComposable
     fun colours(
         indicator: ScaleColours = ScaleColours.solid(Theme.colours.primary),
         track: Color = Theme.colours.surfaceSunken,

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -98,6 +99,9 @@ import kotlin.math.ceil
  *   common rating on any screen.
  * @param icon The empty mark. Defaults to a star outline.
  * @param filledIcon The full mark. Defaults to a filled star.
+ * @param onValueChangeFinished Called once the score has been set — when a press
+ *   or a drag lifts, or a mark is chosen from the keyboard — as a slider's is. For
+ *   saving the score, where [onValueChange] would save every mark a drag crossed.
  */
 @Composable
 fun Rating(
@@ -114,6 +118,7 @@ fun Rating(
     filledColour: Color = Theme.colours.warning.solid,
     emptyColour: Color = Theme.colours.outlineStrong,
     stateDescription: ((Float) -> String)? = null,
+    onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val tap = rememberTapFeedback()
@@ -170,6 +175,7 @@ fun Rating(
     val markWidth = remember(count) { FloatArray(count) }
     val currentValue by rememberUpdatedState(clamped)
     val currentChange by rememberUpdatedState(onValueChange)
+    val currentFinished by rememberUpdatedState(onValueChangeFinished)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     fun setFromX(x: Float, press: Boolean) {
@@ -247,6 +253,7 @@ fun Rating(
                                 if (travelled) setFromX(change.position.x, press = false)
                             }
                             ticker.reset()
+                            currentFinished?.invoke()
                         }
                     }
                 } else {
@@ -288,6 +295,7 @@ fun Rating(
                         onClick = {
                             if (markValue.toFloat() != currentValue) tap()
                             onValueChange(markValue.toFloat())
+                            currentFinished?.invoke()
                         },
                         enabled = enabled,
                         role = androidx.compose.ui.semantics.Role.RadioButton,
@@ -405,5 +413,5 @@ object RatingDefaults {
      * icons — the touch targets around them are much wider than the gap and
      * overlap nothing, because `minimumTouchTarget` reserves layout space.
      */
-    val Gap: Dp @Composable get() = Theme.spacing.xxs
+    val Gap: Dp @Composable @ReadOnlyComposable get() = Theme.spacing.xxs
 }

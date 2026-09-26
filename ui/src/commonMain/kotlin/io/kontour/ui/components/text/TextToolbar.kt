@@ -59,6 +59,7 @@ class TextToolbarAction(
  * well. Construct it inside composition — [textToolbarLabels] — or pass every
  * field.
  */
+@Immutable
 data class TextToolbarLabels(
     val copy: String,
     val cut: String,

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.key
@@ -52,6 +53,7 @@ object BranchTimelineDefaults {
      * once is past what a phone can show legibly anyway.
      */
     @Composable
+    @ReadOnlyComposable
     fun palette(): List<Color> = listOf(
         Theme.colours.primary,
         Theme.colours.info.solid,
@@ -63,6 +65,7 @@ object BranchTimelineDefaults {
 
     /** The [palette] for the lanes, and a strong outline for what progress has not reached. */
     @Composable
+    @ReadOnlyComposable
     fun colours(
         lanes: List<Color> = palette(),
         muted: Color = Theme.colours.outlineStrong,

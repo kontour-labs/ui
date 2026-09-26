@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -212,6 +213,7 @@ enum class BubblePosition {
 object ChatBubbleDefaults {
     /** The accent for the user's own messages, a quiet ground for everyone else's. */
     @Composable
+    @ReadOnlyComposable
     fun colour(side: BubbleSide): Color = when (side) {
         BubbleSide.Outgoing -> Theme.colours.primary
         BubbleSide.Incoming -> Theme.colours.surfaceSunken
@@ -219,6 +221,7 @@ object ChatBubbleDefaults {
 
     /** The text colour that goes with [colour]. */
     @Composable
+    @ReadOnlyComposable
     fun contentColour(side: BubbleSide): Color = when (side) {
         BubbleSide.Outgoing -> Theme.colours.onPrimary
         BubbleSide.Incoming -> Theme.colours.content
