@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Timing for [Modifier.marquee]. */
 object MarqueeDefaults {
@@ -21,7 +23,7 @@ object MarqueeDefaults {
      * and the first word is usually the one that identifies the thing —
      * "Elizabeth Quay Bus Station" is answered by the first two words.
      */
-    const val PauseMillis: Int = 1600
+    val Pause: Duration = 1600.milliseconds
 
     /** Reading pace, not conveyor-belt pace. */
     val Velocity: Dp = 40.dp
@@ -77,7 +79,7 @@ object MarqueeDefaults {
 @Composable
 fun Modifier.marquee(
     iterations: Int = 3,
-    pauseMillis: Int = MarqueeDefaults.PauseMillis,
+    pause: Duration = MarqueeDefaults.Pause,
     velocity: Dp = MarqueeDefaults.Velocity,
     gap: Dp = MarqueeDefaults.Gap,
 ): Modifier = if (Theme.motion.reduceMotion) {
@@ -85,8 +87,8 @@ fun Modifier.marquee(
 } else {
     this.basicMarquee(
         iterations = iterations,
-        repeatDelayMillis = pauseMillis,
-        initialDelayMillis = pauseMillis,
+        repeatDelayMillis = pause.inWholeMilliseconds.toInt(),
+        initialDelayMillis = pause.inWholeMilliseconds.toInt(),
         // Remembered: a spacing has no equality, so a new one each composition
         // is a changed parameter and the marquee measures again for it.
         spacing = remember(gap) { MarqueeSpacing(gap) },

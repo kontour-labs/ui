@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
+import kotlin.time.Duration
 
 /** How a [revealOnScroll] element arrives. */
 enum class RevealVariant { FadeUp, FadeScale, FadeStart, FadeEnd }
@@ -27,7 +28,7 @@ enum class RevealVariant { FadeUp, FadeScale, FadeStart, FadeEnd }
  *
  * ```kotlin
  * Card(Modifier.revealOnScroll()) { … }
- * Card(Modifier.revealOnScroll(delayMillis = 80)) { … }
+ * Card(Modifier.revealOnScroll(delay = 80.milliseconds)) { … }
  * ```
  *
  * A port of the marketing site's `reveal.ts`, and it keeps that action's two
@@ -54,7 +55,7 @@ enum class RevealVariant { FadeUp, FadeScale, FadeStart, FadeEnd }
 fun Modifier.revealOnScroll(
     variant: RevealVariant = RevealVariant.FadeUp,
     threshold: Float = 0.1f,
-    delayMillis: Long = 0,
+    delay: Duration = Duration.ZERO,
     distance: Dp = 24.dp,
 ): Modifier {
     val motion = Theme.motion
@@ -65,7 +66,7 @@ fun Modifier.revealOnScroll(
 
     LaunchedEffect(visible) {
         if (visible && !revealed) {
-            if (delayMillis > 0) delay(delayMillis)
+            if (delay > Duration.ZERO) delay(delay)
             revealed = true
         }
     }

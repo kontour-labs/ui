@@ -8,6 +8,7 @@ import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Toasts leave oldest first, one at a time.
@@ -36,7 +37,7 @@ class ToastOrderTest {
         mainClock.autoAdvance = false
 
         val ids = List(4) { index ->
-            toasts.show("Toast $index", durationMillis = 2_500).also { mainClock.advanceTimeBy(300) }
+            toasts.show("Toast $index", duration = 2_500.milliseconds).also { mainClock.advanceTimeBy(300) }
         }
         // The front one — the newest — swiped away by hand.
         toasts.dismiss(ids.last())

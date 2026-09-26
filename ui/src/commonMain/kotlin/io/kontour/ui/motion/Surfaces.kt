@@ -35,6 +35,8 @@ import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.platform.platformSupportsBackdropBlur
 import io.kontour.ui.theme.LocalBackdropBlur
 import io.kontour.ui.theme.Theme
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * A translucent panel, for a bar floating over content.
@@ -346,7 +348,7 @@ fun Modifier.edgeVignette(
 fun Modifier.shimmer(
     colour: Color = Theme.colours.surfaceSunken,
     highlight: Color = Theme.colours.surface,
-    durationMillis: Int = 1_400,
+    duration: Duration = 1_400.milliseconds,
 ): Modifier {
     val motion = Theme.motion
     if (motion.reduceMotion) return drawBehind { drawRect(colour) }
@@ -356,7 +358,7 @@ fun Modifier.shimmer(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis),
+            animation = tween(duration.inWholeMilliseconds.toInt()),
             repeatMode = RepeatMode.Restart,
         ),
         label = "shimmerProgress",

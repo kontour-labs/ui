@@ -725,7 +725,7 @@ fun ActivityCalendar(
                 if (hoverDay == null) {
                     hoverShown = false
                 } else {
-                    delay(TooltipDefaults.HoverDelayMillis)
+                    delay(TooltipDefaults.HoverDelay)
                     hoverShown = true
                 }
             }

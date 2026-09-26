@@ -59,7 +59,7 @@ right, but a toast that arrives at the front with two hundred milliseconds left
 was never actually read — it flashed. So on being promoted its remainder is
 raised to `ToastDefaults.PromotedFloor` of its own duration, three fifths, which
 scales with whatever the caller asked for and keeps the extra time
-`DurationWithAction` exists to give. It is a **floor and not a restart**: a
+`DisplayDurationWithAction` exists to give. It is a **floor and not a restart**: a
 restart would put a stack of four back to taking four full durations to clear,
 which is the queue this host was rewritten to stop being, and a toast promoted
 with plenty of time left is untouched either way.

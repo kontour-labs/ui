@@ -40,10 +40,10 @@ import kotlin.test.assertEquals
 class SubMenuHoverTest {
 
     /** Comfortably past [MenuDefaults.SubmenuCloseDelay]. */
-    private val pastTheGrace = MenuDefaults.SubmenuCloseDelay + 100
+    private val pastTheGrace = MenuDefaults.SubmenuCloseDelay.inWholeMilliseconds + 100
 
     /** Fine enough to land inside a blink rather than stepping over it. */
-    private val aQuarterOfTheGrace = MenuDefaults.SubmenuCloseDelay / 4
+    private val aQuarterOfTheGrace = MenuDefaults.SubmenuCloseDelay.inWholeMilliseconds / 4
 
     @Test
     fun closesOnceThePointerHasLeftForGood() {
@@ -111,7 +111,7 @@ class SubMenuHoverTest {
             // Leaving the row is unavoidable on the way to the panel. Arriving
             // there within the grace period has to count as still hovering.
             hover("Sort by")
-            mainClock.advanceTimeBy(MenuDefaults.SubmenuCloseDelay / 2)
+            mainClock.advanceTimeBy(MenuDefaults.SubmenuCloseDelay.inWholeMilliseconds / 2)
             hover("Route")
             mainClock.advanceTimeBy(pastTheGrace)
 

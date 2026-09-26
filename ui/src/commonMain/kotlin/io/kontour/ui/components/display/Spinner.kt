@@ -25,6 +25,8 @@ import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.theme.Theme
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * An indeterminate activity indicator.
@@ -110,7 +112,7 @@ fun Spinner(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = SpinnerDefaults.RotationMillis, easing = LinearEasing),
+            animation = tween(durationMillis = SpinnerDefaults.RotationDuration.inWholeMilliseconds.toInt(), easing = LinearEasing),
         ),
         label = "spinnerRotation",
     )
@@ -135,7 +137,7 @@ fun Spinner(
             targetValue = SpinnerDefaults.OpeningPhase + 1f,
             animationSpec = infiniteRepeatable(
                 animation = tween(
-                    durationMillis = SpinnerDefaults.BreatheMillis,
+                    durationMillis = SpinnerDefaults.BreatheDuration.inWholeMilliseconds.toInt(),
                     easing = LinearEasing,
                 ),
             ),
@@ -211,10 +213,10 @@ internal fun spinnerSweep(phase: Float): Float {
 
 object SpinnerDefaults {
     /** One turn of the head. */
-    const val RotationMillis: Int = 1000
+    val RotationDuration: Duration = 1000.milliseconds
 
-    /** One grow-and-shrink of the tail. Coprime-ish with [RotationMillis]. */
-    const val BreatheMillis: Int = 1400
+    /** One grow-and-shrink of the tail. Coprime-ish with [RotationDuration]. */
+    val BreatheDuration: Duration = 1400.milliseconds
 
     /**
      * Never a bare dot, never a closed ring.

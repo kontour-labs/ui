@@ -152,6 +152,7 @@ import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.LocalTime
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * One extra picture of a component, in a state it cannot be caught in at rest.
@@ -1985,7 +1986,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     onAction = {},
                     // Long enough that the render is of a toast rather than of
                     // one halfway through leaving.
-                    durationMillis = 60_000,
+                    duration = 60_000.milliseconds,
                 )
             }
             Box(modifier.fillMaxWidth().height(88.dp)) {

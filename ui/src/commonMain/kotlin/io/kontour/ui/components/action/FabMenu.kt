@@ -55,6 +55,8 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /** How a [FabMenu]'s items arrange themselves around the button they came out of. */
 enum class FabMenuLayout {
@@ -138,7 +140,7 @@ object FabMenuDefaults {
      * still movement, and staggering it draws the eye across the screen exactly
      * as the preference asks it not to.
      */
-    const val StaggerMillis: Long = 28L
+    val Stagger: Duration = 28.milliseconds
 
     /** How small an item starts before springing out to full size. */
     const val FromScale: Float = 0.55f
@@ -297,7 +299,7 @@ fun FabMenu(
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
     LaunchedEffect(open, items.size, scrim) {
-        val stagger = if (motion.reduceMotion) 0L else FabMenuDefaults.StaggerMillis
+        val stagger = if (motion.reduceMotion) Duration.ZERO else FabMenuDefaults.Stagger
         if (open) {
             host.show(
                 OverlayEntry(
@@ -337,7 +339,7 @@ fun FabMenu(
             // out of.
             fractions.forEachIndexed { index, fraction ->
                 launch {
-                    delay(index * stagger)
+                    delay(stagger * index)
                     // `springDefault`, not `springBouncy`. Overshoot is a
                     // proportion of the distance travelled, so the same spring
                     // that reads as lively on a chip's 6dp tick reads as a
@@ -355,7 +357,7 @@ fun FabMenu(
                 launch {
                     // Furthest first on the way back: the menu gathers itself
                     // into the FAB rather than peeling away from it.
-                    delay((last - index).coerceAtLeast(0) * stagger)
+                    delay(stagger * (last - index).coerceAtLeast(0))
                     fraction.animateTo(0f, motion.springOrTween(motion.springSnappy))
                 }
             }

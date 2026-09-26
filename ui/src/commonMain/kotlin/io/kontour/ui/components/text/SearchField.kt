@@ -22,6 +22,8 @@ import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * A search field with a clear button and built-in debounce.
@@ -38,7 +40,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * )
  * ```
  *
- * [onQuery] fires on a [debounceMillis] delay rather than on every
+ * [onQuery] fires on a [debounce] delay rather than on every
  * keystroke, so a search-as-you-type field does not fire a request per
  * character. The debounce lives here rather than in every caller's view model
  * because getting it wrong is invisible until you look at the network log.
@@ -62,7 +64,7 @@ fun SearchField(
     clearIcon: ImageVector? = null,
     clearLabel: String = Theme.strings.clearSearch,
     supporting: String? = null,
-    debounceMillis: Long = 250L,
+    debounce: Duration = 250.milliseconds,
     onQuery: ((String) -> Unit)? = null,
     onSearch: ((String) -> Unit)? = null,
     variant: TextFieldVariant = TextFieldVariant.Filled,
@@ -72,9 +74,9 @@ fun SearchField(
     val currentOnQuery by rememberUpdatedState(onQuery)
 
     if (onQuery != null) {
-        LaunchedEffect(state, debounceMillis) {
+        LaunchedEffect(state, debounce) {
             snapshotFlow { state.text.toString() }
-                .debounce(debounceMillis)
+                .debounce(debounce)
                 .distinctUntilChanged()
                 .collect { currentOnQuery?.invoke(it) }
         }

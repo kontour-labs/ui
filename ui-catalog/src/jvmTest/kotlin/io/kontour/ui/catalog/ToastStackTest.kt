@@ -25,6 +25,8 @@ import kotlin.time.TimeSource
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Toasts stack, and each one runs its own clock.
@@ -67,11 +69,11 @@ class ToastStackTest {
         // head of the queue for ever, and nothing queued behind it was ever
         // drawn — its timer had not even started.
         val both = heightAfter { toasts ->
-            toasts.show("Couldn't reach the timetable", tone = Tone.Danger, durationMillis = 0)
+            toasts.show("Couldn't reach the timetable", tone = Tone.Danger, duration = Duration.INFINITE)
             toasts.show("Saved for offline")
         }
         val pinnedOnly = heightAfter { toasts ->
-            toasts.show("Couldn't reach the timetable", tone = Tone.Danger, durationMillis = 0)
+            toasts.show("Couldn't reach the timetable", tone = Tone.Danger, duration = Duration.INFINITE)
         }
 
         assertTrue(
@@ -105,7 +107,7 @@ class ToastStackTest {
         // the entry animation cannot eat the whole duration on a slow machine —
         // and `pinnedAlone` below is what catches it if it ever does.
         val pinnedAlone = heightAfter { toasts ->
-            toasts.show("Couldn't reach the timetable", durationMillis = 0)
+            toasts.show("Couldn't reach the timetable", duration = Duration.INFINITE)
         }
 
         var withBoth = 0
@@ -117,8 +119,8 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    toasts.show("Couldn't reach the timetable", durationMillis = 0)
-                    toasts.show("Saved", durationMillis = 3_000)
+                    toasts.show("Couldn't reach the timetable", duration = Duration.INFINITE)
+                    toasts.show("Saved", duration = 3_000.milliseconds)
                 }
             }
         }.use { scene ->
@@ -144,7 +146,7 @@ class ToastStackTest {
         assertTrue(
             settled.stackHeight() > 0,
             "the stack emptied entirely — the pinned toast went too, and a " +
-                "`durationMillis = 0` toast is supposed to stay until dismissed",
+                "`duration = Duration.INFINITE` toast is supposed to stay until dismissed",
         )
     }
 
@@ -264,7 +266,7 @@ class ToastStackTest {
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts, alignment = alignment)
-                LaunchedEffect(Unit) { toasts.show("Saved for offline", durationMillis = 0) }
+                LaunchedEffect(Unit) { toasts.show("Saved for offline", duration = Duration.INFINITE) }
             }
         }.use { scene ->
             val image = scene.frames(24)
@@ -289,7 +291,7 @@ class ToastStackTest {
                     windowInsets = WindowInsets(top = statusBar, bottom = statusBar),
                 )
                 LaunchedEffect(Unit) {
-                    toasts.show("Saved for offline", durationMillis = 0)
+                    toasts.show("Saved for offline", duration = Duration.INFINITE)
                 }
             }
         }.use { scene ->
@@ -360,10 +362,10 @@ class ToastStackTest {
                     // Pinned, so the frame is settled rather than mid-timer, and
                     // short-then-long because that is the reported order: the
                     // short one is the one that used to stretch.
-                    toasts.show("Saved", durationMillis = 0)
+                    toasts.show("Saved", duration = Duration.INFINITE)
                     toasts.show(
                         "Couldn't reach the timetable service just now",
-                        durationMillis = 0,
+                        duration = Duration.INFINITE,
                     )
                 }
             }
@@ -419,11 +421,11 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts, maxVisible = maxVisible)
                 LaunchedEffect(Unit) {
-                    toasts.show("Saved for offline", durationMillis = 2_500)
+                    toasts.show("Saved for offline", duration = 2_500.milliseconds)
                     // Pinned and newest, so it is the one card the window has
                     // room for, and the stack never empties out from under the
                     // measurement.
-                    toasts.show("Couldn't reach the timetable", durationMillis = 0)
+                    toasts.show("Couldn't reach the timetable", duration = Duration.INFINITE)
                 }
             }
         }.use { scene ->
@@ -486,7 +488,7 @@ class ToastStackTest {
     @Test
     fun aToastPromotedWithLittleTimeLeftIsToppedUpToAFloor() {
         val alone = emptiesAfter("one 5,000ms toast, never promoted") { toasts ->
-            toasts.show("Saved for offline", durationMillis = 5_000)
+            toasts.show("Saved for offline", duration = 5_000.milliseconds)
         }
         val promoted = promotedAfter(sentAwayAt = 3_400)
 
@@ -524,8 +526,8 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    toasts.show("Saved for offline", durationMillis = 5_000)
-                    toasts.show("Couldn't reach the timetable", durationMillis = 0)
+                    toasts.show("Saved for offline", duration = 5_000.milliseconds)
+                    toasts.show("Couldn't reach the timetable", duration = Duration.INFINITE)
                 }
                 LaunchedEffect(send) { if (send) toasts.dismissCurrent() }
             }
@@ -686,8 +688,8 @@ class ToastStackTest {
                     // Pinned, both of them, so nothing expires under the
                     // measurement and the only thing that moves is the one this
                     // dismisses.
-                    pillId = toasts.show("Saved", durationMillis = 0)
-                    toasts.show("Couldn't reach the timetable service", durationMillis = 0)
+                    pillId = toasts.show("Saved", duration = Duration.INFINITE)
+                    toasts.show("Couldn't reach the timetable service", duration = Duration.INFINITE)
                 }
                 LaunchedEffect(go) { if (go) toasts.dismiss(pillId) }
             }
@@ -731,7 +733,7 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    cardId = toasts.show("Couldn't reach the timetable service", durationMillis = 0)
+                    cardId = toasts.show("Couldn't reach the timetable service", duration = Duration.INFINITE)
                 }
                 LaunchedEffect(go) { if (go) toasts.dismiss(cardId) }
             }
@@ -892,7 +894,7 @@ class ToastStackTest {
     @Test
     fun clearingOneByHandBuysTheOthersTime() {
         val alone = emptiesAfter("one 4,000ms toast, nothing cleared") { toasts ->
-            toasts.show("Saved for offline", durationMillis = 4_000)
+            toasts.show("Saved for offline", duration = 4_000.milliseconds)
         }
         val afterClearing = clearedAfter()
 
@@ -937,7 +939,7 @@ class ToastStackTest {
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
                     repeat(3) {
-                        val id = toasts.show("Toast number $it", durationMillis = 0)
+                        val id = toasts.show("Toast number $it", duration = Duration.INFINITE)
                         if (it == 0) deepest = id
                     }
                 }
@@ -966,7 +968,7 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    repeat(4) { toasts.show("Toast number $it", durationMillis = 0) }
+                    repeat(4) { toasts.show("Toast number $it", duration = Duration.INFINITE) }
                 }
             }
         }.use { scene ->
@@ -1010,9 +1012,9 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    toasts.show("Saved for offline", durationMillis = 4_000)
+                    toasts.show("Saved for offline", duration = 4_000.milliseconds)
                     // Pinned and in front, so it is only ever gone by hand.
-                    pinned = toasts.show("Couldn't reach the timetable", durationMillis = 0)
+                    pinned = toasts.show("Couldn't reach the timetable", duration = Duration.INFINITE)
                 }
                 LaunchedEffect(clear) { if (clear) toasts.dismiss(pinned) }
             }
@@ -1079,7 +1081,7 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    toasts.show("Saved", durationMillis = HeldDuration.toLong())
+                    toasts.show("Saved", duration = HeldDuration.toLong().milliseconds)
                 }
             }
         }.use { scene ->
@@ -1210,8 +1212,8 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    repeat(4) { toasts.show("Saved for offline", durationMillis = 0) }
-                    toasts.show("Couldn't reach the timetable service", durationMillis = 0)
+                    repeat(4) { toasts.show("Saved for offline", duration = Duration.INFINITE) }
+                    toasts.show("Couldn't reach the timetable service", duration = Duration.INFINITE)
                 }
             }
         }.use { scene -> image = scene.frames(60) }

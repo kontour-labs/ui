@@ -81,6 +81,8 @@ import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.inset
 import kotlinx.coroutines.delay
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Sizing shared by every menu surface. Override per call site if you must. */
 object MenuDefaults {
@@ -97,7 +99,7 @@ object MenuDefaults {
      * Long enough to cross the gap between the row and the submenu, short enough
      * that a menu you have moved away from does not linger.
      */
-    val SubmenuCloseDelay: Long = 220L
+    val SubmenuCloseDelay: Duration = 220.milliseconds
 
     val MinWidth: Dp = 180.dp
     val MaxWidth: Dp = 320.dp

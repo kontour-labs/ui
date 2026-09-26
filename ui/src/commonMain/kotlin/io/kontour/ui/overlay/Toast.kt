@@ -87,6 +87,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 
 /** One live toast. */
@@ -153,9 +155,10 @@ class ToastHostState {
     /**
      * Queues a toast, and returns its id so it can be [dismiss]ed by name.
      *
-     * @param durationMillis How long before it dismisses itself. Longer when
-     *   there is an action, since the user has to read it *and* decide. **Zero
-     *   means it stays** until [dismiss], [dismissCurrent] or [clear] — for a
+     * @param duration How long before it dismisses itself. Longer when
+     *   there is an action, since the user has to read it *and* decide.
+     *   **[Duration.INFINITE] means it stays**, as zero does, until [dismiss],
+     *   [dismissCurrent] or [clear] — for a
      *   toast whose action is the point and which the user must actually answer.
      *   Reach for it rarely: a confirmation that will not go away is a banner
      *   that has been put in the wrong place, and
@@ -169,8 +172,8 @@ class ToastHostState {
         icon: ImageVector? = null,
         actionLabel: String? = null,
         onAction: (() -> Unit)? = null,
-        durationMillis: Long =
-            if (actionLabel != null) ToastDefaults.DurationWithAction else ToastDefaults.Duration,
+        duration: Duration =
+            if (actionLabel != null) ToastDefaults.DisplayDurationWithAction else ToastDefaults.DisplayDuration,
     ): Long {
         val id = nextId++
         toasts.add(
@@ -181,7 +184,13 @@ class ToastHostState {
                 icon = icon,
                 actionLabel = actionLabel,
                 onAction = onAction,
-                durationMillis = durationMillis,
+                // Zero or less, or infinite, is the pinned toast: a clock with
+                // no end, which the timer below reads as zero.
+                durationMillis = if (duration.isInfinite() || duration <= Duration.ZERO) {
+                    0L
+                } else {
+                    duration.inWholeMilliseconds
+                },
             )
         )
         return id
@@ -470,7 +479,7 @@ object ToastDefaults {
      * These were inline literals on [ToastHostState.show]'s signature, the one
      * pair of tunables in this file that were not here.
      */
-    const val Duration: Long = 2_500
+    val DisplayDuration: Duration = 2_500.milliseconds
 
     /**
      * How long a toast with an action stays.
@@ -479,7 +488,7 @@ object ToastDefaults {
      * reached — and a control that vanishes as the finger arrives is worse than
      * one that lingers.
      */
-    const val DurationWithAction: Long = 5_000
+    val DisplayDurationWithAction: Duration = 5_000.milliseconds
 
     /**
      * How much of its own duration a toast is topped up to when it reaches the
@@ -499,7 +508,7 @@ object ToastDefaults {
      *
      * Three fifths of the toast's *own* duration rather than a flat number of
      * milliseconds, so that a toast carrying an action keeps the ratio
-     * [DurationWithAction] exists for — an action has to be read, decided on and
+     * [DisplayDurationWithAction] exists for — an action has to be read, decided on and
      * reached, and a flat floor would hand it the same second and a half as a
      * bare "Saved".
      */

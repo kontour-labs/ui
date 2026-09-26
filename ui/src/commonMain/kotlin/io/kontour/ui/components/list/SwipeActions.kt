@@ -94,6 +94,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /** One action revealed by swiping a row. */
 @Immutable
@@ -245,7 +247,7 @@ object SwipeActionsDefaults {
     val ScrollStep: Dp = 24.dp
 
     /** How long after the last scroll event the row settles onto an anchor. */
-    const val SettleAfterScroll: Long = 120L
+    val SettleAfterScroll: Duration = 120.milliseconds
 }
 
 /**

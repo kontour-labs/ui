@@ -50,6 +50,7 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.inset
+import kotlin.time.Duration
 
 /**
  * One thing a [CommandPalette] can run.
@@ -333,7 +334,7 @@ private fun PaletteBody(
                 // a quarter-second lag between the key and the result is the
                 // whole difference between this feeling instant and feeling
                 // broken. The debounce exists for fields that hit the network.
-                debounceMillis = 0L,
+                debounce = Duration.ZERO,
             )
 
             if (found.isEmpty()) {

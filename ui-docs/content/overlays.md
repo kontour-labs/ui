@@ -640,10 +640,11 @@ under the front card on the first frame, so there was nothing to watch at all.
 
 ### How long they stay
 
-`ToastDefaults.Duration` is 2.5 seconds, and `DurationWithAction` is 5 — an
-action has to be read, decided on and reached, and a control that vanishes as
-the finger arrives is worse than one that lingers. Pass `durationMillis` to
-override either, or `0` to pin a toast until something dismisses it.
+`ToastDefaults.DisplayDuration` is 2.5 seconds, and `DisplayDurationWithAction`
+is 5 — an action has to be read, decided on and reached, and a control that
+vanishes as the finger arrives is worse than one that lingers. Pass `duration`
+to override either, or `Duration.INFINITE` to pin a toast until something
+dismisses it.
 
 ### Top or bottom
 

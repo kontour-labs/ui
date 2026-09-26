@@ -46,13 +46,15 @@ import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 object TooltipDefaults {
     /** How long a pointer must rest before a tooltip appears. */
-    const val HoverDelayMillis: Long = 500
+    val HoverDelay: Duration = 500.milliseconds
 
     /** How long a touch-triggered tooltip stays before dismissing itself. */
-    const val TouchDurationMillis: Long = 4_000
+    val TouchDuration: Duration = 4_000.milliseconds
 
     val MaxWidth: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.tooltipMaxWidth
@@ -75,7 +77,7 @@ object TooltipDefaults {
  *
  * | Modality | Trigger | Dismissed by |
  * |---|---|---|
- * | Mouse | Hovering for [TooltipDefaults.HoverDelayMillis] | Moving away |
+ * | Mouse | Hovering for [TooltipDefaults.HoverDelay] | Moving away |
  * | Keyboard | Focus arriving | Focus leaving |
  * | Touch / stylus | A long press | A timeout |
  *
@@ -120,7 +122,7 @@ fun Modifier.tooltip(
             hovered && modality.supportsHover -> {
                 // The delay is what stops a tooltip firing for every control a
                 // pointer crosses on its way somewhere else.
-                delay(TooltipDefaults.HoverDelayMillis)
+                delay(TooltipDefaults.HoverDelay)
                 showing = true
             }
 
@@ -292,7 +294,7 @@ internal fun TooltipOverlay(
         )
 
         if (modality.needsLargeTargets) {
-            delay(TooltipDefaults.TouchDurationMillis)
+            delay(TooltipDefaults.TouchDuration)
             dismiss()
         }
     }

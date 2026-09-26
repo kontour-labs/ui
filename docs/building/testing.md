@@ -612,7 +612,7 @@ nothing left to compare.
 
 `--screenshot` fires after every gesture's 1.5s sample **and** the idle window.
 On the toast page that is roughly 4.3 seconds from the tap that raises the
-toast, against a `ToastDefaults.Duration` of 2,500ms — so the shutter opens
+toast, against a `ToastDefaults.DisplayDuration` of 2,500ms — so the shutter opens
 after the toast has expired, whatever the gesture did. Three runs at 5px, 60px
 up and 60px down came back **byte-identical**: the same empty page, agreeing
 with itself for the wrong reason.
@@ -644,7 +644,7 @@ Two changes, both aimed at the same thing — make the subject outlive the
 measurement:
 
 * raise the toast that carries an action, so the clock is
-  `DurationWithAction` (5,000ms) rather than `Duration` (2,500ms);
+  `DisplayDurationWithAction` (5,000ms) rather than `DisplayDuration` (2,500ms);
 * pass `--film` with a single frame, which swaps both 1.5s settles for
   `FILM_SETTLE_MS` and brings the whole run from tap to shutter down to about
   2.1 seconds.
