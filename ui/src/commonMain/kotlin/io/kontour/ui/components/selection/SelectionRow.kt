@@ -27,8 +27,8 @@ import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.rememberToggleFeedback
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.LocalRowToggle
 import io.kontour.ui.interaction.kontourIndication
@@ -88,6 +88,12 @@ fun SelectionRow(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
+    // A row answers its press as the control in it would: it owns the click,
+    // and the control inside, handed a null callback, stays silent. It used to
+    // be silent too, so a checkbox in a row said nothing where the same checkbox
+    // alone answered.
+    val tap = rememberTapFeedback()
+    val toggled = rememberToggleFeedback()
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.container
@@ -105,6 +111,8 @@ fun SelectionRow(
         Role.RadioButton -> Modifier.pointerCursor(enabled = enabled).selectable(
             selected = selected,
             onClick = {
+                // A radio row answers only a change, like a bare radio button.
+                if (!selected) tap()
                 onSelectedChange(true)
             },
             enabled = enabled,
@@ -118,6 +126,7 @@ fun SelectionRow(
         else -> Modifier.pointerCursor(enabled = enabled).toggleable(
             value = selected,
             onValueChange = { now ->
+                toggled(now)
                 onSelectedChange(now)
             },
             enabled = enabled,

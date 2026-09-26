@@ -57,12 +57,13 @@ import kotlin.time.TimeSource
  *
  * ### A threshold is a detent with two sides
  *
- * `rememberDetentTicker(FeedbackIntent.DragThreshold)` and an index of 0 or 1
- * gives the other shape the policy allows: **one** report as a drag passes the
- * point where letting go would do something, and one more if it comes back.
+ * `rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)`
+ * and an index of 0 or 1 gives the other shape the policy allows: **one** report
+ * as a drag passes the point where letting go would do something, and one more,
+ * softer, if it comes back.
  *
  * ```kotlin
- * val latch = rememberDetentTicker(FeedbackIntent.DragThreshold)
+ * val latch = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
  * // in the drag:
  * latch.at(if (past) 1 else 0)
  * ```
@@ -85,6 +86,13 @@ class DetentTicker internal constructor(
      * table.
      */
     private val intent: FeedbackIntent = FeedbackIntent.Tick,
+    /**
+     * What it performs on a crossing *back* — to a lower index. The same as
+     * [intent] for a detent, which feels the same both ways;
+     * [FeedbackIntent.DragThresholdBack] for a threshold, where coming back out
+     * matters less than going in.
+     */
+    private val back: FeedbackIntent = intent,
     /**
      * The rate floor, shared with every other light haptic in the composition.
      *
@@ -123,8 +131,9 @@ class DetentTicker internal constructor(
             // that a dropped crossing leaves the ticker armed for it, so the
             // *next* crossing fires immediately and the limit does nothing on a
             // fast drag — which is the only place it is needed.
+            val crossing = if (index < last) back else intent
             last = index
-            if (floor.claim(intent)) feedback.perform(intent)
+            if (floor.claim(crossing)) feedback.perform(crossing)
         }
     }
 
@@ -168,12 +177,17 @@ class DetentTicker internal constructor(
  *
  * @param intent What a crossing performs. Leave it for a detent; pass
  *   [FeedbackIntent.DragThreshold] for a threshold, with an index of 0 or 1.
+ * @param back What a crossing to a lower index performs: [intent] unless told
+ *   otherwise, and [FeedbackIntent.DragThresholdBack] for a threshold.
  */
 @Composable
-fun rememberDetentTicker(intent: FeedbackIntent = FeedbackIntent.Tick): DetentTicker {
+fun rememberDetentTicker(
+    intent: FeedbackIntent = FeedbackIntent.Tick,
+    back: FeedbackIntent = intent,
+): DetentTicker {
     val feedback = LocalFeedback.current
     val floor = LocalFeedbackFloor.current
-    return remember(feedback, intent, floor) { DetentTicker(feedback, intent, floor = floor) }
+    return remember(feedback, intent, back, floor) { DetentTicker(feedback, intent, back, floor = floor) }
 }
 
 /**
@@ -231,15 +245,15 @@ fun rememberHoldFeedback(intent: FeedbackIntent = FeedbackIntent.Hold): HoldFeed
  * stays there or backs off it.
  *
  * Asked for on every slider: "a haptic in standard mode … that fires when you hit
- * the end stop". A [DetentTicker] on [FeedbackIntent.DragThreshold] would report
- * leaving a wall as well as reaching it, which is a threshold's two-sided shape
- * and not a wall's — so the index handed to it only ever goes *up*, once per wall
- * entered. Holding the finger against the stop is one report; backing off and
- * pushing in again is a second.
+ * the end stop". A two-sided ticker would report leaving a wall as well as
+ * reaching it, which is a threshold's shape and not a wall's — so the index
+ * handed to it only ever goes *up*, once per wall entered. Holding the finger
+ * against the stop is one report; backing off and pushing in again is a second.
  *
- * `DragThreshold` rather than `Tick`: a tick shares the rate floor with the
- * detents, and on a stepped slider the last detent's tick and the wall arrive
- * together, so the wall would be the one dropped.
+ * [FeedbackIntent.Limit], a dull knock rather than a detent's tick. It used to be
+ * `DragThreshold`, for the reason that still holds: a tick shares the rate floor
+ * with the detents, and on a stepped slider the last detent's tick and the wall
+ * arrive together, so the wall would be the one dropped. A limit is not floored.
  *
  * Fed the *unclamped* position, so it reports under reduced motion too, where the
  * rubber band that shows the wall is switched off and the report is the only sign.
@@ -279,7 +293,7 @@ internal class EndStopLatch(private val ticker: DetentTicker) {
 /** Remembers an [EndStopLatch] on the current feedback. */
 @Composable
 internal fun rememberEndStopLatch(): EndStopLatch {
-    val ticker = rememberDetentTicker(FeedbackIntent.DragThreshold)
+    val ticker = rememberDetentTicker(FeedbackIntent.Limit)
     return remember(ticker) { EndStopLatch(ticker) }
 }
 
@@ -341,7 +355,12 @@ internal class FeedbackFloor(private val clock: TimeSource = TimeSource.Monotoni
  * looking for.
  */
 internal val FeedbackIntent.arrivesInStreams: Boolean
-    get() = this == FeedbackIntent.Tap || this == FeedbackIntent.Tick
+    get() = this == FeedbackIntent.Tap ||
+        this == FeedbackIntent.Tick ||
+        // A toggle is a press answered, and a column of checkboxes run down
+        // with a thumb is the same rattle a chip row is.
+        this == FeedbackIntent.ToggleOn ||
+        this == FeedbackIntent.ToggleOff
 
 /**
  * The floor in force. A default instance so a component outside a theme still

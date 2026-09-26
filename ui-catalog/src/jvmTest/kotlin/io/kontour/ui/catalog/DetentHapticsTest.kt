@@ -46,6 +46,13 @@ import io.kontour.ui.components.selection.Rating
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.Slider
 import io.kontour.ui.components.selection.Switch
+import androidx.compose.ui.semantics.Role
+import io.kontour.ui.foundation.Text
+import io.kontour.ui.components.list.rememberPullToRefreshState
+import io.kontour.ui.components.list.PullToRefreshState
+import io.kontour.ui.components.list.PullToRefresh
+import io.kontour.ui.components.selection.RadioGroup
+import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
@@ -196,13 +203,12 @@ class DetentHapticsTest {
             scene.frames(6)
         }
         assertEquals(
-            listOf(FeedbackIntent.Tap), tapped,
-            "tapping a switch fired ${tapped.summary()}, where one `Tap` was " +
+            listOf(FeedbackIntent.ToggleOn), tapped,
+            "tapping a switch on fired ${tapped.summary()}, where one `ToggleOn` was " +
                 "wanted. The switch was silent for a release, and the report was " +
                 "that it feels dead next to a checkbox that is not — so it " +
-                "acknowledges, once, at the lightest intent the device has. Not " +
-                "`Selection` and not `Tick`: a level has to be able to keep a " +
-                "slider's detents and drop this.",
+                "acknowledges, once, with the toggle's own report: on and off feel " +
+                "different, and a level can keep a slider's detents and drop this.",
         )
 
         checked = false
@@ -402,7 +408,7 @@ class DetentHapticsTest {
         // inset by the thumb, so the drag finishes by running into the end —
         // reported once, and nothing else is.
         assertEquals(
-            listOf(FeedbackIntent.DragThreshold),
+            listOf(FeedbackIntent.Limit),
             dragged.filter { it != FeedbackIntent.Tick },
             "the drag fired something other than detents and the one end stop it " +
                 "runs into: ${dragged.summary()}",
@@ -428,7 +434,7 @@ class DetentHapticsTest {
         val (felt, value) = slidAgainstTheEnd(passes = 1)
         assertTrue(value >= 1f, "the drag never reached the end, so this proves nothing")
         assertEquals(
-            listOf(FeedbackIntent.DragThreshold), felt,
+            listOf(FeedbackIntent.Limit), felt,
             "running a slider into the end of its range fired ${felt.summary()}, where it " +
                 "should report the wall once",
         )
@@ -439,7 +445,7 @@ class DetentHapticsTest {
     fun aSliderReportsEachTimeTheEndIsReachedAgain() {
         val (felt, _) = slidAgainstTheEnd(passes = 2)
         assertEquals(
-            listOf(FeedbackIntent.DragThreshold, FeedbackIntent.DragThreshold), felt,
+            listOf(FeedbackIntent.Limit, FeedbackIntent.Limit), felt,
             "into the end, back off it and into it again fired ${felt.summary()}",
         )
     }
@@ -468,7 +474,7 @@ class DetentHapticsTest {
         }
         assertTrue(value.endInclusive >= 1f, "the drag never took the end thumb to the end")
         assertEquals(
-            listOf(FeedbackIntent.DragThreshold), felt,
+            listOf(FeedbackIntent.Limit), felt,
             "running a range slider's thumb into the end fired ${felt.summary()}",
         )
     }
@@ -578,7 +584,7 @@ class DetentHapticsTest {
 
         val together = tapped(gapMillis = 0)
         assertEquals(
-            listOf(FeedbackIntent.Tap), together,
+            listOf(FeedbackIntent.ToggleOn), together,
             "two boxes ticked in the same instant fired ${together.summary()}. A " +
                 "hand does not feel components, and two pulses that close together " +
                 "are one pulse to it — which is the same argument the interval came " +
@@ -589,7 +595,7 @@ class DetentHapticsTest {
         // clock precisely so that it is measuring the hand rather than the render.
         val apart = tapped(gapMillis = 200)
         assertEquals(
-            listOf(FeedbackIntent.Tap, FeedbackIntent.Tap), apart,
+            listOf(FeedbackIntent.ToggleOn, FeedbackIntent.ToggleOn), apart,
             "two boxes ticked a fifth of a second apart fired ${apart.summary()}. " +
                 "The floor is there to thin a stream, not to make the second control " +
                 "in a form inert.",
@@ -636,7 +642,7 @@ class DetentHapticsTest {
         val ticks = felt.count { it == FeedbackIntent.Tick }
         assertTrue(ticks in 4..6, "turning 0.5 to the end of ten steps ticked $ticks times (${felt.summary()})")
         assertEquals(
-            listOf(FeedbackIntent.DragThreshold),
+            listOf(FeedbackIntent.Limit),
             felt.filter { it != FeedbackIntent.Tick },
             "running a knob into its end should report once and nothing else did: ${felt.summary()}",
         )
@@ -754,15 +760,17 @@ class DetentHapticsTest {
             scene.frames(4)
         }
 
-        val ticks = felt.count { it == FeedbackIntent.Tick }
+        val ticks = felt.count { it == FeedbackIntent.Snap }
         assertTrue(
             ticks in 3..5,
-            "a drag across four segments produced $ticks ticks (${felt.summary()}). " +
+            "a drag across four segments produced $ticks snaps (${felt.summary()}). " +
                 "Three boundaries were crossed, so three is the answer; anything " +
-                "near forty is one per frame and anything near zero is silence.",
+                "near forty is one per frame and anything near zero is silence. " +
+                "A `Snap` rather than a `Tick`: a segment is a place the thumb " +
+                "comes to rest, not a texture going past.",
         )
         assertTrue(
-            felt.none { it != FeedbackIntent.Tick },
+            felt.none { it != FeedbackIntent.Snap },
             "the drag fired something besides its detents: ${felt.summary()}. The " +
                 "settle at the end went with the audit — the thumb arriving is " +
                 "the report, and it is one the user is looking at.",
@@ -794,12 +802,12 @@ class DetentHapticsTest {
 
         assertTrue(tab > 0, "the swipe did not change tab at all")
         assertTrue(
-            felt.count { it == FeedbackIntent.Tick } >= tab,
-            "only ${felt.count { it == FeedbackIntent.Tick }} ticks for $tab " +
+            felt.count { it == FeedbackIntent.Snap } >= tab,
+            "only ${felt.count { it == FeedbackIntent.Snap }} snaps for $tab " +
                 "steps: ${felt.summary()}",
         )
         assertTrue(
-            felt.none { it != FeedbackIntent.Tick },
+            felt.none { it != FeedbackIntent.Snap },
             "a tab swipe fired ${felt.summary()}. Stepping past a tab is a detent " +
                 "crossed; arriving at one is a page the user is now looking at.",
         )
@@ -890,10 +898,11 @@ class DetentHapticsTest {
             scene.frames(30)
         }
         assertEquals(
-            listOf(FeedbackIntent.DragThreshold, FeedbackIntent.DragThreshold), backedOff,
+            listOf(FeedbackIntent.DragThreshold, FeedbackIntent.DragThresholdBack), backedOff,
             "over the point of no return and back fired ${backedOff.summary()}. The " +
                 "crossing out is one report and the crossing back, which undoes it, is " +
-                "the other.",
+                "the other — softer, because the action being off again matters " +
+                "less than it being on.",
         )
 
         val inCode = mutableListOf<FeedbackIntent>()
@@ -984,17 +993,16 @@ class DetentHapticsTest {
             "the long press that hands the row over fired ${felt.firstOrNull()}",
         )
         assertTrue(
-            felt.count { it == FeedbackIntent.Selection } >= 1,
+            felt.count { it == FeedbackIntent.Snap } >= 1,
             "a row that changed position reported ${felt.summary()} — the " +
                 "position change is the one thing here the user is not watching, " +
                 "because they are watching the row in their hand.",
         )
         assertEquals(
-            FeedbackIntent.Tick, felt.last(),
-            "the drop reported ${felt.lastOrNull()}. A drop is lighter than the " +
-                "reorders it follows — `SegmentFrequentTick` against their " +
-                "`SegmentTick` — because the news already happened, once per gap " +
-                "the row crossed.",
+            FeedbackIntent.GestureEnd, felt.last(),
+            "the drop reported ${felt.lastOrNull()}. A drop is a soft landing after " +
+                "the snaps it follows, because the news already happened, once per " +
+                "gap the row crossed.",
         )
     }
 
@@ -1107,10 +1115,10 @@ class DetentHapticsTest {
         }
 
         assertTrue(
-            dragged.isNotEmpty() && dragged.all { it == FeedbackIntent.Tick },
+            dragged.isNotEmpty() && dragged.all { it == FeedbackIntent.Snap },
             "dragging a carousel across pages fired ${dragged.summary()}. A page " +
-                "is a detent: the card snaps to it and rests there, and the eye " +
-                "is on the card rather than on a counter.",
+                "is a resting place: the card snaps to it and rests there, and the " +
+                "eye is on the card rather than on a counter.",
         )
 
         val inCode = mutableListOf<FeedbackIntent>()
@@ -1361,6 +1369,179 @@ class DetentHapticsTest {
                 "— and the threshold is derived from the release's own condition, " +
                 "so the two cannot come to mean different things.",
         )
+    }
+
+    /** Off is the softer half of a toggle, and a drag back across the middle the softer half of its threshold. */
+    @Test
+    fun aSwitchTurnedOffIsTheSofterHalf() {
+        val tapped = mutableListOf<FeedbackIntent>()
+        val dragged = mutableListOf<FeedbackIntent>()
+        var checked by mutableStateOf(true)
+        var bounds = Rect.Zero
+        fun scene(felt: MutableList<FeedbackIntent>) = Scene(width = 400, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                    Switch(
+                        checked = checked,
+                        onCheckedChange = { checked = it },
+                        modifier = Modifier.reportBounds { bounds = it },
+                    )
+                }
+            }
+        }
+        scene(tapped).use { scene ->
+            scene.frames(3)
+            scene.tap(bounds.center)
+            scene.frames(6)
+        }
+        assertEquals(listOf(FeedbackIntent.ToggleOff), tapped, "tapping a switch off fired ${tapped.summary()}")
+
+        checked = true
+        scene(dragged).use { scene ->
+            scene.frames(3)
+            scene.drag(bounds.alongX(0.9f), bounds.alongX(0.1f), steps = 12)
+            scene.frames(6)
+        }
+        assertEquals(
+            listOf(FeedbackIntent.DragThresholdBack), dragged,
+            "dragging a switch off across its middle fired ${dragged.summary()}",
+        )
+    }
+
+    /**
+     * A row answers for the control in it — it owns the press, and the control,
+     * handed a null callback, stays silent — where it used to answer nothing, so a
+     * checkbox in a row said nothing that the same checkbox alone said.
+     */
+    @Test
+    fun aSelectionRowAnswersForItsControl() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var on by mutableStateOf(false)
+        var bounds = Rect.Zero
+        Scene(width = 400, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    SelectionRow(
+                        selected = on,
+                        onSelectedChange = { on = it },
+                        role = Role.Checkbox,
+                        modifier = Modifier.reportBounds { bounds = it },
+                    ) {
+                        label { Text("Wi-Fi") }
+                        trailing { Checkbox(checked = on, onCheckedChange = null) }
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            scene.tap(bounds.center)
+            scene.frames(6)
+            scene.tap(bounds.center)
+            scene.frames(6)
+        }
+        assertEquals(listOf(FeedbackIntent.ToggleOn, FeedbackIntent.ToggleOff), felt, "a checkbox row on and off fired ${felt.summary()}")
+    }
+
+    /** A radio answers a change of choice, and pressing the choice already made says nothing, because nothing happened. */
+    @Test
+    fun aRadioGroupAnswersOnlyAChange() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var choice by mutableStateOf("Tea")
+        var bounds = Rect.Zero
+        Scene(width = 400, height = 300) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    RadioGroup(
+                        options = listOf("Tea", "Coffee"),
+                        selected = choice,
+                        onSelectedChange = { choice = it },
+                        modifier = Modifier.reportBounds { bounds = it },
+                    ) { label { Text(it) } }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val tea = Offset(bounds.center.x, bounds.top + bounds.height * 0.25f)
+            val coffee = Offset(bounds.center.x, bounds.top + bounds.height * 0.75f)
+            scene.tap(tea)
+            scene.frames(6)
+            scene.tap(coffee)
+            scene.frames(6)
+        }
+        assertEquals("Coffee", choice, "the second row was not the one tapped, so this measured nothing")
+        assertEquals(listOf(FeedbackIntent.Tap), felt, "a repeat and a change fired ${felt.summary()}")
+    }
+
+    /**
+     * Past the point where letting go refreshes, and back off it: the threshold
+     * both ways. Letting go past it is neither — the indicator going home is the
+     * refresh starting, not a way back the finger took.
+     */
+    @Test
+    fun aPullReportsTheThresholdBothWaysAndNotTheRelease() {
+        val backedOff = mutableListOf<FeedbackIntent>()
+        val released = mutableListOf<FeedbackIntent>()
+        fun pull(felt: MutableList<FeedbackIntent>, body: (PullToRefreshState, Scene) -> Unit) {
+            lateinit var state: PullToRefreshState
+            Scene(width = 400, height = 400) {
+                Recording(felt) {
+                    state = rememberPullToRefreshState()
+                    PullToRefresh(refreshing = false, onRefresh = {}, state = state) {
+                        Box(Modifier.fillMaxSize().background(Color.White))
+                    }
+                }
+            }.use { scene ->
+                scene.frames(3)
+                body(state, scene)
+                scene.frames(3)
+            }
+        }
+        pull(backedOff) { state, scene ->
+            repeat(40) { state.drag(10f) }
+            scene.frames(3)
+            // Backed off the way a finger does, a little a frame.
+            repeat(40) {
+                state.drag(-10f)
+                scene.frame()
+            }
+        }
+        assertEquals(
+            listOf(FeedbackIntent.DragThreshold, FeedbackIntent.DragThresholdBack), backedOff,
+            "past the refresh point and back fired ${backedOff.summary()}",
+        )
+        pull(released) { state, scene ->
+            repeat(40) { state.drag(10f) }
+            scene.frames(3)
+            state.release()
+            scene.frames(3)
+        }
+        assertEquals(listOf(FeedbackIntent.DragThreshold), released, "a release past the point fired ${released.summary()}")
+    }
+
+    /** A full swipe let go of: the threshold as it is crossed, and `Confirm` as the drawn tick completes. */
+    @Test
+    fun aFullSwipeLetGoConfirmsAsItsTickCompletes() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var bounds = Rect.Zero
+        Scene(width = 700, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    SwipeActions(
+                        modifier = Modifier.fillMaxWidth().height(72.dp).reportBounds { bounds = it },
+                        end = listOf(
+                            SwipeAction("Archive", Tabler.Outline.Trash, {}, Color.Blue, isFullSwipeAction = true),
+                        ),
+                    ) {
+                        Box(Modifier.fillMaxWidth().height(72.dp).background(Color.White))
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            scene.drag(bounds.alongX(0.95f), bounds.alongX(0.02f), steps = 30)
+            scene.frames(60)
+        }
+        assertEquals(listOf(FeedbackIntent.DragThreshold, FeedbackIntent.Confirm), felt, "a full swipe let go of fired ${felt.summary()}")
     }
 
     /** Installs a dispatcher that writes down what it is asked to do. */

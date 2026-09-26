@@ -145,4 +145,31 @@ class DetentTickerTest {
                 "still be inside the floor, but ${recorder.intents.size} ticks fired",
         )
     }
+
+    /** A threshold's way back is its own, softer report; a detent feels the same both ways. */
+    @Test
+    fun aCrossingBackPerformsTheWayBack() {
+        val clock = TestTimeSource()
+        val recorder = Recorder()
+        val floor = FeedbackFloor(clock)
+        val threshold = DetentTicker(recorder, FeedbackIntent.DragThreshold, FeedbackIntent.DragThresholdBack, floor)
+        val detent = DetentTicker(recorder, floor = floor)
+
+        threshold.at(0)
+        threshold.at(1)
+        threshold.at(0)
+        threshold.at(1)
+        assertEquals(
+            listOf(FeedbackIntent.DragThreshold, FeedbackIntent.DragThresholdBack, FeedbackIntent.DragThreshold),
+            recorder.intents,
+        )
+
+        recorder.intents.clear()
+        detent.at(3)
+        clock += 200.milliseconds
+        detent.at(2)
+        clock += 200.milliseconds
+        detent.at(3)
+        assertEquals(listOf(FeedbackIntent.Tick, FeedbackIntent.Tick), recorder.intents, "a detent went back as something else")
+    }
 }

@@ -40,8 +40,6 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.rememberDetentTicker
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs

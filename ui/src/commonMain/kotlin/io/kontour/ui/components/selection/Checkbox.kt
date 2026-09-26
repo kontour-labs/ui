@@ -22,7 +22,7 @@ import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.interaction.rememberTapFeedback
+import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.drawCheckMark
 import io.kontour.ui.input.focusRing
@@ -76,10 +76,10 @@ fun Checkbox(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    val tap = rememberTapFeedback()
+    val toggled = rememberToggleFeedback()
     TriStateCheckbox(
         state = ToggleableState(checked),
-        onClick = onCheckedChange?.let { { tap(); it(!checked) } },
+        onClick = onCheckedChange?.let { { toggled(!checked); it(!checked) } },
         modifier = modifier,
         enabled = enabled,
         interactionSource = interactionSource,

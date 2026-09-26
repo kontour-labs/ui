@@ -32,7 +32,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.interaction.rememberTapFeedback
+import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
@@ -130,8 +130,8 @@ fun Switch(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    val tap = rememberTapFeedback()
-    val crossing = rememberDetentTicker(FeedbackIntent.DragThreshold)
+    val toggled = rememberToggleFeedback()
+    val crossing = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
@@ -328,8 +328,8 @@ fun Switch(
                             // thumb crossing a 20dp track is obvious enough —
                             // which is true of the switch alone and wrong in a
                             // settings list, where the control above it ticks
-                            // and this one does not.
-                            tap()
+                            // and this one does not. On and off feel different.
+                            toggled(it)
                             onCheckedChange(it)
                         },
                         enabled = enabled,

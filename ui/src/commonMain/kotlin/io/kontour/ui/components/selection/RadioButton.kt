@@ -121,7 +121,12 @@ fun RadioButton(
                 if (onClick != null) {
                     Modifier.pointerCursor(enabled = enabled).selectable(
                         selected = selected,
-                        onClick = { tap(); onClick() },
+                        onClick = {
+                            // Only on a change: pressing the option already
+                            // chosen does nothing, and says so by not answering.
+                            if (!selected) tap()
+                            onClick()
+                        },
                         enabled = enabled,
                         role = Role.RadioButton,
                         interactionSource = interactions,

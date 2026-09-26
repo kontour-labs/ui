@@ -132,4 +132,21 @@ class FeedbackFloorTest {
                 "the stream, so it has nothing to say about what follows it.",
         )
     }
+
+    /**
+     * A toggle is a press answered and thinned like one; a resting place, a way
+     * back and a wall are not in the stream, and never the report dropped.
+     */
+    @Test
+    fun togglesAreThinnedAndSnapsBacksAndWallsAreNot() {
+        val clock = TestTimeSource()
+        val floor = FeedbackFloor(clock)
+        assertTrue(floor.claim(FeedbackIntent.Tick))
+        clock += 10.milliseconds
+        assertTrue(!floor.claim(FeedbackIntent.ToggleOn), "a toggle 10ms after a tick is the same rattle")
+        assertTrue(!floor.claim(FeedbackIntent.ToggleOff))
+        assertTrue(floor.claim(FeedbackIntent.Snap), "a row's new slot was dropped")
+        assertTrue(floor.claim(FeedbackIntent.DragThresholdBack), "a way back was dropped")
+        assertTrue(floor.claim(FeedbackIntent.Limit), "an end stop was dropped")
+    }
 }

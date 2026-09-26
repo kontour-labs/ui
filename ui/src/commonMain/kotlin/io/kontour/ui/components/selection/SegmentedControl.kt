@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
+import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorSizing
@@ -228,7 +229,7 @@ fun SegmentedControl(
     val currentSelected by rememberUpdatedState(selected)
     val currentChange by rememberUpdatedState(onSelectedChange)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val ticker = rememberDetentTicker()
+    val ticker = rememberDetentTicker(FeedbackIntent.Snap)
     val scope = rememberCoroutineScope()
 
     /**

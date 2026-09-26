@@ -1059,7 +1059,7 @@ private fun ToastCard(
     // the shared ticker with two positions rather than a `perform` and a hand
     // rolled `var armed`: see `DetentTicker`, which is where the once-per-
     // crossing guard lives for the whole library.
-    val threshold = rememberDetentTicker(FeedbackIntent.DragThreshold)
+    val threshold = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
 
     // Measured from the front card's edge rather than from the pill's own, so a
     // pill shorter than the card still clears it by `Peek`.

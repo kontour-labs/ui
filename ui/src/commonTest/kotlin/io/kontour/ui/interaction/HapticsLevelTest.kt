@@ -34,12 +34,18 @@ class HapticsLevelTest {
     /** Everything a component in this library can ask for. */
     private val performed = listOf(
         FeedbackIntent.Tap,
+        FeedbackIntent.ToggleOn,
+        FeedbackIntent.ToggleOff,
         FeedbackIntent.Tick,
-        FeedbackIntent.Selection,
+        FeedbackIntent.Snap,
         FeedbackIntent.DragThreshold,
+        FeedbackIntent.DragThresholdBack,
+        FeedbackIntent.Limit,
+        FeedbackIntent.Hold,
         FeedbackIntent.LongPress,
+        FeedbackIntent.GestureEnd,
+        FeedbackIntent.Confirm,
         FeedbackIntent.Warn,
-        FeedbackIntent.Reject,
     )
 
     @Test
@@ -58,10 +64,15 @@ class HapticsLevelTest {
     fun reducedKeepsOutcomesAndDropsProgress() {
         val progress = listOf(
             FeedbackIntent.Tap,
+            FeedbackIntent.ToggleOn,
+            FeedbackIntent.ToggleOff,
             FeedbackIntent.Tick,
+            FeedbackIntent.Snap,
             FeedbackIntent.Selection,
             FeedbackIntent.KeyPress,
             FeedbackIntent.Hold,
+            // A dragged row landing: the snaps before it were the news.
+            FeedbackIntent.GestureEnd,
         )
         for (intent in progress) {
             assertTrue(

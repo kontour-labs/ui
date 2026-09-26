@@ -46,7 +46,7 @@ import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.rememberDetentTicker
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -183,17 +183,24 @@ fun PullToRefresh(
 ) {
     val density = LocalDensity.current
     val motion = Theme.motion
-    val feedback = LocalFeedback.current
     val refresh by rememberUpdatedState(onRefresh)
 
-    var crossedThreshold by remember { mutableStateOf(false) }
+    // The one moment worth a haptic: it is what tells the user that letting go
+    // now will do something — and, softer, that backing off means it will not.
+    // A release is neither: the indicator going home is the refresh starting
+    // (or not), so a release re-arms silently instead of reporting a way back
+    // the finger never took. A release is told apart by the pull being gone at
+    // once, where a finger backing off leaves it just short of the threshold.
+    val threshold = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
     LaunchedEffect(state.willRefresh) {
-        if (state.willRefresh && !crossedThreshold) {
-            // The one moment worth a haptic: it is what tells the user that
-            // letting go now will do something.
-            feedback.perform(FeedbackIntent.DragThreshold)
+        when {
+            state.willRefresh -> threshold.at(1)
+            state.offset > 0f -> threshold.at(0)
+            else -> {
+                threshold.reset()
+                threshold.at(0)
+            }
         }
-        crossedThreshold = state.willRefresh
     }
 
     // Read through `State` rather than captured.

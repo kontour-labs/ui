@@ -39,6 +39,8 @@ class FeedbackFeelTest {
             mapOf(
                 FeedbackFeel.Light to listOf(
                     FeedbackIntent.Tick,
+                    FeedbackIntent.ToggleOff,
+                    FeedbackIntent.DragThresholdBack,
                     FeedbackIntent.Hold,
                     FeedbackIntent.GestureEnd,
                     FeedbackIntent.KeyPress,
@@ -46,7 +48,10 @@ class FeedbackFeelTest {
                 FeedbackFeel.Medium to listOf(
                     FeedbackIntent.Selection,
                     FeedbackIntent.Tap,
+                    FeedbackIntent.Snap,
+                    FeedbackIntent.ToggleOn,
                     FeedbackIntent.DragThreshold,
+                    FeedbackIntent.Limit,
                 ),
                 FeedbackFeel.Heavy to listOf(FeedbackIntent.LongPress),
                 FeedbackFeel.Success to listOf(FeedbackIntent.Confirm),
@@ -73,6 +78,14 @@ class FeedbackFeelTest {
                 "report said was missing, and before there was a word for weight " +
                 "the two resolved to the same constant on every Android below 14.",
         )
+    }
+
+    /** The softer half of each pair is lighter: off than on, back than in, a texture than a step. */
+    @Test
+    fun theSofterHalfOfEachPairIsLighter() {
+        assertTrue(FeedbackIntent.ToggleOff.feel.ordinal < FeedbackIntent.ToggleOn.feel.ordinal)
+        assertTrue(FeedbackIntent.DragThresholdBack.feel.ordinal < FeedbackIntent.DragThreshold.feel.ordinal)
+        assertTrue(FeedbackIntent.Tick.feel.ordinal < FeedbackIntent.Snap.feel.ordinal)
     }
 
     /** And the tier above that, so the scale has three rungs rather than two. */
@@ -120,7 +133,12 @@ class FeedbackFeelTest {
     @Test
     fun noOutcomeIsEverThinnedByTheRateFloor() {
         val thinned = FeedbackIntent.entries.filter { it.arrivesInStreams }
-        assertEquals(listOf(FeedbackIntent.Tap, FeedbackIntent.Tick), thinned)
+        assertEquals(
+            listOf(FeedbackIntent.Tap, FeedbackIntent.Tick, FeedbackIntent.ToggleOn, FeedbackIntent.ToggleOff),
+            thinned,
+            "the presses and the fine detents arrive in streams; a resting place, a " +
+                "threshold either way and a wall do not, and must never be the report dropped",
+        )
         for (intent in FeedbackIntent.entries) {
             if (intent.feel == FeedbackFeel.Heavy ||
                 intent.feel == FeedbackFeel.Success ||

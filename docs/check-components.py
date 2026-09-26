@@ -674,7 +674,11 @@ def haptic_sites() -> list[str]:
 
     It went 9 to 10 when the date range's dwell became a rumble rather than a
     stream of ticks: `HoldFeedback.start` *sustains* feedback, the one place in
-    the library that does, and a sustain is counted with the performs.
+    the library that does, and a sustain is counted with the performs. The
+    haptics audit that came with it then added two — the toggle helper, so on
+    and off feel different, and `SwipeActions` confirming a full swipe as its
+    tick completes — and took two away, by moving `PullToRefresh` and a
+    reorder's crossings onto the shared ticker. Ten, still.
 
     It exists because this drifted once, quietly and in one direction. "Make it
     tactile" was a good instruction; fifty-seven call sites was the result of
@@ -710,7 +714,7 @@ HAPTIC_POLICY_ROW = re.compile(r"^\|\s*A \*\*[^|]+\|([^|]*)\|", re.M)
 
 # A component that fires, either directly or through the shared ticker.
 PERFORMS = re.compile(
-    r"\bperform\(|\brememberDetentTicker\(|\brememberTapFeedback\(|\brememberHoldFeedback\("
+    r"\bperform\(|\brememberDetentTicker\(|\brememberTapFeedback\(|\brememberToggleFeedback\(|\brememberHoldFeedback\("
 )
 
 # Two files whose component is not their filename. Written out rather than

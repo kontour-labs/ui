@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.foundation.Surface
+import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.overlay.BackdropStyle
 import io.kontour.ui.overlay.LocalOverlayHost
@@ -586,7 +587,7 @@ fun BottomSheet(
     // library, which is also why it costs nothing against the haptics ceiling:
     // the ceiling counts direct `perform` calls and the ticker is one of them
     // for the whole library.
-    val ticker = rememberDetentTicker()
+    val ticker = rememberDetentTicker(FeedbackIntent.Snap)
     LaunchedEffect(state) {
         snapshotFlow { state.draggedByHand to state.targetDetent }
             .collect { (dragging, detent) ->

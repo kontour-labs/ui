@@ -59,6 +59,31 @@ enum class FeedbackIntent {
      */
     Tick,
 
+    /**
+     * A drag passed a place the thing will come to rest: a sheet's detent, a
+     * carousel's page, a tab, a segment, a row's new slot.
+     *
+     * Where [Tick] is a texture — a slider has a hundred of them — this is a
+     * step, a few large ones, and it is felt as one: Android's own pair is
+     * `SEGMENT_FREQUENT_TICK` and `SEGMENT_TICK`, and this is the second. Not
+     * rate-limited, for the reason [Selection] never was: a row the hand did not
+     * feel move is a row the eye has to go looking for.
+     */
+    Snap,
+
+    /**
+     * A switch, a checkbox or a filter turned **on** by a press.
+     *
+     * Its own intent rather than a [Tap] because on and off are different
+     * events, and feel it — Android 14 has a constant for each. A switch
+     * *dragged* across its middle reports a [DragThreshold] instead, which is
+     * what that moment is.
+     */
+    ToggleOn,
+
+    /** The same, turned **off** — softer than [ToggleOn]. */
+    ToggleOff,
+
     /** An action succeeded. Sparingly — not on every button. */
     Confirm,
 
@@ -89,15 +114,25 @@ enum class FeedbackIntent {
      * What has changed is *what letting go will do*, and nothing on screen
      * necessarily said so first.
      *
-     * This used to name a sheet snapping too, and no sheet performs it. The
-     * reason is worth keeping rather than the claim: `SheetState.targetDetent`
-     * is exactly the right signal — it "changes the instant a drag passes the
-     * threshold" — but nothing distinguishes that from the same field changing
-     * because code called `animateTo`. A sheet that buzzes when it is opened
-     * programmatically is worse than one that is silent, so this waits for a
-     * drag signal the sheet does not currently expose.
+     * Coming back out of it is [DragThresholdBack], which is softer: the thing
+     * letting go would have done is off again, and that matters less than it
+     * being on. A sheet passing its detents is a [Snap], not this.
      */
     DragThreshold,
+
+    /**
+     * A drag came back out of a [DragThreshold]: letting go will no longer do
+     * what it would have. Softer than going in — Android 14's pair is
+     * `GESTURE_THRESHOLD_ACTIVATE` and `…_DEACTIVATE`, and this is the second.
+     */
+    DragThresholdBack,
+
+    /**
+     * A drag ran into the end of its range: a slider, a knob or a colour track
+     * pushed against its stop. A dull knock rather than a click, because a wall
+     * is not a choice.
+     */
+    Limit,
 
     /**
      * A hold is under way: keep holding and something will happen.
@@ -204,9 +239,15 @@ val FeedbackIntent.feel: FeedbackFeel
         FeedbackIntent.Hold -> FeedbackFeel.Light
         FeedbackIntent.KeyPress -> FeedbackFeel.Light
 
+        FeedbackIntent.ToggleOff -> FeedbackFeel.Light
+        FeedbackIntent.DragThresholdBack -> FeedbackFeel.Light
+
         FeedbackIntent.Tap -> FeedbackFeel.Medium
+        FeedbackIntent.Snap -> FeedbackFeel.Medium
+        FeedbackIntent.ToggleOn -> FeedbackFeel.Medium
         FeedbackIntent.Selection -> FeedbackFeel.Medium
         FeedbackIntent.DragThreshold -> FeedbackFeel.Medium
+        FeedbackIntent.Limit -> FeedbackFeel.Medium
 
         FeedbackIntent.LongPress -> FeedbackFeel.Heavy
 
@@ -234,11 +275,14 @@ enum class HapticsLevel {
     Off,
 
     /**
-     * Outcomes only — a confirmation, a refusal, a threshold crossed, a long
-     * press. The ones that report *progress* ([FeedbackIntent.Tap],
-     * [FeedbackIntent.Tick], [FeedbackIntent.Selection],
-     * [FeedbackIntent.KeyPress], [FeedbackIntent.Hold]) are dropped, so a drag still reports arriving
-     * somewhere without buzzing the whole way there.
+     * Outcomes only — a confirmation, a refusal, a threshold crossed either
+     * way, an end stop, a long press. The ones that report *progress* — a press
+     * answered ([FeedbackIntent.Tap], [FeedbackIntent.ToggleOn],
+     * [FeedbackIntent.ToggleOff]), a detent or a resting place going past
+     * ([FeedbackIntent.Tick], [FeedbackIntent.Snap], [FeedbackIntent.Selection]),
+     * a key, a hold's rumble, a drop settling ([FeedbackIntent.GestureEnd]) — are
+     * dropped, so a drag still reports arriving somewhere without buzzing the
+     * whole way there.
      *
      * This was called `Essential` and is the same set, less the new
      * [FeedbackIntent.Tap].
@@ -265,10 +309,14 @@ enum class HapticsLevel {
         Standard -> intent != FeedbackIntent.KeyPress
         Reduced -> when (intent) {
             FeedbackIntent.Tap,
+            FeedbackIntent.ToggleOn,
+            FeedbackIntent.ToggleOff,
             FeedbackIntent.Tick,
+            FeedbackIntent.Snap,
             FeedbackIntent.Selection,
             FeedbackIntent.KeyPress,
             FeedbackIntent.Hold,
+            FeedbackIntent.GestureEnd,
             -> false
 
             else -> true
@@ -405,6 +453,32 @@ fun rememberTapFeedback(): () -> Unit {
     val floor = LocalFeedbackFloor.current
     return remember(feedback, floor) {
         { if (floor.claim(FeedbackIntent.Tap)) feedback.perform(FeedbackIntent.Tap) }
+    }
+}
+
+/**
+ * A toggle answered, rate-limited like a tap: call it with the value the control
+ * is changing *to*.
+ *
+ * ```kotlin
+ * val toggled = rememberToggleFeedback()
+ * Checkbox(checked = on, onCheckedChange = { toggled(it); onCheckedChange(it) })
+ * ```
+ *
+ * [FeedbackIntent.ToggleOn] or [FeedbackIntent.ToggleOff], through the same
+ * shared floor as [rememberTapFeedback] — a hand running down a column of
+ * checkboxes feels one rattle, not one per box — and silent at
+ * [HapticsLevel.Reduced] and below.
+ */
+@Composable
+fun rememberToggleFeedback(): (Boolean) -> Unit {
+    val feedback = LocalFeedback.current
+    val floor = LocalFeedbackFloor.current
+    return remember(feedback, floor) {
+        { on ->
+            val intent = if (on) FeedbackIntent.ToggleOn else FeedbackIntent.ToggleOff
+            if (floor.claim(intent)) feedback.perform(intent)
+        }
     }
 }
 

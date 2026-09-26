@@ -79,6 +79,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
@@ -490,7 +491,8 @@ fun SwipeActions(
      * here, letting go runs the action. And one more if the finger backs out of it,
      * since that has a consequence too. The ticker is what makes it once each way.
      */
-    val pointOfNoReturn = rememberDetentTicker(FeedbackIntent.DragThreshold)
+    val pointOfNoReturn = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
+    val feedback = LocalFeedback.current
 
     fun commitAt(side: Float): Float {
         val reveal = if (side > 0f) startTravel else -endTravel
@@ -543,7 +545,16 @@ fun SwipeActions(
             // The tick sets off with the row rather than after it: the icon
             // leaves while the row travels and the stroke starts as it arrives.
             // A child of the settle, so a finger taking the row back cancels it.
-            if (committed && confirm) confirmDraw.job = launch { drawConfirmation() }
+            //
+            // And the hand gets the same news the eye does, as the tick
+            // completes: the action is done. Only here, on a release — a row
+            // sent to the edge in code has nobody holding it to feel anything.
+            if (committed && confirm) {
+                confirmDraw.job = launch {
+                    drawConfirmation()
+                    feedback.perform(FeedbackIntent.Confirm)
+                }
+            }
             state.anchoredState.anchoredDrag(target) { _, _ ->
                 animate(from, to, velocity, spec) { value, speed -> dragTo(value, speed) }
             }

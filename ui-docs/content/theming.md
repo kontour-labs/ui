@@ -228,7 +228,7 @@ Four levels, and **`Standard` is the default**:
 | | Allows |
 |---|---|
 | `Off` | Nothing. A kiosk, a test, or a reader who has asked for silence. |
-| `Reduced` | Outcomes only. Drops the ones that report progress — `Tap`, `Tick`, `Selection`, `KeyPress`, `Hold` — so a drag still reports arriving somewhere without buzzing the whole way there. |
+| `Reduced` | Outcomes only. Drops the ones that report progress — a press answered (`Tap`, `ToggleOn`, `ToggleOff`), a detent or a resting place going past (`Tick`, `Snap`, `Selection`), a key, a hold's rumble, a drop settling (`GestureEnd`) — so a drag still reports arriving somewhere, crossing a threshold either way, or running into a wall, without buzzing the whole way there. |
 | `Standard` | Everything a control does under a finger: taps, detents, thresholds, outcomes. |
 | `Full` | Every intent, `KeyPress` included. |
 
@@ -256,8 +256,8 @@ than `Heavy` has no answer.
 
 | Feel | Which intents | What it is |
 |---|---|---|
-| `Light` | `Tick`, `Hold`, `GestureEnd`, `KeyPress` | A texture going past. Arrives in streams — a flung wheel crosses a row every 8ms — so it is also the tier the shared rate floor thins. |
-| `Medium` | `Tap`, `Selection`, `DragThreshold` | A control answering, or what letting go will do changing. One event. |
+| `Light` | `Tick`, `ToggleOff`, `DragThresholdBack`, `Hold`, `GestureEnd`, `KeyPress` | A texture going past, or the softer half of a pair. |
+| `Medium` | `Tap`, `ToggleOn`, `Snap`, `Selection`, `DragThreshold`, `Limit` | A control answering, a resting place passed, what letting go will do changing, a wall. One event. |
 | `Heavy` | `LongPress` | A threshold held long enough to mean something. |
 | `Success` | `Confirm` | It worked. |
 | `Danger` | `Reject`, `Warn` | It was refused, or it is about to be irreversible. |
@@ -342,13 +342,16 @@ whatever the level:
 
 | Fires | Where | Why |
 |---|---|---|
-| A **detent crossed under a finger** | `Slider`, `RangeSlider`, `Knob`, `WheelPicker`, `SegmentedControl`, `TabBar` swipe, `ReorderableItem`, `BottomSheet`, `Carousel`, `ColourPicker`'s palette, `CalendarMonth` dragged, `ActivityCalendar` scrubbed | The finger is between two values and the eye is on something else. This is the case haptics exist for. All of them go through `DetentTicker` now, which is where the once-per-crossing guard and the rate limit both live. |
-| A **threshold passed** | `PullToRefresh`, `SwipeActions`, `Switch` dragged, `Toast` swiped, `CalendarMonth` paged mid-drag | What letting go will do has just changed, and nothing on screen said so first. |
-| A **slider run into its end** | `Slider`, `RangeSlider`, `Knob`, `ColourPicker`'s hue and opacity tracks | `DragThreshold`, once per wall a drag runs into — holding against the stop is one report, and backing off and pushing again is another. On the finger's position rather than the drawn squash, so it reports under reduced motion too. |
-| A **hold under way** | `CalendarMonth` held past its edge day mid-drag | `Hold`, a faint rumble — the lightest pulse, again and again — for as long as holding on will do something, so the wait is felt counting rather than stuck. The outcome is its own threshold tick. Dropped under `Reduced`, with the other haptics that report progress. |
-| A **long press becoming a gesture** | `Menu`, `Tooltip`, `ReorderableItem` | The press has been held long enough to mean something. Nothing has visibly happened yet, which is exactly why it needs reporting. |
-| A **destructive question arriving** | `AlertDialog(destructive = true)` | The only one that fires *before* the thing it is about. Optional — see `hapticWarning`. |
-| A **control answering a press** | `Checkbox`, `RadioButton`, `Chip`, `Switch` tapped, `SegmentedControl`, `Stepper`, `Rating`, `ColourSwatchPicker`, `CalendarMonth`, `Accordion`, `ExpandingListItem`, `AnimatedCounter` counting **down** | `Medium` — a step above the texture of a detent going past, on the controls whose whole job is to answer a press. Every one of them goes through `rememberTapFeedback`, which is one call site and one shared rate limit rather than a dozen of each. |
+| A **detent crossed under a finger** | `Slider`, `RangeSlider`, `Knob`, `WheelPicker`, `ColourPicker`'s palette, `CalendarMonth` dragged, `ActivityCalendar` scrubbed | `Tick`, the lightest selection tick. The finger is between two values and the eye is on something else — the case haptics exist for. All of them go through `DetentTicker`, which is where the once-per-crossing guard and the rate limit both live. |
+| A **resting place passed under a finger** | `SegmentedControl` dragged, `TabBar` swiped, `BottomSheet`, `Carousel`, `ReorderableItem` | `Snap`, a notch firmer than a detent: a few large steps rather than a texture of small ones — a segment, a tab, a detent the sheet will settle on, a page, a row's new slot. Android's own pair is `SEGMENT_FREQUENT_TICK` and `SEGMENT_TICK`, and this is the second. Not rate-limited: a row the hand did not feel move is one the eye has to go looking for. |
+| A **threshold passed** | `PullToRefresh`, `SwipeActions`, `Switch` dragged, `Toast` swiped, `CalendarMonth` paged mid-drag | What letting go will do has just changed, and nothing on screen said so first. `DragThreshold` on the way in, and `DragThresholdBack` — softer — on the way back out, because the thing letting go would do being off again matters less than it being on. |
+| A **slider run into its end** | `Slider`, `RangeSlider`, `Knob`, `ColourPicker`'s hue and opacity tracks | `Limit`, a dull knock rather than a click, once per wall a drag runs into — holding against the stop is one report, and backing off and pushing again is another. On the finger's position rather than the drawn squash, so it reports under reduced motion too. |
+| A **hold under way** | `CalendarMonth` held past its edge day mid-drag | `Hold`, *sustained* rather than performed: a faint continuous rumble that builds as the ring fills, for as long as holding on will do something, so the wait is felt counting rather than stuck. It stops before the outcome, which is its own threshold. Dropped under `Reduced`, with the other haptics that report progress. |
+| A **long press becoming a gesture** | `Menu`, `Tooltip`, `ReorderableItem` | The press has been held long enough to mean something. Nothing has visibly happened yet, which is exactly why it needs reporting. A dragged row's landing is a soft `GestureEnd`. |
+| A **destructive question arriving** | `AlertDialog(destructive = true)` | `Warn`, the platform's own warning. The only one that fires *before* the thing it is about. Optional — see `hapticWarning`. |
+| A **full swipe done** | `SwipeActions` | `Confirm`, as the drawn tick completes, on a swipe the hand let go of. The eye gets the tick; the hand gets the same news. |
+| A **toggle flipped by a press** | `Checkbox`, `Switch` tapped, `Chip`, `SelectionRow` | `ToggleOn` or `ToggleOff` by the value it is changing to — a crisp tick on, a low one off, Android 14's pair for this. Through `rememberToggleFeedback`, which shares the tap's rate limit. A row answers for the control in it, which stays silent inside the row. |
+| A **control answering a press** | `RadioButton`, `SegmentedControl`, `Stepper`, `Rating`, `ColourSwatchPicker`, `CalendarMonth`, `Accordion`, `ExpandingListItem`, `AnimatedCounter` counting **down** | `Tap`, a light impact — a step above the texture of a detent going past, on the controls whose whole job is to answer a press. A radio, alone or in a group's row, answers only a change. Every one of them goes through `rememberTapFeedback`, which is one call site and one shared rate limit rather than a dozen of each. |
 
 Nothing else does. A `Button` press, a tab, a menu item, a page control, a
 navigation destination, a stepped slider *tapped* rather than dragged: all

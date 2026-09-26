@@ -70,6 +70,7 @@ import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
@@ -340,7 +341,7 @@ fun Carousel(
             dragging = held > 0
         }
     }
-    val ticker = rememberDetentTicker()
+    val ticker = rememberDetentTicker(FeedbackIntent.Snap)
     LaunchedEffect(state) {
         snapshotFlow { dragging to state.currentPage }.collect { (byHand, page) ->
             if (byHand) ticker.at(page) else ticker.reset()

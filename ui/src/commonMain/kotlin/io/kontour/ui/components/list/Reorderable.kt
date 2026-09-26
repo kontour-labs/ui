@@ -58,6 +58,7 @@ import io.kontour.ui.motion.SlotGap
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.rememberDetentTicker
 import androidx.compose.animation.core.Animatable
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
@@ -178,22 +179,26 @@ fun rememberReorderableState(
     onMove: (from: Int, to: Int) -> Unit,
 ): ReorderableState {
     val move by rememberUpdatedState(onMove)
-    val feedback = LocalFeedback.current
-    return remember(listState) {
+    // Every row crossed snaps, the way a sheet's detents do. A reorder is a
+    // discrete event happening under a finger that is not looking for it — the
+    // user is watching the row they are holding, not the gap it just left.
+    //
+    // `Snap`, a resting place: the row has somewhere new to land. Through a
+    // ticker whose index only ever goes up — one per gap crossed, across every
+    // drag — so it is one shared mechanism rather than a call of its own, and
+    // is never rate-limited: a crossing the hand did not feel is a row the eye
+    // has to go looking for.
+    val crossings = rememberDetentTicker(FeedbackIntent.Snap)
+    return remember(listState, crossings) {
+        var crossed = 0
         ReorderableState(
             listState = listState,
             onMove = { from, to -> move(from, to) },
-            // Every row crossed clicks, the way a stepped slider's detents do.
-            // A reorder is a discrete event happening under a finger that is
-            // not looking for it — the user is watching the row they are
-            // holding, not the gap it just left.
-            //
-            // `Selection` rather than `Tick`, so that the drop can be `Tick` and
-            // be *lighter* than this. Those two are the only weights the
-            // vocabulary has below a thud — `SegmentTick` against
-            // `SegmentFrequentTick` — and this is the one that should be felt:
-            // the list changed, and letting go did not.
-            onReorder = { feedback.perform(FeedbackIntent.Selection) },
+            onReorder = {
+                if (crossed == 0) crossings.at(0)
+                crossed++
+                crossings.at(crossed)
+            },
         )
     }
 }
@@ -672,12 +677,12 @@ private fun Modifier.reorderDrag(
         val onEnd: () -> Unit = {
             if (owned) {
                 owned = false
-                // Lighter than the reorders it follows. A drop is a
-                // confirmation that the row has landed, not news — the news
-                // already happened, once per gap the row crossed. `GestureEnd`,
-                // which this used to be, is a thud, and a thud at the end of a
-                // run of clicks reads as the gesture having gone wrong.
-                feedback.perform(FeedbackIntent.Tick)
+                // Softer than the snaps it follows: a drop confirms the row
+                // has landed; the news already happened, once per gap crossed.
+                // `GestureEnd` — a soft impact now, where it was a thud when
+                // this moved off it — and not rate-limited, so the landing is
+                // never the report a floor drops.
+                feedback.perform(FeedbackIntent.GestureEnd)
                 state.stop()
             }
         }

@@ -65,7 +65,6 @@ import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.inset
@@ -541,7 +540,7 @@ fun Modifier.tabSwipe(
     // would then commit the same step three times.
     var index by remember { mutableIntStateOf(selected) }
     var travelled by remember { mutableFloatStateOf(0f) }
-    val ticker = rememberDetentTicker()
+    val ticker = rememberDetentTicker(FeedbackIntent.Snap)
 
     return this
         .onSizeChanged { width = it.width.toFloat() }
