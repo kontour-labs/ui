@@ -26,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import io.kontour.haptics.HapticCapability
 import io.kontour.haptics.HapticEffect
 import io.kontour.haptics.Haptics
 import io.kontour.haptics.ImpactStyle
@@ -125,9 +126,23 @@ private fun ThisDevice(
     val capability = player.capability
     LabSection("This device") {
         Text(
-            "${capability.level} haptics · strength ${if (capability.honoursStrength) "felt finely" else "coarse or none"} · " +
-                "rumble ${capability.rumble}",
+            when (capability.level) {
+                HapticCapability.Level.None -> "Nothing plays here."
+                HapticCapability.Level.Basic -> "The system's own feedback, in a few fixed kinds."
+                HapticCapability.Level.Rich -> "Tuned effects at any strength."
+            },
         )
+        if (capability.level != HapticCapability.Level.None) {
+            Text(
+                "Strength: " + (if (capability.honoursStrength) "felt finely" else "coarse, or not at all") +
+                    ". Rumble: " + when (capability.rumble) {
+                        HapticCapability.RumbleSupport.None -> "none"
+                        HapticCapability.RumbleSupport.Pulsed -> "a run of light taps"
+                        HapticCapability.RumbleSupport.Continuous -> "continuous"
+                    } + ".",
+                style = Theme.typography.bodySmall,
+            )
+        }
         capability.details.forEach { Text(it, style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted) }
         if (HapticsRoutes.isNotEmpty()) {
             Text("Route, for comparing", style = Theme.typography.labelMedium)
