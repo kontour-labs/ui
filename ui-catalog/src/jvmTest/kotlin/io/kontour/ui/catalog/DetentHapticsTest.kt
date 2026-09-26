@@ -53,6 +53,7 @@ import io.kontour.ui.components.list.PullToRefreshState
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.SelectionRow
+import io.kontour.ui.interaction.DetentTicker
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
@@ -1436,6 +1437,9 @@ class DetentHapticsTest {
             scene.frames(3)
             scene.tap(bounds.center)
             scene.frames(6)
+            // Past the shared rate floor, which runs on the wall clock: two
+            // toggles closer than that are one rattle, and one report.
+            Thread.sleep(DetentTicker.MinimumTickInterval.inWholeMilliseconds + 40)
             scene.tap(bounds.center)
             scene.frames(6)
         }

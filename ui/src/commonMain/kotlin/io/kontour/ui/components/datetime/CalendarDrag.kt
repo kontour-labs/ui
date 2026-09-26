@@ -585,14 +585,14 @@ internal fun DateTimeFormats.startingOn(first: DayOfWeek): DateTimeFormats =
     if (first == firstDayOfWeek) this else copy(firstDayOfWeek = first)
 
 /**
- * The band between the anchor and [point], drawn by the grid while a drag is live.
+ * The band between the anchor and the handle, drawn by the grid while a drag is live.
  *
- * **Across a row it runs to the point**, which is the finger, and so always under
- * the leaning handle: the day being left fills behind it. **Between two rows it
- * is the blend of the two** — the rest of the upper week filled so far, and the
- * start of the lower one up to the point's column, both at once. The point only
- * sits between rows while the band is flowing from one to the other after the
- * handle has snapped to another week; see [CalendarDragState.point].
+ * **Across a row it runs to the handle**, and so always under the leaning cap:
+ * the day being left fills behind it. **Where the handle has snapped to another
+ * week, each row's end flows** from where it was to where it now is — the rest
+ * of the upper week filling, and the start of the lower one up to the handle's
+ * column — rather than jumping; [boundary] is each row's end, and
+ * [CalendarDragState.boundary] is where the flow lives.
  *
  * Reported as wanting exactly that: *"the accent colour should always be touching
  * the top and/or the start of the handle we're dragging."*
