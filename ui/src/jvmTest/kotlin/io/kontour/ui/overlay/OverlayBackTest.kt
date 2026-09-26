@@ -21,6 +21,8 @@ import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.BackStyle
+import io.kontour.ui.motion.LocalBackStyle
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
@@ -82,8 +84,11 @@ class OverlayBackTest {
     }
 
     @Composable
-    private fun Harness(back: Back, fixture: Fixture) {
-        CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides back.owner) {
+    private fun Harness(back: Back, fixture: Fixture, style: BackStyle = BackStyle.Predictive) {
+        CompositionLocalProvider(
+            LocalNavigationEventDispatcherOwner provides back.owner,
+            LocalBackStyle provides style,
+        ) {
             KontourTheme(darkTheme = false) {
                 OverlayHost(Modifier.fillMaxSize()) {
                     Page(fixture)
@@ -308,7 +313,10 @@ class OverlayBackTest {
         var sheetOpen by mutableStateOf(false)
         var sheetDismissals = 0
         setContent {
-            CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides back.owner) {
+            CompositionLocalProvider(
+                LocalNavigationEventDispatcherOwner provides back.owner,
+                LocalBackStyle provides BackStyle.Predictive,
+            ) {
                 KontourTheme(darkTheme = false) {
                     OverlayHost(Modifier.fillMaxSize()) {
                         Page(fixture)
@@ -354,5 +362,51 @@ class OverlayBackTest {
         waitForIdle()
         assertEquals(1, sheetDismissals, "a closed sheet was asked to close again")
         assertEquals(1, fixture.pageBacks, "with the sheet gone, back belongs to the page")
+    }
+
+    /**
+     * Under swipe back — iOS — back is not a way out of an overlay: a dialog is
+     * answered there, and a sheet dragged down. Back still does not reach the
+     * page behind it, which would pop a screen from under an open question.
+     */
+    @Test
+    fun underSwipeBackTheDialogStaysAndThePageStays() = runComposeUiTest {
+        val back = Back()
+        val fixture = Fixture()
+        setContent { Harness(back, fixture, BackStyle.Swipe) }
+        runOnUiThread { fixture.dialog = true }
+        waitForIdle()
+
+        runOnUiThread { back.press() }
+        waitForIdle()
+        runOnUiThread {
+            back.start()
+            back.drag(0.8f)
+            back.release()
+        }
+        waitForIdle()
+        assertEquals(0, fixture.dialogDismissals, "back closed a dialog under swipe back")
+        assertEquals(0, fixture.pageBacks, "back reached the page behind an open dialog")
+        assertTrue(fixture.dialog)
+    }
+
+    /** A stack inside an overlay still goes back under swipe back, as a navigation stack in an iOS sheet does. */
+    @Test
+    fun underSwipeBackAStackInsideTheDialogStillGoesBack() = runComposeUiTest {
+        val back = Back()
+        val fixture = Fixture()
+        fixture.innerStack = 1
+        setContent { Harness(back, fixture, BackStyle.Swipe) }
+        runOnUiThread { fixture.dialog = true }
+        waitForIdle()
+
+        runOnUiThread { back.press() }
+        waitForIdle()
+        assertEquals(1, fixture.innerBacks, "the stack inside the dialog did not go back")
+
+        runOnUiThread { back.press() }
+        waitForIdle()
+        assertEquals(0, fixture.dialogDismissals, "with its stack empty, back closed the dialog under swipe back")
+        assertEquals(0, fixture.pageBacks)
     }
 }

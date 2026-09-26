@@ -26,7 +26,6 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * Pages under `rememberPageTransitionStrategy` go back in the platform's feel,
@@ -46,9 +45,10 @@ class PageBackTest {
             override val navigationEventDispatcher = dispatcher
         }
 
-        fun start() = input.backStarted(NavigationEvent(NavigationEvent.EDGE_LEFT, 0f, 0f, 0f))
+        fun start(edge: Int = NavigationEvent.EDGE_LEFT) = input.backStarted(NavigationEvent(edge, 0f, 0f, 0f))
 
-        fun drag(progress: Float) = input.backProgressed(NavigationEvent(NavigationEvent.EDGE_LEFT, progress, 0f, 0f))
+        fun drag(progress: Float, edge: Int = NavigationEvent.EDGE_LEFT) =
+            input.backProgressed(NavigationEvent(edge, progress, 0f, 0f))
     }
 
     @Composable
@@ -78,10 +78,10 @@ class PageBackTest {
      * one's are: the page's animations are made on the frame after the start,
      * and a seek that ran before them would begin them late.
      */
-    private fun ComposeUiTest.dragTo(back: Back, progress: Float) {
-        runOnUiThread { back.start() }
+    private fun ComposeUiTest.dragTo(back: Back, progress: Float, edge: Int = NavigationEvent.EDGE_LEFT) {
+        runOnUiThread { back.start(edge) }
         waitForIdle()
-        runOnUiThread { back.drag(progress) }
+        runOnUiThread { back.drag(progress, edge) }
         waitForIdle()
     }
 
@@ -126,8 +126,13 @@ class PageBackTest {
         assertEquals(rest, bounds("stop"), "an abandoned gesture left the page where the hand let go")
     }
 
+    /**
+     * Android's predictive back follows the finger as iOS's does: the page
+     * moves with it, whole — no shrinking — towards whichever side the finger
+     * is going.
+     */
     @Test
-    fun underPredictiveBackTheTopPageLiftsAndShrinks() = runDesktopComposeUiTest(width = 400, height = 800) {
+    fun underPredictiveBackTheTopPageFollowsTheFinger() = runDesktopComposeUiTest(width = 400, height = 800) {
         val back = Back()
         val backStack = mutableStateListOf<Any>(Stops, Stop)
         setContent { Display(back, BackStyle.Predictive, backStack) }
@@ -136,10 +141,24 @@ class PageBackTest {
         dragTo(back, 0.5f)
         val mid = bounds("stop")
         onNodeWithTag("stops", useUnmergedTree = true).assertExists()
-        assertTrue(mid.width < rest.width, "under predictive back the page should shrink as it is lifted")
+        assertEquals(rest.width, mid.width, 1f, "the page shrank; it should only move")
+        assertEquals(rest.left + rest.width / 2, mid.left, rest.width * 0.03f, "halfway back, the page should be half the width across")
 
         runOnUiThread { back.input.backCompleted() }
         waitForIdle()
         assertEquals(listOf<Any>(Stops), backStack.toList(), "a gesture let go did not pop the page")
+    }
+
+    @Test
+    fun aGestureFromTheRightEdgeMovesThePageLeft() = runDesktopComposeUiTest(width = 400, height = 800) {
+        val back = Back()
+        val backStack = mutableStateListOf<Any>(Stops, Stop)
+        setContent { Display(back, BackStyle.Predictive, backStack) }
+        val rest = bounds("stop")
+
+        dragTo(back, 0.5f, NavigationEvent.EDGE_RIGHT)
+        val mid = bounds("stop")
+        assertEquals(rest.left - rest.width / 2, mid.left, rest.width * 0.03f, "a right-edge gesture should carry the page left, with the finger")
+        assertEquals(rest.width, mid.width, 1f)
     }
 }

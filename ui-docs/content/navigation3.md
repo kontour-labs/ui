@@ -159,8 +159,11 @@ page then moves the way its platform's pages do — `LocalBackStyle` says which:
 
 | | Push and pop | A back gesture |
 |---|---|---|
-| Android: predictive back | the shared axis, a third of the width and a fade | the page shrinks and drifts with the finger, with the display's corners, and the one beneath fades in |
+| Android: predictive back | the shared axis, a third of the width and a fade | the page follows the finger one to one, from whichever edge, casting a shadow onto the one sliding in beneath it |
 | iOS: swipe back | the new page slides over the old, which moves a third of the way and dims | the page follows the finger one to one, casting a shadow onto the one sliding in beneath it |
+
+A page under a gesture only moves: it does not shrink, fade or round its
+corners, on either platform.
 
 On iOS a sideways pan from **anywhere on the page** goes back too, as it does
 from iOS 26 — not only one from the leading edge. It yields: anything on the
@@ -177,8 +180,10 @@ pages, so pass one or the other.
 on every platform — the Android back gesture, iOS's edge swipe, Escape on the
 desktop and the web:
 
-1. the topmost overlay that takes back — a dialog, a sheet;
-2. a handler inside it — a stack in a sheet;
+1. the topmost overlay that takes back — a dialog, a sheet. On Android it closes
+   by its own exit animation; on iOS back does not close overlays, so it stops
+   there (see [Overlays](overlays.md#back-and-dismissal));
+2. a handler inside it — a stack in a sheet, on both;
 3. a pane: the detail beside its list, or the supporting pane beside its main
    one, which the scene closes itself, following the hand, because the scene
    does not change and `NavDisplay` would not animate it;
@@ -198,8 +203,7 @@ has no three-pane scaffold to lay it out. Shared-element transitions between
 panes, which are `NavDisplay`'s to add and not a layout's.
 
 A back gesture let go finishes on the transition's own remaining curve, so the
-speed of a flick does not carry into it, and a predictive page does not follow
-the finger up and down as Material's fullest version does. Both would need
-`NavDisplay` itself to change. In two panes, a detail being dragged away
+speed of a flick does not carry into it; that would need `NavDisplay` itself to
+change. In two panes, a detail being dragged away
 uncovers the pane's ground rather than the detail before it, which comes up
 once the gesture is let go.

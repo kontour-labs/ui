@@ -177,7 +177,6 @@ fun CommandPalette(
                                     LocalOverlayProgress.current,
                                     fromScale = 1.03f,
                                 )
-                                .overlayBackMotion(OverlayBackKind.Dialog)
                                 .windowInsetsPadding(WindowInsets.allEdges),
                             // Near the top rather than centred: the list grows
                             // downward as the user types, and a centred palette

@@ -771,6 +771,22 @@ class SheetState internal constructor(
     suspend fun hide() = animateTo(SheetDetent.Hidden)
 
     /**
+     * Moves the sheet [fraction] of the way from [from] towards hidden, as a
+     * drag would — for a modal's back gesture, which runs the sheet's own way
+     * out rather than a motion of its own.
+     *
+     * Short of hidden, always: a sheet that reached its hidden anchor would
+     * settle there, and settling hidden is a dismissal the gesture has not made
+     * yet. Letting go is what hides it, by [hide], from wherever this left it.
+     */
+    internal suspend fun followBack(from: Float, fraction: Float) {
+        val hidden = offsetOf(SheetDetent.Hidden)
+        if (from.isNaN() || hidden.isNaN()) return
+        val to = from + (hidden - from) * (fraction.coerceIn(0f, 1f) * BackTravel)
+        anchoredState.anchoredDrag { dragTo(to) }
+    }
+
+    /**
      * Opens it far enough to be worth looking at — the second detent if there is
      * one, otherwise the first visible one.
      */
@@ -1491,3 +1507,6 @@ internal val SheetFlickVelocity: Dp = 500.dp
  * else — a sheet's reach is not a thing a brand restyles.
  */
 internal val SheetTopGap: Dp = 12.dp
+
+/** How much of the way to hidden a whole back gesture takes a sheet: nearly all. */
+private const val BackTravel = 0.95f

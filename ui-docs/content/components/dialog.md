@@ -50,9 +50,10 @@ Dismissal has three routes and they are meant to stay three: the scrim's
 labelled `onClick` action, the platform back gesture, and whatever button the
 content provides. `dismissible = false` removes the first two — correct for a
 confirmation that must be answered, and a reason to make sure the content offers
-its own way out. Back still reaches the dialog then, and is refused: the panel
-gives a little under the gesture and returns, rather than letting back pop the
-screen behind a question that is still open.
+its own way out. Back still reaches the dialog then, and does nothing: the
+dialog does not move, and back does not go on to pop the screen behind a
+question that is still open. On Android a dialog that may be dismissed goes back
+by its own exit, following the gesture; on iOS back never closes a dialog.
 
 `dismissLabel` is what the scrim announces. The default is `Theme.strings.dismiss`;
 override it when "dismiss" is ambiguous about what is being dismissed.

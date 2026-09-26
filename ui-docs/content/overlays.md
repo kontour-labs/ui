@@ -295,36 +295,38 @@ and nothing beneath it. With nothing open, back goes past the host to whatever
 is behind it — a navigation stack, the platform.
 
 An entry takes back when it has `dismissOnBack = true`, or when it dims the page
-with `ScrimStyle.Dimmed`. The second matters: a dialog that may not be dismissed
-still takes back and **refuses it** — it gives a little under the gesture and
-returns, and `onDismissRequest` is not called — because letting back through
-would pop the screen behind a question that is still being asked. `Dialog`,
-`ModalBottomSheet`, `ModalSideSheet` and `CommandPalette` set `dismissOnBack`
-from their `dismissible`.
+with `ScrimStyle.Dimmed`. It then keeps back from going any further — to the
+page behind it, or on Android out of the app — on every platform. What back
+does to the entry itself depends on the platform, and on whether it may be
+dismissed:
+
+- **Android, and the desktop and the web** (`BackStyle.Predictive`): back
+  closes an entry that may be dismissed. A back gesture runs the entry's *own*
+  exit backwards as the finger moves — a dialog's fade and settle, a side
+  sheet's slide, a bottom sheet moving down — with the scrim going with it; let
+  go, and the same exit finishes from there; abandon it, and the entry's own
+  arrival brings it back. Nothing is drawn that the entry did not already do.
+- **An entry that may not be dismissed** takes back and does nothing: it does
+  not move, and `onDismissRequest` is not called. `Dialog`, `ModalBottomSheet`,
+  `ModalSideSheet` and `CommandPalette` set `dismissOnBack` from their
+  `dismissible`.
+- **iOS** (`BackStyle.Swipe`): back never closes an overlay. A sheet is dragged
+  down there, a dialog is answered and a menu is tapped away, as they always
+  were; the edge swipe does nothing to them.
 
 Toasts and plain tooltips neither dismiss on back nor dim, so a back press while
 a toast is up leaves the screen rather than dismissing a confirmation the user
 was not interacting with.
 
-**Inside an entry, the innermost handler wins.** A navigation stack in a sheet
-pops first while it has somewhere to go back to, and the sheet closes once it
-has not. Each entry has its own dispatcher under the host's, enabled only while
-that entry is the one back reaches, so what answers is decided by which entry is
-on top, not by the order things were composed in.
+**Inside an entry, the innermost handler wins**, on every platform. A navigation
+stack in a sheet pops first while it has somewhere to go back to — on iOS too,
+as a stack inside an iOS sheet does. Each entry has its own dispatcher under the
+host's, enabled only while that entry is the one back reaches, so what answers
+is decided by which entry is on top, not by the order things were composed in.
 
-**A gesture is followed, not just obeyed.** While a back gesture is under way
-the panel follows it in the platform's feel — `LocalBackStyle`, predictive back
-on Android and swipe back on iOS:
-
-| | Predictive | Swipe |
-|---|---|---|
-| Dialog, command palette | shrinks to nine tenths where it is | fades; UIKit never drags an alert |
-| Bottom sheet | shrinks towards its bottom edge | moves down with the finger |
-| Side sheet, nav drawer | shrinks towards its edge | follows the finger to its edge |
-
-The scrim thins with it. A gesture let go closes the entry from the pose the
-hand left it in; one abandoned returns it. Under reduced motion nothing moves
-and the panel only dims.
+A `FabMenu` animates its own way in and out rather than by the host's
+appearance, so it does not move under a back gesture; letting go closes it by
+its own animation.
 
 `dismissTop()` is still there, for an app that closes the top entry from
 something other than back — a hardware key, a toolbar button. It takes the

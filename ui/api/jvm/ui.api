@@ -2310,7 +2310,7 @@ public final class io/kontour/ui/motion/PageMotion {
 }
 
 public final class io/kontour/ui/motion/PageMotionKt {
-	public static final fun pageEffects (Landroidx/compose/ui/Modifier;Lio/kontour/ui/motion/PageMotion;Landroidx/compose/animation/AnimatedVisibilityScope;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
+	public static final fun pageEffects (Landroidx/compose/ui/Modifier;Lio/kontour/ui/motion/PageMotion;Landroidx/compose/animation/AnimatedVisibilityScope;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun rememberPageMotion (Lio/kontour/ui/motion/BackStyle;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/motion/PageMotion;
 }
 

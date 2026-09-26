@@ -4,15 +4,12 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -26,8 +23,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
@@ -35,10 +30,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEvent
-import io.kontour.ui.platform.platformDeviceCorners
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
-import io.kontour.ui.theme.concentricWith
 import kotlin.math.roundToInt
 
 /**
@@ -48,14 +41,16 @@ import kotlin.math.roundToInt
  * Three transforms for whatever runs an `AnimatedContent` between pages: a
  * Navigation 3 `NavDisplay` (which `:ui-nav3`'s page strategy wires up for you),
  * or an app's own. Pair each page with [pageEffects] for the parts a transform
- * cannot draw — the dim beneath and the shadow above under
- * [BackStyle.Swipe], the rounded corners of a page being lifted off under
- * [BackStyle.Predictive].
+ * cannot draw — the dim beneath and the shadow above, while one page slides
+ * over another.
  *
  * | | Push and pop | A back gesture |
  * |---|---|---|
- * | [BackStyle.Predictive] | the shared axis: a third of the width and a fade | the page scales to nine tenths and drifts with the finger; the one beneath fades in from a little larger |
- * | [BackStyle.Swipe] | the new page slides over the old, which moves a third of the way and dims | the top page follows the finger one to one; the one beneath slides in under it |
+ * | [BackStyle.Predictive] | the shared axis: a third of the width and a fade | the page follows the finger one to one, towards whichever edge the gesture came from; the one beneath slides in under it |
+ * | [BackStyle.Swipe] | the new page slides over the old, which moves a third of the way and dims | the page follows the finger one to one; the one beneath slides in under it |
+ *
+ * Under both, a gesture moves the page and nothing else about it: it does not
+ * shrink, fade or round its corners.
  *
  * With reduced motion every transform is a crossfade, and a gesture only seeks
  * the fade.
@@ -95,36 +90,32 @@ class PageMotion internal constructor(
      * The top page going away under a back gesture, seeked by its progress and
      * finished from wherever the hand let go.
      *
+     * The page follows the finger one to one — linear, so a seek to half the
+     * gesture is half the travel, the page under the finger rather than ahead of
+     * it or behind — and the page beneath slides in under it from a third of the
+     * way across.
+     *
      * @param swipeEdge Which edge the gesture came from — `NavigationEvent`'s
      *   `EDGE_LEFT`, `EDGE_RIGHT` or `EDGE_NONE`, the `Int` a `NavDisplay`
-     *   passes. Predictive back drifts away from it; swipe back ignores it,
-     *   because iOS only ever goes back from the leading edge.
+     *   passes. Under predictive back the page moves away from it, which is the
+     *   way the finger goes: Android goes back from either edge. Swipe back
+     *   ignores it, because iOS only ever goes back from the leading edge.
      */
     fun predictivePop(swipeEdge: Int): ContentTransform = when {
         reduced -> crossfade(LinearEasing)
-        // Linear, so a seek to half the gesture is half the travel: the page is
-        // under the finger, not ahead of it or behind.
         style == BackStyle.Swipe -> swipePop(LinearEasing)
         else -> {
-            val duration = motion.slow
-            // Decelerating, as Material asks: the gesture is most visible early.
-            val gesture = CubicBezierEasing(0f, 0f, 0f, 1f)
-            val drift = with(density) { 8.dp.roundToPx() }
-            val direction = when (swipeEdge) {
+            // +1 when the page leaves to the right.
+            val away = when (swipeEdge) {
                 NavigationEvent.EDGE_LEFT -> 1
                 NavigationEvent.EDGE_RIGHT -> -1
                 else -> -forwardSign
             }
-            val fadeOutBy = (duration * FadeThrough).roundToInt()
-            val incoming = fadeIn(tween(duration - fadeOutBy, delayMillis = fadeOutBy, easing = LinearEasing)) +
-                scaleIn(tween(duration, easing = gesture), initialScale = 1.1f)
-            val outgoing = fadeOut(tween(fadeOutBy, easing = LinearEasing)) +
-                scaleOut(tween(duration, easing = gesture), targetScale = 0.9f) +
-                slideOutHorizontally(tween(duration, easing = gesture)) { w ->
-                    // (width / 20) − 8dp, Material's reach for a drifting page.
-                    direction * (w / 20 - drift).coerceAtLeast(0)
-                }
-            (incoming togetherWith outgoing).apply { targetContentZIndex = -1f }
+            val spec = tween<IntOffset>(SwipeDuration, easing = LinearEasing)
+            (
+                slideInHorizontally(spec) { w -> (-away * w * Parallax).roundToInt() } togetherWith
+                    slideOutHorizontally(spec) { w -> away * w }
+                ).apply { targetContentZIndex = -1f }
         }
     }
 
@@ -160,9 +151,6 @@ class PageMotion internal constructor(
 
         /** UIKit's push and pop, near enough — a little over a third of a second. */
         const val SwipeDuration = 350
-
-        /** Material's: the outgoing page is gone by 35% and the incoming appears after. */
-        const val FadeThrough = 0.35f
     }
 }
 
@@ -181,20 +169,32 @@ fun rememberPageMotion(style: BackStyle = LocalBackStyle.current): PageMotion {
 /**
  * What a page transform cannot draw, drawn on each page of an `AnimatedContent`.
  *
- * Under [BackStyle.Swipe]: the page going under the other one dims — a tenth
- * of black at most, gone when it is at rest — and the page on top casts a soft
- * shadow from its leading edge. Under [BackStyle.Predictive]: a page lifted by
- * a gesture takes rounded corners. Nothing at all under reduced motion, and
- * nothing while the page is at rest.
+ * While one page slides over another, the page going under dims — a tenth of
+ * black at most, gone when it is at rest — and the page on top casts a soft
+ * shadow from the edge that is over the other one. Under [BackStyle.Swipe] that
+ * is every push and pop, as on iOS. Under [BackStyle.Predictive] it is only a
+ * back gesture, the one time a page slides over another there; a push or a pop
+ * by a button is the shared axis, with nothing to draw. Nothing at all under
+ * reduced motion, and nothing while the page is at rest.
  *
  * @param scope The `AnimatedVisibilityScope` the page is in — what
  *   `AnimatedContent`'s content lambda receives.
  * @param isPop Whether the change under way goes back. Read while the
  *   transition runs, so a lambda rather than a value.
+ * @param gestureEdge The edge the back gesture under way came from —
+ *   `NavigationEvent`'s `EDGE_LEFT`, `EDGE_RIGHT` or `EDGE_NONE` — or null when
+ *   the change is not a gesture. The shadow goes on the side the page is
+ *   leaving from, and under [BackStyle.Predictive] nothing is drawn while it is
+ *   null.
  */
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun Modifier.pageEffects(motion: PageMotion, scope: AnimatedVisibilityScope, isPop: () -> Boolean): Modifier {
+fun Modifier.pageEffects(
+    motion: PageMotion,
+    scope: AnimatedVisibilityScope,
+    isPop: () -> Boolean,
+    gestureEdge: () -> Int? = { null },
+): Modifier {
     if (Theme.motion.reduceMotion) return this
     val transition = scope.transition
     // How far this page is from rest, 0 to 1, driven by the same transition
@@ -205,55 +205,42 @@ fun Modifier.pageEffects(motion: PageMotion, scope: AnimatedVisibilityScope, isP
         label = "page away from rest",
     ) { state -> if (state == EnterExitState.Visible) 0f else 1f }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    return when (motion.style) {
-        BackStyle.Swipe -> this.drawWithContent {
-            drawContent()
-            if (away == 0f) return@drawWithContent
-            // Underneath: the page leaving on a push, or returning on a pop.
-            val entering = transition.targetState == EnterExitState.Visible
-            val underneath = if (isPop()) entering else !entering
-            if (underneath) {
-                drawRect(Color.Black.copy(alpha = MaxDim * away))
-            } else {
-                // On top: a shadow cast past the leading edge onto the page
-                // beneath. Outside the bounds, so it needs no room of its own.
-                val width = motion.shadowWidthPx
-                val x = if (rtl) size.width else -width
-                val edge = if (rtl) Offset(size.width, 0f) else Offset(0f, 0f)
-                drawRect(
-                    brush = Brush.horizontalGradient(
-                        colors = if (rtl) {
-                            listOf(Color.Black.copy(alpha = ShadowAlpha), Color.Transparent)
-                        } else {
-                            listOf(Color.Transparent, Color.Black.copy(alpha = ShadowAlpha))
-                        },
-                        startX = if (rtl) edge.x else x,
-                        endX = if (rtl) edge.x + width else edge.x,
-                    ),
-                    topLeft = Offset(x, 0f),
-                    size = Size(width, size.height),
-                )
-            }
+    return this.drawWithContent {
+        drawContent()
+        if (away == 0f) return@drawWithContent
+        val edge = gestureEdge()
+        if (motion.style == BackStyle.Predictive && edge == null) return@drawWithContent
+        // Underneath: the page leaving on a push, or returning on a pop.
+        val entering = transition.targetState == EnterExitState.Visible
+        val underneath = if (isPop()) entering else !entering
+        if (underneath) {
+            drawRect(Color.Black.copy(alpha = MaxDim * away))
+            return@drawWithContent
         }
-        BackStyle.Predictive -> {
-            // The display's own corner where the platform says what it is, so
-            // a page lifted off the screen keeps the shape it had on it; the
-            // theme's largest corner, its guess at that radius, elsewhere.
-            val largest = Theme.shapes.extraLarge
-            val device = platformDeviceCorners()
-            val direction = LocalLayoutDirection.current
-            val corner = remember(largest, device, direction) { largest.concentricWith(device, direction = direction) }
-            this.graphicsLayer {
-                // Only the page being lifted off by a pop, and only while it is.
-                val leaving = transition.targetState != EnterExitState.Visible
-                if (isPop() && leaving && away > 0f) {
-                    shape = corner
-                    clip = true
-                } else {
-                    shape = RectangleShape
-                    clip = false
-                }
-            }
+        // On top: a shadow cast past the edge over the page beneath. Outside the
+        // bounds, so it needs no room of its own. That edge is the leading one
+        // under swipe back; under a predictive gesture it is the one the page
+        // is moving away from, which is the one the gesture came from.
+        val shadowOnRight = when {
+            motion.style == BackStyle.Swipe -> rtl
+            edge == NavigationEvent.EDGE_RIGHT -> true
+            edge == NavigationEvent.EDGE_LEFT -> false
+            else -> rtl
+        }
+        val width = motion.shadowWidthPx
+        val shade = Color.Black.copy(alpha = ShadowAlpha)
+        if (shadowOnRight) {
+            drawRect(
+                brush = Brush.horizontalGradient(listOf(shade, Color.Transparent), startX = size.width, endX = size.width + width),
+                topLeft = Offset(size.width, 0f),
+                size = Size(width, size.height),
+            )
+        } else {
+            drawRect(
+                brush = Brush.horizontalGradient(listOf(Color.Transparent, shade), startX = -width, endX = 0f),
+                topLeft = Offset(-width, 0f),
+                size = Size(width, size.height),
+            )
         }
     }
 }

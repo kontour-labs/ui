@@ -20,8 +20,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -135,72 +133,52 @@ internal fun rememberSceneBack(enabled: Boolean, runOut: Boolean = true, onBack:
 }
 
 /**
- * A pane following [back]: towards the trailing edge under swipe back, lifting
- * off under predictive back, and only fading under reduced motion. Reads the
- * gesture in the layer, so dragging does not recompose the pane.
+ * A pane following [back]: it moves with the finger, one to one, and casts a
+ * shadow onto the ground it uncovers — towards the trailing edge under swipe
+ * back, away from whichever edge the gesture came from under predictive back.
+ * It does not shrink, fade or round its corners. Under reduced motion it only
+ * fades. Reads the gesture in the layer, so dragging does not recompose the
+ * pane.
  */
 @Composable
 internal fun Modifier.paneBackMotion(back: SceneBackState): Modifier {
     val style = LocalBackStyle.current
     val reduced = Theme.motion.reduceMotion
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val corner = Theme.shapes.extraLarge
-    val motion = this.graphicsLayer {
-        val p = back.progress
-        if (p == 0f) {
-            shape = RectangleShape
-            clip = false
-            return@graphicsLayer
-        }
-        if (reduced) {
-            alpha = 1f - 0.5f * p
-            return@graphicsLayer
-        }
-        when (style) {
-            BackStyle.Swipe -> translationX = (if (rtl) -1f else 1f) * p * size.width
-            BackStyle.Predictive -> {
-                val direction = when (back.swipeEdge) {
-                    NavigationEvent.EDGE_RIGHT -> -1f
-                    NavigationEvent.EDGE_LEFT -> 1f
-                    else -> if (rtl) -1f else 1f
-                }
-                transformOrigin = TransformOrigin.Center
-                val scale = 1f - 0.08f * p
-                scaleX = scale
-                scaleY = scale
-                translationX = direction * p * 8.dp.toPx()
-                alpha = 1f - 0.4f * p
-                shape = corner
-                clip = true
-            }
-        }
+    // +1 when the pane leaves to the right.
+    fun away(): Float = when {
+        style == BackStyle.Swipe -> if (rtl) -1f else 1f
+        back.swipeEdge == NavigationEvent.EDGE_LEFT -> 1f
+        back.swipeEdge == NavigationEvent.EDGE_RIGHT -> -1f
+        else -> if (rtl) -1f else 1f
     }
-    // Under swipe back the pane casts a shadow from its leading edge, as a
-    // page does, onto the ground it is uncovering.
-    return if (style == BackStyle.Swipe && !reduced) {
-        motion.drawWithContent {
+    if (reduced) {
+        return this.graphicsLayer { alpha = 1f - 0.5f * back.progress }
+    }
+    return this
+        .graphicsLayer { translationX = away() * back.progress * size.width }
+        .drawWithContent {
             drawContent()
             val p = back.progress
             if (p == 0f) return@drawWithContent
+            // On the edge the pane is moving away from, over the ground it
+            // uncovers.
             val width = 16.dp.toPx()
-            val x = if (rtl) size.width else -width
-            drawRect(
-                brush = Brush.horizontalGradient(
-                    colors = if (rtl) {
-                        listOf(Color.Black.copy(alpha = 0.12f), Color.Transparent)
-                    } else {
-                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.12f))
-                    },
-                    startX = x,
-                    endX = x + width,
-                ),
-                topLeft = Offset(x, 0f),
-                size = Size(width, size.height),
-            )
+            val shade = Color.Black.copy(alpha = 0.12f)
+            if (away() > 0f) {
+                drawRect(
+                    brush = Brush.horizontalGradient(listOf(Color.Transparent, shade), startX = -width, endX = 0f),
+                    topLeft = Offset(-width, 0f),
+                    size = Size(width, size.height),
+                )
+            } else {
+                drawRect(
+                    brush = Brush.horizontalGradient(listOf(shade, Color.Transparent), startX = size.width, endX = size.width + width),
+                    topLeft = Offset(size.width, 0f),
+                    size = Size(width, size.height),
+                )
+            }
         }
-    } else {
-        motion
-    }
 }
 
 /** How long a let-go or abandoned pane takes to finish its travel. */

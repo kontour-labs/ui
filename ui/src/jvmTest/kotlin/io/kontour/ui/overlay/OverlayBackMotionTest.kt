@@ -1,6 +1,8 @@
 package io.kontour.ui.overlay
 
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -20,6 +22,7 @@ import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.BackStyle
 import io.kontour.ui.motion.LocalBackStyle
+import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.theme.KontourTheme
@@ -28,12 +31,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * An overlay follows a back gesture in the feel of its platform, and holds
- * still under reduced motion.
+ * A back gesture moves an overlay only by the animation it already has — its
+ * own appearance run backwards, its own slide, a sheet's own offset — and only
+ * under predictive back, and only when it may be dismissed.
  *
  * Measured by where the panel's content lands on screen — its bounds in the
- * root, which carry the layer's transform — at rest and halfway through a
- * gesture, so what is asserted is what the reader sees move.
+ * root, which carry every layer's transform and every placement offset — at
+ * rest and halfway through a gesture, so what is asserted is what the reader
+ * sees move.
  */
 @OptIn(ExperimentalTestApi::class)
 class OverlayBackMotionTest {
@@ -82,68 +87,103 @@ class OverlayBackMotionTest {
         }
     }
 
+    @Composable
+    private fun FilterSheet() {
+        ModalSideSheet(visible = true, onDismissRequest = {}, side = SheetSide.End) {
+            Text("Filters", Modifier.fillMaxSize().testTag("panel"))
+        }
+    }
+
+    /**
+     * Halfway back is halfway through the dialog's own exit: the 1.06 it
+     * settles down from, halfway — 1.03 — about the same centre.
+     */
     @Test
-    fun underPredictiveBackTheDialogShrinksWhereItIs() = runComposeUiTest {
+    fun underPredictiveBackTheDialogRunsItsOwnExitBackwards() = runComposeUiTest {
         val back = Back()
         setContent { Harness(back, BackStyle.Predictive) { AlertDialog(dismissible = true) } }
         val rest = bounds("panel")
         runOnUiThread { back.dragTo(0.5f) }
         val mid = bounds("panel")
-        assertEquals(0.95f, mid.width / rest.width, 0.01f, "halfway through, the dialog is not at 95%")
-        assertEquals(rest.center.x, mid.center.x, 1f, "the dialog drifted instead of shrinking in place")
-        assertEquals(rest.center.y, mid.center.y, 1f, "the dialog drifted instead of shrinking in place")
+        assertEquals(1.03f, mid.width / rest.width, 0.01f, "halfway back is not halfway through the dialog's own exit")
+        assertEquals(rest.center.x, mid.center.x, 1f)
+        assertEquals(rest.center.y, mid.center.y, 1f)
+
+        // Abandoned: its own arrival brings it back.
+        runOnUiThread { back.input.backCancelled() }
+        assertEquals(rest, bounds("panel"), "an abandoned gesture left the dialog part-way out")
     }
 
     @Test
-    fun underSwipeBackTheDialogOnlyFades() = runComposeUiTest {
+    fun underPredictiveBackTheSideSheetSlidesOutByItsOwnSlide() = runComposeUiTest {
         val back = Back()
-        setContent { Harness(back, BackStyle.Swipe) { AlertDialog(dismissible = true) } }
+        setContent { Harness(back, BackStyle.Predictive) { FilterSheet() } }
         val rest = bounds("panel")
         runOnUiThread { back.dragTo(0.5f) }
-        assertEquals(rest, bounds("panel"), "UIKit never drags an alert; the dialog moved")
+        val mid = bounds("panel")
+        assertEquals(rest.left + rest.width / 2, mid.left, rest.width * 0.03f, "halfway back is half the sheet's slide")
+        assertEquals(rest.width, mid.width, 1f, "the sheet slides; it does not shrink")
     }
 
     @Test
-    fun aDialogThatMayNotCloseGivesALittleAndNoMore() = runComposeUiTest {
-        val back = Back()
-        setContent { Harness(back, BackStyle.Predictive) { AlertDialog(dismissible = false) } }
-        val rest = bounds("panel")
-        runOnUiThread { back.dragTo(1f) }
-        val full = bounds("panel")
-        val shrink = 1f - full.width / rest.width
-        assertTrue(shrink > 0f, "a dialog that refuses back did not move at all, so the hand is not told it was heard")
-        assertTrue(shrink <= 0.02f, "a dialog that refuses back gave ${shrink * 100}%, more than the 2% nudge")
-    }
-
-    @Test
-    fun underSwipeBackASideSheetFollowsTheFingerToItsEdge() = runComposeUiTest {
+    fun underPredictiveBackTheBottomSheetMovesTowardsHidden() = runComposeUiTest {
         val back = Back()
         setContent {
-            Harness(back, BackStyle.Swipe) {
-                ModalSideSheet(visible = true, onDismissRequest = {}, side = SheetSide.End) {
-                    Text("Filters", Modifier.fillMaxSize().testTag("panel"))
+            Harness(back, BackStyle.Predictive) {
+                ModalBottomSheet(visible = true, onDismissRequest = {}) {
+                    Text("Departures", Modifier.fillMaxWidth().height(300.dp).testTag("panel"))
                 }
             }
         }
         val rest = bounds("panel")
         runOnUiThread { back.dragTo(0.5f) }
         val mid = bounds("panel")
-        assertTrue(mid.left > rest.left, "the sheet did not move towards its edge")
-        assertEquals(rest.width, mid.width, 1f, "under swipe back the sheet moves; it does not shrink")
+        assertTrue(mid.top > rest.top + 100f, "the sheet did not move down towards hidden: ${rest.top} to ${mid.top}")
+        assertEquals(rest.height, mid.height, 1f, "the sheet moves; it does not shrink")
+
+        runOnUiThread { back.input.backCancelled() }
+        assertEquals(rest.top, bounds("panel").top, 1f, "an abandoned gesture did not settle the sheet back")
     }
 
     @Test
-    fun underReducedMotionNothingMoves() = runComposeUiTest {
+    fun aDialogThatMayNotCloseDoesNotMove() = runComposeUiTest {
+        val back = Back()
+        setContent { Harness(back, BackStyle.Predictive) { AlertDialog(dismissible = false) } }
+        val rest = bounds("panel")
+        runOnUiThread { back.dragTo(1f) }
+        assertEquals(rest, bounds("panel"), "a dialog that may not close moved under back")
+    }
+
+    /** Swipe back is iOS's, where back is not a way out of an overlay at all. */
+    @Test
+    fun underSwipeBackNothingMoves() = runComposeUiTest {
         val back = Back()
         setContent {
-            Harness(back, BackStyle.Predictive, reduceMotion = true) {
-                ModalSideSheet(visible = true, onDismissRequest = {}, side = SheetSide.End) {
-                    Text("Filters", Modifier.fillMaxSize().testTag("panel"))
-                }
+            Harness(back, BackStyle.Swipe) {
+                AlertDialog(dismissible = true)
             }
         }
         val rest = bounds("panel")
         runOnUiThread { back.dragTo(0.5f) }
-        assertEquals(rest, bounds("panel"), "reduced motion moved the sheet")
+        assertEquals(rest, bounds("panel"), "a dialog moved under swipe back")
+    }
+
+    @Test
+    fun underSwipeBackASideSheetStaysPut() = runComposeUiTest {
+        val back = Back()
+        setContent { Harness(back, BackStyle.Swipe) { FilterSheet() } }
+        val rest = bounds("panel")
+        runOnUiThread { back.dragTo(0.5f) }
+        assertEquals(rest, bounds("panel"), "a side sheet moved under swipe back")
+    }
+
+    /** Under reduced motion the dialog's own exit only fades, so the gesture only fades it. */
+    @Test
+    fun underReducedMotionTheDialogDoesNotMove() = runComposeUiTest {
+        val back = Back()
+        setContent { Harness(back, BackStyle.Predictive, reduceMotion = true) { AlertDialog(dismissible = true) } }
+        val rest = bounds("panel")
+        runOnUiThread { back.dragTo(0.5f) }
+        assertEquals(rest, bounds("panel"), "reduced motion moved the dialog")
     }
 }

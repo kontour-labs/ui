@@ -80,13 +80,12 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.overlay.BackdropStyle
 import io.kontour.ui.overlay.LocalOverlayHost
-import io.kontour.ui.overlay.LocalSheetFollowsBack
+import io.kontour.ui.overlay.LocalOverlayBack
+import io.kontour.ui.overlay.OverlayBackState
 import io.kontour.ui.overlay.OverlayAlignment
-import io.kontour.ui.overlay.OverlayBackKind
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
-import io.kontour.ui.overlay.overlayBackMotion
 import io.kontour.ui.platform.platformDeviceCorners
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.SquircleShape
@@ -526,7 +525,6 @@ fun BottomSheet(
     val density = LocalDensity.current
     val motion = Theme.motion
     val actionsGap = BottomSheetDefaults.ActionsGap
-    val followsBack = LocalSheetFollowsBack.current
     val floating = presentation == SheetPresentation.Floating
     // Only a floating sheet has anything to morph out of. An edge sheet is what the
     // morph arrives at, so for one this is null and every floating branch below is
@@ -735,10 +733,6 @@ fun BottomSheet(
                 // Read in the layout phase, so neither the drag nor the stretch
                 // above the top detent ever recomposes the sheet's content.
                 .offset { IntOffset(0, sheetTop(state, floating, floatInsets, this, morph)) }
-                // A back gesture aimed at the modal this sheet is the body of.
-                // After the offset, so a shrink pivots on the sheet where it
-                // is rather than where it would sit unmoved at the top.
-                .then(if (followsBack) Modifier.overlayBackMotion(OverlayBackKind.BottomSheet) else Modifier)
                 .then(
                     if (draggable) {
                         Modifier
@@ -796,8 +790,6 @@ fun BottomSheet(
                 content = { padding ->
                     CompositionLocalProvider(
                         LocalOverscrollFactory provides childOverscroll,
-                        // A sheet inside this one is its own sheet.
-                        LocalSheetFollowsBack provides false,
                     ) {
                         content(padding)
                     }
@@ -1079,28 +1071,30 @@ fun ModalBottomSheet(
                     // flips `visible`, which is what actually closes it.
                     onDismiss = { dismiss() },
                     content = {
-                        CompositionLocalProvider(LocalSheetFollowsBack provides true) {
-                            BottomSheet(
-                                state = state,
-                                modifier = latestModifier,
-                                presentation = latestPresentation,
-                                edgeMorph = latestEdgeMorph,
-                                alignment = latestAlignment,
-                                shape = latestShape,
-                                expandedShape = latestExpandedShape,
-                                containerColour = latestContainerColour,
-                                contentColour = latestContentColour,
-                                paneTitle = latestPaneTitle,
-                                draggable = latestDraggable,
-                                // The modal's own, handed down rather than written
-                                // into the state from here: the sheet owns the drag,
-                                // so the sheet is what tells the state about it.
-                                dismissible = canDismiss,
-                                dragHandle = latestDragHandle,
-                                windowInsets = latestWindowInsets,
-                                content = body,
-                            )
+                        // Back runs the sheet's own way out: see [FollowBack].
+                        LocalOverlayBack.current?.let { back ->
+                            FollowBack(state, back, stillWanted = { showing })
                         }
+                        BottomSheet(
+                            state = state,
+                            modifier = latestModifier,
+                            presentation = latestPresentation,
+                            edgeMorph = latestEdgeMorph,
+                            alignment = latestAlignment,
+                            shape = latestShape,
+                            expandedShape = latestExpandedShape,
+                            containerColour = latestContainerColour,
+                            contentColour = latestContentColour,
+                            paneTitle = latestPaneTitle,
+                            draggable = latestDraggable,
+                            // The modal's own, handed down rather than written
+                            // into the state from here: the sheet owns the drag,
+                            // so the sheet is what tells the state about it.
+                            dismissible = canDismiss,
+                            dragHandle = latestDragHandle,
+                            windowInsets = latestWindowInsets,
+                            content = body,
+                        )
                     },
                 )
             )
@@ -1925,6 +1919,45 @@ private fun offsetOrHidden(state: SheetState): Int {
         state.containerHeight.roundToInt()
     } else {
         offset.roundToInt()
+    }
+}
+
+
+/**
+ * A modal sheet following the back gesture aimed at it, by the movement it
+ * already has.
+ *
+ * The gesture moves the sheet down towards hidden, as a drag would; its scrim
+ * reads how much of the sheet is showing and goes with it. Abandoned, the sheet
+ * settles back to its detent the way a released drag does. Let go, the modal
+ * asks its caller to close, and `hide()` slides it the rest of the way from
+ * where it is — or, if the caller keeps it open, it settles back after the
+ * frames any declined dismissal gets.
+ *
+ * Only ever driven under predictive back and for a sheet that may be dismissed:
+ * [OverlayBackState.following] is never true otherwise, so a sheet that may not
+ * close does not move, and under swipe back no sheet does.
+ */
+@Composable
+private fun FollowBack(state: SheetState, back: OverlayBackState, stillWanted: () -> Boolean) {
+    LaunchedEffect(state, back) {
+        var from = Float.NaN
+        snapshotFlow { if (back.following) back.progress else null }.collect { progress ->
+            if (progress == null) {
+                from = Float.NaN
+                return@collect
+            }
+            if (from.isNaN()) from = state.offset
+            state.followBack(from, progress)
+        }
+    }
+    LaunchedEffect(state, back.cancels) {
+        if (back.cancels > 0) state.animateTo(state.currentDetent)
+    }
+    LaunchedEffect(state, back.commits) {
+        if (back.commits == 0) return@LaunchedEffect
+        repeat(SheetDismissalFrames) { withFrameNanos { } }
+        if (stillWanted()) state.animateTo(state.currentDetent)
     }
 }
 

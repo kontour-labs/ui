@@ -35,7 +35,9 @@ import io.kontour.ui.theme.Theme
  * ```
  *
  * One line, and every page gets the push, the pop and the back gesture of its
- * platform, with the dim, the shadow or the lifted corners that go with them.
+ * platform, with the dim and the shadow that go with them. Under a gesture a
+ * page follows the finger, whole, on both platforms: it does not shrink, fade
+ * or round its corners.
  * `NavDisplay` still owns the back stack and the gesture; this only says how the
  * pages look while it runs. A page whose entry carries its own
  * `NavDisplay.transitionSpec { … }` keeps it — entry metadata wins — and a
@@ -46,9 +48,8 @@ import io.kontour.ui.theme.Theme
  * they are overlays, and the overlay host answers back for those.
  *
  * **What is not here.** A gesture let go finishes on the transform's own
- * remaining curve, so the velocity of a flick does not carry into it, and the
- * page does not follow the finger vertically as Material's fullest version does.
- * Both would need `NavDisplay` itself to change.
+ * remaining curve, so the velocity of a flick does not carry into it. That
+ * would need `NavDisplay` itself to change.
  *
  * @param contentSwipe Under swipe back, whether a sideways pan from anywhere on
  *   the page goes back, as it does on iOS 26 — not just one from the leading
@@ -67,8 +68,21 @@ internal class PageTransitionStrategy<T : Any>(
     private val contentSwipe: Boolean,
 ) : SceneDecoratorStrategy<T> {
 
+    /** Shared by every page this strategy dresses: see [GestureEdge]. */
+    private val gesture = GestureEdge()
+
     override fun SceneDecoratorStrategyScope<T>.decorateScene(scene: Scene<T>): Scene<T> =
-        if (scene is OverlayScene<T> || scene is PageScene<T>) scene else PageScene(scene, motion, contentSwipe)
+        if (scene is OverlayScene<T> || scene is PageScene<T>) scene else PageScene(scene, motion, contentSwipe, gesture)
+}
+
+/**
+ * The edge of the back gesture the change under way is, or null when it is not
+ * one — set by whichever of a page's three transforms `NavDisplay` asks for as
+ * the change begins, and held until the next change asks again, so the page
+ * effects last the whole of it, the part after the hand let go included.
+ */
+internal class GestureEdge {
+    var edge: Int? = null
 }
 
 /** Whatever scene a strategy chose, dressed as a page. */
@@ -76,6 +90,7 @@ internal class PageScene<T : Any>(
     internal val inner: Scene<T>,
     private val motion: PageMotion,
     private val contentSwipe: Boolean,
+    private val gesture: GestureEdge = GestureEdge(),
 ) : Scene<T> {
 
     /**
@@ -90,9 +105,18 @@ internal class PageScene<T : Any>(
     override val previousEntries: List<NavEntry<T>> get() = inner.previousEntries
 
     override val metadata: Map<String, Any> =
-        NavDisplay.transitionSpec { motion.push() } +
-            NavDisplay.popTransitionSpec { motion.pop() } +
-            NavDisplay.predictivePopTransitionSpec { edge -> motion.predictivePop(edge) } +
+        NavDisplay.transitionSpec {
+            gesture.edge = null
+            motion.push()
+        } +
+            NavDisplay.popTransitionSpec {
+                gesture.edge = null
+                motion.pop()
+            } +
+            NavDisplay.predictivePopTransitionSpec { edge ->
+                gesture.edge = edge
+                motion.predictivePop(edge)
+            } +
             // Last, so a scene's or an entry's own specs win over the page's.
             inner.metadata
 
@@ -104,8 +128,17 @@ internal class PageScene<T : Any>(
                 // Opaque, as a page is: a pop reveals the page beneath rather
                 // than showing it through the one leaving.
                 .background(Theme.colours.background)
-                .pageEffects(motion, scope, isPop = { scope.isPop() })
-                .then(if (contentSwipe) Modifier.contentSwipeBack(motion.style) else Modifier)
+                .pageEffects(motion, scope, isPop = { scope.isPop() }, gestureEdge = { gesture.edge })
+                // Only a page with somewhere to go back to in its own stack: at
+                // the root of a stack inside a sheet, a pan would otherwise be
+                // claimed for a back the sheet does not take.
+                .then(
+                    if (contentSwipe && inner.previousEntries.isNotEmpty()) {
+                        Modifier.contentSwipeBack(motion.style)
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             inner.content()
         }

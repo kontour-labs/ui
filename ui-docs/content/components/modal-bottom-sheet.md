@@ -62,7 +62,7 @@ an edge sheet from its first frame to its last. See
 ### `onDismissRequest` is the user's, and comes once
 
 It fires when the *user* closes the sheet — a drag to the bottom, a tap outside,
-a back gesture — and once per closing. Setting `visible = false` yourself is not
+back on Android — and once per closing. Setting `visible = false` yourself is not
 a dismissal and is not reported back to you. So a dismissal can safely *do*
 something, pop a back stack or record an event, rather than only flip the flag
 that closes the sheet. It used to report every arrival at the bottom, which

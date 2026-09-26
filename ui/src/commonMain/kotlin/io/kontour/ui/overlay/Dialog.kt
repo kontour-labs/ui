@@ -137,7 +137,6 @@ fun Dialog(
                                     LocalOverlayProgress.current,
                                     fromScale = 1.06f,
                                 )
-                                .overlayBackMotion(OverlayBackKind.Dialog)
                                 .windowInsetsPadding(latestInsets),
                             contentAlignment = Alignment.Center,
                         ) {

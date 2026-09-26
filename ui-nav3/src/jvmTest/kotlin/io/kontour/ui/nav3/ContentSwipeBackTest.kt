@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
@@ -15,6 +16,8 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
@@ -30,10 +33,12 @@ import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.BackStyle
 import io.kontour.ui.motion.LocalBackStyle
+import io.kontour.ui.overlay.Dialog
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * iOS 26's back from anywhere on the page: a sideways pan towards the trailing
@@ -159,5 +164,69 @@ class ContentSwipeBackTest {
         }
         waitForIdle()
         assertEquals(listOf<Any>(Stops, Stop), backStack.toList())
+    }
+
+    /**
+     * At the root of a stack inside an overlay, a pan is not claimed.
+     *
+     * The overlay's own handler is enabled there — it keeps back from reaching
+     * the page behind — so the dispatcher reports something that would answer
+     * back. But the page has nowhere to go back to in its own stack, and under
+     * swipe back the overlay does nothing with back, so a pan claimed there
+     * would be swallowed for nothing, from under whatever else wanted it.
+     */
+    @Test
+    fun aPageAtTheRootOfAStackInADialogLeavesThePanAlone() = runDesktopComposeUiTest(width = 400, height = 800) {
+        val backStack = mutableStateListOf<Any>(Stops)
+        var consumedMoves = 0
+        var moves = 0
+        setContent {
+            CompositionLocalProvider(
+                LocalNavigationEventDispatcherOwner provides owner,
+                LocalBackStyle provides BackStyle.Swipe,
+            ) {
+                KontourTheme(darkTheme = false) {
+                    OverlayHost {
+                        Dialog(visible = true, onDismissRequest = {}) {
+                            Box(
+                                Modifier
+                                    .size(300.dp, 400.dp)
+                                    // After everything inside has had its turn.
+                                    .pointerInput(Unit) {
+                                        awaitPointerEventScope {
+                                            while (true) {
+                                                val event = awaitPointerEvent(PointerEventPass.Final)
+                                                event.changes.forEach { change ->
+                                                    if (change.pressed && change.previousPressed) {
+                                                        moves++
+                                                        if (change.isConsumed) consumedMoves++
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                            ) {
+                                NavDisplay(
+                                    backStack = backStack,
+                                    onBack = { backStack.removeLastOrNull() },
+                                    sceneDecoratorStrategies = listOf(rememberPageTransitionStrategy()),
+                                    entryProvider = entryProvider {
+                                        entry<Stops> { Text("Stops", Modifier.fillMaxSize().testTag("stops")) }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        onNodeWithTag("stops", useUnmergedTree = true).performTouchInput {
+            swipe(Offset(width * 0.2f, centerY), Offset(width * 0.95f, centerY), durationMillis = 300)
+        }
+        waitForIdle()
+        assertTrue(moves > 0, "the pan never reached the dialog")
+        assertEquals(0, consumedMoves, "a pan at the root of the dialog's stack was claimed for back")
+        assertEquals(listOf<Any>(Stops), backStack.toList())
     }
 }

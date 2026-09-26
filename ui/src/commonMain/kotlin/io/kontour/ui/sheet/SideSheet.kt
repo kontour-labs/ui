@@ -42,11 +42,9 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.overlay.BackdropStyle
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.LocalOverlayProgress
-import io.kontour.ui.overlay.OverlayBackKind
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
-import io.kontour.ui.overlay.overlayBackMotion
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mirrorHorizontally
 import kotlin.math.roundToInt
@@ -184,9 +182,12 @@ fun ModalSideSheet(
                     BackdropStyle.None
                 },
                 dismissOnOutside = dismissible,
-                // The back gesture dismisses, as a tap outside does. `onBack` is
-                // the arrow for a sheet pushed from another; a stack that should
-                // answer the gesture itself goes inside the sheet.
+                // Back dismisses, as a tap outside does, where back closes
+                // overlays at all — predictive back; under swipe back the sheet
+                // is closed the ways it always was. A gesture slides it out by
+                // its own slide. `onBack` is the arrow for a sheet pushed from
+                // another; a stack that should answer the gesture itself goes
+                // inside the sheet.
                 dismissOnBack = dismissible,
                 dismissLabel = dismissLabel,
                 onDismiss = { dismiss() },
@@ -344,9 +345,6 @@ private fun SideSheetPanel(
                     val hidden = travel * (1f - progress().coerceIn(0f, 1f))
                     IntOffset(x = (if (fromRight) hidden else -hidden).roundToInt(), y = 0)
                 }
-                // A back gesture aimed at this sheet's modal: towards its own
-                // edge, whichever way text runs.
-                .overlayBackMotion(if (fromRight) OverlayBackKind.RightSheet else OverlayBackKind.LeftSheet)
                 .then(modifier)
                 .semantics {
                     isTraversalGroup = true

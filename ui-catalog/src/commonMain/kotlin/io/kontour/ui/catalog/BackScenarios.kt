@@ -61,27 +61,33 @@ internal enum class BackScenario(val title: String, val note: String) {
     ),
     Supporting(
         "Supporting pane",
-        "Beside the main pane on a tablet, and a sheet over it on a phone. Back closes it either way.",
+        "Beside the main pane on a tablet, where back closes it. On a phone it is a sheet: Android's back " +
+            "closes it; on iOS it is dragged down.",
     ),
     Sheet(
         "Bottom sheet",
-        "Back closes the sheet, not the page under it. One that may not close takes back and gives only a little.",
+        "On Android back slides the sheet down its own way out, and never reaches the page under it; one that " +
+            "may not close does not move. On iOS back leaves every sheet open: drag it down.",
     ),
     SheetStack(
         "Sheet with a stack",
-        "A stack inside the sheet goes back first; with nothing left in it, back closes the sheet.",
+        "A stack inside the sheet goes back first, on both. With nothing left in it, Android's back closes the " +
+            "sheet; iOS's leaves it open.",
     ),
     SideSheets(
         "Side sheet and drawer",
-        "Each follows back towards its own edge.",
+        "On Android back slides each out by its own slide, following the gesture. On iOS back leaves them " +
+            "open: tap outside.",
     ),
     Dialog(
         "Dialog",
-        "Back closes the dialog. A dialog that must be answered refuses it — and back does not reach the page behind.",
+        "On Android back closes the dialog by its own exit; one that must be answered does not move. On iOS back " +
+            "never closes a dialog. Either way back does not reach the page behind.",
     ),
     Nested(
         "All of them",
-        "A detail, a sheet with a stack over it, and a dialog over that. Back unwinds them in order.",
+        "A detail, a sheet with a stack over it, and a dialog over that. Back unwinds them in order — on iOS " +
+            "stopping at the dialog and the sheet, which are answered and dragged away there.",
     ),
 }
 

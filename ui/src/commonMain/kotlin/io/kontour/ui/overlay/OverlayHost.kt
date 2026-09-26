@@ -11,7 +11,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -20,6 +19,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
@@ -37,10 +37,9 @@ import io.kontour.ui.components.text.DefaultTextSelectionToolbar
 import io.kontour.ui.components.text.TextContextMenuHost
 import io.kontour.ui.foundation.Scrim
 import io.kontour.ui.input.clearFocusOnTap
+import io.kontour.ui.motion.BackStyle
 import io.kontour.ui.motion.LocalBackStyle
 import io.kontour.ui.theme.Theme
-import kotlin.time.Duration.Companion.milliseconds
-import kotlinx.coroutines.delay
 
 /**
  * Where an overlay sits in the stack.
@@ -369,19 +368,33 @@ private fun EntryHost(
     // is composed, so a stack inside a sheet answers first while it has
     // somewhere to go back to. See `OverlayBack.kt`.
     val backOwner = rememberChildBackDispatcher(enabled = takesBack && !leaving)
-    val (back, backHandler) = rememberOverlayBack(onCommit = { state.dismissForBack(entry) })
     val backStyle = LocalBackStyle.current
-    SideEffect { back.absorbing = !entry.dismissOnBack }
+    val (back, backHandler) = rememberOverlayBack(
+        // Back closes an overlay only under predictive back, and only one that
+        // may be dismissed. Under swipe back — iOS — it never does: a sheet is
+        // dragged down there, and a dialog answered.
+        closes = { backStyle == BackStyle.Predictive && entry.dismissOnBack },
+        onCommit = { state.dismissForBack(entry) },
+    )
     RegisterBackHandler(backOwner, backHandler)
-    // A committed gesture leaves the entry posed where the hand let go, so it
-    // leaves from there. If it has not started leaving shortly afterwards — the
-    // caller declined the dismissal, and a sheet that manages its own exit is
-    // still fully up — it goes back to rest rather than staying half-gone.
-    LaunchedEffect(back.commits) {
-        if (back.commits == 0) return@LaunchedEffect
-        delay(BackDeclinedAfter)
-        val stillUp = !state.isLeaving(entry.key) && (entry.visibility?.invoke() ?: 1f) > 0.98f
-        if (stillUp) backHandler.settleBack()
+
+    // A gesture runs the entry's own appearance backwards — the scale and fade
+    // it arrived with, or its slide — so it leaves by the animation it already
+    // has, and the scrim and the receding page, which read the same number,
+    // follow with it. Let go, and `leaving` carries the same exit on from the
+    // pose the hand left; abandon it, and the entry's own arrival brings it
+    // back. An entry that animates its own exit — a sheet — reads the gesture
+    // itself.
+    if (!entry.managesOwnExit) {
+        LaunchedEffect(back) {
+            snapshotFlow { if (back.following) back.progress else null }
+                .collect { gesture -> if (gesture != null) progress.snapTo(1f - gesture) }
+        }
+        LaunchedEffect(back.cancels) {
+            if (back.cancels > 0 && !state.isLeaving(entry.key)) {
+                progress.animateTo(1f, motion.springOrTween(motion.springSnappy))
+            }
+        }
     }
 
     LaunchedEffect(leaving) {
@@ -400,11 +413,7 @@ private fun EntryHost(
 
     // One lambda for the scrim and the backdrop, remembered rather than built
     // inline: a fresh lambda each time would re-key everything downstream of it.
-    val fraction: () -> Float = remember(entry, back, backStyle) {
-        val base = entry.visibility ?: { progress.value }
-        // The dim goes with what it dims while a back gesture is aimed here.
-        { base() * scrimUnderBack(back, backStyle) }
-    }
+    val fraction: () -> Float = remember(entry) { entry.visibility ?: { progress.value } }
 
     // And one for the panel, which is a *different* number: `fraction` may be an
     // entry's own visibility — a sheet's, derived from where it has been dragged
@@ -515,9 +524,6 @@ private fun EntryHost(
  * recomposition cost alone, which is reason enough.
  */
 internal val LocalOverlayProgress = compositionLocalOf<() -> Float> { { 1f } }
-
-/** How long a committed back gesture waits for its entry to start leaving. */
-private val BackDeclinedAfter = 200.milliseconds
 
 /**
  * Whether this overlay is on its way out. A lambda, read where it matters — an

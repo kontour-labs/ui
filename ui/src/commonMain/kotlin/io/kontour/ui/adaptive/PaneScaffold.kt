@@ -355,12 +355,17 @@ private fun SinglePane(
     }
     val transition = rememberTransition(state, label = "pane")
     val ground = Theme.colours.background
+    // The edge of the back gesture this change is, latched when its transform
+    // is chosen and held until the next one is, so the page effects last the
+    // whole of it — the part after the hand let go included.
+    val gestureEdge = remember { GestureEdge() }
 
     transition.AnimatedContent(
         modifier = modifier.fillMaxSize(),
         transitionSpec = {
             // The detail arrives from the trailing edge and the list comes back
             // from the leading one, in whichever feel back has here.
+            gestureEdge.edge = if (targetState == PaneFocus.List && back.inProgress) back.swipeEdge else null
             when {
                 targetState == PaneFocus.Detail -> motion.push()
                 back.inProgress -> motion.predictivePop(back.swipeEdge)
@@ -376,7 +381,12 @@ private fun SinglePane(
                 .drawBehind {
                     if (transition.currentState != transition.targetState) drawRect(ground)
                 }
-                .pageEffects(motion, this, isPop = { transition.targetState == PaneFocus.List })
+                .pageEffects(
+                    motion,
+                    this,
+                    isPop = { transition.targetState == PaneFocus.List },
+                    gestureEdge = { gestureEdge.edge },
+                )
         ) {
             when (current) {
                 PaneFocus.List -> list()
@@ -384,6 +394,11 @@ private fun SinglePane(
             }
         }
     }
+}
+
+/** The edge of the back gesture a change of pane is, or null when it is not one. */
+private class GestureEdge {
+    var edge: Int? = null
 }
 
 @Composable

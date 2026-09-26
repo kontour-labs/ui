@@ -133,7 +133,7 @@ class PaneBackTest {
     }
 
     @Test
-    fun underPredictiveBackTheDetailLiftsInItsPane() = runDesktopComposeUiTest(width = 1000, height = 700) {
+    fun underPredictiveBackTheDetailFollowsTheFingerInItsPane() = runDesktopComposeUiTest(width = 1000, height = 700) {
         val back = Back()
         val backStack = mutableStateListOf<Any>(Stops, Stop("Perth"))
         setContent { Display(back, BackStyle.Predictive, backStack) }
@@ -141,7 +141,8 @@ class PaneBackTest {
 
         dragTo(back, 0.5f)
         val mid = bounds("Perth")
-        assertTrue(mid.width < rest.width, "the detail should shrink as it is lifted")
+        assertEquals(rest.width, mid.width, 1f, "the detail shrank; it should only move")
+        assertEquals(rest.left + rest.width / 2, mid.left, rest.width * 0.03f, "halfway back, the detail should be half its width across")
 
         runOnUiThread { back.input.backCompleted() }
         waitForIdle()

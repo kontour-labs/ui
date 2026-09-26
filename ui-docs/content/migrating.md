@@ -140,14 +140,16 @@ Nothing in the library answered back before: an Android back press with a sheet
 open left the screen, and `ListDetailPaneScaffold.onBack` was never called. Now:
 
 - **Overlays take back.** The `OverlayHost` gives it to the topmost entry that
-  takes it, and each overlay follows a back gesture while it runs. A handler of
-  your own that called `overlayHost.dismissTop()` on back still works, but never
-  sees an overlay now — remove it.
+  takes it. On Android it closes by the overlay's own exit animation, following
+  the gesture; on iOS back does not close overlays at all, and only stops at
+  them. A handler of your own that called `overlayHost.dismissTop()` on back
+  still works, but never sees an overlay now — remove it.
 - **A dimmed modal that may not be dismissed swallows back.** `Dialog`,
   `ModalBottomSheet`, `ModalSideSheet` and `CommandPalette` with
-  `dismissible = false` take back and refuse it, rather than letting it pop the
-  screen behind them. `dismissible = false` used to leave `dismissOnBack` on; an
-  entry of your own with `ScrimStyle.Dimmed` does the same.
+  `dismissible = false` take back and do nothing with it, rather than letting it
+  pop the screen behind them. `dismissible = false` used to leave
+  `dismissOnBack` on; an entry of your own with `ScrimStyle.Dimmed` does the
+  same.
 - **`ListDetailPaneScaffold` calls `onBack`** for back on one pane, and follows
   the gesture.
 - **How back looks is per platform:** `LocalBackStyle` is `Predictive` on Android
