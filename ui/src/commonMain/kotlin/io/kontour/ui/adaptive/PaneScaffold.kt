@@ -59,6 +59,9 @@ object PaneScaffoldDefaults {
     /** How much of a two-pane window the list takes. */
     const val ListWeight: Float = 0.38f
 
+    /** How much of a two-pane window the supporting pane takes, once open. */
+    const val SupportingWeight: Float = 0.32f
+
     val MinPaneWidth: Dp = 280.dp
     val HandleWidth: Dp = 12.dp
 }
@@ -163,7 +166,13 @@ fun SupportingPaneScaffold(
     supportingVisible: Boolean = true,
     onDismissSupporting: () -> Unit = {},
     twoPane: Boolean = LocalWindowSizeClass.current.width.hasRoomForTwoPanes,
-    supportingWeight: Float = 0.32f,
+    supportingWeight: Float = PaneScaffoldDefaults.SupportingWeight,
+    /**
+     * Whether the seam between the panes can be dragged, as
+     * [ListDetailPaneScaffold]'s can. Two panes only: a sheet is resized by its
+     * own drag.
+     */
+    resizable: Boolean = false,
     showDivider: Boolean = true,
 ) {
     // The main pane is one pane in every layout. Opening the supporting pane
@@ -186,6 +195,7 @@ fun SupportingPaneScaffold(
             modifier = modifier,
             visible = supportingVisible,
             supportingWeight = supportingWeight,
+            resizable = resizable,
             showDivider = showDivider,
             main = mainPane,
             supporting = supporting,
@@ -241,10 +251,14 @@ private fun TwoPaneSupporting(
     modifier: Modifier,
     visible: Boolean,
     supportingWeight: Float,
+    resizable: Boolean,
     showDivider: Boolean,
     main: @Composable () -> Unit,
     supporting: @Composable () -> Unit,
 ) {
+    // The caller's weight until the seam is dragged; a new weight from the
+    // caller starts again from it.
+    var weight by remember(supportingWeight) { mutableFloatStateOf(supportingWeight) }
     val motion = Theme.motion
     val share by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
@@ -254,25 +268,44 @@ private fun TwoPaneSupporting(
     val fraction = share.coerceIn(0f, 1f)
     var totalWidth by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
+    val minWidthPx = with(density) { PaneScaffoldDefaults.MinPaneWidth.toPx() }
 
     Row(
         modifier = modifier
             .fillMaxSize()
             .onSizeChanged { totalWidth = it.width.toFloat() }
     ) {
-        Box(Modifier.weight(1f - supportingWeight * fraction).fillMaxHeight()) { main() }
+        Box(Modifier.weight(1f - weight * fraction).fillMaxHeight()) { main() }
 
         // Out of composition once it has gone, which is what lets a Navigation 3
         // entry that was popped to close it finally be cleaned up.
         if (fraction > 0f) {
-            if (showDivider) VerticalDivider(Modifier.alpha(fraction))
+            if (resizable) {
+                Box(Modifier.alpha(fraction)) {
+                    ResizeHandle(
+                        onDelta = { delta ->
+                            if (totalWidth <= 0f) return@ResizeHandle false
+                            // The same clamp as `TwoPane`'s, on the other pane:
+                            // dragging the seam towards the end grows the main
+                            // pane, so it shrinks this one.
+                            val minWeight = (minWidthPx / totalWidth).coerceAtMost(0.5f)
+                            val asked = weight - delta / totalWidth
+                            weight = asked.coerceIn(minWeight, 1f - minWeight)
+                            asked != weight
+                        },
+                        fraction = 1f - weight,
+                    )
+                }
+            } else if (showDivider) {
+                VerticalDivider(Modifier.alpha(fraction))
+            }
             Box(
                 Modifier
-                    .weight(supportingWeight * fraction)
+                    .weight(weight * fraction)
                     .fillMaxHeight()
                     .clipToBounds()
             ) {
-                val full = with(density) { (totalWidth * supportingWeight).toDp() }
+                val full = with(density) { (totalWidth * weight).toDp() }
                 Box(
                     if (fraction < 1f && totalWidth > 0f) {
                         Modifier

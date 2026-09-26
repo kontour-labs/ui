@@ -145,7 +145,7 @@ fun Gauge(
     val sweep = sweepAngle.coerceIn(MinSweep, FullTurn)
     // A band's gaps, and an unbanded scale, are the dial's own colour.
     val scaleDefault = Theme.colours.primary
-    val defaultContentBackground = Theme.colours.surface.copy(alpha = ContentBackgroundAlpha)
+    val defaultContentBackground = Theme.colours.surface.copy(alpha = GaugeDefaults.ContentBackgroundAlpha)
 
     // Read in draw and nowhere else, so a gauge at rest does no work and a moving
     // one only redraws.
@@ -376,6 +376,9 @@ data class DialColours(
 )
 
 object GaugeDefaults {
+    /** How opaque the capsule behind a dial's content is: enough to read over a needle. */
+    const val ContentBackgroundAlpha: Float = 0.85f
+
     /** The dial's width and height. */
     val Size: Dp get() = GaugeSize
 
@@ -420,9 +423,6 @@ internal const val ThumbShare: Float = 0.85f
 
 /** A needle's length against the room inside the ticks. */
 private const val NeedleShare: Float = 0.8f
-
-/** How opaque the capsule behind a gauge's content is, by default: enough to read over a needle. */
-internal const val ContentBackgroundAlpha: Float = 0.85f
 
 /** A needle's width against the arc's. */
 internal const val NeedleWidthShare: Float = 0.5f

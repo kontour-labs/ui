@@ -53,7 +53,7 @@ fun LinearProgress(
     contentDescription: String? = null,
     colour: Color = Theme.colours.primary,
     trackColour: Color = Theme.colours.outline,
-    height: Dp = 6.dp,
+    height: Dp = ProgressDefaults.LinearHeight,
 ) {
     val motion = Theme.motion
 
@@ -148,10 +148,10 @@ fun CircularProgress(
     progress: Float?,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
-    size: Dp = 40.dp,
+    size: Dp = ProgressDefaults.CircularSize,
     colour: Color = Theme.colours.primary,
     trackColour: Color = Theme.colours.outline,
-    strokeWidth: Dp = 4.dp,
+    strokeWidth: Dp = ProgressDefaults.CircularStrokeWidth,
 ) {
     // Indeterminate is the [Spinner], not a second sweep of the same arc.
     //
@@ -242,8 +242,8 @@ fun StepProgress(
     working: Boolean = false,
     colour: Color = Theme.colours.primary,
     trackColour: Color = Theme.colours.outline,
-    height: Dp = 4.dp,
-    gap: Dp = 4.dp,
+    height: Dp = ProgressDefaults.StepHeight,
+    gap: Dp = ProgressDefaults.StepGap,
 ) {
     if (total <= 0) return
     val motion = Theme.motion
@@ -484,3 +484,21 @@ internal const val BandTravel = 1400
 
 /** How long the indeterminate walk rests on each step. */
 private const val StepWalkPerSegment = 320
+
+/** What the progress indicators take by default. */
+object ProgressDefaults {
+    /** A [LinearProgress] bar's thickness. */
+    val LinearHeight: Dp = 6.dp
+
+    /** A [CircularProgress] ring's diameter. */
+    val CircularSize: Dp = 40.dp
+
+    /** A [CircularProgress] ring's stroke. */
+    val CircularStrokeWidth: Dp = 4.dp
+
+    /** A [StepProgress] segment's thickness. */
+    val StepHeight: Dp = 4.dp
+
+    /** The space between [StepProgress] segments. */
+    val StepGap: Dp = 4.dp
+}

@@ -85,7 +85,7 @@ fun Popover(
     alignment: OverlayAlignment = OverlayAlignment.Centre,
     scrim: ScrimStyle = ScrimStyle.Transparent,
     showArrow: Boolean = true,
-    maxWidth: Dp = 320.dp,
+    maxWidth: Dp = PopoverDefaults.MaxWidth,
     dismissOnScroll: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -297,4 +297,10 @@ fun LoadingOverlay(
             )
         )
     }
+}
+
+/** What a [Popover] takes by default. */
+object PopoverDefaults {
+    /** Wide enough for a short form, narrow enough to read as attached to its anchor. */
+    val MaxWidth: Dp = 320.dp
 }

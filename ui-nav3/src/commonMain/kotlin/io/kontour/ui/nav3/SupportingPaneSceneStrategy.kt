@@ -14,6 +14,7 @@ import androidx.navigation3.scene.Scene
 import androidx.navigation3.scene.SceneStrategy
 import androidx.navigation3.scene.SceneStrategyScope
 import io.kontour.ui.adaptive.LocalWindowSizeClass
+import io.kontour.ui.adaptive.PaneScaffoldDefaults
 import io.kontour.ui.adaptive.SupportingPaneScaffold
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetDetent
@@ -61,17 +62,18 @@ import kotlinx.coroutines.flow.first
  * @param twoPane Whether there is room for both. Read here, at composition,
  *   because `calculateScene` is not a composable. Width alone.
  * @param supportingWeight How much of the width the supporting pane takes on two
- *   panes. Null for [SupportingPaneScaffold]'s own default, rather than a second
- *   copy of its number here.
+ *   panes, [SupportingPaneScaffold]'s own default unless given.
+ * @param resizable Whether the seam between the two panes can be dragged.
  * @param showDivider A hairline between the panes.
  */
 @Composable
 fun <T : Any> rememberSupportingPaneSceneStrategy(
     twoPane: Boolean = LocalWindowSizeClass.current.width.hasRoomForTwoPanes,
-    supportingWeight: Float? = null,
+    supportingWeight: Float = PaneScaffoldDefaults.SupportingWeight,
+    resizable: Boolean = false,
     showDivider: Boolean = true,
-): SceneStrategy<T> = remember(twoPane, supportingWeight, showDivider) {
-    SupportingPaneSceneStrategy(twoPane, supportingWeight, showDivider)
+): SceneStrategy<T> = remember(twoPane, supportingWeight, resizable, showDivider) {
+    SupportingPaneSceneStrategy(twoPane, supportingWeight, resizable, showDivider)
 }
 
 /** Marks an entry as the main content of a main-and-supporting pair. */
@@ -91,7 +93,8 @@ private val NavEntry<*>.isSupporting: Boolean get() = metadata[SupportingPaneKey
 
 internal class SupportingPaneSceneStrategy<T : Any>(
     private val twoPane: Boolean,
-    private val supportingWeight: Float?,
+    private val supportingWeight: Float,
+    private val resizable: Boolean,
     private val showDivider: Boolean,
 ) : SceneStrategy<T> {
 
@@ -110,11 +113,11 @@ internal class SupportingPaneSceneStrategy<T : Any>(
 
         if (twoPane) {
             if (top.isMain) {
-                return SupportingPaneScene(top, null, entries.dropLast(1), supportingWeight, showDivider, onBack)
+                return SupportingPaneScene(top, null, entries.dropLast(1), supportingWeight, resizable, showDivider, onBack)
             }
             if (!top.isSupporting) return null
             val main = entries.getOrNull(entries.lastIndex - 1)?.takeIf { it.isMain } ?: return null
-            return SupportingPaneScene(main, top, entries.dropLast(1), supportingWeight, showDivider, onBack)
+            return SupportingPaneScene(main, top, entries.dropLast(1), supportingWeight, resizable, showDivider, onBack)
         }
 
         // Narrow, and only over the main content it supports: a supporting pane
@@ -144,7 +147,8 @@ internal class SupportingPaneScene<T : Any>(
     private val main: NavEntry<T>,
     private val supporting: NavEntry<T>?,
     override val previousEntries: List<NavEntry<T>>,
-    private val supportingWeight: Float?,
+    private val supportingWeight: Float,
+    private val resizable: Boolean,
     private val showDivider: Boolean,
     private val onBack: () -> Unit,
 ) : Scene<T> {
@@ -166,28 +170,16 @@ internal class SupportingPaneScene<T : Any>(
         if (supporting != null) leaving.value = supporting
         val pane: @Composable () -> Unit = { leaving.value?.Content() }
 
-        // Two calls rather than one, so a null weight leaves the scaffold's own
-        // default in charge instead of a copy of it here.
-        if (supportingWeight == null) {
-            SupportingPaneScaffold(
-                main = { main.Content() },
-                supporting = pane,
-                supportingVisible = supporting != null,
-                onDismissSupporting = onBack,
-                twoPane = true,
-                showDivider = showDivider,
-            )
-        } else {
-            SupportingPaneScaffold(
-                main = { main.Content() },
-                supporting = pane,
-                supportingVisible = supporting != null,
-                onDismissSupporting = onBack,
-                twoPane = true,
-                supportingWeight = supportingWeight,
-                showDivider = showDivider,
-            )
-        }
+        SupportingPaneScaffold(
+            main = { main.Content() },
+            supporting = pane,
+            supportingVisible = supporting != null,
+            onDismissSupporting = onBack,
+            twoPane = true,
+            supportingWeight = supportingWeight,
+            resizable = resizable,
+            showDivider = showDivider,
+        )
     }
 
     override fun equals(other: Any?): Boolean =
@@ -196,13 +188,15 @@ internal class SupportingPaneScene<T : Any>(
             entries == other.entries &&
             previousEntries == other.previousEntries &&
             supportingWeight == other.supportingWeight &&
+            resizable == other.resizable &&
             showDivider == other.showDivider
 
     override fun hashCode(): Int {
         var result = key.hashCode()
         result = 31 * result + entries.hashCode()
         result = 31 * result + previousEntries.hashCode()
-        result = 31 * result + (supportingWeight?.hashCode() ?: 0)
+        result = 31 * result + supportingWeight.hashCode()
+        result = 31 * result + resizable.hashCode()
         result = 31 * result + showDivider.hashCode()
         return result
     }

@@ -101,8 +101,8 @@ fun <T> WheelPicker(
     onSelectedIndexChange: (Int) -> Unit,
     itemLabel: (T) -> String,
     modifier: Modifier = Modifier,
-    visibleItems: Int = 5,
-    itemHeight: Dp = 40.dp,
+    visibleItems: Int = WheelPickerDefaults.VisibleItems,
+    itemHeight: Dp = WheelPickerDefaults.ItemHeight,
     infinite: Boolean = false,
 ) {
     require(visibleItems % 2 == 1) {
@@ -928,3 +928,11 @@ private fun lerp(start: Float, stop: Float, fraction: Float): Float =
  */
 private const val WheelOverscrollRows = 1.5f
 
+/** What a [WheelPicker] takes by default. */
+object WheelPickerDefaults {
+    /** Rows in view: the one picked, and two either side of it. */
+    const val VisibleItems: Int = 5
+
+    /** One row's height. */
+    val ItemHeight: Dp = 40.dp
+}

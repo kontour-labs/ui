@@ -109,7 +109,7 @@ fun GlassSurface(
     } else {
         GlassSurfaceDefaults.Alpha
     },
-    borderAlpha: Float = 0.35f,
+    borderAlpha: Float = GlassSurfaceDefaults.BorderAlpha,
     blurRadius: Dp = GlassSurfaceDefaults.BlurRadius,
     backdrop: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
@@ -163,6 +163,9 @@ fun GlassSurface(
 }
 
 object GlassSurfaceDefaults {
+
+    /** How strongly the pane's hairline edge shows, over its tint. */
+    const val BorderAlpha: Float = 0.35f
 
     /**
      * How much tint a pane carries by default.

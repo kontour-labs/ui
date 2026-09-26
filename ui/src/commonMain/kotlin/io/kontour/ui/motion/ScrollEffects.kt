@@ -54,9 +54,9 @@ enum class RevealVariant { FadeUp, FadeScale, FadeStart, FadeEnd }
 @Composable
 fun Modifier.revealOnScroll(
     variant: RevealVariant = RevealVariant.FadeUp,
-    threshold: Float = 0.1f,
+    threshold: Float = ScrollEffectDefaults.RevealThreshold,
     delay: Duration = Duration.ZERO,
-    distance: Dp = 24.dp,
+    distance: Dp = ScrollEffectDefaults.RevealDistance,
 ): Modifier {
     val motion = Theme.motion
     if (motion.reduceMotion) return this
@@ -128,7 +128,7 @@ fun Modifier.revealOnScroll(
  *   detaches from the page.
  */
 @Composable
-fun Modifier.parallax(strength: Float = 0.08f): Modifier {
+fun Modifier.parallax(strength: Float = ScrollEffectDefaults.ParallaxStrength): Modifier {
     val motion = Theme.motion
     if (motion.reduceMotion) return this
 
@@ -156,4 +156,16 @@ fun Modifier.parallax(strength: Float = 0.08f): Modifier {
             if (kotlin.math.abs(next - target) > 0.5f) target = next
         }
         .graphicsLayer { translationY = offset.value }
+}
+
+/** What the scroll-driven modifiers take by default. */
+object ScrollEffectDefaults {
+    /** How much of an element has to be on screen before [revealOnScroll] plays. */
+    const val RevealThreshold: Float = 0.1f
+
+    /** How far a [revealOnScroll] travels as it arrives. */
+    val RevealDistance: Dp = 24.dp
+
+    /** How far a [parallax] layer moves, as a fraction of its distance from the centre. */
+    const val ParallaxStrength: Float = 0.08f
 }

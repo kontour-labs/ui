@@ -175,6 +175,9 @@ data class ActivityMark(
 )
 
 object ActivityCalendarDefaults {
+    /** Shades past empty: four, as a contribution graph has. */
+    const val LevelCount: Int = 4
+
     /** A year and a bit: every day of the last twelve months, in whole weeks. */
     val Weeks: Int get() = ActivityWeeks
 
@@ -195,7 +198,7 @@ object ActivityCalendarDefaults {
     @Composable
     @ReadOnlyComposable
     fun colours(
-        levels: Int = ActivityLevelCount,
+        levels: Int = LevelCount,
         empty: Color = Theme.colours.surfaceSunken,
         full: Color = Theme.colours.primary,
         label: Color = Theme.colours.contentMuted,
@@ -944,7 +947,6 @@ private fun levelRamp(levels: Int, empty: Color, full: Color): List<Color> {
 }
 
 private const val ActivityWeeks: Int = 53
-private const val ActivityLevelCount: Int = 4
 private val ActivityCellGap: Dp = 3.dp
 private val ActivityCellShape: Shape = SquircleShape(CornerSize(ActivityCellCornerPercent))
 private const val ActivityCellCornerPercent: Int = 20

@@ -260,7 +260,7 @@ fun AnimatedBanner(
 fun Callout(
     modifier: Modifier = Modifier,
     tone: Tone = Tone.Accent,
-    icon: ImageVector? = calloutIcon(tone),
+    icon: ImageVector? = CalloutDefaults.icon(tone),
     content: @Composable () -> Unit,
 ) {
     val colours = bannerColoursFor(tone)
@@ -296,6 +296,16 @@ fun Callout(
     }
 }
 
+/** What a [Callout] takes by default. */
+object CalloutDefaults {
+    /**
+     * The mark for [tone]: the tone's own glyph, and the info mark for the two
+     * tones that are notes rather than states.
+     */
+    @Composable
+    fun icon(tone: Tone): ImageVector = toneIcon(tone)
+}
+
 /**
  * The glyph a tone falls back to.
  *
@@ -303,8 +313,7 @@ fun Callout(
  * the things it decides, alongside the ground and the border in
  * [bannerColoursFor].
  */
-@Composable
-private fun calloutIcon(tone: Tone): ImageVector = when (tone) {
+private fun toneIcon(tone: Tone): ImageVector = when (tone) {
     Tone.Neutral -> SystemIcons.Info
     Tone.Info -> SystemIcons.Info
     Tone.Success -> SystemIcons.Success
@@ -318,7 +327,6 @@ private fun calloutIcon(tone: Tone): ImageVector = when (tone) {
     // is what it means.
     Tone.Accent -> SystemIcons.Info
 }
-
 
 @Composable
 private fun bannerColoursFor(tone: Tone): StatusColours = when (tone) {

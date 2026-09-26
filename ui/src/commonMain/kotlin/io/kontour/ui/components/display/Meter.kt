@@ -152,7 +152,7 @@ fun Meter(
     val measurer = rememberTextMeasurer()
     // A band's gaps, and an unbanded scale, are the meter's own colour.
     val scaleDefault = Theme.colours.primary
-    val defaultContentBackground = Theme.colours.surface.copy(alpha = ContentBackgroundAlpha)
+    val defaultContentBackground = Theme.colours.surface.copy(alpha = MeterDefaults.ContentBackgroundAlpha)
     val gapPx = with(density) { Theme.spacing.xs.toPx() }
     val lengthPx = with(density) { MeterDefaults.Length.toPx() }
 
@@ -442,6 +442,9 @@ enum class MeterContentPlacement {
 }
 
 object MeterDefaults {
+    /** How opaque the capsule behind a meter's content is, as a gauge's. */
+    const val ContentBackgroundAlpha: Float = GaugeDefaults.ContentBackgroundAlpha
+
     /** The track's width. */
     val Thickness: Dp get() = MeterThickness
 
