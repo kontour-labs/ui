@@ -106,10 +106,10 @@ import kotlin.math.roundToInt
  *   content next to the track.
  * @param contentPlacement Whether [content] sits in one place — above a horizontal
  *   meter, beside a vertical one — or rides along with the reading.
- * @param contentBackground Whether [content] sits on a translucent capsule of
+ * @param showContentBackground Whether [content] sits on a translucent capsule of
  *   `colours.contentBackground`. Most use riding along with the reading, where it
  *   reads as a tag.
- * @param animated Whether a new [value] travels there or is simply drawn there.
+ * @param animateValue Whether a new [value] travels there or is simply drawn there.
  *   Reduced motion does not travel either way.
  * @param contentDescription What is being measured, for a screen reader.
  * @param stateDescription What a screen reader says for the value, from it — "62
@@ -136,8 +136,8 @@ fun Meter(
     tickLabel: ((Float) -> String)? = null,
     tickPlacement: GaugeTickPlacement = GaugeTickPlacement.Outside,
     contentPlacement: MeterContentPlacement = MeterContentPlacement.Fixed,
-    contentBackground: Boolean = false,
-    animated: Boolean = true,
+    showContentBackground: Boolean = false,
+    animateValue: Boolean = true,
     contentDescription: String? = null,
     stateDescription: ((Float) -> String)? = null,
     content: @Composable BoxScope.() -> Unit = {},
@@ -159,8 +159,8 @@ fun Meter(
     // Read in draw and in placement and nowhere else, so a meter at rest does no
     // work and a moving one only redraws and re-places its content.
     val shown = remember { Animatable(value) }
-    LaunchedEffect(value, animated, motion.reduceMotion) {
-        if (animated && !motion.reduceMotion) {
+    LaunchedEffect(value, animateValue, motion.reduceMotion) {
+        if (animateValue && !motion.reduceMotion) {
             shown.animateTo(value, motion.springOrTween(motion.springGentle))
         } else {
             shown.snapTo(value)
@@ -335,7 +335,7 @@ fun Meter(
                     else -> Alignment.CenterStart
                 },
             ) {
-                if (contentBackground) {
+                if (showContentBackground) {
                     // Out round the content, not into it, as on the gauge — and drawn
                     // behind it alone, so a full-width slot is not a full-width capsule.
                     val shape = Theme.shapes.capsule

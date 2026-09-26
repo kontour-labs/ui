@@ -130,7 +130,7 @@ internal class NavDrawerScopeImpl(
     ) {
         val level = nestLevel
         NavDrawerGroup(
-            label = { +label },
+            header = { +label },
             expanded = expanded,
             onExpandedChange = onExpandedChange,
             icon = icon,

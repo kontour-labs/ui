@@ -12,7 +12,7 @@ var end by remember { mutableStateOf<LocalDate?>(null) }
 DateRangePicker(
     start = start,
     end = end,
-    onRangeSelected = { from, to -> start = from; end = to },
+    onRangeChange = { from, to -> start = from; end = to },
     today = LocalDate(2026, 6, 12),
 )
 ```

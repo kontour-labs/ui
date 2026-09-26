@@ -71,7 +71,7 @@ import io.kontour.ui.theme.cornerReaches
  * @param side Whose message it is, which decides the side it sits on, its colour
  *   and where its tail is.
  * @param position Where this bubble sits in a run from one sender.
- * @param tail Whether the last bubble of a run points at its sender. Off for a
+ * @param showTail Whether the last bubble of a run points at its sender. Off for a
  *   quieter thread, or one where each message is already set apart.
  * @param shape The bubble's corners. The ones between bubbles of a run take
  *   [joinedCorner] instead.
@@ -88,7 +88,7 @@ fun ChatBubble(
     side: BubbleSide,
     modifier: Modifier = Modifier,
     position: GroupPosition = GroupPosition.Only,
-    tail: Boolean = true,
+    showTail: Boolean = true,
     containerColour: Color = ChatBubbleDefaults.containerColour(side),
     contentColour: Color = ChatBubbleDefaults.contentColour(side),
     shape: CornerBasedShape = Theme.shapes.capsule,
@@ -98,11 +98,11 @@ fun ChatBubble(
     content: @Composable () -> Unit,
 ) {
     val tailWidth = ChatBubbleDefaults.TailWidth
-    val bubble = remember(side, position, tail, shape, joinedCorner, tailWidth) {
+    val bubble = remember(side, position, showTail, shape, joinedCorner, tailWidth) {
         ChatBubbleShape(
             body = bodyShape(shape, side, position, CornerSize(joinedCorner)),
             onEnd = side == BubbleSide.Outgoing,
-            tail = tail && (position == GroupPosition.Last || position == GroupPosition.Only),
+            tail = showTail && (position == GroupPosition.Last || position == GroupPosition.Only),
             tailWidth = tailWidth,
         )
     }

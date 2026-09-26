@@ -256,6 +256,6 @@ fun ColourPickerParts() {
         colour = label,
         onColourChange = { label = it },
         mode = ColourPickerMode.Palette,
-        valueField = false,
+        showValueField = false,
     )
 }

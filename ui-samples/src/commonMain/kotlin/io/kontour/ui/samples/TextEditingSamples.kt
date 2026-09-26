@@ -150,7 +150,7 @@ fun SpecialisedFieldsBasics() {
     // Each is `TextField` with the keyboard, the autofill hint and the
     // transformation already right — the three things that get forgotten one
     // at a time.
-    PasswordField(state = password, label = "Password", isNewPassword = true)
+    PasswordField(state = password, label = "Password", newPassword = true)
     NumberField(state = adults, label = "Adults", maxLength = 2)
     // Stored clean, displayed masked: the caller reads "0412345678".
     PhoneField(state = phone, label = "Mobile")

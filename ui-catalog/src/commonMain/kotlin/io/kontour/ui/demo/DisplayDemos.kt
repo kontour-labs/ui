@@ -545,14 +545,14 @@ internal val EmptyStateDemo = ComponentDemo(
     if (this@ComponentDemo[stateKind] == "Error") {
         ErrorState(Modifier.fillMaxWidth(), onRetry = { echo("Retry") }) {
             +"Couldn't load your favourites"
-            supporting { +"Check your connection and try again." }
+            message { +"Check your connection and try again." }
             leading { +Tabler.Outline.AlertTriangle }
         }
         return@ComponentDemo
     }
     EmptyState(Modifier.fillMaxWidth()) {
         +"No favourites yet"
-        supporting { +"Star a stop or route and it will appear here." }
+        message { +"Star a stop or route and it will appear here." }
         leading { +Tabler.Outline.Star }
         action {
             Button(
@@ -741,7 +741,7 @@ internal val CarouselDemo = ComponentDemo(
         // observable until the clock advances — and under a hand-driven clock,
         // which `EverythingRespondsTest` needs because the overlays never stop
         // asking for frames, all four dots read as wired to nothing.
-        onPageSelect = { page ->
+        onPageClick = { page ->
             echo("Page ${page + 1}")
             scope.launch { carousel.scrollToPage(page) }
         },
@@ -765,7 +765,7 @@ internal val PageIndicatorDemo = ComponentDemo(
         // observable until the clock advances — and under a hand-driven clock,
         // which `EverythingRespondsTest` needs because the overlays never stop
         // asking for frames, all four dots read as wired to nothing.
-        onPageSelect = { page ->
+        onPageClick = { page ->
             echo("Page ${page + 1}")
             scope.launch { carousel.scrollToPage(page) }
         },
@@ -778,7 +778,7 @@ internal val KeyValueListDemo = ComponentDemo(
     slug = "key-value-list",
     knobs = listOf(kvDividers),
 ) {
-    KeyValueList(dividers = this[kvDividers], modifier = Modifier.fillMaxWidth()) {
+    KeyValueList(showDividers = this[kvDividers], modifier = Modifier.fillMaxWidth()) {
         item("Operator", "Transperth")
         item("Platform", "2")
         item("Fare", "$3.20")
@@ -963,12 +963,12 @@ internal val GaugeDemo = ComponentDemo(
             indicator = indicator,
             needleLength = this@ComponentDemo[gaugeNeedleLength],
             needleMatchesFill = this@ComponentDemo[gaugeNeedleMatchesFill],
-            contentBackground = this@ComponentDemo[gaugeLabelBackground],
+            showContentBackground = this@ComponentDemo[gaugeLabelBackground],
             majorTicks = 6,
             minorTicks = 1,
             tickLabel = { "${(it / 1000).roundToInt()}K" },
             tickPlacement = ticks,
-            animated = animated,
+            animateValue = animated,
             colours = GaugeDefaults.colours(indicator = fill, needle = needleColour),
             contentDescription = "Engine speed",
             stateDescription = { "${it.roundToInt()} revolutions a minute" },
@@ -1082,8 +1082,8 @@ internal val MeterDemo = ComponentDemo(
             tickLabel = { "${it.roundToInt()}%" },
             tickPlacement = this@ComponentDemo[meterTicks],
             contentPlacement = this@ComponentDemo[meterContent],
-            contentBackground = this@ComponentDemo[meterLabelBackground],
-            animated = this@ComponentDemo[meterAnimated],
+            showContentBackground = this@ComponentDemo[meterLabelBackground],
+            animateValue = this@ComponentDemo[meterAnimated],
             contentDescription = "Battery",
             stateDescription = { "${it.roundToInt()} percent charged" },
         ) {
@@ -1136,19 +1136,19 @@ internal val ChatBubbleDemo = ComponentDemo(
     val position = this[bubblePosition]
     val tail = this[bubbleTail]
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        ChatBubble(side = BubbleSide.Incoming, position = GroupPosition.First, tail = tail) {
+        ChatBubble(side = BubbleSide.Incoming, position = GroupPosition.First, showTail = tail) {
             Text("Is the 950 running tonight?")
         }
         ChatBubble(
             side = BubbleSide.Incoming,
             position = GroupPosition.Last,
-            tail = tail,
+            showTail = tail,
             meta = { Text("9:41") },
         ) {
             Text("The app says it's delayed")
         }
         Spacer(Modifier.height(Theme.spacing.sm))
-        ChatBubble(side = side, position = position, tail = tail, meta = { Text("9:42 · Read") }) {
+        ChatBubble(side = side, position = position, showTail = tail, meta = { Text("9:42 · Read") }) {
             Text("Every 15 minutes until 11pm, then every 30 overnight.")
         }
     }

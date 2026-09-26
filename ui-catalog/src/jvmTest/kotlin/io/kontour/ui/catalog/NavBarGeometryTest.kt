@@ -124,7 +124,7 @@ class NavBarGeometryTest {
                                 selectedIndex = 1,
                                 modifier = Modifier.testTag("bar"),
                                 showLabels = showLabels,
-                                backdrop = backdrop,
+                                showBackdrop = backdrop,
                                 action = if (withAction) {
                                     {
                                         FloatingActionButton(

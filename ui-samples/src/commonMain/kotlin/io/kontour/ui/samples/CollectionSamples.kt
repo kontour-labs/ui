@@ -137,7 +137,7 @@ fun ListSectionBasics() {
     // as a stack of separate ones.
     ListSection(
         title = { +"Appearance" },
-        description = { +"How the app looks on this device" },
+        supporting = { +"How the app looks on this device" },
         // Above the rows is what the group *is*; below them is what it *does*.
         footer = { +"Always dark keeps the screen dark even when the system is light." },
     ) {
@@ -170,7 +170,7 @@ fun LoadMoreBasics() {
     LoadMore(
         state = state,
         onLoadMore = { state = LoadMoreState.Loading },
-        errorLabel = "Couldn't load more departures",
+        errorMessage = "Couldn't load more departures",
         endLabel = "That's everything",
     )
 }

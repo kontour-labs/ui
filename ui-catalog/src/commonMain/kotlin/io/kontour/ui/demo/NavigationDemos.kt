@@ -182,7 +182,7 @@ internal val NavSurfacesDemo = ComponentDemo(
                     selectedIndex = selected.coerceAtMost(3),
                     style = style,
                     showLabels = labels,
-                    backdrop = backdrop,
+                    showBackdrop = backdrop,
                     action = {
                         // The bar's action slot takes either. A floating action
                         // is the common case; `NavSearch` is what goes there
@@ -323,10 +323,10 @@ private fun OverflowMenu(echo: (String) -> Unit) {
             alignment = OverlayAlignment.End,
         ) {
             // The rows dismiss the menu themselves — see `MenuScopeImpl.item`.
-            item("Pin this stop", icon = Tabler.Outline.Pin) { echo("Pin this stop") }
-            item("Alert settings", icon = Tabler.Outline.Bell) { echo("Alert settings") }
+            item("Pin this stop", leadingIcon = Tabler.Outline.Pin) { echo("Pin this stop") }
+            item("Alert settings", leadingIcon = Tabler.Outline.Bell) { echo("Alert settings") }
             divider()
-            item("Remove stop", icon = Tabler.Outline.Trash, destructive = true) {
+            item("Remove stop", leadingIcon = Tabler.Outline.Trash, destructive = true) {
                 echo("Remove stop")
             }
         }

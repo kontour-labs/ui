@@ -17,7 +17,7 @@ AlertDialog(
     destructive = true,
 ) {
     +"Remove this favourite?"
-    supporting {
+    message {
         +"Perth Underground will be taken off your home screen. You can add it back any time."
     }
 }

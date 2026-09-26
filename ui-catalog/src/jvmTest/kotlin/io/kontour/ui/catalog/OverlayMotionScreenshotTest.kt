@@ -264,7 +264,7 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
                                 enabled = showing.value,
                                 id = "save-trip",
                                 title = "Save this trip",
-                                text = "Saved trips show up on the home screen.",
+                                message = "Saved trips show up on the home screen.",
                                 priority = 10,
                             ),
                         )
@@ -300,7 +300,7 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
                     destructive = true,
                 ) {
                     +"Remove this favourite?"
-                    supporting { +"Perth Underground will be taken off your home screen." }
+                    message { +"Perth Underground will be taken off your home screen." }
                 }
             }
         }

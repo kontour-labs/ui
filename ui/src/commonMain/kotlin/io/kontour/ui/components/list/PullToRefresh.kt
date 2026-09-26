@@ -645,7 +645,7 @@ fun LoadMore(
     modifier: Modifier = Modifier,
     onRetry: () -> Unit = onLoadMore,
     loadingLabel: String = Theme.strings.loadingMore,
-    errorLabel: String = Theme.strings.loadMoreFailed,
+    errorMessage: String = Theme.strings.loadMoreFailed,
     retryLabel: String = Theme.strings.retry,
     endLabel: String? = null,
 ) {
@@ -683,7 +683,7 @@ fun LoadMore(
                 verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             ) {
                 Text(
-                    text = errorLabel,
+                    text = errorMessage,
                     style = Theme.typography.bodySmall,
                     colour = Theme.colours.contentMuted,
                 )

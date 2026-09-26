@@ -7,9 +7,9 @@ Every action in the app, by name, from the keyboard.
 var open by remember { mutableStateOf(false) }
 val commands = remember {
     listOf(
-        Command("plan", "Plan a trip", onRun = { plan() }, shortcut = "P"),
-        Command("saved", "Saved trips", onRun = { nearby() }, keywords = listOf("favourites")),
-        Command("offline", "Download for offline", onRun = { save() }, enabled = false),
+        Command("plan", "Plan a trip", onAction = { plan() }, shortcut = "P"),
+        Command("saved", "Saved trips", onAction = { nearby() }, keywords = listOf("favourites")),
+        Command("offline", "Download for offline", onAction = { save() }, enabled = false),
     )
 }
 

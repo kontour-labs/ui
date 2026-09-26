@@ -11,9 +11,9 @@ var index by remember { mutableStateOf(1) }
 
 WheelPicker(
     items = platforms,
-    selected = index,
-    onSelectedChange = { index = it },
-    label = { it },
+    selectedIndex = index,
+    onSelectedIndexChange = { index = it },
+    itemLabel = { it },
 )
 ```
 
@@ -85,7 +85,7 @@ has not loaded should do.
 The wheel reports the centred item as its `stateDescription`, so a screen reader
 announces the value the picker has settled on rather than the scroll position.
 
-`label` is what gets announced, so return something speakable: `"08"` reads as
+`itemLabel` is what gets announced, so return something speakable: `"08"` reads as
 "zero eight" and is what a clock wants visually — where the two disagree, the
 component drawing the wheel should give it a spoken form.
 

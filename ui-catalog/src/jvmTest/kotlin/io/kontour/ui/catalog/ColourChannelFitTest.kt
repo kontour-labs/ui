@@ -40,7 +40,7 @@ class ColourChannelFitTest {
                         colour = Color(1f, 0.5f, 0f, 1f),
                         onColourChange = {},
                         modifier = Modifier.padding(16.dp).width(320.dp),
-                        alphaSlider = true,
+                        showAlphaSlider = true,
                         format = ColourFormat.Rgb,
                         swatches = emptyList(),
                     )

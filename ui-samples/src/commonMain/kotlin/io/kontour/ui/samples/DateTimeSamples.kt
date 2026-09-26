@@ -94,7 +94,7 @@ fun ActivityCalendarMarks() {
     ActivityCalendar(
         activity = tripsByDay,
         end = LocalDate(2026, 6, 5),
-        markFor = { date, count ->
+        markerFor = { date, count ->
             when {
                 date in publicHolidays -> ActivityMark(corner = holiday, description = "Public holiday")
                 date in flights -> ActivityMark(icon = Tabler.Outline.Plane, description = flights.getValue(date))
@@ -128,7 +128,7 @@ fun WheelPickerBasics() {
         items = platforms,
         selectedIndex = index,
         onSelectedIndexChange = { index = it },
-        label = { it },
+        itemLabel = { it },
     )
 }
 

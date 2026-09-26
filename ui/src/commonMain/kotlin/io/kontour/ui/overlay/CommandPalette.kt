@@ -62,7 +62,7 @@ import io.kontour.ui.theme.inset
 data class Command(
     val id: String,
     val label: String,
-    val onRun: () -> Unit,
+    val onAction: () -> Unit,
     val icon: ImageVector? = null,
     val shortcut: String? = null,
     val group: String? = null,
@@ -78,8 +78,8 @@ data class Command(
  *     visible = paletteOpen,
  *     onDismissRequest = { paletteOpen = false },
  *     commands = listOf(
- *         Command("plan", "Plan a trip", onRun = ::plan, shortcut = "⌘P"),
- *         Command("saved", "Saved trips", onRun = ::openSaved, keywords = listOf("favourites")),
+ *         Command("plan", "Plan a trip", onAction = ::plan, shortcut = "⌘P"),
+ *         Command("saved", "Saved trips", onAction = ::openSaved, keywords = listOf("favourites")),
  *     ),
  * )
  * ```
@@ -103,8 +103,9 @@ data class Command(
  * keystroke the user is looking at the top of the results, not at wherever they
  * had arrowed to before the list changed under them.
  *
- * @param filter Decides what a query matches. The default is case-insensitive
- *   over the label and [Command.keywords].
+ * @param matches Decides whether a command answers a query, in `Combobox`'s
+ *   order: the command, then the query. The default, [commandMatches], is
+ *   case-insensitive over the label and [Command.keywords].
  */
 @Composable
 fun CommandPalette(
@@ -138,12 +139,12 @@ fun CommandPalette(
      * but a palette that is the only way through a required step is a real case.
      */
     dismissible: Boolean = true,
-    filter: (String, Command) -> Boolean = ::commandMatches,
+    matches: (Command, String) -> Boolean = ::commandMatches,
 ) {
     val host = LocalOverlayHost.current
     val latestModifier by rememberUpdatedState(modifier)
     val latestCommands by rememberUpdatedState(commands)
-    val latestFilter by rememberUpdatedState(filter)
+    val latestMatches by rememberUpdatedState(matches)
     val latestDismiss by rememberUpdatedState(onDismissRequest)
     val latestTopInset by rememberUpdatedState(topInset)
     val latestDismissible by rememberUpdatedState(dismissible)
@@ -179,7 +180,7 @@ fun CommandPalette(
                                 modifier = latestModifier.padding(top = latestTopInset),
                                 query = query,
                                 commands = latestCommands,
-                                filter = latestFilter,
+                                matches = latestMatches,
                                 placeholder = placeholder,
                                 emptyLabel = emptyLabel,
                                 width = width,
@@ -202,7 +203,7 @@ private fun PaletteBody(
     modifier: Modifier,
     query: TextFieldState,
     commands: List<Command>,
-    filter: (String, Command) -> Boolean,
+    matches: (Command, String) -> Boolean,
     placeholder: String,
     emptyLabel: String,
     width: Dp,
@@ -211,8 +212,8 @@ private fun PaletteBody(
     dismissible: Boolean,
 ) {
     val text = query.text.toString()
-    val matches = remember(text, commands) {
-        if (text.isBlank()) commands else commands.filter { filter(text, it) }
+    val found = remember(text, commands) {
+        if (text.isBlank()) commands else commands.filter { matches(it, text) }
     }
 
     var highlighted by remember { mutableIntStateOf(0) }
@@ -246,13 +247,13 @@ private fun PaletteBody(
 
     // Keep the highlighted row on screen when the arrows walk past the fold.
     LaunchedEffect(highlighted) {
-        if (matches.isNotEmpty()) listState.animateScrollToItem(highlighted.coerceIn(matches.indices))
+        if (found.isNotEmpty()) listState.animateScrollToItem(highlighted.coerceIn(found.indices))
     }
 
     fun run(index: Int) {
-        val command = matches.getOrNull(index) ?: return
+        val command = found.getOrNull(index) ?: return
         if (!command.enabled) return
-        command.onRun()
+        command.onAction()
         onDismissRequest()
     }
 
@@ -265,19 +266,19 @@ private fun PaletteBody(
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.key) {
                     Key.DirectionDown -> {
-                        if (matches.isNotEmpty()) {
-                            highlighted = (highlighted + 1) % matches.size
+                        if (found.isNotEmpty()) {
+                            highlighted = (highlighted + 1) % found.size
                         }
                         true
                     }
 
                     Key.DirectionUp -> {
-                        if (matches.isNotEmpty()) {
+                        if (found.isNotEmpty()) {
                             // `+ size` before the modulo: Kotlin's `%` keeps the
                             // sign of the left operand, so `-1 % 5` is `-1` and
                             // arrowing up from the first row lands out of bounds
                             // rather than at the last.
-                            highlighted = (highlighted - 1 + matches.size) % matches.size
+                            highlighted = (highlighted - 1 + found.size) % found.size
                         }
                         true
                     }
@@ -335,7 +336,7 @@ private fun PaletteBody(
                 debounceMillis = 0L,
             )
 
-            if (matches.isEmpty()) {
+            if (found.isEmpty()) {
                 Text(
                     text = emptyLabel,
                     style = Theme.typography.bodyMedium,
@@ -354,8 +355,8 @@ private fun PaletteBody(
                     modifier = Modifier.heightIn(max = maxHeight),
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {
-                    itemsIndexed(matches, key = { _, command -> command.id }) { index, command ->
-                        val position = GroupPosition.of(index, matches.size)
+                    itemsIndexed(found, key = { _, command -> command.id }) { index, command ->
+                        val position = GroupPosition.of(index, found.size)
                         ListItem(
                             onClick = { run(index) },
                             enabled = command.enabled,
@@ -378,7 +379,7 @@ private fun PaletteBody(
 }
 
 /** Case-insensitive over the label and [Command.keywords]. */
-fun commandMatches(query: String, command: Command): Boolean {
+fun commandMatches(command: Command, query: String): Boolean {
     val needle = query.trim().lowercase()
     if (needle.isEmpty()) return true
     if (command.label.lowercase().contains(needle)) return true

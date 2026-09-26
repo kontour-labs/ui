@@ -1006,7 +1006,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 modifier = modifier,
                 weeks = 10,
                 today = end,
-                markFor = { date, _ ->
+                markerFor = { date, _ ->
                     when (date) {
                         holiday -> ActivityMark(corner = warning, description = "Public holiday")
                         end.minus(DatePeriod(days = 10)) -> ActivityMark(dot = info, description = "Trip")
@@ -1754,7 +1754,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 onColourChange = { onActivate() },
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
                 enabled = enabled,
-                alphaSlider = true,
+                showAlphaSlider = true,
             )
         }
     )
@@ -1783,7 +1783,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // footer never wrapped.
                 modifier = modifier.widthIn(max = SpecimenProseWidth),
                 title = { +"Appearance" },
-                description = { +"How the app looks on this device" },
+                supporting = { +"How the app looks on this device" },
                 footer = { +"Always dark keeps the screen dark even in daylight." },
             ) {
                 SettingRow(
@@ -2094,7 +2094,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 items = (0..9).map { "Platform $it" },
                 selectedIndex = 3,
                 onSelectedIndexChange = {},
-                label = { it },
+                itemLabel = { it },
                 modifier = modifier,
             )
         }
@@ -2392,7 +2392,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec("NavDrawerGroup", role = null, underContract = false) { modifier, _, _ ->
             NavDrawerGroup(
-                label = { +"Lines" },
+                header = { +"Lines" },
                 expanded = true,
                 onExpandedChange = {},
                 modifier = modifier,

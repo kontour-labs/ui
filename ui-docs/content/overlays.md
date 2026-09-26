@@ -410,7 +410,7 @@ IconButton(
     modifier = Modifier.coachmark(
         id = "save-trip",
         title = "Save this trip",
-        text = "Trips you save show up on the home screen.",
+        message = "Trips you save show up on the home screen.",
         priority = 40,
         minSessions = 3,
     ),
@@ -735,7 +735,7 @@ IconButton(
         tour = tour,
         id = "saved",
         title = "Saved trips",
-        text = "The ones you keep show up here.",
+        message = "The ones you keep show up here.",
     ),
 )
 
@@ -774,8 +774,8 @@ CommandPalette(
     visible = paletteOpen,
     onDismissRequest = { paletteOpen = false },
     commands = listOf(
-        Command("plan", "Plan a trip", onRun = ::plan, shortcut = "⌘P"),
-        Command("saved", "Saved trips", onRun = ::openSaved, keywords = listOf("favourites")),
+        Command("plan", "Plan a trip", onAction = ::plan, shortcut = "⌘P"),
+        Command("saved", "Saved trips", onAction = ::openSaved, keywords = listOf("favourites")),
     ),
 )
 ```

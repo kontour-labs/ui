@@ -70,7 +70,7 @@ fun AlertDialogBasics() {
         destructive = true,
     ) {
         +"Remove this favourite?"
-        supporting {
+        message {
             +"Perth Underground will be taken off your home screen. You can add it back any time."
         }
     }
@@ -112,8 +112,8 @@ fun DropdownMenuBasics() {
         )
         DropdownMenu(visible = open, onDismissRequest = { open = false }) {
             section("This stop")
-            item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S", onClick = { open = false })
-            item("Copy stop ID", icon = Tabler.Outline.Copy, onClick = { open = false })
+            item("Share", leadingIcon = Tabler.Outline.Share, shortcut = "⌘S", onClick = { open = false })
+            item("Copy stop ID", leadingIcon = Tabler.Outline.Copy, onClick = { open = false })
             item("Set a reminder", enabled = false, onClick = {})
             divider()
             section("Sort departures by")
@@ -122,7 +122,7 @@ fun DropdownMenuBasics() {
             divider()
             item(
                 "Remove favourite",
-                icon = Tabler.Outline.Trash,
+                leadingIcon = Tabler.Outline.Trash,
                 destructive = true,
                 onClick = { open = false },
             )
@@ -205,9 +205,9 @@ fun CommandPaletteBasics() {
     var open by remember { mutableStateOf(false) }
     val commands = remember {
         listOf(
-            Command("plan", "Plan a trip", onRun = { plan() }, shortcut = "P"),
-            Command("saved", "Saved trips", onRun = { nearby() }, keywords = listOf("favourites")),
-            Command("offline", "Download for offline", onRun = { save() }, enabled = false),
+            Command("plan", "Plan a trip", onAction = { plan() }, shortcut = "P"),
+            Command("saved", "Saved trips", onAction = { nearby() }, keywords = listOf("favourites")),
+            Command("offline", "Download for offline", onAction = { save() }, enabled = false),
         )
     }
 

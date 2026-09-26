@@ -101,7 +101,7 @@ confirmation enough. Under reduced motion the tick appears rather than draws.
 
 **A full swipe runs the outermost action**, which is the first one declared —
 the one at the screen edge, and the one that takes the strip at the point of no
-return. `isFullSwipeAction` says whether the *side* has a full swipe at all; it
+return. `fullSwipe` says whether the *side* has a full swipe at all; it
 does not choose which action, because there is only one action a full swipe can
 mean. A side where nothing opted in has no point of no return: carried as far as it
 goes, it opens.

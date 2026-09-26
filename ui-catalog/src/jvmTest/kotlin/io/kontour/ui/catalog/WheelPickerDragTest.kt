@@ -42,7 +42,7 @@ class WheelPickerDragTest {
                     items = (0..23).toList(),
                     selectedIndex = selected,
                     onSelectedIndexChange = { selected = it },
-                    label = { it.toString().padStart(2, '0') },
+                    itemLabel = { it.toString().padStart(2, '0') },
                     modifier = Modifier.reportBounds { bounds = it },
                 )
             }
@@ -77,7 +77,7 @@ class WheelPickerDragTest {
                     items = (0..23).toList(),
                     selectedIndex = selected,
                     onSelectedIndexChange = { selected = it },
-                    label = { it.toString().padStart(2, '0') },
+                    itemLabel = { it.toString().padStart(2, '0') },
                     itemHeight = androidx.compose.ui.unit.Dp(40f),
                     modifier = Modifier.reportBounds { bounds = it },
                 )
@@ -158,7 +158,7 @@ class WheelPickerContainmentTest {
                     items = (0..23).toList(),
                     selectedIndex = selected,
                     onSelectedIndexChange = { selected = it },
-                    label = { it.toString().padStart(2, '0') },
+                    itemLabel = { it.toString().padStart(2, '0') },
                     modifier = Modifier.reportBounds { wheel = it },
                 )
                 // A landing strip below the wheel: somewhere to start a drag

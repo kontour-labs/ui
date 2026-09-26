@@ -88,7 +88,7 @@ class InfiniteWheelTest {
                     items = (0..23).toList(),
                     selectedIndex = selected,
                     onSelectedIndexChange = { selected = it },
-                    label = { it.toString().padStart(2, '0') },
+                    itemLabel = { it.toString().padStart(2, '0') },
                     infinite = true,
                     modifier = Modifier.reportBounds { bounds = it },
                 )
@@ -131,7 +131,7 @@ class InfiniteWheelTest {
                     items = (0..23).toList(),
                     selectedIndex = 5,
                     onSelectedIndexChange = {},
-                    label = { it.toString().padStart(2, '0') },
+                    itemLabel = { it.toString().padStart(2, '0') },
                     infinite = true,
                     modifier = Modifier.reportBounds { bounds = it },
                 )

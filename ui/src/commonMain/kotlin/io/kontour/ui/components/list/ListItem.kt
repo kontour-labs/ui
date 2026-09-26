@@ -354,11 +354,11 @@ internal fun ListItemImpl(
  * doing that would mean walking the composed children, which Compose has no way
  * to do. Use [listPositions] or [GroupPosition.of] at the call site.
  *
- * @param description Sits under the title, above the rows. For what the group
+ * @param supporting Sits under the title, above the rows. For what the group
  *   *is*.
  * @param footer Sits under the rows. For what the setting *does* — the sentence
  *   a settings screen puts below a switch to explain the consequence of it. A
- *   slot like [description] because it is the same kind of thing, and the two
+ *   slot like [supporting] because it is the same kind of thing, and the two
  *   should not read as different mechanisms.
  * @param action Holds *controls* rather than the section's own text, which is
  *   why it is a plain `RowScope` and the three above are content slots.
@@ -367,7 +367,7 @@ internal fun ListItemImpl(
 fun ListSection(
     modifier: Modifier = Modifier,
     title: (@Composable ContentScope.() -> Unit)? = null,
-    description: (@Composable ContentScope.() -> Unit)? = null,
+    supporting: (@Composable ContentScope.() -> Unit)? = null,
     footer: (@Composable ContentScope.() -> Unit)? = null,
     action: (@Composable RowScope.() -> Unit)? = null,
     spacing: Dp = ListItemDefaults.Spacing,
@@ -379,7 +379,7 @@ fun ListSection(
     ) {
         if (title != null || action != null) {
             SectionHeader(
-                description = description,
+                supporting = supporting,
                 action = action,
                 // An action with no title used to draw an empty `Text`, which
                 // took a line's height to say nothing. An empty slot draws
@@ -410,7 +410,7 @@ fun ListSection(
 @Composable
 fun SectionHeader(
     modifier: Modifier = Modifier,
-    description: (@Composable ContentScope.() -> Unit)? = null,
+    supporting: (@Composable ContentScope.() -> Unit)? = null,
     action: (@Composable RowScope.() -> Unit)? = null,
     title: @Composable ContentScope.() -> Unit,
 ) {
@@ -438,10 +438,10 @@ fun SectionHeader(
                     }
                 }
             }
-            if (description != null) {
+            if (supporting != null) {
                 ProvideTextStyle(Theme.typography.bodySmall) {
                     ProvideContentColour(Theme.colours.contentSubtle) {
-                        ContentSlot(content = description)
+                        ContentSlot(content = supporting)
                     }
                 }
             }

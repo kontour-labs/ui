@@ -319,7 +319,7 @@ class DetentHapticsTest {
                         items = (0..23).toList(),
                         selectedIndex = hour,
                         onSelectedIndexChange = { hour = it },
-                        label = { it.toString().padStart(2, '0') },
+                        itemLabel = { it.toString().padStart(2, '0') },
                     )
                 }
             }
@@ -1059,7 +1059,7 @@ class DetentHapticsTest {
                                 icon = Tabler.Outline.Trash,
                                 onAction = {},
                                 background = Color.Red,
-                                isFullSwipeAction = true,
+                                fullSwipe = true,
                             ),
                         ),
                     ) {
@@ -1147,7 +1147,7 @@ class DetentHapticsTest {
                         modifier = Modifier.fillMaxWidth().height(72.dp)
                             .reportBounds { bounds = it },
                         end = listOf(
-                            SwipeAction("Delete", Tabler.Outline.Trash, {}, Color.Red, isFullSwipeAction = true),
+                            SwipeAction("Delete", Tabler.Outline.Trash, {}, Color.Red, fullSwipe = true),
                         ),
                     ) {
                         Box(Modifier.fillMaxWidth().height(72.dp).background(Color.White))
@@ -1190,7 +1190,7 @@ class DetentHapticsTest {
                         state = state,
                         modifier = Modifier.fillMaxWidth().height(72.dp),
                         end = listOf(
-                            SwipeAction("Delete", Tabler.Outline.Trash, {}, Color.Red, isFullSwipeAction = true),
+                            SwipeAction("Delete", Tabler.Outline.Trash, {}, Color.Red, fullSwipe = true),
                         ),
                     ) {
                         Box(Modifier.fillMaxWidth().height(72.dp).background(Color.White))
@@ -1804,7 +1804,7 @@ class DetentHapticsTest {
                     SwipeActions(
                         modifier = Modifier.fillMaxWidth().height(72.dp).reportBounds { bounds = it },
                         end = listOf(
-                            SwipeAction("Archive", Tabler.Outline.Trash, {}, Color.Blue, isFullSwipeAction = true),
+                            SwipeAction("Archive", Tabler.Outline.Trash, {}, Color.Blue, fullSwipe = true),
                         ),
                     ) {
                         Box(Modifier.fillMaxWidth().height(72.dp).background(Color.White))
@@ -1850,7 +1850,7 @@ class DetentHapticsTest {
                         onColourChange = { colour = it },
                         modifier = Modifier.padding(16.dp).width(320.dp),
                         swatches = emptyList(),
-                        valueField = false,
+                        showValueField = false,
                     )
                 }
             }
@@ -1897,7 +1897,7 @@ class DetentHapticsTest {
                         modifier = Modifier.padding(16.dp).width(320.dp),
                         mode = ColourPickerMode.Palette,
                         swatches = emptyList(),
-                        valueField = false,
+                        showValueField = false,
                     )
                 }
             }

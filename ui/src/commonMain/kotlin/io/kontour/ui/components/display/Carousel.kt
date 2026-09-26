@@ -205,7 +205,7 @@ fun rememberCarouselState(pageCount: () -> Int): CarouselState {
  * Carousel(carousel, contentDescription = "Stop photos") { page ->
  *     AspectRatioBox(16f / 9f) { Image(photos[page]) }
  * }
- * PageIndicator(carousel, onPageSelect = { carousel.scrollToPage(it) })
+ * PageIndicator(carousel, onPageClick = { carousel.scrollToPage(it) })
  * ```
  *
  * ### The swipe is a shortcut, not the route
@@ -216,7 +216,7 @@ fun rememberCarouselState(pageCount: () -> Int): CarouselState {
  * how many is showing.
  *
  * That still leaves a sighted mouse user with nothing to click, which is what
- * [PageIndicator] is for — give it `onPageSelect` and its dots become targets.
+ * [PageIndicator] is for — give it `onPageClick` and its dots become targets.
  * A carousel with a decorative indicator and no arrows is operable by exactly
  * one input method, and the app has four.
  *
@@ -720,10 +720,10 @@ private fun Modifier.heroPage(
  * Which page of how many, as a row of dots.
  *
  * ```kotlin
- * PageIndicator(carousel, onPageSelect = { scope.launch { carousel.scrollToPage(it) } })
+ * PageIndicator(carousel, onPageClick = { scope.launch { carousel.scrollToPage(it) } })
  * ```
  *
- * **Pass `onPageSelect` unless something else can change the page.** Without it
+ * **Pass `onPageClick` unless something else can change the page.** Without it
  * the dots are decoration and the carousel is swipe-only — see the note on
  * [Carousel]. With it each dot is a `Role.RadioButton` naming the page it goes
  * to, and the whole strip becomes one full-height target that sends a tap to the
@@ -734,7 +734,7 @@ private fun Modifier.heroPage(
  * Colour alone fails WCAG 1.4.1, and at this size — a few pixels of tinted
  * circle — it is the hardest place in the system to see a tint difference.
  *
- * @param onPageSelect `null` makes the dots decorative, and hides them from the
+ * @param onPageClick `null` makes the dots decorative, and hides them from the
  *   accessibility tree entirely: the carousel already announces "3 of 5", and a
  *   screen reader walking five unlabelled dots after it is noise.
  */
@@ -743,11 +743,11 @@ fun PageIndicator(
     state: CarouselState,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    onPageSelect: ((Int) -> Unit)? = null,
+    onPageClick: ((Int) -> Unit)? = null,
     style: PageIndicatorStyle = PageIndicatorStyle.Pill,
     activeColour: Color = Theme.colours.primary,
     inactiveColour: Color = Theme.colours.outlineStrong,
-    label: (Int, Int) -> String = Theme.strings.pageOfCount,
+    pageDescription: (Int, Int) -> String = Theme.strings.pageOfCount,
     /**
      * Glyphs for a step-back and step-forward button either side of the dots.
      *
@@ -755,7 +755,7 @@ fun PageIndicator(
      * design system ships no icon set, so a component that draws one has chosen
      * for you.
      *
-     * They need [onPageSelect] — it is the only way this has of moving the
+     * They need [onPageClick] — it is the only way this has of moving the
      * carousel — and they disable themselves at the ends rather than wrapping
      * around. A carousel is a row you can see the edges of; a "next" that jumps
      * back to the first page is a different control.
@@ -770,7 +770,7 @@ fun PageIndicator(
     nextLabel: String = Theme.strings.next,
 ) {
     if (previousIcon == null && nextIcon == null) {
-        PageDots(state, modifier, enabled, onPageSelect, style, activeColour, inactiveColour, label)
+        PageDots(state, modifier, enabled, onPageClick, style, activeColour, inactiveColour, pageDescription)
         return
     }
 
@@ -786,8 +786,8 @@ fun PageIndicator(
             IconButton(
                 icon = previousIcon,
                 contentDescription = previousLabel,
-                onClick = { onPageSelect?.invoke(current - 1) },
-                enabled = enabled && onPageSelect != null && current > 0,
+                onClick = { onPageClick?.invoke(current - 1) },
+                enabled = enabled && onPageClick != null && current > 0,
                 size = ButtonSize.Small,
             )
         }
@@ -796,19 +796,19 @@ fun PageIndicator(
             state = state,
             modifier = Modifier,
             enabled = enabled,
-            onPageSelect = onPageSelect,
+            onPageClick = onPageClick,
             style = style,
             activeColour = activeColour,
             inactiveColour = inactiveColour,
-            label = label,
+            label = pageDescription,
         )
 
         if (nextIcon != null) {
             IconButton(
                 icon = nextIcon,
                 contentDescription = nextLabel,
-                onClick = { onPageSelect?.invoke(current + 1) },
-                enabled = enabled && onPageSelect != null && current < count - 1,
+                onClick = { onPageClick?.invoke(current + 1) },
+                enabled = enabled && onPageClick != null && current < count - 1,
                 size = ButtonSize.Small,
             )
         }
@@ -828,7 +828,7 @@ private fun PageDots(
     state: CarouselState,
     modifier: Modifier,
     enabled: Boolean,
-    onPageSelect: ((Int) -> Unit)?,
+    onPageClick: ((Int) -> Unit)?,
     style: PageIndicatorStyle,
     activeColour: Color,
     inactiveColour: Color,
@@ -856,13 +856,13 @@ private fun PageDots(
     val dotRadius = with(LocalDensity.current) { PageIndicatorDefaults.DotSize.toPx() / 2f }
     // The gesture below outlives the composition that installed it, so the
     // handler has to be read at tap time rather than captured.
-    val select = rememberUpdatedState(onPageSelect)
+    val select = rememberUpdatedState(onPageClick)
 
     Row(
         modifier = modifier
-            .then(if (onPageSelect != null) Modifier.selectableGroup() else Modifier)
+            .then(if (onPageClick != null) Modifier.selectableGroup() else Modifier)
             .then(
-                if (onPageSelect != null) {
+                if (onPageClick != null) {
                     // **One target over the whole strip, rather than one per dot.**
                     //
                     // Reported as the indicator being too spread out, and it was:
@@ -971,7 +971,7 @@ private fun PageDots(
                 }
             )
             .semantics {
-                if (onPageSelect == null) {
+                if (onPageClick == null) {
                     // Decorative. The carousel above already says "3 of 5"; five
                     // more unlabelled nodes saying nothing is the noise that
                     // makes people turn a screen reader off.
@@ -1014,7 +1014,7 @@ private fun PageDots(
                 )
             }
 
-            if (onPageSelect == null) {
+            if (onPageClick == null) {
                 Box(Modifier.reportBox(dotCentre, dotWidth, page)) { dot() }
             } else {
                 Box(
@@ -1035,7 +1035,7 @@ private fun PageDots(
                             this.selected = selected
                             if (enabled) {
                                 onClick {
-                                    onPageSelect(page)
+                                    onPageClick(page)
                                     true
                                 }
                             }

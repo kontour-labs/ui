@@ -20,8 +20,8 @@ Box {
     )
     DropdownMenu(visible = open, onDismissRequest = { open = false }) {
         section("This stop")
-        item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S", onClick = { open = false })
-        item("Copy stop ID", icon = Tabler.Outline.Copy, onClick = { open = false })
+        item("Share", leadingIcon = Tabler.Outline.Share, shortcut = "⌘S", onClick = { open = false })
+        item("Copy stop ID", leadingIcon = Tabler.Outline.Copy, onClick = { open = false })
         item("Set a reminder", enabled = false, onClick = {})
         divider()
         section("Sort departures by")
@@ -30,7 +30,7 @@ Box {
         divider()
         item(
             "Remove favourite",
-            icon = Tabler.Outline.Trash,
+            leadingIcon = Tabler.Outline.Trash,
             destructive = true,
             onClick = { open = false },
         )

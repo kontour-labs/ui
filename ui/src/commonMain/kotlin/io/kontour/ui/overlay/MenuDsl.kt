@@ -13,10 +13,10 @@ import io.kontour.ui.components.display.Kbd
  * ```kotlin
  * DropdownMenu(visible = open, onDismissRequest = { open = false }) {
  *     section("This stop")
- *     item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S") { share(stop) }
- *     item("Copy stop ID", icon = Tabler.Outline.Copy) { copy(stop.id) }
+ *     item("Share", leadingIcon = Tabler.Outline.Share, shortcut = "⌘S") { share(stop) }
+ *     item("Copy stop ID", leadingIcon = Tabler.Outline.Copy) { copy(stop.id) }
  *     divider()
- *     item("Remove favourite", icon = Tabler.Outline.Trash, destructive = true) {
+ *     item("Remove favourite", leadingIcon = Tabler.Outline.Trash, destructive = true) {
  *         remove(stop)
  *     }
  * }
@@ -54,7 +54,7 @@ interface MenuScope : ColumnScope {
     fun item(
         label: String,
         enabled: Boolean = true,
-        icon: ImageVector? = null,
+        leadingIcon: ImageVector? = null,
         trailingIcon: ImageVector? = null,
         shortcut: String? = null,
         selected: Boolean = false,
@@ -81,7 +81,7 @@ interface MenuScope : ColumnScope {
     fun submenu(
         label: String,
         enabled: Boolean = true,
-        icon: ImageVector? = null,
+        leadingIcon: ImageVector? = null,
         content: @Composable MenuScope.() -> Unit,
     )
 }
@@ -102,7 +102,7 @@ internal class MenuScopeImpl(
     override fun item(
         label: String,
         enabled: Boolean,
-        icon: ImageVector?,
+        leadingIcon: ImageVector?,
         trailingIcon: ImageVector?,
         shortcut: String?,
         selected: Boolean,
@@ -122,7 +122,7 @@ internal class MenuScopeImpl(
             destructive = destructive,
         ) {
             +label
-            if (icon != null) leading { +icon }
+            if (leadingIcon != null) leading { +leadingIcon }
             if (trailingIcon != null) trailing { +trailingIcon }
             // A key cap, not muted text. `⌘S` set in the row's own type reads
             // as part of the label; the border is what says it is a key.
@@ -144,14 +144,14 @@ internal class MenuScopeImpl(
     override fun submenu(
         label: String,
         enabled: Boolean,
-        icon: ImageVector?,
+        leadingIcon: ImageVector?,
         content: @Composable MenuScope.() -> Unit,
     ) {
         // The nested menu closes the *whole* stack, not just itself: picking an
         // action is done with the menu, and leaving the parent open over the
         // result is the same hanging-menu bug one level up.
         val dismiss = onDismissRequest
-        SubMenu(label = { +label }, enabled = enabled, leadingIcon = icon) {
+        SubMenu(label = { +label }, enabled = enabled, leadingIcon = leadingIcon) {
             MenuScopeImpl(this, dismiss).content()
         }
     }

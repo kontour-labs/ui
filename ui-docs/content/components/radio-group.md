@@ -6,8 +6,8 @@ var mode by remember { mutableStateOf(Mode.Fastest) }
 
 RadioGroup(
     options = Mode.entries,
-    selected = mode,
-    onSelectedChange = { mode = it },
+    value = mode,
+    onValueChange = { mode = it },
 ) { option ->
     +option.displayName
     leading { +option.icon }

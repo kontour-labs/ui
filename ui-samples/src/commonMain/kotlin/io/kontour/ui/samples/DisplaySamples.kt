@@ -224,7 +224,7 @@ fun MeterAtTheReading() {
         value = 0.35f,
         modifier = Modifier.fillMaxWidth(),
         contentPlacement = MeterContentPlacement.AtValue,
-        contentBackground = true,
+        showContentBackground = true,
         contentDescription = "Download",
     ) {
         Text("35%", style = Theme.typography.labelMedium)
@@ -286,7 +286,7 @@ fun CarouselWithIndicator(photos: List<String>) {
     Carousel(carousel, contentDescription = "Stop photos") { page ->
         Text(photos[page])
     }
-    PageIndicator(carousel, onPageSelect = { scope.launch { carousel.scrollToPage(it) } })
+    PageIndicator(carousel, onPageClick = { scope.launch { carousel.scrollToPage(it) } })
 }
 
 @Composable
@@ -427,7 +427,7 @@ fun EmptyStateBasics() {
     // empty leaves the reader where they already were.
     EmptyState(Modifier.fillMaxWidth()) {
         +"No favourites yet"
-        supporting { +"Star a stop or route and it will appear here." }
+        message { +"Star a stop or route and it will appear here." }
         leading { +Tabler.Outline.Star }
         action {
             Button(onClick = { nearby() }, variant = ButtonVariant.Secondary) { +"Browse routes" }
@@ -556,12 +556,12 @@ fun PageIndicatorBasics() {
     val carousel = rememberCarouselState { 5 }
     val scope = rememberCoroutineScope()
 
-    // Given `onPageSelect` the dots become the control as well as the readout.
+    // Given `onPageClick` the dots become the control as well as the readout.
     // The strip takes the tap and sends it to the nearest dot, so the indicator
     // stays the width of its own ink rather than 48dp per page.
     PageIndicator(
         state = carousel,
-        onPageSelect = { page -> scope.launch { carousel.scrollToPage(page) } },
+        onPageClick = { page -> scope.launch { carousel.scrollToPage(page) } },
     )
 }
 

@@ -112,7 +112,7 @@ class SwipeAction(
      *
      * Set false for an action that should always need the deliberate second tap.
      */
-    val isFullSwipeAction: Boolean = true,
+    val fullSwipe: Boolean = true,
 )
 
 /** Where a swiped row has settled. */
@@ -255,7 +255,7 @@ object SwipeActionsDefaults {
  * SwipeActions(
  *     end = listOf(
  *         SwipeAction("Delete", Tabler.Outline.Trash, ::delete, Theme.colours.danger.solid,
- *             isFullSwipeAction = true),
+ *             fullSwipe = true),
  *     ),
  * ) {
  *     ListItem(onClick = { open(stop) }) { +stop.name }
@@ -382,8 +382,8 @@ fun SwipeActions(
     // A full swipe commits without waiting for a tap, and it is the **outermost**
     // action that runs — the one at the edge the row is sliding onto. Opting in is
     // per side: a side where nothing opted in has no full swipe at all.
-    val fullStart = start.firstOrNull()?.takeIf { start.any { a -> a.isFullSwipeAction } }
-    val fullEnd = end.firstOrNull()?.takeIf { end.any { a -> a.isFullSwipeAction } }
+    val fullStart = start.firstOrNull()?.takeIf { start.any { a -> a.fullSwipe } }
+    val fullEnd = end.firstOrNull()?.takeIf { end.any { a -> a.fullSwipe } }
 
     LaunchedEffect(width, start.size, end.size, fullStart, fullEnd) {
         if (width <= 0f) return@LaunchedEffect
@@ -1336,7 +1336,7 @@ fun SwipeToDismiss(
                 icon = icon,
                 onAction = onDismissRequest,
                 background = background,
-                isFullSwipeAction = true,
+                fullSwipe = true,
             )
         ),
         state = state,

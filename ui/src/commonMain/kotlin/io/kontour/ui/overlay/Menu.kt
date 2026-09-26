@@ -113,7 +113,7 @@ object MenuDefaults {
  * Box {
  *     IconButton(icon = Tabler.Outline.Dots, contentDescription = "More", onClick = { visible = true })
  *     DropdownMenu(visible, onDismissRequest = { visible = false }) {
- *         item("Share", icon = Tabler.Outline.Share, onClick = ::share)
+ *         item("Share", leadingIcon = Tabler.Outline.Share, onClick = ::share)
  *         divider()
  *         item("Delete", destructive = true, onClick = ::delete)
  *     }
@@ -494,7 +494,7 @@ fun MenuDivider(modifier: Modifier = Modifier) {
 @Composable
 fun MenuSectionHeader(
     modifier: Modifier = Modifier,
-    content: @Composable ContentScope.() -> Unit,
+    title: @Composable ContentScope.() -> Unit,
 ) {
     Box(
         modifier.padding(
@@ -506,7 +506,7 @@ fun MenuSectionHeader(
     ) {
         ProvideTextStyle(Theme.typography.labelSmall) {
             ProvideContentColour(Theme.colours.contentMuted) {
-                ContentSlot(iconSize = Theme.sizing.iconSmall, content = content)
+                ContentSlot(iconSize = Theme.sizing.iconSmall, content = title)
             }
         }
     }

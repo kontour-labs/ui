@@ -14,7 +14,7 @@ var state by remember { mutableStateOf(LoadMoreState.Idle) }
 LoadMore(
     state = state,
     onLoadMore = { state = LoadMoreState.Loading },
-    errorLabel = "Couldn't load more departures",
+    errorMessage = "Couldn't load more departures",
     endLabel = "That's everything",
 )
 ```

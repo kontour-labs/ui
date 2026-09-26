@@ -121,7 +121,7 @@ class PageIndicatorStripTest {
                     PageIndicator(
                         state = carousel,
                         modifier = Modifier.reportBounds { strip = it },
-                        onPageSelect = { page -> picked = page },
+                        onPageClick = { page -> picked = page },
                     )
                 }
             }
@@ -239,7 +239,7 @@ class PageIndicatorStripTest {
                         modifier = Modifier.reportBounds { strip = it },
                         // The report is about the interactive indicator. A
                         // decorative one never reserved anything.
-                        onPageSelect = {},
+                        onPageClick = {},
                     )
                 }
             }

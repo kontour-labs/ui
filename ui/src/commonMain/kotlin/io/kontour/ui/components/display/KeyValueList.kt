@@ -61,14 +61,14 @@ import io.kontour.ui.theme.Theme
  *   the values line up down the column — a ragged value column is the thing that
  *   makes a details panel look untidy, and intrinsic width re-ragged it every
  *   time the content changed.
- * @param dividers A hairline between rows. Off by default: the label column
+ * @param showDividers A hairline between rows. Off by default: the label column
  *   already aligns them, and a rule per row is a lot of lines for a short list.
  */
 @Composable
 fun KeyValueList(
     modifier: Modifier = Modifier,
     labelWidth: Dp = KeyValueListDefaults.LabelWidth,
-    dividers: Boolean = false,
+    showDividers: Boolean = false,
     content: KeyValueScope.() -> Unit,
 ) {
     val rows = keyValueRows(content)
@@ -97,7 +97,7 @@ fun KeyValueList(
 
         Column(Modifier.fillMaxWidth()) {
             rows.forEachIndexed { index, row ->
-                if (dividers && index > 0) HorizontalDivider()
+                if (showDividers && index > 0) HorizontalDivider()
 
                 val rowModifier = Modifier
                     .fillMaxWidth()

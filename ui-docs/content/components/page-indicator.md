@@ -9,16 +9,16 @@ to see a tint difference.
 val carousel = rememberCarouselState { 5 }
 val scope = rememberCoroutineScope()
 
-// Given `onPageSelect` the dots become the control as well as the readout.
+// Given `onPageClick` the dots become the control as well as the readout.
 // The strip takes the tap and sends it to the nearest dot, so the indicator
 // stays the width of its own ink rather than 48dp per page.
 PageIndicator(
     state = carousel,
-    onPageSelect = { page -> scope.launch { carousel.scrollToPage(page) } },
+    onPageClick = { page -> scope.launch { carousel.scrollToPage(page) } },
 )
 ```
 
-`onPageSelect = null` makes the dots decorative *and* hides them from the
+`onPageClick = null` makes the dots decorative *and* hides them from the
 accessibility tree — the carousel already says "3 of 5", and a screen reader
 walking five unlabelled dots after it is noise. Pass a handler and each dot
 becomes a `Role.RadioButton` naming the page it goes to.
@@ -35,7 +35,7 @@ stopped doing that, six read as cramped — which it had been all along.
 
 ## Accessibility
 
-With `onPageSelect` the dots become a `selectableGroup` of `Role.RadioButton`
+With `onPageClick` the dots become a `selectableGroup` of `Role.RadioButton`
 nodes, each described by `label(page, count)` — `Theme.strings.pageOfCount` by
 default, so "Page 2 of 5" rather than a dot with no name.
 
@@ -68,7 +68,7 @@ Where a 24dp target for each page is the requirement rather than the goal, pass
 they are the arrangement to reach for on a page a mouse or a switch device is
 driving.
 
-Without `onPageSelect` it is a read-out and carries nothing, including the band:
+Without `onPageClick` it is a read-out and carries nothing, including the band:
 the [`Carousel`](carousel.md) it belongs to is what announces the page.
 
 The travelling styles change nothing about what is announced. Under reduced

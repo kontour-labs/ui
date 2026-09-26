@@ -181,7 +181,7 @@ class ActivityCalendarTest {
                 OverlayHost {
                     Calendar(
                         onDayClick = {},
-                        markFor = { date, _ -> if (date == end) ActivityMark(corner = Color.Red, description = "Payday") else null },
+                        markerFor = { date, _ -> if (date == end) ActivityMark(corner = Color.Red, description = "Payday") else null },
                     )
                 }
             }
@@ -204,9 +204,9 @@ class ActivityCalendarTest {
                         activity = activity,
                         end = end,
                         weeks = 53,
-                        weekdayLabels = false,
-                        monthLabels = false,
-                        legend = false,
+                        showWeekdayLabels = false,
+                        showMonthLabels = false,
+                        showLegend = false,
                     )
                 }
             }
@@ -220,7 +220,7 @@ class ActivityCalendarTest {
     @androidx.compose.runtime.Composable
     private fun Calendar(
         selected: LocalDate? = null,
-        markFor: ((LocalDate, Int) -> ActivityMark?)? = null,
+        markerFor: ((LocalDate, Int) -> ActivityMark?)? = null,
         onDayClick: (LocalDate) -> Unit,
     ) {
         ActivityCalendar(
@@ -229,11 +229,11 @@ class ActivityCalendarTest {
             weeks = 8,
             selected = selected,
             onDayClick = onDayClick,
-            markFor = markFor,
+            markerFor = markerFor,
             cellSize = 12.dp,
-            monthLabels = false,
-            weekdayLabels = false,
-            legend = false,
+            showMonthLabels = false,
+            showWeekdayLabels = false,
+            showLegend = false,
             formats = DateTimeFormats(dayFirst = true, firstDayOfWeek = DayOfWeek.MONDAY),
         )
     }

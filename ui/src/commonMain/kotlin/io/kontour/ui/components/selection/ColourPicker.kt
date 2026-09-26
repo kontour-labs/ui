@@ -96,8 +96,8 @@ enum class ColourPickerMode {
  * | | Off by | Why you would |
  * |---|---|---|
  * | Swatches | `swatches = emptyList()` | Nothing worth suggesting |
- * | Opacity | `alphaSlider = false`, the default | Most colours are opaque |
- * | The field | `valueField = false` | Nobody here is going to type a hex |
+ * | Opacity | `showAlphaSlider = false`, the default | Most colours are opaque |
+ * | The field | `showValueField = false` | Nobody here is going to type a hex |
  * | The notation switch | `onFormatChange = null`, the default | One notation is enough |
  * | The mode switch | `onModeChange = null`, the default | See [ColourPickerMode] |
  *
@@ -118,9 +118,9 @@ enum class ColourPickerMode {
  *
  * @param onModeChange Non-null puts a switch between [ColourPickerMode.Spectrum]
  *   and [ColourPickerMode.Palette] at the top. Null shows [mode] and no switch.
- * @param alphaSlider Adds an opacity track, over a chequerboard so a
+ * @param showAlphaSlider Adds an opacity track, over a chequerboard so a
  *   half-transparent colour can be told from the surface behind it.
- * @param valueField Shows the colour written out, and lets it be typed.
+ * @param showValueField Shows the colour written out, and lets it be typed.
  * @param onFormatChange Non-null lets the reader change notation, which swaps
  *   which inputs are shown. Null pins [format].
  * @param swatches Offered under the spectrum, and the whole of
@@ -138,8 +138,8 @@ fun ColourPicker(
     enabled: Boolean = true,
     mode: ColourPickerMode = ColourPickerMode.Spectrum,
     onModeChange: ((ColourPickerMode) -> Unit)? = null,
-    alphaSlider: Boolean = false,
-    valueField: Boolean = true,
+    showAlphaSlider: Boolean = false,
+    showValueField: Boolean = true,
     format: ColourFormat = ColourFormat.Hex,
     onFormatChange: ((ColourFormat) -> Unit)? = null,
     swatches: List<Color> = ColourPickerDefaults.Swatches,
@@ -220,7 +220,7 @@ fun ColourPicker(
                 ColourPickerMode.Palette -> PaletteGrid(hsv, { emit(next = it) }, enabled)
             }
             HueTrack(hsv.hue, { emit(next = hsv.copy(hue = it)) }, enabled)
-            if (alphaSlider) {
+            if (showAlphaSlider) {
                 AlphaTrack(alpha, hsv.toColour(), { emit(nextAlpha = it) }, enabled)
             }
 
@@ -244,7 +244,7 @@ fun ColourPicker(
                 )
             }
 
-            if (valueField) {
+            if (showValueField) {
                 ColourFields(
                     colour = hsv.toColour(alpha),
                     // A typed value is a finished one: there is no drag to wait for.
@@ -255,7 +255,7 @@ fun ColourPicker(
                     enabled = enabled,
                     format = format,
                     onFormatChange = onFormatChange,
-                    withAlpha = alphaSlider,
+                    withAlpha = showAlphaSlider,
                 )
             }
         }

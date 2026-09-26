@@ -105,7 +105,7 @@ class StateLifecycleTest {
     fun aWheelPickerSurvivesItsListShortening() {
         var items by mutableStateOf(listOf("one", "two", "three", "four", "five"))
         survives("wheel picker list shortening") { control ->
-            WheelPicker(items = items, selectedIndex = 4, onSelectedIndexChange = {}, label = { it })
+            WheelPicker(items = items, selectedIndex = 4, onSelectedIndexChange = {}, itemLabel = { it })
             control.onSettled = { items = listOf("one") }
         }
     }
@@ -125,7 +125,7 @@ class StateLifecycleTest {
                 items = items,
                 selectedIndex = 4,
                 onSelectedIndexChange = {},
-                label = { it },
+                itemLabel = { it },
                 infinite = true,
             )
             control.onSettled = { items = listOf("one") }

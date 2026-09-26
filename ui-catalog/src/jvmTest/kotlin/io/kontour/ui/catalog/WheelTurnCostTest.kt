@@ -61,7 +61,7 @@ class WheelTurnCostTest {
                     items = years,
                     selectedIndex = selected,
                     onSelectedIndexChange = { selected = it },
-                    label = label,
+                    itemLabel = label,
                     modifier = Modifier.reportBounds { bounds = it },
                 )
             }
@@ -99,7 +99,7 @@ class WheelTurnCostTest {
                     items = hours,
                     selectedIndex = selected,
                     onSelectedIndexChange = { selected = it },
-                    label = label,
+                    itemLabel = label,
                     infinite = true,
                     modifier = Modifier.reportBounds { bounds = it },
                 )

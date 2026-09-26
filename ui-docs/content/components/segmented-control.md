@@ -6,8 +6,8 @@ var selected by remember { mutableStateOf(0) }
 
 SegmentedControl(
     options = listOf("Bus", "Train", "Ferry"),
-    selected = selected,
-    onSelectedChange = { selected = it },
+    selectedIndex = selected,
+    onSelectedIndexChange = { selected = it },
 )
 ```
 

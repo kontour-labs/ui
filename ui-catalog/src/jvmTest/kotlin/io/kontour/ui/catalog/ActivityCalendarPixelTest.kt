@@ -109,7 +109,7 @@ class ActivityCalendarPixelTest {
     private fun render(
         direction: LayoutDirection,
         selected: LocalDate?,
-        markFor: ((LocalDate, Int) -> ActivityMark?)? = null,
+        markerFor: ((LocalDate, Int) -> ActivityMark?)? = null,
     ): Pair<BufferedImage, Rect> {
         var bounds = Rect.Zero
         lateinit var image: BufferedImage
@@ -121,12 +121,12 @@ class ActivityCalendarPixelTest {
                         end = end,
                         modifier = Modifier.reportBounds { bounds = it },
                         selected = selected,
-                        markFor = markFor,
+                        markerFor = markerFor,
                         colours = colours,
                         cellSize = 12.dp,
-                        monthLabels = false,
-                        weekdayLabels = false,
-                        legend = false,
+                        showMonthLabels = false,
+                        showWeekdayLabels = false,
+                        showLegend = false,
                         formats = DateTimeFormats(firstDayOfWeek = DayOfWeek.MONDAY),
                     )
                 }

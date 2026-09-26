@@ -70,7 +70,7 @@ class WheelPlacementTest {
                             items = hours,
                             selectedIndex = selected,
                             onSelectedIndexChange = {},
-                            label = { it },
+                            itemLabel = { it },
                             visibleItems = VisibleItems,
                             itemHeight = ItemHeight,
                             infinite = infinite,

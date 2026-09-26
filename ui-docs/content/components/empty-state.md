@@ -10,7 +10,7 @@ showing an error face for an empty list makes people think they broke something.
 // empty leaves the reader where they already were.
 EmptyState(Modifier.fillMaxWidth()) {
     +"No favourites yet"
-    supporting { +"Star a stop or route and it will appear here." }
+    message { +"Star a stop or route and it will appear here." }
     leading { +Tabler.Outline.Star }
     action {
         Button(onClick = { nearby() }, variant = ButtonVariant.Secondary) { +"Browse routes" }

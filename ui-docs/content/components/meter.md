@@ -69,7 +69,7 @@ wherever they can:
   the bar and the scale reads underneath it.
 - **`thickness` and `cap`**, as on the gauge. The thumb and the needle scale with
   the thickness.
-- **`animated`** — a new reading travels there on the theme's gentle spring, or is
+- **`animateValue`** — a new reading travels there on the theme's gentle spring, or is
   drawn there when it is off and under reduced motion. The reading is read in the
   draw and placement passes, so a meter that is not moving does no work.
 
@@ -94,7 +94,7 @@ Meter(
     value = 0.35f,
     modifier = Modifier.fillMaxWidth(),
     contentPlacement = MeterContentPlacement.AtValue,
-    contentBackground = true,
+    showContentBackground = true,
     contentDescription = "Download",
 ) {
     Text("35%", style = Theme.typography.labelMedium)
@@ -123,7 +123,7 @@ centred on it and kept inside the meter's ends, so a label near either end stops
 at the edge rather than hanging off it. It moves with the animated reading, in the
 placement pass, so it never lags the fill.
 
-`contentBackground = true` sits the content on a translucent capsule of the
+`showContentBackground = true` sits the content on a translucent capsule of the
 theme's surface, as it does on the gauge, which turns a label at the reading into a
 tag. `MeterDefaults.colours(contentBackground = …)` changes its colour.
 

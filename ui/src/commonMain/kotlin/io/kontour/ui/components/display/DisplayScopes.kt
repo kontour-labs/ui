@@ -76,7 +76,7 @@ class BannerScope internal constructor() {
  * ```kotlin
  * EmptyState {
  *     +"No favourites yet"
- *     supporting { +"Star a stop and it will appear here." }
+ *     message { +"Star a stop and it will appear here." }
  *     leading { +Tabler.Outline.Star }
  *     action { Button(onClick = ::browse) { +"Browse routes" } }
  * }
@@ -91,7 +91,7 @@ class StateScope internal constructor() {
 
     internal var title: (@Composable ContentScope.() -> Unit)? = null
         private set
-    internal var supporting: (@Composable ContentScope.() -> Unit)? = null
+    internal var message: (@Composable ContentScope.() -> Unit)? = null
         private set
     internal var leading: (@Composable ContentScope.() -> Unit)? = null
         private set
@@ -122,8 +122,8 @@ class StateScope internal constructor() {
      * nothing they cannot see; followed by "Star a stop and it will appear here"
      * it becomes useful.
      */
-    fun supporting(content: @Composable ContentScope.() -> Unit) {
-        supporting = content
+    fun message(content: @Composable ContentScope.() -> Unit) {
+        message = content
     }
 
     /** The illustration above it all. */

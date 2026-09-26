@@ -55,7 +55,7 @@ class WheelPickerGiveTest {
                     selectedIndex = selected,
                     onSelectedIndexChange = { selected = it },
                     modifier = Modifier.reportBounds { bounds = it },
-                    label = { it },
+                    itemLabel = { it },
                 )
             }
         }.use { scene ->

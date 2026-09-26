@@ -339,7 +339,7 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
  modifier = *     modifier = Modifier.coachmark(
  *         id = "save-trip",
  *         title = "Save this trip",
- *         text = "Trips you save show up on the home screen.",
+ *         message = "Trips you save show up on the home screen.",
  *         priority = 40,
  *         minSessions = 3,
  *     ),
@@ -367,7 +367,7 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
 fun Modifier.coachmark(
     id: String,
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector? = null,
     side: OverlaySide = OverlaySide.Bottom,
     alignment: OverlayAlignment = OverlayAlignment.Centre,
@@ -401,7 +401,7 @@ fun Modifier.coachmark(
         visible = queue.current?.id == id,
         anchor = { bounds },
         title = title,
-        text = text,
+        message = message,
         icon = icon,
         side = side,
         alignment = alignment,
@@ -417,7 +417,7 @@ private fun CoachMarkOverlay(
     visible: Boolean,
     anchor: () -> Rect?,
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector?,
     side: OverlaySide,
     alignment: OverlayAlignment,
@@ -436,7 +436,7 @@ private fun CoachMarkOverlay(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchorNow != null, title, text, side, alignment) {
+    LaunchedEffect(visible, anchorNow != null, title, message, side, alignment) {
         if (!visible || anchorNow == null) {
             host.hide(key)
             return@LaunchedEffect
@@ -466,7 +466,7 @@ private fun CoachMarkOverlay(
                     ) {
                         CoachMarkBubble(
                             title = title,
-                            text = text,
+                            message = message,
                             icon = icon,
                             dismissLabel = dismissLabel,
                             onDismiss = { dismissNow() },
@@ -481,7 +481,7 @@ private fun CoachMarkOverlay(
 @Composable
 private fun CoachMarkBubble(
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector?,
     dismissLabel: String,
     onDismiss: () -> Unit,
@@ -490,7 +490,7 @@ private fun CoachMarkBubble(
     Surface(
         modifier = Modifier
             .widthIn(max = 320.dp)
-            .semantics(mergeDescendants = true) { contentDescription = "$title. $text" },
+            .semantics(mergeDescendants = true) { contentDescription = "$title. $message" },
         shape = Theme.shapes.container,
         containerColour = colours.accent.solid,
         contentColour = colours.accent.onSolid,
@@ -518,7 +518,7 @@ private fun CoachMarkBubble(
                 }
                 Text(title, style = Theme.typography.titleSmall)
             }
-            Text(text, style = Theme.typography.bodySmall)
+            Text(message, style = Theme.typography.bodySmall)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

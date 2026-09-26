@@ -92,7 +92,7 @@ fun TimePicker(
                     items = hours,
                     selectedIndex = hourIndex,
                     onSelectedIndexChange = { emit(hourValue = hours[it]) },
-                    label = { if (is24) it.toString().padStart(2, '0') else it.toString() },
+                    itemLabel = { if (is24) it.toString().padStart(2, '0') else it.toString() },
                 )
             }
 
@@ -103,7 +103,7 @@ fun TimePicker(
                     items = minutes,
                     selectedIndex = minuteIndex,
                     onSelectedIndexChange = { emit(minute = minutes[it]) },
-                    label = { it.toString().padStart(2, '0') },
+                    itemLabel = { it.toString().padStart(2, '0') },
                 )
             }
 
@@ -128,7 +128,7 @@ fun TimePicker(
                         items = periods,
                         selectedIndex = if (isPm) 1 else 0,
                         onSelectedIndexChange = { emit(pm = it == 1) },
-                        label = { it },
+                        itemLabel = { it },
                         visibleItems = 3,
                     )
                 }

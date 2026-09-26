@@ -73,7 +73,7 @@ import kotlinx.coroutines.launch
  *     items = (0..23).toList(),
  *     selected = hour,
  *     onSelectedChange = { hour = it },
- *     label = { it.toString().padStart(2, '0') },
+ *     itemLabel = { it.toString().padStart(2, '0') },
  * )
  * ```
  *
@@ -99,7 +99,7 @@ fun <T> WheelPicker(
     items: List<T>,
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit,
-    label: (T) -> String,
+    itemLabel: (T) -> String,
     modifier: Modifier = Modifier,
     visibleItems: Int = 5,
     itemHeight: Dp = 40.dp,
@@ -125,7 +125,7 @@ fun <T> WheelPicker(
             items = items,
             selected = selectedIndex,
             onSelectedChange = onSelectedIndexChange,
-            label = label,
+            label = itemLabel,
             modifier = modifier,
             visibleItems = visibleItems,
             itemHeight = itemHeight,
@@ -407,7 +407,7 @@ fun <T> WheelPicker(
      * back door. Keyed on everything a row is made of, so nothing here can go
      * stale.
      */
-    val rows: LazyListScope.() -> Unit = remember(items, label, itemHeight, drumDistance) {
+    val rows: LazyListScope.() -> Unit = remember(items, itemLabel, itemHeight, drumDistance) {
         {
             items(items.size) { index ->
                 Box(
@@ -415,7 +415,7 @@ fun <T> WheelPicker(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = label(items[index]),
+                        text = itemLabel(items[index]),
                         style = Theme.typography.titleLarge,
                         colour = Theme.colours.content,
                         modifier = Modifier.graphicsLayer {
@@ -561,7 +561,7 @@ fun <T> WheelPicker(
             Modifier
                 .matchParentSize()
                 .semantics {
-                    stateDescription = label(items[centredIndex])
+                    stateDescription = itemLabel(items[centredIndex])
                 }
         )
     }

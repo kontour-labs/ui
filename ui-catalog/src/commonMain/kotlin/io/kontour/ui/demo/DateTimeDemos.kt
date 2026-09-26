@@ -143,7 +143,7 @@ internal val WheelPickerDemo = ComponentDemo(
             selectedIndex = index,
             onSelectedIndexChange = { index = it },
             infinite = this@ComponentDemo[wheelInfinite],
-            label = { it },
+            itemLabel = { it },
         )
         Text(
             "Hour ${values[index]}",
@@ -242,10 +242,10 @@ internal val ActivityCalendarDemo = ComponentDemo(
         colours = ActivityCalendarDefaults.colours(
             full = if (this[activityLook] == "GitHub") Theme.colours.success.solid else Theme.colours.info.solid,
         ),
-        monthLabels = this[activityMonths],
-        weekdayLabels = this[activityWeekdays],
-        legend = this[activityLegend],
-        markFor = if (marks == "None") {
+        showMonthLabels = this[activityMonths],
+        showWeekdayLabels = this[activityWeekdays],
+        showLegend = this[activityLegend],
+        markerFor = if (marks == "None") {
             null
         } else {
             { date, count ->

@@ -106,7 +106,7 @@ class SwipeCommitTest {
      *
      * Order runs edge-inward, so the first declared action is the one at the screen
      * edge — the one the row is sliding onto, and the one a full swipe visibly
-     * becomes. `isFullSwipeAction` used to pick the action as well as enable the
+     * becomes. `fullSwipe` used to pick the action as well as enable the
      * gesture, so a row whose *inner* action set it committed the inner one, against
      * the component's own documented convention.
      */
@@ -521,14 +521,14 @@ class SwipeCommitTest {
                 icon = Tabler.Outline.Trash,
                 onAction = { onRun("Remove") },
                 background = Outer,
-                isFullSwipeAction = optIn == OptIn.OuterOnly,
+                fullSwipe = optIn == OptIn.OuterOnly,
             ),
             SwipeAction(
                 label = "Archive",
                 icon = Tabler.Outline.Archive,
                 onAction = { onRun("Archive") },
                 background = Inner,
-                isFullSwipeAction = optIn == OptIn.InnerOnly,
+                fullSwipe = optIn == OptIn.InnerOnly,
             ),
         )
 

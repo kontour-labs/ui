@@ -143,10 +143,10 @@ shape you write nine times out of ten.
 ```kotlin
 DropdownMenu(visible = open, onDismissRequest = { open = false }) {
     section("This stop")
-    item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S") { share(stop) }
-    item("Copy stop ID", icon = Tabler.Outline.Copy) { copy(stop.id) }
+    item("Share", leadingIcon = Tabler.Outline.Share, shortcut = "⌘S") { share(stop) }
+    item("Copy stop ID", leadingIcon = Tabler.Outline.Copy) { copy(stop.id) }
     divider()
-    item("Remove favourite", icon = Tabler.Outline.Trash, destructive = true) {
+    item("Remove favourite", leadingIcon = Tabler.Outline.Trash, destructive = true) {
         remove(stop)
     }
 }

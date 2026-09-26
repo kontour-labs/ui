@@ -62,8 +62,8 @@ class CommandPaletteFocusTest {
                     query = fixture.query,
                     commands = remember {
                         listOf(
-                            Command("plan", "Plan a trip", onRun = {}),
-                            Command("saved", "Saved trips", onRun = {}),
+                            Command("plan", "Plan a trip", onAction = {}),
+                            Command("saved", "Saved trips", onAction = {}),
                         )
                     },
                 )

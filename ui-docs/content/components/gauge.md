@@ -68,7 +68,7 @@ personality shows in a number:
   sit between each pair; `tickLabel` writes the major ones; `tickPlacement` puts
   them inside the arc or outside it. Outside leaves the middle to the content.
 - **The middle** — a slot. Centred, or under the hub when there is a needle.
-  `contentBackground = true` sits it on a translucent capsule, so a needle sweeping
+  `showContentBackground = true` sits it on a translucent capsule, so a needle sweeping
   past the reading goes under it rather than through it — the theme's surface at
   85% by default, or `GaugeDefaults.colours(contentBackground = …)`. The capsule
   reaches out round the reading rather than taking room from it, and the tick
@@ -156,7 +156,7 @@ reading that goes either side of a centre — a balance, a trim — fills outwar
 wherever `origin` is put.
 
 A new `value` travels there on the theme's gentle spring, or is drawn there with
-`animated = false` and under reduced motion. The value is read in the draw pass, so
+`animateValue = false` and under reduced motion. The value is read in the draw pass, so
 a gauge that is not moving does no work and a moving one only redraws.
 
 **It does not mirror.** A dial reads clockwise everywhere, the way a clock does; a

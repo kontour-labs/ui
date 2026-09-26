@@ -258,7 +258,7 @@ internal class NavBarScopeImpl : NavBarScope {
  * @param showLabels Off by default. A word under every icon is a row of words,
  *   and the destinations of an app this size are the four or five its user
  *   already knows. Turn it on for an app whose icons are not obvious.
- * @param backdrop A vertical fade from transparent to the page colour behind
+ * @param showBackdrop A vertical fade from transparent to the page colour behind
  *   the whole row. Each circle carries its own elevation, which separates it
  *   from a map; over a photo or a promotional banner it does not.
  * @param search Its own shape in the row, sized to what is left. Outside
@@ -276,7 +276,7 @@ fun NavBar(
     containerColour: Color = Theme.colours.surface,
     contentColour: Color = Theme.colours.content,
     indicatorColour: Color = Theme.colours.accent.container,
-    backdrop: Boolean = false,
+    showBackdrop: Boolean = false,
     backdropColour: Color = Theme.colours.background,
     indicatorSize: DpSize = NavItemDefaults.CircleSize,
     labelGap: Dp = Theme.spacing.xxs,
@@ -308,7 +308,7 @@ fun NavBar(
         containerColour = containerColour,
         contentColour = contentColour,
         indicatorColour = indicatorColour,
-        backdrop = backdrop,
+        showBackdrop = showBackdrop,
         backdropColour = backdropColour,
         indicatorSize = indicatorSize,
         labelGap = labelGap,
@@ -347,7 +347,7 @@ fun NavBar(
  * @param showLabels Off by default. A word under every icon is a row of words,
  *   and the destinations of an app this size are the four or five its user
  *   already knows. Turn it on for an app whose icons are not obvious.
- * @param backdrop A vertical fade from transparent to the page colour behind the
+ * @param showBackdrop A vertical fade from transparent to the page colour behind the
  *   whole row. A [NavBarStyle.Free] concern only: the other two styles have a
  *   surface, which is what a backdrop is standing in for.
  * @param arrangement How the row distributes its children. Null — the default —
@@ -364,7 +364,7 @@ fun NavBar(
     containerColour: Color = Theme.colours.surface,
     contentColour: Color = Theme.colours.content,
     indicatorColour: Color = Theme.colours.accent.container,
-    backdrop: Boolean = false,
+    showBackdrop: Boolean = false,
     backdropColour: Color = Theme.colours.background,
     indicatorSize: DpSize = NavItemDefaults.CircleSize,
     labelGap: Dp = Theme.spacing.xxs,
@@ -378,7 +378,7 @@ fun NavBar(
     // The fade is *drawn*, not laid out.
     //
     // It used to be a 128dp sibling `Box` inside this one, which made the whole
-    // component 128dp tall whenever `backdrop` was on — and since the `Row`
+    // component 128dp tall whenever `showBackdrop` was on — and since the `Row`
     // carried no alignment it then sat at the top of that box rather than at the
     // bottom. [NavigationSuiteScaffold] measures this component and hands its
     // height to the screen as padding, so turning the backdrop on inset the
@@ -387,7 +387,7 @@ fun NavBar(
     // Reaching above the node's own bounds is the point: the fade has to start
     // well over the row it stands behind, and nothing here clips.
     val backdropHeight = with(LocalDensity.current) { NavBarDefaults.BackdropHeight.toPx() }
-    val fade = if (backdrop && style == NavBarStyle.Free) {
+    val fade = if (showBackdrop && style == NavBarStyle.Free) {
         // `drawWithCache`, not `drawBehind`: a `Brush` built inside the draw
         // block is rebuilt on every frame, and a vertical gradient carries a
         // shader that has to be recreated with it.
@@ -500,7 +500,7 @@ fun NavBar(
                                 contentColour = contentColour,
                                 indicatorSize = indicatorSize,
                                 labelGap = labelGap,
-                                shadow = style == NavBarStyle.Free,
+                                showShadow = style == NavBarStyle.Free,
                             )
                         }
 
@@ -648,7 +648,7 @@ fun NavBarItem(
      * over the page. On a bar with a surface behind it that surface casts the
      * shadow, and a per-item one is a second shadow inside the first.
      */
-    shadow: Boolean = true,
+    showShadow: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
 ) {
     NavDestinationItem(
@@ -661,7 +661,7 @@ fun NavBarItem(
         contentColour = contentColour,
         indicatorSize = indicatorSize,
         labelGap = labelGap,
-        shadow = if (shadow) Theme.elevation.low else Shadow.None,
+        shadow = if (showShadow) Theme.elevation.low else Shadow.None,
         interactionSource = interactionSource,
     )
 }

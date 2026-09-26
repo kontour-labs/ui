@@ -235,9 +235,9 @@ object ActivityCalendarDefaults {
  * ActivityCalendar(
  *     activity = days,
  *     end = today,
- *     monthLabels = false,
- *     weekdayLabels = false,
- *     legend = false,
+ *     showMonthLabels = false,
+ *     showWeekdayLabels = false,
+ *     showLegend = false,
  *     colours = ActivityCalendarDefaults.colours(full = Theme.colours.info.solid),
  * )
  * ```
@@ -259,7 +259,7 @@ object ActivityCalendarDefaults {
  *
  * ### Marks
  *
- * [markFor] decorates days: a corner folded over for a holiday, an icon for a
+ * [markerFor] decorates days: a corner folded over for a holiday, an icon for a
  * trip, a count written out on a busy day. See [ActivityMark].
  *
  * ### Touch, pointer and keys
@@ -282,16 +282,16 @@ object ActivityCalendarDefaults {
  * @param onDayClick Makes the days pickable. Without it the calendar is a picture
  *   with tooltips.
  * @param today Drawn with an inner ring.
- * @param markFor What to draw on a day besides its shade, given its date and
+ * @param markerFor What to draw on a day besides its shade, given its date and
  *   count, or null for nothing. Asked once per day shown.
  * @param levels How counts become shades.
  * @param colours The shades, labels and rings.
  * @param cellSize A fixed cell size. Unspecified fits the width.
  * @param cellGap The space between cells.
  * @param cellShape Each cell's shape.
- * @param monthLabels Month names along the top.
- * @param weekdayLabels Mon, Wed and Fri down the start side.
- * @param legend "Less", the shades, "More", under the grid.
+ * @param showMonthLabels Month names along the top.
+ * @param showWeekdayLabels Mon, Wed and Fri down the start side.
+ * @param showLegend "Less", the shades, "More", under the grid.
  * @param formats Names the days, for the tooltip and the screen reader.
  * @param firstDayOfWeek The day each column starts on.
  * @param describe What a day says, given its count.
@@ -308,15 +308,15 @@ fun ActivityCalendar(
     selected: LocalDate? = null,
     onDayClick: ((LocalDate) -> Unit)? = null,
     today: LocalDate? = null,
-    markFor: ((date: LocalDate, count: Int) -> ActivityMark?)? = null,
+    markerFor: ((date: LocalDate, count: Int) -> ActivityMark?)? = null,
     levels: ActivityLevels = ActivityLevels.Quantiles,
     colours: ActivityCalendarColours = ActivityCalendarDefaults.colours(),
     cellSize: Dp = Dp.Unspecified,
     cellGap: Dp = ActivityCalendarDefaults.CellGap,
     cellShape: Shape = ActivityCalendarDefaults.CellShape,
-    monthLabels: Boolean = true,
-    weekdayLabels: Boolean = true,
-    legend: Boolean = true,
+    showMonthLabels: Boolean = true,
+    showWeekdayLabels: Boolean = true,
+    showLegend: Boolean = true,
     formats: DateTimeFormats = LocalDateTimeFormats.current,
     firstDayOfWeek: DayOfWeek = formats.firstDayOfWeek,
     describe: (date: LocalDate, count: Int) -> String = ActivityCalendarDefaults.describe(formats),
@@ -339,12 +339,12 @@ fun ActivityCalendar(
     }
 
     // Each shown day's mark, in the same order as the shades.
-    val marks = remember(activity, grid, markFor) {
-        if (markFor == null) {
+    val marks = remember(activity, grid, markerFor) {
+        if (markerFor == null) {
             null
         } else {
             Array(columns * 7) { index ->
-                grid.dateAt(index / 7, index % 7)?.let { markFor(it, activity[it] ?: 0) }
+                grid.dateAt(index / 7, index % 7)?.let { markerFor(it, activity[it] ?: 0) }
             }
         }
     }
@@ -357,7 +357,7 @@ fun ActivityCalendar(
     }
     fun say(date: LocalDate, count: Int): String {
         val words = describe(date, count)
-        val meaning = markFor?.invoke(date, count)?.description ?: return words
+        val meaning = markerFor?.invoke(date, count)?.description ?: return words
         return "$words. $meaning"
     }
 
@@ -395,7 +395,7 @@ fun ActivityCalendar(
     val currentSelected by rememberUpdatedState(selected)
     val pick by rememberUpdatedState(if (interactive) onDayClick else null)
     BoxWithConstraints(modifier) {
-        val weekdayWidth = if (weekdayLabels) {
+        val weekdayWidth = if (showWeekdayLabels) {
             with(density) {
                 listOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY)
                     .maxOf { measurer.measure(it.shortName, labelStyle).size.width }
@@ -411,7 +411,7 @@ fun ActivityCalendar(
         } else {
             MaxCell
         }
-        val monthBand = if (monthLabels) {
+        val monthBand = if (showMonthLabels) {
             with(density) { measurer.measure("May", labelStyle).size.height.toDp() } + labelSpace
         } else {
             0.dp
@@ -452,7 +452,7 @@ fun ActivityCalendar(
 
         Column {
             Row {
-                if (weekdayLabels) {
+                if (showWeekdayLabels) {
                     WeekdayLabels(
                         modifier = Modifier.size(weekdayWidth, gridHeight),
                         grid = grid,
@@ -600,7 +600,7 @@ fun ActivityCalendar(
                                 val todayRing = cellShape.createOutline(
                                     Size(size - todayInset * 2, size - todayInset * 2), layoutDirection, this,
                                 )
-                                val months = if (monthLabels) {
+                                val months = if (showMonthLabels) {
                                     val layouts = Month.entries.associateWith {
                                         measurer.measure(it.shortName, labelStyle)
                                     }
@@ -700,7 +700,7 @@ fun ActivityCalendar(
                     }
                 }
             }
-            if (legend) {
+            if (showLegend) {
                 Legend(
                     modifier = Modifier.align(Alignment.End).padding(top = labelSpace),
                     colours = colours,

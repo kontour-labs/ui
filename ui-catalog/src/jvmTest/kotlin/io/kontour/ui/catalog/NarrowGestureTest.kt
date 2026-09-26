@@ -329,7 +329,7 @@ class NarrowGestureTest {
                                 icon = Tabler.Outline.Trash,
                                 onAction = { state.fired = true },
                                 background = Color.Red,
-                                isFullSwipeAction = true,
+                                fullSwipe = true,
                             ),
                         ),
                     ) {

@@ -12,7 +12,7 @@ val email = rememberTextFieldState()
 // Each is `TextField` with the keyboard, the autofill hint and the
 // transformation already right — the three things that get forgotten one
 // at a time.
-PasswordField(state = password, label = "Password", isNewPassword = true)
+PasswordField(state = password, label = "Password", newPassword = true)
 NumberField(state = adults, label = "Adults", maxLength = 2)
 // Stored clean, displayed masked: the caller reads "0412345678".
 PhoneField(state = phone, label = "Mobile")
@@ -59,7 +59,7 @@ also works without `allowDecimal` now; it used to do nothing on its own.
 
 Each of the four sets the platform **autofill content type**, which is the part
 callers forget and the part that matters most: `PasswordField` sets
-`ContentType.Password`, or `NewPassword` with `isNewPassword = true` so the
+`ContentType.Password`, or `NewPassword` with `newPassword = true` so the
 platform offers to generate and save one rather than to fill an existing one.
 
 `PasswordField` masks with an `OutputTransformation` — one bullet per character,

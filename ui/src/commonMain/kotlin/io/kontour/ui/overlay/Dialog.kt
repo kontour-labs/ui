@@ -283,7 +283,7 @@ fun AlertDialog(
                 ContentSlot(content = title)
             }
         }
-        slots.supporting?.let { message ->
+        slots.message?.let { message ->
             ProvideContentColour(Theme.colours.contentMuted) {
                 ProvideTextStyle(Theme.typography.bodyMedium) {
                     ContentSlot(content = message)
@@ -457,7 +457,7 @@ fun ConfirmHost(controller: ConfirmationController) {
             onDismissRequest = { controller.answer(false) },
         ) {
             +pending?.title.orEmpty()
-            pending?.message?.let { message -> supporting { +message } }
+            pending?.message?.let { text -> message { +text } }
         }
     }
 }

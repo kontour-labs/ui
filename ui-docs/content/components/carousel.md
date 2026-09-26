@@ -12,7 +12,7 @@ val carousel = rememberCarouselState { photos.size }
 Carousel(carousel, contentDescription = "Stop photos") { page ->
     Text(photos[page])
 }
-PageIndicator(carousel, onPageSelect = { scope.launch { carousel.scrollToPage(it) } })
+PageIndicator(carousel, onPageClick = { scope.launch { carousel.scrollToPage(it) } })
 ```
 
 It snaps. A carousel that stops between two pages is showing neither, and the
@@ -51,7 +51,7 @@ make a sustained one. So:
   actions, the same way `SwipeActions` and `ReorderableItem` do;
 - it announces "3 of 5" as its state;
 - and `PageIndicator` becomes a real target the moment you give it
-  `onPageSelect` — one full-height band that sends a tap to the nearest dot, plus
+  `onPageClick` — one full-height band that sends a tap to the nearest dot, plus
   a named `Role.RadioButton` per page for a screen reader.
 
 A carousel with a decorative indicator and no arrows is operable by exactly one
@@ -173,4 +173,4 @@ That is the whole reason a carousel can be used without a pointer.
 
 A carousel hides content by default. Anything essential inside one is essential
 content behind a gesture, so give it a [`PageIndicator`](page-indicator.md) with
-`onPageSelect` — or reconsider the carousel.
+`onPageClick` — or reconsider the carousel.

@@ -101,11 +101,11 @@ import kotlin.math.max
  *   without labels.
  * @param tickPlacement Whether the ticks and their labels sit inside the arc or
  *   outside it. Outside leaves the middle to [content] and takes room from the arc.
- * @param contentBackground Whether [content] sits on a translucent capsule of
+ * @param showContentBackground Whether [content] sits on a translucent capsule of
  *   `colours.contentBackground`, so a needle passing behind the reading does not run
  *   through it. Off by default, where nothing crosses the middle; worth turning on
  *   with a needle that sweeps past the label.
- * @param animated Whether a new [value] travels there or is simply drawn there.
+ * @param animateValue Whether a new [value] travels there or is simply drawn there.
  *   Reduced motion does not travel either way.
  * @param stateDescription What a screen reader says for the value, from it — "8,500
  *   revolutions a minute" rather than a percentage of the range.
@@ -129,8 +129,8 @@ fun Gauge(
     minorTicks: Int = 0,
     tickLabel: ((Float) -> String)? = null,
     tickPlacement: GaugeTickPlacement = GaugeTickPlacement.Inside,
-    contentBackground: Boolean = false,
-    animated: Boolean = true,
+    showContentBackground: Boolean = false,
+    animateValue: Boolean = true,
     contentDescription: String? = null,
     stateDescription: ((Float) -> String)? = null,
     content: @Composable BoxScope.() -> Unit = {},
@@ -150,8 +150,8 @@ fun Gauge(
     // Read in draw and nowhere else, so a gauge at rest does no work and a moving
     // one only redraws.
     val shown = remember { Animatable(value) }
-    LaunchedEffect(value, animated, motion.reduceMotion) {
-        if (animated && !motion.reduceMotion) {
+    LaunchedEffect(value, animateValue, motion.reduceMotion) {
+        if (animateValue && !motion.reduceMotion) {
             shown.animateTo(value, motion.springOrTween(motion.springGentle))
         } else {
             shown.snapTo(value)
@@ -254,7 +254,7 @@ fun Gauge(
                         // Under the needle, as on a speedometer — unless the reading has
                         // a background, which reaches out over the scale in a narrow
                         // middle; then the labels go on top of it, below.
-                        if (!contentBackground) dialTickLabels(geometry, labels, labelAt)
+                        if (!showContentBackground) dialTickLabels(geometry, labels, labelAt)
                         // The needle first, so with both the thumb sits on top of
                         // the arc and the needle points at it from underneath.
                         if (hasNeedle) {
@@ -273,7 +273,7 @@ fun Gauge(
                             )
                         }
                         drawContent()
-                        if (contentBackground) dialTickLabels(geometry, labels, labelAt)
+                        if (showContentBackground) dialTickLabels(geometry, labels, labelAt)
                     }
                 }
         ) {
@@ -287,7 +287,7 @@ fun Gauge(
                 ),
                 contentAlignment = if (hasNeedle) Alignment.TopCenter else Alignment.Center,
             ) {
-                if (contentBackground) {
+                if (showContentBackground) {
                     // Drawn after the needle, like the content it is behind, so the
                     // needle passes under the reading rather than through it. **Out
                     // round the content, not into it**: the middle of a dial with

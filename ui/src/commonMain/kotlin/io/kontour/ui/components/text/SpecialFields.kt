@@ -58,7 +58,7 @@ import kotlinx.coroutines.delay
  *   struck through while it is hidden. No toggle at all without one.
  * @param hideIcon An already-slashed eye to show while the password is hidden,
  *   instead of drawing the slash across [revealIcon].
- * @param isNewPassword Set for a sign-up or change-password field. Changes the
+ * @param newPassword Set for a sign-up or change-password field. Changes the
  *   autofill hint from "fill an existing password" to "generate and save a new
  *   one", which is what makes password managers offer to create a strong one.
  * @param revealLastTyped Shows the character just typed for a moment before it
@@ -78,7 +78,7 @@ fun PasswordField(
     hideIcon: ImageVector? = null,
     revealLabel: String = Theme.strings.showPassword,
     hideLabel: String = Theme.strings.hidePassword,
-    isNewPassword: Boolean = false,
+    newPassword: Boolean = false,
     revealLastTyped: Boolean = true,
     imeAction: ImeAction = ImeAction.Done,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
@@ -125,7 +125,7 @@ fun PasswordField(
     TextField(
         state = state,
         modifier = modifier.semantics {
-            contentType = if (isNewPassword) ContentType.NewPassword else ContentType.Password
+            contentType = if (newPassword) ContentType.NewPassword else ContentType.Password
         },
         enabled = enabled,
         label = label,
@@ -246,7 +246,7 @@ fun NumberField(
     allowDecimal: Boolean = false,
     allowNegative: Boolean = false,
     maxLength: Int? = null,
-    prefix: ImageVector? = null,
+    leadingIcon: ImageVector? = null,
     imeAction: ImeAction = ImeAction.Done,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
     imeChain: ImeChainStep? = null,
@@ -283,7 +283,7 @@ fun NumberField(
         placeholder = placeholder,
         supporting = supporting,
         errorMessage = errorMessage,
-        leadingIcon = prefix,
+        leadingIcon = leadingIcon,
         variant = variant,
         keyboardType = if (allowDecimal) KeyboardType.Decimal else KeyboardType.Number,
         imeAction = imeAction,

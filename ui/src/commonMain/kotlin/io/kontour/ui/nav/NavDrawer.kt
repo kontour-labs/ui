@@ -485,7 +485,7 @@ fun NavDrawerItem(
 fun NavDrawerGroup(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
-    label: @Composable ContentScope.() -> Unit,
+    header: @Composable ContentScope.() -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
     nestLevel: Int = 0,
@@ -534,7 +534,7 @@ fun NavDrawerGroup(
             }
             Box(Modifier.weight(1f)) {
                 ProvideTextStyle(Theme.typography.bodyMedium) {
-                    ContentSlot(maxLines = 1, content = label)
+                    ContentSlot(maxLines = 1, content = header)
                 }
             }
             Icon(

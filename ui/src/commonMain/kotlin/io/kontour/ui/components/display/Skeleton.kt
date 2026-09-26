@@ -241,7 +241,7 @@ fun SkeletonText(
 fun SkeletonListItem(
     modifier: Modifier = Modifier,
     showLeading: Boolean = true,
-    supportingLine: Boolean = true,
+    showSupportingLine: Boolean = true,
 ) {
     Row(
         modifier
@@ -258,7 +258,7 @@ fun SkeletonListItem(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Skeleton(Modifier.fillMaxWidth(0.55f).height(14.dp), shape = Theme.shapes.capsule)
-            if (supportingLine) {
+            if (showSupportingLine) {
                 Skeleton(Modifier.fillMaxWidth(0.8f).height(12.dp), shape = Theme.shapes.capsule)
             }
         }

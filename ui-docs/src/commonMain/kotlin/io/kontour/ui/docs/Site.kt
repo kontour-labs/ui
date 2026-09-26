@@ -557,7 +557,7 @@ private fun DocPageView(path: String) {
         Box(Modifier.fillMaxSize(), Alignment.Center) {
             EmptyState {
                 +"No page called “$path”"
-                supporting { +"It may have been renamed. The index lists every page." }
+                message { +"It may have been renamed. The index lists every page." }
                 leading { +Tabler.Outline.FileOff }
                 action {
                     Button(onClick = { navigate(Route.Home) }, variant = ButtonVariant.Secondary) {

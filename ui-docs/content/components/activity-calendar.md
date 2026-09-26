@@ -26,9 +26,9 @@ Turn all three off for a quiet strip of cells on a profile:
 ActivityCalendar(
     activity = days,
     end = today,
-    monthLabels = false,
-    weekdayLabels = false,
-    legend = false,
+    showMonthLabels = false,
+    showWeekdayLabels = false,
+    showLegend = false,
     colours = ActivityCalendarDefaults.colours(full = Theme.colours.info.solid),
 )
 ```
@@ -86,7 +86,7 @@ val holiday = Theme.colours.warning.solid
 ActivityCalendar(
     activity = tripsByDay,
     end = LocalDate(2026, 6, 5),
-    markFor = { date, count ->
+    markerFor = { date, count ->
         when {
             date in publicHolidays -> ActivityMark(corner = holiday, description = "Public holiday")
             date in flights -> ActivityMark(icon = Tabler.Outline.Plane, description = flights.getValue(date))
@@ -96,7 +96,7 @@ ActivityCalendar(
     },
 )
 ```
-`markFor` draws on a day as well as its shade. An `ActivityMark` can have any
+`markerFor` draws on a day as well as its shade. An `ActivityMark` can have any
 of these, together:
 
 - **`corner`**: a dog-ear, the cell's top end corner folded over in a colour. For

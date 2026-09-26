@@ -177,7 +177,7 @@ internal val AlertDialogDemo = ComponentDemo(
             destructive = destructive,
         ) {
             +"Remove this favourite?"
-            supporting {
+            message {
                 +("Perth Underground will be taken off your home screen. " +
                     "You can add it back any time.")
             }
@@ -268,8 +268,8 @@ internal val DropdownMenuDemo = ComponentDemo(
                 matchAnchorWidth = this@ComponentDemo[menuMatchAnchor],
             ) {
                 section("This stop")
-                item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S", onClick = share)
-                item("Copy stop ID", icon = Tabler.Outline.Copy, onClick = copy)
+                item("Share", leadingIcon = Tabler.Outline.Share, shortcut = "⌘S", onClick = share)
+                item("Copy stop ID", leadingIcon = Tabler.Outline.Copy, onClick = copy)
                 item("Set a reminder", enabled = false, onClick = {})
                 divider()
                 section("Sort departures by")
@@ -278,7 +278,7 @@ internal val DropdownMenuDemo = ComponentDemo(
                 divider()
                 item(
                     "Remove favourite",
-                    icon = Tabler.Outline.Trash,
+                    leadingIcon = Tabler.Outline.Trash,
                     destructive = true,
                     onClick = remove,
                 )
@@ -442,16 +442,16 @@ internal val CommandPaletteDemo = ComponentDemo(
     val dismissible = this[overlayDismissible]
     // Running a command closes the palette and says which one ran.
     //
-    // `onRun = {}` before, which made the palette look alive while doing
+    // `onAction = {}` before, which made the palette look alive while doing
     // nothing — the exact defect `echo` exists for. It also mattered once the
     // knob below could switch the tap-outside off: a palette whose commands do
     // nothing and whose scrim is inert is one there is no way out of.
     val commands = remember {
         listOf(
-            Command("plan", "Plan a trip", onRun = { open = false; echo("Plan a trip") }, shortcut = "P"),
-            Command("saved", "Saved trips", onRun = { open = false; echo("Saved trips") }, keywords = listOf("favourites")),
-            Command("settings", "Settings", onRun = { open = false; echo("Settings") }, keywords = listOf("prefs")),
-            Command("offline", "Download for offline", onRun = {}, enabled = false),
+            Command("plan", "Plan a trip", onAction = { open = false; echo("Plan a trip") }, shortcut = "P"),
+            Command("saved", "Saved trips", onAction = { open = false; echo("Saved trips") }, keywords = listOf("favourites")),
+            Command("settings", "Settings", onAction = { open = false; echo("Settings") }, keywords = listOf("prefs")),
+            Command("offline", "Download for offline", onAction = {}, enabled = false),
         )
     }
     Stage(height = 440.dp) {

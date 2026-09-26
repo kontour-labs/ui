@@ -186,7 +186,7 @@ class DegenerateInputTest {
             items = listOf("one", "two", "three"),
             selectedIndex = 0,
             onSelectedIndexChange = {},
-            label = { it },
+            itemLabel = { it },
             itemHeight = 0.dp,
         )
     }
@@ -198,7 +198,7 @@ class DegenerateInputTest {
             items = emptyList<String>(),
             selectedIndex = 0,
             onSelectedIndexChange = {},
-            label = { it },
+            itemLabel = { it },
         )
     }
 

@@ -57,7 +57,7 @@ class AlertDialogAnswersTest {
                         cancelLabel = "Cancel",
                     ) {
                         +"Leave without saving?"
-                        supporting { +"This journey has unsaved changes." }
+                        message { +"This journey has unsaved changes." }
                     }
                 }
             }

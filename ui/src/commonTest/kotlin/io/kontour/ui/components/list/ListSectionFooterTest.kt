@@ -52,7 +52,7 @@ class ListSectionFooterTest {
                     ListSection(
                         modifier = Modifier.width(320.dp),
                         title = { +Title },
-                        description = { +Description },
+                        supporting = { +Description },
                         footer = { +Footer },
                     ) {
                         ListItem(position = GroupPosition.First) { +First }

@@ -217,7 +217,7 @@ class GaugeDrawingTest {
                         value = 0.02f,
                         size = 200.dp,
                         indicator = GaugeIndicator.Needle,
-                        contentBackground = background,
+                        showContentBackground = background,
                         colours = GaugeDefaults.colours(needle = Color.Green, contentBackground = Color.Magenta),
                     ) {
                         Box(Modifier.size(width = 120.dp, height = 40.dp))

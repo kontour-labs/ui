@@ -138,7 +138,7 @@ internal val ListSectionDemo = ComponentDemo(
     ListSection(
         modifier = Modifier.fillMaxWidth(),
         title = { +"Appearance" },
-        description = { +"How the app looks on this device" },
+        supporting = { +"How the app looks on this device" },
         footer = if (this[sectionFooter]) {
             { +"Always dark keeps the screen dark even when the system is light." }
         } else {
@@ -221,7 +221,7 @@ internal val SwipeActionsDemo = ComponentDemo(
             icon = Tabler.Outline.Trash,
             onAction = { echo("Removed") },
             background = Theme.colours.danger.solid,
-            isFullSwipeAction = true,
+            fullSwipe = true,
         ),
         SwipeAction(
             label = "Archive",
@@ -386,7 +386,7 @@ internal val LoadMoreDemo = ComponentDemo(
     LoadMore(
         state = state,
         onLoadMore = { state = LoadMoreState.Loading },
-        errorLabel = "Couldn't load more departures",
+        errorMessage = "Couldn't load more departures",
         modifier = Modifier.fillMaxWidth(),
     )
 }

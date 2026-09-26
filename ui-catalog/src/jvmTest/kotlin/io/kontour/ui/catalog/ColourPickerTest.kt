@@ -53,7 +53,7 @@ class ColourPickerTest {
                     modifier = Modifier.padding(16.dp).width(320.dp),
                     mode = mode,
                     swatches = emptyList(),
-                    valueField = valueField,
+                    showValueField = valueField,
                 )
             }
         }.use { scene ->
@@ -363,7 +363,7 @@ class ColourPickerTest {
                     modifier = Modifier.padding(16.dp).width(320.dp),
                     mode = ColourPickerMode.Palette,
                     swatches = emptyList(),
-                    valueField = false,
+                    showValueField = false,
                 )
             }
         }.use { scene ->

@@ -140,7 +140,7 @@ internal val SpecialisedFieldsDemo = ComponentDemo(
         PasswordField(
             state = rememberTextFieldState("hunter2"),
             label = if (this@ComponentDemo[passwordIsNew]) "Choose a password" else "Password",
-            isNewPassword = this@ComponentDemo[passwordIsNew],
+            newPassword = this@ComponentDemo[passwordIsNew],
             revealLastTyped = this@ComponentDemo[passwordRevealLast],
             revealIcon = Tabler.Outline.Eye,
             modifier = Modifier.fillMaxWidth(),

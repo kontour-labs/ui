@@ -175,7 +175,7 @@ class ShortWindowTest {
                 cancelLabel = "Stay",
             ) {
                 +"Leave this journey?"
-                supporting {
+                message {
                     +(
                         "Your planned route will not be saved, and the stops you " +
                             "added along the way will be forgotten. This cannot be undone."

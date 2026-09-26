@@ -32,7 +32,7 @@ reads as one turn in the conversation and the tail marks where it ends.
 Put a couple of dp between the bubbles of a run and more between runs.
 
 Every bubble keeps the tail's width free on its sender's side, tail or not, so a
-run lines up edge to edge. `tail = false` gives a quieter thread.
+run lines up edge to edge. `showTail = false` gives a quieter thread.
 
 A bubble grows to `maxWidthFraction` of the width it is given — 80% — so a short
 reply is short and a long one still leaves the other side of the conversation

@@ -710,7 +710,7 @@ private fun <T> Drum(
             items = items,
             selectedIndex = row(),
             onSelectedIndexChange = onRowChange,
-            label = label,
+            itemLabel = label,
         )
     }
 }

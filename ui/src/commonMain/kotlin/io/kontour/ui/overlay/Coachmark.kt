@@ -76,7 +76,7 @@ object CoachmarkDefaults {
  *         tour = tour,
  *         id = "save",
  *         title = "Save this trip",
- *         text = "Saved trips show up on the home screen.",
+ *         message = "Saved trips show up on the home screen.",
  *     ),
  enabled = * )
  * ```
@@ -191,7 +191,7 @@ fun Modifier.coachmarkStep(
     tour: CoachmarkTour,
     id: String,
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector? = null,
     side: OverlaySide = OverlaySide.Bottom,
     alignment: OverlayAlignment = OverlayAlignment.Centre,
@@ -205,7 +205,7 @@ fun Modifier.coachmarkStep(
         visible = enabled && tour.isShowing(id),
         anchor = { bounds },
         title = title,
-        text = text,
+        message = message,
         icon = icon,
         side = side,
         alignment = alignment,
@@ -229,7 +229,7 @@ private fun CoachmarkSpotlight(
     visible: Boolean,
     anchor: () -> Rect?,
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector?,
     side: OverlaySide,
     alignment: OverlayAlignment,
@@ -248,7 +248,7 @@ private fun CoachmarkSpotlight(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchorNow != null, title, text, side, alignment) {
+    LaunchedEffect(visible, anchorNow != null, title, message, side, alignment) {
         if (!visible || anchorNow == null) {
             host.hide(key)
             return@LaunchedEffect
@@ -288,7 +288,7 @@ private fun CoachmarkSpotlight(
                     ) {
                         CoachmarkBubble(
                             title = title,
-                            text = text,
+                            message = message,
                             icon = icon,
                             tour = latestTour,
                         )
@@ -352,7 +352,7 @@ private fun Spotlight(
 @Composable
 private fun CoachmarkBubble(
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector?,
     tour: CoachmarkTour,
 ) {
@@ -363,7 +363,7 @@ private fun CoachmarkBubble(
         modifier = Modifier
             .widthIn(max = BubbleMaxWidth)
             .semantics(mergeDescendants = true) {
-                contentDescription = "$title. $text"
+                contentDescription = "$title. $message"
             },
         shape = Theme.shapes.container,
         containerColour = colours.accent.solid,
@@ -383,7 +383,7 @@ private fun CoachmarkBubble(
                 }
                 Text(title, style = Theme.typography.titleSmall)
             }
-            Text(text, style = Theme.typography.bodySmall)
+            Text(message, style = Theme.typography.bodySmall)
 
             Row(
                 modifier = Modifier

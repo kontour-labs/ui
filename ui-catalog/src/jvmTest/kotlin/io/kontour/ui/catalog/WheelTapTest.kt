@@ -130,7 +130,7 @@ class WheelTapTest {
                         items = (0..23).toList(),
                         selectedIndex = selected,
                         onSelectedIndexChange = { selected = it },
-                        label = { it.toString().padStart(2, '0') },
+                        itemLabel = { it.toString().padStart(2, '0') },
                         infinite = infinite,
                         modifier = Modifier.reportBounds { bounds = it },
                     )

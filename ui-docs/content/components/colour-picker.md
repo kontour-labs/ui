@@ -32,7 +32,7 @@ ColourPicker(
     colour = label,
     onColourChange = { label = it },
     mode = ColourPickerMode.Palette,
-    valueField = false,
+    showValueField = false,
 )
 ```
 
@@ -46,7 +46,7 @@ picker with a full spectrum in it invites an off-brand answer. Pass
 saturation-and-value square; `Palette` gives the same two axes as a grid of
 forty discrete cells, which is faster to answer because a cell is a target and
 there is nothing to aim at. Both keep the hue track underneath, and both take
-the opacity track if `alphaSlider` is on — a palette built from a single hue is
+the opacity track if `showAlphaSlider` is on — a palette built from a single hue is
 a column of greys, so dropping the hue with the square would not leave a palette
 at all.
 
@@ -133,7 +133,7 @@ values, and a value is exactly what that action is for.
 **The area cannot be, and says so rather than pretending.** Saturation and value
 are two axes on one node, and there is no accessible action for a point. The
 route to any colour without the gesture is the field and the swatches, which is
-why `valueField` defaults to on: a picker with the field turned off and no
+why `showValueField` defaults to on: a picker with the field turned off and no
 swatches has one input and it is a drag. Turn it off only where the colour is a
 convenience rather than the point.
 

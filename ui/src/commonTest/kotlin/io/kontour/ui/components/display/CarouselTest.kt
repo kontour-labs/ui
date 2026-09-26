@@ -41,7 +41,7 @@ class CarouselTest {
 
     @Composable
     private fun Harness(
-        onPageSelect: ((Int) -> Unit)? = null,
+        onPageClick: ((Int) -> Unit)? = null,
         pages: Int = 4,
     ) {
         KontourTheme {
@@ -58,7 +58,7 @@ class CarouselTest {
                 PageIndicator(
                     state = carousel,
                     modifier = Modifier.testTag("dots"),
-                    onPageSelect = onPageSelect?.let { select ->
+                    onPageClick = onPageClick?.let { select ->
                         { page -> scope.launch { carousel.scrollToPage(page) }; select(page) }
                     },
                 )
@@ -99,7 +99,7 @@ class CarouselTest {
     }
 
     /**
-     * `onPageSelect` turns the dots into targets; without it they are silent.
+     * `onPageClick` turns the dots into targets; without it they are silent.
      *
      * This is the pointer route. A carousel whose indicator is decoration and
      * whose only other affordance is a drag is operable by exactly one input
@@ -107,7 +107,7 @@ class CarouselTest {
      */
     @Test
     fun dotsAreTargetsOnlyWhenTheyCanChangeThePage() = runComposeUiTest {
-        setContent { Harness(onPageSelect = null, pages = 4) }
+        setContent { Harness(onPageClick = null, pages = 4) }
         waitForIdle()
 
         onNodeWithTag("dots").assert(
@@ -120,7 +120,7 @@ class CarouselTest {
     @Test
     fun dotsBecomePressableWhenGivenAHandler() = runComposeUiTest {
         val selected = mutableListOf<Int>()
-        setContent { Harness(onPageSelect = { selected += it }, pages = 4) }
+        setContent { Harness(onPageClick = { selected += it }, pages = 4) }
         waitForIdle()
 
         onNodeWithContentDescription("Page 3 of 4").performClick()
@@ -138,7 +138,7 @@ class CarouselTest {
      */
     @Test
     fun everyDotNamesItsPage() = runComposeUiTest {
-        setContent { Harness(onPageSelect = {}, pages = 4) }
+        setContent { Harness(onPageClick = {}, pages = 4) }
         waitForIdle()
 
         for (page in 1..4) {
@@ -157,7 +157,7 @@ class CarouselTest {
      */
     @Test
     fun thereIsOneDotPerPage() = runComposeUiTest {
-        setContent { Harness(onPageSelect = {}, pages = 4) }
+        setContent { Harness(onPageClick = {}, pages = 4) }
         waitForIdle()
 
         onAllNodes(hasClickAction()).assertCountEquals(4)
