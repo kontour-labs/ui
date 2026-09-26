@@ -186,9 +186,13 @@ private fun Modifier.sidewaysScrollPages(navigation: CalendarNavigationState): M
  */
 internal val LocalTodayFlash = staticCompositionLocalOf<(() -> Float)?> { null }
 
-/** Each pulse of the flash coming in, and going out: in quickly, out a little slower. */
-private const val TodayFlashInMillis: Int = 160
-private const val TodayFlashOutMillis: Int = 340
+/**
+ * Each pulse of the flash coming in, and going out: in quickly, out a little
+ * slower, and the two close together — a blink-blink rather than two separate
+ * glows, which is how the slower first version read.
+ */
+private const val TodayFlashInMillis: Int = 90
+private const val TodayFlashOutMillis: Int = 170
 
 /** How many times today pulses: a single one was easy to miss. */
 private const val TodayFlashPulses: Int = 2

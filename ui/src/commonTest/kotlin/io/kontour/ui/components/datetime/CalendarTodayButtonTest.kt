@@ -79,9 +79,9 @@ class CalendarTodayButtonTest {
         val before = shade()
         mainClock.autoAdvance = false
         onNodeWithContentDescription("Return to today").performClick()
-        // How far from the resting shade the day is, every 40ms for a second and a half.
-        val strength = List(38) {
-            mainClock.advanceTimeBy(40L)
+        // How far from the resting shade the day is, every 20ms for a second.
+        val strength = List(50) {
+            mainClock.advanceTimeBy(20L)
             away(before, shade())
         }
         val lit = strength.map { it > 0.05f }
